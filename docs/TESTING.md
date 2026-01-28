@@ -1,0 +1,565 @@
+# gokapi: Test Strategy
+
+## Table of Contents
+- [Principles](#principles)
+- [Test Structure](#test-structure)
+- [Porting Okapi Test Cases](#porting-okapi-test-cases)
+- [Test Patterns](#test-patterns)
+- [Integration Tests](#integration-tests)
+- [Benchmarks](#benchmarks)
+- [CI Configuration](#ci-configuration)
+
+---
+
+## Principles
+
+1. **Every format and tool has tests** — No format reader/writer or tool ships without tests.
+2. **Roundtrip is the gold standard** — For formats: read → write → compare with original.
+3. **Port Okapi test data** — Use Okapi's test resource files as the source of truth.
+4. **Table-driven tests** — Go's table-driven pattern for covering multiple inputs.
+5. **Test at the interface boundary** — Test against `DataFormatReader`/`Tool` interfaces, not internals.
+6. **Deterministic AI tests** — AI tools use mock providers in CI; real providers in manual integration tests.
+
+---
+
+## Test Structure
+
+```
+gokapi/
+├── core/
+│   ├── model/
+│   │   ├── block_test.go           # Block creation, source/target segment management
+│   │   ├── layer_test.go           # Layer nesting, embedded content, format association
+│   │   ├── fragment_test.go        # Fragment span encoding/decoding
+│   │   ├── span_test.go            # Span type handling
+│   │   └── skeleton_test.go        # Skeleton reconstruction (both strategies)
+│   ├── flow/
+│   │   ├── executor_test.go        # Flow execution, goroutine wiring, error propagation
+│   │   └── builder_test.go         # FlowBuilder API
+│   └── tool/
+│       └── base_test.go            # BaseTool dispatch, pass-through behavior
+│
+├── formats/
+│   ├── plaintext/
+│   │   ├── reader_test.go
+│   │   ├── writer_test.go
+│   │   └── testdata/
+│   │       ├── simple.txt
+│   │       ├── multiline.txt
+│   │       ├── unicode.txt
+│   │       └── empty.txt
+│   ├── html/
+│   │   ├── reader_test.go
+│   │   ├── writer_test.go
+│   │   └── testdata/
+│   │       ├── simple.html
+│   │       ├── inline_codes.html
+│   │       ├── nested_tags.html
+│   │       ├── attributes.html
+│   │       ├── entities.html
+│   │       └── utf8bom.html
+│   └── ... (each format follows the same pattern)
+│
+├── tools/
+│   ├── segmentation/
+│   │   ├── tool_test.go
+│   │   └── testdata/
+│   │       ├── default.srx
+│   │       └── sample_text.txt
+│   └── ... (each tool follows the same pattern)
+│
+├── ai/
+│   ├── tools/
+│   │   ├── translate_test.go       # Uses mock provider
+│   │   └── qualitycheck_test.go    # Uses mock provider
+│   └── provider/
+│       ├── mock.go                 # Mock LLM provider for testing
+│       └── anthropic_test.go       # Integration test (requires API key)
+│
+├── plugin/
+│   ├── host/
+│   │   └── manager_test.go         # Plugin discovery, lifecycle
+│   └── integration_test.go         # End-to-end plugin roundtrip
+│
+├── testdata/                        # Shared test data files
+│   ├── html/
+│   ├── xml/
+│   ├── xliff/
+│   ├── json/
+│   ├── yaml/
+│   ├── po/
+│   ├── properties/
+│   └── docx/                        # For Java bridge tests
+│
+└── internal/
+    └── testutil/
+        ├── helpers.go               # Common test helpers
+        ├── mock_tool.go             # Mock Tool implementation
+        ├── mock_reader.go           # Mock DataFormatReader
+        └── assert_parts.go          # Custom Part assertion helpers
+```
+
+---
+
+## Porting Okapi Test Cases
+
+### Source of Test Data
+
+Okapi's test resources are in its Git repository:
+
+```bash
+git clone https://gitlab.com/okapiframework/Okapi.git /tmp/okapi-tests
+```
+
+Test resources per filter:
+```
+Okapi/filters/<format>/src/test/resources/
+```
+
+### Porting Process
+
+For each format:
+
+1. **Identify test files**: Find representative test resource files in the Okapi filter's `src/test/resources/` directory.
+
+2. **Copy test data**: Copy relevant files to `formats/<name>/testdata/` or `testdata/<name>/`.
+
+3. **Translate assertions**: Convert Java JUnit assertions to Go `testing` + `testify` assertions.
+
+**Java (Okapi):**
+```java
+@Test
+public void testSimpleHtml() {
+    String input = "<html><body><p>Hello</p></body></html>";
+    IFilter filter = new HtmlFilter();
+    filter.open(new RawDocument(input, "en"));
+
+    Event event;
+    assertTrue(filter.hasNext());
+    event = filter.next();
+    assertEquals(EventType.START_DOCUMENT, event.getEventType());
+
+    assertTrue(filter.hasNext());
+    event = filter.next();
+    assertEquals(EventType.TEXT_UNIT, event.getEventType());
+    TextUnit tu = event.getTextUnit();
+    assertEquals("Hello", tu.getSource().toString());
+
+    // ...
+    filter.close();
+}
+```
+
+**Go (gokapi):**
+```go
+func TestSimpleHTML(t *testing.T) {
+    input := `<html><body><p>Hello</p></body></html>`
+    reader := html.NewReader()
+    err := reader.Open(ctx, testutil.RawDocFromString(input, "en"))
+    require.NoError(t, err)
+    defer reader.Close()
+
+    parts := testutil.CollectParts(t, reader.Read(ctx))
+
+    require.GreaterOrEqual(t, len(parts), 3) // layer start, block, layer end
+    assert.Equal(t, model.PartLayerStart, parts[0].Type)
+
+    block := testutil.FindFirstBlock(parts)
+    require.NotNil(t, block)
+    assert.Equal(t, "Hello", block.SourceText())
+}
+```
+
+4. **Add roundtrip test**: For every format, add a roundtrip test.
+
+5. **Add edge case tests**: Port Okapi's edge case tests (empty files, BOM handling, encoding issues, malformed input).
+
+### Test Data Inventory
+
+Files to port from Okapi (representative sample):
+
+| Format | Okapi Test Path | Key Files |
+|---|---|---|
+| HTML | `filters/html/src/test/resources/` | Basic HTML, entities, inline codes, scripts, styles |
+| XML | `filters/xml/src/test/resources/` | Simple XML, namespaces, CDATA, DTD references |
+| XLIFF | `filters/xliff/src/test/resources/` | XLIFF 1.2 files with various features |
+| XLIFF 2 | `filters/xliff2/src/test/resources/` | XLIFF 2.0 with segments, notes |
+| JSON | `filters/json/src/test/resources/` | Simple JSON, nested objects, arrays |
+| YAML | `filters/yaml/src/test/resources/` | Scalars, multiline, anchors |
+| PO | `filters/po/src/test/resources/` | Singular, plural, context, comments |
+| Properties | `filters/properties/src/test/resources/` | Escapes, Unicode, multiline |
+
+---
+
+## Test Patterns
+
+### Roundtrip Test
+
+The most important test for any format: read a file, write it back, compare.
+
+```go
+func TestRoundTrip(t *testing.T) {
+    tests := []struct {
+        name string
+        file string
+    }{
+        {"simple", "testdata/simple.html"},
+        {"inline codes", "testdata/inline_codes.html"},
+        {"nested tags", "testdata/nested_tags.html"},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            original, err := os.ReadFile(tt.file)
+            require.NoError(t, err)
+
+            // Read
+            reader := NewReader()
+            err = reader.Open(ctx, testutil.RawDocFromFile(tt.file, "en"))
+            require.NoError(t, err)
+
+            parts := testutil.CollectParts(t, reader.Read(ctx))
+            reader.Close()
+
+            // Write
+            var buf bytes.Buffer
+            writer := NewWriter()
+            writer.SetOutputWriter(&buf)
+            writer.SetLocale(model.LocaleEnglish)
+
+            ch := testutil.PartsToChannel(parts)
+            err = writer.Write(ctx, ch)
+            require.NoError(t, err)
+            writer.Close()
+
+            // Compare
+            assert.Equal(t, string(original), buf.String())
+        })
+    }
+}
+```
+
+### Extraction Test
+
+Verify specific Blocks are extracted with correct content.
+
+```go
+func TestExtraction(t *testing.T) {
+    reader := NewReader()
+    err := reader.Open(ctx, testutil.RawDocFromFile("testdata/sample.html", "en"))
+    require.NoError(t, err)
+    defer reader.Close()
+
+    blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+    require.Len(t, blocks, 3)
+    assert.Equal(t, "Welcome", blocks[0].SourceText())
+    assert.Equal(t, "Click here for more info", blocks[1].SourceText())
+    assert.True(t, blocks[1].FirstFragment().HasSpans())
+    assert.Equal(t, "Footer text", blocks[2].SourceText())
+}
+```
+
+### Span Preservation Test
+
+Verify inline markup is correctly represented as Spans.
+
+```go
+func TestSpanPreservation(t *testing.T) {
+    input := `<p>Click <b>here</b> for <a href="url">info</a></p>`
+    reader := NewReader()
+    err := reader.Open(ctx, testutil.RawDocFromString(input, "en"))
+    require.NoError(t, err)
+    defer reader.Close()
+
+    blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+    require.Len(t, blocks, 1)
+
+    frag := blocks[0].FirstFragment()
+    assert.Equal(t, "Click here for info", frag.Text())
+    require.Len(t, frag.Spans, 4) // <b>, </b>, <a>, </a>
+
+    assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
+    assert.Equal(t, "bold", frag.Spans[0].Type)
+    assert.Equal(t, "<b>", frag.Spans[0].Data)
+}
+```
+
+### Flow Execution Test
+
+Verify tools chain correctly in a Flow.
+
+```go
+func TestFlowExecution(t *testing.T) {
+    // Create a flow with mock tools
+    uppercaseTool := testutil.NewMockTool("uppercase", func(part *model.Part) *model.Part {
+        if part.Type == model.PartBlock {
+            block := part.Resource.(*model.Block)
+            text := strings.ToUpper(block.SourceText())
+            block.SetTargetText(model.LocaleFrench, text)
+        }
+        return part
+    })
+
+    f := flow.NewFlow("test").
+        AddTool(uppercaseTool).
+        Build()
+
+    executor := flow.NewFlowExecutor(reg)
+    items := []*flow.FlowItem{{
+        Input:        testutil.RawDocFromString("Hello world", "en"),
+        OutputPath:   "/dev/null",
+        TargetLocale: model.LocaleFrench,
+    }}
+
+    err := executor.Execute(ctx, f, items)
+    require.NoError(t, err)
+    // Verify output contains "HELLO WORLD"
+}
+```
+
+### Tool Dispatch Test
+
+Verify BaseTool dispatches to correct handlers.
+
+```go
+func TestBaseToolDispatch(t *testing.T) {
+    var handledTypes []model.PartType
+    mockTool := &testutil.TrackingTool{
+        OnBlock: func(p *model.Part) (*model.Part, error) {
+            handledTypes = append(handledTypes, p.Type)
+            return p, nil
+        },
+        OnData: func(p *model.Part) (*model.Part, error) {
+            handledTypes = append(handledTypes, p.Type)
+            return p, nil
+        },
+    }
+
+    parts := []*model.Part{
+        {Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
+        {Type: model.PartBlock, Resource: &model.Block{}},
+        {Type: model.PartData, Resource: &model.Data{}},
+        {Type: model.PartBlock, Resource: &model.Block{}},
+        {Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
+    }
+
+    testutil.RunToolOnParts(t, mockTool, parts)
+    assert.Equal(t, []model.PartType{model.PartBlock, model.PartData, model.PartBlock}, handledTypes)
+}
+```
+
+---
+
+## Integration Tests
+
+### End-to-End Format Integration
+
+Test the full pipeline: format detection → read → flow → write.
+
+```go
+// integration_test.go (build tag: //go:build integration)
+
+func TestEndToEndHTML(t *testing.T) {
+    // 1. Detect format
+    name, err := reg.DetectFormat("testdata/sample.html")
+    require.Equal(t, "html", name)
+
+    // 2. Build flow
+    f := flow.NewFlow("e2e").
+        AddTool(tools.NewSegmentationTool()).
+        AddTool(tools.NewCopySourceTool()).
+        Build()
+
+    // 3. Execute
+    executor := flow.NewFlowExecutor(reg)
+    err = executor.Execute(ctx, f, []*flow.FlowItem{{
+        Input:        testutil.RawDocFromFile("testdata/sample.html", "en"),
+        OutputPath:   "testdata/output/sample_en.html",
+        TargetLocale: model.LocaleEnglish,
+    }})
+    require.NoError(t, err)
+
+    // 4. Verify output exists and is valid HTML
+    output, err := os.ReadFile("testdata/output/sample_en.html")
+    require.NoError(t, err)
+    assert.Contains(t, string(output), "<html")
+}
+```
+
+### Plugin Integration
+
+```go
+// //go:build integration
+
+func TestPluginRoundTrip(t *testing.T) {
+    // Build example CSV plugin
+    exec.Command("go", "build", "-o", "testplugins/gokapi-format-csv",
+        "./examples/plugin-format-csv").Run()
+
+    // Load plugin
+    mgr := plugin.NewPluginManager("testplugins/", "")
+    mgr.DiscoverPlugins(reg, toolReg)
+
+    // Verify CSV format is registered
+    reader, err := reg.NewReader("csv")
+    require.NoError(t, err)
+    require.NotNil(t, reader)
+}
+```
+
+### Java Bridge Integration
+
+```go
+// //go:build integration && java
+
+func TestJavaBridgeDOCX(t *testing.T) {
+    // Requires: Java runtime, built bridge JAR
+    reader, err := bridge.NewJavaBridgeReader(
+        "net.sf.okapi.filters.openxml.OpenXMLFilter",
+    )
+    require.NoError(t, err)
+
+    err = reader.Open(ctx, testutil.RawDocFromFile("testdata/docx/sample.docx", "en"))
+    require.NoError(t, err)
+
+    blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+    require.NotEmpty(t, blocks)
+
+    // Verify blocks contain expected content
+    texts := testutil.BlockTexts(blocks)
+    assert.Contains(t, texts, "Hello World")
+}
+```
+
+---
+
+## Benchmarks
+
+### Format Reading Performance
+
+```go
+func BenchmarkHTMLRead(b *testing.B) {
+    content, _ := os.ReadFile("testdata/large.html")
+
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        reader := html.NewReader()
+        reader.Open(ctx, testutil.RawDocFromBytes(content, "en"))
+        for range reader.Read(ctx) {
+            // consume
+        }
+        reader.Close()
+    }
+}
+```
+
+### Flow Throughput
+
+```go
+func BenchmarkFlowThroughput(b *testing.B) {
+    f := flow.NewFlow("bench").
+        AddTool(tools.NewSegmentationTool()).
+        AddTool(tools.NewWordCountTool()).
+        Build()
+
+    executor := flow.NewFlowExecutor(reg)
+
+    b.ResetTimer()
+    for i := 0; i < b.N; i++ {
+        executor.Execute(ctx, f, items)
+    }
+}
+```
+
+### Native vs. Java Bridge
+
+```go
+func BenchmarkNativeVsBridge(b *testing.B) {
+    b.Run("native-html", func(b *testing.B) {
+        for i := 0; i < b.N; i++ {
+            // Read with native HTML reader
+        }
+    })
+    b.Run("bridge-html", func(b *testing.B) {
+        for i := 0; i < b.N; i++ {
+            // Read with Java bridge HTML reader
+        }
+    })
+}
+```
+
+---
+
+## CI Configuration
+
+### GitHub Actions (`ci.yml`)
+
+```yaml
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ['1.22', '1.23']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v4
+
+      - name: Unit Tests
+        run: go test ./... -race -coverprofile=coverage.out
+
+      - name: Upload Coverage
+        uses: codecov/codecov-action@v4
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Build Java Bridge
+        run: cd plugin/bridge/java && mvn package -q
+
+      - name: Integration Tests
+        run: go test ./... -tags=integration -race
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
+```
+
+### Test Tags
+
+| Tag | Purpose | Command |
+|---|---|---|
+| (none) | Unit tests only | `go test ./...` |
+| `integration` | + plugin and format integration | `go test ./... -tags=integration` |
+| `java` | + Java bridge tests | `go test ./... -tags="integration java"` |
+| `ai` | + real AI provider tests | `go test ./... -tags="integration ai"` |
