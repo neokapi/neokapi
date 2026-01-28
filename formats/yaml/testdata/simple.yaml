@@ -1,0 +1,10 @@
+title: Hello World
+description: A simple test
+nested:
+  key: Nested value
+  deep:
+    item: Deep nested
+items:
+  - First
+  - Second
+  - Third

@@ -1,0 +1,15 @@
+# Simple PO file
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+#: src/greeting.js:10
+msgid "Hello World"
+msgstr "Bonjour le monde"
+
+#: src/farewell.js:5
+msgid "Goodbye"
+msgstr "Au revoir"
+
+msgid "untranslated"
+msgstr ""
