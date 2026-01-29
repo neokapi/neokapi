@@ -49,6 +49,7 @@ func init() {
 				jsonOut, _ := cmd.Flags().GetBool("json")
 				conc, _ := cmd.Flags().GetInt("concurrency")
 				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
+				noWarn, _ := cmd.Flags().GetBool("no-warn")
 				progress, _ := cmd.Flags().GetBool("progress")
 
 				return RunToolOnFiles(context.Background(), ToolRunConfig{
@@ -57,6 +58,7 @@ func init() {
 					Concurrency:   conc,
 					JSONOutput:    jsonOut,
 					FailOnUnknown: failUnknown,
+					NoWarn:        noWarn,
 					Progress:      progress,
 					NewTool:       def.NewTool,
 					NewCollector:  def.NewCollector,
@@ -66,6 +68,7 @@ func init() {
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
 		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")
+		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
 		rootCmd.AddCommand(cmd)
 	}

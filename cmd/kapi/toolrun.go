@@ -25,6 +25,7 @@ type ToolRunConfig struct {
 	Concurrency   int                       // 0 = NumCPU
 	JSONOutput    bool
 	FailOnUnknown bool                      // fail on unrecognized formats instead of skipping
+	NoWarn        bool                      // suppress skip warnings
 	Progress      bool                      // show progress bar on stderr
 	NewTool       func() (tool.Tool, error) // factory for fresh tool per file
 	NewCollector  func() flow.Collector     // nil = no collection
@@ -152,7 +153,9 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		detected, err := formatReg.Detector().DetectByExtension(ext)
 		if err != nil {
 			if !cfg.FailOnUnknown {
-				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+				if !cfg.NoWarn {
+					fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+				}
 				return nil
 			}
 			return fmt.Errorf("unable to detect format for %q: %w", filePath, err)
@@ -163,7 +166,9 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	reader, err := formatReg.NewReader(fmtName)
 	if err != nil {
 		if !cfg.FailOnUnknown {
-			fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+			if !cfg.NoWarn {
+				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+			}
 			return nil
 		}
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
@@ -182,6 +187,12 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	}
 
 	if err := reader.Open(ctx, doc); err != nil {
+		if !cfg.FailOnUnknown {
+			if !cfg.NoWarn {
+				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+			}
+			return nil
+		}
 		return fmt.Errorf("open %s: %w", filePath, err)
 	}
 	defer reader.Close()
@@ -190,6 +201,12 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	var parts []*model.Part
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
+			if !cfg.FailOnUnknown {
+				if !cfg.NoWarn {
+					fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, result.Error)
+				}
+				return nil
+			}
 			return fmt.Errorf("read %s: %w", filePath, result.Error)
 		}
 		parts = append(parts, result.Part)
