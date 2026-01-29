@@ -35,7 +35,11 @@ var flowRunCmd = &cobra.Command{
 			return fmt.Errorf("--input (-i) is required")
 		}
 		if targetLang == "" {
-			return fmt.Errorf("--target-lang is required")
+			if flowName == "pseudo-translate" {
+				targetLang = "qps"
+			} else {
+				return fmt.Errorf("--target-lang is required")
+			}
 		}
 
 		ctx := context.Background()
