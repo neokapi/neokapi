@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -15,10 +16,23 @@ var pluginsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List installed plugins",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Installed plugins:")
-		fmt.Println("  (none)")
-		fmt.Println()
-		fmt.Println("Use 'kapi plugins install <name>@<version>' to install a plugin.")
+		plugins := pluginLoader.Plugins()
+		if len(plugins) == 0 {
+			fmt.Printf("No plugins loaded.\n")
+			fmt.Printf("Plugin directory: %s\n", pluginLoader.Dir())
+			fmt.Println()
+			fmt.Println("Place plugin executables (gokapi-plugin-*) or bridge descriptors")
+			fmt.Println("(*.bridge.json) in the plugin directory, or use --plugin-dir to override.")
+			return
+		}
+
+		fmt.Printf("  %-20s %-10s %-30s %s\n", "NAME", "TYPE", "FORMATS", "SOURCE")
+		fmt.Printf("  %-20s %-10s %-30s %s\n", "----", "----", "-------", "------")
+		for _, p := range plugins {
+			fmts := strings.Join(p.Formats, ", ")
+			fmt.Printf("  %-20s %-10s %-30s %s\n", p.Name, p.Type, fmts, p.Source)
+		}
+		fmt.Printf("\n%d plugin(s) loaded from %s\n", len(plugins), pluginLoader.Dir())
 	},
 }
 

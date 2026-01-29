@@ -1,20 +1,28 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"os"
+
+	"github.com/asgeirf/gokapi/core/config"
 	"github.com/asgeirf/gokapi/core/registry"
 	"github.com/asgeirf/gokapi/formats"
+	"github.com/asgeirf/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
 )
 
 var (
-	cfgFile    string
-	verbose    bool
-	quiet      bool
-	formatFlag string
-	encoding   string
-	sourceLang string
-	targetLang string
-	formatReg  *registry.FormatRegistry
+	cfgFile      string
+	verbose      bool
+	quiet        bool
+	formatFlag   string
+	encoding     string
+	sourceLang   string
+	targetLang   string
+	pluginDir    string
+	formatReg    *registry.FormatRegistry
+	pluginLoader *loader.PluginLoader
 )
 
 var rootCmd = &cobra.Command{
@@ -28,6 +36,34 @@ translation and quality checking capabilities.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		formatReg = registry.NewFormatRegistry()
 		formats.RegisterAll(formatReg)
+
+		// Resolve plugin directory: flag > env > config.
+		dir := pluginDir
+		if dir == "" {
+			dir = os.Getenv("KAPI_PLUGIN_DIR")
+		}
+		if dir == "" {
+			cfg := config.NewAppConfig()
+			_ = cfg.Load()
+			dir = cfg.PluginDirectory()
+		}
+
+		var logger *log.Logger
+		if verbose {
+			logger = log.New(os.Stderr, "[plugin] ", log.LstdFlags)
+		}
+
+		pluginLoader = loader.NewPluginLoader(dir, logger)
+		if err := pluginLoader.LoadAll(formatReg, nil); err != nil {
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "Warning: plugin loading: %v\n", err)
+			}
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		if pluginLoader != nil {
+			pluginLoader.Shutdown()
+		}
 	},
 }
 
@@ -39,4 +75,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input encoding")
 	rootCmd.PersistentFlags().StringVar(&sourceLang, "source-lang", "en", "source language (BCP 47)")
 	rootCmd.PersistentFlags().StringVar(&targetLang, "target-lang", "", "target language (BCP 47)")
+	rootCmd.PersistentFlags().StringVar(&pluginDir, "plugin-dir", "",
+		"plugin directory (default: $HOME/.kapi/plugins, env: KAPI_PLUGIN_DIR)")
 }

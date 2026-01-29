@@ -212,6 +212,13 @@ func (m *PluginManager) LoadFormatReader(path string) (*FormatReaderRPCClient, e
 	return reader, nil
 }
 
+// PluginDetail describes a loaded plugin.
+type PluginDetail struct {
+	Name   string
+	Kind   string // "format-reader", "format-writer", "tool"
+	Source string // executable path
+}
+
 // PluginNames returns the names of all loaded plugins.
 func (m *PluginManager) PluginNames() []string {
 	m.mu.Lock()
@@ -221,6 +228,21 @@ func (m *PluginManager) PluginNames() []string {
 		names = append(names, mp.name)
 	}
 	return names
+}
+
+// PluginDetails returns structured info for all loaded plugins.
+func (m *PluginManager) PluginDetails() []PluginDetail {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	details := make([]PluginDetail, 0, len(m.plugins))
+	for _, mp := range m.plugins {
+		details = append(details, PluginDetail{
+			Name:   mp.name,
+			Kind:   mp.kind,
+			Source: mp.path,
+		})
+	}
+	return details
 }
 
 // PluginCount returns the number of loaded plugins.

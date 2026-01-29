@@ -1,6 +1,11 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"os"
+	"path/filepath"
+
+	"github.com/spf13/viper"
+)
 
 // AppConfig holds application-level configuration loaded via Viper.
 type AppConfig struct {
@@ -21,7 +26,11 @@ func NewAppConfig() *AppConfig {
 
 	// Set defaults
 	v.SetDefault("flow.channelBuffer", 64)
-	v.SetDefault("plugins.directory", "./plugins")
+	pluginDir := "./plugins"
+	if home, err := os.UserHomeDir(); err == nil {
+		pluginDir = filepath.Join(home, ".kapi", "plugins")
+	}
+	v.SetDefault("plugins.directory", pluginDir)
 
 	return &AppConfig{v: v}
 }

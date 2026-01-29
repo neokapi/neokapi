@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/asgeirf/gokapi/core/model"
+	"github.com/asgeirf/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
 )
 
@@ -55,16 +58,16 @@ var convertCmd = &cobra.Command{
 			return fmt.Errorf("no reader for format %q: %w", inputFormat, err)
 		}
 
-		f, err := os.Open(inputPath)
+		inputContent, err := os.ReadFile(inputPath)
 		if err != nil {
-			return fmt.Errorf("open input: %w", err)
+			return fmt.Errorf("read input: %w", err)
 		}
 
 		doc := &model.RawDocument{
 			URI:          inputPath,
 			SourceLocale: model.LocaleID(sourceLang),
 			Encoding:     encoding,
-			Reader:       f,
+			Reader:       io.NopCloser(bytes.NewReader(inputContent)),
 		}
 
 		if err := reader.Open(ctx, doc); err != nil {
@@ -88,6 +91,10 @@ var convertCmd = &cobra.Command{
 
 		if err := writer.SetOutput(outputPath); err != nil {
 			return fmt.Errorf("set output: %w", err)
+		}
+
+		if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+			ocs.SetOriginalContent(inputContent)
 		}
 
 		locale := model.LocaleID(sourceLang)
