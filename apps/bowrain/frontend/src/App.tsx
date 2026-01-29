@@ -10,7 +10,7 @@ import { useHealth } from "./hooks/useApi";
 
 function App() {
   const [activeView, setActiveView] = useState<View>("formats");
-  const { health } = useHealth();
+  const { connected } = useHealth();
 
   const renderView = () => {
     switch (activeView) {
@@ -37,7 +37,7 @@ function App() {
     >
       <Sidebar activeView={activeView} onViewChange={setActiveView} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <Header health={health} />
+        <Header connected={connected} />
         <main
           style={{
             flex: 1,

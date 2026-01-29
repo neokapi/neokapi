@@ -19,6 +19,7 @@ import (
 // App is the Bowrain UI backend. It exposes methods that can be
 // bound to a Wails frontend or called from tests.
 type App struct {
+	ctx       context.Context
 	formatReg *registry.FormatRegistry
 }
 
@@ -27,6 +28,11 @@ func NewApp() *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 	return &App{formatReg: reg}
+}
+
+// Startup is called by Wails when the application starts.
+func (a *App) Startup(ctx context.Context) {
+	a.ctx = ctx
 }
 
 // FormatInfo describes a registered data format.

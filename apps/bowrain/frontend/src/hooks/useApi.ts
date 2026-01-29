@@ -3,16 +3,27 @@ import type {
   FormatInfo,
   ToolInfo,
   FlowInfo,
-  HealthResponse,
 } from "../types/api";
 
-const API_BASE = "/api/v1";
+// Wails v2 generates bindings at runtime. In dev mode we fall back to fetch.
+// The Go backend methods are available as window.go.backend.App.*
+interface WailsBackend {
+  ListFormats(): Promise<FormatInfo[]>;
+  ListTools(): Promise<ToolInfo[]>;
+  ListFlows(): Promise<FlowInfo[]>;
+}
 
+function getBackend(): WailsBackend | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  return w?.go?.backend?.App ?? null;
+}
+
+// Fallback fetch for non-Wails dev mode
+const API_BASE = "/api/v1";
 async function fetchJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-  }
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
   return res.json() as Promise<T>;
 }
 
@@ -22,8 +33,12 @@ export function useFormats() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJSON<FormatInfo[]>(`${API_BASE}/formats`)
-      .then(setFormats)
+    const be = getBackend();
+    const p = be
+      ? be.ListFormats()
+      : fetchJSON<FormatInfo[]>(`${API_BASE}/formats`);
+
+    p.then(setFormats)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -37,8 +52,12 @@ export function useTools() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJSON<ToolInfo[]>(`${API_BASE}/tools`)
-      .then(setTools)
+    const be = getBackend();
+    const p = be
+      ? be.ListTools()
+      : fetchJSON<ToolInfo[]>(`${API_BASE}/tools`);
+
+    p.then(setTools)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -52,8 +71,12 @@ export function useFlows() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchJSON<FlowInfo[]>(`${API_BASE}/flows`)
-      .then(setFlows)
+    const be = getBackend();
+    const p = be
+      ? be.ListFlows()
+      : fetchJSON<FlowInfo[]>(`${API_BASE}/flows`);
+
+    p.then(setFlows)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -62,12 +85,19 @@ export function useFlows() {
 }
 
 export function useHealth() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [connected, setConnected] = useState(false);
 
   const refresh = useCallback(() => {
-    fetchJSON<HealthResponse>(`${API_BASE}/health`)
-      .then(setHealth)
-      .catch(() => setHealth(null));
+    const be = getBackend();
+    if (be) {
+      // Wails is available - we're connected
+      setConnected(true);
+    } else {
+      // Fallback: check REST API
+      fetch(`${API_BASE}/health`)
+        .then((r) => setConnected(r.ok))
+        .catch(() => setConnected(false));
+    }
   }, []);
 
   useEffect(() => {
@@ -76,5 +106,5 @@ export function useHealth() {
     return () => clearInterval(interval);
   }, [refresh]);
 
-  return { health, refresh };
+  return { connected, refresh };
 }

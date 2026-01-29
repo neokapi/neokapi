@@ -25,3 +25,10 @@ gokapi-plugin-*
 node_modules/
 dist/
 *.tsbuildinfo
+
+# Wails
+**/build/bin/
+**/build/darwin/
+**/build/appicon.png
+**/frontend/wailsjs/
+**/frontend/package.json.md5

@@ -1,10 +1,8 @@
-import type { HealthResponse } from "../types/api";
-
 interface HeaderProps {
-  health: HealthResponse | null;
+  connected: boolean;
 }
 
-export function Header({ health }: HeaderProps) {
+export function Header({ connected }: HeaderProps) {
   return (
     <header
       style={{
@@ -15,6 +13,9 @@ export function Header({ health }: HeaderProps) {
         alignItems: "center",
         justifyContent: "space-between",
         padding: "0 20px",
+        // Wails: draggable title bar region
+        // @ts-expect-error non-standard CSS property for Wails
+        "--wails-draggable": "drag",
       }}
     >
       <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
@@ -26,12 +27,12 @@ export function Header({ health }: HeaderProps) {
             width: 8,
             height: 8,
             borderRadius: "50%",
-            backgroundColor: health ? "var(--success)" : "var(--error)",
+            backgroundColor: connected ? "var(--success)" : "var(--error)",
             display: "inline-block",
           }}
         />
         <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-          {health ? `Server ${health.version}` : "Disconnected"}
+          {connected ? "Connected" : "Disconnected"}
         </span>
       </div>
     </header>
