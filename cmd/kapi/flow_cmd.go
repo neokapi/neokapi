@@ -13,6 +13,7 @@ import (
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/tool"
+	libtools "github.com/asgeirf/gokapi/lib/tools"
 	"github.com/asgeirf/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
 )
@@ -204,7 +205,9 @@ func buildFlowTools(flowName string) ([]tool.Tool, error) {
 		}, nil
 	case "pseudo-translate":
 		return []tool.Tool{
-			newPseudoTranslateTool(),
+			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}),
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown flow: %q", flowName)
@@ -217,19 +220,3 @@ func getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()
 }
 
-func newPseudoTranslateTool() tool.Tool {
-	t := &tool.BaseTool{
-		ToolName:        "pseudo-translate",
-		ToolDescription: "Generates pseudo-translations for testing",
-	}
-	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			return part, nil
-		}
-		pseudo := "[" + block.SourceText() + "]"
-		block.SetTargetText(model.LocaleID(targetLang), pseudo)
-		return part, nil
-	}
-	return t
-}

@@ -2,6 +2,7 @@ package host
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -35,7 +36,7 @@ type managedPlugin struct {
 // NewPluginManager creates a new PluginManager.
 func NewPluginManager(logger *log.Logger) *PluginManager {
 	if logger == nil {
-		logger = log.New(os.Stderr, "[plugin] ", log.LstdFlags)
+		logger = log.New(io.Discard, "", 0)
 	}
 	return &PluginManager{
 		plugins: make(map[string]*managedPlugin),

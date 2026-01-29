@@ -19,6 +19,8 @@ COVER_DIR   := coverage
 PROTO_DIR   := plugin/proto/v1
 PROTO_FILES := $(wildcard $(PROTO_DIR)/*.proto)
 FRONTEND_DIR := apps/bowrain/frontend
+BRIDGE_DIR   := plugin/bridge/java
+BRIDGE_JAR   := $(BRIDGE_DIR)/target/gokapi-bridge-1.0.0-jar-with-dependencies.jar
 NPM         := npm
 
 # Tools
@@ -28,7 +30,8 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-all build-frontend test test-unit test-integration \
         test-race lint fmt vet proto clean install cover tools help \
-        frontend-deps frontend-dev frontend-build
+        frontend-deps frontend-dev frontend-build \
+        build-bridge-jar test-bridge-integration
 
 # Default target
 all: fmt vet lint test build ## Build and validate everything
@@ -64,6 +67,14 @@ frontend-build: ## Build frontend for production
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 build-ui: build-server frontend-build ## Build server + frontend
+
+# ── Java Bridge ──────────────────────────────────────────────────────────────
+
+build-bridge-jar: ## Build the Okapi bridge fat JAR
+	cd $(BRIDGE_DIR) && mvn package -q -DskipTests
+
+test-bridge-integration: build-bridge-jar ## Run bridge integration tests (requires JVM)
+	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) ./plugin/bridge/ -count=1 -tags=integration -v
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
