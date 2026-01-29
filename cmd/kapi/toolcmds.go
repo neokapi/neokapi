@@ -48,19 +48,25 @@ func init() {
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")
 				conc, _ := cmd.Flags().GetInt("concurrency")
+				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
+				progress, _ := cmd.Flags().GetBool("progress")
 
 				return RunToolOnFiles(context.Background(), ToolRunConfig{
-					ToolName:     def.Use,
-					Files:        args,
-					Concurrency:  conc,
-					JSONOutput:   jsonOut,
-					NewTool:      def.NewTool,
-					NewCollector: def.NewCollector,
+					ToolName:      def.Use,
+					Files:         args,
+					Concurrency:   conc,
+					JSONOutput:    jsonOut,
+					FailOnUnknown: failUnknown,
+					Progress:      progress,
+					NewTool:       def.NewTool,
+					NewCollector:  def.NewCollector,
 				})
 			},
 		}
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
+		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")
+		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
 		rootCmd.AddCommand(cmd)
 	}
 }

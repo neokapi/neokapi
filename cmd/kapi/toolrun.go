@@ -8,25 +8,30 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
 )
 
 // ToolRunConfig configures RunToolOnFiles.
 type ToolRunConfig struct {
-	ToolName     string
-	Files        []string
-	Concurrency  int                       // 0 = NumCPU
-	JSONOutput   bool
-	NewTool      func() (tool.Tool, error) // factory for fresh tool per file
-	NewCollector func() flow.Collector     // nil = no collection
+	ToolName      string
+	Files         []string
+	Concurrency   int                       // 0 = NumCPU
+	JSONOutput    bool
+	FailOnUnknown bool                      // fail on unrecognized formats instead of skipping
+	Progress      bool                      // show progress bar on stderr
+	NewTool       func() (tool.Tool, error) // factory for fresh tool per file
+	NewCollector  func() flow.Collector     // nil = no collection
 }
 
-// resolveFiles expands glob patterns and filters out directories,
-// returning only regular files.
+// resolveFiles expands glob patterns and filters out directories
+// and known temporary/lock files, returning only regular files.
 func resolveFiles(patterns []string) ([]string, error) {
 	var files []string
 	for _, pattern := range patterns {
@@ -46,10 +51,21 @@ func resolveFiles(patterns []string) ([]string, error) {
 			if info.IsDir() {
 				continue
 			}
+			if isJunkFile(filepath.Base(m)) {
+				continue
+			}
 			files = append(files, m)
 		}
 	}
 	return files, nil
+}
+
+// isJunkFile returns true for file names that are known temporary or
+// lock files that should never be processed:
+//   - ~$*  — Microsoft Office lock files
+//   - ._*  — macOS resource fork / AppleDouble files
+func isJunkFile(name string) bool {
+	return strings.HasPrefix(name, "~$") || strings.HasPrefix(name, "._")
 }
 
 // RunToolOnFiles processes each file through a single-tool flow and
@@ -74,6 +90,20 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		collector = cfg.NewCollector()
 	}
 
+	// Optional progress bar.
+	var bar *mpb.Bar
+	var progress *mpb.Progress
+	if cfg.Progress {
+		progress = mpb.New(mpb.WithOutput(os.Stderr))
+		bar = progress.New(int64(len(files)),
+			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+			mpb.PrependDecorators(decor.Elapsed(decor.ET_STYLE_GO)),
+			mpb.AppendDecorators(
+				decor.CountersNoUnit("[%d/%d]"),
+			),
+		)
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, concurrency)
 
@@ -82,12 +112,23 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		sem <- struct{}{}
 		g.Go(func() error {
 			defer func() { <-sem }()
-			return processOneFile(ctx, cfg, file, collector)
+			err := processOneFile(ctx, cfg, file, collector)
+			if bar != nil {
+				bar.Increment()
+			}
+			return err
 		})
 	}
 
 	if err := g.Wait(); err != nil {
+		if progress != nil {
+			progress.Wait()
+		}
 		return err
+	}
+
+	if progress != nil {
+		progress.Wait()
 	}
 
 	if collector == nil {
@@ -110,6 +151,10 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		ext := filepath.Ext(filePath)
 		detected, err := formatReg.Detector().DetectByExtension(ext)
 		if err != nil {
+			if !cfg.FailOnUnknown {
+				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+				return nil
+			}
 			return fmt.Errorf("unable to detect format for %q: %w", filePath, err)
 		}
 		fmtName = detected
@@ -117,6 +162,10 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 
 	reader, err := formatReg.NewReader(fmtName)
 	if err != nil {
+		if !cfg.FailOnUnknown {
+			fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+			return nil
+		}
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 

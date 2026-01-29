@@ -26,8 +26,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "kapi",
-	Short: "kapi is a localization and translation toolkit",
+	Use:          "kapi",
+	Short:        "kapi is a localization and translation toolkit",
+	SilenceUsage: true,
 	Long: `kapi is a powerful localization toolkit that provides format conversion,
 content extraction, translation, and quality assurance for multilingual content.
 
