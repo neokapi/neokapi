@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
@@ -103,6 +104,7 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	// Optional progress bar.
 	var bar *mpb.Bar
 	var progress *mpb.Progress
+	var active atomic.Int64
 	if cfg.Progress {
 		progress = mpb.New(mpb.WithOutput(os.Stderr))
 		bar = progress.New(int64(len(files)),
@@ -110,6 +112,13 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 			mpb.PrependDecorators(decor.Elapsed(decor.ET_STYLE_GO)),
 			mpb.AppendDecorators(
 				decor.CountersNoUnit("[%d/%d]"),
+				decor.Any(func(s decor.Statistics) string {
+					n := active.Load()
+					if n > 0 {
+						return fmt.Sprintf(" (%d active)", n)
+					}
+					return ""
+				}),
 			),
 		)
 	}
@@ -122,7 +131,9 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		sem <- struct{}{}
 		g.Go(func() error {
 			defer func() { <-sem }()
-			err := processOneFile(ctx, cfg, file, collector, commonDir)
+			active.Add(1)
+			err := processOneFile(ctx, cfg, file, collector, commonDir, progress)
+			active.Add(-1)
 			if bar != nil {
 				bar.Increment()
 			}
@@ -154,7 +165,7 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 
 // processOneFile reads a single file, pipes parts through the tool, and
 // feeds the output to the collector or writes via a format writer.
-func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string) error {
+func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress) error {
 	// Detect format.
 	fmtName := formatFlag
 	if fmtName == "" {
@@ -163,7 +174,7 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
-					fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+					warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
 				}
 				return nil
 			}
@@ -176,11 +187,24 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	if err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
-				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+				warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
 			}
 			return nil
 		}
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
+	}
+
+	// Validate writer availability early, before doing expensive I/O.
+	if cfg.OutputTemplate != "" {
+		if _, err := formatReg.NewWriter(fmtName); err != nil {
+			if !cfg.FailOnUnknown {
+				if !cfg.NoWarn {
+					warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
+				}
+				return nil
+			}
+			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+		}
 	}
 
 	content, err := os.ReadFile(filePath)
@@ -198,21 +222,21 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	if err := reader.Open(ctx, doc); err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
-				fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, err)
+				warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
 			}
 			return nil
 		}
 		return fmt.Errorf("open %s: %w", filePath, err)
 	}
-	defer reader.Close()
 
 	// Read all parts from the format reader.
 	var parts []*model.Part
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
+			reader.Close()
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
-					fmt.Fprintf(os.Stderr, "Warning: skipping %q: %v\n", filePath, result.Error)
+					warnf(progress, "Warning: skipping %q: %v\n", filePath, result.Error)
 				}
 				return nil
 			}
@@ -220,6 +244,10 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		}
 		parts = append(parts, result.Part)
 	}
+
+	// Release the reader before tool/writer phases so bridge pool slots
+	// are available for the writer.
+	reader.Close()
 
 	// Create a single-tool flow and execute it.
 	t, err := cfg.NewTool()
@@ -284,7 +312,12 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		}
 
 		if !quiet {
-			fmt.Fprintf(os.Stderr, "%s → %s\n", filePath, outputPath)
+			msg := fmt.Sprintf("%s → %s\n", filePath, outputPath)
+			if progress != nil {
+				fmt.Fprint(progress, msg)
+			} else {
+				fmt.Fprint(os.Stderr, msg)
+			}
 		}
 		return nil
 	}
@@ -370,13 +403,17 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	result = strings.ReplaceAll(result, "{ext}", extNoDot)
 	result = strings.ReplaceAll(result, "{lang}", lang)
 
-	// Directory mode: if result ends with / or is an existing directory,
-	// append the original relative name.ext.
+	// Directory mode: if result ends with /, is an existing directory,
+	// or has no file extension — treat as a directory and append the
+	// original relative name.ext.
 	isDir := strings.HasSuffix(result, "/") || strings.HasSuffix(result, string(filepath.Separator))
 	if !isDir {
 		if info, err := os.Stat(result); err == nil && info.IsDir() {
 			isDir = true
 		}
+	}
+	if !isDir && filepath.Ext(result) == "" {
+		isDir = true
 	}
 	if isDir {
 		result = filepath.Join(result, rel)
@@ -387,4 +424,16 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	_ = os.MkdirAll(dir, 0o755)
 
 	return result
+}
+
+// warnf writes a warning message to the mpb progress container (if active)
+// or directly to stderr. This prevents raw stderr writes from corrupting the
+// progress bar display.
+func warnf(progress *mpb.Progress, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if progress != nil {
+		fmt.Fprint(progress, msg)
+	} else {
+		fmt.Fprint(os.Stderr, msg)
+	}
 }
