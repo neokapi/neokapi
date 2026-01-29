@@ -7,9 +7,10 @@ import (
 
 // FlowBuilder provides a fluent API for constructing Flows.
 type FlowBuilder struct {
-	name  string
-	tools []tool.Tool
-	items []*FlowItem
+	name          string
+	tools         []tool.Tool
+	toolFactories []ToolFactory
+	items         []*FlowItem
 }
 
 // NewFlow creates a new FlowBuilder with the given name.
@@ -20,6 +21,14 @@ func NewFlow(name string) *FlowBuilder {
 // AddTool appends a Tool to the flow.
 func (fb *FlowBuilder) AddTool(t tool.Tool) *FlowBuilder {
 	fb.tools = append(fb.tools, t)
+	return fb
+}
+
+// AddToolFactory appends a ToolFactory for parallel execution.
+// When the flow is executed in parallel, each document gets fresh tool
+// instances created by the registered factories.
+func (fb *FlowBuilder) AddToolFactory(f ToolFactory) *FlowBuilder {
+	fb.toolFactories = append(fb.toolFactories, f)
 	return fb
 }
 
@@ -36,8 +45,9 @@ func (fb *FlowBuilder) AddItem(input *model.RawDocument, outputPath string, targ
 // Build constructs the Flow.
 func (fb *FlowBuilder) Build() *Flow {
 	return &Flow{
-		Name:  fb.name,
-		Tools: fb.tools,
+		Name:          fb.name,
+		Tools:         fb.tools,
+		ToolFactories: fb.toolFactories,
 	}
 }
 

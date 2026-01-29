@@ -428,7 +428,8 @@ Each arrow is a buffered Go channel. Each box runs in its own goroutine. Context
 - Buffered channels (configurable, default 64) for backpressure
 - `context.Context` for cancellation and timeout
 - `errgroup.Group` for coordinated error handling across goroutines
-- Documents in a batch are processed sequentially (parallel document processing is a future enhancement)
+- **Parallel document processing**: `WithMaxConcurrency(n)` enables bounded fan-out across documents using a semaphore pattern. Each document gets a fresh tool chain created from `ToolFactories` to avoid shared state. Default is sequential (MaxConcurrency=1).
+- **Collector aggregation**: `Collector` interface enables cross-document result accumulation (e.g., word count summaries). Collectors are fed after each document completes and must be safe for concurrent use.
 
 ### Error Handling
 

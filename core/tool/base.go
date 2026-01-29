@@ -25,8 +25,6 @@ type BaseTool struct {
 	HandleLayerEndFn   PartHandler
 	HandleGroupStartFn PartHandler
 	HandleGroupEndFn   PartHandler
-	HandleBatchStartFn PartHandler
-	HandleBatchEndFn   PartHandler
 }
 
 // Name returns the tool's identifier.
@@ -89,10 +87,6 @@ func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
 		return b.handleGroupStart(part)
 	case model.PartGroupEnd:
 		return b.handleGroupEnd(part)
-	case model.PartBatchStart:
-		return b.handleBatchStart(part)
-	case model.PartBatchEnd:
-		return b.handleBatchEnd(part)
 	default:
 		return part, nil
 	}
@@ -143,20 +137,6 @@ func (b *BaseTool) handleGroupStart(part *model.Part) (*model.Part, error) {
 func (b *BaseTool) handleGroupEnd(part *model.Part) (*model.Part, error) {
 	if b.HandleGroupEndFn != nil {
 		return b.HandleGroupEndFn(part)
-	}
-	return part, nil
-}
-
-func (b *BaseTool) handleBatchStart(part *model.Part) (*model.Part, error) {
-	if b.HandleBatchStartFn != nil {
-		return b.HandleBatchStartFn(part)
-	}
-	return part, nil
-}
-
-func (b *BaseTool) handleBatchEnd(part *model.Part) (*model.Part, error) {
-	if b.HandleBatchEndFn != nil {
-		return b.HandleBatchEndFn(part)
 	}
 	return part, nil
 }

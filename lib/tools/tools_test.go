@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/lib/tools"
 	"github.com/stretchr/testify/assert"
@@ -848,4 +849,124 @@ func TestTermCheckConfigValidation(t *testing.T) {
 	cfg.Glossary = []tools.GlossaryEntry{{Source: "Save", Target: "Sauvegarder"}}
 	err = cfg.Validate()
 	assert.NoError(t, err)
+}
+
+// --- WordCountCollector Tests ---
+
+func TestWordCountCollector(t *testing.T) {
+	wc := tools.NewWordCountCollector()
+
+	item := &flow.FlowItem{
+		Input: &model.RawDocument{URI: "doc1.html"},
+	}
+
+	block1 := model.NewBlock("tu1", "Hello beautiful world")
+	block1.Properties[tools.PropWordCountSource] = "3"
+	block1.Properties[tools.PropWordCountTarget] = "4"
+
+	block2 := model.NewBlock("tu2", "Goodbye")
+	block2.Properties[tools.PropWordCountSource] = "1"
+
+	parts := []*model.Part{
+		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
+		{Type: model.PartBlock, Resource: block1},
+		{Type: model.PartBlock, Resource: block2},
+		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
+	}
+
+	err := wc.Collect(context.Background(), item, parts)
+	require.NoError(t, err)
+
+	result, err := wc.Result()
+	require.NoError(t, err)
+	assert.Equal(t, "word-count", result.Name)
+
+	summary := result.Data.(*tools.WordCountSummary)
+	assert.Equal(t, 4, summary.TotalSourceWords)
+	assert.Equal(t, 4, summary.TotalTargetWords)
+	assert.Equal(t, 1, summary.DocumentCount)
+
+	doc := summary.Documents["doc1.html"]
+	assert.Equal(t, 4, doc.SourceWords)
+	assert.Equal(t, 4, doc.TargetWords)
+	assert.Equal(t, 2, doc.BlockCount)
+}
+
+func TestWordCountCollectorMultipleDocuments(t *testing.T) {
+	wc := tools.NewWordCountCollector()
+
+	for i, uri := range []string{"a.html", "b.html", "c.html"} {
+		item := &flow.FlowItem{
+			Input: &model.RawDocument{URI: uri},
+		}
+		block := model.NewBlock("tu1", "text")
+		block.Properties[tools.PropWordCountSource] = "2"
+		block.Properties[tools.PropWordCountTarget] = "3"
+		_ = i
+
+		parts := []*model.Part{
+			{Type: model.PartBlock, Resource: block},
+		}
+		err := wc.Collect(context.Background(), item, parts)
+		require.NoError(t, err)
+	}
+
+	result, err := wc.Result()
+	require.NoError(t, err)
+
+	summary := result.Data.(*tools.WordCountSummary)
+	assert.Equal(t, 6, summary.TotalSourceWords)
+	assert.Equal(t, 9, summary.TotalTargetWords)
+	assert.Equal(t, 3, summary.DocumentCount)
+	assert.Len(t, summary.Documents, 3)
+}
+
+func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
+	wc := tools.NewWordCountCollector()
+
+	item := &flow.FlowItem{
+		Input: &model.RawDocument{URI: "doc.html"},
+	}
+
+	parts := []*model.Part{
+		{Type: model.PartLayerStart, Resource: &model.Layer{ID: "doc1"}},
+		{Type: model.PartData, Resource: &model.Data{ID: "d1"}},
+		{Type: model.PartLayerEnd, Resource: &model.Layer{ID: "doc1"}},
+	}
+
+	err := wc.Collect(context.Background(), item, parts)
+	require.NoError(t, err)
+
+	result, err := wc.Result()
+	require.NoError(t, err)
+
+	summary := result.Data.(*tools.WordCountSummary)
+	assert.Equal(t, 0, summary.TotalSourceWords)
+	assert.Equal(t, 0, summary.TotalTargetWords)
+	assert.Equal(t, 0, summary.Documents["doc.html"].BlockCount)
+}
+
+func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
+	wc := tools.NewWordCountCollector()
+
+	item := &flow.FlowItem{
+		Input: &model.RawDocument{URI: "doc.html"},
+	}
+
+	block := model.NewBlock("tu1", "Hello world")
+	block.Translatable = false
+	block.Properties[tools.PropWordCountSource] = "2"
+
+	parts := []*model.Part{
+		{Type: model.PartBlock, Resource: block},
+	}
+
+	err := wc.Collect(context.Background(), item, parts)
+	require.NoError(t, err)
+
+	result, err := wc.Result()
+	require.NoError(t, err)
+
+	summary := result.Data.(*tools.WordCountSummary)
+	assert.Equal(t, 0, summary.TotalSourceWords)
 }

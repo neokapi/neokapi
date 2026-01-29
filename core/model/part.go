@@ -11,10 +11,10 @@ const (
 	PartBlock                          // Translatable content
 	PartData                           // Non-translatable document structure
 	PartMedia                          // Binary/media content
-	PartBatchStart                     // Start of a batch
-	PartBatchEnd                       // End of a batch
-	PartBatchItemStart                 // Start of a batch item
-	PartBatchItemEnd                   // End of a batch item
+	_                                  // reserved (was PartBatchStart)
+	_                                  // reserved (was PartBatchEnd)
+	_                                  // reserved (was PartBatchItemStart)
+	_                                  // reserved (was PartBatchItemEnd)
 	PartRawDocument                    // Unprocessed document
 	PartCustom                         // Custom extension
 )
@@ -36,14 +36,6 @@ func (pt PartType) String() string {
 		return "Data"
 	case PartMedia:
 		return "Media"
-	case PartBatchStart:
-		return "BatchStart"
-	case PartBatchEnd:
-		return "BatchEnd"
-	case PartBatchItemStart:
-		return "BatchItemStart"
-	case PartBatchItemEnd:
-		return "BatchItemEnd"
 	case PartRawDocument:
 		return "RawDocument"
 	case PartCustom:

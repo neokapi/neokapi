@@ -31,10 +31,10 @@ const (
     PartBlock                       // Translatable content
     PartData                        // Non-translatable document structure
     PartMedia                       // Binary/media content
-    PartBatchStart                  // Start of a batch
-    PartBatchEnd                    // End of a batch
-    PartBatchItemStart              // Start of a batch item
-    PartBatchItemEnd                // End of a batch item
+    _                               // reserved
+    _                               // reserved
+    _                               // reserved
+    _                               // reserved
     PartRawDocument                 // Unprocessed document
     PartCustom                      // Custom extension
 )
@@ -595,10 +595,6 @@ func (b *BaseTool) dispatch(part *model.Part) (*model.Part, error) {
         return b.HandleGroupStart(part)
     case model.PartGroupEnd:
         return b.HandleGroupEnd(part)
-    case model.PartBatchStart:
-        return b.HandleBatchStart(part)
-    case model.PartBatchEnd:
-        return b.HandleBatchEnd(part)
     default:
         return part, nil // pass through unknown types
     }
@@ -612,8 +608,6 @@ func (b *BaseTool) HandleLayerStart(part *model.Part) (*model.Part, error) { ret
 func (b *BaseTool) HandleLayerEnd(part *model.Part) (*model.Part, error)   { return part, nil }
 func (b *BaseTool) HandleGroupStart(part *model.Part) (*model.Part, error) { return part, nil }
 func (b *BaseTool) HandleGroupEnd(part *model.Part) (*model.Part, error)   { return part, nil }
-func (b *BaseTool) HandleBatchStart(part *model.Part) (*model.Part, error) { return part, nil }
-func (b *BaseTool) HandleBatchEnd(part *model.Part) (*model.Part, error)   { return part, nil }
 ```
 
 ### Concrete Tool example
@@ -652,21 +646,21 @@ func (s *SegmentationTool) HandleBlock(part *model.Part) (*model.Part, error) {
 ```go
 package flow
 
+// ToolFactory creates a fresh Tool instance. Used for parallel execution
+// where each document needs its own tool chain to avoid shared state.
+type ToolFactory func() (tool.Tool, error)
+
 // Flow represents a configured sequence of Tools that Parts stream through.
 type Flow struct {
-    Name  string
-    Tools []tool.Tool
+    Name          string
+    Tools         []tool.Tool    // for single-doc / sequential (backward compat)
+    ToolFactories []ToolFactory  // for parallel: creates fresh tool chain per document
 }
 
 // FlowExecutor orchestrates the execution of a Flow across batch items.
 type FlowExecutor interface {
     // Execute runs the Flow over the given batch items.
-    // Each RawDocument is processed through the DataFormatReader,
-    // all Tools in sequence, and the DataFormatWriter.
     Execute(ctx context.Context, f *Flow, items []*FlowItem) error
-
-    // SetFormatRegistry provides the registry for format lookup.
-    SetFormatRegistry(reg *FormatRegistry)
 }
 
 // FlowItem represents a single document to process in a batch.
@@ -677,36 +671,49 @@ type FlowItem struct {
     TargetLocale   model.LocaleID
 }
 
+// Collector accumulates results from processed documents.
+// Implementations must be safe for concurrent use.
+type Collector interface {
+    Collect(ctx context.Context, item *FlowItem, parts []*model.Part) error
+    Result() (CollectorResult, error)
+}
+
+type CollectorResult struct {
+    Name string
+    Data interface{}
+}
+
+// ExecutorConfig holds configuration for the DefaultFlowExecutor.
+type ExecutorConfig struct {
+    MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
+    ChannelSize    int         // default 64
+    FailFast       bool        // default true
+    Collectors     []Collector
+}
+
+// ExecutorOption is a functional option for configuring a DefaultFlowExecutor.
+type ExecutorOption func(*ExecutorConfig)
+
+func WithMaxConcurrency(n int) ExecutorOption { ... }
+func WithChannelSize(n int) ExecutorOption    { ... }
+func WithFailFast(b bool) ExecutorOption      { ... }
+func WithCollectors(c ...Collector) ExecutorOption { ... }
+
 // DefaultFlowExecutor runs tools concurrently using goroutines and channels.
+// With MaxConcurrency > 1, documents are processed in parallel using
+// a semaphore-bounded fan-out pattern with errgroup.
 type DefaultFlowExecutor struct {
-    registry    *FormatRegistry
-    channelSize int // buffer size for inter-tool channels
+    config ExecutorConfig
 }
 
-func NewFlowExecutor(registry *FormatRegistry) *DefaultFlowExecutor {
-    return &DefaultFlowExecutor{
-        registry:    registry,
-        channelSize: 64,
-    }
+func NewFlowExecutor(opts ...ExecutorOption) *DefaultFlowExecutor {
+    // defaults: MaxConcurrency=1, ChannelSize=64, FailFast=true
 }
 
-// Execute launches one goroutine per tool, connected by buffered channels.
-//
-//   DataFormatReader --> [Tool1] --> [Tool2] --> ... --> [ToolN] --> DataFormatWriter
-//       goroutine      goroutine   goroutine          goroutine      goroutine
-//
-// Errors from any stage cancel all others via context.
-func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*FlowItem) error {
-    ctx, cancel := context.WithCancel(ctx)
-    defer cancel()
-
-    for _, item := range items {
-        if err := e.processItem(ctx, f, item); err != nil {
-            return fmt.Errorf("processing %s: %w", item.Input.URI, err)
-        }
-    }
-    return nil
-}
+// Execute processes FlowItems through the tool chain.
+// When MaxConcurrency > 1 (or 0 for NumCPU), items are processed
+// in parallel using a semaphore-bounded fan-out pattern.
+func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*FlowItem) error
 ```
 
 ### Flow Builder
@@ -728,6 +735,11 @@ func (fb *FlowBuilder) AddTool(t tool.Tool) *FlowBuilder {
     return fb
 }
 
+func (fb *FlowBuilder) AddToolFactory(f ToolFactory) *FlowBuilder {
+    fb.toolFactories = append(fb.toolFactories, f)
+    return fb
+}
+
 func (fb *FlowBuilder) AddItem(input *model.RawDocument, outputPath string, targetLocale model.LocaleID) *FlowBuilder {
     fb.items = append(fb.items, &FlowItem{
         Input:        input,
@@ -744,15 +756,29 @@ func (fb *FlowBuilder) Build() *Flow {
     }
 }
 
-// Usage:
+// Usage (sequential, single document):
 // f := flow.NewFlow("translate-html").
 //     AddTool(tool.NewSegmentationTool()).
 //     AddTool(tool.NewLeveragingTool(tm)).
 //     AddTool(tool.NewAITranslationTool(llmClient)).
 //     Build()
 //
-// executor := flow.NewFlowExecutor(registry)
+// executor := flow.NewFlowExecutor()
 // executor.Execute(ctx, f, items)
+//
+// Usage (parallel, multiple documents with collector):
+// wc := tools.NewWordCountCollector()
+// f := flow.NewFlow("word-count").
+//     AddToolFactory(func() (tool.Tool, error) {
+//         return tools.NewWordCountTool(&tools.WordCountConfig{...}), nil
+//     }).Build()
+//
+// executor := flow.NewFlowExecutor(
+//     flow.WithMaxConcurrency(8),
+//     flow.WithCollectors(wc),
+// )
+// executor.Execute(ctx, f, items)
+// result, _ := wc.Result()
 ```
 
 ---

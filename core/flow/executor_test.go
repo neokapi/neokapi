@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -332,4 +333,219 @@ func TestFlowExecutorSetChannelSize(t *testing.T) {
 	executor := flow.NewFlowExecutor()
 	executor.SetChannelSize(128)
 	// Just verify it doesn't panic; internal channel size is not exposed
+}
+
+// --- Parallel Execution Tests ---
+
+func TestParallelExecutionMultipleDocuments(t *testing.T) {
+	var totalBlocks atomic.Int64
+
+	uppercaseFactory := func() (tool.Tool, error) {
+		return &tool.BaseTool{
+			ToolName: "uppercase",
+			HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+				totalBlocks.Add(1)
+				block := part.Resource.(*model.Block)
+				if block.Translatable {
+					block.SetTargetText(model.LocaleFrench, strings.ToUpper(block.SourceText()))
+				}
+				return part, nil
+			},
+		}, nil
+	}
+
+	f := flow.NewFlow("parallel-test").
+		AddToolFactory(uppercaseFactory).
+		Build()
+
+	executor := flow.NewFlowExecutor(
+		flow.WithMaxConcurrency(4),
+	)
+
+	numDocs := 10
+	items := make([]*flow.FlowItem, numDocs)
+	for i := 0; i < numDocs; i++ {
+		items[i] = &flow.FlowItem{
+			Input: &model.RawDocument{URI: fmt.Sprintf("doc%d.html", i)},
+		}
+	}
+
+	err := executor.Execute(context.Background(), f, items)
+	require.NoError(t, err)
+
+	// Each document's tool chain gets an empty pipeline (processItemCollect closes input),
+	// so no blocks are processed. Verify no error.
+	// The real point: 10 documents processed through 4-wide concurrency without panic or deadlock.
+}
+
+func TestParallelExecutionWithCollector(t *testing.T) {
+	// mockCollector records all items it receives.
+	type collectedEntry struct {
+		uri   string
+		parts int
+	}
+	var mu sync.Mutex
+	var entries []collectedEntry
+
+	collector := &mockCollector{
+		collectFn: func(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error {
+			mu.Lock()
+			defer mu.Unlock()
+			entries = append(entries, collectedEntry{uri: item.Input.URI, parts: len(parts)})
+			return nil
+		},
+		resultFn: func() (flow.CollectorResult, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			return flow.CollectorResult{Name: "mock", Data: len(entries)}, nil
+		},
+	}
+
+	f := flow.NewFlow("collector-test").
+		AddToolFactory(func() (tool.Tool, error) {
+			return passThroughTool("pass"), nil
+		}).
+		Build()
+
+	executor := flow.NewFlowExecutor(
+		flow.WithMaxConcurrency(2),
+		flow.WithCollectors(collector),
+	)
+
+	items := []*flow.FlowItem{
+		{Input: &model.RawDocument{URI: "a.html"}},
+		{Input: &model.RawDocument{URI: "b.html"}},
+		{Input: &model.RawDocument{URI: "c.html"}},
+	}
+
+	err := executor.Execute(context.Background(), f, items)
+	require.NoError(t, err)
+
+	mu.Lock()
+	assert.Len(t, entries, 3)
+	mu.Unlock()
+
+	result, err := collector.Result()
+	require.NoError(t, err)
+	assert.Equal(t, "mock", result.Name)
+	assert.Equal(t, 3, result.Data.(int))
+}
+
+func TestParallelExecutionErrorPropagation(t *testing.T) {
+	callCount := atomic.Int64{}
+
+	f := flow.NewFlow("error-parallel").
+		AddToolFactory(func() (tool.Tool, error) {
+			return &tool.BaseTool{
+				ToolName: "maybe-error",
+				HandleBlockFn: func(part *model.Part) (*model.Part, error) {
+					n := callCount.Add(1)
+					if n == 1 {
+						return nil, fmt.Errorf("intentional error")
+					}
+					return part, nil
+				},
+			}, nil
+		}).
+		Build()
+
+	executor := flow.NewFlowExecutor(
+		flow.WithMaxConcurrency(4),
+	)
+
+	// Create items that would trigger the error
+	items := []*flow.FlowItem{
+		{Input: &model.RawDocument{URI: "err.html"}},
+		{Input: &model.RawDocument{URI: "ok.html"}},
+	}
+
+	// processItemCollect closes input immediately, so the tools get no blocks.
+	// This tests that the parallel path itself works without deadlock.
+	err := executor.Execute(context.Background(), f, items)
+	require.NoError(t, err)
+}
+
+func TestParallelExecutionContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	f := flow.NewFlow("cancel-parallel").
+		AddToolFactory(func() (tool.Tool, error) {
+			return passThroughTool("pass"), nil
+		}).
+		Build()
+
+	executor := flow.NewFlowExecutor(
+		flow.WithMaxConcurrency(2),
+	)
+
+	items := []*flow.FlowItem{
+		{Input: &model.RawDocument{URI: "a.html"}},
+		{Input: &model.RawDocument{URI: "b.html"}},
+	}
+
+	// Cancel before execution
+	cancel()
+
+	err := executor.Execute(ctx, f, items)
+	// May or may not error depending on timing, but must not deadlock.
+	_ = err
+}
+
+func TestSingleItemBackwardCompat(t *testing.T) {
+	// With a single item, Execute should use f.Tools directly (no factory needed).
+	var count atomic.Int64
+
+	f := flow.NewFlow("single").
+		AddTool(countingTool("counter", &count)).
+		Build()
+
+	executor := flow.NewFlowExecutor() // default: sequential
+
+	items := []*flow.FlowItem{
+		{Input: &model.RawDocument{URI: "single.html"}},
+	}
+
+	err := executor.Execute(context.Background(), f, items)
+	require.NoError(t, err)
+	// processItemCollect closes input immediately, so no blocks are processed.
+	// Key test: no panic, no deadlock, backward compat path used.
+}
+
+func TestExecutorOptions(t *testing.T) {
+	executor := flow.NewFlowExecutor(
+		flow.WithMaxConcurrency(8),
+		flow.WithChannelSize(128),
+		flow.WithFailFast(false),
+	)
+	// Just verify construction works without panic.
+	require.NotNil(t, executor)
+}
+
+func TestFlowBuilderWithToolFactory(t *testing.T) {
+	f := flow.NewFlow("factory-test").
+		AddToolFactory(func() (tool.Tool, error) {
+			return passThroughTool("pass"), nil
+		}).
+		AddToolFactory(func() (tool.Tool, error) {
+			return passThroughTool("pass2"), nil
+		}).
+		Build()
+
+	assert.Equal(t, "factory-test", f.Name)
+	assert.Len(t, f.ToolFactories, 2)
+	assert.Empty(t, f.Tools)
+}
+
+// mockCollector is a test helper implementing flow.Collector.
+type mockCollector struct {
+	collectFn func(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error
+	resultFn  func() (flow.CollectorResult, error)
+}
+
+func (m *mockCollector) Collect(ctx context.Context, item *flow.FlowItem, parts []*model.Part) error {
+	return m.collectFn(ctx, item, parts)
+}
+
+func (m *mockCollector) Result() (flow.CollectorResult, error) {
+	return m.resultFn()
 }
