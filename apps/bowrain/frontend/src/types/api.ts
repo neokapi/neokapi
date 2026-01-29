@@ -72,3 +72,68 @@ export interface HealthResponse {
   status: string;
   version: string;
 }
+
+/** Project info */
+export interface ProjectInfo {
+  id: string;
+  name: string;
+  source_locale: string;
+  target_locales: string[];
+  path: string;
+  files: ProjectFile[];
+  created_at: string;
+  modified_at: string;
+}
+
+/** File within a project */
+export interface ProjectFile {
+  name: string;
+  format: string;
+  size: number;
+  block_count: number;
+  word_count: number;
+}
+
+/** Translation block info */
+export interface BlockInfo {
+  id: string;
+  source: string;
+  targets: Record<string, string>;
+  translatable: boolean;
+  has_spans: boolean;
+  properties: Record<string, string>;
+}
+
+/** Update block request */
+export interface UpdateBlockRequest {
+  project_id: string;
+  file_name: string;
+  block_id: string;
+  target_locale: string;
+  text: string;
+}
+
+/** AI translate file request */
+export interface AITranslateFileRequest {
+  project_id: string;
+  file_name: string;
+  target_locale: string;
+  provider: string;
+  api_key: string;
+  model: string;
+}
+
+/** Translation stats */
+export interface TranslationStats {
+  total_blocks: number;
+  translated_blocks: number;
+  word_count: number;
+}
+
+/** Word count result */
+export interface WordCountResult {
+  source_words: number;
+  source_chars: number;
+  target_words: Record<string, number>;
+  target_chars: Record<string, number>;
+}

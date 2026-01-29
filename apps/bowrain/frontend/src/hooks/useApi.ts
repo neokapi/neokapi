@@ -3,6 +3,12 @@ import type {
   FormatInfo,
   ToolInfo,
   FlowInfo,
+  ProjectInfo,
+  BlockInfo,
+  UpdateBlockRequest,
+  AITranslateFileRequest,
+  TranslationStats,
+  WordCountResult,
 } from "../types/api";
 
 // Wails v2 generates bindings at runtime. In dev mode we fall back to fetch.
@@ -11,6 +17,24 @@ interface WailsBackend {
   ListFormats(): Promise<FormatInfo[]>;
   ListTools(): Promise<ToolInfo[]>;
   ListFlows(): Promise<FlowInfo[]>;
+  CreateProject(name: string, sourceLang: string, targetLangs: string[]): Promise<ProjectInfo>;
+  GetProject(projectID: string): Promise<ProjectInfo>;
+  ListProjects(): Promise<ProjectInfo[]>;
+  CloseProject(projectID: string): Promise<void>;
+  AddFiles(projectID: string, filePaths: string[]): Promise<ProjectInfo>;
+  RemoveFile(projectID: string, fileName: string): Promise<ProjectInfo>;
+  ListProjectFiles(projectID: string): Promise<ProjectInfo["files"]>;
+  GetFileBlocks(projectID: string, fileName: string): Promise<BlockInfo[]>;
+  UpdateBlockTarget(req: UpdateBlockRequest): Promise<void>;
+  PseudoTranslateFile(projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
+  AITranslateFile(req: AITranslateFileRequest): Promise<TranslationStats>;
+  TMTranslateFile(projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
+  GetWordCount(projectID: string, fileName: string): Promise<WordCountResult>;
+  ExportTranslatedFile(projectID: string, fileName: string, targetLocale: string): Promise<string>;
+  OpenFileInOS(filePath: string): Promise<void>;
+  SaveProject(projectID: string): Promise<void>;
+  SaveProjectAs(projectID: string, path: string): Promise<void>;
+  OpenProject(path: string): Promise<ProjectInfo>;
 }
 
 function getBackend(): WailsBackend | null {
@@ -107,4 +131,156 @@ export function useHealth() {
   }, [refresh]);
 
   return { connected, refresh };
+}
+
+// Project API hooks
+
+export function useProjectApi() {
+  const be = getBackend();
+
+  const createProject = useCallback(
+    async (name: string, sourceLang: string, targetLangs: string[]): Promise<ProjectInfo> => {
+      if (be) return be.CreateProject(name, sourceLang, targetLangs);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const listProjects = useCallback(async (): Promise<ProjectInfo[]> => {
+    if (be) return be.ListProjects();
+    return [];
+  }, [be]);
+
+  const openProject = useCallback(
+    async (path: string): Promise<ProjectInfo> => {
+      if (be) return be.OpenProject(path);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const closeProject = useCallback(
+    async (projectID: string): Promise<void> => {
+      if (be) return be.CloseProject(projectID);
+    },
+    [be],
+  );
+
+  const addFiles = useCallback(
+    async (projectID: string, filePaths: string[]): Promise<ProjectInfo> => {
+      if (be) return be.AddFiles(projectID, filePaths);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const removeFile = useCallback(
+    async (projectID: string, fileName: string): Promise<ProjectInfo> => {
+      if (be) return be.RemoveFile(projectID, fileName);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const saveProject = useCallback(
+    async (projectID: string): Promise<void> => {
+      if (be) return be.SaveProject(projectID);
+    },
+    [be],
+  );
+
+  const saveProjectAs = useCallback(
+    async (projectID: string, path: string): Promise<void> => {
+      if (be) return be.SaveProjectAs(projectID, path);
+    },
+    [be],
+  );
+
+  return {
+    createProject,
+    listProjects,
+    openProject,
+    closeProject,
+    addFiles,
+    removeFile,
+    saveProject,
+    saveProjectAs,
+  };
+}
+
+export function useEditorApi() {
+  const be = getBackend();
+
+  const getFileBlocks = useCallback(
+    async (projectID: string, fileName: string): Promise<BlockInfo[]> => {
+      if (be) return be.GetFileBlocks(projectID, fileName);
+      return [];
+    },
+    [be],
+  );
+
+  const updateBlockTarget = useCallback(
+    async (req: UpdateBlockRequest): Promise<void> => {
+      if (be) return be.UpdateBlockTarget(req);
+    },
+    [be],
+  );
+
+  const pseudoTranslateFile = useCallback(
+    async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
+      if (be) return be.PseudoTranslateFile(projectID, fileName, targetLocale);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const aiTranslateFile = useCallback(
+    async (req: AITranslateFileRequest): Promise<TranslationStats> => {
+      if (be) return be.AITranslateFile(req);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const tmTranslateFile = useCallback(
+    async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
+      if (be) return be.TMTranslateFile(projectID, fileName, targetLocale);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const getWordCount = useCallback(
+    async (projectID: string, fileName: string): Promise<WordCountResult> => {
+      if (be) return be.GetWordCount(projectID, fileName);
+      return { source_words: 0, source_chars: 0, target_words: {}, target_chars: {} };
+    },
+    [be],
+  );
+
+  const exportTranslatedFile = useCallback(
+    async (projectID: string, fileName: string, targetLocale: string): Promise<string> => {
+      if (be) return be.ExportTranslatedFile(projectID, fileName, targetLocale);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const openFileInOS = useCallback(
+    async (filePath: string): Promise<void> => {
+      if (be) return be.OpenFileInOS(filePath);
+    },
+    [be],
+  );
+
+  return {
+    getFileBlocks,
+    updateBlockTarget,
+    pseudoTranslateFile,
+    aiTranslateFile,
+    tmTranslateFile,
+    getWordCount,
+    exportTranslatedFile,
+    openFileInOS,
+  };
 }
