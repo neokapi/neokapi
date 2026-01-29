@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -12,10 +13,17 @@ var toolsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Available tools:")
 		fmt.Println()
-		fmt.Printf("  %-25s %s\n", "TOOL", "DESCRIPTION")
-		fmt.Printf("  %-25s %s\n", "----", "-----------")
+		fmt.Printf("  %-25s %-12s %s\n", "TOOL", "ALIAS", "DESCRIPTION")
+		fmt.Printf("  %-25s %-12s %s\n", "----", "-----", "-----------")
 
-		builtinTools := []struct {
+		// Tools exposed as top-level commands.
+		for _, def := range builtinToolCommands {
+			aliases := strings.Join(def.Aliases, ", ")
+			fmt.Printf("  %-25s %-12s %s\n", def.Use, aliases, def.Short)
+		}
+
+		// Other tools available only via `flow run`.
+		otherTools := []struct {
 			name string
 			desc string
 		}{
@@ -26,10 +34,12 @@ var toolsCmd = &cobra.Command{
 			{"pseudo-translate", "Generate pseudo-translations for testing"},
 		}
 
-		for _, t := range builtinTools {
-			fmt.Printf("  %-25s %s\n", t.name, t.desc)
+		for _, t := range otherTools {
+			fmt.Printf("  %-25s %-12s %s\n", t.name, "", t.desc)
 		}
-		fmt.Printf("\nTotal: %d tool(s)\n", len(builtinTools))
+
+		total := len(builtinToolCommands) + len(otherTools)
+		fmt.Printf("\nTotal: %d tool(s)\n", total)
 	},
 }
 

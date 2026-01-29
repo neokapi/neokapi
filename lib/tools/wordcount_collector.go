@@ -2,7 +2,11 @@ package tools
 
 import (
 	"context"
+	"fmt"
+	"io"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/asgeirf/gokapi/core/flow"
@@ -11,43 +15,119 @@ import (
 
 // DocumentWordCount holds word counts for a single document.
 type DocumentWordCount struct {
-	URI         string
-	SourceWords int
-	TargetWords int
-	BlockCount  int
+	URI         string                 `json:"uri"`
+	SourceWords int                    `json:"source_words"`
+	TargetWords map[model.LocaleID]int `json:"target_words,omitempty"`
+	BlockCount  int                    `json:"block_count"`
 }
 
 // WordCountSummary is the aggregated result from WordCountCollector.
 type WordCountSummary struct {
-	TotalSourceWords int
-	TotalTargetWords int
-	DocumentCount    int
-	Documents        map[string]DocumentWordCount
+	TotalSourceWords int                    `json:"total_source_words"`
+	TotalTargetWords map[model.LocaleID]int `json:"total_target_words,omitempty"`
+	DocumentCount    int                    `json:"document_count"`
+	Documents        map[string]DocumentWordCount `json:"documents"`
+}
+
+// FormatTable writes an aligned text table to w.
+func (s *WordCountSummary) FormatTable(w io.Writer) {
+	// Collect all target locales across all documents.
+	localeSet := make(map[model.LocaleID]bool)
+	for _, doc := range s.Documents {
+		for loc := range doc.TargetWords {
+			localeSet[loc] = true
+		}
+	}
+	locales := make([]model.LocaleID, 0, len(localeSet))
+	for loc := range localeSet {
+		locales = append(locales, loc)
+	}
+	sort.Slice(locales, func(i, j int) bool { return locales[i] < locales[j] })
+
+	// Determine column widths.
+	fileWidth := len("FILE")
+	for _, doc := range s.Documents {
+		if len(doc.URI) > fileWidth {
+			fileWidth = len(doc.URI)
+		}
+	}
+	// Add padding.
+	fileWidth += 4
+
+	// Header.
+	fmt.Fprintf(w, "%-*s %6s  %12s", fileWidth, "FILE", "BLOCKS", "SOURCE WORDS")
+	for _, loc := range locales {
+		fmt.Fprintf(w, "  %12s", fmt.Sprintf("TARGET (%s)", loc))
+	}
+	fmt.Fprintln(w)
+
+	// Sort documents by URI for deterministic output.
+	uris := make([]string, 0, len(s.Documents))
+	for uri := range s.Documents {
+		uris = append(uris, uri)
+	}
+	sort.Strings(uris)
+
+	// Data rows.
+	for _, uri := range uris {
+		doc := s.Documents[uri]
+		fmt.Fprintf(w, "%-*s %6d  %12d", fileWidth, doc.URI, doc.BlockCount, doc.SourceWords)
+		for _, loc := range locales {
+			if n, ok := doc.TargetWords[loc]; ok {
+				fmt.Fprintf(w, "  %12d", n)
+			} else {
+				fmt.Fprintf(w, "  %12s", "-")
+			}
+		}
+		fmt.Fprintln(w)
+	}
+
+	// Separator line.
+	totalWidth := fileWidth + 6 + 2 + 12
+	for range locales {
+		totalWidth += 2 + 12
+	}
+	fmt.Fprintln(w, strings.Repeat("\u2500", totalWidth))
+
+	// Total row.
+	fmt.Fprintf(w, "%-*s %6s  %12d", fileWidth,
+		fmt.Sprintf("Total (%d files)", s.DocumentCount), "", s.TotalSourceWords)
+	for _, loc := range locales {
+		if n, ok := s.TotalTargetWords[loc]; ok {
+			fmt.Fprintf(w, "  %12d", n)
+		} else {
+			fmt.Fprintf(w, "  %12s", "-")
+		}
+	}
+	fmt.Fprintln(w)
 }
 
 // WordCountCollector aggregates word counts from documents processed
-// by the WordCountTool. It reads PropWordCountSource and PropWordCountTarget
-// properties from blocks.
+// by the WordCountTool. It reads PropWordCountSource, PropWordCountTarget,
+// and PropWordCountTargetPrefix properties from blocks.
 //
 // It implements flow.Collector and is safe for concurrent use.
 type WordCountCollector struct {
 	mu          sync.Mutex
 	perDocument map[string]DocumentWordCount
 	totalSource int
-	totalTarget int
+	totalTarget map[model.LocaleID]int
 }
 
 // NewWordCountCollector creates a new WordCountCollector.
 func NewWordCountCollector() *WordCountCollector {
 	return &WordCountCollector{
 		perDocument: make(map[string]DocumentWordCount),
+		totalTarget: make(map[model.LocaleID]int),
 	}
 }
 
 // Collect reads word count properties from block parts and aggregates them.
 func (wc *WordCountCollector) Collect(_ context.Context, item *flow.FlowItem, parts []*model.Part) error {
-	var doc DocumentWordCount
-	doc.URI = item.Input.URI
+	doc := DocumentWordCount{
+		URI:         item.Input.URI,
+		TargetWords: make(map[model.LocaleID]int),
+	}
 
 	for _, p := range parts {
 		if p.Type != model.PartBlock {
@@ -63,9 +143,22 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.FlowItem, pa
 			n, _ := strconv.Atoi(v)
 			doc.SourceWords += n
 		}
+
+		// Legacy single-locale property.
 		if v, ok := block.Properties[PropWordCountTarget]; ok {
 			n, _ := strconv.Atoi(v)
-			doc.TargetWords += n
+			// Use the item's target locale as the key; fall back to empty.
+			loc := item.TargetLocale
+			doc.TargetWords[loc] += n
+		}
+
+		// Per-locale properties (PropWordCountTargetPrefix + locale).
+		for key, v := range block.Properties {
+			if strings.HasPrefix(key, PropWordCountTargetPrefix) {
+				locale := model.LocaleID(key[len(PropWordCountTargetPrefix):])
+				n, _ := strconv.Atoi(v)
+				doc.TargetWords[locale] += n
+			}
 		}
 	}
 
@@ -74,7 +167,9 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.FlowItem, pa
 
 	wc.perDocument[doc.URI] = doc
 	wc.totalSource += doc.SourceWords
-	wc.totalTarget += doc.TargetWords
+	for loc, n := range doc.TargetWords {
+		wc.totalTarget[loc] += n
+	}
 	return nil
 }
 
@@ -86,14 +181,24 @@ func (wc *WordCountCollector) Result() (flow.CollectorResult, error) {
 	// Copy the map to avoid external mutation.
 	docs := make(map[string]DocumentWordCount, len(wc.perDocument))
 	for k, v := range wc.perDocument {
+		tw := make(map[model.LocaleID]int, len(v.TargetWords))
+		for loc, n := range v.TargetWords {
+			tw[loc] = n
+		}
+		v.TargetWords = tw
 		docs[k] = v
+	}
+
+	totalTarget := make(map[model.LocaleID]int, len(wc.totalTarget))
+	for loc, n := range wc.totalTarget {
+		totalTarget[loc] = n
 	}
 
 	return flow.CollectorResult{
 		Name: "word-count",
 		Data: &WordCountSummary{
 			TotalSourceWords: wc.totalSource,
-			TotalTargetWords: wc.totalTarget,
+			TotalTargetWords: totalTarget,
 			DocumentCount:    len(docs),
 			Documents:        docs,
 		},

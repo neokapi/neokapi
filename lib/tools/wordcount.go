@@ -12,6 +12,9 @@ import (
 const (
 	PropWordCountSource = "word-count-source"
 	PropWordCountTarget = "word-count-target"
+	// PropWordCountTargetPrefix is used for per-locale target word counts.
+	// The full key is PropWordCountTargetPrefix + locale, e.g. "word-count-target:fr".
+	PropWordCountTargetPrefix = "word-count-target:"
 )
 
 // WordCountConfig holds configuration for the word count tool.
@@ -61,11 +64,21 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 		sourceCount := countWords(sourceText)
 		block.Properties[PropWordCountSource] = strconv.Itoa(sourceCount)
 
-		// Count target words if locale is set and target exists.
-		if !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
-			targetText := block.TargetText(conf.Locale)
-			targetCount := countWords(targetText)
-			block.Properties[PropWordCountTarget] = strconv.Itoa(targetCount)
+		// Count target words.
+		if !conf.Locale.IsEmpty() {
+			// Single-locale mode: count for the specified locale.
+			if block.HasTarget(conf.Locale) {
+				targetText := block.TargetText(conf.Locale)
+				targetCount := countWords(targetText)
+				block.Properties[PropWordCountTarget] = strconv.Itoa(targetCount)
+			}
+		} else {
+			// All-locale mode: count every target locale present.
+			for locale := range block.Targets {
+				targetText := block.TargetText(locale)
+				targetCount := countWords(targetText)
+				block.Properties[PropWordCountTargetPrefix+string(locale)] = strconv.Itoa(targetCount)
+			}
 		}
 
 		return part, nil

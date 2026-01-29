@@ -31,7 +31,6 @@ var flowRunCmd = &cobra.Command{
 		flowName := args[0]
 		inputPaths, _ := cmd.Flags().GetStringSlice("input")
 		concurrency, _ := cmd.Flags().GetInt("concurrency")
-		showSummary, _ := cmd.Flags().GetBool("summary")
 
 		if len(inputPaths) == 0 {
 			return fmt.Errorf("--input (-i) is required")
@@ -52,7 +51,7 @@ var flowRunCmd = &cobra.Command{
 		}
 
 		// Multiple files: use parallel executor with tool factories.
-		return runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, showSummary)
+		return runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency)
 	},
 }
 
@@ -168,7 +167,7 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 }
 
 // runMultipleFiles processes multiple input files in parallel using tool factories.
-func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, inputPaths []string, concurrency int, showSummary bool) error {
+func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, inputPaths []string, concurrency int) error {
 	// Build FlowItems for each input path.
 	items := make([]*flow.FlowItem, len(inputPaths))
 	for i, p := range inputPaths {
@@ -193,15 +192,9 @@ func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, in
 	}
 	f2 := fb.Build()
 
-	// Set up executor with concurrency and optional collectors.
+	// Set up executor with concurrency.
 	var opts []flow.ExecutorOption
 	opts = append(opts, flow.WithMaxConcurrency(concurrency))
-
-	var wc *libtools.WordCountCollector
-	if showSummary && flowName == "word-count" {
-		wc = libtools.NewWordCountCollector()
-		opts = append(opts, flow.WithCollectors(wc))
-	}
 
 	executor := flow.NewFlowExecutor(opts...)
 
@@ -211,22 +204,6 @@ func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, in
 
 	if !quiet {
 		fmt.Printf("Flow %q completed: processed %d files\n", flowName, len(inputPaths))
-	}
-
-	if wc != nil && showSummary {
-		result, err := wc.Result()
-		if err != nil {
-			return fmt.Errorf("collector result error: %w", err)
-		}
-		summary := result.Data.(*libtools.WordCountSummary)
-		fmt.Printf("\nWord Count Summary:\n")
-		fmt.Printf("  Documents: %d\n", summary.DocumentCount)
-		fmt.Printf("  Total source words: %d\n", summary.TotalSourceWords)
-		fmt.Printf("  Total target words: %d\n", summary.TotalTargetWords)
-		for uri, doc := range summary.Documents {
-			fmt.Printf("  %s: source=%d target=%d blocks=%d\n",
-				uri, doc.SourceWords, doc.TargetWords, doc.BlockCount)
-		}
 	}
 
 	return nil
@@ -243,7 +220,6 @@ var flowListCmd = &cobra.Command{
 		fmt.Printf("  %-25s %s\n", "ai-translate", "Translate content using AI/LLM")
 		fmt.Printf("  %-25s %s\n", "ai-translate-qa", "Translate + quality check using AI/LLM")
 		fmt.Printf("  %-25s %s\n", "pseudo-translate", "Generate pseudo-translations for testing")
-		fmt.Printf("  %-25s %s\n", "word-count", "Count words in source and target text")
 	},
 }
 
@@ -251,7 +227,6 @@ func init() {
 	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	flowRunCmd.Flags().StringP("output", "o", "", "output file path (single-file mode only)")
 	flowRunCmd.Flags().IntP("concurrency", "j", 0, "max parallel documents (0 = auto, 1 = sequential)")
-	flowRunCmd.Flags().Bool("summary", false, "print aggregated summary for flows with collectors")
 	flowRunCmd.Flags().String("provider", "anthropic", "LLM provider (anthropic, openai, ollama)")
 	flowRunCmd.Flags().String("api-key", "", "API key for LLM provider")
 	flowRunCmd.Flags().String("model", "", "LLM model name")
@@ -287,12 +262,6 @@ func buildFlowTools(flowName string) ([]tool.Tool, error) {
 		return []tool.Tool{
 			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 				TargetLocale: model.LocaleID(targetLang),
-			}),
-		}, nil
-	case "word-count":
-		return []tool.Tool{
-			libtools.NewWordCountTool(&libtools.WordCountConfig{
-				Locale: model.LocaleID(targetLang),
 			}),
 		}, nil
 	default:
@@ -336,14 +305,6 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 			func() (tool.Tool, error) {
 				return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 					TargetLocale: model.LocaleID(targetLang),
-				}), nil
-			},
-		}, nil
-	case "word-count":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				return libtools.NewWordCountTool(&libtools.WordCountConfig{
-					Locale: model.LocaleID(targetLang),
 				}), nil
 			},
 		}, nil

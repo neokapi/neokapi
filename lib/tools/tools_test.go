@@ -2,6 +2,7 @@ package tools_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/asgeirf/gokapi/core/flow"
@@ -857,7 +858,8 @@ func TestWordCountCollector(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
 	item := &flow.FlowItem{
-		Input: &model.RawDocument{URI: "doc1.html"},
+		Input:        &model.RawDocument{URI: "doc1.html"},
+		TargetLocale: model.LocaleFrench,
 	}
 
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
@@ -883,26 +885,26 @@ func TestWordCountCollector(t *testing.T) {
 
 	summary := result.Data.(*tools.WordCountSummary)
 	assert.Equal(t, 4, summary.TotalSourceWords)
-	assert.Equal(t, 4, summary.TotalTargetWords)
+	assert.Equal(t, 4, summary.TotalTargetWords[model.LocaleFrench])
 	assert.Equal(t, 1, summary.DocumentCount)
 
 	doc := summary.Documents["doc1.html"]
 	assert.Equal(t, 4, doc.SourceWords)
-	assert.Equal(t, 4, doc.TargetWords)
+	assert.Equal(t, 4, doc.TargetWords[model.LocaleFrench])
 	assert.Equal(t, 2, doc.BlockCount)
 }
 
 func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 	wc := tools.NewWordCountCollector()
 
-	for i, uri := range []string{"a.html", "b.html", "c.html"} {
+	for _, uri := range []string{"a.html", "b.html", "c.html"} {
 		item := &flow.FlowItem{
-			Input: &model.RawDocument{URI: uri},
+			Input:        &model.RawDocument{URI: uri},
+			TargetLocale: model.LocaleFrench,
 		}
 		block := model.NewBlock("tu1", "text")
 		block.Properties[tools.PropWordCountSource] = "2"
 		block.Properties[tools.PropWordCountTarget] = "3"
-		_ = i
 
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},
@@ -916,7 +918,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 
 	summary := result.Data.(*tools.WordCountSummary)
 	assert.Equal(t, 6, summary.TotalSourceWords)
-	assert.Equal(t, 9, summary.TotalTargetWords)
+	assert.Equal(t, 9, summary.TotalTargetWords[model.LocaleFrench])
 	assert.Equal(t, 3, summary.DocumentCount)
 	assert.Len(t, summary.Documents, 3)
 }
@@ -942,7 +944,7 @@ func TestWordCountCollectorSkipsNonBlocks(t *testing.T) {
 
 	summary := result.Data.(*tools.WordCountSummary)
 	assert.Equal(t, 0, summary.TotalSourceWords)
-	assert.Equal(t, 0, summary.TotalTargetWords)
+	assert.Empty(t, summary.TotalTargetWords)
 	assert.Equal(t, 0, summary.Documents["doc.html"].BlockCount)
 }
 
@@ -969,4 +971,116 @@ func TestWordCountCollectorSkipsNonTranslatable(t *testing.T) {
 
 	summary := result.Data.(*tools.WordCountSummary)
 	assert.Equal(t, 0, summary.TotalSourceWords)
+}
+
+// --- Multilingual WordCount Tests ---
+
+func TestWordCountToolAllLocales(t *testing.T) {
+	// Empty locale → count all target locales.
+	cfg := &tools.WordCountConfig{}
+	tl := tools.NewWordCountTool(cfg)
+
+	block := model.NewBlock("tu1", "Hello world")
+	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+	block.SetTargetText(model.LocaleGerman, "Hallo Welt")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	// Source always counted.
+	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountSource])
+	// Legacy single key should NOT be set.
+	_, hasLegacy := resultBlock.Properties[tools.PropWordCountTarget]
+	assert.False(t, hasLegacy)
+	// Per-locale keys should be set.
+	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"])
+	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountTargetPrefix+"de"])
+}
+
+func TestWordCountToolSingleLocaleBackwardCompat(t *testing.T) {
+	// With locale set → legacy behavior.
+	cfg := &tools.WordCountConfig{Locale: model.LocaleFrench}
+	tl := tools.NewWordCountTool(cfg)
+
+	block := model.NewBlock("tu1", "Hello world")
+	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+	block.SetTargetText(model.LocaleGerman, "Hallo Welt")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountSource])
+	// Legacy single-locale key set.
+	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountTarget])
+	// Per-locale keys should NOT be set.
+	_, hasPerLocale := resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"]
+	assert.False(t, hasPerLocale)
+}
+
+func TestWordCountCollectorPerLocaleProperties(t *testing.T) {
+	wc := tools.NewWordCountCollector()
+
+	item := &flow.FlowItem{
+		Input: &model.RawDocument{URI: "doc.html"},
+	}
+
+	block := model.NewBlock("tu1", "Hello world")
+	block.Properties[tools.PropWordCountSource] = "2"
+	block.Properties[tools.PropWordCountTargetPrefix+"fr"] = "3"
+	block.Properties[tools.PropWordCountTargetPrefix+"de"] = "2"
+
+	parts := []*model.Part{
+		{Type: model.PartBlock, Resource: block},
+	}
+
+	err := wc.Collect(context.Background(), item, parts)
+	require.NoError(t, err)
+
+	result, err := wc.Result()
+	require.NoError(t, err)
+
+	summary := result.Data.(*tools.WordCountSummary)
+	assert.Equal(t, 2, summary.TotalSourceWords)
+	assert.Equal(t, 3, summary.TotalTargetWords[model.LocaleFrench])
+	assert.Equal(t, 2, summary.TotalTargetWords[model.LocaleGerman])
+	assert.Equal(t, 1, summary.DocumentCount)
+
+	doc := summary.Documents["doc.html"]
+	assert.Equal(t, 3, doc.TargetWords[model.LocaleFrench])
+	assert.Equal(t, 2, doc.TargetWords[model.LocaleGerman])
+}
+
+func TestWordCountSummaryFormatTable(t *testing.T) {
+	summary := &tools.WordCountSummary{
+		TotalSourceWords: 10,
+		TotalTargetWords: map[model.LocaleID]int{
+			model.LocaleFrench: 12,
+		},
+		DocumentCount: 2,
+		Documents: map[string]tools.DocumentWordCount{
+			"a.html": {
+				URI: "a.html", SourceWords: 5, BlockCount: 2,
+				TargetWords: map[model.LocaleID]int{model.LocaleFrench: 6},
+			},
+			"b.html": {
+				URI: "b.html", SourceWords: 5, BlockCount: 3,
+				TargetWords: map[model.LocaleID]int{model.LocaleFrench: 6},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	summary.FormatTable(&buf)
+	output := buf.String()
+
+	// Should contain header.
+	assert.Contains(t, output, "FILE")
+	assert.Contains(t, output, "BLOCKS")
+	assert.Contains(t, output, "SOURCE WORDS")
+	assert.Contains(t, output, "TARGET (fr)")
+	// Should contain document rows.
+	assert.Contains(t, output, "a.html")
+	assert.Contains(t, output, "b.html")
+	// Should contain total row.
+	assert.Contains(t, output, "Total (2 files)")
 }
