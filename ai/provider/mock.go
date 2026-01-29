@@ -8,11 +8,11 @@ import (
 
 // MockProvider implements LLMProvider for testing.
 type MockProvider struct {
-	ProviderName    string
-	TranslateFunc   func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
-	ChatFunc        func(ctx context.Context, messages []Message) (*ChatResponse, error)
-	TranslateCalls  []TranslateRequest
-	ChatCalls       [][]Message
+	ProviderName   string
+	TranslateFunc  func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
+	ChatFunc       func(ctx context.Context, messages []Message) (*ChatResponse, error)
+	TranslateCalls []TranslateRequest
+	ChatCalls      [][]Message
 }
 
 // NewMockProvider creates a new mock provider with default behavior.

@@ -43,7 +43,7 @@ type TMEntry struct {
 // TMMatch represents a match result from a TM lookup.
 type TMMatch struct {
 	Entry     TMEntry
-	Score     float64   // 0.0-1.0 (1.0 = exact match)
+	Score     float64 // 0.0-1.0 (1.0 = exact match)
 	MatchType MatchType
 }
 

@@ -14,11 +14,11 @@ import (
 // XLIFF 2.0 XML structures
 
 type xliff2Doc struct {
-	XMLName  xml.Name     `xml:"xliff"`
-	Version  string       `xml:"version,attr"`
-	SrcLang  string       `xml:"srcLang,attr"`
-	TrgLang  string       `xml:"trgLang,attr"`
-	Files    []xliff2File `xml:"file"`
+	XMLName xml.Name     `xml:"xliff"`
+	Version string       `xml:"version,attr"`
+	SrcLang string       `xml:"srcLang,attr"`
+	TrgLang string       `xml:"trgLang,attr"`
+	Files   []xliff2File `xml:"file"`
 }
 
 type xliff2File struct {
@@ -27,10 +27,10 @@ type xliff2File struct {
 }
 
 type xliff2Unit struct {
-	ID       string           `xml:"id,attr"`
-	Name     string           `xml:"name,attr"`
-	Notes    []xliff2Note     `xml:"notes>note"`
-	Segments []xliff2Segment  `xml:"segment"`
+	ID       string          `xml:"id,attr"`
+	Name     string          `xml:"name,attr"`
+	Notes    []xliff2Note    `xml:"notes>note"`
+	Segments []xliff2Segment `xml:"segment"`
 }
 
 type xliff2Segment struct {

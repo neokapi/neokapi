@@ -82,10 +82,10 @@ type tmxBody struct {
 }
 
 type tmxTU struct {
-	TUid  string      `xml:"tuid,attr"`
-	Props []tmxProp   `xml:"prop"`
-	TUVs  []tmxTUV    `xml:"tuv"`
-	Notes []tmxNote   `xml:"note"`
+	TUid  string    `xml:"tuid,attr"`
+	Props []tmxProp `xml:"prop"`
+	TUVs  []tmxTUV  `xml:"tuv"`
+	Notes []tmxNote `xml:"note"`
 }
 
 type tmxTUV struct {
@@ -140,12 +140,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ID:   fmt.Sprintf("d%d", dataCounter),
 		Name: "tmx-header",
 		Properties: map[string]string{
-			"version":     doc.Version,
-			"srclang":     doc.Header.SrcLang,
-			"adminlang":   doc.Header.AdminLang,
-			"datatype":    doc.Header.DataType,
-			"segtype":     doc.Header.SegType,
-			"o-tmf":       doc.Header.OriginalFormat,
+			"version":      doc.Version,
+			"srclang":      doc.Header.SrcLang,
+			"adminlang":    doc.Header.AdminLang,
+			"datatype":     doc.Header.DataType,
+			"segtype":      doc.Header.SegType,
+			"o-tmf":        doc.Header.OriginalFormat,
 			"creationtool": doc.Header.CreationTool,
 		},
 	}

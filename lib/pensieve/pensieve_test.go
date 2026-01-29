@@ -229,7 +229,7 @@ func TestLevenshteinDistance(t *testing.T) {
 
 func TestLevenshteinRatio(t *testing.T) {
 	tests := []struct {
-		a, b    string
+		a, b     string
 		minRatio float64
 		maxRatio float64
 	}{

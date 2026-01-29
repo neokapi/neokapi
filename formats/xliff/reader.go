@@ -14,8 +14,8 @@ import (
 // XLIFF 1.2 XML structures
 
 type xliffDoc struct {
-	XMLName xml.Name   `xml:"xliff"`
-	Version string     `xml:"version,attr"`
+	XMLName xml.Name    `xml:"xliff"`
+	Version string      `xml:"version,attr"`
 	Files   []xliffFile `xml:"file"`
 }
 
@@ -28,7 +28,7 @@ type xliffFile struct {
 }
 
 type xliffBody struct {
-	TransUnits []transUnit `xml:"trans-unit"`
+	TransUnits []transUnit  `xml:"trans-unit"`
 	Groups     []xliffGroup `xml:"group"`
 }
 

@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	cfgFile     string
-	verbose     bool
-	quiet       bool
-	formatFlag  string
-	encoding    string
-	sourceLang  string
-	targetLang  string
-	formatReg   *registry.FormatRegistry
+	cfgFile    string
+	verbose    bool
+	quiet      bool
+	formatFlag string
+	encoding   string
+	sourceLang string
+	targetLang string
+	formatReg  *registry.FormatRegistry
 )
 
 var rootCmd = &cobra.Command{

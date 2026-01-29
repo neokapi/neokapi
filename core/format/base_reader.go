@@ -9,7 +9,7 @@ import (
 // BaseFormatReader provides shared behavior for format reader implementations.
 // Embed this in concrete readers.
 type BaseFormatReader struct {
-	FormatName  string
+	FormatName        string
 	FormatDisplayName string
 	FormatMimeType    string
 	FormatExtensions  []string

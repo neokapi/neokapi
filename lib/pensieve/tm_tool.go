@@ -30,8 +30,8 @@ func (c *TMLeverageConfig) Validate() error { return nil }
 // For exact matches (score = 1.0), the target text is also set directly.
 type TMLeverageTool struct {
 	tool.BaseTool
-	tm   TranslationMemory
-	cfg  TMLeverageConfig
+	tm  TranslationMemory
+	cfg TMLeverageConfig
 }
 
 // NewTMLeverageTool creates a new TM leverage tool.

@@ -75,9 +75,9 @@ func (w *Writer) flush() error {
 		Content string   `xml:",chardata"`
 	}
 	type xmlTransUnit struct {
-		XMLName xml.Name  `xml:"trans-unit"`
-		ID      string    `xml:"id,attr"`
-		Source  xmlSource `xml:"source"`
+		XMLName xml.Name   `xml:"trans-unit"`
+		ID      string     `xml:"id,attr"`
+		Source  xmlSource  `xml:"source"`
 		Target  *xmlTarget `xml:"target,omitempty"`
 	}
 	type xmlBody struct {

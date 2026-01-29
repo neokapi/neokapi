@@ -30,12 +30,12 @@ type Message struct {
 
 // TranslateRequest contains parameters for a translation request.
 type TranslateRequest struct {
-	Source       string          `json:"source"`
-	SourceLocale model.LocaleID `json:"source_locale"`
-	TargetLocale model.LocaleID `json:"target_locale"`
-	Context      string          `json:"context,omitempty"`
+	Source       string            `json:"source"`
+	SourceLocale model.LocaleID    `json:"source_locale"`
+	TargetLocale model.LocaleID    `json:"target_locale"`
+	Context      string            `json:"context,omitempty"`
 	Glossary     map[string]string `json:"glossary,omitempty"`
-	Format       string          `json:"format,omitempty"` // e.g., "html", "plain"
+	Format       string            `json:"format,omitempty"` // e.g., "html", "plain"
 }
 
 // TranslateResponse contains the translation result.
@@ -53,8 +53,8 @@ type ChatResponse struct {
 
 // QAIssue represents a quality assurance issue found in a translation.
 type QAIssue struct {
-	Type        string `json:"type"`        // "terminology", "fluency", "accuracy", "consistency"
-	Severity    string `json:"severity"`    // "error", "warning", "info"
+	Type        string `json:"type"`     // "terminology", "fluency", "accuracy", "consistency"
+	Severity    string `json:"severity"` // "error", "warning", "info"
 	Description string `json:"description"`
 	Suggestion  string `json:"suggestion,omitempty"`
 }
