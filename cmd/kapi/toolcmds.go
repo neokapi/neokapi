@@ -10,13 +10,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// pseudoExpansion is the expansion percentage for pseudo-translate.
+var pseudoExpansion int
+
 // toolCommandDef describes a tool that is exposed as a top-level CLI command.
 type toolCommandDef struct {
-	Use          string
-	Aliases      []string
-	Short        string
-	NewTool      func() (tool.Tool, error)
-	NewCollector func() flow.Collector
+	Use               string
+	Aliases           []string
+	Short             string
+	WritesOutput      bool   // tool produces file output via format writers
+	DefaultTargetLang string // fallback target language when --target-lang is not set
+	NewTool           func() (tool.Tool, error)
+	NewCollector      func() flow.Collector
 }
 
 // builtinToolCommands lists all tools exposed as top-level commands.
@@ -33,6 +38,23 @@ var builtinToolCommands = []toolCommandDef{
 		},
 		NewCollector: func() flow.Collector {
 			return libtools.NewWordCountCollector()
+		},
+	},
+	{
+		Use:               "pseudo-translate",
+		Aliases:           []string{"pseudo"},
+		Short:             "Generate pseudo-translations for localization testing",
+		WritesOutput:      true,
+		DefaultTargetLang: "qps",
+		NewTool: func() (tool.Tool, error) {
+			lang := targetLang
+			if lang == "" {
+				lang = "qps"
+			}
+			return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
+				TargetLocale:     model.LocaleID(lang),
+				ExpansionPercent: pseudoExpansion,
+			}), nil
 		},
 	},
 }
@@ -52,16 +74,31 @@ func init() {
 				noWarn, _ := cmd.Flags().GetBool("no-warn")
 				progress, _ := cmd.Flags().GetBool("progress")
 
+				var outputTmpl string
+				if def.WritesOutput {
+					outputTmpl, _ = cmd.Flags().GetString("output")
+					if outputTmpl == "" {
+						outputTmpl = "./out/{name}.{ext}"
+					}
+				}
+
+				effectiveLang := targetLang
+				if effectiveLang == "" && def.DefaultTargetLang != "" {
+					effectiveLang = def.DefaultTargetLang
+				}
+
 				return RunToolOnFiles(context.Background(), ToolRunConfig{
-					ToolName:      def.Use,
-					Files:         args,
-					Concurrency:   conc,
-					JSONOutput:    jsonOut,
-					FailOnUnknown: failUnknown,
-					NoWarn:        noWarn,
-					Progress:      progress,
-					NewTool:       def.NewTool,
-					NewCollector:  def.NewCollector,
+					ToolName:       def.Use,
+					Files:          args,
+					Concurrency:    conc,
+					JSONOutput:     jsonOut,
+					FailOnUnknown:  failUnknown,
+					NoWarn:         noWarn,
+					Progress:       progress,
+					OutputTemplate: outputTmpl,
+					TargetLang:     effectiveLang,
+					NewTool:        def.NewTool,
+					NewCollector:   def.NewCollector,
 				})
 			},
 		}
@@ -70,6 +107,12 @@ func init() {
 		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")
 		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
+		if def.WritesOutput {
+			cmd.Flags().StringP("output", "o", "", "output path template (variables: {name}, {ext}, {lang})")
+		}
+		if def.Use == "pseudo-translate" {
+			cmd.Flags().IntVar(&pseudoExpansion, "expansion", 0, "text expansion percentage (0 = none)")
+		}
 		rootCmd.AddCommand(cmd)
 	}
 }

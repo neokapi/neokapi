@@ -13,6 +13,7 @@ import (
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/asgeirf/gokapi/plugin/loader"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
@@ -20,15 +21,17 @@ import (
 
 // ToolRunConfig configures RunToolOnFiles.
 type ToolRunConfig struct {
-	ToolName      string
-	Files         []string
-	Concurrency   int                       // 0 = NumCPU
-	JSONOutput    bool
-	FailOnUnknown bool                      // fail on unrecognized formats instead of skipping
-	NoWarn        bool                      // suppress skip warnings
-	Progress      bool                      // show progress bar on stderr
-	NewTool       func() (tool.Tool, error) // factory for fresh tool per file
-	NewCollector  func() flow.Collector     // nil = no collection
+	ToolName       string
+	Files          []string
+	Concurrency    int                       // 0 = NumCPU
+	JSONOutput     bool
+	FailOnUnknown  bool                      // fail on unrecognized formats instead of skipping
+	NoWarn         bool                      // suppress skip warnings
+	Progress       bool                      // show progress bar on stderr
+	OutputTemplate string                    // output path template with {name}, {ext}, {lang}
+	TargetLang     string                    // effective target language (may differ from global flag)
+	NewTool        func() (tool.Tool, error) // factory for fresh tool per file
+	NewCollector   func() flow.Collector     // nil = no collection
 }
 
 // resolveFiles expands glob patterns and filters out directories
@@ -91,6 +94,12 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		collector = cfg.NewCollector()
 	}
 
+	// Compute common directory prefix for output path expansion.
+	var commonDir string
+	if cfg.OutputTemplate != "" {
+		commonDir = commonDirPrefix(files)
+	}
+
 	// Optional progress bar.
 	var bar *mpb.Bar
 	var progress *mpb.Progress
@@ -113,7 +122,7 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		sem <- struct{}{}
 		g.Go(func() error {
 			defer func() { <-sem }()
-			err := processOneFile(ctx, cfg, file, collector)
+			err := processOneFile(ctx, cfg, file, collector, commonDir)
 			if bar != nil {
 				bar.Increment()
 			}
@@ -144,8 +153,8 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 }
 
 // processOneFile reads a single file, pipes parts through the tool, and
-// feeds the output to the collector.
-func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector) error {
+// feeds the output to the collector or writes via a format writer.
+func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string) error {
 	// Detect format.
 	fmtName := formatFlag
 	if fmtName == "" {
@@ -241,11 +250,50 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		return fmt.Errorf("tool execution on %s: %w", filePath, err)
 	}
 
+	// Write output via format writer.
+	if cfg.OutputTemplate != "" {
+		outputPath := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
+
+		writer, err := formatReg.NewWriter(fmtName)
+		if err != nil {
+			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+		}
+
+		if err := writer.SetOutput(outputPath); err != nil {
+			return fmt.Errorf("set output %s: %w", outputPath, err)
+		}
+
+		if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+			ocs.SetOriginalContent(content)
+		}
+
+		locale := model.LocaleID(cfg.TargetLang)
+		writer.SetLocale(locale)
+
+		ch := make(chan *model.Part, len(outputParts))
+		for _, p := range outputParts {
+			ch <- p
+		}
+		close(ch)
+
+		if err := writer.Write(ctx, ch); err != nil {
+			return fmt.Errorf("write output %s: %w", outputPath, err)
+		}
+		if err := writer.Close(); err != nil {
+			return fmt.Errorf("close writer %s: %w", outputPath, err)
+		}
+
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "%s → %s\n", filePath, outputPath)
+		}
+		return nil
+	}
+
 	// Feed collector.
 	if collector != nil {
 		item := &flow.FlowItem{
 			Input:        doc,
-			TargetLocale: model.LocaleID(targetLang),
+			TargetLocale: model.LocaleID(cfg.TargetLang),
 		}
 		if err := collector.Collect(ctx, item, outputParts); err != nil {
 			return fmt.Errorf("collect %s: %w", filePath, err)
@@ -253,4 +301,90 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	}
 
 	return nil
+}
+
+// commonDirPrefix returns the longest shared directory prefix of the given file paths.
+// For example, ["a/b/x.html", "a/b/c/y.html"] returns "a/b/".
+func commonDirPrefix(files []string) string {
+	if len(files) == 0 {
+		return ""
+	}
+	if len(files) == 1 {
+		return filepath.Dir(files[0]) + string(filepath.Separator)
+	}
+
+	// Split the first file's directory into parts.
+	prefix := filepath.Dir(files[0])
+	for _, f := range files[1:] {
+		dir := filepath.Dir(f)
+		prefix = commonPath(prefix, dir)
+		if prefix == "" {
+			return ""
+		}
+	}
+	if prefix != "" && !strings.HasSuffix(prefix, string(filepath.Separator)) {
+		prefix += string(filepath.Separator)
+	}
+	return prefix
+}
+
+// commonPath returns the longest common directory path between a and b.
+func commonPath(a, b string) string {
+	aParts := strings.Split(filepath.ToSlash(a), "/")
+	bParts := strings.Split(filepath.ToSlash(b), "/")
+	n := len(aParts)
+	if len(bParts) < n {
+		n = len(bParts)
+	}
+	var common []string
+	for i := 0; i < n; i++ {
+		if aParts[i] != bParts[i] {
+			break
+		}
+		common = append(common, aParts[i])
+	}
+	if len(common) == 0 {
+		return ""
+	}
+	return filepath.FromSlash(strings.Join(common, "/"))
+}
+
+// expandOutputPath expands template variables in the output path template.
+// Supported variables: {name} (relative path without extension), {ext} (extension without dot),
+// {lang} (target language). If the expanded path ends with "/", the original
+// relative name.ext is appended (directory mode).
+func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
+	rel := filePath
+	if commonDir != "" {
+		if r, err := filepath.Rel(commonDir, filePath); err == nil {
+			rel = r
+		}
+	}
+
+	ext := filepath.Ext(rel)
+	name := strings.TrimSuffix(rel, ext)
+	extNoDot := strings.TrimPrefix(ext, ".")
+
+	result := tmpl
+	result = strings.ReplaceAll(result, "{name}", name)
+	result = strings.ReplaceAll(result, "{ext}", extNoDot)
+	result = strings.ReplaceAll(result, "{lang}", lang)
+
+	// Directory mode: if result ends with / or is an existing directory,
+	// append the original relative name.ext.
+	isDir := strings.HasSuffix(result, "/") || strings.HasSuffix(result, string(filepath.Separator))
+	if !isDir {
+		if info, err := os.Stat(result); err == nil && info.IsDir() {
+			isDir = true
+		}
+	}
+	if isDir {
+		result = filepath.Join(result, rel)
+	}
+
+	// Ensure parent directory exists.
+	dir := filepath.Dir(result)
+	_ = os.MkdirAll(dir, 0o755)
+
+	return result
 }
