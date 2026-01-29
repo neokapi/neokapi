@@ -1,10 +1,10 @@
-import { useState } from "react";
-
 type View = "formats" | "tools" | "flows" | "convert" | "translate";
 
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
 const navItems: { view: View; label: string; icon: string }[] = [
@@ -15,8 +15,7 @@ const navItems: { view: View; label: string; icon: string }[] = [
   { view: "translate", label: "Translate", icon: "\u{1F30D}" },
 ];
 
-export function Sidebar({ activeView, onViewChange }: SidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange }: SidebarProps) {
 
   return (
     <nav
@@ -30,31 +29,8 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          padding: "16px",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: collapsed ? "center" : "space-between",
-        }}
-      >
-        {!collapsed && (
-          <span style={{ fontWeight: 700, fontSize: 18 }}>Bowrain</span>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-            fontSize: 16,
-          }}
-        >
-          {collapsed ? "\u{25B6}" : "\u{25C0}"}
-        </button>
-      </div>
+      {/* Spacer for macOS traffic light buttons */}
+      <div style={{ height: 38, flexShrink: 0 }} />
       <div style={{ flex: 1, padding: "8px 0" }}>
         {navItems.map(({ view, label, icon }) => (
           <button
@@ -87,6 +63,31 @@ export function Sidebar({ activeView, onViewChange }: SidebarProps) {
             {!collapsed && <span>{label}</span>}
           </button>
         ))}
+      </div>
+      <div
+        style={{
+          padding: "12px 16px",
+          borderTop: "1px solid var(--border)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "space-between",
+        }}
+      >
+        {!collapsed && (
+          <span style={{ fontWeight: 700, fontSize: 18 }}>Bowrain</span>
+        )}
+        <button
+          onClick={() => onCollapsedChange(!collapsed)}
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--text-secondary)",
+            cursor: "pointer",
+            fontSize: 16,
+          }}
+        >
+          {collapsed ? "\u{25B6}" : "\u{25C0}"}
+        </button>
       </div>
     </nav>
   );

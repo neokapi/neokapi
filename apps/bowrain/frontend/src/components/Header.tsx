@@ -1,8 +1,9 @@
 interface HeaderProps {
   connected: boolean;
+  sidebarCollapsed: boolean;
 }
 
-export function Header({ connected }: HeaderProps) {
+export function Header({ connected, sidebarCollapsed }: HeaderProps) {
   return (
     <header
       style={{
@@ -12,7 +13,7 @@ export function Header({ connected }: HeaderProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 20px",
+        padding: sidebarCollapsed ? "0 20px 0 80px" : "0 20px",
         // Wails: draggable title bar region
         // @ts-expect-error non-standard CSS property for Wails
         "--wails-draggable": "drag",

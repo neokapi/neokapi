@@ -10,6 +10,7 @@ import { useHealth } from "./hooks/useApi";
 
 function App() {
   const [activeView, setActiveView] = useState<View>("formats");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { connected } = useHealth();
 
   const renderView = () => {
@@ -35,9 +36,9 @@ function App() {
         overflow: "hidden",
       }}
     >
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
+      <Sidebar activeView={activeView} onViewChange={setActiveView} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <Header connected={connected} />
+        <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
         <main
           style={{
             flex: 1,
