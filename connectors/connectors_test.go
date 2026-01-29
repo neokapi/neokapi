@@ -10,6 +10,7 @@ import (
 	"github.com/asgeirf/gokapi/connectors/deepl"
 	"github.com/asgeirf/gokapi/connectors/google"
 	"github.com/asgeirf/gokapi/connectors/microsoft"
+	"github.com/asgeirf/gokapi/connectors/modernmt"
 	"github.com/asgeirf/gokapi/connectors/mymemory"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -354,6 +355,90 @@ func TestMyMemoryConfigValidation(t *testing.T) {
 	assert.Contains(t, err.Error(), "SourceLocale")
 
 	cfg.SourceLocale = model.LocaleEnglish
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TargetLocale")
+
+	cfg.TargetLocale = model.LocaleFrench
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestModernMTConnector(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/translate", r.URL.Path)
+		assert.Equal(t, http.MethodPost, r.Method)
+		assert.Equal(t, "test-mmt-key", r.Header.Get("MMT-ApiKey"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+
+		var reqBody struct {
+			Source string  `json:"source"`
+			Target string  `json:"target"`
+			Q      string  `json:"q"`
+			Hints  []int64 `json:"hints"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&reqBody)
+		require.NoError(t, err)
+		assert.Equal(t, "Hello world", reqBody.Q)
+		assert.Equal(t, "en", reqBody.Source)
+		assert.Equal(t, "fr", reqBody.Target)
+
+		resp := map[string]interface{}{
+			"status": 200,
+			"data": map[string]interface{}{
+				"translation": "Bonjour le monde",
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	cfg := &modernmt.ModernMTConfig{
+		APIKey:       "test-mmt-key",
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+		BaseURL:      server.URL,
+	}
+	connector := modernmt.NewModernMTConnector(cfg)
+
+	block := model.NewBlock("tu1", "Hello world")
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, connector, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
+}
+
+func TestModernMTConnectorSkipsNonTranslatable(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("API should not be called for non-translatable blocks")
+	}))
+	defer server.Close()
+
+	cfg := &modernmt.ModernMTConfig{
+		APIKey:       "test-key",
+		TargetLocale: model.LocaleFrench,
+		BaseURL:      server.URL,
+	}
+	connector := modernmt.NewModernMTConnector(cfg)
+
+	block := model.NewBlock("tu1", "Hello")
+	block.Translatable = false
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, connector, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
+}
+
+func TestModernMTConfigValidation(t *testing.T) {
+	cfg := &modernmt.ModernMTConfig{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "APIKey")
+
+	cfg.APIKey = "key"
 	err = cfg.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
