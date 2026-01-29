@@ -1,0 +1,22 @@
+# Build artifacts
+bin/
+kapi
+gokapi-server
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+
+# Plugin binaries
+gokapi-plugin-*
+*.exe
