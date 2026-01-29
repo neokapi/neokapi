@@ -21,6 +21,10 @@ vendor/
 gokapi-plugin-*
 *.exe
 
+# Java bridge build artifacts
+plugin/bridge/java/target/
+plugin/bridge/java/dependency-reduced-pom.xml
+
 # Frontend
 node_modules/
 dist/
