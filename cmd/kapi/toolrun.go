@@ -25,9 +25,45 @@ type ToolRunConfig struct {
 	NewCollector func() flow.Collector     // nil = no collection
 }
 
+// resolveFiles expands glob patterns and filters out directories,
+// returning only regular files.
+func resolveFiles(patterns []string) ([]string, error) {
+	var files []string
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+		}
+		if matches == nil {
+			// No glob meta-characters or no matches — treat as literal path.
+			matches = []string{pattern}
+		}
+		for _, m := range matches {
+			info, err := os.Stat(m)
+			if err != nil {
+				return nil, fmt.Errorf("stat %q: %w", m, err)
+			}
+			if info.IsDir() {
+				continue
+			}
+			files = append(files, m)
+		}
+	}
+	return files, nil
+}
+
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
+// Glob patterns are expanded and directories are skipped automatically.
 func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	files, err := resolveFiles(cfg.Files)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		return fmt.Errorf("no files to process")
+	}
+
 	concurrency := cfg.Concurrency
 	if concurrency <= 0 {
 		concurrency = runtime.NumCPU()
@@ -41,7 +77,7 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	g, ctx := errgroup.WithContext(ctx)
 	sem := make(chan struct{}, concurrency)
 
-	for _, file := range cfg.Files {
+	for _, file := range files {
 		file := file
 		sem <- struct{}{}
 		g.Go(func() error {
