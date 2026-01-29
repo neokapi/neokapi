@@ -21,13 +21,17 @@ import (
 type App struct {
 	ctx       context.Context
 	formatReg *registry.FormatRegistry
+	projects  *projectStore
 }
 
 // NewApp creates a new Bowrain backend with all formats registered.
 func NewApp() *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
-	return &App{formatReg: reg}
+	return &App{
+		formatReg: reg,
+		projects:  newProjectStore(),
+	}
 }
 
 // Startup is called by Wails when the application starts.
