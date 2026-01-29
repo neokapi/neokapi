@@ -14,10 +14,13 @@ import (
 )
 
 // BridgeFormatReader implements format.DataFormatReader by delegating to
-// a Java bridge subprocess running an Okapi filter.
+// a Java bridge subprocess running an Okapi filter. It acquires a bridge
+// from the pool on Open and releases it on Close, ensuring exclusive
+// access to the stateful JVM filter for the entire lifecycle.
 type BridgeFormatReader struct {
 	format.BaseFormatReader
-	bridge      *JavaBridge
+	pool        *BridgePool
+	bridge      *JavaBridge // acquired from pool during Open
 	filterClass string
 	info        *InfoData
 	content     []byte // raw document content for base64 encoding
@@ -25,15 +28,16 @@ type BridgeFormatReader struct {
 
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
 
-// NewBridgeFormatReader creates a reader backed by a Java bridge.
-func NewBridgeFormatReader(bridge *JavaBridge, filterClass string) *BridgeFormatReader {
+// NewBridgeFormatReader creates a reader that acquires bridges from the pool.
+func NewBridgeFormatReader(pool *BridgePool, filterClass string) *BridgeFormatReader {
 	return &BridgeFormatReader{
-		bridge:      bridge,
+		pool:        pool,
 		filterClass: filterClass,
 	}
 }
 
 // Signature returns the format detection signature from the Java filter.
+// It acquires and releases a bridge just for the info query.
 func (r *BridgeFormatReader) Signature() format.FormatSignature {
 	info, err := r.fetchInfo()
 	if err != nil {
@@ -46,27 +50,40 @@ func (r *BridgeFormatReader) Signature() format.FormatSignature {
 }
 
 // Open reads the document content and sends it to the Java bridge.
+// It acquires a bridge from the pool, which is released by Close.
 func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) error {
+	b, err := r.pool.Acquire()
+	if err != nil {
+		return fmt.Errorf("acquiring bridge: %w", err)
+	}
+
+	r.bridge = b
 	r.Doc = doc
 
 	var content []byte
 	if doc.Reader != nil {
-		var err error
 		content, err = io.ReadAll(doc.Reader)
 		if err != nil {
+			r.pool.Release(b)
+			r.bridge = nil
 			return fmt.Errorf("reading document content: %w", err)
 		}
 	}
 	r.content = content
 
-	return r.bridge.Open(OpenParams{
+	if err := r.bridge.Open(OpenParams{
 		FilterClass:   r.filterClass,
 		URI:           doc.URI,
 		SourceLocale:  string(doc.SourceLocale),
 		Encoding:      doc.Encoding,
 		ContentBase64: base64.StdEncoding.EncodeToString(content),
 		MimeType:      doc.MimeType,
-	})
+	}); err != nil {
+		r.pool.Release(b)
+		r.bridge = nil
+		return err
+	}
+	return nil
 }
 
 // Read sends a read command to the bridge and emits Parts on the returned channel.
@@ -100,17 +117,31 @@ func (r *BridgeFormatReader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// Close releases the filter resources in the Java bridge.
+// Close releases the filter resources in the Java bridge and returns
+// the bridge to the pool.
 func (r *BridgeFormatReader) Close() error {
-	return r.bridge.CloseFilter()
+	if r.bridge == nil {
+		return nil
+	}
+	err := r.bridge.CloseFilter()
+	r.pool.Release(r.bridge)
+	r.bridge = nil
+	return err
 }
 
 // fetchInfo caches and returns the filter's metadata.
+// It acquires and releases a bridge from the pool for the info query.
 func (r *BridgeFormatReader) fetchInfo() (*InfoData, error) {
 	if r.info != nil {
 		return r.info, nil
 	}
-	info, err := r.bridge.Info(r.filterClass)
+	b, err := r.pool.Acquire()
+	if err != nil {
+		return nil, fmt.Errorf("acquiring bridge for info: %w", err)
+	}
+	defer r.pool.Release(b)
+
+	info, err := b.Info(r.filterClass)
 	if err != nil {
 		return nil, err
 	}
@@ -124,17 +155,17 @@ func (r *BridgeFormatReader) fetchInfo() (*InfoData, error) {
 // a Java bridge subprocess running an Okapi filter writer.
 type BridgeFormatWriter struct {
 	format.BaseFormatWriter
-	bridge          *JavaBridge
+	pool            *BridgePool
 	filterClass     string
 	originalContent []byte // original document needed by Okapi for skeleton
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
 
-// NewBridgeFormatWriter creates a writer backed by a Java bridge.
-func NewBridgeFormatWriter(bridge *JavaBridge, filterClass string) *BridgeFormatWriter {
+// NewBridgeFormatWriter creates a writer that acquires bridges from the pool.
+func NewBridgeFormatWriter(pool *BridgePool, filterClass string) *BridgeFormatWriter {
 	return &BridgeFormatWriter{
-		bridge:      bridge,
+		pool:        pool,
 		filterClass: filterClass,
 	}
 }
@@ -145,8 +176,9 @@ func (w *BridgeFormatWriter) SetOriginalContent(content []byte) {
 	w.originalContent = content
 }
 
-// Write collects all parts from the channel, sends them to the Java bridge
-// with the original content, and writes the reconstructed output.
+// Write collects all parts from the channel, acquires a bridge from the pool,
+// sends the parts to the Java bridge with the original content, writes the
+// reconstructed output, and releases the bridge back to the pool.
 func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
 	var collected []*model.Part
 	for {
@@ -164,7 +196,13 @@ func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part
 send:
 	dtos := shared.PartsToDTO(collected)
 
-	wd, err := w.bridge.Write(WriteParams{
+	b, err := w.pool.Acquire()
+	if err != nil {
+		return fmt.Errorf("acquiring bridge for write: %w", err)
+	}
+	defer w.pool.Release(b)
+
+	wd, err := b.Write(WriteParams{
 		FilterClass:           w.filterClass,
 		Parts:                 dtos,
 		Locale:                string(w.Locale),

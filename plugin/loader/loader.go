@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/asgeirf/gokapi/core/format"
@@ -30,9 +31,9 @@ type PluginInfo struct {
 	Formats []string
 }
 
-// managedBridge tracks a running Java bridge.
+// managedBridge tracks a running Java bridge pool.
 type managedBridge struct {
-	bridge     *bridge.JavaBridge
+	pool       *bridge.BridgePool
 	descriptor *ParsedBridgeDescriptor
 	formats    []string
 }
@@ -119,6 +120,7 @@ func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatReg
 		CommandTimeout: parsed.ResolvedCommandTimeout,
 	}
 
+	// Start the first bridge for filter discovery, then seed it into the pool.
 	b := bridge.NewJavaBridge(cfg, l.logger)
 	if err := b.Start(); err != nil {
 		return fmt.Errorf("starting bridge %q: %w", parsed.Name, err)
@@ -130,8 +132,11 @@ func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatReg
 		return fmt.Errorf("listing filters from bridge %q: %w", parsed.Name, err)
 	}
 
+	pool := bridge.NewBridgePool(cfg, runtime.NumCPU(), l.logger)
+	pool.Seed(b)
+
 	mb := &managedBridge{
-		bridge:     b,
+		pool:       pool,
 		descriptor: parsed,
 	}
 
@@ -140,14 +145,14 @@ func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatReg
 		mb.formats = append(mb.formats, fmtName)
 
 		filterClass := f.FilterClass
-		javaBridge := b
+		bridgePool := pool
 
 		if formatReg != nil {
 			formatReg.RegisterReader(fmtName, func() format.DataFormatReader {
-				return bridge.NewBridgeFormatReader(javaBridge, filterClass)
+				return bridge.NewBridgeFormatReader(bridgePool, filterClass)
 			})
 			formatReg.RegisterWriter(fmtName, func() format.DataFormatWriter {
-				return bridge.NewBridgeFormatWriter(javaBridge, filterClass)
+				return bridge.NewBridgeFormatWriter(bridgePool, filterClass)
 			})
 		}
 
@@ -181,9 +186,7 @@ func (l *PluginLoader) Shutdown() {
 		l.manager.Shutdown()
 	}
 	for _, mb := range l.bridges {
-		if err := mb.bridge.Stop(); err != nil {
-			l.logf("stopping bridge %q: %v", mb.descriptor.Name, err)
-		}
+		mb.pool.Shutdown()
 	}
 	l.bridges = nil
 }

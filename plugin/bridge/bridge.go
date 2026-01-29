@@ -13,12 +13,17 @@ import (
 
 // JavaBridge manages a JVM subprocess that runs the Okapi bridge server.
 // Communication is synchronous NDJSON over stdin/stdout.
+//
+// The JVM is stateful: Open sets the active filter, and Read/Close operate on
+// it. Concurrent access is handled by BridgePool, which leases each bridge
+// exclusively to one goroutine for the full Open→Read→Close lifecycle.
+// The per-command mu serializes individual NDJSON round-trips.
 type JavaBridge struct {
 	cfg     BridgeConfig
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
 	scanner *bufio.Scanner
-	mu      sync.Mutex
+	mu      sync.Mutex // per-command serialization
 	logger  *log.Logger
 	running bool
 }
@@ -129,6 +134,10 @@ func (b *JavaBridge) Stop() error {
 		_, _ = b.stdin.Write(data)
 	}
 	_ = b.stdin.Close()
+
+	if b.cmd == nil {
+		return nil
+	}
 
 	// Wait for process to exit.
 	done := make(chan error, 1)
