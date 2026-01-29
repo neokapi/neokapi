@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="gokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <body>
+    <tu tuid="tu1">
+      <tuv xml:lang="en">
+        <seg>Hello World</seg>
+      </tuv>
+      <tuv xml:lang="fr">
+        <seg>Bonjour le monde</seg>
+      </tuv>
+    </tu>
+    <tu tuid="tu2">
+      <tuv xml:lang="en">
+        <seg>Goodbye</seg>
+      </tuv>
+      <tuv xml:lang="fr">
+        <seg>Au revoir</seg>
+      </tuv>
+      <tuv xml:lang="de">
+        <seg>Auf Wiedersehen</seg>
+      </tuv>
+    </tu>
+  </body>
+</tmx>

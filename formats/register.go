@@ -3,11 +3,16 @@ package formats
 import (
 	"github.com/asgeirf/gokapi/core/format"
 	"github.com/asgeirf/gokapi/core/registry"
+	csvfmt "github.com/asgeirf/gokapi/formats/csv"
 	"github.com/asgeirf/gokapi/formats/html"
 	"github.com/asgeirf/gokapi/formats/json"
+	"github.com/asgeirf/gokapi/formats/markdown"
 	"github.com/asgeirf/gokapi/formats/plaintext"
 	"github.com/asgeirf/gokapi/formats/po"
 	"github.com/asgeirf/gokapi/formats/properties"
+	"github.com/asgeirf/gokapi/formats/srt"
+	"github.com/asgeirf/gokapi/formats/tmx"
+	"github.com/asgeirf/gokapi/formats/vtt"
 	"github.com/asgeirf/gokapi/formats/xliff"
 	"github.com/asgeirf/gokapi/formats/xliff2"
 	xmlfmt "github.com/asgeirf/gokapi/formats/xml"
@@ -51,4 +56,24 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// Java Properties
 	reg.RegisterReader("properties", func() format.DataFormatReader { return properties.NewReader() })
 	reg.RegisterWriter("properties", func() format.DataFormatWriter { return properties.NewWriter() })
+
+	// Markdown
+	reg.RegisterReader("markdown", func() format.DataFormatReader { return markdown.NewReader() })
+	reg.RegisterWriter("markdown", func() format.DataFormatWriter { return markdown.NewWriter() })
+
+	// CSV
+	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
+	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
+
+	// SRT Subtitles
+	reg.RegisterReader("srt", func() format.DataFormatReader { return srt.NewReader() })
+	reg.RegisterWriter("srt", func() format.DataFormatWriter { return srt.NewWriter() })
+
+	// WebVTT Subtitles
+	reg.RegisterReader("vtt", func() format.DataFormatReader { return vtt.NewReader() })
+	reg.RegisterWriter("vtt", func() format.DataFormatWriter { return vtt.NewWriter() })
+
+	// TMX (Translation Memory eXchange)
+	reg.RegisterReader("tmx", func() format.DataFormatReader { return tmx.NewReader() })
+	reg.RegisterWriter("tmx", func() format.DataFormatWriter { return tmx.NewWriter() })
 }
