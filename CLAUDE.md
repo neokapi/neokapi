@@ -1,0 +1,110 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation. The module path is `github.com/asgeirf/gokapi`.
+
+## Build & Test Commands
+
+```bash
+make build              # Build kapi CLI → bin/kapi
+make build-server       # Build REST server → bin/gokapi-server
+make build-all          # Build all Go binaries
+make test               # Run all tests (go test ./... -count=1)
+make test-unit          # Unit tests only (-short flag)
+make test-race          # Tests with race detector
+make test-verbose       # Verbose test output
+make cover              # Coverage report → coverage/coverage.html
+make fmt                # Format Go source (gofmt -w -s)
+make vet                # Run go vet
+make lint               # Run golangci-lint (install via: make tools)
+make check              # fmt + vet + lint
+make deps               # Download and tidy Go modules
+make proto              # Generate gRPC code from protobuf definitions
+```
+
+Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
+
+**Bowrain (desktop GUI):**
+```bash
+cd apps/bowrain && wails build        # Build native macOS/Linux/Windows app
+cd apps/bowrain && wails dev          # Dev mode with hot reload
+make frontend-deps                    # npm install for frontend
+make frontend-build                   # Production frontend build
+```
+
+## Architecture
+
+### Streaming Pipeline
+
+Documents flow through a channel-based concurrent pipeline:
+
+```
+RawDocument → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output
+                                    ↕            ↕
+                              chan *Part    chan *Part
+```
+
+Each tool runs in its own goroutine. Buffered channels (default 64) provide backpressure. `errgroup.Group` coordinates error handling. Context cancellation propagates to all stages.
+
+### Content Model (core/model/)
+
+The Part is the fundamental streaming unit, carrying a PartType discriminator and a Resource:
+
+- **Layer** — structural grouping (document, section, embedded content). Layers nest: embedded content (HTML inside JSON) becomes a child Layer with its own DataFormat.
+- **Block** — translatable content with Source segments and Target segments per locale
+- **Fragment** — text with inline Spans using coded text (Unicode private use area markers replace inline markup)
+- **Data** — non-translatable structure
+- **Media** — binary content
+
+### Key Interfaces
+
+- `format.DataFormatReader` — `Open(ctx, doc)` then `Read(ctx) <-chan PartResult`
+- `format.DataFormatWriter` — `SetOutput(path)`, `Write(ctx, <-chan *Part)`
+- `tool.Tool` — `Process(ctx, in <-chan *Part, out chan<- *Part) error`
+- `flow.FlowExecutor` — orchestrates tool chains with goroutines and channels
+- `registry.FormatRegistry` — factory registry for readers/writers with format detection
+- `ai/provider.LLMProvider` — interface for Anthropic, OpenAI, Ollama backends
+
+### Terminology Mapping from Okapi
+
+| Okapi (Java) | gokapi (Go) |
+|---|---|
+| Filter | DataFormat (Reader/Writer) |
+| Step | Tool |
+| Pipeline | Flow |
+| PipelineDriver | FlowExecutor |
+| Event | Part |
+| TextUnit | Block |
+| TextFragment | Fragment |
+| Code | Span |
+| StartSubDocument/StartSubFilter | Child Layer |
+
+## Package Layout
+
+- `core/` — model types, format/tool/flow interfaces, registry, config, encoding
+- `formats/` — 15 built-in format implementations (html, xml, xliff, xliff2, json, yaml, po, properties, plaintext, markdown, csv, srt, vtt, tmx). Each has reader.go, writer.go, config.go. Registration in `register.go`
+- `ai/` — LLM provider interface + implementations (anthropic, openai, ollama), AI-powered tools (translate, QA, terminology, review), prompt templates
+- `connectors/` — external translation service integrations (deepl, google, microsoft, mymemory)
+- `lib/pensieve/` — translation memory system with Levenshtein fuzzy matching and TMX import/export
+- `lib/tools/` — utility tools (wordcount, charcount, pseudo-translation, search/replace)
+- `plugin/` — HashiCorp go-plugin + gRPC plugin system (host, server, proto definitions, Java bridge)
+- `cmd/kapi/` — Cobra CLI (convert, translate, extract, merge, flow, formats, tools, plugins)
+- `cmd/gokapi-server/` — Echo v4 REST API server
+- `apps/bowrain/` — Wails v2 desktop app (Go backend + React 19/TypeScript/Vite frontend)
+- `internal/testutil/` — shared test helpers
+- `docs/` — OVERVIEW.md, ARCHITECTURE.md, INTERFACES.md, PHASES.md, TESTING.md
+
+## Implementing a New Format
+
+Create a package under `formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `formats/register.go` via `init()`.
+
+## Implementing a New Tool
+
+Create a type embedding `tool.BaseTool` and set `HandleBlockFn` / `HandleDataFn` / `HandleMediaFn` function fields for the part types you want to process. Parts you don't handle pass through unchanged. Register in the tool registry.
+
+## Testing
+
+Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
