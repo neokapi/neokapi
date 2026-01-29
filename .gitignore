@@ -1,7 +1,7 @@
 # Build artifacts
 bin/
-kapi
-gokapi-server
+/kapi
+/gokapi-server
 coverage/
 
 # IDE
@@ -20,3 +20,8 @@ vendor/
 # Plugin binaries
 gokapi-plugin-*
 *.exe
+
+# Frontend
+node_modules/
+dist/
+*.tsbuildinfo

@@ -18,14 +18,17 @@ BIN_DIR     := bin
 COVER_DIR   := coverage
 PROTO_DIR   := plugin/proto/v1
 PROTO_FILES := $(wildcard $(PROTO_DIR)/*.proto)
+FRONTEND_DIR := apps/bowrain/frontend
+NPM         := npm
 
 # Tools
 GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null)
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-server test test-unit test-integration test-race \
-        lint fmt vet proto clean install cover tools help
+.PHONY: all build build-server build-all build-frontend test test-unit test-integration \
+        test-race lint fmt vet proto clean install cover tools help \
+        frontend-deps frontend-dev frontend-build
 
 # Default target
 all: fmt vet lint test build ## Build and validate everything
@@ -44,10 +47,23 @@ build-server: ## Build the gokapi REST server
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/gokapi-server $(SERVER_PKG)
 
-build-all: build build-server ## Build all binaries
+build-all: build build-server ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
 	$(GO) install $(LDFLAGS) $(CLI_PKG)
+
+# ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
+
+frontend-deps: ## Install frontend dependencies
+	cd $(FRONTEND_DIR) && $(NPM) install
+
+frontend-dev: ## Start frontend dev server
+	cd $(FRONTEND_DIR) && $(NPM) run dev
+
+frontend-build: ## Build frontend for production
+	cd $(FRONTEND_DIR) && $(NPM) run build
+
+build-ui: build-server frontend-build ## Build server + frontend
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
@@ -114,6 +130,8 @@ tools: ## Install development tools
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)
 	rm -rf $(COVER_DIR)
+	rm -rf $(FRONTEND_DIR)/dist
+	rm -rf $(FRONTEND_DIR)/node_modules
 	$(GO) clean -cache -testcache
 
 # ── Dependencies ─────────────────────────────────────────────────────────────
