@@ -172,7 +172,7 @@ test.describe("Translation Editor", () => {
       const backend = (window as any).go.backend.App;
       await backend.UpdateBlockTarget({
         project_id: "project-1",
-        file_name: "hello.txt",
+        item_name: "hello.txt",
         block_id: "hello.txt-block-1",
         target_locale: "fr",
         text: "Bonjour de hello.txt",
@@ -204,5 +204,326 @@ test.describe("Translation Editor", () => {
     await page.waitForTimeout(300);
 
     await expect(page.getByText("Exported to")).toBeVisible();
+  });
+
+  test("should show preview toggle button", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    await expect(page.getByTestId("preview-toggle")).toBeVisible();
+  });
+
+  test("should toggle preview on and show split layout", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Click preview toggle
+    await clickTestId(page, "preview-toggle");
+    await page.waitForTimeout(300);
+
+    // Split layout should be visible
+    await expect(page.getByTestId("split-layout")).toBeVisible();
+    // Preview iframe should render
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    // Block grid should still be visible
+    await expect(page.getByTestId("block-grid")).toBeVisible();
+  });
+
+  test("should toggle preview off and show full grid", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle on
+    await clickTestId(page, "preview-toggle");
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId("split-layout")).toBeVisible();
+
+    // Toggle off
+    await clickTestId(page, "preview-toggle");
+    await page.waitForTimeout(300);
+
+    // Split layout should be gone, grid should remain
+    await expect(page.getByTestId("split-layout")).not.toBeVisible();
+    await expect(page.getByTestId("block-grid")).toBeVisible();
+  });
+
+  test("should render kat-block elements in preview iframe", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+
+    // Verify kat-block elements render with the expected source text
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("Welcome to our application");
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("Click here to continue");
+  });
+
+  test("should select grid row when clicking block in preview", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Click the second block in the preview iframe
+    await iframe.locator('[id="hello.txt-block-2"]').click();
+    await page.waitForTimeout(300);
+
+    // Verify status bar shows block 2 is now selected
+    await expect(page.getByTestId("status-bar")).toContainText("Block 2 of");
+  });
+
+  test("should highlight preview block when selecting grid row", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Click the third row in the grid (use evaluate to avoid Playwright hang)
+    await clickTestId(page, "block-row-2");
+    await page.waitForTimeout(300);
+
+    // Verify the matching block in the preview has the kat-selected class
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toHaveClass(/kat-selected/);
+  });
+
+  test("should clear previous preview highlight when selecting different grid row", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Select block 3
+    await clickTestId(page, "block-row-2");
+    await page.waitForTimeout(300);
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toHaveClass(/kat-selected/);
+
+    // Now select block 1
+    await clickTestId(page, "block-row-0");
+    await page.waitForTimeout(300);
+
+    // Block 1 should be selected, block 3 should no longer be
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toHaveClass(/kat-selected/);
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).not.toHaveClass(/kat-selected/);
+  });
+
+  test("should show source/target toggle on preview hover", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    // Overlay is hidden until hover
+    const overlay = page.getByTestId("preview-overlay");
+    await expect(overlay).toHaveCSS("opacity", "0");
+
+    // Hover over the preview pane to reveal the overlay
+    await page.getByTestId("preview-iframe").hover();
+    await expect(overlay).toHaveCSS("opacity", "1");
+
+    // Source/target toggle should be visible, defaulting to "Source"
+    const toggle = page.getByTestId("preview-target-toggle");
+    await expect(toggle).toBeVisible();
+    await expect(toggle).toContainText("Source");
+  });
+
+  test("should switch preview to target text after pseudo-translate", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Preview shows source text initially
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+
+    // Pseudo-translate to generate target text
+    await clickTestId(page, "pseudo-btn");
+    await page.waitForTimeout(500);
+
+    // Hover to reveal toggle, then click it
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Button should now say "Target"
+    await expect(page.getByTestId("preview-target-toggle")).toContainText("Target");
+
+    // Preview should show pseudo-translated text
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
+  });
+
+  test("should switch preview back to source text", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on, pseudo-translate, switch to target
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    await clickTestId(page, "pseudo-btn");
+    await page.waitForTimeout(500);
+
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+
+    // Toggle back to source
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Button should say "Source" again
+    await expect(page.getByTestId("preview-target-toggle")).toContainText("Source");
+
+    // Preview should show original source text
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+    // Verify it's NOT the pseudo-translated version
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).not.toContainText("[Hello");
+  });
+
+  test("should keep showing source text when toggling to Target with no translations", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Hover and toggle to Target (no translations exist yet)
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Button should say "Target"
+    await expect(page.getByTestId("preview-target-toggle")).toContainText("Target");
+
+    // Preview should still show source text since no targets exist
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("Welcome to our application");
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("Click here to continue");
+  });
+
+  test("should show target for translated blocks and source for untranslated", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Translate only the first block
+    await page.evaluate(async () => {
+      const backend = (window as any).go.backend.App;
+      await backend.UpdateBlockTarget({
+        project_id: "project-1",
+        item_name: "hello.txt",
+        block_id: "hello.txt-block-1",
+        target_locale: "fr",
+        text: "Bonjour de hello.txt",
+      });
+    });
+
+    // Reload blocks by navigating away and back
+    await clickTestId(page, "back-to-project");
+    await expect(page.getByTestId("open-file-hello.txt")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+      if (btn) btn.click();
+    });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+
+    // Toggle preview on
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Hover and toggle to Target
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Block 1 should show target text (translated)
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Bonjour de hello.txt");
+    // Block 2 and 3 should still show source text (not translated)
+    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("Welcome to our application");
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("Click here to continue");
+  });
+
+  test("should preserve toggle state when switching locale", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on and pseudo-translate for fr
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    await clickTestId(page, "pseudo-btn");
+    await page.waitForTimeout(500);
+
+    // Hover and toggle to Target
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Verify showing target text for fr
+    await expect(page.getByTestId("preview-target-toggle")).toContainText("Target");
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+
+    // Switch locale to de (which has no translations)
+    const selector = page.getByTestId("locale-selector");
+    await selector.selectOption("de");
+    await page.waitForTimeout(500);
+
+    // Toggle still says "Target" (state preserved in DocumentPreview)
+    await page.getByTestId("preview-iframe").hover();
+    await expect(page.getByTestId("preview-target-toggle")).toContainText("Target");
+
+    // But preview shows source text because de has no translations
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).not.toContainText("[Hello");
+  });
+
+  test("should update preview when translating with Target mode active", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Toggle preview on
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Toggle to Target before translating (shows source since no targets yet)
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
+
+    // Now pseudo-translate while Target mode is active
+    await clickTestId(page, "pseudo-btn");
+    await page.waitForTimeout(500);
+
+    // Preview should update to show translated text
+    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
+    await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("[Click here to continue]");
   });
 });

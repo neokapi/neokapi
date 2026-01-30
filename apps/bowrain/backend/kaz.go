@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"fmt"
@@ -10,33 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/asgeirf/gokapi/core/kaz"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/google/uuid"
-	"gopkg.in/yaml.v3"
+	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-// kazManifest is the manifest.yaml inside a .kaz package.
-type kazManifest struct {
-	Name            string            `yaml:"name"`
-	Version         string            `yaml:"version"`
-	GokapiVersion   string            `yaml:"gokapi_version"`
-	SourceLocale    string            `yaml:"source_locale"`
-	TargetLocales   []string          `yaml:"target_locales"`
-	CreatedAt       string            `yaml:"created_at"`
-	ModifiedAt      string            `yaml:"modified_at"`
-	FormatsRequired []string          `yaml:"formats_required"`
-	PluginsRequired []string          `yaml:"plugins_required"`
-	Files           []kazFileManifest `yaml:"files"`
-}
-
-// kazFileManifest describes a file entry in the manifest.
-type kazFileManifest struct {
-	Path       string `yaml:"path"`
-	Format     string `yaml:"format"`
-	Size       int64  `yaml:"size"`
-	BlockCount int    `yaml:"block_count"`
-	WordCount  int    `yaml:"word_count"`
-}
 
 // SaveProjectAs saves the project as a .kaz package to the given path.
 func (a *App) SaveProjectAs(projectID, path string) error {
@@ -56,93 +33,39 @@ func (a *App) SaveProjectAs(projectID, path string) error {
 	}
 	defer f.Close()
 
-	w := zip.NewWriter(f)
-	defer w.Close()
-
-	// Collect format names
-	formatSet := make(map[string]bool)
-	var fileManifests []kazFileManifest
-
-	// Write source files and collect XLIFF data
-	for _, pf := range p.info.Files {
-		fd, ok := p.files[pf.Name]
+	// Build pack items from project items
+	var packItems []kaz.PackItem
+	for _, pi := range p.info.Items {
+		id, ok := p.items[pi.Name]
 		if !ok {
 			continue
 		}
 
-		formatSet[fd.format] = true
-
-		// Write source file
-		fw, err := w.Create("files/" + pf.Name)
-		if err != nil {
-			return fmt.Errorf("write file %q: %w", pf.Name, err)
-		}
-		if _, err := fw.Write(fd.sourceBytes); err != nil {
-			return err
+		itemType := id.itemType
+		if itemType == "" {
+			itemType = "file"
 		}
 
-		// Write XLIFF work file
-		xliffData, err := a.partsToXLIFF(fd.parts, p.info.SourceLocale, p.info.TargetLocales)
-		if err == nil && len(xliffData) > 0 {
-			xfw, err := w.Create("xliff/" + pf.Name + ".xlf")
-			if err != nil {
-				return fmt.Errorf("write xliff %q: %w", pf.Name, err)
-			}
-			if _, err := xfw.Write(xliffData); err != nil {
-				return err
-			}
-		}
-
-		fileManifests = append(fileManifests, kazFileManifest{
-			Path:       pf.Name,
-			Format:     fd.format,
-			Size:       pf.Size,
-			BlockCount: pf.BlockCount,
-			WordCount:  pf.WordCount,
+		packItems = append(packItems, kaz.PackItem{
+			Name:        pi.Name,
+			Type:        itemType,
+			Format:      id.format,
+			SourceBytes: id.sourceBytes,
+			Parts:       id.parts,
 		})
 	}
 
-	var formats []string
-	for f := range formatSet {
-		formats = append(formats, f)
+	err = kaz.Pack(f, kaz.PackOptions{
+		Name:          p.info.Name,
+		SourceLocale:  p.info.SourceLocale,
+		TargetLocales: p.info.TargetLocales,
+		Items:         packItems,
+	})
+	if err != nil {
+		return fmt.Errorf("pack: %w", err)
 	}
 
-	// Build manifest
 	now := time.Now().UTC().Format(time.RFC3339)
-	manifest := kazManifest{
-		Name:            p.info.Name,
-		Version:         "1.0",
-		GokapiVersion:   "0.1.0",
-		SourceLocale:    p.info.SourceLocale,
-		TargetLocales:   p.info.TargetLocales,
-		CreatedAt:       p.info.CreatedAt,
-		ModifiedAt:      now,
-		FormatsRequired: formats,
-		PluginsRequired: []string{},
-		Files:           fileManifests,
-	}
-
-	manifestData, err := yaml.Marshal(&manifest)
-	if err != nil {
-		return fmt.Errorf("marshal manifest: %w", err)
-	}
-
-	mw, err := w.Create("manifest.yaml")
-	if err != nil {
-		return fmt.Errorf("write manifest: %w", err)
-	}
-	if _, err := mw.Write(manifestData); err != nil {
-		return err
-	}
-
-	// Create empty dirs for structure
-	if _, err := w.Create("assets/"); err != nil {
-		return err
-	}
-	if _, err := w.Create("tm/"); err != nil {
-		return err
-	}
-
 	p.info.Path = path
 	p.info.ModifiedAt = now
 	p.dirty = false
@@ -162,43 +85,71 @@ func (a *App) SaveProject(projectID string) error {
 	return a.SaveProjectAs(projectID, p.info.Path)
 }
 
+// OpenProjectDialog shows a native file dialog and opens the selected .kaz project.
+func (a *App) OpenProjectDialog() (*ProjectInfo, error) {
+	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: "Open a Project",
+		Filters: []wailsruntime.FileFilter{
+			{DisplayName: "Kaz Packages (*.kaz)", Pattern: "*.kaz"},
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("file dialog: %w", err)
+	}
+	if path == "" {
+		return nil, nil // user cancelled
+	}
+	return a.OpenProject(path)
+}
+
+// SaveProjectDialog shows a native save dialog and saves the project.
+func (a *App) SaveProjectDialog(projectID string) error {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return err
+	}
+
+	defaultName := p.info.Name + ".kaz"
+	path, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
+		Title:           "Save Project",
+		DefaultFilename: defaultName,
+		Filters: []wailsruntime.FileFilter{
+			{DisplayName: "Kaz Packages (*.kaz)", Pattern: "*.kaz"},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("file dialog: %w", err)
+	}
+	if path == "" {
+		return nil // user cancelled
+	}
+	return a.SaveProjectAs(projectID, path)
+}
+
+// AddFilesDialog shows a native file dialog and adds the selected files to the project.
+func (a *App) AddFilesDialog(projectID string) (*ProjectInfo, error) {
+	paths, err := wailsruntime.OpenMultipleFilesDialog(a.ctx, wailsruntime.OpenDialogOptions{
+		Title: "Add Files to Project",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("file dialog: %w", err)
+	}
+	if len(paths) == 0 {
+		return nil, nil // user cancelled
+	}
+	return a.AddFiles(projectID, paths)
+}
+
 // OpenProject opens a .kaz package and loads it into memory.
 func (a *App) OpenProject(path string) (*ProjectInfo, error) {
-	r, err := zip.OpenReader(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("open %q: %w", path, err)
 	}
-	defer r.Close()
 
-	// Find and read manifest
-	var manifest kazManifest
-	manifestFound := false
-	fileContents := make(map[string][]byte)
-
-	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			return nil, fmt.Errorf("open entry %q: %w", f.Name, err)
-		}
-		data, err := io.ReadAll(rc)
-		rc.Close()
-		if err != nil {
-			return nil, fmt.Errorf("read entry %q: %w", f.Name, err)
-		}
-
-		if f.Name == "manifest.yaml" {
-			if err := yaml.Unmarshal(data, &manifest); err != nil {
-				return nil, fmt.Errorf("parse manifest: %w", err)
-			}
-			manifestFound = true
-		} else if strings.HasPrefix(f.Name, "files/") && !strings.HasSuffix(f.Name, "/") {
-			name := strings.TrimPrefix(f.Name, "files/")
-			fileContents[name] = data
-		}
-	}
-
-	if !manifestFound {
-		return nil, fmt.Errorf("manifest.yaml not found in %q", path)
+	pkg, err := kaz.Unpack(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, fmt.Errorf("unpack %q: %w", path, err)
 	}
 
 	// Create project
@@ -206,88 +157,75 @@ func (a *App) OpenProject(path string) (*ProjectInfo, error) {
 	p := &project{
 		info: ProjectInfo{
 			ID:            projectID,
-			Name:          manifest.Name,
-			SourceLocale:  manifest.SourceLocale,
-			TargetLocales: manifest.TargetLocales,
+			Name:          pkg.Manifest.Name,
+			SourceLocale:  pkg.Manifest.SourceLocale,
+			TargetLocales: pkg.Manifest.TargetLocales,
 			Path:          path,
-			Files:         []ProjectFile{},
-			CreatedAt:     manifest.CreatedAt,
-			ModifiedAt:    manifest.ModifiedAt,
+			Items:         []ProjectItem{},
+			CreatedAt:     pkg.Manifest.CreatedAt,
+			ModifiedAt:    pkg.Manifest.ModifiedAt,
 		},
-		files: make(map[string]*projectFileData),
+		items: make(map[string]*projectItemData),
 	}
 
 	ctx := context.Background()
 
-	// Process each file from manifest
-	for _, mf := range manifest.Files {
-		data, ok := fileContents[mf.Path]
-		if !ok {
-			continue
-		}
-
-		// Try to parse with format reader
-		reader, err := a.formatReg.NewReader(mf.Format)
-		if err != nil {
-			// Store without parsing
-			p.files[mf.Path] = &projectFileData{
-				format:      mf.Format,
-				sourceBytes: data,
-			}
-			p.info.Files = append(p.info.Files, ProjectFile{
-				Name:       mf.Path,
-				Format:     mf.Format,
-				Size:       mf.Size,
-				BlockCount: mf.BlockCount,
-				WordCount:  mf.WordCount,
-			})
-			continue
-		}
-
-		doc := &model.RawDocument{
-			URI:          mf.Path,
-			SourceLocale: model.LocaleID(manifest.SourceLocale),
-			Encoding:     "UTF-8",
-			Reader:       io.NopCloser(bytes.NewReader(data)),
-		}
-
-		if err := reader.Open(ctx, doc); err != nil {
-			reader.Close()
-			continue
-		}
+	// Process each item from manifest
+	for _, mi := range pkg.Manifest.Items {
+		sourceBytes := pkg.Items[mi.Path]
+		blockIndex := pkg.Blocks[mi.Path]
+		previewHTML := pkg.Previews[mi.Path]
 
 		var parts []*model.Part
-		for result := range reader.Read(ctx) {
-			if result.Error != nil {
-				break
-			}
-			parts = append(parts, result.Part)
-		}
-		reader.Close()
 
-		// Recalculate counts from actual data
-		blockCount := 0
-		wordCount := 0
-		for _, pt := range parts {
-			if pt.Type == model.PartBlock {
-				block, ok := pt.Resource.(*model.Block)
-				if ok {
-					blockCount++
-					wordCount += countWords(block.SourceText())
+		// Path 1: Re-parse source item if available
+		if len(sourceBytes) > 0 {
+			parsed, err := a.parseItem(ctx, mi.Path, mi.Format, sourceBytes, pkg.Manifest.SourceLocale)
+			if err == nil {
+				parts = parsed
+
+				// Restore translations from block index into parts
+				if blockIndex != nil {
+					restoreTranslations(parts, blockIndex)
 				}
 			}
 		}
 
-		p.files[mf.Path] = &projectFileData{
-			format:      mf.Format,
-			parts:       parts,
-			sourceBytes: data,
+		// Path 2: Reconstruct from block index if no source or parsing failed
+		if len(parts) == 0 && blockIndex != nil {
+			parts = kaz.ReconstructParts(blockIndex)
 		}
 
-		p.info.Files = append(p.info.Files, ProjectFile{
-			Name:       mf.Path,
-			Format:     mf.Format,
-			Size:       int64(len(data)),
+		// Recalculate counts from block index or parts
+		blockCount := mi.BlockCount
+		wordCount := mi.WordCount
+		if blockIndex != nil {
+			blockCount = len(blockIndex.Blocks)
+			wordCount = 0
+			for _, b := range blockIndex.Blocks {
+				wordCount += countWords(b.Source)
+			}
+		}
+
+		itemType := mi.Type
+		if itemType == "" {
+			itemType = "file"
+		}
+
+		p.items[mi.Path] = &projectItemData{
+			format:      mi.Format,
+			itemType:    itemType,
+			parts:       parts,
+			sourceBytes: sourceBytes,
+			previewHTML: previewHTML,
+			blockIndex:  blockIndex,
+		}
+
+		p.info.Items = append(p.info.Items, ProjectItem{
+			Name:       mi.Path,
+			Format:     mi.Format,
+			Type:       itemType,
+			Size:       int64(len(sourceBytes)),
 			BlockCount: blockCount,
 			WordCount:  wordCount,
 		})
@@ -297,31 +235,56 @@ func (a *App) OpenProject(path string) (*ProjectInfo, error) {
 	return &p.info, nil
 }
 
-// partsToXLIFF converts parts to a simple XLIFF representation.
-// This is a minimal serialization of blocks for the .kaz package.
-func (a *App) partsToXLIFF(parts []*model.Part, sourceLang string, targetLangs []string) ([]byte, error) {
-	writer, err := a.formatReg.NewWriter("xliff")
+// parseItem parses source bytes using the appropriate format reader.
+func (a *App) parseItem(ctx context.Context, name, format string, data []byte, sourceLocale string) ([]*model.Part, error) {
+	reader, err := a.formatReg.NewReader(format)
 	if err != nil {
 		return nil, err
 	}
 
-	var buf bytes.Buffer
-	if err := writer.SetOutputWriter(&buf); err != nil {
+	doc := &model.RawDocument{
+		URI:          name,
+		SourceLocale: model.LocaleID(sourceLocale),
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(data)),
+	}
+
+	if err := reader.Open(ctx, doc); err != nil {
+		reader.Close()
 		return nil, err
 	}
-	writer.SetLocale(model.LocaleID(sourceLang))
 
-	ch := make(chan *model.Part, len(parts))
-	for _, p := range parts {
-		ch <- p
+	var parts []*model.Part
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			reader.Close()
+			return nil, result.Error
+		}
+		parts = append(parts, result.Part)
 	}
-	close(ch)
+	reader.Close()
 
-	ctx := context.Background()
-	if err := writer.Write(ctx, ch); err != nil {
-		return nil, err
+	return parts, nil
+}
+
+// restoreTranslations copies target translations from a block index into the Part stream.
+func restoreTranslations(parts []*model.Part, blockIndex *kaz.BlockIndex) {
+	for _, pt := range parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		b := blockIndex.BlockByID(block.ID)
+		if b == nil {
+			continue
+		}
+		for locale, text := range b.Targets {
+			if text != "" {
+				block.SetTargetText(model.LocaleID(locale), text)
+			}
+		}
 	}
-	writer.Close()
-
-	return buf.Bytes(), nil
 }

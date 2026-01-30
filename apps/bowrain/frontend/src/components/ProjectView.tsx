@@ -6,6 +6,7 @@ interface ProjectViewProps {
   onBack: () => void;
   onOpenFile: (fileName: string) => void;
   onAddFiles: (filePaths: string[]) => void;
+  onAddFilesDialog: () => void;
   onRemoveFile: (fileName: string) => void;
   onSave: () => void;
 }
@@ -15,6 +16,7 @@ export function ProjectView({
   onBack,
   onOpenFile,
   onAddFiles,
+  onAddFilesDialog,
   onRemoveFile,
   onSave,
 }: ProjectViewProps) {
@@ -39,8 +41,8 @@ export function ProjectView({
     }
   }, [onAddFiles]);
 
-  const totalBlocks = project.files.reduce((sum, f) => sum + f.block_count, 0);
-  const totalWords = project.files.reduce((sum, f) => sum + f.word_count, 0);
+  const totalBlocks = project.items.reduce((sum, f) => sum + f.block_count, 0);
+  const totalWords = project.items.reduce((sum, f) => sum + f.word_count, 0);
 
   const formatIcon = (format: string) => {
     const icons: Record<string, string> = {
@@ -73,7 +75,7 @@ export function ProjectView({
 
       <div style={{ display: "flex", gap: 16, marginBottom: 24 }}>
         <div style={statStyle}>
-          <div style={{ fontSize: 24, fontWeight: 700 }}>{project.files.length}</div>
+          <div style={{ fontSize: 24, fontWeight: 700 }}>{project.items.length}</div>
           <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Files</div>
         </div>
         <div style={statStyle}>
@@ -102,10 +104,17 @@ export function ProjectView({
         <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
           Drag and drop files here to add them to the project
         </span>
+        <button
+          onClick={onAddFilesDialog}
+          style={addFilesBtnStyle}
+          data-testid="add-files-btn"
+        >
+          Add Files
+        </button>
       </div>
 
       {/* File list */}
-      {project.files.length > 0 && (
+      {project.items.length > 0 && (
         <div style={{ marginTop: 16 }}>
           <table style={tableStyle}>
             <thead>
@@ -118,7 +127,7 @@ export function ProjectView({
               </tr>
             </thead>
             <tbody>
-              {project.files.map((f) => (
+              {project.items.map((f) => (
                 <tr
                   key={f.name}
                   style={rowStyle}
@@ -191,7 +200,7 @@ const statStyle: React.CSSProperties = {
   flex: 1,
 };
 
-const dropZoneStyle: React.CSSProperties = {
+const dropZoneStyle = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -202,6 +211,19 @@ const dropZoneStyle: React.CSSProperties = {
   borderRadius: 8,
   backgroundColor: "var(--bg-secondary)",
   cursor: "default",
+  "--wails-drop-target": "drop",
+} as React.CSSProperties;
+
+const addFilesBtnStyle: React.CSSProperties = {
+  marginTop: 8,
+  padding: "6px 16px",
+  backgroundColor: "var(--accent)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 6,
+  fontSize: 13,
+  cursor: "pointer",
+  fontWeight: 600,
 };
 
 const tableStyle: React.CSSProperties = {

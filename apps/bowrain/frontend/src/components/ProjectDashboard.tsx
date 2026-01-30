@@ -35,7 +35,7 @@ export function ProjectDashboard({
         <h2 style={{ margin: 0 }}>Translation Projects</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={onOpenKaz} style={secondaryBtnStyle} data-testid="open-kaz-btn">
-            Open .kaz
+            Open a Project
           </button>
           <button onClick={() => setShowCreate(true)} style={btnStyle} data-testid="new-project-btn">
             New Project
@@ -116,7 +116,7 @@ export function ProjectDashboard({
               {p.source_locale} &#8594; {p.target_locales.join(", ")}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              {p.files.length} file{p.files.length !== 1 ? "s" : ""}
+              {p.items.length} file{p.items.length !== 1 ? "s" : ""}
               {p.path && <span> &middot; {p.path.split("/").pop()}</span>}
             </div>
           </div>

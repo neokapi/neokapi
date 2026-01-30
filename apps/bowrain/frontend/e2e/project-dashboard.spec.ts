@@ -56,8 +56,8 @@ test("should navigate back from project view to dashboard", async ({ page }) => 
   await expect(page.getByText("Test")).toBeVisible();
 });
 
-test("should show open .kaz button", async ({ page }) => {
+test("should show open project button", async ({ page }) => {
   const btn = page.getByTestId("open-kaz-btn");
   await expect(btn).toBeVisible();
-  await expect(btn).toContainText("Open .kaz");
+  await expect(btn).toContainText("Open a Project");
 });

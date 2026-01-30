@@ -15,20 +15,37 @@ import (
 	"github.com/asgeirf/gokapi/lib/pensieve"
 )
 
-// GetFileBlocks returns all blocks for a file in the project.
-func (a *App) GetFileBlocks(projectID, fileName string) ([]BlockInfo, error) {
+// GetItemBlocks returns all blocks for an item in the project.
+func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	fd, ok := p.files[fileName]
+	id, ok := p.items[itemName]
 	if !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
+		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
+	// Use blockIndex if available (O(1) per block)
+	if id.blockIndex != nil {
+		var blocks []BlockInfo
+		for _, b := range id.blockIndex.Blocks {
+			blocks = append(blocks, BlockInfo{
+				ID:           b.ID,
+				Source:       b.Source,
+				Targets:      copyTargets(b.Targets),
+				Translatable: b.Translatable,
+				HasSpans:     b.SourceHTML != b.Source,
+				Properties:   copyStringMap(b.Properties),
+			})
+		}
+		return blocks, nil
+	}
+
+	// Fallback: iterate Part stream
 	var blocks []BlockInfo
-	for _, pt := range fd.parts {
+	for _, pt := range id.parts {
 		if pt.Type != model.PartBlock {
 			continue
 		}
@@ -67,6 +84,11 @@ func (a *App) GetFileBlocks(projectID, fileName string) ([]BlockInfo, error) {
 	return blocks, nil
 }
 
+// GetFileBlocks is an alias for GetItemBlocks for backward compatibility.
+func (a *App) GetFileBlocks(projectID, fileName string) ([]BlockInfo, error) {
+	return a.GetItemBlocks(projectID, fileName)
+}
+
 // UpdateBlockTarget updates the target text for a specific block.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 	p, err := a.projects.get(req.ProjectID)
@@ -74,12 +96,22 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 		return err
 	}
 
-	fd, ok := p.files[req.FileName]
+	// Resolve item name (support both ItemName and legacy FileName field)
+	itemName := req.ItemName
+	id, ok := p.items[itemName]
 	if !ok {
-		return fmt.Errorf("file %q not found in project", req.FileName)
+		return fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	for _, pt := range fd.parts {
+	// Update block index if available
+	if id.blockIndex != nil {
+		if err := id.blockIndex.UpdateTarget(req.BlockID, req.TargetLocale, req.Text); err != nil {
+			return err
+		}
+	}
+
+	// Also update the Part stream for export/reconstruction
+	for _, pt := range id.parts {
 		if pt.Type != model.PartBlock {
 			continue
 		}
@@ -94,19 +126,19 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 		}
 	}
 
-	return fmt.Errorf("block %q not found in file %q", req.BlockID, req.FileName)
+	return fmt.Errorf("block %q not found in item %q", req.BlockID, itemName)
 }
 
-// PseudoTranslateFile pseudo-translates all blocks in a file.
-func (a *App) PseudoTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
+// PseudoTranslateItem pseudo-translates all blocks in an item.
+func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	fd, ok := p.files[fileName]
+	id, ok := p.items[itemName]
 	if !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
+		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
 	// Build pseudo-translate tool
@@ -127,9 +159,9 @@ func (a *App) PseudoTranslateFile(projectID, fileName, targetLocale string) (*Tr
 
 	// Process parts through tool
 	ctx := context.Background()
-	in := make(chan *model.Part, len(fd.parts))
-	out := make(chan *model.Part, len(fd.parts))
-	for _, pt := range fd.parts {
+	in := make(chan *model.Part, len(id.parts))
+	out := make(chan *model.Part, len(id.parts))
+	for _, pt := range id.parts {
 		in <- pt
 	}
 	close(in)
@@ -144,23 +176,31 @@ func (a *App) PseudoTranslateFile(projectID, fileName, targetLocale string) (*Tr
 	for pt := range out {
 		newParts = append(newParts, pt)
 	}
-	fd.parts = newParts
+	id.parts = newParts
 
-	stats := computeStats(fd.parts, targetLocale)
+	// Sync block index from parts
+	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
+
+	stats := computeStats(id.parts, targetLocale)
 	p.dirty = true
 	return stats, nil
 }
 
-// AITranslateFile translates all blocks using an AI provider.
-func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, error) {
+// PseudoTranslateFile is an alias for PseudoTranslateItem for backward compatibility.
+func (a *App) PseudoTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
+	return a.PseudoTranslateItem(projectID, fileName, targetLocale)
+}
+
+// AITranslateItem translates all blocks using an AI provider.
+func (a *App) AITranslateItem(req AITranslateFileRequest) (*TranslationStats, error) {
 	p, err := a.projects.get(req.ProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	fd, ok := p.files[req.FileName]
+	id, ok := p.items[req.ItemName]
 	if !ok {
-		return nil, fmt.Errorf("file %q not found in project", req.FileName)
+		return nil, fmt.Errorf("item %q not found in project", req.ItemName)
 	}
 
 	var prov provider.LLMProvider
@@ -179,9 +219,9 @@ func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, er
 	})
 
 	ctx := context.Background()
-	in := make(chan *model.Part, len(fd.parts))
-	out := make(chan *model.Part, len(fd.parts))
-	for _, pt := range fd.parts {
+	in := make(chan *model.Part, len(id.parts))
+	out := make(chan *model.Part, len(id.parts))
+	for _, pt := range id.parts {
 		in <- pt
 	}
 	close(in)
@@ -195,23 +235,31 @@ func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, er
 	for pt := range out {
 		newParts = append(newParts, pt)
 	}
-	fd.parts = newParts
+	id.parts = newParts
 
-	stats := computeStats(fd.parts, req.TargetLocale)
+	// Sync block index from parts
+	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
+
+	stats := computeStats(id.parts, req.TargetLocale)
 	p.dirty = true
 	return stats, nil
 }
 
-// TMTranslateFile leverages translation memory to translate blocks.
-func (a *App) TMTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
+// AITranslateFile is an alias for AITranslateItem for backward compatibility.
+func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, error) {
+	return a.AITranslateItem(req)
+}
+
+// TMTranslateItem leverages translation memory to translate blocks.
+func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	fd, ok := p.files[fileName]
+	id, ok := p.items[itemName]
 	if !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
+		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
 	// Create in-memory TM and leverage tool
@@ -224,9 +272,9 @@ func (a *App) TMTranslateFile(projectID, fileName, targetLocale string) (*Transl
 	})
 
 	ctx := context.Background()
-	in := make(chan *model.Part, len(fd.parts))
-	out := make(chan *model.Part, len(fd.parts))
-	for _, pt := range fd.parts {
+	in := make(chan *model.Part, len(id.parts))
+	out := make(chan *model.Part, len(id.parts))
+	for _, pt := range id.parts {
 		in <- pt
 	}
 	close(in)
@@ -240,23 +288,31 @@ func (a *App) TMTranslateFile(projectID, fileName, targetLocale string) (*Transl
 	for pt := range out {
 		newParts = append(newParts, pt)
 	}
-	fd.parts = newParts
+	id.parts = newParts
 
-	stats := computeStats(fd.parts, targetLocale)
+	// Sync block index from parts
+	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
+
+	stats := computeStats(id.parts, targetLocale)
 	p.dirty = true
 	return stats, nil
 }
 
-// GetWordCount returns word and character counts for a file.
-func (a *App) GetWordCount(projectID, fileName string) (*WordCountResult, error) {
+// TMTranslateFile is an alias for TMTranslateItem for backward compatibility.
+func (a *App) TMTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
+	return a.TMTranslateItem(projectID, fileName, targetLocale)
+}
+
+// GetWordCount returns word and character counts for an item.
+func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	fd, ok := p.files[fileName]
+	id, ok := p.items[itemName]
 	if !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
+		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
 	result := &WordCountResult{
@@ -264,7 +320,7 @@ func (a *App) GetWordCount(projectID, fileName string) (*WordCountResult, error)
 		TargetChars: make(map[string]int),
 	}
 
-	for _, pt := range fd.parts {
+	for _, pt := range id.parts {
 		if pt.Type != model.PartBlock {
 			continue
 		}
@@ -289,23 +345,23 @@ func (a *App) GetWordCount(projectID, fileName string) (*WordCountResult, error)
 	return result, nil
 }
 
-// ExportTranslatedFile writes the translated file to disk and returns the output path.
-func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (string, error) {
+// ExportTranslatedItem writes the translated item to disk and returns the output path.
+func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (string, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return "", err
 	}
 
-	fd, ok := p.files[fileName]
+	id, ok := p.items[itemName]
 	if !ok {
-		return "", fmt.Errorf("file %q not found in project", fileName)
+		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
 
 	// Determine output path
-	ext := fileExtension(fileName)
-	baseName := fileName
+	ext := fileExtension(itemName)
+	baseName := itemName
 	if ext != "" {
-		baseName = fileName[:len(fileName)-len(ext)-1]
+		baseName = itemName[:len(itemName)-len(ext)-1]
 	}
 	outputPath := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
 
@@ -315,9 +371,9 @@ func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (st
 		outputPath = dir + "/" + outputPath
 	}
 
-	writer, err := a.formatReg.NewWriter(fd.format)
+	writer, err := a.formatReg.NewWriter(id.format)
 	if err != nil {
-		return "", fmt.Errorf("no writer for %q: %w", fd.format, err)
+		return "", fmt.Errorf("no writer for %q: %w", id.format, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {
@@ -325,8 +381,8 @@ func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (st
 	}
 	writer.SetLocale(model.LocaleID(targetLocale))
 
-	ch := make(chan *model.Part, len(fd.parts))
-	for _, pt := range fd.parts {
+	ch := make(chan *model.Part, len(id.parts))
+	for _, pt := range id.parts {
 		ch <- pt
 	}
 	close(ch)
@@ -338,6 +394,11 @@ func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (st
 	writer.Close()
 
 	return outputPath, nil
+}
+
+// ExportTranslatedFile is an alias for ExportTranslatedItem for backward compatibility.
+func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (string, error) {
+	return a.ExportTranslatedItem(projectID, fileName, targetLocale)
 }
 
 // OpenFileInOS opens a file using the OS default application.
@@ -374,6 +435,33 @@ func computeStats(parts []*model.Part, targetLocale string) *TranslationStats {
 		}
 	}
 	return stats
+}
+
+// syncBlockIndexFromParts rebuilds the block index targets from the Part stream.
+func (a *App) syncBlockIndexFromParts(id *projectItemData, sourceLocale string) {
+	if id.blockIndex == nil {
+		return
+	}
+	// Update targets in block index from parts
+	for _, pt := range id.parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		b := id.blockIndex.BlockByID(block.ID)
+		if b == nil {
+			continue
+		}
+		b.Targets = make(map[string]string)
+		for locale, segs := range block.Targets {
+			if len(segs) > 0 {
+				b.Targets[string(locale)] = block.TargetText(locale)
+			}
+		}
+	}
 }
 
 // pseudoAccent applies accent characters to ASCII text for pseudo-translation.
@@ -415,4 +503,28 @@ func fileDir(path string) string {
 		}
 	}
 	return "."
+}
+
+// copyTargets creates a shallow copy of a string map.
+func copyTargets(m map[string]string) map[string]string {
+	if m == nil {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+// copyStringMap creates a shallow copy of a string map.
+func copyStringMap(m map[string]string) map[string]string {
+	if m == nil {
+		return map[string]string{}
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }

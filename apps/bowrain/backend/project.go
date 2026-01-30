@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/asgeirf/gokapi/core/kaz"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/google/uuid"
 )
@@ -21,15 +22,16 @@ type ProjectInfo struct {
 	SourceLocale  string        `json:"source_locale"`
 	TargetLocales []string      `json:"target_locales"`
 	Path          string        `json:"path"`
-	Files         []ProjectFile `json:"files"`
+	Items         []ProjectItem `json:"items"`
 	CreatedAt     string        `json:"created_at"`
 	ModifiedAt    string        `json:"modified_at"`
 }
 
-// ProjectFile describes a file within a project.
-type ProjectFile struct {
+// ProjectItem describes an item within a project.
+type ProjectItem struct {
 	Name       string `json:"name"`
 	Format     string `json:"format"`
+	Type       string `json:"type"` // "file", "data", etc.
 	Size       int64  `json:"size"`
 	BlockCount int    `json:"block_count"`
 	WordCount  int    `json:"word_count"`
@@ -48,16 +50,16 @@ type BlockInfo struct {
 // UpdateBlockRequest holds parameters for updating a block target.
 type UpdateBlockRequest struct {
 	ProjectID    string `json:"project_id"`
-	FileName     string `json:"file_name"`
+	ItemName     string `json:"item_name"`
 	BlockID      string `json:"block_id"`
 	TargetLocale string `json:"target_locale"`
 	Text         string `json:"text"`
 }
 
-// AITranslateFileRequest holds parameters for AI-translating a file.
+// AITranslateFileRequest holds parameters for AI-translating an item.
 type AITranslateFileRequest struct {
 	ProjectID        string `json:"project_id"`
-	FileName         string `json:"file_name"`
+	ItemName         string `json:"item_name"`
 	TargetLocale     string `json:"target_locale"`
 	Provider         string `json:"provider"`
 	APIKey           string `json:"api_key"`
@@ -83,16 +85,19 @@ type WordCountResult struct {
 // project is the internal representation of a translation project.
 type project struct {
 	info  ProjectInfo
-	files map[string]*projectFileData
+	items map[string]*projectItemData
 	dirty bool
 }
 
-// projectFileData holds the parsed content of a file within a project.
-type projectFileData struct {
+// projectItemData holds the parsed content of an item within a project.
+type projectItemData struct {
 	originalPath string
 	format       string
+	itemType     string // "file", "data", etc.
 	parts        []*model.Part
 	sourceBytes  []byte
+	previewHTML  string
+	blockIndex   *kaz.BlockIndex
 }
 
 // projectStore manages all open projects.
@@ -158,11 +163,11 @@ func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*Pro
 			Name:          name,
 			SourceLocale:  sourceLang,
 			TargetLocales: targetLangs,
-			Files:         []ProjectFile{},
+			Items:         []ProjectItem{},
 			CreatedAt:     now,
 			ModifiedAt:    now,
 		},
-		files: make(map[string]*projectFileData),
+		items: make(map[string]*projectItemData),
 	}
 
 	a.projects.put(p)
@@ -193,8 +198,8 @@ func (a *App) CloseProject(projectID string) error {
 	return nil
 }
 
-// AddFiles imports files into a project, auto-detecting format and extracting blocks.
-func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, error) {
+// AddItems imports items into a project, auto-detecting format and extracting blocks.
+func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
@@ -211,7 +216,7 @@ func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, erro
 			continue
 		}
 
-		fileName := filepath.Base(filePath)
+		itemName := filepath.Base(filePath)
 
 		// Detect format
 		fmtName, err := a.DetectFormat(filePath)
@@ -258,31 +263,33 @@ func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, erro
 		}
 		reader.Close()
 
+		// Build block index and preview
+		blockIndex := kaz.BuildBlockIndex(parts, p.info.SourceLocale, fmtName, itemName)
+		previewHTML := kaz.BuildPreview(parts, data, fmtName, model.LocaleID(p.info.SourceLocale))
+
 		// Count blocks and words
-		blockCount := 0
+		blockCount := len(blockIndex.Blocks)
 		wordCount := 0
-		for _, pt := range parts {
-			if pt.Type == model.PartBlock {
-				block, ok := pt.Resource.(*model.Block)
-				if ok {
-					blockCount++
-					wordCount += countWords(block.SourceText())
-				}
-			}
+		for _, b := range blockIndex.Blocks {
+			wordCount += countWords(b.Source)
 		}
 
-		// Store file data
-		p.files[fileName] = &projectFileData{
+		// Store item data
+		p.items[itemName] = &projectItemData{
 			originalPath: filePath,
 			format:       fmtName,
+			itemType:     "file",
 			parts:        parts,
 			sourceBytes:  data,
+			previewHTML:  previewHTML,
+			blockIndex:   blockIndex,
 		}
 
 		// Update project info
-		p.info.Files = append(p.info.Files, ProjectFile{
-			Name:       fileName,
+		p.info.Items = append(p.info.Items, ProjectItem{
+			Name:       itemName,
 			Format:     fmtName,
+			Type:       "file",
 			Size:       info.Size(),
 			BlockCount: blockCount,
 			WordCount:  wordCount,
@@ -294,40 +301,50 @@ func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, erro
 	return &p.info, nil
 }
 
-// RemoveFile removes a file from the project.
-func (a *App) RemoveFile(projectID, fileName string) (*ProjectInfo, error) {
+// AddFiles is an alias for AddItems for backward compatibility.
+func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, error) {
+	return a.AddItems(projectID, filePaths)
+}
+
+// RemoveItem removes an item from the project.
+func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	if _, ok := p.files[fileName]; !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
+	if _, ok := p.items[itemName]; !ok {
+		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	delete(p.files, fileName)
+	delete(p.items, itemName)
 
-	// Update file list
-	var updated []ProjectFile
-	for _, f := range p.info.Files {
-		if f.Name != fileName {
-			updated = append(updated, f)
+	// Update item list
+	var updated []ProjectItem
+	for _, item := range p.info.Items {
+		if item.Name != itemName {
+			updated = append(updated, item)
 		}
 	}
-	p.info.Files = updated
+	p.info.Items = updated
 	p.info.ModifiedAt = time.Now().UTC().Format(time.RFC3339)
 	p.dirty = true
 
 	return &p.info, nil
 }
 
-// ListProjectFiles returns the files in a project.
-func (a *App) ListProjectFiles(projectID string) ([]ProjectFile, error) {
+// RemoveFile is an alias for RemoveItem for backward compatibility.
+func (a *App) RemoveFile(projectID, fileName string) (*ProjectInfo, error) {
+	return a.RemoveItem(projectID, fileName)
+}
+
+// ListProjectFiles returns the items in a project.
+func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 	p, err := a.projects.get(projectID)
 	if err != nil {
 		return nil, err
 	}
-	return p.info.Files, nil
+	return p.info.Items, nil
 }
 
 // countWords counts words in text by splitting on whitespace.

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ProjectInfo, BlockInfo, WordCountResult } from "../types/api";
 import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
+import { DocumentPreview } from "./DocumentPreview";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -19,6 +20,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
 
   const api = useEditorApi();
   const { configs: providerConfigs } = useProviderConfigs();
@@ -64,6 +66,22 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const progress = translatableBlocks.length > 0
     ? Math.round((translatedCount / translatableBlocks.length) * 100)
     : 0;
+
+  // Selected block ID for preview synchronization
+  const selectedBlockId = filteredBlocks[selectedIndex]?.id;
+
+  // Handle block selection from preview iframe — use ref to avoid re-renders
+  const filteredBlocksRef = useRef(filteredBlocks);
+  filteredBlocksRef.current = filteredBlocks;
+  const handlePreviewBlockSelect = useCallback(
+    (blockId: string) => {
+      const index = filteredBlocksRef.current.findIndex((b) => b.id === blockId);
+      if (index >= 0) {
+        setSelectedIndex(index);
+      }
+    },
+    [],
+  );
 
   // Keyboard navigation
   useEffect(() => {
@@ -127,7 +145,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     try {
       await api.updateBlockTarget({
         project_id: project.id,
-        file_name: fileName,
+        item_name: fileName,
         block_id: block.id,
         target_locale: targetLocale,
         text: editValue,
@@ -173,7 +191,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     try {
       const stats = await api.aiTranslateFile({
         project_id: project.id,
-        file_name: fileName,
+        item_name: fileName,
         target_locale: targetLocale,
         provider: "",
         api_key: "",
@@ -220,14 +238,97 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     }
   };
 
+  const blockGrid = (
+    <div ref={blockListRef} style={gridContainerStyle} data-testid="block-grid">
+      {/* Header row */}
+      <div style={gridHeaderStyle}>
+        <span style={{ width: 50, textAlign: "center" }}>#</span>
+        <span style={{ flex: 1 }}>Source</span>
+        <span style={{ flex: 1 }}>Target ({targetLocale})</span>
+      </div>
+
+      {/* Block rows */}
+      {filteredBlocks.map((block, index) => (
+        <div
+          key={block.id}
+          data-row-index={index}
+          data-testid={`block-row-${index}`}
+          onClick={() => {
+            setSelectedIndex(index);
+            if (editingIndex !== index) setEditingIndex(null);
+          }}
+          onDoubleClick={() => startEditing(index)}
+          style={{
+            ...blockRowStyle,
+            backgroundColor:
+              selectedIndex === index ? "var(--bg-tertiary)" : "transparent",
+            borderLeft:
+              selectedIndex === index
+                ? "3px solid var(--accent)"
+                : "3px solid transparent",
+          }}
+        >
+          <span style={indexCellStyle}>{index + 1}</span>
+          <div style={sourceCellStyle}>
+            {block.source}
+            {!block.translatable && (
+              <span style={nonTransBadge}>non-translatable</span>
+            )}
+          </div>
+          <div style={targetCellStyle}>
+            {editingIndex === index ? (
+              <textarea
+                ref={editInputRef}
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleSaveEdit}
+                style={editTextareaStyle}
+                data-testid={`edit-target-${index}`}
+              />
+            ) : (
+              <span
+                style={{
+                  color: block.targets[targetLocale]
+                    ? "var(--text-primary)"
+                    : "var(--text-secondary)",
+                  fontStyle: block.targets[targetLocale] ? "normal" : "italic",
+                }}
+                data-testid={`target-text-${index}`}
+              >
+                {block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {filteredBlocks.length === 0 && (
+        <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)" }}>
+          {searchQuery ? "No blocks match the search query" : "No blocks found"}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <button onClick={onBack} style={backBtnStyle} data-testid="back-to-project">
           &#8592; {project.name}
         </button>
         <span style={{ fontSize: 16, fontWeight: 600, flex: 1 }}>{fileName}</span>
+        <button
+          onClick={() => setShowPreview(!showPreview)}
+          style={{
+            ...toolBtnStyle,
+            backgroundColor: showPreview ? "var(--accent)" : "var(--bg-secondary)",
+            color: showPreview ? "#fff" : "var(--text-primary)",
+          }}
+          data-testid="preview-toggle"
+        >
+          Preview
+        </button>
         <select
           value={targetLocale}
           onChange={(e) => setTargetLocale(e.target.value)}
@@ -295,77 +396,26 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       {error && <div style={errorStyle}>{error}</div>}
       {message && <div style={messageStyle}>{message}</div>}
 
-      {/* Block grid */}
-      <div ref={blockListRef} style={gridContainerStyle} data-testid="block-grid">
-        {/* Header row */}
-        <div style={gridHeaderStyle}>
-          <span style={{ width: 50, textAlign: "center" }}>#</span>
-          <span style={{ flex: 1 }}>Source</span>
-          <span style={{ flex: 1 }}>Target ({targetLocale})</span>
+      {/* Main content: preview + grid or just grid */}
+      {showPreview ? (
+        <div style={splitContainerStyle} data-testid="split-layout">
+          <div style={previewPaneStyle}>
+            <DocumentPreview
+              projectId={project.id}
+              itemName={fileName}
+              targetLocale={targetLocale}
+              selectedBlockId={selectedBlockId}
+              onBlockSelect={handlePreviewBlockSelect}
+              blocks={blocks}
+            />
+          </div>
+          <div style={gridPaneStyle}>
+            {blockGrid}
+          </div>
         </div>
-
-        {/* Block rows */}
-        {filteredBlocks.map((block, index) => (
-          <div
-            key={block.id}
-            data-row-index={index}
-            data-testid={`block-row-${index}`}
-            onClick={() => {
-              setSelectedIndex(index);
-              if (editingIndex !== index) setEditingIndex(null);
-            }}
-            onDoubleClick={() => startEditing(index)}
-            style={{
-              ...blockRowStyle,
-              backgroundColor:
-                selectedIndex === index ? "var(--bg-tertiary)" : "transparent",
-              borderLeft:
-                selectedIndex === index
-                  ? "3px solid var(--accent)"
-                  : "3px solid transparent",
-            }}
-          >
-            <span style={indexCellStyle}>{index + 1}</span>
-            <div style={sourceCellStyle}>
-              {block.source}
-              {!block.translatable && (
-                <span style={nonTransBadge}>non-translatable</span>
-              )}
-            </div>
-            <div style={targetCellStyle}>
-              {editingIndex === index ? (
-                <textarea
-                  ref={editInputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={handleSaveEdit}
-                  style={editTextareaStyle}
-                  data-testid={`edit-target-${index}`}
-                  rows={2}
-                />
-              ) : (
-                <span
-                  style={{
-                    color: block.targets[targetLocale]
-                      ? "var(--text-primary)"
-                      : "var(--text-secondary)",
-                    fontStyle: block.targets[targetLocale] ? "normal" : "italic",
-                  }}
-                  data-testid={`target-text-${index}`}
-                >
-                  {block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")}
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {filteredBlocks.length === 0 && (
-          <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)" }}>
-            {searchQuery ? "No blocks match the search query" : "No blocks found"}
-          </div>
-        )}
-      </div>
+      ) : (
+        blockGrid
+      )}
 
       {/* Status bar */}
       <div style={statusBarStyle} data-testid="status-bar">
@@ -523,7 +573,7 @@ const blockRowStyle: React.CSSProperties = {
   borderBottom: "1px solid var(--border)",
   cursor: "pointer",
   transition: "background-color 0.1s ease",
-  alignItems: "flex-start",
+  alignItems: "stretch",
   minHeight: 44,
 };
 
@@ -549,10 +599,14 @@ const targetCellStyle: React.CSSProperties = {
   fontSize: 14,
   lineHeight: 1.5,
   wordBreak: "break-word",
+  display: "flex",
+  flexDirection: "column",
 };
 
 const editTextareaStyle: React.CSSProperties = {
   width: "100%",
+  flex: 1,
+  minHeight: 44,
   padding: "6px 8px",
   backgroundColor: "var(--bg-tertiary)",
   border: "1px solid var(--accent)",
@@ -563,6 +617,7 @@ const editTextareaStyle: React.CSSProperties = {
   resize: "vertical",
   outline: "none",
   fontFamily: "inherit",
+  boxSizing: "border-box",
 };
 
 const nonTransBadge: React.CSSProperties = {
@@ -581,4 +636,25 @@ const statusBarStyle: React.CSSProperties = {
   padding: "8px 0",
   fontSize: 12,
   color: "var(--text-secondary)",
+};
+
+const splitContainerStyle: React.CSSProperties = {
+  display: "flex",
+  flex: 1,
+  gap: 12,
+  overflow: "hidden",
+};
+
+const previewPaneStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  overflow: "hidden",
+};
+
+const gridPaneStyle: React.CSSProperties = {
+  flex: 1,
+  minWidth: 0,
+  display: "flex",
+  flexDirection: "column",
+  overflow: "hidden",
 };

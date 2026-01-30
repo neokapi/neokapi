@@ -19,22 +19,22 @@ func setupProjectWithFile(t *testing.T) (*App, *ProjectInfo, string) {
 	testFile := filepath.Join("testdata", "hello.txt")
 	info, err = app.AddFiles(info.ID, []string{testFile})
 	require.NoError(t, err)
-	require.Len(t, info.Files, 1)
+	require.Len(t, info.Items, 1)
 
 	return app, info, "hello.txt"
 }
 
 func TestUpdateBlockTarget(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
-	blocks, err := app.GetFileBlocks(info.ID, fileName)
+	blocks, err := app.GetFileBlocks(info.ID, itemName)
 	require.NoError(t, err)
 	require.Greater(t, len(blocks), 0)
 
 	// Update the first block's target
 	err = app.UpdateBlockTarget(UpdateBlockRequest{
 		ProjectID:    info.ID,
-		FileName:     fileName,
+		ItemName:     itemName,
 		BlockID:      blocks[0].ID,
 		TargetLocale: "fr",
 		Text:         "Bonjour le monde",
@@ -42,17 +42,17 @@ func TestUpdateBlockTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the update
-	updated, err := app.GetFileBlocks(info.ID, fileName)
+	updated, err := app.GetFileBlocks(info.ID, itemName)
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", updated[0].Targets["fr"])
 }
 
 func TestUpdateBlockTarget_NotFound(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
 	err := app.UpdateBlockTarget(UpdateBlockRequest{
 		ProjectID:    info.ID,
-		FileName:     fileName,
+		ItemName:     itemName,
 		BlockID:      "nonexistent-block-id",
 		TargetLocale: "fr",
 		Text:         "test",
@@ -62,9 +62,9 @@ func TestUpdateBlockTarget_NotFound(t *testing.T) {
 }
 
 func TestPseudoTranslateFile(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
-	stats, err := app.PseudoTranslateFile(info.ID, fileName, "fr")
+	stats, err := app.PseudoTranslateFile(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
 	assert.Greater(t, stats.TotalBlocks, 0)
@@ -72,7 +72,7 @@ func TestPseudoTranslateFile(t *testing.T) {
 	assert.Greater(t, stats.WordCount, 0)
 
 	// Verify blocks have pseudo-translated targets
-	blocks, err := app.GetFileBlocks(info.ID, fileName)
+	blocks, err := app.GetFileBlocks(info.ID, itemName)
 	require.NoError(t, err)
 
 	for _, b := range blocks {
@@ -95,9 +95,9 @@ func TestPseudoTranslateFile_FileNotFound(t *testing.T) {
 }
 
 func TestGetWordCount(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
-	wc, err := app.GetWordCount(info.ID, fileName)
+	wc, err := app.GetWordCount(info.ID, itemName)
 	require.NoError(t, err)
 
 	assert.Greater(t, wc.SourceWords, 0)
@@ -107,10 +107,10 @@ func TestGetWordCount(t *testing.T) {
 	assert.Equal(t, 0, wc.TargetWords["fr"])
 
 	// Now pseudo-translate and check again
-	_, err = app.PseudoTranslateFile(info.ID, fileName, "fr")
+	_, err = app.PseudoTranslateFile(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
-	wc, err = app.GetWordCount(info.ID, fileName)
+	wc, err = app.GetWordCount(info.ID, itemName)
 	require.NoError(t, err)
 	assert.Greater(t, wc.TargetWords["fr"], 0)
 	assert.Greater(t, wc.TargetChars["fr"], 0)
@@ -127,10 +127,10 @@ func TestGetWordCount_FileNotFound(t *testing.T) {
 }
 
 func TestExportTranslatedFile(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
 	// Pseudo-translate first
-	_, err := app.PseudoTranslateFile(info.ID, fileName, "fr")
+	_, err := app.PseudoTranslateFile(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
 	// Set project path so export has a location
@@ -138,7 +138,7 @@ func TestExportTranslatedFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	p.info.Path = filepath.Join(tmpDir, "test.kaz")
 
-	outputPath, err := app.ExportTranslatedFile(info.ID, fileName, "fr")
+	outputPath, err := app.ExportTranslatedFile(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Contains(t, outputPath, "_fr")
 	assert.Contains(t, outputPath, ".txt")
@@ -170,13 +170,13 @@ func TestPseudoAccent(t *testing.T) {
 }
 
 func TestComputeStats(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
 	p, err := app.projects.get(info.ID)
 	require.NoError(t, err)
 
-	fd := p.files[fileName]
-	stats := computeStats(fd.parts, "fr")
+	id := p.items[itemName]
+	stats := computeStats(id.parts, "fr")
 
 	assert.Greater(t, stats.TotalBlocks, 0)
 	assert.Equal(t, 0, stats.TranslatedBlocks) // No translations yet
@@ -206,12 +206,12 @@ func TestHTMLFileBlocks(t *testing.T) {
 }
 
 func TestAITranslateFile_MockProvider(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
 	// Use mock provider (default when provider is empty/unknown)
 	stats, err := app.AITranslateFile(AITranslateFileRequest{
 		ProjectID:    info.ID,
-		FileName:     fileName,
+		ItemName:     itemName,
 		TargetLocale: "fr",
 		Provider:     "mock",
 	})
@@ -220,10 +220,10 @@ func TestAITranslateFile_MockProvider(t *testing.T) {
 }
 
 func TestTMTranslateFile(t *testing.T) {
-	app, info, fileName := setupProjectWithFile(t)
+	app, info, itemName := setupProjectWithFile(t)
 
 	// TM is empty so no matches expected, but should not error
-	stats, err := app.TMTranslateFile(info.ID, fileName, "fr")
+	stats, err := app.TMTranslateFile(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TotalBlocks, 0)
 	assert.Equal(t, 0, stats.TranslatedBlocks) // Empty TM = no matches

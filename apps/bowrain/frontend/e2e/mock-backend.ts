@@ -45,7 +45,7 @@ export async function injectMockBackend(page: Page) {
           source_locale: sourceLang,
           target_locales: targetLangs,
           path: "",
-          files: [],
+          items: [],
           created_at: now,
           modified_at: now,
         };
@@ -112,9 +112,10 @@ export async function injectMockBackend(page: Page) {
           projectFiles[projectID] = projectFiles[projectID] || {};
           projectFiles[projectID][name] = blocks;
 
-          p.files.push({
+          p.items.push({
             name,
             format,
+            type: "file",
             size: 1024,
             block_count: blocks.length,
             word_count: blocks.reduce(
@@ -131,7 +132,7 @@ export async function injectMockBackend(page: Page) {
       RemoveFile: async (projectID: string, fileName: string) => {
         const p = projects[projectID];
         if (!p) throw new Error(`Project ${projectID} not found`);
-        p.files = p.files.filter((f: any) => f.name !== fileName);
+        p.items = p.items.filter((f: any) => f.name !== fileName);
         if (projectFiles[projectID]) delete projectFiles[projectID][fileName];
         p.modified_at = new Date().toISOString();
         return { ...p };
@@ -140,19 +141,21 @@ export async function injectMockBackend(page: Page) {
       ListProjectFiles: async (projectID: string) => {
         const p = projects[projectID];
         if (!p) throw new Error(`Project ${projectID} not found`);
-        return p.files;
+        return p.items;
       },
 
       GetFileBlocks: async (projectID: string, fileName: string) => {
         const files = projectFiles[projectID];
         if (!files || !files[fileName]) return [];
-        return files[fileName];
+        // Return copies to match real backend behavior (fresh objects each call)
+        return files[fileName].map((b: any) => ({ ...b, targets: { ...b.targets } }));
       },
 
       UpdateBlockTarget: async (req: any) => {
+        const itemName = req.item_name || req.file_name;
         const files = projectFiles[req.project_id];
-        if (!files || !files[req.file_name]) return;
-        const block = files[req.file_name].find((b: any) => b.id === req.block_id);
+        if (!files || !files[itemName]) return;
+        const block = files[itemName].find((b: any) => b.id === req.block_id);
         if (block) {
           block.targets[req.target_locale] = req.text;
         }
@@ -175,9 +178,10 @@ export async function injectMockBackend(page: Page) {
       },
 
       AITranslateFile: async (req: any) => {
+        const itemName = req.item_name || req.file_name;
         const files = projectFiles[req.project_id];
-        if (!files || !files[req.file_name]) throw new Error("File not found");
-        const blocks = files[req.file_name];
+        if (!files || !files[itemName]) throw new Error("File not found");
+        const blocks = files[itemName];
         let translated = 0;
         let wordCount = 0;
         for (const b of blocks) {
@@ -233,6 +237,47 @@ export async function injectMockBackend(page: Page) {
         if (p) p.path = path;
       },
 
+      RenderDocumentPreview: async (_projectID: string, itemName: string, _targetLocale: string) => {
+        return `<!DOCTYPE html><html><head><style>
+          kat-block { cursor: pointer; border-radius: 2px; display: inline; }
+          kat-block:hover { background-color: rgba(59,130,246,0.15); }
+          kat-block.kat-selected { background-color: rgba(59,130,246,0.25); outline: 2px solid #3b82f6; }
+        </style></head><body>
+          <p><kat-block id="${itemName}-block-1">Hello from ${itemName}</kat-block></p>
+          <p><kat-block id="${itemName}-block-2">Welcome to our application</kat-block></p>
+          <p><kat-block id="${itemName}-block-3">Click here to continue</kat-block></p>
+        <script>
+          document.querySelectorAll('kat-block').forEach(el => {
+            el.addEventListener('click', () => {
+              window.parent.postMessage({ type: 'kat-block-click', blockId: el.id }, '*');
+            });
+          });
+          window.addEventListener('message', (e) => {
+            if (e.data?.type === 'kat-select-block') {
+              document.querySelector('.kat-selected')?.classList.remove('kat-selected');
+              const el = document.getElementById(e.data.blockId);
+              if (el) { el.classList.add('kat-selected'); }
+            }
+            if (e.data?.type === 'kat-update-block') {
+              const el = document.getElementById(e.data.blockId);
+              if (el) el.innerHTML = e.data.html;
+            }
+          });
+          window.parent.postMessage({ type: 'kat-iframe-ready' }, '*');
+        </script></body></html>`;
+      },
+
+      RenderBlockHTML: async (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+        const files = projectFiles[projectID];
+        if (!files || !files[itemName]) return "";
+        const block = files[itemName].find((b: any) => b.id === blockID);
+        if (!block) return "";
+        if (targetLocale && block.targets[targetLocale]) {
+          return block.targets[targetLocale];
+        }
+        return block.source;
+      },
+
       ListProviderConfigs: async () => Object.values(providerConfigs),
 
       SaveProviderConfig: async (cfg: any) => {
@@ -264,13 +309,41 @@ export async function injectMockBackend(page: Page) {
           source_locale: "en",
           target_locales: ["fr"],
           path,
-          files: [],
+          items: [],
           created_at: new Date().toISOString(),
           modified_at: new Date().toISOString(),
         };
         projects[id] = info;
         projectFiles[id] = {};
         return info;
+      },
+
+      OpenProjectDialog: async () => {
+        // In tests, simulate returning a project as if user selected a file
+        const id = `project-${++projectCounter}`;
+        const info = {
+          id,
+          name: "test-project",
+          source_locale: "en",
+          target_locales: ["fr"],
+          path: "/mock/test-project.kaz",
+          items: [],
+          created_at: new Date().toISOString(),
+          modified_at: new Date().toISOString(),
+        };
+        projects[id] = info;
+        projectFiles[id] = {};
+        return info;
+      },
+
+      SaveProjectDialog: async (projectID: string) => {
+        const p = projects[projectID];
+        if (p) p.path = `/mock/${p.name}.kaz`;
+      },
+
+      AddFilesDialog: async (projectID: string) => {
+        // In tests, simulate adding a mock file via dialog
+        return mockBackend.AddFiles(projectID, ["/mock/dialog-file.txt"]);
       },
     };
 

@@ -28,8 +28,10 @@ interface WailsBackend {
   CloseProject(projectID: string): Promise<void>;
   AddFiles(projectID: string, filePaths: string[]): Promise<ProjectInfo>;
   RemoveFile(projectID: string, fileName: string): Promise<ProjectInfo>;
-  ListProjectFiles(projectID: string): Promise<ProjectInfo["files"]>;
+  ListProjectFiles(projectID: string): Promise<ProjectInfo["items"]>;
   GetFileBlocks(projectID: string, fileName: string): Promise<BlockInfo[]>;
+  RenderDocumentPreview(projectID: string, itemName: string, targetLocale: string): Promise<string>;
+  RenderBlockHTML(projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<string>;
   UpdateBlockTarget(req: UpdateBlockRequest): Promise<void>;
   PseudoTranslateFile(projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
   AITranslateFile(req: AITranslateFileRequest): Promise<TranslationStats>;
@@ -40,6 +42,9 @@ interface WailsBackend {
   SaveProject(projectID: string): Promise<void>;
   SaveProjectAs(projectID: string, path: string): Promise<void>;
   OpenProject(path: string): Promise<ProjectInfo>;
+  OpenProjectDialog(): Promise<ProjectInfo | null>;
+  SaveProjectDialog(projectID: string): Promise<void>;
+  AddFilesDialog(projectID: string): Promise<ProjectInfo | null>;
   ListProviderConfigs(): Promise<ProviderConfig[]>;
   SaveProviderConfig(cfg: ProviderConfigWithKey): Promise<ProviderConfig>;
   DeleteProviderConfig(id: string): Promise<void>;
@@ -195,6 +200,22 @@ export function useProjectApi() {
     [be],
   );
 
+  const openProjectDialog = useCallback(
+    async (): Promise<ProjectInfo | null> => {
+      if (be) return be.OpenProjectDialog();
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const saveProjectDialog = useCallback(
+    async (projectID: string): Promise<void> => {
+      if (be) return be.SaveProjectDialog(projectID);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
   const closeProject = useCallback(
     async (projectID: string): Promise<void> => {
       if (be) return be.CloseProject(projectID);
@@ -232,15 +253,26 @@ export function useProjectApi() {
     [be],
   );
 
+  const addFilesDialog = useCallback(
+    async (projectID: string): Promise<ProjectInfo | null> => {
+      if (be) return be.AddFilesDialog(projectID);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
   return {
     createProject,
     listProjects,
     openProject,
+    openProjectDialog,
+    saveProjectDialog,
     closeProject,
     addFiles,
     removeFile,
     saveProject,
     saveProjectAs,
+    addFilesDialog,
   };
 }
 
@@ -309,6 +341,22 @@ export function useEditorApi() {
     [be],
   );
 
+  const renderDocumentPreview = useCallback(
+    async (projectID: string, itemName: string, targetLocale: string): Promise<string> => {
+      if (be) return be.RenderDocumentPreview(projectID, itemName, targetLocale);
+      return "";
+    },
+    [be],
+  );
+
+  const renderBlockHTML = useCallback(
+    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<string> => {
+      if (be) return be.RenderBlockHTML(projectID, itemName, blockID, targetLocale);
+      return "";
+    },
+    [be],
+  );
+
   return {
     getFileBlocks,
     updateBlockTarget,
@@ -318,6 +366,8 @@ export function useEditorApi() {
     getWordCount,
     exportTranslatedFile,
     openFileInOS,
+    renderDocumentPreview,
+    renderBlockHTML,
   };
 }
 

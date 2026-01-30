@@ -88,15 +88,16 @@ export interface ProjectInfo {
   source_locale: string;
   target_locales: string[];
   path: string;
-  files: ProjectFile[];
+  items: ProjectItem[];
   created_at: string;
   modified_at: string;
 }
 
-/** File within a project */
-export interface ProjectFile {
+/** Item within a project */
+export interface ProjectItem {
   name: string;
   format: string;
+  type: string;
   size: number;
   block_count: number;
   word_count: number;
@@ -115,7 +116,7 @@ export interface BlockInfo {
 /** Update block request */
 export interface UpdateBlockRequest {
   project_id: string;
-  file_name: string;
+  item_name: string;
   block_id: string;
   target_locale: string;
   text: string;
@@ -124,7 +125,7 @@ export interface UpdateBlockRequest {
 /** AI translate file request */
 export interface AITranslateFileRequest {
   project_id: string;
-  file_name: string;
+  item_name: string;
   target_locale: string;
   provider: string;
   api_key: string;

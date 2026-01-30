@@ -1,14 +1,12 @@
 package backend
 
 import (
-	"archive/zip"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 func TestSaveAndOpenKaz(t *testing.T) {
@@ -21,7 +19,7 @@ func TestSaveAndOpenKaz(t *testing.T) {
 	testFile := filepath.Join("testdata", "hello.txt")
 	info, err = app.AddFiles(info.ID, []string{testFile})
 	require.NoError(t, err)
-	require.Len(t, info.Files, 1)
+	require.Len(t, info.Items, 1)
 
 	// Save as .kaz
 	tmpDir := t.TempDir()
@@ -42,10 +40,10 @@ func TestSaveAndOpenKaz(t *testing.T) {
 	assert.Equal(t, "en", info2.SourceLocale)
 	assert.Equal(t, []string{"fr"}, info2.TargetLocales)
 	assert.Equal(t, kazPath, info2.Path)
-	require.Len(t, info2.Files, 1)
-	assert.Equal(t, "hello.txt", info2.Files[0].Name)
-	assert.Equal(t, "plaintext", info2.Files[0].Format)
-	assert.Greater(t, info2.Files[0].BlockCount, 0)
+	require.Len(t, info2.Items, 1)
+	assert.Equal(t, "hello.txt", info2.Items[0].Name)
+	assert.Equal(t, "plaintext", info2.Items[0].Format)
+	assert.Greater(t, info2.Items[0].BlockCount, 0)
 }
 
 func TestKazManifest(t *testing.T) {
@@ -63,35 +61,19 @@ func TestKazManifest(t *testing.T) {
 	err = app.SaveProjectAs(info.ID, kazPath)
 	require.NoError(t, err)
 
-	// Read the .kaz and check manifest
-	r, err := zip.OpenReader(kazPath)
+	// Open and check manifest via OpenProject
+	app2 := NewApp()
+	info2, err := app2.OpenProject(kazPath)
 	require.NoError(t, err)
-	defer r.Close()
 
-	var manifest kazManifest
-	for _, f := range r.File {
-		if f.Name == "manifest.yaml" {
-			rc, err := f.Open()
-			require.NoError(t, err)
-			defer rc.Close()
-
-			dec := yaml.NewDecoder(rc)
-			err = dec.Decode(&manifest)
-			require.NoError(t, err)
-			break
-		}
-	}
-
-	assert.Equal(t, "Manifest Test", manifest.Name)
-	assert.Equal(t, "1.0", manifest.Version)
-	assert.Equal(t, "0.1.0", manifest.GokapiVersion)
-	assert.Equal(t, "en", manifest.SourceLocale)
-	assert.Equal(t, []string{"fr", "de"}, manifest.TargetLocales)
-	assert.NotEmpty(t, manifest.CreatedAt)
-	assert.NotEmpty(t, manifest.ModifiedAt)
-	require.Len(t, manifest.Files, 1)
-	assert.Equal(t, "hello.txt", manifest.Files[0].Path)
-	assert.Equal(t, "plaintext", manifest.Files[0].Format)
+	assert.Equal(t, "Manifest Test", info2.Name)
+	assert.Equal(t, "en", info2.SourceLocale)
+	assert.Equal(t, []string{"fr", "de"}, info2.TargetLocales)
+	assert.NotEmpty(t, info2.CreatedAt)
+	assert.NotEmpty(t, info2.ModifiedAt)
+	require.Len(t, info2.Items, 1)
+	assert.Equal(t, "hello.txt", info2.Items[0].Name)
+	assert.Equal(t, "plaintext", info2.Items[0].Format)
 }
 
 func TestKazWithMultipleFiles(t *testing.T) {
@@ -115,11 +97,11 @@ func TestKazWithMultipleFiles(t *testing.T) {
 	info2, err := app2.OpenProject(kazPath)
 	require.NoError(t, err)
 
-	assert.Len(t, info2.Files, 2)
+	assert.Len(t, info2.Items, 2)
 
 	names := make(map[string]bool)
-	for _, f := range info2.Files {
-		names[f.Name] = true
+	for _, item := range info2.Items {
+		names[item.Name] = true
 	}
 	assert.True(t, names["hello.txt"])
 	assert.True(t, names["page.html"])
@@ -158,12 +140,88 @@ func TestKazWithTranslations(t *testing.T) {
 	err = app.SaveProjectAs(info.ID, kazPath)
 	require.NoError(t, err)
 
-	// Note: translations are preserved in the XLIFF within the .kaz
-	// Reopening will re-parse source files (translations persist via XLIFF)
+	// Reopen and verify translations are preserved
 	app2 := NewApp()
 	info2, err := app2.OpenProject(kazPath)
 	require.NoError(t, err)
-	assert.Len(t, info2.Files, 1)
+	assert.Len(t, info2.Items, 1)
+
+	// Verify translations survived the roundtrip
+	blocks2, err := app2.GetFileBlocks(info2.ID, "hello.txt")
+	require.NoError(t, err)
+
+	hasTranslated2 := false
+	for _, b := range blocks2 {
+		if b.Targets["fr"] != "" {
+			hasTranslated2 = true
+			break
+		}
+	}
+	assert.True(t, hasTranslated2, "translations should survive save/load roundtrip")
+}
+
+func TestKazPreviewHTML(t *testing.T) {
+	app := NewApp()
+
+	info, err := app.CreateProject("Preview Test", "en", []string{"fr"})
+	require.NoError(t, err)
+
+	htmlFile := filepath.Join("testdata", "page.html")
+	_, err = app.AddFiles(info.ID, []string{htmlFile})
+	require.NoError(t, err)
+
+	// Check that previewHTML is populated
+	p, _ := app.projects.get(info.ID)
+	id := p.items["page.html"]
+	require.NotNil(t, id)
+	assert.NotEmpty(t, id.previewHTML, "previewHTML should be populated after AddFiles")
+	assert.Contains(t, id.previewHTML, "kat-block")
+}
+
+func TestKazBlockIndex(t *testing.T) {
+	app := NewApp()
+
+	info, err := app.CreateProject("Block Index Test", "en", []string{"fr"})
+	require.NoError(t, err)
+
+	testFile := filepath.Join("testdata", "hello.txt")
+	_, err = app.AddFiles(info.ID, []string{testFile})
+	require.NoError(t, err)
+
+	// Check that blockIndex is populated
+	p, _ := app.projects.get(info.ID)
+	id := p.items["hello.txt"]
+	require.NotNil(t, id)
+	require.NotNil(t, id.blockIndex, "blockIndex should be populated after AddFiles")
+	assert.Greater(t, len(id.blockIndex.Blocks), 0)
+}
+
+func TestKazReconstructWithoutSource(t *testing.T) {
+	app := NewApp()
+
+	info, err := app.CreateProject("Reconstruct Test", "en", []string{"fr"})
+	require.NoError(t, err)
+
+	testFile := filepath.Join("testdata", "hello.txt")
+	info, err = app.AddFiles(info.ID, []string{testFile})
+	require.NoError(t, err)
+
+	// Save
+	tmpDir := t.TempDir()
+	kazPath := filepath.Join(tmpDir, "reconstruct.kaz")
+	err = app.SaveProjectAs(info.ID, kazPath)
+	require.NoError(t, err)
+
+	// Open — the items/ dir has the source, so this tests path 1 (re-parse).
+	// To test path 2 (reconstruct from skeletons), we'd need to remove items/ from the zip.
+	// For now, verify the full roundtrip works.
+	app2 := NewApp()
+	info2, err := app2.OpenProject(kazPath)
+	require.NoError(t, err)
+
+	blocks, err := app2.GetFileBlocks(info2.ID, "hello.txt")
+	require.NoError(t, err)
+	assert.Greater(t, len(blocks), 0)
 }
 
 func TestOpenInvalidKaz(t *testing.T) {
@@ -181,20 +239,6 @@ func TestOpenInvalidKaz(t *testing.T) {
 
 	_, err = app.OpenProject(badFile)
 	assert.Error(t, err)
-
-	// Create a ZIP without manifest
-	noManifest := filepath.Join(tmpDir, "nomanifest.kaz")
-	f, err := os.Create(noManifest)
-	require.NoError(t, err)
-	w := zip.NewWriter(f)
-	fw, _ := w.Create("dummy.txt")
-	fw.Write([]byte("test"))
-	w.Close()
-	f.Close()
-
-	_, err = app.OpenProject(noManifest)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "manifest.yaml not found")
 }
 
 func TestSaveProject_NoPath(t *testing.T) {

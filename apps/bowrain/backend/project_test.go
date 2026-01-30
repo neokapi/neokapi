@@ -19,7 +19,7 @@ func TestCreateProject(t *testing.T) {
 	assert.Equal(t, "en", info.SourceLocale)
 	assert.Equal(t, []string{"fr", "de"}, info.TargetLocales)
 	assert.NotEmpty(t, info.CreatedAt)
-	assert.Empty(t, info.Files)
+	assert.Empty(t, info.Items)
 }
 
 func TestCreateProject_Validation(t *testing.T) {
@@ -96,11 +96,11 @@ func TestAddFiles(t *testing.T) {
 	info, err = app.AddFiles(info.ID, []string{testFile})
 	require.NoError(t, err)
 
-	assert.Len(t, info.Files, 1)
-	assert.Equal(t, "hello.txt", info.Files[0].Name)
-	assert.Equal(t, "plaintext", info.Files[0].Format)
-	assert.Greater(t, info.Files[0].BlockCount, 0)
-	assert.Greater(t, info.Files[0].WordCount, 0)
+	assert.Len(t, info.Items, 1)
+	assert.Equal(t, "hello.txt", info.Items[0].Name)
+	assert.Equal(t, "plaintext", info.Items[0].Format)
+	assert.Greater(t, info.Items[0].BlockCount, 0)
+	assert.Greater(t, info.Items[0].WordCount, 0)
 }
 
 func TestAddFiles_Multiple(t *testing.T) {
@@ -115,12 +115,12 @@ func TestAddFiles_Multiple(t *testing.T) {
 	info, err = app.AddFiles(info.ID, []string{txtFile, htmlFile})
 	require.NoError(t, err)
 
-	assert.Len(t, info.Files, 2)
+	assert.Len(t, info.Items, 2)
 
 	// Check that both formats were detected
 	formats := make(map[string]bool)
-	for _, f := range info.Files {
-		formats[f.Format] = true
+	for _, item := range info.Items {
+		formats[item.Format] = true
 	}
 	assert.True(t, formats["plaintext"])
 	assert.True(t, formats["html"])
@@ -141,7 +141,7 @@ func TestAddFiles_UnsupportedFormat(t *testing.T) {
 	// Should not error, just skip unsupported file
 	info, err = app.AddFiles(info.ID, []string{tmpFile})
 	require.NoError(t, err)
-	assert.Empty(t, info.Files)
+	assert.Empty(t, info.Items)
 }
 
 func TestAddFiles_ProjectNotFound(t *testing.T) {
@@ -161,11 +161,11 @@ func TestRemoveFile(t *testing.T) {
 	testFile := filepath.Join("testdata", "hello.txt")
 	info, err = app.AddFiles(info.ID, []string{testFile})
 	require.NoError(t, err)
-	assert.Len(t, info.Files, 1)
+	assert.Len(t, info.Items, 1)
 
 	info, err = app.RemoveFile(info.ID, "hello.txt")
 	require.NoError(t, err)
-	assert.Empty(t, info.Files)
+	assert.Empty(t, info.Items)
 }
 
 func TestRemoveFile_NotFound(t *testing.T) {

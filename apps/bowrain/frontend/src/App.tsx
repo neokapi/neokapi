@@ -57,20 +57,13 @@ function App() {
   );
 
   const handleOpenKaz = useCallback(async () => {
-    // In Wails mode, use native file dialog
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w?.go?.backend?.App?.OpenProject) {
-      try {
-        // For now, prompt for path
-        const path = prompt("Enter .kaz file path:");
-        if (!path) return;
-        const info = await projectApi.openProject(path);
-        setProjects((prev) => [...prev, info]);
-        setActiveProject(info);
-      } catch (e) {
-        console.error("Open .kaz failed:", e);
-      }
+    try {
+      const info = await projectApi.openProjectDialog();
+      if (!info) return; // user cancelled
+      setProjects((prev) => [...prev, info]);
+      setActiveProject(info);
+    } catch (e) {
+      console.error("Open project failed:", e);
     }
   }, [projectApi]);
 
@@ -87,6 +80,18 @@ function App() {
     },
     [activeProject, projectApi],
   );
+
+  const handleAddFilesDialog = useCallback(async () => {
+    if (!activeProject) return;
+    try {
+      const updated = await projectApi.addFilesDialog(activeProject.id);
+      if (!updated) return; // user cancelled
+      setActiveProject(updated);
+      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    } catch (e) {
+      console.error("Add files failed:", e);
+    }
+  }, [activeProject, projectApi]);
 
   const handleRemoveFile = useCallback(
     async (fileName: string) => {
@@ -108,10 +113,7 @@ function App() {
       if (activeProject.path) {
         await projectApi.saveProject(activeProject.id);
       } else {
-        const path = prompt("Save as .kaz file:", `${activeProject.name}.kaz`);
-        if (path) {
-          await projectApi.saveProjectAs(activeProject.id, path);
-        }
+        await projectApi.saveProjectDialog(activeProject.id);
       }
     } catch (e) {
       console.error("Save project failed:", e);
@@ -159,6 +161,7 @@ function App() {
           onBack={handleBackToProjects}
           onOpenFile={handleOpenFile}
           onAddFiles={handleAddFiles}
+          onAddFilesDialog={handleAddFilesDialog}
           onRemoveFile={handleRemoveFile}
           onSave={handleSaveProject}
         />
@@ -184,6 +187,8 @@ function App() {
     }
   };
 
+  const isEditor = activeView === "projects" && activeProject != null && activeFile != null;
+
   return (
     <div
       style={{
@@ -193,15 +198,16 @@ function App() {
       }}
     >
       <Sidebar activeView={activeView} onViewChange={handleViewChange} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
         <main
           style={{
             flex: 1,
             padding: 24,
-            overflowY: "auto",
+            overflow: isEditor ? "hidden" : "auto",
             display: "flex",
             flexDirection: "column",
+            minHeight: 0,
           }}
         >
           {renderView()}
