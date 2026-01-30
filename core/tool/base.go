@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // PartHandler is the function signature for handling a single Part.

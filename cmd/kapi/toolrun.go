@@ -11,10 +11,10 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
-	"github.com/asgeirf/gokapi/plugin/loader"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
@@ -24,7 +24,7 @@ import (
 type ToolRunConfig struct {
 	ToolName       string
 	Files          []string
-	Concurrency    int                       // 0 = NumCPU
+	Concurrency    int // 0 = NumCPU
 	JSONOutput     bool
 	FailOnUnknown  bool                      // fail on unrecognized formats instead of skipping
 	NoWarn         bool                      // suppress skip warnings

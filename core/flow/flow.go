@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // ToolFactory creates a fresh Tool instance. Used for parallel execution
@@ -12,8 +12,8 @@ type ToolFactory func() (tool.Tool, error)
 // Flow represents a configured sequence of Tools that Parts stream through.
 type Flow struct {
 	Name          string
-	Tools         []tool.Tool    // for single-doc / sequential (backward compat)
-	ToolFactories []ToolFactory  // for parallel: creates fresh tool chain per document
+	Tools         []tool.Tool   // for single-doc / sequential (backward compat)
+	ToolFactories []ToolFactory // for parallel: creates fresh tool chain per document
 }
 
 // FlowItem represents a single document to process in a batch.

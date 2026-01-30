@@ -3,8 +3,8 @@ package backend
 import (
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/kaz"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // RenderDocumentPreview returns the pre-rendered HTML for an item.

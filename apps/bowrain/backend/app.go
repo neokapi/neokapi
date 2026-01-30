@@ -8,16 +8,16 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/ai/tools"
-	"github.com/asgeirf/gokapi/core/config"
-	"github.com/asgeirf/gokapi/core/credentials"
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/registry"
-	"github.com/asgeirf/gokapi/core/tool"
-	"github.com/asgeirf/gokapi/formats"
-	"github.com/asgeirf/gokapi/plugin/loader"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/core/config"
+	"github.com/gokapi/gokapi/core/credentials"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/formats"
+	"github.com/gokapi/gokapi/plugin/loader"
 )
 
 // App is the Bowrain UI backend. It exposes methods that can be

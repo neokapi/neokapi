@@ -5,8 +5,8 @@ import (
 	"encoding/csv"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // CSVReader reads CSV files and produces Parts.

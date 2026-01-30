@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory.

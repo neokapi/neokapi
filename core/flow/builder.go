@@ -1,8 +1,8 @@
 package flow
 
 import (
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // FlowBuilder provides a fluent API for constructing Flows.

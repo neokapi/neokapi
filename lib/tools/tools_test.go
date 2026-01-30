@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/lib/tools"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/lib/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

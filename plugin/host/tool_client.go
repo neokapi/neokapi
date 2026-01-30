@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/rpc"
 
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
-	"github.com/asgeirf/gokapi/plugin/shared"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/plugin/shared"
 )
 
 // ToolRPCClient implements tool.Tool by delegating to a plugin process over net/rpc.

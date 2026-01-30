@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // DefaultBaseURL is the default MyMemory API endpoint.

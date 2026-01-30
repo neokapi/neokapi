@@ -8,7 +8,7 @@ syntax = "proto3";
 
 package gokapi.plugin.v1;
 
-option go_package = "github.com/asgeirf/gokapi/plugin/proto/v1;pluginv1";
+option go_package = "github.com/gokapi/gokapi/plugin/proto/v1;pluginv1";
 
 // SpanMessage represents an inline markup element within a Fragment.
 message SpanMessage {

@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/registry"
-	"github.com/asgeirf/gokapi/core/tool"
-	"github.com/asgeirf/gokapi/formats"
-	"github.com/asgeirf/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/formats"
+	"github.com/gokapi/gokapi/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

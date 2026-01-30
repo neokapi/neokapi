@@ -1,7 +1,7 @@
 package kaz
 
 import (
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // BuildPreview generates a preview HTML string for the given parts.

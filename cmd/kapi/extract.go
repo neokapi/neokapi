@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/spf13/cobra"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // ExportTMX writes translation memory entries to TMX format.

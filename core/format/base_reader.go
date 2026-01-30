@@ -3,7 +3,7 @@ package format
 import (
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // BaseFormatReader provides shared behavior for format reader implementations.

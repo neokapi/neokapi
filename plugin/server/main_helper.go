@@ -1,8 +1,8 @@
 package server
 
 import (
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/tool"
 	goplugin "github.com/hashicorp/go-plugin"
 )
 

@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
-	libtools "github.com/asgeirf/gokapi/lib/tools"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+	libtools "github.com/gokapi/gokapi/lib/tools"
 	"github.com/spf13/cobra"
 )
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/asgeirf/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/format"
 )
 
 // FormatReaderFactory creates a new DataFormatReader instance.

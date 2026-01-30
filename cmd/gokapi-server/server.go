@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/registry"
-	"github.com/asgeirf/gokapi/formats"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/formats"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

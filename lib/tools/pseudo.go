@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // accentMap maps ASCII characters to accented equivalents for pseudo-translation.

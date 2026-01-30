@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/kaz"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/spf13/cobra"
 )
 

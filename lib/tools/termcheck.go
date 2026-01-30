@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // Terminology check property keys.
@@ -22,8 +22,8 @@ type GlossaryEntry struct {
 
 // TermCheckConfig holds configuration for the terminology check tool.
 type TermCheckConfig struct {
-	Glossary     []GlossaryEntry
-	TargetLocale model.LocaleID
+	Glossary      []GlossaryEntry
+	TargetLocale  model.LocaleID
 	CaseSensitive bool
 }
 

@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/labstack/echo/v4"
 )
 

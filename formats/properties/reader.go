@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // Reader implements DataFormatReader for Java Properties files.

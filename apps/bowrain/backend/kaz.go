@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asgeirf/gokapi/core/kaz"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/google/uuid"
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )

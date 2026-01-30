@@ -3,7 +3,7 @@ package credentials
 import (
 	"fmt"
 
-	"github.com/asgeirf/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/ai/provider"
 )
 
 // NewProvider creates an LLMProvider from a saved config by looking up the API key in the keychain.

@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // Tag protection property keys.
@@ -43,7 +43,7 @@ func (c *TagProtectConfig) Validate() error {
 // defaultTagPatterns matches common markup tags (HTML/XML), printf placeholders,
 // and ICU message format placeholders.
 var defaultTagPatterns = []string{
-	`<[^>]+>`,             // HTML/XML tags
+	`<[^>]+>`,            // HTML/XML tags
 	`\{[^}]+\}`,          // curly brace placeholders (ICU, Java, .NET)
 	`%[sdfoexXbBhHtT%]+`, // printf-style placeholders
 	`\$\{[^}]+\}`,        // ${...} template expressions

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/core/credentials"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/core/credentials"
 )
 
 // ProviderConfigInfo is the frontend-facing provider config (no API key).

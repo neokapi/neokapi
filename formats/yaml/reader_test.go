@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/model"
-	yamlfmt "github.com/asgeirf/gokapi/formats/yaml"
-	"github.com/asgeirf/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/core/model"
+	yamlfmt "github.com/gokapi/gokapi/formats/yaml"
+	"github.com/gokapi/gokapi/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -1,4 +1,4 @@
-module github.com/asgeirf/gokapi
+module github.com/gokapi/gokapi
 
 go 1.25.6
 

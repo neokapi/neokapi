@@ -8,10 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/ai/tools"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/plugin/loader"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
 )
 

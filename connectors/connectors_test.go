@@ -7,12 +7,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/asgeirf/gokapi/connectors/deepl"
-	"github.com/asgeirf/gokapi/connectors/google"
-	"github.com/asgeirf/gokapi/connectors/microsoft"
-	"github.com/asgeirf/gokapi/connectors/modernmt"
-	"github.com/asgeirf/gokapi/connectors/mymemory"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/connectors/deepl"
+	"github.com/gokapi/gokapi/connectors/google"
+	"github.com/gokapi/gokapi/connectors/microsoft"
+	"github.com/gokapi/gokapi/connectors/modernmt"
+	"github.com/gokapi/gokapi/connectors/mymemory"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

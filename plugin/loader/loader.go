@@ -11,10 +11,10 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/registry"
-	"github.com/asgeirf/gokapi/plugin/bridge"
-	"github.com/asgeirf/gokapi/plugin/host"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/plugin/bridge"
+	"github.com/gokapi/gokapi/plugin/host"
 )
 
 // OriginalContentSetter is implemented by writers that need the original

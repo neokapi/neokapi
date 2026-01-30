@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 
 	// Pure Go SQLite driver.
 	_ "modernc.org/sqlite"

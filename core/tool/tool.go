@@ -3,7 +3,7 @@ package tool
 import (
 	"context"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // Tool processes Parts in a Flow.

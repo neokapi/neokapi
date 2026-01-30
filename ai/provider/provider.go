@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // LLMProvider defines the interface for LLM service providers.

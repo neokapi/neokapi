@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/asgeirf/gokapi/core/flow"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // DocumentWordCount holds word counts for a single document.
@@ -23,9 +23,9 @@ type DocumentWordCount struct {
 
 // WordCountSummary is the aggregated result from WordCountCollector.
 type WordCountSummary struct {
-	TotalSourceWords int                    `json:"total_source_words"`
-	TotalTargetWords map[model.LocaleID]int `json:"total_target_words,omitempty"`
-	DocumentCount    int                    `json:"document_count"`
+	TotalSourceWords int                          `json:"total_source_words"`
+	TotalTargetWords map[model.LocaleID]int       `json:"total_target_words,omitempty"`
+	DocumentCount    int                          `json:"document_count"`
 	Documents        map[string]DocumentWordCount `json:"documents"`
 }
 

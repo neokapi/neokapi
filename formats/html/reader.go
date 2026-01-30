@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )

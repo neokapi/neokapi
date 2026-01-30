@@ -7,9 +7,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/model"
-	jsonfmt "github.com/asgeirf/gokapi/formats/json"
-	"github.com/asgeirf/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/core/model"
+	jsonfmt "github.com/gokapi/gokapi/formats/json"
+	"github.com/gokapi/gokapi/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

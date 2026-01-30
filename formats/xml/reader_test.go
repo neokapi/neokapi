@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/model"
-	xmlfmt "github.com/asgeirf/gokapi/formats/xml"
-	"github.com/asgeirf/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/core/model"
+	xmlfmt "github.com/gokapi/gokapi/formats/xml"
+	"github.com/gokapi/gokapi/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

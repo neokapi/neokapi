@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // buildHTMLPreview generates an HTML preview with <kat-block> markers.

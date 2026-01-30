@@ -1,8 +1,8 @@
 package pensieve
 
 import (
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // TMLeverageConfig holds configuration for the TM leverage tool.

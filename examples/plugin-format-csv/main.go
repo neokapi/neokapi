@@ -10,7 +10,7 @@
 package main
 
 import (
-	"github.com/asgeirf/gokapi/plugin/server"
+	"github.com/gokapi/gokapi/plugin/server"
 )
 
 func main() {

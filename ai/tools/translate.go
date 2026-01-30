@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // AITranslateTool translates untranslated Blocks using an LLM provider.

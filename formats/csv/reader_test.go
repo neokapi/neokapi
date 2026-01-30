@@ -5,9 +5,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/asgeirf/gokapi/core/model"
-	csvfmt "github.com/asgeirf/gokapi/formats/csv"
-	"github.com/asgeirf/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/core/model"
+	csvfmt "github.com/gokapi/gokapi/formats/csv"
+	"github.com/gokapi/gokapi/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

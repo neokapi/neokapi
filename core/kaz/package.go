@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 	"gopkg.in/yaml.v3"
 )
 

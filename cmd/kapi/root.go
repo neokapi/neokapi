@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/asgeirf/gokapi/core/config"
-	"github.com/asgeirf/gokapi/core/registry"
-	"github.com/asgeirf/gokapi/formats"
-	"github.com/asgeirf/gokapi/plugin/loader"
+	"github.com/gokapi/gokapi/core/config"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/formats"
+	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // DataFormatWriter reconstructs a document from Parts.

@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/ai/tools"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

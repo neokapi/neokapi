@@ -3,7 +3,7 @@ package kaz
 import (
 	"strings"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // ReconstructParts rebuilds a Part stream from a BlockIndex.

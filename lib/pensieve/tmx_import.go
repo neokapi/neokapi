@@ -6,7 +6,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // TMX XML structures for parsing.

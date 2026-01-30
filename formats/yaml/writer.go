@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
 	yamlv3 "gopkg.in/yaml.v3"
 )
 

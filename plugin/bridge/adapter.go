@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/plugin/shared"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/plugin/shared"
 )
 
 // BridgeFormatReader implements format.DataFormatReader by delegating to

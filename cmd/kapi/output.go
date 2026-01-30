@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/asgeirf/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/flow"
 )
 
 // TableFormattable is implemented by collector result data that can

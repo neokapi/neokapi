@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/asgeirf/gokapi/core/kaz"
-	"gopkg.in/yaml.v3"
+	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 var unpackCmd = &cobra.Command{

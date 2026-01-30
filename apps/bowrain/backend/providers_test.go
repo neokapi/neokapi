@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/zalando/go-keyring"
 
-	"github.com/asgeirf/gokapi/core/credentials"
+	"github.com/gokapi/gokapi/core/credentials"
 )
 
 func testApp(t *testing.T) *App {

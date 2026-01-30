@@ -3,7 +3,7 @@ package pensieve
 import (
 	"time"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // MatchType indicates how a TM match was found.

@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/asgeirf/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // BaseFormatWriter provides shared behavior for format writer implementations.

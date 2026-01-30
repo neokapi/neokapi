@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/plugin/shared"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/plugin/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

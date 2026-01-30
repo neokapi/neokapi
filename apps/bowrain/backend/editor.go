@@ -7,12 +7,12 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/asgeirf/gokapi/ai/provider"
-	"github.com/asgeirf/gokapi/ai/tools"
-	"github.com/asgeirf/gokapi/core/credentials"
-	"github.com/asgeirf/gokapi/core/model"
-	"github.com/asgeirf/gokapi/core/tool"
-	"github.com/asgeirf/gokapi/lib/pensieve"
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/core/credentials"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/lib/pensieve"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.

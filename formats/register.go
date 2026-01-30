@@ -1,22 +1,22 @@
 package formats
 
 import (
-	"github.com/asgeirf/gokapi/core/format"
-	"github.com/asgeirf/gokapi/core/registry"
-	csvfmt "github.com/asgeirf/gokapi/formats/csv"
-	"github.com/asgeirf/gokapi/formats/html"
-	"github.com/asgeirf/gokapi/formats/json"
-	"github.com/asgeirf/gokapi/formats/markdown"
-	"github.com/asgeirf/gokapi/formats/plaintext"
-	"github.com/asgeirf/gokapi/formats/po"
-	"github.com/asgeirf/gokapi/formats/properties"
-	"github.com/asgeirf/gokapi/formats/srt"
-	"github.com/asgeirf/gokapi/formats/tmx"
-	"github.com/asgeirf/gokapi/formats/vtt"
-	"github.com/asgeirf/gokapi/formats/xliff"
-	"github.com/asgeirf/gokapi/formats/xliff2"
-	xmlfmt "github.com/asgeirf/gokapi/formats/xml"
-	"github.com/asgeirf/gokapi/formats/yaml"
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/registry"
+	csvfmt "github.com/gokapi/gokapi/formats/csv"
+	"github.com/gokapi/gokapi/formats/html"
+	"github.com/gokapi/gokapi/formats/json"
+	"github.com/gokapi/gokapi/formats/markdown"
+	"github.com/gokapi/gokapi/formats/plaintext"
+	"github.com/gokapi/gokapi/formats/po"
+	"github.com/gokapi/gokapi/formats/properties"
+	"github.com/gokapi/gokapi/formats/srt"
+	"github.com/gokapi/gokapi/formats/tmx"
+	"github.com/gokapi/gokapi/formats/vtt"
+	"github.com/gokapi/gokapi/formats/xliff"
+	"github.com/gokapi/gokapi/formats/xliff2"
+	xmlfmt "github.com/gokapi/gokapi/formats/xml"
+	"github.com/gokapi/gokapi/formats/yaml"
 )
 
 // RegisterAll registers all built-in data formats with the given registry.
