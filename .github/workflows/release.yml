@@ -128,8 +128,8 @@ jobs:
         with:
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz"
 
-  update-homebrew-cask:
-    name: Update Homebrew Cask
+  update-homebrew-tap:
+    name: Update Homebrew Tap
     runs-on: ubuntu-latest
     needs: build-bowrain
     steps:
@@ -137,35 +137,24 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Wait for DMG asset
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ASSET="bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
-          for i in $(seq 1 30); do
-            if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" --json assets -q ".assets[].name" | grep -q "$ASSET"; then
-              echo "Asset found: $ASSET"
-              exit 0
-            fi
-            echo "Waiting for asset ($i/30)..."
-            sleep 10
-          done
-          echo "Timed out waiting for asset"
-          exit 1
-
-      - name: Download DMG
+      - name: Download all release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
-            --pattern "bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
+            --pattern "kapi_*" \
+            --pattern "bowrain-*-macOS-universal.dmg"
 
-      - name: Compute SHA256
-        id: sha
+      - name: Compute checksums
+        id: checksums
         run: |
-          SHA=$(sha256sum "bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg" | awk '{print $1}')
-          echo "SHA256=$SHA" >> "$GITHUB_OUTPUT"
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "DARWIN_AMD64=$(sha256sum kapi_${VERSION}_darwin_amd64.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "DARWIN_ARM64=$(sha256sum kapi_${VERSION}_darwin_arm64.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "LINUX_AMD64=$(sha256sum kapi_${VERSION}_linux_amd64.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "LINUX_ARM64=$(sha256sum kapi_${VERSION}_linux_arm64.tar.gz | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "BOWRAIN_DMG=$(sha256sum bowrain-${VERSION}-macOS-universal.dmg | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v4
@@ -174,16 +163,74 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
 
-      - name: Update cask
+      - name: Update kapi formula
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          SHA_DARWIN_AMD64: ${{ steps.checksums.outputs.DARWIN_AMD64 }}
+          SHA_DARWIN_ARM64: ${{ steps.checksums.outputs.DARWIN_ARM64 }}
+          SHA_LINUX_AMD64: ${{ steps.checksums.outputs.LINUX_AMD64 }}
+          SHA_LINUX_ARM64: ${{ steps.checksums.outputs.LINUX_ARM64 }}
+        run: |
+          cat > homebrew-tap/kapi.rb << FORMULA
+          require_relative "lib/private_download_strategy"
+
+          class Kapi < Formula
+            desc "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
+            homepage "https://github.com/gokapi/gokapi"
+            version "${VERSION}"
+            license "Apache-2.0"
+
+            on_macos do
+              if Hardware::CPU.intel?
+                url "https://github.com/gokapi/gokapi/releases/download/v${VERSION}/kapi_${VERSION}_darwin_amd64.tar.gz",
+                    using: GitHubPrivateRepositoryReleaseDownloadStrategy
+                sha256 "${SHA_DARWIN_AMD64}"
+              end
+              if Hardware::CPU.arm?
+                url "https://github.com/gokapi/gokapi/releases/download/v${VERSION}/kapi_${VERSION}_darwin_arm64.tar.gz",
+                    using: GitHubPrivateRepositoryReleaseDownloadStrategy
+                sha256 "${SHA_DARWIN_ARM64}"
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
+                url "https://github.com/gokapi/gokapi/releases/download/v${VERSION}/kapi_${VERSION}_linux_amd64.tar.gz",
+                    using: GitHubPrivateRepositoryReleaseDownloadStrategy
+                sha256 "${SHA_LINUX_AMD64}"
+              end
+              if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+                url "https://github.com/gokapi/gokapi/releases/download/v${VERSION}/kapi_${VERSION}_linux_arm64.tar.gz",
+                    using: GitHubPrivateRepositoryReleaseDownloadStrategy
+                sha256 "${SHA_LINUX_ARM64}"
+              end
+            end
+
+            def install
+              bin.install "kapi"
+            end
+
+            test do
+              system "#{bin}/kapi", "version"
+            end
+          end
+          FORMULA
+
+      - name: Update bowrain cask
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          SHA_BOWRAIN: ${{ steps.checksums.outputs.BOWRAIN_DMG }}
         run: |
           mkdir -p homebrew-tap/Casks
-          cat > homebrew-tap/Casks/bowrain.rb << 'CASK'
+          cat > homebrew-tap/Casks/bowrain.rb << CASK
+          require_relative "../lib/private_download_strategy"
+
           cask "bowrain" do
-            version "${{ steps.version.outputs.VERSION }}"
-            sha256 "${{ steps.sha.outputs.SHA256 }}"
+            version "${VERSION}"
+            sha256 "${SHA_BOWRAIN}"
 
             url "https://github.com/gokapi/gokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg",
-                headers: ["Authorization: Bearer #{ENV["HOMEBREW_GITHUB_API_TOKEN"]}"]
+                using: GitHubPrivateRepositoryReleaseDownloadStrategy
             name "Bowrain"
             desc "AI-native translation editor"
             homepage "https://github.com/gokapi/gokapi"
@@ -197,6 +244,6 @@ jobs:
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/bowrain.rb
-          git commit -m "Update bowrain cask to ${{ steps.version.outputs.VERSION }}"
+          git add kapi.rb Casks/bowrain.rb
+          git commit -m "Update kapi and bowrain to ${{ steps.version.outputs.VERSION }}"
           git push
