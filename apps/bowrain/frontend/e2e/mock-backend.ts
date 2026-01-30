@@ -161,11 +161,11 @@ export async function injectMockBackend(page: Page) {
       TestProviderConfig: 2576607394,
       UpdateBlockTarget: 1528557592,
       UpdateBlockTargetCoded: 1612164251,
-      UpdateTMEntry: 3100000001,
-      GetTMEntries: 3100000002,
-      GetTMCount: 3100000003,
-      DeleteTMEntry: 3100000004,
-      AddTMEntry: 3100000005,
+      UpdateTMEntry: 1441483449,
+      GetTMEntries: 2865323100,
+      GetTMCount: 1658982651,
+      DeleteTMEntry: 1886996955,
+      AddTMEntry: 4152216329,
     };
 
     // Per-project TM storage
