@@ -1,30 +1,30 @@
 import type { SpanInfo } from "../../types/api";
-import { spanLabel } from "./codedText";
+import { tagColors, semanticLabel, semanticTooltip } from "./tagSemantics";
 
 interface TagChipComponentProps {
   spanInfo: SpanInfo;
-  index?: number;
+  index?: number;         // sequential number (1-based)
+  pairIndex?: number;     // pair number badge
+  highlighted?: boolean;  // partner-tag hover glow
+  dimmed?: boolean;       // already-used in palette
 }
 
-export function TagChipComponent({ spanInfo, index }: TagChipComponentProps) {
-  const isPlaceholder = spanInfo.span_type === "placeholder";
-  const label = spanLabel(spanInfo);
+export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed }: TagChipComponentProps) {
+  const colors = tagColors(spanInfo);
+  const label = semanticLabel(spanInfo);
+  const tooltip = semanticTooltip(spanInfo);
 
   return (
     <span
       style={{
         ...chipStyle,
-        backgroundColor: isPlaceholder
-          ? "rgba(251, 146, 60, 0.15)"
-          : "rgba(96, 165, 250, 0.15)",
-        borderColor: isPlaceholder
-          ? "rgba(251, 146, 60, 0.4)"
-          : "rgba(96, 165, 250, 0.4)",
-        color: isPlaceholder
-          ? "rgb(234, 88, 12)"
-          : "rgb(59, 130, 246)",
+        backgroundColor: colors.bg,
+        borderColor: colors.border,
+        color: colors.text,
+        boxShadow: highlighted ? `0 0 0 2px ${colors.border}` : undefined,
+        opacity: dimmed ? 0.4 : undefined,
       }}
-      title={spanInfo.data}
+      title={tooltip}
       contentEditable={false}
       data-tag-chip
     >
@@ -32,6 +32,9 @@ export function TagChipComponent({ spanInfo, index }: TagChipComponentProps) {
         <span style={indexStyle}>{index}</span>
       )}
       {label}
+      {pairIndex !== undefined && (
+        <span style={pairBadgeStyle}>{pairIndex}</span>
+      )}
     </span>
   );
 }
@@ -52,6 +55,7 @@ const chipStyle: React.CSSProperties = {
   cursor: "default",
   userSelect: "none",
   whiteSpace: "nowrap",
+  transition: "box-shadow 0.15s ease, opacity 0.15s ease",
 };
 
 const indexStyle: React.CSSProperties = {
@@ -59,4 +63,13 @@ const indexStyle: React.CSSProperties = {
   fontWeight: 700,
   opacity: 0.6,
   marginRight: 1,
+};
+
+const pairBadgeStyle: React.CSSProperties = {
+  fontSize: 8,
+  fontWeight: 700,
+  opacity: 0.5,
+  marginLeft: 2,
+  verticalAlign: "super",
+  lineHeight: 1,
 };

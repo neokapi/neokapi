@@ -24,7 +24,7 @@ async function openEditorWithBlocks(page: any) {
 
   // Step 2: Add a file via mock backend
   await page.evaluate(async () => {
-    const backend = (window as any).go.backend.App;
+    const backend = (window as any).__wailsMockByName;
     const projects = await backend.ListProjects();
     if (projects.length > 0) {
       await backend.AddFiles(projects[0].id, ["/test/hello.txt"]);
@@ -169,7 +169,7 @@ test.describe("Translation Editor", () => {
     // Save a translation via the mock backend directly (since Playwright's
     // keyboard API hangs within this component due to CDP interaction issues)
     await page.evaluate(async () => {
-      const backend = (window as any).go.backend.App;
+      const backend = (window as any).__wailsMockByName;
       await backend.UpdateBlockTarget({
         project_id: "project-1",
         item_name: "hello.txt",
@@ -427,7 +427,7 @@ test.describe("Translation Editor", () => {
 
     // Translate only the first block
     await page.evaluate(async () => {
-      const backend = (window as any).go.backend.App;
+      const backend = (window as any).__wailsMockByName;
       await backend.UpdateBlockTarget({
         project_id: "project-1",
         item_name: "hello.txt",

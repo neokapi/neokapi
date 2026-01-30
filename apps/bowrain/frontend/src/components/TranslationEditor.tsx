@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo } from "../types/api";
 import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
 import { DocumentPreview } from "./DocumentPreview";
@@ -6,6 +6,7 @@ import { SourceCellDisplay } from "./editor/SourceCellDisplay";
 import { TargetCellEditor } from "./editor/TargetCellEditor";
 import { parseCodedSegments } from "./editor/codedText";
 import { TagChipComponent } from "./editor/TagChipComponent";
+import { buildPairs, validateTags } from "./editor/tagSemantics";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -363,10 +364,18 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                 data-testid={`target-text-${index}`}
               >
                 {block.has_spans && block.targets_coded?.[targetLocale] ? (
-                  <CodedTextDisplay
-                    codedText={block.targets_coded[targetLocale]}
-                    spans={block.source_spans || []}
-                  />
+                  <>
+                    <CodedTextDisplay
+                      codedText={block.targets_coded[targetLocale]}
+                      spans={block.source_spans || []}
+                    />
+                    {block.source_spans && (
+                      <RowTagWarning
+                        sourceSpans={block.source_spans}
+                        targetCodedText={block.targets_coded[targetLocale]}
+                      />
+                    )}
+                  </>
                 ) : (
                   block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")
                 )}
@@ -515,19 +524,81 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   );
 }
 
-/** Read-only display of coded text with tag chips (for target cell, not editing). */
+/** Read-only display of coded text with pair-aware tag chips (for target cell, not editing). */
 function CodedTextDisplay({ codedText, spans }: { codedText: string; spans: SpanInfo[] }) {
   const segments = parseCodedSegments(codedText, spans);
+  const pairs = useMemo(() => buildPairs(spans), [spans]);
+  const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
   let tagIndex = 0;
+
   return (
     <span>
       {segments.map((seg, i) => {
         if (seg.type === "text") {
           return <span key={i}>{seg.value}</span>;
         }
+        const currentTagIndex = tagIndex;
         tagIndex++;
-        return <TagChipComponent key={i} spanInfo={seg.spanInfo} index={tagIndex} />;
+        const pairInfo = pairs.get(currentTagIndex);
+        const pairIdx = pairInfo?.pairIndex;
+
+        return (
+          <span
+            key={i}
+            onMouseEnter={() => pairIdx != null && setHoveredPairIndex(pairIdx)}
+            onMouseLeave={() => setHoveredPairIndex(null)}
+          >
+            <TagChipComponent
+              spanInfo={seg.spanInfo}
+              index={currentTagIndex + 1}
+              pairIndex={pairIdx}
+              highlighted={hoveredPairIndex != null && pairIdx === hoveredPairIndex}
+            />
+          </span>
+        );
       })}
+    </span>
+  );
+}
+
+/** Row-level validation indicator for tag mismatches. */
+function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo[]; targetCodedText: string }) {
+  const targetSpans = useMemo(() => {
+    // Extract spans from coded text by counting markers and matching against source spans
+    const spans: SpanInfo[] = [];
+    for (const ch of targetCodedText) {
+      const code = ch.charCodeAt(0);
+      if (code >= 0xe001 && code <= 0xe003) {
+        // Map marker to source span by index (same order as source)
+        if (spans.length < sourceSpans.length) {
+          spans.push(sourceSpans[spans.length]);
+        }
+      }
+    }
+    return spans;
+  }, [targetCodedText, sourceSpans]);
+
+  const validation = useMemo(
+    () => validateTags(sourceSpans, targetSpans),
+    [sourceSpans, targetSpans],
+  );
+
+  if (validation.valid && validation.warnings.length === 0) return null;
+
+  const issues = [...validation.errors, ...validation.warnings];
+  const tooltip = issues.map((i) => i.message).join("\n");
+
+  return (
+    <span
+      title={tooltip}
+      style={{
+        marginLeft: 4,
+        cursor: "help",
+        fontSize: 14,
+        color: validation.errors.length > 0 ? "rgb(220, 38, 38)" : "rgb(161, 98, 7)",
+      }}
+    >
+      {"\u26A0"}
     </span>
   );
 }

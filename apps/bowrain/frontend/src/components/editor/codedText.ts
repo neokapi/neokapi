@@ -1,4 +1,5 @@
 import type { SpanInfo } from "../../types/api";
+import { semanticLabel } from "./tagSemantics";
 
 // Unicode markers matching the Go model constants
 const MARKER_OPENING = "\uE001";
@@ -80,26 +81,8 @@ export function segmentsToCodedText(segments: CodedSegment[]): {
 
 /**
  * Returns the tag display label for a span.
- * Opening: "b>" or "a>", Closing: "/b" or "/a", Placeholder: "br" or "img"
+ * Delegates to tagSemantics for semantic-aware labels.
  */
 export function spanLabel(span: SpanInfo): string {
-  const name = span.type || tagNameFromData(span.data);
-  switch (span.span_type) {
-    case "opening":
-      return `${name}>`;
-    case "closing":
-      return `/${name}`;
-    case "placeholder":
-      return name;
-    default:
-      return name;
-  }
-}
-
-/**
- * Extract the tag name from raw markup data like "<b>", "</a>", "<br/>"
- */
-function tagNameFromData(data: string): string {
-  const match = data.match(/<\/?(\w+)/);
-  return match ? match[1] : "?";
+  return semanticLabel(span);
 }

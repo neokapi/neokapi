@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { LexicalComposer } from "@lexical/react/LexicalComposer";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
@@ -21,6 +21,9 @@ import type { SpanInfo } from "../../types/api";
 import { parseCodedSegments, segmentsToCodedText, type CodedSegment } from "./codedText";
 import { TagChipNode, $createTagChipNode, $isTagChipNode } from "./TagChipNode";
 import { TagPalette } from "./TagPalette";
+import { TagValidationBar } from "./TagValidationBar";
+import { InlinePreview } from "./InlinePreview";
+import { validateTags, type TagValidationResult } from "./tagSemantics";
 
 interface TargetCellEditorProps {
   initialCodedText: string;
@@ -149,6 +152,30 @@ function EditorRefCapture({
   return null;
 }
 
+/** Plugin that observes editor state changes and extracts current spans/coded text. */
+function EditorObserverPlugin({
+  sourceSpans,
+  onUpdate,
+}: {
+  sourceSpans: SpanInfo[];
+  onUpdate: (codedText: string, spans: SpanInfo[], validation: TagValidationResult) => void;
+}) {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    return editor.registerUpdateListener(({ editorState }) => {
+      editorState.read(() => {
+        const root = $getRoot();
+        const { codedText, spans } = editorStateToCodedText(root);
+        const validation = validateTags(sourceSpans, spans);
+        onUpdate(codedText, spans, validation);
+      });
+    });
+  }, [editor, sourceSpans, onUpdate]);
+
+  return null;
+}
+
 export function TargetCellEditor({
   initialCodedText,
   initialSpans,
@@ -157,6 +184,9 @@ export function TargetCellEditor({
   onCancel,
 }: TargetCellEditorProps) {
   const editorRef = useRef<LexicalEditor | null>(null);
+  const [validation, setValidation] = useState<TagValidationResult | null>(null);
+  const [currentSpans, setCurrentSpans] = useState<SpanInfo[]>(initialSpans);
+  const [currentCodedText, setCurrentCodedText] = useState(initialCodedText);
 
   const handleSave = useCallback(() => {
     if (!editorRef.current) return;
@@ -177,6 +207,15 @@ export function TargetCellEditor({
       }
     });
   }, []);
+
+  const handleEditorUpdate = useCallback(
+    (codedText: string, spans: SpanInfo[], val: TagValidationResult) => {
+      setCurrentCodedText(codedText);
+      setCurrentSpans(spans);
+      setValidation(val);
+    },
+    [],
+  );
 
   const initialConfig = {
     namespace: "TargetEditor",
@@ -210,8 +249,11 @@ export function TargetCellEditor({
         <HistoryPlugin />
         <KeyHandlerPlugin onSave={handleSave} onCancel={onCancel} />
         <TagShortcutPlugin sourceSpans={sourceSpans} />
+        <EditorObserverPlugin sourceSpans={sourceSpans} onUpdate={handleEditorUpdate} />
       </LexicalComposer>
-      <TagPalette sourceSpans={sourceSpans} onInsert={handleInsertTag} />
+      <TagPalette sourceSpans={sourceSpans} onInsert={handleInsertTag} usedSpans={currentSpans} />
+      <TagValidationBar validation={validation} />
+      <InlinePreview codedText={currentCodedText} spans={currentSpans} />
     </div>
   );
 }
