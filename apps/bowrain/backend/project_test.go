@@ -3,7 +3,6 @@ package backend
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,17 +118,12 @@ func TestAddFiles_Multiple(t *testing.T) {
 	assert.Len(t, info.Items, 2)
 
 	// Check that both formats were detected.
-	// Accept bridge-prefixed names (e.g. "okapi-html") when plugins are installed.
-	hasFormat := func(suffix string) bool {
-		for _, item := range info.Items {
-			if item.Format == suffix || strings.HasSuffix(item.Format, "-"+suffix) {
-				return true
-			}
-		}
-		return false
+	formats := make(map[string]bool)
+	for _, item := range info.Items {
+		formats[item.Format] = true
 	}
-	assert.True(t, hasFormat("plaintext"), "expected a plaintext format")
-	assert.True(t, hasFormat("html"), "expected an html format")
+	assert.True(t, formats["plaintext"], "expected plaintext format")
+	assert.True(t, formats["html"], "expected html format")
 }
 
 func TestAddFiles_UnsupportedFormat(t *testing.T) {

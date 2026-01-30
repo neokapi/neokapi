@@ -1,7 +1,6 @@
 package backend
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,11 +111,7 @@ func TestDetectFormat(t *testing.T) {
 		t.Run(tt.path, func(t *testing.T) {
 			detected, err := app.DetectFormat(tt.path)
 			require.NoError(t, err)
-			// Accept both built-in ("html") and bridge-prefixed ("okapi-html")
-			// format names, since installed bridge plugins may register
-			// overlapping extensions.
-			assert.True(t, detected == tt.expected || strings.HasSuffix(detected, "-"+tt.expected),
-				"expected format %q or a variant ending in %q, got %q", tt.expected, "-"+tt.expected, detected)
+			assert.Equal(t, tt.expected, detected)
 		})
 	}
 }
