@@ -39,6 +39,7 @@ dist/
 !apps/bowrain/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/bindings/
+!apps/bowrain/frontend/bindings/
 **/frontend/package.json.md5
 **/.task/
 
