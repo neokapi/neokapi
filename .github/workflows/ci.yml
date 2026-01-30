@@ -51,7 +51,7 @@ jobs:
         with:
           install-mode: goinstall
           version: latest
-          args: --timeout=5m
+          args: --timeout=5m ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
   build:
     name: Build
