@@ -1,7 +1,7 @@
 package backend
 
 import (
-	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -85,11 +85,12 @@ func TestPluginDir(t *testing.T) {
 	assert.NotEmpty(t, dir)
 }
 
-func TestShutdown(t *testing.T) {
+func TestServiceShutdown(t *testing.T) {
 	app := NewApp()
-	// Shutdown should not panic even without active plugins.
+	// ServiceShutdown should not panic even without active plugins.
 	assert.NotPanics(t, func() {
-		app.Shutdown(context.TODO())
+		err := app.ServiceShutdown()
+		assert.NoError(t, err)
 	})
 }
 
@@ -109,9 +110,13 @@ func TestDetectFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			fmt, err := app.DetectFormat(tt.path)
+			detected, err := app.DetectFormat(tt.path)
 			require.NoError(t, err)
-			assert.Equal(t, tt.expected, fmt)
+			// Accept both built-in ("html") and bridge-prefixed ("okapi-html")
+			// format names, since installed bridge plugins may register
+			// overlapping extensions.
+			assert.True(t, detected == tt.expected || strings.HasSuffix(detected, "-"+tt.expected),
+				"expected format %q or a variant ending in %q, got %q", tt.expected, "-"+tt.expected, detected)
 		})
 	}
 }

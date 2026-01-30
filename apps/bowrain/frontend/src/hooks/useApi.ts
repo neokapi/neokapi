@@ -14,7 +14,7 @@ import type {
   ProviderConfigWithKey,
 } from "../types/api";
 
-// Wails v2 generates bindings at runtime. In dev mode we fall back to fetch.
+// Wails v3 generates bindings at runtime. In dev mode we fall back to fetch.
 // The Go backend methods are available as window.go.backend.App.*
 interface WailsBackend {
   ListFormats(): Promise<FormatInfo[]>;

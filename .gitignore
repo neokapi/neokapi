@@ -2,6 +2,7 @@
 bin/
 /kapi
 /gokapi-server
+/bowrain
 coverage/
 
 # IDE

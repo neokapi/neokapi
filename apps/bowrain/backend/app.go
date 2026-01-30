@@ -18,12 +18,13 @@ import (
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/formats"
 	"github.com/gokapi/gokapi/plugin/loader"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // App is the Bowrain UI backend. It exposes methods that can be
 // bound to a Wails frontend or called from tests.
 type App struct {
-	ctx          context.Context
+	app          *application.App
 	formatReg    *registry.FormatRegistry
 	projects     *projectStore
 	pluginLoader *loader.PluginLoader
@@ -54,9 +55,9 @@ func NewApp() *App {
 	}
 }
 
-// Startup is called by Wails when the application starts.
-func (a *App) Startup(ctx context.Context) {
-	a.ctx = ctx
+// SetApplication stores the Wails v3 application reference for dialog and event access.
+func (a *App) SetApplication(app *application.App) {
+	a.app = app
 }
 
 // FormatInfo describes a registered data format.
@@ -221,11 +222,12 @@ func (a *App) PluginDir() string {
 	return a.pluginLoader.Dir()
 }
 
-// Shutdown cleans up resources. Called by Wails on application exit.
-func (a *App) Shutdown(ctx context.Context) {
+// ServiceShutdown is called by Wails v3 when the application exits.
+func (a *App) ServiceShutdown() error {
 	if a.pluginLoader != nil {
 		a.pluginLoader.Shutdown()
 	}
+	return nil
 }
 
 // DetectFormat detects the format of a file by its extension.

@@ -2,47 +2,54 @@ package main
 
 import (
 	"embed"
+	"log"
 
 	"github.com/gokapi/gokapi/apps/bowrain/backend"
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
-	app := backend.NewApp()
+	appService := backend.NewApp()
 
-	err := wails.Run(&options.App{
-		Title:  "Bowrain",
-		Width:  1280,
-		Height: 800,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	app := application.New(application.Options{
+		Name: "Bowrain",
+		Services: []application.Service{
+			application.NewService(appService),
 		},
-		OnStartup:  app.Startup,
-		OnShutdown: app.Shutdown,
-		Bind: []interface{}{
-			app,
+		Assets: application.AssetOptions{
+			Handler: application.BundledAssetFileServer(assets),
 		},
-		DragAndDrop: &options.DragAndDrop{
-			EnableFileDrop:     true,
-			DisableWebViewDrop: true,
-		},
-		Mac: &mac.Options{
-			TitleBar: mac.TitleBarHiddenInset(),
-			About: &mac.AboutInfo{
-				Title:   "Bowrain",
-				Message: "Localization Workbench - powered by gokapi",
-			},
-			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
 	})
-	if err != nil {
-		println("Error:", err.Error())
+
+	// Store app reference so the service can use dialogs and events.
+	appService.SetApplication(app)
+
+	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:          "Bowrain",
+		Width:          1280,
+		Height:         800,
+		EnableFileDrop: true,
+		Mac: application.MacWindow{
+			Backdrop:                application.MacBackdropTranslucent,
+			TitleBar:                application.MacTitleBarHiddenInsetUnified,
+			InvisibleTitleBarHeight: 50,
+		},
+	})
+
+	// Forward dropped files to the frontend via a custom event.
+	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
+		files := event.Context().DroppedFiles()
+		app.Event.Emit("files-dropped", files)
+	})
+
+	if err := app.Run(); err != nil {
+		log.Fatal(err)
 	}
 }

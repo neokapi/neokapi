@@ -12,7 +12,6 @@ import (
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/google/uuid"
-	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // SaveProjectAs saves the project as a .kaz package to the given path.
@@ -87,12 +86,10 @@ func (a *App) SaveProject(projectID string) error {
 
 // OpenProjectDialog shows a native file dialog and opens the selected .kaz project.
 func (a *App) OpenProjectDialog() (*ProjectInfo, error) {
-	path, err := wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title: "Open a Project",
-		Filters: []wailsruntime.FileFilter{
-			{DisplayName: "Kaz Packages (*.kaz)", Pattern: "*.kaz"},
-		},
-	})
+	path, err := a.app.Dialog.OpenFile().
+		SetTitle("Open a Project").
+		AddFilter("Kaz Packages (*.kaz)", "*.kaz").
+		PromptForSingleSelection()
 	if err != nil {
 		return nil, fmt.Errorf("file dialog: %w", err)
 	}
@@ -110,13 +107,11 @@ func (a *App) SaveProjectDialog(projectID string) error {
 	}
 
 	defaultName := p.info.Name + ".kaz"
-	path, err := wailsruntime.SaveFileDialog(a.ctx, wailsruntime.SaveDialogOptions{
-		Title:           "Save Project",
-		DefaultFilename: defaultName,
-		Filters: []wailsruntime.FileFilter{
-			{DisplayName: "Kaz Packages (*.kaz)", Pattern: "*.kaz"},
-		},
-	})
+	path, err := a.app.Dialog.SaveFile().
+		SetMessage("Save Project").
+		SetFilename(defaultName).
+		AddFilter("Kaz Packages (*.kaz)", "*.kaz").
+		PromptForSingleSelection()
 	if err != nil {
 		return fmt.Errorf("file dialog: %w", err)
 	}
@@ -128,9 +123,9 @@ func (a *App) SaveProjectDialog(projectID string) error {
 
 // AddFilesDialog shows a native file dialog and adds the selected files to the project.
 func (a *App) AddFilesDialog(projectID string) (*ProjectInfo, error) {
-	paths, err := wailsruntime.OpenMultipleFilesDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title: "Add Files to Project",
-	})
+	paths, err := a.app.Dialog.OpenFile().
+		SetTitle("Add Files to Project").
+		PromptForMultipleSelection()
 	if err != nil {
 		return nil, fmt.Errorf("file dialog: %w", err)
 	}

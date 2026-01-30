@@ -29,8 +29,8 @@ Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
 **Bowrain (desktop GUI):**
 ```bash
-cd apps/bowrain && wails build        # Build native macOS/Linux/Windows app
-cd apps/bowrain && wails dev          # Dev mode with hot reload
+cd apps/bowrain && wails3 build       # Build native macOS/Linux/Windows app
+cd apps/bowrain && wails3 dev         # Dev mode with hot reload
 make frontend-deps                    # npm install for frontend
 make frontend-build                   # Production frontend build
 ```
@@ -93,7 +93,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `plugin/` — HashiCorp go-plugin + gRPC plugin system (host, server, proto definitions, Java bridge)
 - `cmd/kapi/` — Cobra CLI (convert, translate, extract, merge, flow, formats, tools, plugins)
 - `cmd/gokapi-server/` — Echo v4 REST API server
-- `apps/bowrain/` — Wails v2 desktop app (Go backend + React 19/TypeScript/Vite frontend)
+- `apps/bowrain/` — Wails v3 desktop app (Go backend + React 19/TypeScript/Vite frontend)
 - `internal/testutil/` — shared test helpers
 - `docs/` — OVERVIEW.md, ARCHITECTURE.md, INTERFACES.md, PHASES.md, TESTING.md
 

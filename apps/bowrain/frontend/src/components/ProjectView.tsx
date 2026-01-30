@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { Events } from "@wailsio/runtime";
 import type { ProjectInfo } from "../types/api";
 
 interface ProjectViewProps {
@@ -23,22 +24,14 @@ export function ProjectView({
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Wails OnFileDrop integration
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    if (w?.runtime?.OnFileDrop) {
-      w.runtime.OnFileDrop((_x: number, _y: number, paths: string[]) => {
-        if (paths && paths.length > 0) {
-          onAddFiles(paths);
-        }
-      }, true);
-
-      return () => {
-        if (w.runtime.OnFileDropOff) {
-          w.runtime.OnFileDropOff();
-        }
-      };
-    }
+    // Wails v3: listen for files-dropped custom event emitted from Go backend
+    const cancel = Events.On("files-dropped", (event: { data: unknown }) => {
+      const paths = event.data as string[];
+      if (paths && paths.length > 0) {
+        onAddFiles(paths);
+      }
+    });
+    return () => { cancel(); };
   }, [onAddFiles]);
 
   const totalBlocks = project.items.reduce((sum, f) => sum + f.block_count, 0);
@@ -99,6 +92,7 @@ export function ProjectView({
         ref={dropRef}
         style={dropZoneStyle}
         data-testid="file-drop-zone"
+        data-file-drop-target
       >
         <span style={{ fontSize: 32, opacity: 0.3 }}>&#128230;</span>
         <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
@@ -200,7 +194,7 @@ const statStyle: React.CSSProperties = {
   flex: 1,
 };
 
-const dropZoneStyle = {
+const dropZoneStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
@@ -211,8 +205,7 @@ const dropZoneStyle = {
   borderRadius: 8,
   backgroundColor: "var(--bg-secondary)",
   cursor: "default",
-  "--wails-drop-target": "drop",
-} as React.CSSProperties;
+};
 
 const addFilesBtnStyle: React.CSSProperties = {
   marginTop: 8,
