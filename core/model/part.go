@@ -4,19 +4,19 @@ package model
 type PartType int
 
 const (
-	PartLayerStart     PartType = iota // Start of a structural layer
-	PartLayerEnd                       // End of a structural layer
-	PartGroupStart                     // Start of a structural group within a layer
-	PartGroupEnd                       // End of a structural group
-	PartBlock                          // Translatable content
-	PartData                           // Non-translatable document structure
-	PartMedia                          // Binary/media content
-	_                                  // reserved (was PartBatchStart)
-	_                                  // reserved (was PartBatchEnd)
-	_                                  // reserved (was PartBatchItemStart)
-	_                                  // reserved (was PartBatchItemEnd)
-	PartRawDocument                    // Unprocessed document
-	PartCustom                         // Custom extension
+	PartLayerStart  PartType = iota // Start of a structural layer
+	PartLayerEnd                    // End of a structural layer
+	PartGroupStart                  // Start of a structural group within a layer
+	PartGroupEnd                    // End of a structural group
+	PartBlock                       // Translatable content
+	PartData                        // Non-translatable document structure
+	PartMedia                       // Binary/media content
+	_                               // reserved (was PartBatchStart)
+	_                               // reserved (was PartBatchEnd)
+	_                               // reserved (was PartBatchItemStart)
+	_                               // reserved (was PartBatchItemEnd)
+	PartRawDocument                 // Unprocessed document
+	PartCustom                      // Custom extension
 )
 
 // String returns the name of the PartType.

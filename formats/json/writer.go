@@ -273,4 +273,3 @@ func (w *Writer) blockText(block *model.Block) string {
 	}
 	return block.SourceText()
 }
-

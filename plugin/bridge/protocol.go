@@ -42,11 +42,11 @@ type InfoParams struct {
 
 // WriteParams are sent with the "write" command.
 type WriteParams struct {
-	FilterClass          string      `json:"filter_class"`
-	Parts                interface{} `json:"parts"`
-	Locale               string      `json:"locale"`
-	Encoding             string      `json:"encoding"`
-	OriginalContentBase64 string     `json:"original_content_base64"`
+	FilterClass           string      `json:"filter_class"`
+	Parts                 interface{} `json:"parts"`
+	Locale                string      `json:"locale"`
+	Encoding              string      `json:"encoding"`
+	OriginalContentBase64 string      `json:"original_content_base64"`
 }
 
 // --- Response data types ---

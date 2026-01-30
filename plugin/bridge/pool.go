@@ -17,7 +17,7 @@ type BridgePool struct {
 	cfg    BridgeConfig
 	logger *log.Logger
 
-	mu      sync.Mutex      // protects created count and closed flag
+	mu      sync.Mutex       // protects created count and closed flag
 	idle    chan *JavaBridge // buffered to maxSize
 	maxSize int
 	created int

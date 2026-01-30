@@ -13,11 +13,11 @@ func TestCommandMarshal(t *testing.T) {
 		Command: "open",
 		Params: OpenParams{
 			FilterClass:   "net.sf.okapi.filters.openxml.OpenXMLFilter",
-			URI:            "test.docx",
-			SourceLocale:   "en",
-			Encoding:       "UTF-8",
-			ContentBase64:  "dGVzdA==",
-			MimeType:       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			URI:           "test.docx",
+			SourceLocale:  "en",
+			Encoding:      "UTF-8",
+			ContentBase64: "dGVzdA==",
+			MimeType:      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		},
 	}
 
@@ -96,11 +96,11 @@ func TestListFiltersDataUnmarshal(t *testing.T) {
 func TestOpenParamsRoundTrip(t *testing.T) {
 	original := OpenParams{
 		FilterClass:   "net.sf.okapi.filters.html.HtmlFilter",
-		URI:            "index.html",
-		SourceLocale:   "en-US",
-		Encoding:       "UTF-8",
-		ContentBase64:  "PGh0bWw+PC9odG1sPg==",
-		MimeType:       "text/html",
+		URI:           "index.html",
+		SourceLocale:  "en-US",
+		Encoding:      "UTF-8",
+		ContentBase64: "PGh0bWw+PC9odG1sPg==",
+		MimeType:      "text/html",
 	}
 
 	data, err := json.Marshal(original)
@@ -113,10 +113,10 @@ func TestOpenParamsRoundTrip(t *testing.T) {
 
 func TestWriteParamsRoundTrip(t *testing.T) {
 	original := WriteParams{
-		FilterClass:          "net.sf.okapi.filters.html.HtmlFilter",
-		Parts:                []map[string]interface{}{{"part_type": 0}},
-		Locale:               "fr-FR",
-		Encoding:             "UTF-8",
+		FilterClass:           "net.sf.okapi.filters.html.HtmlFilter",
+		Parts:                 []map[string]interface{}{{"part_type": 0}},
+		Locale:                "fr-FR",
+		Encoding:              "UTF-8",
 		OriginalContentBase64: "PGh0bWw+PC9odG1sPg==",
 	}
 

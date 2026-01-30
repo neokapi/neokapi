@@ -26,11 +26,11 @@ func TestCreateProject_Validation(t *testing.T) {
 	app := NewApp()
 
 	tests := []struct {
-		name       string
-		projName   string
-		srcLang    string
-		tgtLangs   []string
-		wantErr    string
+		name     string
+		projName string
+		srcLang  string
+		tgtLangs []string
+		wantErr  string
 	}{
 		{"empty name", "", "en", []string{"fr"}, "project name is required"},
 		{"empty source", "Test", "", []string{"fr"}, "source language is required"},

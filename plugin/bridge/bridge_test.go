@@ -109,11 +109,11 @@ func TestBridgeOpen(t *testing.T) {
 		defer wg.Done()
 		openErr = b.Open(OpenParams{
 			FilterClass:   "net.sf.okapi.filters.html.HtmlFilter",
-			URI:            "test.html",
-			SourceLocale:   "en",
-			Encoding:       "UTF-8",
-			ContentBase64:  "PGh0bWw+PC9odG1sPg==",
-			MimeType:       "text/html",
+			URI:           "test.html",
+			SourceLocale:  "en",
+			Encoding:      "UTF-8",
+			ContentBase64: "PGh0bWw+PC9odG1sPg==",
+			MimeType:      "text/html",
 		})
 	}()
 
@@ -168,10 +168,10 @@ func TestBridgeWrite(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		writeData, writeErr = b.Write(WriteParams{
-			FilterClass:          "net.sf.okapi.filters.html.HtmlFilter",
-			Parts:                []map[string]interface{}{{"part_type": 0}},
-			Locale:               "fr",
-			Encoding:             "UTF-8",
+			FilterClass:           "net.sf.okapi.filters.html.HtmlFilter",
+			Parts:                 []map[string]interface{}{{"part_type": 0}},
+			Locale:                "fr",
+			Encoding:              "UTF-8",
 			OriginalContentBase64: "PGh0bWw+PC9odG1sPg==",
 		})
 	}()
