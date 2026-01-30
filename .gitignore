@@ -36,3 +36,7 @@ dist/
 **/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/package.json.md5
+
+# Playwright
+test-results/
+playwright-report/

@@ -37,10 +37,26 @@ function App() {
     [projectApi],
   );
 
-  const handleOpenProject = useCallback((project: ProjectInfo) => {
-    setActiveProject(project);
-    setActiveFile(null);
-  }, []);
+  const handleOpenProject = useCallback(
+    async (project: ProjectInfo) => {
+      // Fetch fresh data from backend (in case files were added externally)
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const w = window as any;
+        if (w?.go?.backend?.App?.GetProject) {
+          const fresh = await w.go.backend.App.GetProject(project.id);
+          setActiveProject(fresh);
+          setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
+        } else {
+          setActiveProject(project);
+        }
+      } catch {
+        setActiveProject(project);
+      }
+      setActiveFile(null);
+    },
+    [],
+  );
 
   const handleOpenKaz = useCallback(async () => {
     // In Wails mode, use native file dialog
