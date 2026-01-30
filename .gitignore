@@ -37,7 +37,9 @@ apps/bowrain/frontend/dist/*
 # Wails
 **/build/bin/
 **/build/darwin/
+!apps/bowrain/build/darwin/
 **/build/appicon.png
+!apps/bowrain/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/package.json.md5
 
