@@ -22,7 +22,7 @@ jobs:
           go-version: "1.25.6"
 
       - name: Create frontend dist placeholder
-        run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/.gitkeep
+        run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/placeholder
 
       - name: Run tests
         run: go test ./...
