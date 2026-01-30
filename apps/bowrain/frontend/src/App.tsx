@@ -7,6 +7,7 @@ import { TranslatePanel } from "./components/TranslatePanel";
 import { ProjectDashboard } from "./components/ProjectDashboard";
 import { ProjectView } from "./components/ProjectView";
 import { TranslationEditor } from "./components/TranslationEditor";
+import { TMExplorer } from "./components/TMExplorer";
 import { useHealth, useProjectApi } from "./hooks/useApi";
 import type { ProjectInfo } from "./types/api";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -22,6 +23,7 @@ function App() {
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
   const [activeProject, setActiveProject] = useState<ProjectInfo | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
+  const [showTMExplorer, setShowTMExplorer] = useState(false);
 
   const projectApi = useProjectApi();
 
@@ -138,10 +140,16 @@ function App() {
   const handleBackToProjects = useCallback(() => {
     setActiveProject(null);
     setActiveFile(null);
+    setShowTMExplorer(false);
   }, []);
 
   const handleBackToProject = useCallback(() => {
     setActiveFile(null);
+    setShowTMExplorer(false);
+  }, []);
+
+  const handleOpenTM = useCallback(() => {
+    setShowTMExplorer(true);
   }, []);
 
   const handleViewChange = useCallback((view: View) => {
@@ -149,10 +157,21 @@ function App() {
     if (view !== "projects") {
       setActiveProject(null);
       setActiveFile(null);
+      setShowTMExplorer(false);
     }
   }, []);
 
   const renderView = () => {
+    // If we're in the projects view and have TM explorer open, show it
+    if (activeView === "projects" && activeProject && showTMExplorer) {
+      return (
+        <TMExplorer
+          project={activeProject}
+          onBack={handleBackToProject}
+        />
+      );
+    }
+
     // If we're in the projects view and have an active file, show editor
     if (activeView === "projects" && activeProject && activeFile) {
       return (
@@ -175,6 +194,7 @@ function App() {
           onAddFilesDialog={handleAddFilesDialog}
           onRemoveFile={handleRemoveFile}
           onSave={handleSaveProject}
+          onOpenTM={handleOpenTM}
         />
       );
     }

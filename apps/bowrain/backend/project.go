@@ -12,6 +12,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/lib/pensieve"
 	"github.com/google/uuid"
 )
 
@@ -108,6 +109,7 @@ type project struct {
 	info  ProjectInfo
 	items map[string]*projectItemData
 	dirty bool
+	tm    *pensieve.SQLiteTM
 }
 
 // projectItemData holds the parsed content of an item within a project.
@@ -211,9 +213,12 @@ func (a *App) ListProjects() []ProjectInfo {
 
 // CloseProject closes a project and releases its resources.
 func (a *App) CloseProject(projectID string) error {
-	_, err := a.projects.get(projectID)
+	p, err := a.projects.get(projectID)
 	if err != nil {
 		return err
+	}
+	if p.tm != nil {
+		p.tm.Close()
 	}
 	a.projects.remove(projectID)
 	return nil

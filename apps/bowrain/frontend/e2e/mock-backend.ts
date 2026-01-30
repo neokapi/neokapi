@@ -161,7 +161,16 @@ export async function injectMockBackend(page: Page) {
       TestProviderConfig: 2576607394,
       UpdateBlockTarget: 1528557592,
       UpdateBlockTargetCoded: 1612164251,
+      UpdateTMEntry: 3100000001,
+      GetTMEntries: 3100000002,
+      GetTMCount: 3100000003,
+      DeleteTMEntry: 3100000004,
+      AddTMEntry: 3100000005,
     };
+
+    // Per-project TM storage
+    const projectTM: Record<string, Record<string, any>> = {};
+    let tmEntryCounter = 0;
 
     const mock: Record<number, (...args: any[]) => any> = {};
 
@@ -466,6 +475,69 @@ export async function injectMockBackend(page: Page) {
     };
 
     mock[IDS.TestProviderConfig] = () => {};
+
+    // --- TM mock handlers ---
+
+    mock[IDS.GetTMEntries] = (projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+      const tm = projectTM[projectID] || {};
+      let entries = Object.values(tm);
+
+      if (query) {
+        const q = query.toLowerCase();
+        entries = entries.filter((e: any) =>
+          e.source.toLowerCase().includes(q) || e.target.toLowerCase().includes(q)
+        );
+      }
+      if (sourceLocale) {
+        entries = entries.filter((e: any) => e.source_locale === sourceLocale);
+      }
+      if (targetLocale) {
+        entries = entries.filter((e: any) => e.target_locale === targetLocale);
+      }
+
+      const total = entries.length;
+      const page = entries.slice(offset, offset + limit);
+      return { entries: page, total_count: total };
+    };
+
+    mock[IDS.GetTMCount] = (projectID: string) => {
+      const tm = projectTM[projectID] || {};
+      return Object.keys(tm).length;
+    };
+
+    mock[IDS.AddTMEntry] = (projectID: string, source: string, target: string, sourceLocale: string, targetLocale: string) => {
+      if (!projectTM[projectID]) projectTM[projectID] = {};
+      const id = `tm-entry-${++tmEntryCounter}`;
+      const entry = {
+        id,
+        source,
+        target,
+        source_locale: sourceLocale,
+        target_locale: targetLocale,
+        updated_at: new Date().toISOString(),
+      };
+      projectTM[projectID][id] = entry;
+      return entry;
+    };
+
+    mock[IDS.UpdateTMEntry] = (req: any) => {
+      const tm = projectTM[req.project_id];
+      if (!tm || !tm[req.entry_id]) throw new Error("TM entry not found");
+      tm[req.entry_id] = {
+        ...tm[req.entry_id],
+        source: req.source,
+        target: req.target,
+        source_locale: req.source_locale,
+        target_locale: req.target_locale,
+        updated_at: new Date().toISOString(),
+      };
+    };
+
+    mock[IDS.DeleteTMEntry] = (projectID: string, entryID: string) => {
+      const tm = projectTM[projectID];
+      if (!tm || !tm[entryID]) throw new Error("TM entry not found");
+      delete tm[entryID];
+    };
 
     mock[IDS.OpenProject] = (path: string) => {
       const id = `project-${++projectCounter}`;

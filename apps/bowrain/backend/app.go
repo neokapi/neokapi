@@ -246,6 +246,12 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Close all project TMs.
+	for _, info := range a.projects.all() {
+		if p, err := a.projects.get(info.ID); err == nil && p.tm != nil {
+			p.tm.Close()
+		}
+	}
 	if a.pluginLoader != nil {
 		a.pluginLoader.Shutdown()
 	}

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -205,6 +206,77 @@ func (tm *SQLiteTM) Count() int {
 // Close closes the database connection.
 func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()
+}
+
+// SearchEntries performs a case-insensitive substring search on source/target text
+// with optional locale filtering and pagination. Empty strings mean "no filter".
+// Returns matched entries and total count.
+func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
+	// Build WHERE clause dynamically.
+	where := "1=1"
+	var args []any
+	if query != "" {
+		where += " AND (LOWER(source) LIKE ? OR LOWER(target) LIKE ?)"
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern)
+	}
+	if sourceLocale != "" {
+		where += " AND source_locale = ?"
+		args = append(args, sourceLocale)
+	}
+	if targetLocale != "" {
+		where += " AND target_locale = ?"
+		args = append(args, targetLocale)
+	}
+
+	// Count total matches.
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+
+	// Fetch page.
+	q := fmt.Sprintf("SELECT id, source, target, source_locale, target_locale, created_at, updated_at FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?", where)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	var entries []TMEntry
+	for rows.Next() {
+		var entry TMEntry
+		var srcLocale, tgtLocale, createdStr, updatedStr string
+		if err := rows.Scan(&entry.ID, &entry.Source, &entry.Target,
+			&srcLocale, &tgtLocale, &createdStr, &updatedStr); err != nil {
+			continue
+		}
+		entry.SourceLocale = model.LocaleID(srcLocale)
+		entry.TargetLocale = model.LocaleID(tgtLocale)
+		entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+		entries = append(entries, entry)
+	}
+	return entries, total
+}
+
+// GetEntry fetches a single entry by ID.
+func (tm *SQLiteTM) GetEntry(id string) (TMEntry, bool) {
+	var entry TMEntry
+	var srcLocale, tgtLocale, createdStr, updatedStr string
+	err := tm.db.QueryRow(
+		"SELECT id, source, target, source_locale, target_locale, created_at, updated_at FROM tm_entries WHERE id = ?",
+		id,
+	).Scan(&entry.ID, &entry.Source, &entry.Target, &srcLocale, &tgtLocale, &createdStr, &updatedStr)
+	if err != nil {
+		return TMEntry{}, false
+	}
+	entry.SourceLocale = model.LocaleID(srcLocale)
+	entry.TargetLocale = model.LocaleID(tgtLocale)
+	entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	return entry, true
 }
 
 // Entries returns all entries. Used for export operations.

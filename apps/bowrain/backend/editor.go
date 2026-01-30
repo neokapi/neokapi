@@ -416,8 +416,11 @@ func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*Transl
 		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	// Create in-memory TM and leverage tool
-	tm := pensieve.NewInMemoryTM()
+	// Use the project's persistent TM
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
 	tmTool := pensieve.NewTMLeverageTool(tm, pensieve.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,

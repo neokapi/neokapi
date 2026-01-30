@@ -10,6 +10,7 @@ interface ProjectViewProps {
   onAddFilesDialog: () => void;
   onRemoveFile: (fileName: string) => void;
   onSave: () => void;
+  onOpenTM: () => void;
 }
 
 export function ProjectView({
@@ -20,6 +21,7 @@ export function ProjectView({
   onAddFilesDialog,
   onRemoveFile,
   onSave,
+  onOpenTM,
 }: ProjectViewProps) {
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -61,6 +63,9 @@ export function ProjectView({
           &#8592; Projects
         </button>
         <h2 style={{ margin: 0, flex: 1 }}>{project.name}</h2>
+        <button onClick={onOpenTM} style={tmBtnStyle} data-testid="open-tm-btn">
+          Translation Memory
+        </button>
         <button onClick={onSave} style={saveBtnStyle} data-testid="save-project-btn">
           Save
         </button>
@@ -172,6 +177,17 @@ const backBtnStyle: React.CSSProperties = {
   borderRadius: 6,
   fontSize: 13,
   cursor: "pointer",
+};
+
+const tmBtnStyle: React.CSSProperties = {
+  padding: "8px 16px",
+  backgroundColor: "var(--bg-tertiary)",
+  color: "var(--text-primary)",
+  border: "1px solid var(--border)",
+  borderRadius: 6,
+  fontSize: 13,
+  cursor: "pointer",
+  fontWeight: 600,
 };
 
 const saveBtnStyle: React.CSSProperties = {

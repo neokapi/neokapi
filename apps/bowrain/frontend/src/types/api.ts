@@ -182,3 +182,29 @@ export interface WordCountResult {
   target_words: Record<string, number>;
   target_chars: Record<string, number>;
 }
+
+/** TM entry info */
+export interface TMEntryInfo {
+  id: string;
+  source: string;
+  target: string;
+  source_locale: string;
+  target_locale: string;
+  updated_at: string;
+}
+
+/** TM search result */
+export interface TMSearchResult {
+  entries: TMEntryInfo[];
+  total_count: number;
+}
+
+/** TM update request */
+export interface TMUpdateRequest {
+  project_id: string;
+  entry_id: string;
+  source: string;
+  target: string;
+  source_locale: string;
+  target_locale: string;
+}

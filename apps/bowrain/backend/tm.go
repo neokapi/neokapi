@@ -1,0 +1,172 @@
+package backend
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/lib/pensieve"
+	"github.com/google/uuid"
+)
+
+// TMEntryInfo is the frontend-facing representation of a TM entry.
+type TMEntryInfo struct {
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+// TMSearchResult holds a page of TM search results.
+type TMSearchResult struct {
+	Entries    []TMEntryInfo `json:"entries"`
+	TotalCount int           `json:"total_count"`
+}
+
+// TMUpdateRequest holds parameters for updating a TM entry.
+type TMUpdateRequest struct {
+	ProjectID    string `json:"project_id"`
+	EntryID      string `json:"entry_id"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+}
+
+// getOrCreateTM lazily initializes the project's in-memory SQLite TM.
+func getOrCreateTM(p *project) (*pensieve.SQLiteTM, error) {
+	if p.tm != nil {
+		return p.tm, nil
+	}
+	tm, err := pensieve.NewSQLiteTM(":memory:")
+	if err != nil {
+		return nil, err
+	}
+	p.tm = tm
+	return tm, nil
+}
+
+// entryToInfo converts a pensieve.TMEntry to a TMEntryInfo.
+func entryToInfo(e pensieve.TMEntry) TMEntryInfo {
+	return TMEntryInfo{
+		ID:           e.ID,
+		Source:       e.Source,
+		Target:       e.Target,
+		SourceLocale: string(e.SourceLocale),
+		TargetLocale: string(e.TargetLocale),
+		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// GetTMEntries searches the project's TM with optional query and locale filters.
+func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResult, error) {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
+
+	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+	infos := make([]TMEntryInfo, len(entries))
+	for i, e := range entries {
+		infos[i] = entryToInfo(e)
+	}
+
+	return &TMSearchResult{
+		Entries:    infos,
+		TotalCount: total,
+	}, nil
+}
+
+// GetTMCount returns the total number of entries in the project's TM.
+func (a *App) GetTMCount(projectID string) (int, error) {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return 0, err
+	}
+
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return 0, fmt.Errorf("init TM: %w", err)
+	}
+
+	return tm.Count(), nil
+}
+
+// UpdateTMEntry updates an existing TM entry.
+func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
+	p, err := a.projects.get(req.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return fmt.Errorf("init TM: %w", err)
+	}
+
+	entry, ok := tm.GetEntry(req.EntryID)
+	if !ok {
+		return fmt.Errorf("TM entry %q not found", req.EntryID)
+	}
+
+	entry.Source = req.Source
+	entry.Target = req.Target
+	entry.SourceLocale = model.LocaleID(req.SourceLocale)
+	entry.TargetLocale = model.LocaleID(req.TargetLocale)
+	entry.UpdatedAt = time.Now()
+
+	return tm.Add(entry)
+}
+
+// DeleteTMEntry deletes a TM entry by ID.
+func (a *App) DeleteTMEntry(projectID, entryID string) error {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return err
+	}
+
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return fmt.Errorf("init TM: %w", err)
+	}
+
+	return tm.Delete(entryID)
+}
+
+// AddTMEntry adds a new entry to the project's TM.
+func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	tm, err := getOrCreateTM(p)
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
+
+	now := time.Now()
+	entry := pensieve.TMEntry{
+		ID:           uuid.New().String(),
+		Source:       source,
+		Target:       target,
+		SourceLocale: model.LocaleID(sourceLocale),
+		TargetLocale: model.LocaleID(targetLocale),
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+
+	if err := tm.Add(entry); err != nil {
+		return nil, err
+	}
+
+	info := entryToInfo(entry)
+	return &info, nil
+}

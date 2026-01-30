@@ -142,6 +142,54 @@ func (tm *InMemoryTM) Entries() []TMEntry {
 	return out
 }
 
+// SearchEntries performs a case-insensitive substring search on source/target text
+// with optional locale filtering and pagination. Empty strings mean "no filter".
+// Returns matched entries and total count.
+func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	lowerQuery := strings.ToLower(query)
+	var matched []TMEntry
+
+	for _, entry := range tm.entries {
+		if sourceLocale != "" && string(entry.SourceLocale) != sourceLocale {
+			continue
+		}
+		if targetLocale != "" && string(entry.TargetLocale) != targetLocale {
+			continue
+		}
+		if query != "" &&
+			!strings.Contains(strings.ToLower(entry.Source), lowerQuery) &&
+			!strings.Contains(strings.ToLower(entry.Target), lowerQuery) {
+			continue
+		}
+		matched = append(matched, entry)
+	}
+
+	total := len(matched)
+	if offset >= total {
+		return nil, total
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	return matched[offset:end], total
+}
+
+// GetEntry fetches a single entry by ID.
+func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	idx, exists := tm.byID[id]
+	if !exists {
+		return TMEntry{}, false
+	}
+	return tm.entries[idx], true
+}
+
 // normalizeText normalizes text for comparison by trimming whitespace
 // and collapsing internal whitespace to single spaces.
 func normalizeText(s string) string {

@@ -479,3 +479,75 @@ func TestInMemoryTM_Close(t *testing.T) {
 	err := tm.Close()
 	assert.NoError(t, err)
 }
+
+func TestInMemoryTM_SearchEntries(t *testing.T) {
+	tm := pensieve.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(pensieve.TMEntry{
+		ID: "e1", Source: "Hello World", Target: "Bonjour le monde",
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+	require.NoError(t, tm.Add(pensieve.TMEntry{
+		ID: "e2", Source: "Goodbye", Target: "Au revoir",
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+	require.NoError(t, tm.Add(pensieve.TMEntry{
+		ID: "e3", Source: "Hello", Target: "Hallo",
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleGerman,
+	}))
+
+	// No filter returns all entries
+	entries, total := tm.SearchEntries("", "", "", 0, 100)
+	assert.Equal(t, 3, total)
+	assert.Len(t, entries, 3)
+
+	// Search by query (case-insensitive, matches source)
+	entries, total = tm.SearchEntries("hello", "", "", 0, 100)
+	assert.Equal(t, 2, total)
+	assert.Len(t, entries, 2)
+
+	// Search by query matches target
+	entries, total = tm.SearchEntries("revoir", "", "", 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, "e2", entries[0].ID)
+
+	// Filter by target locale
+	entries, total = tm.SearchEntries("", "", "de", 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Equal(t, "e3", entries[0].ID)
+
+	// Filter by source locale
+	entries, total = tm.SearchEntries("", "en", "", 0, 100)
+	assert.Equal(t, 3, total)
+
+	// Pagination
+	entries, total = tm.SearchEntries("", "", "", 0, 2)
+	assert.Equal(t, 3, total)
+	assert.Len(t, entries, 2)
+
+	entries, total = tm.SearchEntries("", "", "", 2, 2)
+	assert.Equal(t, 3, total)
+	assert.Len(t, entries, 1)
+
+	// Offset beyond total
+	entries, total = tm.SearchEntries("", "", "", 10, 2)
+	assert.Equal(t, 3, total)
+	assert.Nil(t, entries)
+}
+
+func TestInMemoryTM_GetEntry(t *testing.T) {
+	tm := pensieve.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(pensieve.TMEntry{
+		ID: "e1", Source: "Hello", Target: "Bonjour",
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+
+	entry, ok := tm.GetEntry("e1")
+	assert.True(t, ok)
+	assert.Equal(t, "Hello", entry.Source)
+	assert.Equal(t, "Bonjour", entry.Target)
+
+	_, ok = tm.GetEntry("nonexistent")
+	assert.False(t, ok)
+}

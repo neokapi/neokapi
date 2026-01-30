@@ -526,6 +526,61 @@ export function UpdateBlockTargetCoded(req) {
     return $Call.ByID(1612164251, req);
 }
 
+/**
+ * UpdateTMEntry updates an existing TM entry.
+ * @param {any} req
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdateTMEntry(req) {
+    return $Call.ByID(3100000001, req);
+}
+
+/**
+ * GetTMEntries searches the project's TM.
+ * @param {string} projectID
+ * @param {string} query
+ * @param {string} sourceLocale
+ * @param {string} targetLocale
+ * @param {number} offset
+ * @param {number} limit
+ * @returns {$CancellablePromise<any>}
+ */
+export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
+    return $Call.ByID(3100000002, projectID, query, sourceLocale, targetLocale, offset, limit);
+}
+
+/**
+ * GetTMCount returns the total number of entries in the project's TM.
+ * @param {string} projectID
+ * @returns {$CancellablePromise<number>}
+ */
+export function GetTMCount(projectID) {
+    return $Call.ByID(3100000003, projectID);
+}
+
+/**
+ * DeleteTMEntry deletes a TM entry by ID.
+ * @param {string} projectID
+ * @param {string} entryID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteTMEntry(projectID, entryID) {
+    return $Call.ByID(3100000004, projectID, entryID);
+}
+
+/**
+ * AddTMEntry adds a new entry to the project's TM.
+ * @param {string} projectID
+ * @param {string} source
+ * @param {string} target
+ * @param {string} sourceLocale
+ * @param {string} targetLocale
+ * @returns {$CancellablePromise<any>}
+ */
+export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale) {
+    return $Call.ByID(3100000005, projectID, source, target, sourceLocale, targetLocale);
+}
+
 // Private type creation functions
 const $$createType0 = $models.TranslationStats.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
