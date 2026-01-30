@@ -52,6 +52,7 @@ jobs:
           install-mode: goinstall
           version: latest
           args: --timeout=5m
+          only-new-issues: true
 
   build:
     name: Build
