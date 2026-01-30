@@ -29,9 +29,6 @@ plugin/bridge/java/dependency-reduced-pom.xml
 # Frontend
 node_modules/
 dist/
-!apps/bowrain/frontend/dist/
-apps/bowrain/frontend/dist/*
-!apps/bowrain/frontend/dist/.gitkeep
 *.tsbuildinfo
 
 # Wails
@@ -41,7 +38,9 @@ apps/bowrain/frontend/dist/*
 **/build/appicon.png
 !apps/bowrain/build/appicon.png
 **/frontend/wailsjs/
+**/frontend/bindings/
 **/frontend/package.json.md5
+**/.task/
 
 # Playwright
 test-results/

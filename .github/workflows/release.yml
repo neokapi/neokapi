@@ -178,6 +178,19 @@ jobs:
             homepage "https://github.com/gokapi/gokapi"
 
             app "Bowrain.app"
+
+            # Remove quarantine bit for unsigned app
+            postflight do
+              system_command "/usr/bin/xattr",
+                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Bowrain.app"],
+                            sudo: false
+            end
+
+            zap trash: [
+              "~/Library/Application Support/Bowrain",
+              "~/Library/Preferences/com.wails.bowrain.plist",
+              "~/Library/Caches/Bowrain",
+            ]
           end
           CASK
 
