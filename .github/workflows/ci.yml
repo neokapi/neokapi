@@ -17,11 +17,14 @@ jobs:
         with:
           go-version: "1.25.6"
 
+      - name: Create frontend dist placeholder
+        run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/.gitkeep
+
       - name: Download modules
         run: go mod download && go mod verify
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v 'apps/bowrain$')
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -40,6 +43,9 @@ jobs:
         with:
           go-version: "1.25.6"
 
+      - name: Create frontend dist placeholder
+        run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/.gitkeep
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
         with:
@@ -57,8 +63,11 @@ jobs:
         with:
           go-version: "1.25.6"
 
+      - name: Create frontend dist placeholder
+        run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/.gitkeep
+
       - name: Build all packages
-        run: go build -v $(go list ./... | grep -v 'apps/bowrain$')
+        run: go build -v ./...
 
       - name: Build kapi CLI
         run: go build -o bin/kapi ./cmd/kapi
