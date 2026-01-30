@@ -9,6 +9,9 @@ import { ProjectView } from "./components/ProjectView";
 import { TranslationEditor } from "./components/TranslationEditor";
 import { useHealth, useProjectApi } from "./hooks/useApi";
 import type { ProjectInfo } from "./types/api";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore – generated .js bindings outside the TS project root
+import * as Backend from "../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
 
 function App() {
   const [activeView, setActiveView] = useState<View>("projects");
@@ -24,12 +27,7 @@ function App() {
 
   // Auto-open a project if a .kaz path was passed via CLI args.
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const w = window as any;
-    const be = w?.go?.backend?.App;
-    if (!be?.GetInitialProject) return;
-
-    be.GetInitialProject().then((path: string) => {
+    Backend.GetInitialProject().then((path: string) => {
       if (!path) return;
       projectApi.openProject(path).then((info) => {
         setProjects((prev) => [...prev, info]);
@@ -58,15 +56,9 @@ function App() {
     async (project: ProjectInfo) => {
       // Fetch fresh data from backend (in case files were added externally)
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const w = window as any;
-        if (w?.go?.backend?.App?.GetProject) {
-          const fresh = await w.go.backend.App.GetProject(project.id);
-          setActiveProject(fresh);
-          setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
-        } else {
-          setActiveProject(project);
-        }
+        const fresh = await Backend.GetProject(project.id) as ProjectInfo;
+        setActiveProject(fresh);
+        setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
       } catch {
         setActiveProject(project);
       }

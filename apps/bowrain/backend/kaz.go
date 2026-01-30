@@ -86,6 +86,9 @@ func (a *App) SaveProject(projectID string) error {
 
 // OpenProjectDialog shows a native file dialog and opens the selected .kaz project.
 func (a *App) OpenProjectDialog() (*ProjectInfo, error) {
+	if a.app == nil {
+		return nil, fmt.Errorf("application not initialized")
+	}
 	path, err := a.app.Dialog.OpenFile().
 		SetTitle("Open a Project").
 		AddFilter("Kaz Packages (*.kaz)", "*.kaz").
