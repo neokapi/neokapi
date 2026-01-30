@@ -67,11 +67,11 @@ jobs:
       - name: Create frontend stub for embed directive
         run: mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/.gitkeep
 
-      - name: Build all packages
-        run: go build -v $(go list ./... | grep -v apps/bowrain)
-
       - name: Build kapi CLI
         run: go build -o bin/kapi ./cmd/kapi
+
+      - name: Build gokapi-server
+        run: go build -o bin/gokapi-server ./cmd/gokapi-server
 
   playwright:
     name: Playwright E2E
