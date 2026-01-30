@@ -38,13 +38,9 @@ The tag push triggers `.github/workflows/release.yml`, which runs these jobs in 
 
 1. **GoReleaser** — builds the `kapi` CLI for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formula in `gokapi/homebrew-tap`
 
-2. **Build Bowrain (macOS)** — builds a universal macOS binary, packages it as a DMG, uploads to the GitHub release
+2. **Build Bowrain** (matrix: linux/amd64, windows/amd64, darwin/universal) — uses `dAppServer/wails-build-action` to build the Bowrain desktop app on all three platforms in parallel. Each platform variant packages its artifact (DMG for macOS, ZIP for Windows, tarball for Linux) and uploads to the GitHub release
 
-3. **Update Homebrew Cask** — downloads the DMG, computes SHA256, updates `Casks/bowrain.rb` in `gokapi/homebrew-tap`
-
-4. **Build Bowrain (Windows)** — builds the Windows executable, creates a ZIP, uploads to the release
-
-5. **Build Bowrain (Linux)** — installs GTK/WebKit deps, builds the Linux binary, creates a tarball, uploads to the release
+3. **Update Homebrew Cask** — downloads the macOS DMG, computes SHA256, updates `Casks/bowrain.rb` in `gokapi/homebrew-tap`
 
 ## Verifying a Release
 
@@ -84,9 +80,11 @@ This builds all artifacts in `dist/` without creating a GitHub release or updati
 
 ### Bowrain build fails
 
+Bowrain builds use `dAppServer/wails-build-action@main`, which handles system dependency installation, Go/Node setup, and Wails CLI installation automatically.
+
 - **macOS**: Ensure Wails CLI is compatible with the Go version
-- **Linux**: The `libgtk-3-dev` and `libwebkit2gtk-4.1-dev` packages must be available
-- **Windows**: Check that Node.js and Go are on PATH
+- **Linux**: The action auto-detects the Ubuntu version and installs the correct WebKit dev package (`4.0-dev` for 22.04, `4.1-dev` for 24.04). It also adds the `webkit2_41` build tag on 24.04 automatically
+- **Windows**: The action handles Go and Wails setup; Node is set up via `actions/setup-node@v4` before the action
 
 ### Homebrew cask update fails
 
