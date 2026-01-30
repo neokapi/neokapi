@@ -5,7 +5,7 @@ project_name: kapi
 before:
   hooks:
     - go mod tidy
-    - bash -c 'go test $(go list ./... | grep -v apps/bowrain)'
+    - go test ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
 builds:
   - id: kapi
