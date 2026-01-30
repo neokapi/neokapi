@@ -75,7 +75,7 @@ func (tm *SQLiteTM) Add(entry TMEntry) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.Exec(`
 		INSERT INTO tm_entries (id, source, target, source_locale, target_locale, created_at, updated_at)
@@ -198,7 +198,7 @@ func (tm *SQLiteTM) Delete(id string) error {
 // Count returns the total number of entries.
 func (tm *SQLiteTM) Count() int {
 	var count int
-	tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count)
 	return count
 }
 

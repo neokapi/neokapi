@@ -54,10 +54,7 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*
 func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
 	ollamaMessages := make([]ollamaMessage, len(messages))
 	for i, m := range messages {
-		ollamaMessages[i] = ollamaMessage{
-			Role:    m.Role,
-			Content: m.Content,
-		}
+		ollamaMessages[i] = ollamaMessage(m)
 	}
 
 	body := ollamaChatRequest{

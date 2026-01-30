@@ -72,7 +72,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	if block.Type == "heading" {
 		if level, ok := block.Properties["level"]; ok {
 			n := 0
-			fmt.Sscanf(level, "%d", &n)
+			_, _ = fmt.Sscanf(level, "%d", &n)
 			prefix := strings.Repeat("#", n) + " "
 			if _, err := fmt.Fprint(w.Output, prefix); err != nil {
 				return err

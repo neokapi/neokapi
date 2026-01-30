@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/formats"
@@ -34,7 +36,16 @@ func NewServer(cfg ServerConfig) *Server {
 // SetupRoutes registers all API routes on the Echo instance.
 func (s *Server) SetupRoutes(e *echo.Echo) {
 	// Middleware
-	e.Use(middleware.Logger())
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogMethod: true,
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Printf("%s %s %d\n", v.Method, v.URI, v.Status)
+			return nil
+		},
+	}))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 

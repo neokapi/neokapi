@@ -157,5 +157,5 @@ func (s *Store) save() {
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return
 	}
-	os.Rename(tmp, s.filePath)
+	_ = os.Rename(tmp, s.filePath)
 }

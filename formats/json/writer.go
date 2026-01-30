@@ -274,29 +274,3 @@ func (w *Writer) blockText(block *model.Block) string {
 	return block.SourceText()
 }
 
-// convertArrayPointers recursively walks a tree and converts *[]interface{}
-// pointers to plain []interface{} for JSON marshaling.
-func convertArrayPointers(v interface{}) interface{} {
-	switch val := v.(type) {
-	case map[string]interface{}:
-		result := make(map[string]interface{}, len(val))
-		for k, child := range val {
-			result[k] = convertArrayPointers(child)
-		}
-		return result
-	case *[]interface{}:
-		arr := make([]interface{}, len(*val))
-		for i, child := range *val {
-			arr[i] = convertArrayPointers(child)
-		}
-		return arr
-	case []interface{}:
-		arr := make([]interface{}, len(val))
-		for i, child := range val {
-			arr[i] = convertArrayPointers(child)
-		}
-		return arr
-	default:
-		return v
-	}
-}

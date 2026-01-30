@@ -64,10 +64,7 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
 	apiMessages := make([]anthropicMessage, len(messages))
 	for i, m := range messages {
-		apiMessages[i] = anthropicMessage{
-			Role:    m.Role,
-			Content: m.Content,
-		}
+		apiMessages[i] = anthropicMessage(m)
 	}
 
 	body := anthropicRequest{

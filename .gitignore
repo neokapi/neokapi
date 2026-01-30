@@ -28,6 +28,9 @@ plugin/bridge/java/dependency-reduced-pom.xml
 # Frontend
 node_modules/
 dist/
+!apps/bowrain/frontend/dist/
+apps/bowrain/frontend/dist/*
+!apps/bowrain/frontend/dist/.gitkeep
 *.tsbuildinfo
 
 # Wails

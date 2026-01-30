@@ -232,13 +232,12 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 func (r *Reader) extractListItemText(item *ast.ListItem, source []byte) string {
 	var buf strings.Builder
 	for child := item.FirstChild(); child != nil; child = child.NextSibling() {
-		switch child.(type) {
+		switch t := child.(type) {
 		case *ast.Paragraph:
 			r.collectInlineText(&buf, child, source)
 		case *ast.TextBlock:
 			r.collectInlineText(&buf, child, source)
 		case *ast.Text:
-			t := child.(*ast.Text)
 			buf.Write(t.Segment.Value(source))
 		default:
 			r.collectInlineText(&buf, child, source)
@@ -282,9 +281,8 @@ type inlineSpan struct {
 
 func (r *Reader) collectInlineSpans(spans *[]*inlineSpan, node ast.Node, source []byte) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-		switch child.(type) {
+		switch em := child.(type) {
 		case *ast.Emphasis:
-			em := child.(*ast.Emphasis)
 			var tag, semType string
 			if em.Level == 2 {
 				tag = "**"

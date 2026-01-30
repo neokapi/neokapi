@@ -118,7 +118,7 @@ func TestEndToEndPlaintextRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	writer, err := reg.NewWriter("plaintext")
 	require.NoError(t, err)
-	writer.SetOutputWriter(&buf)
+	_ = writer.SetOutputWriter(&buf)
 	writer.SetLocale(model.LocaleEnglish)
 
 	ch := testutil.PartsToChannel(parts)
@@ -147,7 +147,7 @@ func TestEndToEndPropertiesRoundTrip(t *testing.T) {
 	var buf bytes.Buffer
 	writer, err := reg.NewWriter("properties")
 	require.NoError(t, err)
-	writer.SetOutputWriter(&buf)
+	_ = writer.SetOutputWriter(&buf)
 	writer.SetLocale(model.LocaleEnglish)
 
 	ch := testutil.PartsToChannel(parts)
@@ -189,7 +189,7 @@ func TestEndToEndWithTranslation(t *testing.T) {
 	var buf bytes.Buffer
 	writer, err := reg.NewWriter("properties")
 	require.NoError(t, err)
-	writer.SetOutputWriter(&buf)
+	_ = writer.SetOutputWriter(&buf)
 	writer.SetLocale(model.LocaleFrench)
 
 	ch := testutil.PartsToChannel(parts)

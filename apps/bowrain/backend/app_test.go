@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -88,7 +89,7 @@ func TestShutdown(t *testing.T) {
 	app := NewApp()
 	// Shutdown should not panic even without active plugins.
 	assert.NotPanics(t, func() {
-		app.Shutdown(nil)
+		app.Shutdown(context.TODO())
 	})
 }
 

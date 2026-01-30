@@ -323,7 +323,7 @@ func (r *Reader) parseEntries() []*poEntry {
 			closeBracket := strings.Index(line, "]")
 			if closeBracket > 7 {
 				n := 0
-				fmt.Sscanf(line[7:closeBracket], "%d", &n)
+				_, _ = fmt.Sscanf(line[7:closeBracket], "%d", &n)
 				val := unquotePO(strings.TrimSpace(line[closeBracket+1:]))
 				current.msgstrPlurals[n] = val
 				currentPluralIndex = n

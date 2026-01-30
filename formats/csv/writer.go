@@ -15,7 +15,6 @@ type Writer struct {
 	format.BaseFormatWriter
 	separator rune
 	headers   []string
-	rows      [][]string
 	blocks    map[string]*model.Block // keyed by "col.row"
 	dataCells map[string]string       // keyed by "col.row"
 	maxCol    int
@@ -62,8 +61,8 @@ func (w *Writer) collectPart(part *model.Part) error {
 		// Track max row/col
 		col := 0
 		row := 0
-		fmt.Sscanf(block.Properties["column"], "%d", &col)
-		fmt.Sscanf(block.Properties["row"], "%d", &row)
+		_, _ = fmt.Sscanf(block.Properties["column"], "%d", &col)
+		_, _ = fmt.Sscanf(block.Properties["row"], "%d", &row)
 		if col > w.maxCol {
 			w.maxCol = col
 		}
@@ -83,8 +82,8 @@ func (w *Writer) collectPart(part *model.Part) error {
 			w.dataCells[data.Name] = data.Properties["content"]
 			col := 0
 			row := 0
-			fmt.Sscanf(data.Properties["column"], "%d", &col)
-			fmt.Sscanf(data.Properties["row"], "%d", &row)
+			_, _ = fmt.Sscanf(data.Properties["column"], "%d", &col)
+			_, _ = fmt.Sscanf(data.Properties["row"], "%d", &row)
 			if col > w.maxCol {
 				w.maxCol = col
 			}

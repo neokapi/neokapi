@@ -64,10 +64,7 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*
 func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
 	apiMessages := make([]openaiMessage, len(messages))
 	for i, m := range messages {
-		apiMessages[i] = openaiMessage{
-			Role:    m.Role,
-			Content: m.Content,
-		}
+		apiMessages[i] = openaiMessage(m)
 	}
 
 	body := openaiRequest{

@@ -367,17 +367,6 @@ func countChars(text string) int {
 	return len([]rune(text))
 }
 
-// countCharsNoSpace counts Unicode runes excluding spaces.
-func countCharsNoSpace(text string) int {
-	count := 0
-	for _, r := range text {
-		if !unicode.IsSpace(r) {
-			count++
-		}
-	}
-	return count
-}
-
 // fileExtension returns the file extension without dot, lowercased.
 func fileExtension(path string) string {
 	ext := filepath.Ext(path)
