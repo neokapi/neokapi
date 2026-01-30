@@ -182,7 +182,8 @@ jobs:
             version "${{ steps.version.outputs.VERSION }}"
             sha256 "${{ steps.sha.outputs.SHA256 }}"
 
-            url "https://github.com/gokapi/gokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg"
+            url "https://github.com/gokapi/gokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg",
+                headers: ["Authorization: Bearer #{ENV["HOMEBREW_GITHUB_API_TOKEN"]}"]
             name "Bowrain"
             desc "AI-native translation editor"
             homepage "https://github.com/gokapi/gokapi"

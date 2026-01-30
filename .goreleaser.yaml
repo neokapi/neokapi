@@ -58,16 +58,19 @@ changelog:
       - "^test:"
       - "^chore:"
 
-homebrew_casks:
+brews:
   - name: kapi
     homepage: "https://github.com/gokapi/gokapi"
     description: "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
-    binaries:
-      - kapi
+    license: "Apache-2.0"
+    url_headers:
+      - "Authorization: Bearer #{ENV['HOMEBREW_GITHUB_API_TOKEN']}"
     repository:
       owner: gokapi
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    test: |
+      system "#{bin}/kapi", "version"
 
 release:
   mode: append
@@ -76,7 +79,7 @@ release:
 
     **Homebrew (CLI):**
     ```
-    brew install --cask gokapi/tap/kapi
+    brew install gokapi/tap/kapi
     ```
 
     **Homebrew (Bowrain desktop app, macOS):**
