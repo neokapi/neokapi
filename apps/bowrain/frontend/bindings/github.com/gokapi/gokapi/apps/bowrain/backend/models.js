@@ -862,6 +862,180 @@ export class SpanInfo {
 }
 
 /**
+ * TMEntryInfo is the frontend-facing representation of a TM entry.
+ */
+export class TMEntryInfo {
+    /**
+     * Creates a new TMEntryInfo instance.
+     * @param {Partial<TMEntryInfo>} [$$source = {}] - The source object to create the TMEntryInfo.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("source_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source_locale"] = "";
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+        if (!("updated_at" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["updated_at"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMEntryInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMEntryInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TMEntryInfo(/** @type {Partial<TMEntryInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * TMSearchResult holds a page of TM search results.
+ */
+export class TMSearchResult {
+    /**
+     * Creates a new TMSearchResult instance.
+     * @param {Partial<TMSearchResult>} [$$source = {}] - The source object to create the TMSearchResult.
+     */
+    constructor($$source = {}) {
+        if (!("entries" in $$source)) {
+            /**
+             * @member
+             * @type {TMEntryInfo[]}
+             */
+            this["entries"] = [];
+        }
+        if (!("total_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["total_count"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMSearchResult instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMSearchResult}
+     */
+    static createFrom($$source = {}) {
+        const $$createField0_0 = $$createType7;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("entries" in $$parsedSource) {
+            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
+        }
+        return new TMSearchResult(/** @type {Partial<TMSearchResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * TMUpdateRequest holds parameters for updating a TM entry.
+ */
+export class TMUpdateRequest {
+    /**
+     * Creates a new TMUpdateRequest instance.
+     * @param {Partial<TMUpdateRequest>} [$$source = {}] - The source object to create the TMUpdateRequest.
+     */
+    constructor($$source = {}) {
+        if (!("project_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["project_id"] = "";
+        }
+        if (!("entry_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["entry_id"] = "";
+        }
+        if (!("source" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source"] = "";
+        }
+        if (!("target" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target"] = "";
+        }
+        if (!("source_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["source_locale"] = "";
+        }
+        if (!("target_locale" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["target_locale"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new TMUpdateRequest instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {TMUpdateRequest}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new TMUpdateRequest(/** @type {Partial<TMUpdateRequest>} */($$parsedSource));
+    }
+}
+
+/**
  * ToolInfo describes an available tool.
  */
 export class ToolInfo {
@@ -1245,8 +1419,8 @@ export class WordCountResult {
      * @returns {WordCountResult}
      */
     static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType6;
-        const $$createField3_0 = $$createType6;
+        const $$createField2_0 = $$createType8;
+        const $$createField3_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("target_words" in $$parsedSource) {
             $$parsedSource["target_words"] = $$createField2_0($$parsedSource["target_words"]);
@@ -1265,4 +1439,6 @@ const $$createType2 = $Create.Map($Create.Any, $Create.Any);
 const $$createType3 = $Create.Array($Create.Any);
 const $$createType4 = ProjectItem.createFrom;
 const $$createType5 = $Create.Array($$createType4);
-const $$createType6 = $Create.Map($Create.Any, $Create.Any);
+const $$createType6 = TMEntryInfo.createFrom;
+const $$createType7 = $Create.Array($$createType6);
+const $$createType8 = $Create.Map($Create.Any, $Create.Any);

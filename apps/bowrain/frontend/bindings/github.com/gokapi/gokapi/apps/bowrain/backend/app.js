@@ -78,6 +78,21 @@ export function AddItems(projectID, filePaths) {
 }
 
 /**
+ * AddTMEntry adds a new entry to the project's TM.
+ * @param {string} projectID
+ * @param {string} source
+ * @param {string} target
+ * @param {string} sourceLocale
+ * @param {string} targetLocale
+ * @returns {$CancellablePromise<$models.TMEntryInfo | null>}
+ */
+export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale) {
+    return $Call.ByID(4152216329, projectID, source, target, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType5($result);
+    }));
+}
+
+/**
  * CloseProject closes a project and releases its resources.
  * @param {string} projectID
  * @returns {$CancellablePromise<void>}
@@ -93,7 +108,7 @@ export function CloseProject(projectID) {
  */
 export function Convert(req) {
     return $Call.ByID(733747952, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
+        return $$createType7($result);
     }));
 }
 
@@ -120,6 +135,16 @@ export function DeleteProviderConfig(id) {
 }
 
 /**
+ * DeleteTMEntry deletes a TM entry by ID.
+ * @param {string} projectID
+ * @param {string} entryID
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteTMEntry(projectID, entryID) {
+    return $Call.ByID(1886996955, projectID, entryID);
+}
+
+/**
  * DetectFormat detects the format of a file by its extension.
  * @param {string} filePath
  * @returns {$CancellablePromise<string>}
@@ -135,7 +160,7 @@ export function DetectFormat(filePath) {
  */
 export function ExecuteFlow(req) {
     return $Call.ByID(1093637992, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType7($result);
+        return $$createType9($result);
     }));
 }
 
@@ -169,7 +194,7 @@ export function ExportTranslatedItem(projectID, itemName, targetLocale) {
  */
 export function GetFileBlocks(projectID, fileName) {
     return $Call.ByID(711926175, projectID, fileName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType9($result);
+        return $$createType11($result);
     }));
 }
 
@@ -190,7 +215,7 @@ export function GetInitialProject() {
  */
 export function GetItemBlocks(projectID, itemName) {
     return $Call.ByID(2825501758, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType9($result);
+        return $$createType11($result);
     }));
 }
 
@@ -206,6 +231,31 @@ export function GetProject(projectID) {
 }
 
 /**
+ * GetTMCount returns the total number of entries in the project's TM.
+ * @param {string} projectID
+ * @returns {$CancellablePromise<number>}
+ */
+export function GetTMCount(projectID) {
+    return $Call.ByID(1658982651, projectID);
+}
+
+/**
+ * GetTMEntries searches the project's TM with optional query and locale filters.
+ * @param {string} projectID
+ * @param {string} query
+ * @param {string} sourceLocale
+ * @param {string} targetLocale
+ * @param {number} offset
+ * @param {number} limit
+ * @returns {$CancellablePromise<$models.TMSearchResult | null>}
+ */
+export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
+    return $Call.ByID(2865323100, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType13($result);
+    }));
+}
+
+/**
  * GetWordCount returns word and character counts for an item.
  * @param {string} projectID
  * @param {string} itemName
@@ -213,7 +263,7 @@ export function GetProject(projectID) {
  */
 export function GetWordCount(projectID, itemName) {
     return $Call.ByID(2276123042, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType11($result);
+        return $$createType15($result);
     }));
 }
 
@@ -223,7 +273,7 @@ export function GetWordCount(projectID, itemName) {
  */
 export function ListFlows() {
     return $Call.ByID(2730811374).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType13($result);
+        return $$createType17($result);
     }));
 }
 
@@ -233,7 +283,7 @@ export function ListFlows() {
  */
 export function ListFormats() {
     return $Call.ByID(1658666415).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType15($result);
+        return $$createType19($result);
     }));
 }
 
@@ -243,7 +293,7 @@ export function ListFormats() {
  */
 export function ListPlugins() {
     return $Call.ByID(1851753111).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
+        return $$createType21($result);
     }));
 }
 
@@ -254,7 +304,7 @@ export function ListPlugins() {
  */
 export function ListProjectFiles(projectID) {
     return $Call.ByID(3993987349, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType19($result);
+        return $$createType23($result);
     }));
 }
 
@@ -264,7 +314,7 @@ export function ListProjectFiles(projectID) {
  */
 export function ListProjects() {
     return $Call.ByID(1552139139).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType20($result);
+        return $$createType24($result);
     }));
 }
 
@@ -274,7 +324,7 @@ export function ListProjects() {
  */
 export function ListProviderConfigs() {
     return $Call.ByID(1091807543).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+        return $$createType26($result);
     }));
 }
 
@@ -284,7 +334,7 @@ export function ListProviderConfigs() {
  */
 export function ListTools() {
     return $Call.ByID(2273599896).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType24($result);
+        return $$createType28($result);
     }));
 }
 
@@ -439,7 +489,7 @@ export function SaveProjectDialog(projectID) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(755781535, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType25($result);
+        return $$createType29($result);
     }));
 }
 
@@ -504,7 +554,7 @@ export function TestProviderConfig(req) {
  */
 export function Translate(req) {
     return $Call.ByID(1621006125, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType7($result);
+        return $$createType9($result);
     }));
 }
 
@@ -528,57 +578,11 @@ export function UpdateBlockTargetCoded(req) {
 
 /**
  * UpdateTMEntry updates an existing TM entry.
- * @param {any} req
+ * @param {$models.TMUpdateRequest} req
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateTMEntry(req) {
-    return $Call.ByID(3100000001, req);
-}
-
-/**
- * GetTMEntries searches the project's TM.
- * @param {string} projectID
- * @param {string} query
- * @param {string} sourceLocale
- * @param {string} targetLocale
- * @param {number} offset
- * @param {number} limit
- * @returns {$CancellablePromise<any>}
- */
-export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
-    return $Call.ByID(3100000002, projectID, query, sourceLocale, targetLocale, offset, limit);
-}
-
-/**
- * GetTMCount returns the total number of entries in the project's TM.
- * @param {string} projectID
- * @returns {$CancellablePromise<number>}
- */
-export function GetTMCount(projectID) {
-    return $Call.ByID(3100000003, projectID);
-}
-
-/**
- * DeleteTMEntry deletes a TM entry by ID.
- * @param {string} projectID
- * @param {string} entryID
- * @returns {$CancellablePromise<void>}
- */
-export function DeleteTMEntry(projectID, entryID) {
-    return $Call.ByID(3100000004, projectID, entryID);
-}
-
-/**
- * AddTMEntry adds a new entry to the project's TM.
- * @param {string} projectID
- * @param {string} source
- * @param {string} target
- * @param {string} sourceLocale
- * @param {string} targetLocale
- * @returns {$CancellablePromise<any>}
- */
-export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale) {
-    return $Call.ByID(3100000005, projectID, source, target, sourceLocale, targetLocale);
+    return $Call.ByID(1441483449, req);
 }
 
 // Private type creation functions
@@ -586,25 +590,29 @@ const $$createType0 = $models.TranslationStats.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
 const $$createType2 = $models.ProjectInfo.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.ConvertResult.createFrom;
+const $$createType4 = $models.TMEntryInfo.createFrom;
 const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = $models.TranslateResult.createFrom;
+const $$createType6 = $models.ConvertResult.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = $models.BlockInfo.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.WordCountResult.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.FlowInfo.createFrom;
-const $$createType13 = $Create.Array($$createType12);
-const $$createType14 = $models.FormatInfo.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.PluginInfo.createFrom;
+const $$createType8 = $models.TranslateResult.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = $models.BlockInfo.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = $models.TMSearchResult.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $models.WordCountResult.createFrom;
+const $$createType15 = $Create.Nullable($$createType14);
+const $$createType16 = $models.FlowInfo.createFrom;
 const $$createType17 = $Create.Array($$createType16);
-const $$createType18 = $models.ProjectItem.createFrom;
+const $$createType18 = $models.FormatInfo.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $Create.Array($$createType2);
-const $$createType21 = $models.ProviderConfigInfo.createFrom;
-const $$createType22 = $Create.Array($$createType21);
-const $$createType23 = $models.ToolInfo.createFrom;
-const $$createType24 = $Create.Array($$createType23);
-const $$createType25 = $Create.Nullable($$createType21);
+const $$createType20 = $models.PluginInfo.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = $models.ProjectItem.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = $Create.Array($$createType2);
+const $$createType25 = $models.ProviderConfigInfo.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = $models.ToolInfo.createFrom;
+const $$createType28 = $Create.Array($$createType27);
+const $$createType29 = $Create.Nullable($$createType25);

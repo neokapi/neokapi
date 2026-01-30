@@ -519,6 +519,7 @@ func TestInMemoryTM_SearchEntries(t *testing.T) {
 	// Filter by source locale
 	entries, total = tm.SearchEntries("", "en", "", 0, 100)
 	assert.Equal(t, 3, total)
+	assert.Len(t, entries, 3)
 
 	// Pagination
 	entries, total = tm.SearchEntries("", "", "", 0, 2)
