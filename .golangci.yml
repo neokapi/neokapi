@@ -1,3 +1,26 @@
-issues:
-  exclude-dirs:
-    - apps/bowrain
+version: "2"
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-QF*"
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - apps/bowrain
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
