@@ -3,34 +3,51 @@ package backend
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"github.com/asgeirf/gokapi/ai/provider"
 	"github.com/asgeirf/gokapi/ai/tools"
+	"github.com/asgeirf/gokapi/core/config"
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/registry"
 	"github.com/asgeirf/gokapi/core/tool"
 	"github.com/asgeirf/gokapi/formats"
+	"github.com/asgeirf/gokapi/plugin/loader"
 )
 
 // App is the Bowrain UI backend. It exposes methods that can be
 // bound to a Wails frontend or called from tests.
 type App struct {
-	ctx       context.Context
-	formatReg *registry.FormatRegistry
-	projects  *projectStore
+	ctx          context.Context
+	formatReg    *registry.FormatRegistry
+	projects     *projectStore
+	pluginLoader *loader.PluginLoader
 }
 
 // NewApp creates a new Bowrain backend with all formats registered.
 func NewApp() *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
+
+	// Resolve plugin directory: env var overrides config default.
+	pluginDir := os.Getenv("KAPI_PLUGIN_DIR")
+	if pluginDir == "" {
+		pluginDir = config.NewAppConfig().PluginDirectory()
+	}
+
+	pl := loader.NewPluginLoader(pluginDir, nil)
+	if err := pl.LoadAll(reg, nil); err != nil {
+		log.Printf("bowrain: failed to load plugins: %v", err)
+	}
+
 	return &App{
-		formatReg: reg,
-		projects:  newProjectStore(),
+		formatReg:    reg,
+		pluginLoader: pl,
+		projects:     newProjectStore(),
 	}
 }
 
@@ -56,6 +73,14 @@ type ToolInfo struct {
 type FlowInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+// PluginInfo describes a loaded plugin.
+type PluginInfo struct {
+	Name    string   `json:"name"`
+	Type    string   `json:"type"`
+	Source  string   `json:"source"`
+	Formats []string `json:"formats"`
 }
 
 // ConvertRequest holds parameters for format conversion.
@@ -138,13 +163,23 @@ func (a *App) ListFormats() []FormatInfo {
 // ListTools returns all available tools.
 func (a *App) ListTools() []ToolInfo {
 	return []ToolInfo{
+		// lib/tools
+		{Name: "word-count", Description: "Count words in source and target text"},
+		{Name: "char-count", Description: "Count characters in source and target text"},
+		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
+		{Name: "search-replace", Description: "Search and replace text in blocks"},
+		{Name: "segment-count", Description: "Count segments in translatable blocks"},
+		{Name: "case-transform", Description: "Transform text case (upper, lower, title)"},
+		{Name: "xslt-transform", Description: "Apply XSLT transformations to XML content"},
+		{Name: "encoding-detect", Description: "Detect character encoding of content"},
+		{Name: "xml-validation", Description: "Validate XML content against schemas"},
+		{Name: "tag-protect", Description: "Protect inline tags from modification"},
+		{Name: "term-check", Description: "Check terminology consistency"},
+		// ai/tools
 		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-		{Name: "ai-qa-check", Description: "Quality check translations using AI"},
+		{Name: "ai-qa", Description: "Quality check translations using AI"},
 		{Name: "ai-terminology", Description: "Extract terminology using AI"},
 		{Name: "ai-review", Description: "Review translations using AI"},
-		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-		{Name: "word-count", Description: "Count words in source and target text"},
-		{Name: "search-replace", Description: "Search and replace text in blocks"},
 	}
 }
 
@@ -154,6 +189,39 @@ func (a *App) ListFlows() []FlowInfo {
 		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
 		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
 		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
+	}
+}
+
+// ListPlugins returns all loaded plugins.
+func (a *App) ListPlugins() []PluginInfo {
+	if a.pluginLoader == nil {
+		return []PluginInfo{}
+	}
+	raw := a.pluginLoader.Plugins()
+	out := make([]PluginInfo, len(raw))
+	for i, p := range raw {
+		out[i] = PluginInfo{
+			Name:    p.Name,
+			Type:    p.Type,
+			Source:  p.Source,
+			Formats: p.Formats,
+		}
+	}
+	return out
+}
+
+// PluginDir returns the configured plugin directory path.
+func (a *App) PluginDir() string {
+	if a.pluginLoader == nil {
+		return ""
+	}
+	return a.pluginLoader.Dir()
+}
+
+// Shutdown cleans up resources. Called by Wails on application exit.
+func (a *App) Shutdown(ctx context.Context) {
+	if a.pluginLoader != nil {
+		a.pluginLoader.Shutdown()
 	}
 }
 

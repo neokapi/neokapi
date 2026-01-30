@@ -30,6 +30,10 @@ export async function injectMockBackend(page: Page) {
         { name: "pseudo-translate", description: "Pseudo-translation flow" },
       ],
 
+      ListPlugins: async () => [],
+
+      PluginDir: async () => "~/.kapi/plugins",
+
       CreateProject: async (name: string, sourceLang: string, targetLangs: string[]) => {
         const id = `project-${++projectCounter}`;
         const now = new Date().toISOString();

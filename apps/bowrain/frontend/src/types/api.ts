@@ -17,6 +17,14 @@ export interface FlowInfo {
   description: string;
 }
 
+/** Plugin descriptor */
+export interface PluginInfo {
+  name: string;
+  type: string;
+  source: string;
+  formats: string[];
+}
+
 /** Parameters for format conversion */
 export interface ConvertRequest {
   input_path: string;

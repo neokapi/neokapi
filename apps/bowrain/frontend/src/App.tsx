@@ -1,9 +1,8 @@
 import { useState, useCallback } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { Header } from "./components/Header";
-import { FormatList } from "./components/FormatList";
-import { ToolList } from "./components/ToolList";
-import { FlowList } from "./components/FlowList";
+import { InfoPage } from "./components/InfoPage";
+import { PluginPage } from "./components/PluginPage";
 import { ConvertPanel } from "./components/ConvertPanel";
 import { TranslatePanel } from "./components/TranslatePanel";
 import { ProjectDashboard } from "./components/ProjectDashboard";
@@ -177,12 +176,10 @@ function App() {
             onOpenKaz={handleOpenKaz}
           />
         );
-      case "formats":
-        return <FormatList />;
-      case "tools":
-        return <ToolList />;
-      case "flows":
-        return <FlowList />;
+      case "info":
+        return <InfoPage />;
+      case "plugins":
+        return <PluginPage />;
       case "convert":
         return <ConvertPanel />;
       case "translate":

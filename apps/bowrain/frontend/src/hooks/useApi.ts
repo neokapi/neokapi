@@ -3,6 +3,7 @@ import type {
   FormatInfo,
   ToolInfo,
   FlowInfo,
+  PluginInfo,
   ProjectInfo,
   BlockInfo,
   UpdateBlockRequest,
@@ -17,6 +18,8 @@ interface WailsBackend {
   ListFormats(): Promise<FormatInfo[]>;
   ListTools(): Promise<ToolInfo[]>;
   ListFlows(): Promise<FlowInfo[]>;
+  ListPlugins(): Promise<PluginInfo[]>;
+  PluginDir(): Promise<string>;
   CreateProject(name: string, sourceLang: string, targetLangs: string[]): Promise<ProjectInfo>;
   GetProject(projectID: string): Promise<ProjectInfo>;
   ListProjects(): Promise<ProjectInfo[]>;
@@ -106,6 +109,33 @@ export function useFlows() {
   }, []);
 
   return { flows, loading, error };
+}
+
+export function usePlugins() {
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [pluginDir, setPluginDir] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const be = getBackend();
+    const pPlugins = be
+      ? be.ListPlugins()
+      : fetchJSON<PluginInfo[]>(`${API_BASE}/plugins`);
+    const pDir = be
+      ? be.PluginDir()
+      : Promise.resolve("");
+
+    Promise.all([pPlugins, pDir])
+      .then(([pl, dir]) => {
+        setPlugins(pl);
+        setPluginDir(dir);
+      })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { plugins, pluginDir, loading, error };
 }
 
 export function useHealth() {

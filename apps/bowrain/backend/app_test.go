@@ -40,15 +40,20 @@ func TestListFormats(t *testing.T) {
 func TestListTools(t *testing.T) {
 	app := NewApp()
 	tools := app.ListTools()
-	assert.True(t, len(tools) >= 5, "expected at least 5 tools")
+	assert.Equal(t, 15, len(tools), "expected 15 tools")
 
 	names := make(map[string]bool)
-	for _, t := range tools {
-		names[t.Name] = true
+	for _, tl := range tools {
+		names[tl.Name] = true
 	}
 	assert.True(t, names["ai-translate"])
-	assert.True(t, names["ai-qa-check"])
+	assert.True(t, names["ai-qa"])
 	assert.True(t, names["pseudo-translate"])
+	assert.True(t, names["word-count"])
+	assert.True(t, names["char-count"])
+	assert.True(t, names["search-replace"])
+	assert.True(t, names["tag-protect"])
+	assert.True(t, names["term-check"])
 }
 
 func TestListFlows(t *testing.T) {
@@ -63,6 +68,28 @@ func TestListFlows(t *testing.T) {
 	assert.True(t, names["ai-translate"])
 	assert.True(t, names["ai-translate-qa"])
 	assert.True(t, names["pseudo-translate"])
+}
+
+func TestListPlugins(t *testing.T) {
+	app := NewApp()
+	plugins := app.ListPlugins()
+	// Should return a non-nil slice (may contain plugins if the user has
+	// plugins installed in ~/.kapi/plugins).
+	assert.NotNil(t, plugins)
+}
+
+func TestPluginDir(t *testing.T) {
+	app := NewApp()
+	dir := app.PluginDir()
+	assert.NotEmpty(t, dir)
+}
+
+func TestShutdown(t *testing.T) {
+	app := NewApp()
+	// Shutdown should not panic even without active plugins.
+	assert.NotPanics(t, func() {
+		app.Shutdown(nil)
+	})
 }
 
 func TestDetectFormat(t *testing.T) {
