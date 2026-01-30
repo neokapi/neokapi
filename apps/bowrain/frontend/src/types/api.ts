@@ -129,6 +129,21 @@ export interface AITranslateFileRequest {
   provider: string;
   api_key: string;
   model: string;
+  provider_config_id?: string;
+}
+
+/** Saved AI provider configuration (API keys stored in OS keychain, not here) */
+export interface ProviderConfig {
+  id: string;
+  name: string;
+  provider_type: string;
+  model: string;
+  base_url: string;
+}
+
+/** Provider config with API key for save/test operations */
+export interface ProviderConfigWithKey extends ProviderConfig {
+  api_key: string;
 }
 
 /** Translation stats */

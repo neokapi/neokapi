@@ -1,4 +1,4 @@
-type View = "projects" | "info" | "plugins" | "convert" | "translate";
+type View = "projects" | "convert" | "translate" | "settings";
 
 interface SidebarProps {
   activeView: View;
@@ -9,10 +9,9 @@ interface SidebarProps {
 
 const navItems: { view: View; label: string; icon: string }[] = [
   { view: "projects", label: "Projects", icon: "\u{1F4C1}" },
-  { view: "info", label: "Info", icon: "\u{1F4CB}" },
-  { view: "plugins", label: "Plugins", icon: "\u{1F9E9}" },
   { view: "convert", label: "Convert", icon: "\u{1F504}" },
   { view: "translate", label: "Translate", icon: "\u{1F30D}" },
+  { view: "settings", label: "Settings", icon: "\u{2699}\u{FE0F}" },
 ];
 
 export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange }: SidebarProps) {

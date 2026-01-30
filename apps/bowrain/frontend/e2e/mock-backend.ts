@@ -7,8 +7,10 @@ import type { Page } from "@playwright/test";
 export async function injectMockBackend(page: Page) {
   await page.addInitScript(() => {
     let projectCounter = 0;
+    let providerCounter = 0;
     const projects: Record<string, any> = {};
     const projectFiles: Record<string, Record<string, any>> = {};
+    const providerConfigs: Record<string, any> = {};
 
     const mockBackend = {
       ListFormats: async () => [
@@ -229,6 +231,29 @@ export async function injectMockBackend(page: Page) {
       SaveProjectAs: async (projectID: string, path: string) => {
         const p = projects[projectID];
         if (p) p.path = path;
+      },
+
+      ListProviderConfigs: async () => Object.values(providerConfigs),
+
+      SaveProviderConfig: async (cfg: any) => {
+        const id = cfg.id || `provider-${++providerCounter}`;
+        const saved = {
+          id,
+          name: cfg.name,
+          provider_type: cfg.provider_type,
+          model: cfg.model || "",
+          base_url: cfg.base_url || "",
+        };
+        providerConfigs[id] = saved;
+        return saved;
+      },
+
+      DeleteProviderConfig: async (id: string) => {
+        delete providerConfigs[id];
+      },
+
+      TestProviderConfig: async () => {
+        // Mock always succeeds
       },
 
       OpenProject: async (path: string) => {

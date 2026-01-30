@@ -7,7 +7,9 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/asgeirf/gokapi/ai/provider"
 	"github.com/asgeirf/gokapi/ai/tools"
+	"github.com/asgeirf/gokapi/core/credentials"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/tool"
 	"github.com/asgeirf/gokapi/lib/pensieve"
@@ -161,8 +163,17 @@ func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, er
 		return nil, fmt.Errorf("file %q not found in project", req.FileName)
 	}
 
-	provider := createProvider(req.Provider, req.APIKey, req.Model)
-	translateTool := tools.NewAITranslateTool(provider, tools.AITranslateConfig{
+	var prov provider.LLMProvider
+	if req.ProviderConfigID != "" {
+		var err error
+		prov, err = credentials.NewProvider(a.credentials, req.ProviderConfigID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve provider config: %w", err)
+		}
+	} else {
+		prov = createProvider(req.Provider, req.APIKey, req.Model)
+	}
+	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
 		SourceLocale: model.LocaleID(p.info.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
 	})

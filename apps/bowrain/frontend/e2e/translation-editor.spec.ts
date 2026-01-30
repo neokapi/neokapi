@@ -32,7 +32,7 @@ async function openEditorWithBlocks(page: any) {
   });
 
   // Step 3: Navigate away via sidebar, then back to projects to pick up changes
-  await page.locator("nav button", { hasText: "Info" }).click();
+  await page.locator("nav button", { hasText: "Settings" }).click();
   await page.waitForTimeout(100);
   await page.locator("nav button", { hasText: "Projects" }).click();
   await page.waitForTimeout(200);

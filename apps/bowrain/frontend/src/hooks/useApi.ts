@@ -10,6 +10,8 @@ import type {
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
+  ProviderConfig,
+  ProviderConfigWithKey,
 } from "../types/api";
 
 // Wails v2 generates bindings at runtime. In dev mode we fall back to fetch.
@@ -38,6 +40,10 @@ interface WailsBackend {
   SaveProject(projectID: string): Promise<void>;
   SaveProjectAs(projectID: string, path: string): Promise<void>;
   OpenProject(path: string): Promise<ProjectInfo>;
+  ListProviderConfigs(): Promise<ProviderConfig[]>;
+  SaveProviderConfig(cfg: ProviderConfigWithKey): Promise<ProviderConfig>;
+  DeleteProviderConfig(id: string): Promise<void>;
+  TestProviderConfig(cfg: ProviderConfigWithKey): Promise<void>;
 }
 
 function getBackend(): WailsBackend | null {
@@ -313,4 +319,62 @@ export function useEditorApi() {
     exportTranslatedFile,
     openFileInOS,
   };
+}
+
+// Provider config hooks
+
+export function useProviderConfigs() {
+  const [configs, setConfigs] = useState<ProviderConfig[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    const be = getBackend();
+    if (be) {
+      be.ListProviderConfigs()
+        .then((c) => setConfigs(c || []))
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false));
+    } else {
+      setConfigs([]);
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { configs, loading, error, refresh };
+}
+
+export function useProviderApi() {
+  const be = getBackend();
+
+  const saveProviderConfig = useCallback(
+    async (cfg: ProviderConfigWithKey): Promise<ProviderConfig> => {
+      if (be) return be.SaveProviderConfig(cfg);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const deleteProviderConfig = useCallback(
+    async (id: string): Promise<void> => {
+      if (be) return be.DeleteProviderConfig(id);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  const testProviderConfig = useCallback(
+    async (cfg: ProviderConfigWithKey): Promise<void> => {
+      if (be) return be.TestProviderConfig(cfg);
+      throw new Error("Wails backend not available");
+    },
+    [be],
+  );
+
+  return { saveProviderConfig, deleteProviderConfig, testProviderConfig };
 }

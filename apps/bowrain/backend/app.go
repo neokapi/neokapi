@@ -11,6 +11,7 @@ import (
 	"github.com/asgeirf/gokapi/ai/provider"
 	"github.com/asgeirf/gokapi/ai/tools"
 	"github.com/asgeirf/gokapi/core/config"
+	"github.com/asgeirf/gokapi/core/credentials"
 	"github.com/asgeirf/gokapi/core/flow"
 	"github.com/asgeirf/gokapi/core/model"
 	"github.com/asgeirf/gokapi/core/registry"
@@ -26,6 +27,7 @@ type App struct {
 	formatReg    *registry.FormatRegistry
 	projects     *projectStore
 	pluginLoader *loader.PluginLoader
+	credentials  *credentials.Store
 }
 
 // NewApp creates a new Bowrain backend with all formats registered.
@@ -48,6 +50,7 @@ func NewApp() *App {
 		formatReg:    reg,
 		pluginLoader: pl,
 		projects:     newProjectStore(),
+		credentials:  credentials.NewStore(credentials.DefaultPath()),
 	}
 }
 

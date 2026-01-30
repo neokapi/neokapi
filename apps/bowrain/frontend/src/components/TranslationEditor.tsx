@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { ProjectInfo, BlockInfo, WordCountResult } from "../types/api";
-import { useEditorApi } from "../hooks/useApi";
+import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -21,6 +21,8 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [searchQuery, setSearchQuery] = useState("");
 
   const api = useEditorApi();
+  const { configs: providerConfigs } = useProviderConfigs();
+  const [selectedProvider, setSelectedProvider] = useState("");
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const blockListRef = useRef<HTMLDivElement>(null);
 
@@ -176,6 +178,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         provider: "",
         api_key: "",
         model: "",
+        provider_config_id: selectedProvider || undefined,
       });
       setMessage(`AI-translated ${stats.translated_blocks} of ${stats.total_blocks} blocks`);
       await loadBlocks();
@@ -248,6 +251,24 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         <button onClick={handleAITranslate} disabled={loading} style={toolBtnStyle} data-testid="ai-translate-btn">
           AI Translate
         </button>
+        {providerConfigs.length > 0 && (
+          <select
+            value={selectedProvider}
+            onChange={(e) => setSelectedProvider(e.target.value)}
+            style={selectStyle}
+            data-testid="provider-select"
+          >
+            <option value="">Default provider</option>
+            {providerConfigs.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+        {providerConfigs.length === 0 && (
+          <span style={{ fontSize: 11, color: "var(--text-secondary)" }} data-testid="provider-hint">
+            Configure providers in Settings
+          </span>
+        )}
         <button onClick={handleTMTranslate} disabled={loading} style={toolBtnStyle} data-testid="tm-btn">
           TM Lookup
         </button>

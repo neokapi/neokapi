@@ -56,12 +56,13 @@ type UpdateBlockRequest struct {
 
 // AITranslateFileRequest holds parameters for AI-translating a file.
 type AITranslateFileRequest struct {
-	ProjectID    string `json:"project_id"`
-	FileName     string `json:"file_name"`
-	TargetLocale string `json:"target_locale"`
-	Provider     string `json:"provider"`
-	APIKey       string `json:"api_key"`
-	Model        string `json:"model"`
+	ProjectID        string `json:"project_id"`
+	FileName         string `json:"file_name"`
+	TargetLocale     string `json:"target_locale"`
+	Provider         string `json:"provider"`
+	APIKey           string `json:"api_key"`
+	Model            string `json:"model"`
+	ProviderConfigID string `json:"provider_config_id,omitempty"`
 }
 
 // TranslationStats holds statistics about a translation operation.
