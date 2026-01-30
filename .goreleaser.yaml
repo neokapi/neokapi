@@ -38,6 +38,20 @@ archives:
       - goos: windows
         formats: [zip]
 
+brews:
+  - name: kapi
+    repository:
+      owner: gokapi
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/gokapi/gokapi"
+    description: "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
+    license: "Apache-2.0"
+    download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
+    custom_require: "lib/private_download_strategy"
+    test: |
+      system "#{bin}/kapi", "version"
+
 checksum:
   name_template: "checksums.txt"
 
