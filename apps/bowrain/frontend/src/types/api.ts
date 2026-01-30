@@ -103,11 +103,22 @@ export interface ProjectItem {
   word_count: number;
 }
 
+/** Inline span info */
+export interface SpanInfo {
+  span_type: "opening" | "closing" | "placeholder";
+  type: string;
+  id: string;
+  data: string;
+}
+
 /** Translation block info */
 export interface BlockInfo {
   id: string;
   source: string;
+  source_coded?: string;
+  source_spans?: SpanInfo[];
   targets: Record<string, string>;
+  targets_coded?: Record<string, string>;
   translatable: boolean;
   has_spans: boolean;
   properties: Record<string, string>;
@@ -120,6 +131,16 @@ export interface UpdateBlockRequest {
   block_id: string;
   target_locale: string;
   text: string;
+}
+
+/** Update block target with coded text and spans */
+export interface UpdateBlockTargetCodedRequest {
+  project_id: string;
+  item_name: string;
+  block_id: string;
+  target_locale: string;
+  coded_text: string;
+  spans: SpanInfo[];
 }
 
 /** AI translate file request */

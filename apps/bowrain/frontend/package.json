@@ -13,7 +13,9 @@
     "test:e2e:headed": "npx playwright test --headed"
   },
   "dependencies": {
+    "@lexical/react": "^0.39.0",
     "@wailsio/runtime": "^3.0.0-alpha.73",
+    "lexical": "^0.39.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

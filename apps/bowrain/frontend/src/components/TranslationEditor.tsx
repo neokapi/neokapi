@@ -1,7 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import type { ProjectInfo, BlockInfo, WordCountResult } from "../types/api";
+import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo } from "../types/api";
 import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
 import { DocumentPreview } from "./DocumentPreview";
+import { SourceCellDisplay } from "./editor/SourceCellDisplay";
+import { TargetCellEditor } from "./editor/TargetCellEditor";
+import { parseCodedSegments } from "./editor/codedText";
+import { TagChipComponent } from "./editor/TagChipComponent";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -134,7 +138,12 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     const block = filteredBlocks[index];
     if (!block || !block.translatable) return;
     setEditingIndex(index);
-    setEditValue(block.targets[targetLocale] || "");
+    if (block.has_spans) {
+      // For coded text editing, the TargetCellEditor handles its own state
+      setEditValue("");
+    } else {
+      setEditValue(block.targets[targetLocale] || "");
+    }
   };
 
   const handleSaveEdit = async () => {
@@ -156,6 +165,47 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         prev.map((b) =>
           b.id === block.id
             ? { ...b, targets: { ...b.targets, [targetLocale]: editValue } }
+            : b,
+        ),
+      );
+
+      const nextIndex = editingIndex + 1;
+      setEditingIndex(null);
+      if (nextIndex < filteredBlocks.length) {
+        setSelectedIndex(nextIndex);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    }
+  };
+
+  const handleSaveCodedEdit = async (codedText: string, spans: SpanInfo[]) => {
+    if (editingIndex === null) return;
+    const block = filteredBlocks[editingIndex];
+    if (!block) return;
+
+    try {
+      await api.updateBlockTargetCoded({
+        project_id: project.id,
+        item_name: fileName,
+        block_id: block.id,
+        target_locale: targetLocale,
+        coded_text: codedText,
+        spans,
+      });
+
+      // Strip markers to get plain text for the targets display
+      const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
+
+      // Update local state
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? {
+                ...b,
+                targets: { ...b.targets, [targetLocale]: plainText },
+                targets_coded: { ...(b.targets_coded || {}), [targetLocale]: codedText },
+              }
             : b,
         ),
       );
@@ -270,21 +320,38 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         >
           <span style={indexCellStyle}>{index + 1}</span>
           <div style={sourceCellStyle}>
-            {block.source}
+            {block.has_spans && block.source_coded && block.source_spans ? (
+              <SourceCellDisplay
+                codedText={block.source_coded}
+                spans={block.source_spans}
+              />
+            ) : (
+              block.source
+            )}
             {!block.translatable && (
               <span style={nonTransBadge}>non-translatable</span>
             )}
           </div>
           <div style={targetCellStyle}>
             {editingIndex === index ? (
-              <textarea
-                ref={editInputRef}
-                value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
-                onBlur={handleSaveEdit}
-                style={editTextareaStyle}
-                data-testid={`edit-target-${index}`}
-              />
+              block.has_spans && block.source_spans ? (
+                <TargetCellEditor
+                  initialCodedText={block.targets_coded?.[targetLocale] || ""}
+                  initialSpans={block.source_spans}
+                  sourceSpans={block.source_spans}
+                  onSave={handleSaveCodedEdit}
+                  onCancel={() => setEditingIndex(null)}
+                />
+              ) : (
+                <textarea
+                  ref={editInputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onBlur={handleSaveEdit}
+                  style={editTextareaStyle}
+                  data-testid={`edit-target-${index}`}
+                />
+              )
             ) : (
               <span
                 style={{
@@ -295,7 +362,14 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                 }}
                 data-testid={`target-text-${index}`}
               >
-                {block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")}
+                {block.has_spans && block.targets_coded?.[targetLocale] ? (
+                  <CodedTextDisplay
+                    codedText={block.targets_coded[targetLocale]}
+                    spans={block.source_spans || []}
+                  />
+                ) : (
+                  block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")
+                )}
               </span>
             )}
           </div>
@@ -432,9 +506,29 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         )}
         <span style={{ color: "var(--text-secondary)" }}>
           Enter: edit | Esc: cancel | &#8593;&#8595;: navigate
+          {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
+            <> | Ctrl+1..9: insert tag</>
+          )}
         </span>
       </div>
     </div>
+  );
+}
+
+/** Read-only display of coded text with tag chips (for target cell, not editing). */
+function CodedTextDisplay({ codedText, spans }: { codedText: string; spans: SpanInfo[] }) {
+  const segments = parseCodedSegments(codedText, spans);
+  let tagIndex = 0;
+  return (
+    <span>
+      {segments.map((seg, i) => {
+        if (seg.type === "text") {
+          return <span key={i}>{seg.value}</span>;
+        }
+        tagIndex++;
+        return <TagChipComponent key={i} spanInfo={seg.spanInfo} index={tagIndex} />;
+      })}
+    </span>
   );
 }
 

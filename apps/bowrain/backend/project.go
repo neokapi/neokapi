@@ -37,11 +37,22 @@ type ProjectItem struct {
 	WordCount  int    `json:"word_count"`
 }
 
+// SpanInfo describes an inline span element for the frontend.
+type SpanInfo struct {
+	SpanType string `json:"span_type"` // "opening", "closing", "placeholder"
+	Type     string `json:"type"`      // "bold", "link", "break", etc.
+	ID       string `json:"id"`
+	Data     string `json:"data"` // original markup: "<b>", "</b>", "<br/>"
+}
+
 // BlockInfo is a serializable representation of a translatable block.
 type BlockInfo struct {
 	ID           string            `json:"id"`
 	Source       string            `json:"source"`
+	SourceCoded  string            `json:"source_coded,omitempty"`
+	SourceSpans  []SpanInfo        `json:"source_spans,omitempty"`
 	Targets      map[string]string `json:"targets"`
+	TargetsCoded map[string]string `json:"targets_coded,omitempty"`
 	Translatable bool              `json:"translatable"`
 	HasSpans     bool              `json:"has_spans"`
 	Properties   map[string]string `json:"properties"`
@@ -54,6 +65,16 @@ type UpdateBlockRequest struct {
 	BlockID      string `json:"block_id"`
 	TargetLocale string `json:"target_locale"`
 	Text         string `json:"text"`
+}
+
+// UpdateBlockTargetCodedRequest holds parameters for updating a block target with coded text and spans.
+type UpdateBlockTargetCodedRequest struct {
+	ProjectID    string     `json:"project_id"`
+	ItemName     string     `json:"item_name"`
+	BlockID      string     `json:"block_id"`
+	TargetLocale string     `json:"target_locale"`
+	CodedText    string     `json:"coded_text"`
+	Spans        []SpanInfo `json:"spans"`
 }
 
 // AITranslateFileRequest holds parameters for AI-translating an item.

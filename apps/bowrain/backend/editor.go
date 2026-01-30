@@ -27,18 +27,34 @@ func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 		return nil, fmt.Errorf("item %q not found in project", itemName)
 	}
 
+	// Build a lookup from block ID → model.Block for span enrichment
+	blockMap := make(map[string]*model.Block)
+	for _, pt := range id.parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		if block, ok := pt.Resource.(*model.Block); ok {
+			blockMap[block.ID] = block
+		}
+	}
+
 	// Use blockIndex if available (O(1) per block)
 	if id.blockIndex != nil {
 		var blocks []BlockInfo
 		for _, b := range id.blockIndex.Blocks {
-			blocks = append(blocks, BlockInfo{
+			bi := BlockInfo{
 				ID:           b.ID,
 				Source:       b.Source,
 				Targets:      copyTargets(b.Targets),
 				Translatable: b.Translatable,
 				HasSpans:     b.SourceHTML != b.Source,
 				Properties:   copyStringMap(b.Properties),
-			})
+			}
+			// Enrich with coded text and spans from the Part stream
+			if mb, ok := blockMap[b.ID]; ok {
+				enrichBlockInfo(&bi, mb, p.info.TargetLocales)
+			}
+			blocks = append(blocks, bi)
 		}
 		return blocks, nil
 	}
@@ -71,17 +87,69 @@ func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 			hasSpans = block.Source[0].Content.HasSpans()
 		}
 
-		blocks = append(blocks, BlockInfo{
+		bi := BlockInfo{
 			ID:           block.ID,
 			Source:       block.SourceText(),
 			Targets:      targets,
 			Translatable: block.Translatable,
 			HasSpans:     hasSpans,
 			Properties:   props,
-		})
+		}
+		enrichBlockInfo(&bi, block, p.info.TargetLocales)
+		blocks = append(blocks, bi)
 	}
 
 	return blocks, nil
+}
+
+// enrichBlockInfo populates coded text and span metadata on a BlockInfo
+// from the underlying model.Block, if spans are present.
+func enrichBlockInfo(bi *BlockInfo, block *model.Block, targetLocales []string) {
+	if len(block.Source) == 0 || block.Source[0].Content == nil {
+		return
+	}
+	frag := block.Source[0].Content
+	if !frag.HasSpans() {
+		return
+	}
+
+	bi.HasSpans = true
+	bi.SourceCoded = frag.CodedText
+	bi.SourceSpans = make([]SpanInfo, len(frag.Spans))
+	for i, s := range frag.Spans {
+		bi.SourceSpans[i] = spanToInfo(s)
+	}
+
+	// Extract target coded text per locale
+	bi.TargetsCoded = make(map[string]string)
+	for _, locale := range targetLocales {
+		segs, ok := block.Targets[model.LocaleID(locale)]
+		if !ok || len(segs) == 0 {
+			continue
+		}
+		if segs[0].Content != nil {
+			bi.TargetsCoded[locale] = segs[0].Content.CodedText
+		}
+	}
+}
+
+// spanToInfo converts a model.Span to a SpanInfo for frontend serialization.
+func spanToInfo(s *model.Span) SpanInfo {
+	var spanType string
+	switch s.SpanType {
+	case model.SpanOpening:
+		spanType = "opening"
+	case model.SpanClosing:
+		spanType = "closing"
+	case model.SpanPlaceholder:
+		spanType = "placeholder"
+	}
+	return SpanInfo{
+		SpanType: spanType,
+		Type:     s.Type,
+		ID:       s.ID,
+		Data:     s.Data,
+	}
 }
 
 // GetFileBlocks is an alias for GetItemBlocks for backward compatibility.
@@ -127,6 +195,82 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 	}
 
 	return fmt.Errorf("block %q not found in item %q", req.BlockID, itemName)
+}
+
+// UpdateBlockTargetCoded updates the target for a block using coded text with span data.
+func (a *App) UpdateBlockTargetCoded(req UpdateBlockTargetCodedRequest) error {
+	p, err := a.projects.get(req.ProjectID)
+	if err != nil {
+		return err
+	}
+
+	itemName := req.ItemName
+	id, ok := p.items[itemName]
+	if !ok {
+		return fmt.Errorf("item %q not found in project", itemName)
+	}
+
+	// Update block index with plain text
+	plainText := stripMarkers(req.CodedText)
+	if id.blockIndex != nil {
+		if err := id.blockIndex.UpdateTarget(req.BlockID, req.TargetLocale, plainText); err != nil {
+			return err
+		}
+	}
+
+	// Update the Part stream with full coded text + spans
+	for _, pt := range id.parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		if block.ID == req.BlockID {
+			frag := &model.Fragment{
+				CodedText: req.CodedText,
+			}
+			for _, si := range req.Spans {
+				frag.Spans = append(frag.Spans, infoToSpan(si))
+			}
+			block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
+			p.dirty = true
+			return nil
+		}
+	}
+
+	return fmt.Errorf("block %q not found in item %q", req.BlockID, itemName)
+}
+
+// stripMarkers removes Unicode span markers from coded text, returning plain text.
+func stripMarkers(coded string) string {
+	var buf []byte
+	for _, r := range coded {
+		if r < '\uE001' || r > '\uE003' {
+			buf = append(buf, []byte(string(r))...)
+		}
+	}
+	return string(buf)
+}
+
+// infoToSpan converts a SpanInfo from the frontend back to a model.Span.
+func infoToSpan(si SpanInfo) *model.Span {
+	var st model.SpanType
+	switch si.SpanType {
+	case "opening":
+		st = model.SpanOpening
+	case "closing":
+		st = model.SpanClosing
+	case "placeholder":
+		st = model.SpanPlaceholder
+	}
+	return &model.Span{
+		SpanType: st,
+		Type:     si.Type,
+		ID:       si.ID,
+		Data:     si.Data,
+	}
 }
 
 // PseudoTranslateItem pseudo-translates all blocks in an item.

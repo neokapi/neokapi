@@ -7,6 +7,7 @@ import type {
   ProjectInfo,
   BlockInfo,
   UpdateBlockRequest,
+  UpdateBlockTargetCodedRequest,
   AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
@@ -33,6 +34,7 @@ interface WailsBackend {
   RenderDocumentPreview(projectID: string, itemName: string, targetLocale: string): Promise<string>;
   RenderBlockHTML(projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<string>;
   UpdateBlockTarget(req: UpdateBlockRequest): Promise<void>;
+  UpdateBlockTargetCoded(req: UpdateBlockTargetCodedRequest): Promise<void>;
   PseudoTranslateFile(projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
   AITranslateFile(req: AITranslateFileRequest): Promise<TranslationStats>;
   TMTranslateFile(projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
@@ -294,6 +296,13 @@ export function useEditorApi() {
     [be],
   );
 
+  const updateBlockTargetCoded = useCallback(
+    async (req: UpdateBlockTargetCodedRequest): Promise<void> => {
+      if (be) return be.UpdateBlockTargetCoded(req);
+    },
+    [be],
+  );
+
   const pseudoTranslateFile = useCallback(
     async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
       if (be) return be.PseudoTranslateFile(projectID, fileName, targetLocale);
@@ -360,6 +369,7 @@ export function useEditorApi() {
   return {
     getFileBlocks,
     updateBlockTarget,
+    updateBlockTargetCoded,
     pseudoTranslateFile,
     aiTranslateFile,
     tmTranslateFile,

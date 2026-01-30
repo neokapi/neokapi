@@ -69,6 +69,15 @@ func (b *Block) SetTargetText(locale LocaleID, text string) {
 	b.Targets[locale] = []*Segment{{ID: "s1", Content: NewFragment(text)}}
 }
 
+// SetTargetFragment sets the target for a locale using a pre-built Fragment,
+// preserving inline span data instead of creating a plain-text-only fragment.
+func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
+	if b.Targets == nil {
+		b.Targets = make(map[LocaleID][]*Segment)
+	}
+	b.Targets[locale] = []*Segment{{ID: "s1", Content: frag}}
+}
+
 // NewBlock creates a new translatable Block with the given ID and source text.
 func NewBlock(id, text string) *Block {
 	return &Block{
