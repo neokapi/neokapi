@@ -178,6 +178,7 @@ jobs:
             homepage "https://github.com/gokapi/gokapi"
 
             app "Bowrain.app"
+            binary "Bowrain.app/Contents/MacOS/Bowrain", target: "bowrain"
 
             # Remove quarantine bit for unsigned app
             postflight do

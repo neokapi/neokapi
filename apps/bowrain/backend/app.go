@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
@@ -29,6 +30,9 @@ type App struct {
 	projects     *projectStore
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
+
+	initialProjectMu   sync.Mutex
+	initialProjectPath string
 }
 
 // NewApp creates a new Bowrain backend with all formats registered.
@@ -58,6 +62,24 @@ func NewApp() *App {
 // SetApplication stores the Wails v3 application reference for dialog and event access.
 func (a *App) SetApplication(app *application.App) {
 	a.app = app
+}
+
+// SetInitialProjectPath stores a .kaz project path to be opened on startup.
+// Called from main before app.Run().
+func (a *App) SetInitialProjectPath(path string) {
+	a.initialProjectMu.Lock()
+	defer a.initialProjectMu.Unlock()
+	a.initialProjectPath = path
+}
+
+// GetInitialProject returns and clears the initial project path.
+// The consume-once pattern prevents double opens in React StrictMode dev mode.
+func (a *App) GetInitialProject() string {
+	a.initialProjectMu.Lock()
+	defer a.initialProjectMu.Unlock()
+	path := a.initialProjectPath
+	a.initialProjectPath = ""
+	return path
 }
 
 // FormatInfo describes a registered data format.

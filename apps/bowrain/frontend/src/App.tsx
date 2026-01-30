@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { SettingsPage } from "./components/SettingsPage";
@@ -21,6 +21,25 @@ function App() {
   const [activeFile, setActiveFile] = useState<string | null>(null);
 
   const projectApi = useProjectApi();
+
+  // Auto-open a project if a .kaz path was passed via CLI args.
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    const be = w?.go?.backend?.App;
+    if (!be?.GetInitialProject) return;
+
+    be.GetInitialProject().then((path: string) => {
+      if (!path) return;
+      projectApi.openProject(path).then((info) => {
+        setProjects((prev) => [...prev, info]);
+        setActiveProject(info);
+        setActiveView("projects");
+      }).catch((e: unknown) => {
+        console.error("Failed to open initial project:", e);
+      });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {

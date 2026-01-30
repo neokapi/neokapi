@@ -51,6 +51,7 @@ interface WailsBackend {
   SaveProviderConfig(cfg: ProviderConfigWithKey): Promise<ProviderConfig>;
   DeleteProviderConfig(id: string): Promise<void>;
   TestProviderConfig(cfg: ProviderConfigWithKey): Promise<void>;
+  GetInitialProject(): Promise<string>;
 }
 
 function getBackend(): WailsBackend | null {
