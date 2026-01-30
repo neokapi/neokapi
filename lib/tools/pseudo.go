@@ -119,16 +119,67 @@ func NewPseudoTranslateTool(cfg *PseudoConfig) *tool.BaseTool {
 		}
 
 		conf := t.Cfg.(*PseudoConfig)
-		sourceText := block.SourceText()
-		if sourceText == "" {
-			return part, nil
+		frag := block.FirstFragment()
+		if frag != nil && frag.HasSpans() {
+			// Pseudo-translate coded text, preserving span markers
+			pseudoCoded := pseudoTranslateCoded(frag.CodedText, conf)
+			targetFrag := frag.Clone()
+			targetFrag.CodedText = pseudoCoded
+			block.SetTargetFragment(conf.TargetLocale, targetFrag)
+		} else {
+			sourceText := block.SourceText()
+			if sourceText == "" {
+				return part, nil
+			}
+			pseudoText := pseudoTranslate(sourceText, conf)
+			block.SetTargetText(conf.TargetLocale, pseudoText)
 		}
-
-		pseudoText := pseudoTranslate(sourceText, conf)
-		block.SetTargetText(conf.TargetLocale, pseudoText)
 		return part, nil
 	}
 	return t
+}
+
+// pseudoTranslateCoded applies pseudo-translation to coded text, preserving
+// inline span markers (Unicode private use area characters).
+func pseudoTranslateCoded(coded string, cfg *PseudoConfig) string {
+	// Step 1: Replace ASCII characters with accented equivalents, skip markers.
+	var accented strings.Builder
+	markerCount := 0
+	for _, r := range coded {
+		if r >= '\uE001' && r <= '\uE003' {
+			accented.WriteRune(r)
+			markerCount++
+		} else if replacement, ok := accentMap[r]; ok {
+			accented.WriteRune(replacement)
+		} else {
+			accented.WriteRune(r)
+		}
+	}
+
+	result := accented.String()
+
+	// Step 2: Add expansion padding (based on text length, excluding markers).
+	if cfg.ExpansionPercent > 0 {
+		textLen := len([]rune(result)) - markerCount
+		paddingLen := (textLen * cfg.ExpansionPercent) / 100
+		if paddingLen > 0 {
+			padding := strings.Repeat("~", paddingLen)
+			result = result + " " + padding
+		}
+	}
+
+	// Step 3: Wrap with prefix/suffix.
+	prefix := cfg.Prefix
+	suffix := cfg.Suffix
+	if prefix == "" {
+		prefix = "["
+	}
+	if suffix == "" {
+		suffix = "]"
+	}
+	result = prefix + result + suffix
+
+	return result
 }
 
 // pseudoTranslate applies pseudo-translation transformations to text.

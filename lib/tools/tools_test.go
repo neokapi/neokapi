@@ -124,6 +124,97 @@ func TestPseudoTranslateToolCustomPrefixSuffix(t *testing.T) {
 	assert.Equal(t, ">>", targetText[len(targetText)-2:])
 }
 
+func TestPseudoTranslateToolPreservesSpans(t *testing.T) {
+	cfg := &tools.PseudoConfig{
+		Prefix:       "[",
+		Suffix:       "]",
+		TargetLocale: "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	// Build a block with coded text: "Click <a>here</a>"
+	// represented as "Click \uE001here\uE002"
+	frag := &model.Fragment{
+		CodedText: "Click \uE001here\uE002",
+		Spans: []*model.Span{
+			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
+			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
+		},
+	}
+	block := &model.Block{
+		ID:           "tu1",
+		Translatable: true,
+		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+	}
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	resultBlock := result.Resource.(*model.Block)
+
+	// Should have a target with spans preserved
+	require.True(t, resultBlock.HasTarget("qps"))
+	targetSegs := resultBlock.Targets["qps"]
+	require.Len(t, targetSegs, 1)
+
+	targetFrag := targetSegs[0].Content
+	require.NotNil(t, targetFrag)
+
+	// Coded text should contain the markers
+	assert.Contains(t, targetFrag.CodedText, string(model.MarkerOpening))
+	assert.Contains(t, targetFrag.CodedText, string(model.MarkerClosing))
+
+	// Should have the same number of spans
+	assert.Len(t, targetFrag.Spans, 2)
+	assert.Equal(t, model.SpanOpening, targetFrag.Spans[0].SpanType)
+	assert.Equal(t, model.SpanClosing, targetFrag.Spans[1].SpanType)
+
+	// Plain text should be wrapped in brackets and accented
+	plainText := targetFrag.Text()
+	assert.Equal(t, '[', rune(plainText[0]))
+	assert.Equal(t, ']', rune(plainText[len(plainText)-1]))
+	assert.NotContains(t, plainText, "Click")
+	assert.NotContains(t, plainText, "here")
+}
+
+func TestPseudoTranslateToolSpansWithExpansion(t *testing.T) {
+	cfg := &tools.PseudoConfig{
+		ExpansionPercent: 50,
+		Prefix:           "[",
+		Suffix:           "]",
+		TargetLocale:     "qps",
+	}
+	tl := tools.NewPseudoTranslateTool(cfg)
+
+	frag := &model.Fragment{
+		CodedText: "Click \uE001here\uE002",
+		Spans: []*model.Span{
+			{SpanType: model.SpanOpening, Type: "link", ID: "1", Data: "<a>"},
+			{SpanType: model.SpanClosing, Type: "link", ID: "1", Data: "</a>"},
+		},
+	}
+	block := &model.Block{
+		ID:           "tu1",
+		Translatable: true,
+		Source:       []*model.Segment{{ID: "s1", Content: frag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+	}
+	part := &model.Part{Type: model.PartBlock, Resource: block}
+	result := processPart(t, tl, part)
+
+	resultBlock := result.Resource.(*model.Block)
+	targetSegs := resultBlock.Targets["qps"]
+	targetFrag := targetSegs[0].Content
+
+	// Expansion padding should be based on text length, not marker count
+	plainText := targetFrag.Text()
+	assert.Contains(t, plainText, "~~")
+
+	// Markers should still be present
+	assert.Contains(t, targetFrag.CodedText, string(model.MarkerOpening))
+	assert.Contains(t, targetFrag.CodedText, string(model.MarkerClosing))
+}
+
 func TestPseudoConfigValidation(t *testing.T) {
 	cfg := &tools.PseudoConfig{ExpansionPercent: -1, TargetLocale: "qps"}
 	err := cfg.Validate()

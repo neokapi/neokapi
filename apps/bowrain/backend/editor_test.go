@@ -84,6 +84,64 @@ func TestPseudoTranslateFile(t *testing.T) {
 	}
 }
 
+func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
+	app := NewApp()
+
+	info, err := app.CreateProject("Inline Test", "en", []string{"fr"})
+	require.NoError(t, err)
+
+	htmlFile := filepath.Join("testdata", "inline.html")
+	info, err = app.AddFiles(info.ID, []string{htmlFile})
+	require.NoError(t, err)
+
+	// Verify we have blocks with spans before pseudo-translating
+	blocksBefore, err := app.GetFileBlocks(info.ID, "inline.html")
+	require.NoError(t, err)
+	var spanBlock *BlockInfo
+	for i := range blocksBefore {
+		if blocksBefore[i].HasSpans {
+			spanBlock = &blocksBefore[i]
+			break
+		}
+	}
+	require.NotNil(t, spanBlock, "expected at least one block with inline spans")
+	require.NotEmpty(t, spanBlock.SourceSpans, "block should have source spans")
+
+	// Pseudo-translate
+	stats, err := app.PseudoTranslateFile(info.ID, "inline.html", "fr")
+	require.NoError(t, err)
+	assert.Greater(t, stats.TranslatedBlocks, 0)
+
+	// Verify blocks after pseudo-translation
+	blocksAfter, err := app.GetFileBlocks(info.ID, "inline.html")
+	require.NoError(t, err)
+
+	for _, b := range blocksAfter {
+		if !b.HasSpans || !b.Translatable {
+			continue
+		}
+		// Target coded text should be populated and contain markers
+		targetCoded, ok := b.TargetsCoded["fr"]
+		require.True(t, ok, "block %q should have coded target for fr", b.ID)
+		assert.NotEmpty(t, targetCoded, "coded target should not be empty")
+
+		// Should contain at least one marker character
+		hasMarker := false
+		for _, r := range targetCoded {
+			if r >= '\uE001' && r <= '\uE003' {
+				hasMarker = true
+				break
+			}
+		}
+		assert.True(t, hasMarker, "coded target should contain span markers")
+
+		// Plain target should have brackets
+		plainTarget := b.Targets["fr"]
+		assert.Contains(t, plainTarget, "[")
+		assert.Contains(t, plainTarget, "]")
+	}
+}
+
 func TestPseudoTranslateFile_FileNotFound(t *testing.T) {
 	app := NewApp()
 

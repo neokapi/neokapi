@@ -295,9 +295,19 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 		if !ok || !block.Translatable {
 			return part, nil
 		}
-		src := block.SourceText()
-		pseudo := "[" + pseudoAccent(src) + "]"
-		block.SetTargetText(model.LocaleID(targetLocale), pseudo)
+		locale := model.LocaleID(targetLocale)
+		frag := block.FirstFragment()
+		if frag != nil && frag.HasSpans() {
+			// Pseudo-translate coded text, preserving span markers
+			pseudoCoded := "[" + pseudoAccent(frag.CodedText) + "]"
+			targetFrag := frag.Clone()
+			targetFrag.CodedText = pseudoCoded
+			block.SetTargetFragment(locale, targetFrag)
+		} else {
+			src := block.SourceText()
+			pseudo := "[" + pseudoAccent(src) + "]"
+			block.SetTargetText(locale, pseudo)
+		}
 		return part, nil
 	}
 
