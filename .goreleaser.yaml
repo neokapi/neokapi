@@ -31,12 +31,12 @@ builds:
 
 archives:
   - id: kapi
-    builds:
+    ids:
       - kapi
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: "checksums.txt"
@@ -58,19 +58,16 @@ changelog:
       - "^test:"
       - "^chore:"
 
-brews:
+homebrew_casks:
   - name: kapi
+    homepage: "https://github.com/gokapi/gokapi"
+    description: "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
+    binaries:
+      - kapi
     repository:
       owner: gokapi
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/gokapi/gokapi"
-    description: "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
-    license: "Apache-2.0"
-    install: |
-      bin.install "kapi"
-    test: |
-      system "#{bin}/kapi", "version"
 
 release:
   mode: append
@@ -79,10 +76,10 @@ release:
 
     **Homebrew (CLI):**
     ```
-    brew install gokapi/tap/kapi
+    brew install --cask gokapi/tap/kapi
     ```
 
-    **Homebrew Cask (Bowrain desktop app, macOS):**
+    **Homebrew (Bowrain desktop app, macOS):**
     ```
     brew install --cask gokapi/tap/bowrain
     ```

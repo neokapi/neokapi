@@ -27,10 +27,10 @@ The content model uses **Parts** as the fundamental streaming unit:
 **Homebrew (CLI):**
 
 ```bash
-brew install gokapi/tap/kapi
+brew install --cask gokapi/tap/kapi
 ```
 
-**Homebrew Cask (Bowrain desktop app, macOS):**
+**Homebrew (Bowrain desktop app, macOS):**
 
 ```bash
 brew install --cask gokapi/tap/bowrain

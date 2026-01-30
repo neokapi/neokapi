@@ -53,10 +53,10 @@ gh release view v0.1.0 --json assets -q '.assets[].name'
 
 # Test Homebrew CLI install
 brew update
-brew install gokapi/tap/kapi
+brew install --cask gokapi/tap/kapi
 kapi version
 
-# Test Homebrew Cask install (macOS)
+# Test Homebrew Cask install (Bowrain, macOS)
 brew install --cask gokapi/tap/bowrain
 ```
 
@@ -121,5 +121,5 @@ Then fix the issue and re-tag.
   - `bowrain-*-windows-amd64.zip`
   - `bowrain-*-linux-amd64.tar.gz`
   - `checksums.txt`
-- [ ] `brew install gokapi/tap/kapi` works
+- [ ] `brew install --cask gokapi/tap/kapi` works
 - [ ] `kapi version` shows the correct version
