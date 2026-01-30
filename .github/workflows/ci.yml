@@ -94,4 +94,4 @@ jobs:
         with:
           name: playwright-report
           path: apps/bowrain/frontend/playwright-report/
-          retention-days: 14
+          retention-days: 30
