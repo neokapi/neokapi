@@ -67,8 +67,14 @@ jobs:
         run: npm install
 
       - name: Build Bowrain
+        if: runner.os != 'macOS'
         working-directory: apps/bowrain
         run: wails3 build
+
+      - name: Package Bowrain (macOS universal)
+        if: runner.os == 'macOS'
+        working-directory: apps/bowrain
+        run: wails3 task darwin:package:universal
 
       - name: Extract version
         id: version
@@ -81,7 +87,7 @@ jobs:
         working-directory: apps/bowrain
         run: |
           mkdir -p dmg
-          cp -R build/bin/Bowrain.app dmg/
+          cp -R bin/Bowrain.app dmg/
           ln -s /Applications dmg/Applications
           hdiutil create \
             -volname "Bowrain v${{ steps.version.outputs.VERSION }}" \
@@ -101,7 +107,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "apps/bowrain/build/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
+          Compress-Archive -Path "apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -114,7 +120,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz" \
-            -C apps/bowrain/build/bin Bowrain
+            -C apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
