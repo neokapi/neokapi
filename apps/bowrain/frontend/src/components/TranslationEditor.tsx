@@ -78,11 +78,13 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   // Handle block selection from preview iframe — use ref to avoid re-renders
   const filteredBlocksRef = useRef(filteredBlocks);
   filteredBlocksRef.current = filteredBlocks;
+  const startEditingRef = useRef<(index: number) => void>(() => {});
   const handlePreviewBlockSelect = useCallback(
     (blockId: string) => {
       const index = filteredBlocksRef.current.findIndex((b) => b.id === blockId);
       if (index >= 0) {
         setSelectedIndex(index);
+        startEditingRef.current(index);
       }
     },
     [],
@@ -146,6 +148,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       setEditValue(block.targets[targetLocale] || "");
     }
   };
+  startEditingRef.current = startEditing;
 
   const handleSaveEdit = async () => {
     if (editingIndex === null) return;
@@ -333,7 +336,17 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
               <span style={nonTransBadge}>non-translatable</span>
             )}
           </div>
-          <div style={targetCellStyle}>
+          <div
+            style={targetCellStyle}
+            data-testid={`target-cell-${index}`}
+            onClick={(e) => {
+              if (editingIndex !== index) {
+                e.stopPropagation();
+                setSelectedIndex(index);
+                startEditing(index);
+              }
+            }}
+          >
             {editingIndex === index ? (
               block.has_spans && block.source_spans ? (
                 <TargetCellEditor

@@ -526,4 +526,57 @@ test.describe("Translation Editor", () => {
     await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
     await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("[Click here to continue]");
   });
+
+  test("should enter edit mode on single click of target cell", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Single-click the target cell of the first block
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="target-cell-0"]') as HTMLElement;
+      if (el) el.click();
+    });
+
+    // Verify edit textarea appears
+    const editInput = page.getByTestId("edit-target-0");
+    await expect(editInput).toBeVisible({ timeout: 5000 });
+  });
+
+  test("should enter edit mode on single click of a different target cell", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Click target cell of block 2 (index 1)
+    await page.evaluate(() => {
+      const el = document.querySelector('[data-testid="target-cell-1"]') as HTMLElement;
+      if (el) el.click();
+    });
+
+    // Verify edit textarea appears for block 2
+    const editInput = page.getByTestId("edit-target-1");
+    await expect(editInput).toBeVisible({ timeout: 5000 });
+
+    // Verify block 2 is selected in status bar
+    await expect(page.getByTestId("status-bar")).toContainText("Block 2 of");
+  });
+
+  test("should enter edit mode when clicking block in preview", async ({ page }) => {
+    await openEditorWithBlocks(page);
+
+    // Open preview
+    await clickTestId(page, "preview-toggle");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+
+    const iframe = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+
+    // Click the second block in the preview iframe
+    await iframe.locator('[id="hello.txt-block-2"]').click();
+    await page.waitForTimeout(300);
+
+    // Verify block 2 is selected
+    await expect(page.getByTestId("status-bar")).toContainText("Block 2 of");
+
+    // Verify edit textarea appears for block 2 (index 1)
+    const editInput = page.getByTestId("edit-target-1");
+    await expect(editInput).toBeVisible({ timeout: 5000 });
+  });
 });
