@@ -21,7 +21,7 @@ jobs:
         run: go mod download && go mod verify
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v apps/bowrain)
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
