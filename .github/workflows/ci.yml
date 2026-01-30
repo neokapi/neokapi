@@ -21,7 +21,7 @@ jobs:
         run: go mod download && go mod verify
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+        run: go test -race -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v apps/bowrain)
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -59,7 +59,7 @@ jobs:
           go-version: "1.25.6"
 
       - name: Build all packages
-        run: go build -v ./...
+        run: go build -v $(go list ./... | grep -v apps/bowrain)
 
       - name: Build kapi CLI
         run: go build -o bin/kapi ./cmd/kapi

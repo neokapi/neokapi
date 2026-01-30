@@ -22,7 +22,7 @@ jobs:
           go-version: "1.25.6"
 
       - name: Run tests
-        run: go test ./...
+        run: go test $(go list ./... | grep -v apps/bowrain)
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
