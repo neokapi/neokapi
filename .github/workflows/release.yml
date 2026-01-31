@@ -165,7 +165,9 @@ jobs:
         run: |
           mkdir -p homebrew-tap/Casks
           cat > homebrew-tap/Casks/bowrain.rb << CASK
-          require_relative "../lib/private_download_strategy"
+          # Use absolute tap path so the require works even when Homebrew loads
+          # the cask from its metadata cache during upgrades.
+          require "#{Tap.fetch("gokapi", "tap").path}/lib/private_download_strategy"
 
           cask "bowrain" do
             version "${VERSION}"
@@ -180,7 +182,6 @@ jobs:
             app "Bowrain.app"
             binary "Bowrain.app/Contents/MacOS/Bowrain", target: "bowrain"
 
-            # Remove quarantine bit for unsigned app
             postflight do
               system_command "/usr/bin/xattr",
                             args: ["-dr", "com.apple.quarantine", "#{appdir}/Bowrain.app"],
