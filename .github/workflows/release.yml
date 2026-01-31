@@ -196,6 +196,12 @@ jobs:
                             sudo: false
             end
 
+            caveats <<~EOS
+              If Bowrain.app was previously installed from a DMG, run:
+                brew install --cask --force gokapi/tap/bowrain
+              to let Homebrew manage it. Future upgrades will work normally.
+            EOS
+
             zap trash: [
               "~/Library/Application Support/Bowrain",
               "~/Library/Preferences/com.wails.bowrain.plist",
