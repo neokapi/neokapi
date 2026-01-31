@@ -19,6 +19,7 @@ COVER_DIR   := coverage
 PROTO_DIR   := plugin/proto/v1
 PROTO_FILES := $(wildcard $(PROTO_DIR)/*.proto)
 FRONTEND_DIR := apps/bowrain/frontend
+WEBSITE_DIR  := website
 NPM         := npm
 
 # Tools
@@ -28,7 +29,8 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-all build-frontend test test-unit test-integration \
         test-race lint fmt vet proto clean install cover tools help \
-        frontend-deps frontend-dev frontend-build
+        frontend-deps frontend-dev frontend-build \
+        docs-deps docs-dev docs-build docs-serve
 
 # Default target
 all: fmt vet lint test build ## Build and validate everything
@@ -143,3 +145,17 @@ deps: ## Download and tidy dependencies
 deps-update: ## Update all dependencies
 	$(GO) get -u ./...
 	$(GO) mod tidy
+
+# ── Documentation Site ──────────────────────────────────────────────────────
+
+docs-deps: ## Install docs site dependencies
+	cd $(WEBSITE_DIR) && $(NPM) ci
+
+docs-dev: ## Start docs dev server
+	cd $(WEBSITE_DIR) && $(NPM) start
+
+docs-build: ## Build docs for production
+	cd $(WEBSITE_DIR) && $(NPM) run build
+
+docs-serve: ## Serve built docs locally
+	cd $(WEBSITE_DIR) && $(NPM) run serve

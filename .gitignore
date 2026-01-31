@@ -46,3 +46,7 @@ dist/
 # Playwright
 test-results/
 playwright-report/
+
+# Docusaurus
+website/build/
+website/.docusaurus/

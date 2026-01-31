@@ -35,6 +35,12 @@ make frontend-deps                    # npm install for frontend
 make frontend-build                   # Production frontend build
 ```
 
+**Documentation site:**
+```bash
+cd website && npm start              # Dev server with hot reload
+cd website && npm run build          # Production build → website/build/
+```
+
 ## Architecture
 
 ### Streaming Pipeline
