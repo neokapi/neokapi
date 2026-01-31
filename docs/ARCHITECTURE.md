@@ -9,7 +9,7 @@
 - [Skeleton System](#skeleton-system)
 - [Configuration](#configuration)
 - [Plugin System](#plugin-system)
-- [Java Bridge](#java-bridge)
+- [Okapi Bridge](#okapi-bridge)
 - [AI/LLM Integration](#aillm-integration)
 - [Build and Distribution](#build-and-distribution)
 
@@ -123,9 +123,9 @@ gokapi/
 │   ├── server/                    # Plugin server helpers (plugin side)
 │   │   ├── format_server.go      # gRPC server for format plugins
 │   │   └── tool_server.go        # gRPC server for tool plugins
-│   ├── bridge/                    # Java bridge
+│   ├── bridge/                    # Okapi bridge
 │   │   ├── java_bridge.go        # JVM subprocess manager
-│   │   └── java/                  # Java plugin source
+│   │   └── okapi-bridge/          # Bridge plugin source (separate repo)
 │   │       ├── pom.xml
 │   │       └── src/
 │   └── registry/                  # Remote plugin registry client
@@ -590,9 +590,9 @@ plugins:
 
 ---
 
-## Java Bridge
+## Okapi Bridge
 
-The Java bridge wraps existing Okapi Java filters as gokapi plugins. This gives immediate access to all 43 Okapi filters without rewriting them.
+The Okapi bridge wraps existing Okapi Java filters as gokapi plugins. This gives immediate access to all 43 Okapi filters without rewriting them.
 
 ### Architecture
 
@@ -617,7 +617,7 @@ graph LR
 
 ### How it works
 
-1. A Go executable (`gokapi-java-bridge`) launches a JVM with a gRPC server
+1. A Go executable (`gokapi-okapi-bridge`) launches a JVM with a gRPC server
 2. The server accepts `Open()` calls specifying which Okapi filter class to use
 3. The Java side instantiates the Okapi filter, opens the document, and streams `PartMessage` responses
 4. Part serialization converts between Okapi's `Event`/`TextUnit` and gokapi's `Part`/`Block` models

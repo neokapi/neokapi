@@ -966,7 +966,7 @@ func (p *DataFormatReaderGRPCPlugin) GRPCClient(broker *plugin.GRPCBroker, c *gr
 // delegating to the original Okapi IFilter implementation.
 //
 // Usage: register as a go-plugin executable:
-//   gokapi-java-bridge --filter=net.sf.okapi.filters.openxml.OpenXMLFilter
+//   gokapi-okapi-bridge --filter=net.sf.okapi.filters.openxml.OpenXMLFilter
 type JavaBridgeReader struct {
     filterClass string
     jvmPath     string

@@ -345,9 +345,9 @@ plugin/bridge/java/
 #### Build
 
 ```bash
-cd plugin/bridge/java && mvn package -q
-# Produces: target/gokapi-java-bridge.jar
-# Launched by: java -jar gokapi-java-bridge.jar --filter=<class>
+cd okapi-bridge && mvn package -q
+# Produces: target/gokapi-okapi-bridge.jar
+# Launched by: java -jar gokapi-okapi-bridge.jar --filter=<class>
 ```
 
 ### 4.2 Bridged Formats (available immediately via Java)
