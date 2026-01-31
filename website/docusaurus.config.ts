@@ -8,7 +8,7 @@ const config: Config = {
   favicon: 'img/favicon.ico',
 
   url: 'https://gokapi.github.io',
-  baseUrl: '/gokapi/',
+  baseUrl: '/',
 
   organizationName: 'gokapi',
   projectName: 'gokapi',
