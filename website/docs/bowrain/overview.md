@@ -3,9 +3,9 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Bowrain Desktop App
+# Bowrain
 
-Bowrain is a cross-platform desktop application for visual translation editing, built with [Wails v3](https://wails.io/), React 19, and TypeScript.
+Bowrain is a cross-platform desktop application for translating documents. It supports a wide range of file formats, AI-powered translation, translation memory, and live document preview.
 
 ## Screenshots
 
@@ -23,15 +23,15 @@ Each project displays its source files with format detection, word counts, and a
 
 ### Translation Editor
 
-The block-based editor shows source and target text side by side with a toolbar for translation actions.
+The editor shows source and target text side by side with a toolbar for translation actions.
 
 ![Translation editor with source blocks and target column](/img/bowrain/editor.png)
 
 ### Editor with Document Preview
 
-Toggle the split layout to see a live document preview alongside the block grid. Clicking a block in either pane selects it in the other.
+Toggle the split layout to see a live document preview alongside the translation grid. Clicking a segment in either pane selects it in the other.
 
-![Split layout with block grid and document preview](/img/bowrain/editor-preview.png)
+![Split layout with translation grid and document preview](/img/bowrain/editor-preview.png)
 
 ### Settings
 
@@ -41,35 +41,20 @@ Configure AI providers, manage plugins, and view system information from the set
 
 ## Features
 
-- **Translation editor** with inline code/tag support, semantic tag validation, and block preview
-- **Flow editor** for drag-and-drop tool chain building
-- **Translation Memory explorer** with fuzzy match visualization
-- **Plugin manager** for install/update from registry
-- **Batch file manager** with per-file locale/format configuration
+- **Translation editor** with inline tag support, tag validation, and document preview
+- **AI translation** using Anthropic, OpenAI, or Ollama providers
+- **Translation Memory** with fuzzy matching
+- **Drag-and-drop flow editor** for building multi-step translation workflows
+- **Plugin support** for extending with custom tools
+- **Batch file management** with per-file language and format configuration
 - **Progress tracking** with real-time progress bars
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Framework | Wails v3 |
-| Backend | Go (full gokapi library access) |
-| Frontend | React 19, TypeScript, Vite |
-| Styling | TailwindCSS, shadcn/ui |
-| Testing | Playwright (E2E) |
 
 ## Project Format
 
-Bowrain uses the `.kaz` archive format as its native project format. Projects can be opened from the CLI:
+Bowrain uses the `.kaz` archive format as its native project format. Projects can be opened from the command line:
 
 ```bash
 bowrain project.kaz
 ```
 
-## Architecture
-
-The Go backend exposes methods as auto-generated TypeScript bindings. Go can emit events (`flow-complete`, `progress-updated`) for real-time UI updates and open native file dialogs.
-
-Single binary distribution: Go runtime + webview (WKWebView on macOS, WebView2 on Windows, GTK WebKit on Linux). No Node.js or Chromium shipped; binary size is ~20-30MB.
-
-See [ADR-012](/docs/adr/012-bowrain-desktop-app) for the design rationale.
+Bowrain runs as a single native application on macOS, Windows, and Linux — no additional runtimes or dependencies required.

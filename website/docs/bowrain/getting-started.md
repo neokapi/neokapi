@@ -31,20 +31,6 @@ Download the latest release from [GitHub Releases](https://github.com/gokapi/gok
 
 ![Editor showing 100% translated blocks](/img/bowrain/editor-translated.png)
 
-## Building from Source
-
-```bash
-cd apps/bowrain
-wails3 build
-```
-
-For development with hot reload:
-
-```bash
-cd apps/bowrain
-wails3 dev
-```
-
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
