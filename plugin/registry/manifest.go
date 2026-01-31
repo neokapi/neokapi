@@ -2,7 +2,10 @@
 // remote plugin repositories.
 package registry
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 // Capability describes a specific format or tool provided by a plugin.
 type Capability struct {
@@ -92,4 +95,45 @@ type RegistryIndex struct {
 
 	// Plugins lists all available plugin manifests.
 	Plugins []PluginManifest `json:"plugins"`
+}
+
+// FindVersions returns all manifests for the given plugin name and platform,
+// sorted with the latest version first.
+func (idx *RegistryIndex) FindVersions(name, platform string) []PluginManifest {
+	var matches []PluginManifest
+	for _, m := range idx.Plugins {
+		if m.Name == name && (m.Platform == platform || m.Platform == "") {
+			matches = append(matches, m)
+		}
+	}
+	// Sort by version descending.
+	for i := 0; i < len(matches); i++ {
+		for j := i + 1; j < len(matches); j++ {
+			if CompareSemver(matches[j].Version, matches[i].Version) > 0 {
+				matches[i], matches[j] = matches[j], matches[i]
+			}
+		}
+	}
+	return matches
+}
+
+// FindLatest returns the manifest with the highest version for the given
+// plugin name and platform.
+func (idx *RegistryIndex) FindLatest(name, platform string) (*PluginManifest, error) {
+	versions := idx.FindVersions(name, platform)
+	if len(versions) == 0 {
+		return nil, fmt.Errorf("plugin %q not found for platform %s", name, platform)
+	}
+	return &versions[0], nil
+}
+
+// FindExactVersion returns the manifest matching the given name, version,
+// and platform exactly.
+func (idx *RegistryIndex) FindExactVersion(name, version, platform string) (*PluginManifest, error) {
+	for _, m := range idx.Plugins {
+		if m.Name == name && m.Version == version && (m.Platform == platform || m.Platform == "") {
+			return &m, nil
+		}
+	}
+	return nil, fmt.Errorf("plugin %q version %s not found for platform %s", name, version, platform)
 }

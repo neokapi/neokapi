@@ -77,7 +77,7 @@ func (a *App) ListAvailablePlugins() ([]PluginSearchResult, error) {
 // InstallPlugin downloads and installs a plugin by name from the registry.
 func (a *App) InstallPlugin(name string) (*PluginInstallResult, error) {
 	reg := a.remoteRegistry()
-	result, err := reg.InstallPlugin(name)
+	result, err := reg.InstallPlugin(registry.ParsePluginRef(name))
 	if err != nil {
 		return nil, fmt.Errorf("installing plugin %s: %w", name, err)
 	}

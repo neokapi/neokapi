@@ -1,6 +1,10 @@
 // Package loader discovers and loads gokapi plugins from a directory.
 // It supports both Go binary plugins (via host.PluginManager) and
 // Java bridge plugins (via bridge.JavaBridge) described by *.bridge.json files.
+//
+// The directory layout uses versioned subdirectories:
+//
+//	{dir}/{packName}/{version}/  — contains bridge descriptors, JARs, or binaries
 package loader
 
 import (
@@ -9,12 +13,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/plugin/bridge"
 	"github.com/gokapi/gokapi/plugin/host"
+	pluginreg "github.com/gokapi/gokapi/plugin/registry"
 )
 
 // OriginalContentSetter is implemented by writers that need the original
@@ -26,6 +32,7 @@ type OriginalContentSetter interface {
 // PluginInfo describes a loaded plugin.
 type PluginInfo struct {
 	Name    string
+	Version string
 	Type    string // "binary" or "bridge"
 	Source  string
 	Formats []string
@@ -35,6 +42,7 @@ type PluginInfo struct {
 type managedBridge struct {
 	pool       *bridge.BridgePool
 	descriptor *ParsedBridgeDescriptor
+	version    string
 	formats    []string
 }
 
@@ -56,8 +64,10 @@ func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 }
 
 // LoadAll discovers and loads all plugins from the configured directory.
-// Go binary plugins are loaded via host.PluginManager.
-// Bridge plugins are loaded from *.bridge.json descriptors.
+// It scans for versioned subdirectories ({dir}/{name}/{version}/) and loads
+// bridge descriptors and binary plugins from each version directory.
+// For each plugin name, both versioned format names (e.g., "okapi-html@1.46.0")
+// and bare aliases (pointing to the latest version) are registered.
 // If the directory does not exist, this is a no-op.
 func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *registry.ToolRegistry) error {
 	if l.dir == "" {
@@ -75,7 +85,7 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 		return fmt.Errorf("plugin path is not a directory: %s", l.dir)
 	}
 
-	// Load Go binary plugins.
+	// Load Go binary plugins from the top-level directory (legacy flat layout).
 	l.manager = host.NewPluginManager(l.logger)
 	if err := l.manager.DiscoverAndRegister(l.dir, formatReg); err != nil {
 		l.logf("binary plugin discovery: %v", err)
@@ -91,25 +101,118 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 		})
 	}
 
-	// Load bridge plugins from *.bridge.json descriptors.
-	descriptors, err := filepath.Glob(filepath.Join(l.dir, "*.bridge.json"))
+	// Load versioned plugins from {dir}/{name}/{version}/ structure.
+	all, err := pluginreg.ListAllInstalled(l.dir)
 	if err != nil {
-		l.logf("scanning bridge descriptors: %v", err)
+		l.logf("scanning versioned plugins: %v", err)
+		return nil
 	}
 
-	for _, descPath := range descriptors {
-		if err := l.loadBridge(descPath, formatReg); err != nil {
-			l.logf("loading bridge %s: %v", descPath, err)
+	// Track versioned format names per base format name for bare-name aliasing.
+	// Key: base format name (e.g., "okapi-html"), Value: list of {version, formatName}.
+	type versionedFormat struct {
+		version string
+		name    string // e.g. "okapi-html@1.46.0"
+	}
+	bareNameCandidates := make(map[string][]versionedFormat)
+
+	for name, versions := range all {
+		// Sort versions so we process them in order.
+		sort.Slice(versions, func(i, j int) bool {
+			return pluginreg.CompareSemver(versions[i].Version, versions[j].Version) < 0
+		})
+
+		for _, iv := range versions {
+			vDir := iv.Dir
+			switch iv.InstallType {
+			case "bridge":
+				// Look for *.bridge.json descriptors in the version directory.
+				descriptors, err := filepath.Glob(filepath.Join(vDir, "*.bridge.json"))
+				if err != nil {
+					l.logf("scanning bridge descriptors in %s: %v", vDir, err)
+					continue
+				}
+				for _, descPath := range descriptors {
+					formats, err := l.loadBridge(descPath, vDir, iv.Version, formatReg)
+					if err != nil {
+						l.logf("loading bridge %s: %v", descPath, err)
+						continue
+					}
+					for _, fmtName := range formats {
+						// Extract base name from versioned name.
+						baseName := fmtName
+						if idx := strings.LastIndex(fmtName, "@"); idx > 0 {
+							baseName = fmtName[:idx]
+						}
+						bareNameCandidates[baseName] = append(bareNameCandidates[baseName], versionedFormat{
+							version: iv.Version,
+							name:    fmtName,
+						})
+					}
+				}
+
+			case "binary":
+				// Look for gokapi-plugin-* binaries in the version directory.
+				pattern := filepath.Join(vDir, "gokapi-plugin-*")
+				binaries, err := filepath.Glob(pattern)
+				if err != nil {
+					l.logf("scanning binaries in %s: %v", vDir, err)
+					continue
+				}
+				for _, binPath := range binaries {
+					if err := l.manager.DiscoverAndRegister(vDir, formatReg); err != nil {
+						l.logf("loading binary plugin %s: %v", binPath, err)
+					}
+				}
+				l.plugins = append(l.plugins, PluginInfo{
+					Name:    name,
+					Version: iv.Version,
+					Type:    "binary",
+					Source:  vDir,
+				})
+			}
+		}
+	}
+
+	// Register bare-name aliases pointing to the latest version.
+	if formatReg != nil {
+		for baseName, candidates := range bareNameCandidates {
+			// Find the latest version.
+			best := candidates[0]
+			for _, c := range candidates[1:] {
+				if pluginreg.CompareSemver(c.version, best.version) > 0 {
+					best = c
+				}
+			}
+			// Only register if no bare name is already registered.
+			if !formatReg.HasReader(baseName) {
+				if formatReg.HasReader(best.name) {
+					versionedName := best.name
+					formatReg.RegisterReader(baseName, func() format.DataFormatReader {
+						r, _ := formatReg.NewReader(versionedName)
+						return r
+					})
+				}
+			}
+			if !formatReg.HasWriter(baseName) {
+				if formatReg.HasWriter(best.name) {
+					versionedName := best.name
+					formatReg.RegisterWriter(baseName, func() format.DataFormatWriter {
+						w, _ := formatReg.NewWriter(versionedName)
+						return w
+					})
+				}
+			}
 		}
 	}
 
 	return nil
 }
 
-func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatRegistry) error {
-	parsed, err := ParseBridgeDescriptor(descPath, l.dir)
+func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
+	parsed, err := ParseBridgeDescriptor(descPath, versionDir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	cfg := bridge.BridgeConfig{
@@ -123,13 +226,13 @@ func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatReg
 	// Start the first bridge for filter discovery, then seed it into the pool.
 	b := bridge.NewJavaBridge(cfg, l.logger)
 	if err := b.Start(); err != nil {
-		return fmt.Errorf("starting bridge %q: %w", parsed.Name, err)
+		return nil, fmt.Errorf("starting bridge %q: %w", parsed.Name, err)
 	}
 
 	filters, err := b.ListFilters()
 	if err != nil {
 		_ = b.Stop()
-		return fmt.Errorf("listing filters from bridge %q: %w", parsed.Name, err)
+		return nil, fmt.Errorf("listing filters from bridge %q: %w", parsed.Name, err)
 	}
 
 	pool := bridge.NewBridgePool(cfg, runtime.NumCPU(), l.logger)
@@ -138,36 +241,41 @@ func (l *PluginLoader) loadBridge(descPath string, formatReg *registry.FormatReg
 	mb := &managedBridge{
 		pool:       pool,
 		descriptor: parsed,
+		version:    version,
 	}
 
+	var formats []string
 	for _, f := range filters.Filters {
-		fmtName := parsed.Name + "-" + sanitizeFilterName(f.Name)
-		mb.formats = append(mb.formats, fmtName)
+		baseFmtName := parsed.Name + "-" + sanitizeFilterName(f.Name)
+		versionedName := baseFmtName + "@" + version
+		mb.formats = append(mb.formats, versionedName)
+		formats = append(formats, versionedName)
 
 		filterClass := f.FilterClass
 		bridgePool := pool
 
 		if formatReg != nil {
-			formatReg.RegisterReader(fmtName, func() format.DataFormatReader {
+			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
 				return bridge.NewBridgeFormatReader(bridgePool, filterClass)
 			})
-			formatReg.RegisterWriter(fmtName, func() format.DataFormatWriter {
+			formatReg.RegisterWriter(versionedName, func() format.DataFormatWriter {
 				return bridge.NewBridgeFormatWriter(bridgePool, filterClass)
 			})
 		}
 
-		l.logf("registered bridge format: %s (filter: %s)", fmtName, filterClass)
+		l.logf("registered bridge format: %s (filter: %s)", versionedName, filterClass)
 	}
 
 	l.bridges = append(l.bridges, mb)
 	l.plugins = append(l.plugins, PluginInfo{
 		Name:    parsed.Name,
+		Version: version,
 		Type:    "bridge",
 		Source:  parsed.SourcePath,
 		Formats: mb.formats,
 	})
 
-	return nil
+	return formats, nil
 }
 
 // Plugins returns information about all loaded plugins.

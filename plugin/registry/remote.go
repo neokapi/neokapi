@@ -81,27 +81,27 @@ func (r *RemoteRegistry) ListAvailable() ([]PluginManifest, error) {
 	return matching, nil
 }
 
-// FindPlugin searches for a specific plugin by name in the registry.
-func (r *RemoteRegistry) FindPlugin(name string) (*PluginManifest, error) {
+// FindPlugin searches for a plugin by ref in the registry. If the ref includes
+// a version, it finds that exact version; otherwise it finds the latest.
+func (r *RemoteRegistry) FindPlugin(ref PluginRef) (*PluginManifest, error) {
 	index, err := r.FetchIndex()
 	if err != nil {
 		return nil, err
 	}
 
 	platform := runtime.GOOS + "/" + runtime.GOARCH
-	for _, m := range index.Plugins {
-		if m.Name == name && (m.Platform == platform || m.Platform == "") {
-			return &m, nil
-		}
+	if ref.IsVersioned() {
+		return index.FindExactVersion(ref.Name, ref.Version, platform)
 	}
-	return nil, fmt.Errorf("plugin %q not found for platform %s", name, platform)
+	return index.FindLatest(ref.Name, platform)
 }
 
 // Download downloads a plugin binary from the given manifest, verifies its
-// checksum, and saves it to the download directory. Returns the path to the
-// downloaded binary.
+// checksum, and saves it to the versioned download directory. Returns the
+// path to the downloaded binary.
 func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
-	if err := os.MkdirAll(r.DownloadDir, 0o755); err != nil {
+	destDir := VersionedPluginDir(r.DownloadDir, manifest.Name, manifest.Version)
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return "", fmt.Errorf("creating download directory: %w", err)
 	}
 
@@ -110,7 +110,7 @@ func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
 	if runtime.GOOS == "windows" {
 		filename += ".exe"
 	}
-	destPath := filepath.Join(r.DownloadDir, filename)
+	destPath := filepath.Join(destDir, filename)
 
 	// Download the binary.
 	resp, err := r.httpClient().Get(manifest.DownloadURL)
@@ -150,7 +150,7 @@ func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
 // Install downloads and installs a plugin by name from the registry.
 // Returns the local path to the installed plugin binary.
 func (r *RemoteRegistry) Install(name string) (string, error) {
-	manifest, err := r.FindPlugin(name)
+	manifest, err := r.FindPlugin(PluginRef{Name: name})
 	if err != nil {
 		return "", err
 	}
@@ -165,12 +165,12 @@ type InstallResult struct {
 	Files       []string `json:"files"`
 }
 
-// InstallPlugin downloads and installs a plugin by name. For bridge plugins,
-// it extracts a .tar.gz archive into the plugin directory. For binary plugins,
-// it downloads the executable directly. A version file is written to track
-// the installation.
-func (r *RemoteRegistry) InstallPlugin(name string) (*InstallResult, error) {
-	manifest, err := r.FindPlugin(name)
+// InstallPlugin downloads and installs a plugin by ref. For bridge plugins,
+// it extracts a .tar.gz archive into the versioned plugin directory. For binary
+// plugins, it downloads the executable directly. A version file is written to
+// track the installation.
+func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
+	manifest, err := r.FindPlugin(ref)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,8 @@ func (r *RemoteRegistry) InstallPlugin(name string) (*InstallResult, error) {
 		installType = "binary"
 	}
 
-	if err := os.MkdirAll(r.DownloadDir, 0o755); err != nil {
+	destDir := VersionedPluginDir(r.DownloadDir, manifest.Name, manifest.Version)
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return nil, fmt.Errorf("creating plugin directory: %w", err)
 	}
 
@@ -208,7 +209,7 @@ func (r *RemoteRegistry) InstallPlugin(name string) (*InstallResult, error) {
 		InstalledAt: time.Now().UTC().Format(time.RFC3339),
 		Checksum:    manifest.Checksum,
 	}
-	if err := WriteVersionFile(r.DownloadDir, manifest.Name, vf); err != nil {
+	if err := WriteVersionFile(r.DownloadDir, manifest.Name, manifest.Version, vf); err != nil {
 		return nil, fmt.Errorf("writing version file: %w", err)
 	}
 
@@ -220,8 +221,8 @@ func (r *RemoteRegistry) InstallPlugin(name string) (*InstallResult, error) {
 	}, nil
 }
 
-// installBridge downloads a .tar.gz archive and extracts its contents flat
-// into the download directory.
+// installBridge downloads a .tar.gz archive and extracts its contents into
+// the versioned plugin directory.
 func (r *RemoteRegistry) installBridge(manifest *PluginManifest) ([]string, error) {
 	resp, err := r.httpClient().Get(manifest.DownloadURL)
 	if err != nil {
@@ -248,7 +249,8 @@ func (r *RemoteRegistry) installBridge(manifest *PluginManifest) ([]string, erro
 		}
 	}
 
-	return extractTarGz(bytes.NewReader(data), r.DownloadDir)
+	destDir := VersionedPluginDir(r.DownloadDir, manifest.Name, manifest.Version)
+	return extractTarGz(bytes.NewReader(data), destDir)
 }
 
 // extractTarGz extracts a tar.gz archive into destDir, writing files flat
@@ -260,6 +262,10 @@ func extractTarGz(r io.Reader, destDir string) ([]string, error) {
 		return nil, fmt.Errorf("opening gzip: %w", err)
 	}
 	defer gr.Close()
+
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return nil, fmt.Errorf("creating extraction directory: %w", err)
+	}
 
 	tr := tar.NewReader(gr)
 	var files []string
@@ -306,9 +312,18 @@ func extractTarGz(r io.Reader, destDir string) ([]string, error) {
 	return files, nil
 }
 
-// ListInstalled returns version information for all installed plugins.
-func (r *RemoteRegistry) ListInstalled() ([]*VersionFile, error) {
-	return ListVersionFiles(r.DownloadDir)
+// ListInstalled returns version information for all installed plugins,
+// flattened from the versioned directory structure.
+func (r *RemoteRegistry) ListInstalled() ([]InstalledVersion, error) {
+	all, err := ListAllInstalled(r.DownloadDir)
+	if err != nil {
+		return nil, err
+	}
+	var result []InstalledVersion
+	for _, versions := range all {
+		result = append(result, versions...)
+	}
+	return result, nil
 }
 
 // PluginUpdate describes an available update for an installed plugin.
@@ -321,11 +336,11 @@ type PluginUpdate struct {
 // CheckUpdates compares installed plugins against the registry and returns
 // any that have newer versions available.
 func (r *RemoteRegistry) CheckUpdates() ([]PluginUpdate, error) {
-	installed, err := ListVersionFiles(r.DownloadDir)
+	all, err := ListAllInstalled(r.DownloadDir)
 	if err != nil {
 		return nil, err
 	}
-	if len(installed) == 0 {
+	if len(all) == 0 {
 		return nil, nil
 	}
 
@@ -334,25 +349,30 @@ func (r *RemoteRegistry) CheckUpdates() ([]PluginUpdate, error) {
 		return nil, err
 	}
 
-	// Build lookup of registry plugins by name.
 	platform := runtime.GOOS + "/" + runtime.GOARCH
-	available := make(map[string]PluginManifest)
-	for _, m := range index.Plugins {
-		if m.Platform == platform || m.Platform == "" {
-			available[m.Name] = m
-		}
-	}
-
 	var updates []PluginUpdate
-	for _, vf := range installed {
-		if m, ok := available[vf.Name]; ok {
-			if m.Version != vf.Version {
-				updates = append(updates, PluginUpdate{
-					Name:             vf.Name,
-					InstalledVersion: vf.Version,
-					AvailableVersion: m.Version,
-				})
+
+	for name, versions := range all {
+		// Find latest installed version.
+		latestInstalled := versions[0].Version
+		for _, v := range versions[1:] {
+			if CompareSemver(v.Version, latestInstalled) > 0 {
+				latestInstalled = v.Version
 			}
+		}
+
+		// Find latest available version.
+		latestManifest, err := index.FindLatest(name, platform)
+		if err != nil {
+			continue
+		}
+
+		if CompareSemver(latestManifest.Version, latestInstalled) > 0 {
+			updates = append(updates, PluginUpdate{
+				Name:             name,
+				InstalledVersion: latestInstalled,
+				AvailableVersion: latestManifest.Version,
+			})
 		}
 	}
 	return updates, nil
@@ -478,4 +498,22 @@ func matchesExtension(m PluginManifest, ext string) bool {
 		}
 	}
 	return false
+}
+
+// RemovePlugin removes an installed plugin. If version is empty, all versions
+// are removed. If version is specified, only that version is removed.
+func (r *RemoteRegistry) RemovePlugin(ref PluginRef) error {
+	if ref.IsVersioned() {
+		dir := VersionedPluginDir(r.DownloadDir, ref.Name, ref.Version)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			return fmt.Errorf("plugin %s is not installed", ref)
+		}
+		return os.RemoveAll(dir)
+	}
+	// Remove all versions.
+	dir := filepath.Join(r.DownloadDir, ref.Name)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return fmt.Errorf("plugin %q is not installed", ref.Name)
+	}
+	return os.RemoveAll(dir)
 }

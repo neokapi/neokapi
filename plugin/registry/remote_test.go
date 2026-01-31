@@ -113,15 +113,15 @@ func TestInstallPluginBinary(t *testing.T) {
 	dir := t.TempDir()
 	reg := NewRemoteRegistry(srv.URL, dir)
 
-	result, err := reg.InstallPlugin("my-tool")
+	result, err := reg.InstallPlugin(PluginRef{Name: "my-tool"})
 	require.NoError(t, err)
 	assert.Equal(t, "my-tool", result.Name)
 	assert.Equal(t, "2.0.0", result.Version)
 	assert.Equal(t, "binary", result.InstallType)
 	require.Len(t, result.Files, 1)
 
-	// Version file should be written.
-	vf, err := ReadVersionFile(dir, "my-tool")
+	// Version file should be written in versioned directory.
+	vf, err := ReadVersionFile(dir, "my-tool", "2.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, "my-tool", vf.Name)
 	assert.Equal(t, "2.0.0", vf.Version)
@@ -138,7 +138,7 @@ func TestInstallPluginBridge(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name:        "okapi-bridge",
+				Name:        "okapi",
 				Version:     "1.0.0",
 				PluginType:  "bridge",
 				InstallType: "bridge",
@@ -164,29 +164,82 @@ func TestInstallPluginBridge(t *testing.T) {
 	dir := t.TempDir()
 	reg := NewRemoteRegistry(srv.URL, dir)
 
-	result, err := reg.InstallPlugin("okapi-bridge")
+	result, err := reg.InstallPlugin(PluginRef{Name: "okapi"})
 	require.NoError(t, err)
-	assert.Equal(t, "okapi-bridge", result.Name)
+	assert.Equal(t, "okapi", result.Name)
 	assert.Equal(t, "bridge", result.InstallType)
 	assert.Len(t, result.Files, 2)
 
-	// Verify extracted files exist.
-	_, err = os.Stat(filepath.Join(dir, "gokapi-bridge-jar-with-dependencies.jar"))
+	// Verify extracted files exist in versioned directory.
+	versionDir := VersionedPluginDir(dir, "okapi", "1.0.0")
+	_, err = os.Stat(filepath.Join(versionDir, "gokapi-bridge-jar-with-dependencies.jar"))
 	assert.NoError(t, err)
-	_, err = os.Stat(filepath.Join(dir, "okapi.bridge.json"))
+	_, err = os.Stat(filepath.Join(versionDir, "okapi.bridge.json"))
 	assert.NoError(t, err)
 
 	// Version file should be written.
-	vf, err := ReadVersionFile(dir, "okapi-bridge")
+	vf, err := ReadVersionFile(dir, "okapi", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, "bridge", vf.InstallType)
+}
+
+func TestInstallPluginExactVersion(t *testing.T) {
+	binaryContent := []byte("fake-binary-v1")
+
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:        "my-tool",
+				Version:     "1.0.0",
+				PluginType:  "tool",
+				InstallType: "binary",
+				Checksum:    checksum(binaryContent),
+			},
+			{
+				Name:        "my-tool",
+				Version:     "2.0.0",
+				PluginType:  "tool",
+				InstallType: "binary",
+				Checksum:    checksum([]byte("fake-binary-v2")),
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			serveJSON(t, w, index)
+		case "/download/my-tool-v1":
+			serveBytes(t, w, binaryContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	index.Plugins[0].DownloadURL = srv.URL + "/download/my-tool-v1"
+	index.Plugins[1].DownloadURL = srv.URL + "/download/my-tool-v2"
+
+	dir := t.TempDir()
+	reg := NewRemoteRegistry(srv.URL, dir)
+
+	// Install specific version 1.0.0.
+	result, err := reg.InstallPlugin(PluginRef{Name: "my-tool", Version: "1.0.0"})
+	require.NoError(t, err)
+	assert.Equal(t, "1.0.0", result.Version)
+
+	// Version file should exist for 1.0.0.
+	vf, err := ReadVersionFile(dir, "my-tool", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, "1.0.0", vf.Version)
 }
 
 func TestCheckUpdates(t *testing.T) {
 	dir := t.TempDir()
 
 	// Install an old version.
-	require.NoError(t, WriteVersionFile(dir, "my-tool", &VersionFile{
+	require.NoError(t, WriteVersionFile(dir, "my-tool", "1.0.0", &VersionFile{
 		Name:    "my-tool",
 		Version: "1.0.0",
 	}))
@@ -216,7 +269,7 @@ func TestCheckUpdates(t *testing.T) {
 func TestCheckUpdatesNoUpdates(t *testing.T) {
 	dir := t.TempDir()
 
-	require.NoError(t, WriteVersionFile(dir, "my-tool", &VersionFile{
+	require.NoError(t, WriteVersionFile(dir, "my-tool", "1.0.0", &VersionFile{
 		Name:    "my-tool",
 		Version: "1.0.0",
 	}))
@@ -244,7 +297,7 @@ func TestSearchPlugins(t *testing.T) {
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
-			{Name: "okapi-bridge", Description: "Okapi Framework bridge"},
+			{Name: "okapi", Description: "Okapi Framework bridge"},
 			{Name: "csv-reader", Description: "CSV format reader"},
 		},
 	}
@@ -259,7 +312,7 @@ func TestSearchPlugins(t *testing.T) {
 	results, err := reg.SearchPlugins("okapi")
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 
 	// Search by description.
 	results, err = reg.SearchPlugins("csv")
@@ -276,8 +329,8 @@ func TestSearchPlugins(t *testing.T) {
 func TestListInstalled(t *testing.T) {
 	dir := t.TempDir()
 
-	require.NoError(t, WriteVersionFile(dir, "a", &VersionFile{Name: "a", Version: "1.0.0"}))
-	require.NoError(t, WriteVersionFile(dir, "b", &VersionFile{Name: "b", Version: "2.0.0"}))
+	require.NoError(t, WriteVersionFile(dir, "a", "1.0.0", &VersionFile{Name: "a", Version: "1.0.0"}))
+	require.NoError(t, WriteVersionFile(dir, "b", "2.0.0", &VersionFile{Name: "b", Version: "2.0.0"}))
 
 	reg := NewRemoteRegistry("http://unused", dir)
 	installed, err := reg.ListInstalled()
@@ -328,7 +381,7 @@ func TestSearchPluginsAdvancedByMimeType(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name: "okapi-bridge",
+				Name: "okapi",
 				Capabilities: []Capability{
 					{Type: "format", Name: "openxml", MimeTypes: []string{
 						"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -350,7 +403,7 @@ func TestSearchPluginsAdvancedByMimeType(t *testing.T) {
 	results, err := reg.SearchPluginsAdvanced(SearchOptions{MimeType: "text/html"})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 }
 
 func TestSearchPluginsAdvancedByType(t *testing.T) {
@@ -358,7 +411,7 @@ func TestSearchPluginsAdvancedByType(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name: "okapi-bridge",
+				Name: "okapi",
 				Capabilities: []Capability{
 					{Type: "format", Name: "html"},
 					{Type: "tool", Name: "segmentation"},
@@ -385,11 +438,11 @@ func TestSearchPluginsAdvancedByType(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, results, 2)
 
-	// Only okapi-bridge has "format" capabilities.
+	// Only okapi has "format" capabilities.
 	results, err = reg.SearchPluginsAdvanced(SearchOptions{Type: "format"})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 }
 
 func TestSearchPluginsAdvancedByExtension(t *testing.T) {
@@ -397,7 +450,7 @@ func TestSearchPluginsAdvancedByExtension(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name: "okapi-bridge",
+				Name: "okapi",
 				Capabilities: []Capability{
 					{Type: "format", Name: "openxml", Extensions: []string{".docx", ".xlsx", ".pptx"}},
 				},
@@ -416,7 +469,7 @@ func TestSearchPluginsAdvancedByExtension(t *testing.T) {
 	results, err := reg.SearchPluginsAdvanced(SearchOptions{Extension: ".docx"})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 
 	// No plugin handles .xyz.
 	results, err = reg.SearchPluginsAdvanced(SearchOptions{Extension: ".xyz"})
@@ -429,7 +482,7 @@ func TestSearchPluginsAdvancedCombinedFilters(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name: "okapi-bridge",
+				Name: "okapi",
 				Capabilities: []Capability{
 					{Type: "format", Name: "openxml", MimeTypes: []string{
 						"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -453,23 +506,23 @@ func TestSearchPluginsAdvancedCombinedFilters(t *testing.T) {
 
 	reg := NewRemoteRegistry(srv.URL, t.TempDir())
 
-	// MIME type + extension: only okapi-bridge has both text/html and .docx.
+	// MIME type + extension: only okapi has both text/html and .docx.
 	results, err := reg.SearchPluginsAdvanced(SearchOptions{
 		MimeType:  "text/html",
 		Extension: ".docx",
 	})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 
-	// Type + query: both have "format" capability; only "okapi-bridge" matches query.
+	// Type + query: both have "format" capability; only "okapi" matches query.
 	results, err = reg.SearchPluginsAdvanced(SearchOptions{
 		Type:  "format",
 		Query: "okapi",
 	})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "okapi-bridge", results[0].Name)
+	assert.Equal(t, "okapi", results[0].Name)
 }
 
 func TestSearchPluginsAdvancedLegacyFallback(t *testing.T) {
@@ -505,7 +558,7 @@ func TestSearchPluginsAdvancedQueryMatchesCapabilities(t *testing.T) {
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name:        "okapi-bridge",
+				Name:        "okapi",
 				Description: "Okapi Framework bridge",
 				Capabilities: []Capability{
 					{Type: "format", Name: "openxml", DisplayName: "Microsoft Office (OpenXML)"},
@@ -608,7 +661,64 @@ func TestInstallPluginChecksumMismatch(t *testing.T) {
 	index.Plugins[0].DownloadURL = srv.URL + "/download"
 
 	reg := NewRemoteRegistry(srv.URL, t.TempDir())
-	_, err := reg.InstallPlugin("bad-bridge")
+	_, err := reg.InstallPlugin(PluginRef{Name: "bad-bridge"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "checksum mismatch")
+}
+
+func TestRemovePluginSpecificVersion(t *testing.T) {
+	dir := t.TempDir()
+
+	// Install two versions.
+	require.NoError(t, WriteVersionFile(dir, "okapi", "1.0.0", &VersionFile{
+		Name: "okapi", Version: "1.0.0",
+	}))
+	require.NoError(t, WriteVersionFile(dir, "okapi", "2.0.0", &VersionFile{
+		Name: "okapi", Version: "2.0.0",
+	}))
+
+	reg := NewRemoteRegistry("http://unused", dir)
+
+	// Remove only 1.0.0.
+	err := reg.RemovePlugin(PluginRef{Name: "okapi", Version: "1.0.0"})
+	require.NoError(t, err)
+
+	// 1.0.0 should be gone.
+	_, err = ReadVersionFile(dir, "okapi", "1.0.0")
+	assert.Error(t, err)
+
+	// 2.0.0 should still exist.
+	vf, err := ReadVersionFile(dir, "okapi", "2.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, "2.0.0", vf.Version)
+}
+
+func TestRemovePluginAllVersions(t *testing.T) {
+	dir := t.TempDir()
+
+	require.NoError(t, WriteVersionFile(dir, "okapi", "1.0.0", &VersionFile{
+		Name: "okapi", Version: "1.0.0",
+	}))
+	require.NoError(t, WriteVersionFile(dir, "okapi", "2.0.0", &VersionFile{
+		Name: "okapi", Version: "2.0.0",
+	}))
+
+	reg := NewRemoteRegistry("http://unused", dir)
+
+	// Remove all versions.
+	err := reg.RemovePlugin(PluginRef{Name: "okapi"})
+	require.NoError(t, err)
+
+	// Plugin directory should be gone.
+	_, err = os.Stat(filepath.Join(dir, "okapi"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestRemovePluginNotInstalled(t *testing.T) {
+	dir := t.TempDir()
+	reg := NewRemoteRegistry("http://unused", dir)
+
+	err := reg.RemovePlugin(PluginRef{Name: "nonexistent"})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not installed")
 }

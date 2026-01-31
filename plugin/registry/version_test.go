@@ -13,21 +13,21 @@ func TestWriteAndReadVersionFile(t *testing.T) {
 	dir := t.TempDir()
 
 	vf := &VersionFile{
-		Name:        "okapi-bridge",
+		Name:        "okapi",
 		Version:     "1.0.0",
 		InstallType: "bridge",
 		InstalledAt: "2025-01-15T10:00:00Z",
 		Checksum:    "abc123",
 	}
 
-	err := WriteVersionFile(dir, "okapi-bridge", vf)
+	err := WriteVersionFile(dir, "okapi", "1.0.0", vf)
 	require.NoError(t, err)
 
-	// File should exist on disk.
-	_, err = os.Stat(filepath.Join(dir, "okapi-bridge.version.json"))
+	// File should exist on disk at {dir}/okapi/1.0.0/version.json.
+	_, err = os.Stat(filepath.Join(dir, "okapi", "1.0.0", "version.json"))
 	require.NoError(t, err)
 
-	got, err := ReadVersionFile(dir, "okapi-bridge")
+	got, err := ReadVersionFile(dir, "okapi", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, vf.Name, got.Name)
 	assert.Equal(t, vf.Version, got.Version)
@@ -39,20 +39,55 @@ func TestWriteAndReadVersionFile(t *testing.T) {
 func TestReadVersionFileNotFound(t *testing.T) {
 	dir := t.TempDir()
 
-	_, err := ReadVersionFile(dir, "nonexistent")
+	_, err := ReadVersionFile(dir, "nonexistent", "1.0.0")
 	assert.Error(t, err)
 }
 
-func TestListVersionFiles(t *testing.T) {
+func TestListInstalledVersions(t *testing.T) {
 	dir := t.TempDir()
 
-	// Write two version files.
-	require.NoError(t, WriteVersionFile(dir, "plugin-a", &VersionFile{
+	// Write two versions of plugin-a.
+	require.NoError(t, WriteVersionFile(dir, "plugin-a", "1.0.0", &VersionFile{
 		Name:        "plugin-a",
 		Version:     "1.0.0",
 		InstallType: "binary",
 	}))
-	require.NoError(t, WriteVersionFile(dir, "plugin-b", &VersionFile{
+	require.NoError(t, WriteVersionFile(dir, "plugin-a", "2.0.0", &VersionFile{
+		Name:        "plugin-a",
+		Version:     "2.0.0",
+		InstallType: "binary",
+	}))
+
+	versions, err := ListInstalledVersions(dir, "plugin-a")
+	require.NoError(t, err)
+	assert.Len(t, versions, 2)
+
+	versionSet := map[string]bool{}
+	for _, v := range versions {
+		versionSet[v.Version] = true
+		assert.NotEmpty(t, v.Dir)
+	}
+	assert.True(t, versionSet["1.0.0"])
+	assert.True(t, versionSet["2.0.0"])
+}
+
+func TestListInstalledVersionsNonexistent(t *testing.T) {
+	dir := t.TempDir()
+
+	versions, err := ListInstalledVersions(dir, "nonexistent")
+	require.NoError(t, err)
+	assert.Empty(t, versions)
+}
+
+func TestListAllInstalled(t *testing.T) {
+	dir := t.TempDir()
+
+	require.NoError(t, WriteVersionFile(dir, "plugin-a", "1.0.0", &VersionFile{
+		Name:        "plugin-a",
+		Version:     "1.0.0",
+		InstallType: "binary",
+	}))
+	require.NoError(t, WriteVersionFile(dir, "plugin-b", "2.0.0", &VersionFile{
 		Name:        "plugin-b",
 		Version:     "2.0.0",
 		InstallType: "bridge",
@@ -61,39 +96,65 @@ func TestListVersionFiles(t *testing.T) {
 	// Add a non-version file that should be ignored.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.json"), []byte("{}"), 0o644))
 
-	files, err := ListVersionFiles(dir)
+	all, err := ListAllInstalled(dir)
 	require.NoError(t, err)
-	assert.Len(t, files, 2)
-
-	names := map[string]bool{}
-	for _, f := range files {
-		names[f.Name] = true
-	}
-	assert.True(t, names["plugin-a"])
-	assert.True(t, names["plugin-b"])
+	assert.Len(t, all, 2)
+	assert.Len(t, all["plugin-a"], 1)
+	assert.Len(t, all["plugin-b"], 1)
 }
 
-func TestListVersionFilesEmptyDir(t *testing.T) {
+func TestListAllInstalledEmptyDir(t *testing.T) {
 	dir := t.TempDir()
 
-	files, err := ListVersionFiles(dir)
+	all, err := ListAllInstalled(dir)
 	require.NoError(t, err)
-	assert.Empty(t, files)
+	assert.Empty(t, all)
 }
 
-func TestListVersionFilesNonexistentDir(t *testing.T) {
-	files, err := ListVersionFiles("/tmp/nonexistent-plugin-dir-test")
+func TestListAllInstalledNonexistentDir(t *testing.T) {
+	all, err := ListAllInstalled("/tmp/nonexistent-plugin-dir-test")
 	require.NoError(t, err)
-	assert.Nil(t, files)
+	assert.Nil(t, all)
+}
+
+func TestLatestInstalledVersion(t *testing.T) {
+	dir := t.TempDir()
+
+	require.NoError(t, WriteVersionFile(dir, "okapi", "1.45.0", &VersionFile{
+		Name: "okapi", Version: "1.45.0",
+	}))
+	require.NoError(t, WriteVersionFile(dir, "okapi", "1.47.0", &VersionFile{
+		Name: "okapi", Version: "1.47.0",
+	}))
+	require.NoError(t, WriteVersionFile(dir, "okapi", "1.46.0", &VersionFile{
+		Name: "okapi", Version: "1.46.0",
+	}))
+
+	latest, err := LatestInstalledVersion(dir, "okapi")
+	require.NoError(t, err)
+	assert.Equal(t, "1.47.0", latest.Version)
+}
+
+func TestLatestInstalledVersionNotFound(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := LatestInstalledVersion(dir, "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no installed versions")
+}
+
+func TestVersionedPluginDir(t *testing.T) {
+	dir := VersionedPluginDir("/base", "okapi", "1.46.0")
+	assert.Equal(t, filepath.Join("/base", "okapi", "1.46.0"), dir)
 }
 
 func TestWriteVersionFileCreatesDir(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "nested", "path")
 
-	err := WriteVersionFile(dir, "test", &VersionFile{Name: "test", Version: "1.0.0"})
+	err := WriteVersionFile(dir, "test", "1.0.0", &VersionFile{Name: "test", Version: "1.0.0"})
 	require.NoError(t, err)
 
-	got, err := ReadVersionFile(dir, "test")
+	got, err := ReadVersionFile(dir, "test", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, "test", got.Name)
 }

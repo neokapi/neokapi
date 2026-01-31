@@ -47,11 +47,15 @@ func listInstalledPlugins() error {
 	}
 
 	if len(plugins) > 0 {
-		fmt.Printf("  %-20s %-10s %-30s %s\n", "NAME", "TYPE", "FORMATS", "SOURCE")
-		fmt.Printf("  %-20s %-10s %-30s %s\n", "----", "----", "-------", "------")
+		fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", "NAME", "VERSION", "TYPE", "FORMATS", "SOURCE")
+		fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", "----", "-------", "----", "-------", "------")
 		for _, p := range plugins {
 			fmts := strings.Join(p.Formats, ", ")
-			fmt.Printf("  %-20s %-10s %-30s %s\n", p.Name, p.Type, fmts, p.Source)
+			version := p.Version
+			if version == "" {
+				version = "-"
+			}
+			fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", p.Name, version, p.Type, fmts, p.Source)
 		}
 		fmt.Printf("\n%d plugin(s) loaded from %s\n", len(plugins), pluginLoader.Dir())
 	}
@@ -61,10 +65,23 @@ func listInstalledPlugins() error {
 			fmt.Println()
 		}
 		fmt.Println("Installed plugins (version tracked):")
-		fmt.Printf("  %-25s %-10s %-10s %s\n", "NAME", "VERSION", "TYPE", "INSTALLED")
-		fmt.Printf("  %-25s %-10s %-10s %s\n", "----", "-------", "----", "---------")
-		for _, vf := range installed {
-			fmt.Printf("  %-25s %-10s %-10s %s\n", vf.Name, vf.Version, vf.InstallType, vf.InstalledAt)
+
+		// Determine latest versions per name for marking.
+		latestByName := make(map[string]string)
+		for _, iv := range installed {
+			if cur, ok := latestByName[iv.Name]; !ok || registry.CompareSemver(iv.Version, cur) > 0 {
+				latestByName[iv.Name] = iv.Version
+			}
+		}
+
+		fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", "NAME", "VERSION", "TYPE", "INSTALLED", "STATUS")
+		fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", "----", "-------", "----", "---------", "------")
+		for _, iv := range installed {
+			status := ""
+			if latestByName[iv.Name] == iv.Version {
+				status = "(latest)"
+			}
+			fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", iv.Name, iv.Version, iv.InstallType, iv.InstalledAt, status)
 		}
 	}
 
@@ -100,23 +117,23 @@ func listAvailablePlugins() error {
 }
 
 var pluginsInstallCmd = &cobra.Command{
-	Use:   "install <name>",
+	Use:   "install <name[@version]>",
 	Short: "Install a plugin from the registry",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
+		ref := registry.ParsePluginRef(args[0])
 
 		cfg := config.NewAppConfig()
 		_ = cfg.Load()
 		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
 		if !quiet {
-			fmt.Printf("Installing plugin: %s\n", name)
+			fmt.Printf("Installing plugin: %s\n", ref)
 		}
 
-		result, err := reg.InstallPlugin(name)
+		result, err := reg.InstallPlugin(ref)
 		if err != nil {
-			return fmt.Errorf("installing %s: %w", name, err)
+			return fmt.Errorf("installing %s: %w", ref, err)
 		}
 
 		if !quiet {
@@ -130,7 +147,7 @@ var pluginsInstallCmd = &cobra.Command{
 }
 
 var pluginsUpdateCmd = &cobra.Command{
-	Use:   "update [name]",
+	Use:   "update [name[@version]]",
 	Short: "Update installed plugins",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -139,14 +156,14 @@ var pluginsUpdateCmd = &cobra.Command{
 		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
 		if len(args) == 1 {
-			// Update a specific plugin.
-			name := args[0]
+			// Update a specific plugin (installs latest side-by-side).
+			ref := registry.ParsePluginRef(args[0])
 			if !quiet {
-				fmt.Printf("Updating plugin: %s\n", name)
+				fmt.Printf("Updating plugin: %s\n", ref)
 			}
-			result, err := reg.InstallPlugin(name)
+			result, err := reg.InstallPlugin(ref)
 			if err != nil {
-				return fmt.Errorf("updating %s: %w", name, err)
+				return fmt.Errorf("updating %s: %w", ref, err)
 			}
 			fmt.Printf("Updated %s to v%s\n", result.Name, result.Version)
 			return nil
@@ -167,12 +184,46 @@ var pluginsUpdateCmd = &cobra.Command{
 			if !quiet {
 				fmt.Printf("Updating %s: %s → %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
 			}
-			result, err := reg.InstallPlugin(u.Name)
+			result, err := reg.InstallPlugin(registry.PluginRef{Name: u.Name})
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to update %s: %v\n", u.Name, err)
 				continue
 			}
 			fmt.Printf("Updated %s to v%s\n", result.Name, result.Version)
+		}
+		return nil
+	},
+}
+
+var pluginsRemoveCmd = &cobra.Command{
+	Use:   "remove <name[@version]>",
+	Short: "Remove an installed plugin",
+	Long: `Remove an installed plugin.
+
+  kapi plugins remove okapi@1.46.0   Remove a specific version
+  kapi plugins remove okapi           Remove all versions`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ref := registry.ParsePluginRef(args[0])
+
+		cfg := config.NewAppConfig()
+		_ = cfg.Load()
+		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
+
+		if !quiet {
+			if ref.IsVersioned() {
+				fmt.Printf("Removing plugin: %s\n", ref)
+			} else {
+				fmt.Printf("Removing all versions of plugin: %s\n", ref.Name)
+			}
+		}
+
+		if err := reg.RemovePlugin(ref); err != nil {
+			return fmt.Errorf("removing %s: %w", ref, err)
+		}
+
+		if !quiet {
+			fmt.Printf("Removed %s\n", ref)
 		}
 		return nil
 	},
@@ -309,6 +360,7 @@ func init() {
 	pluginsCmd.AddCommand(pluginsListCmd)
 	pluginsCmd.AddCommand(pluginsInstallCmd)
 	pluginsCmd.AddCommand(pluginsUpdateCmd)
+	pluginsCmd.AddCommand(pluginsRemoveCmd)
 	pluginsCmd.AddCommand(pluginsSearchCmd)
 	rootCmd.AddCommand(pluginsCmd)
 }

@@ -74,7 +74,7 @@ func TestCheckPluginUpdates(t *testing.T) {
 
 	// Write a version file with an older version.
 	dir := app.PluginDir()
-	require.NoError(t, registry.WriteVersionFile(dir, "my-plugin", &registry.VersionFile{
+	require.NoError(t, registry.WriteVersionFile(dir, "my-plugin", "1.0.0", &registry.VersionFile{
 		Name:    "my-plugin",
 		Version: "1.0.0",
 	}))

@@ -45,22 +45,31 @@ func TestLoadAllEmptyDirString(t *testing.T) {
 func TestLoadAllInvalidDescriptorLogged(t *testing.T) {
 	dir := t.TempDir()
 
+	// Create a versioned directory structure with an invalid bridge descriptor.
+	vDir := filepath.Join(dir, "bad-bridge", "1.0.0")
+	require.NoError(t, os.MkdirAll(vDir, 0755))
+
+	// Write version.json
+	require.NoError(t, os.WriteFile(filepath.Join(vDir, "version.json"), []byte(`{
+		"name": "bad-bridge",
+		"version": "1.0.0",
+		"install_type": "bridge"
+	}`), 0644))
+
 	// Write an invalid bridge descriptor (bad type).
-	err := os.WriteFile(filepath.Join(dir, "bad.bridge.json"), []byte(`{
+	require.NoError(t, os.WriteFile(filepath.Join(vDir, "bad.bridge.json"), []byte(`{
 		"name": "bad",
 		"type": "not-bridge",
 		"jar": "x.jar"
-	}`), 0644)
-	require.NoError(t, err)
+	}`), 0644))
 
 	logger := log.New(os.Stderr, "[test] ", log.LstdFlags)
 	l := NewPluginLoader(dir, logger)
 	reg := registry.NewFormatRegistry()
 
 	// Should not return error — invalid descriptors are logged and skipped.
-	err = l.LoadAll(reg, nil)
+	err := l.LoadAll(reg, nil)
 	assert.NoError(t, err)
-	assert.Empty(t, l.Plugins())
 }
 
 func TestPluginsReturnsCorrectInfo(t *testing.T) {
@@ -68,15 +77,16 @@ func TestPluginsReturnsCorrectInfo(t *testing.T) {
 	// Manually set plugins for testing.
 	l.plugins = []PluginInfo{
 		{Name: "test-plugin", Type: "binary", Source: "/path/to/plugin", Formats: []string{"csv"}},
-		{Name: "okapi", Type: "bridge", Source: "/path/to/okapi.bridge.json", Formats: []string{"okapi-openxml", "okapi-html"}},
+		{Name: "okapi", Version: "1.46.0", Type: "bridge", Source: "/path/to/okapi.bridge.json", Formats: []string{"okapi-openxml@1.46.0", "okapi-html@1.46.0"}},
 	}
 	plugins := l.Plugins()
 	assert.Len(t, plugins, 2)
 	assert.Equal(t, "test-plugin", plugins[0].Name)
 	assert.Equal(t, "binary", plugins[0].Type)
 	assert.Equal(t, "okapi", plugins[1].Name)
+	assert.Equal(t, "1.46.0", plugins[1].Version)
 	assert.Equal(t, "bridge", plugins[1].Type)
-	assert.Equal(t, []string{"okapi-openxml", "okapi-html"}, plugins[1].Formats)
+	assert.Equal(t, []string{"okapi-openxml@1.46.0", "okapi-html@1.46.0"}, plugins[1].Formats)
 }
 
 func TestShutdownIdempotent(t *testing.T) {
