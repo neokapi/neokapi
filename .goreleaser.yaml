@@ -4,6 +4,9 @@ project_name: kapi
 
 before:
   hooks:
+    # Create placeholder so apps/bowrain/main.go's //go:embed all:frontend/dist succeeds
+    # without a real frontend build (bowrain is built separately in the release workflow).
+    - mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/placeholder
     - go mod tidy
     - go test ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
