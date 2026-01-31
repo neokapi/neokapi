@@ -20,6 +20,7 @@ import (
 type BridgeFormatReader struct {
 	format.BaseFormatReader
 	pool        *BridgePool
+	cfg         BridgeConfig
 	bridge      *JavaBridge // acquired from pool during Open
 	filterClass string
 	info        *InfoData
@@ -29,9 +30,11 @@ type BridgeFormatReader struct {
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
 
 // NewBridgeFormatReader creates a reader that acquires bridges from the pool.
-func NewBridgeFormatReader(pool *BridgePool, filterClass string) *BridgeFormatReader {
+// The cfg specifies which JAR to use when acquiring a bridge.
+func NewBridgeFormatReader(pool *BridgePool, cfg BridgeConfig, filterClass string) *BridgeFormatReader {
 	return &BridgeFormatReader{
 		pool:        pool,
+		cfg:         cfg,
 		filterClass: filterClass,
 	}
 }
@@ -52,7 +55,7 @@ func (r *BridgeFormatReader) Signature() format.FormatSignature {
 // Open reads the document content and sends it to the Java bridge.
 // It acquires a bridge from the pool, which is released by Close.
 func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) error {
-	b, err := r.pool.Acquire()
+	b, err := r.pool.Acquire(r.cfg)
 	if err != nil {
 		return fmt.Errorf("acquiring bridge: %w", err)
 	}
@@ -135,7 +138,7 @@ func (r *BridgeFormatReader) fetchInfo() (*InfoData, error) {
 	if r.info != nil {
 		return r.info, nil
 	}
-	b, err := r.pool.Acquire()
+	b, err := r.pool.Acquire(r.cfg)
 	if err != nil {
 		return nil, fmt.Errorf("acquiring bridge for info: %w", err)
 	}
@@ -156,6 +159,7 @@ func (r *BridgeFormatReader) fetchInfo() (*InfoData, error) {
 type BridgeFormatWriter struct {
 	format.BaseFormatWriter
 	pool            *BridgePool
+	cfg             BridgeConfig
 	filterClass     string
 	originalContent []byte // original document needed by Okapi for skeleton
 }
@@ -163,9 +167,11 @@ type BridgeFormatWriter struct {
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
 
 // NewBridgeFormatWriter creates a writer that acquires bridges from the pool.
-func NewBridgeFormatWriter(pool *BridgePool, filterClass string) *BridgeFormatWriter {
+// The cfg specifies which JAR to use when acquiring a bridge.
+func NewBridgeFormatWriter(pool *BridgePool, cfg BridgeConfig, filterClass string) *BridgeFormatWriter {
 	return &BridgeFormatWriter{
 		pool:        pool,
+		cfg:         cfg,
 		filterClass: filterClass,
 	}
 }
@@ -196,7 +202,7 @@ func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part
 send:
 	dtos := shared.PartsToDTO(collected)
 
-	b, err := w.pool.Acquire()
+	b, err := w.pool.Acquire(w.cfg)
 	if err != nil {
 		return fmt.Errorf("acquiring bridge for write: %w", err)
 	}

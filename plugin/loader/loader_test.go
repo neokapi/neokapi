@@ -104,6 +104,7 @@ func TestShutdownAfterLoad(t *testing.T) {
 	require.NoError(t, err)
 	// Shutdown after a successful (empty) load.
 	l.Shutdown()
+	assert.Nil(t, l.pool)
 	assert.Empty(t, l.bridges)
 }
 

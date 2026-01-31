@@ -28,6 +28,7 @@ func mockBridgeForAdapter(t *testing.T) (*JavaBridge, io.ReadCloser, io.WriteClo
 
 	b := &JavaBridge{
 		cfg: BridgeConfig{
+			JARPath:        "/mock/test.jar",
 			CommandTimeout: 5 * time.Second,
 			StartupTimeout: 5 * time.Second,
 		},
@@ -43,12 +44,7 @@ func mockBridgeForAdapter(t *testing.T) (*JavaBridge, io.ReadCloser, io.WriteClo
 // mockPoolForAdapter creates a BridgePool seeded with the given bridge.
 // The pool has maxSize=1, which is sufficient for serial adapter tests.
 func mockPoolForAdapter(b *JavaBridge) *BridgePool {
-	pool := &BridgePool{
-		cfg:     b.cfg,
-		logger:  b.logger,
-		idle:    make(chan *JavaBridge, 1),
-		maxSize: 1,
-	}
+	pool := NewBridgePool(1, b.logger)
 	pool.Seed(b)
 	return pool
 }
@@ -82,7 +78,7 @@ func TestBridgeFormatWriterInterface(t *testing.T) {
 func TestBridgeFormatReaderSignature(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	reader := NewBridgeFormatReader(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -112,7 +108,7 @@ func TestBridgeFormatReaderSignature(t *testing.T) {
 func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	reader := NewBridgeFormatReader(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	htmlContent := []byte("<html><body>Hello</body></html>")
 	doc := &model.RawDocument{
@@ -202,13 +198,13 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 func TestBridgeFormatReaderClose(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	reader := NewBridgeFormatReader(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
-	// Simulate that Open was called by setting the bridge field.
-	reader.bridge = b
-	// Take the bridge out of the pool so Close can return it.
-	<-pool.idle
-	pool.created--
+	// Simulate that Open was called: acquire the bridge from the pool
+	// and assign it to the reader.
+	acquired, err := pool.Acquire(b.cfg)
+	require.NoError(t, err)
+	reader.bridge = acquired
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -229,7 +225,7 @@ func TestBridgeFormatReaderClose(t *testing.T) {
 func TestBridgeFormatWriterWrite(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	writer := NewBridgeFormatWriter(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	originalContent := []byte("<html><body>Hello</body></html>")
 	writer.SetOriginalContent(originalContent)
@@ -292,7 +288,7 @@ func TestBridgeFormatWriterWrite(t *testing.T) {
 func TestBridgeFormatWriterSetOutput(t *testing.T) {
 	b, _, _ := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	writer := NewBridgeFormatWriter(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	var buf bytes.Buffer
 	require.NoError(t, writer.SetOutputWriter(&buf))
@@ -302,7 +298,7 @@ func TestBridgeFormatWriterSetOutput(t *testing.T) {
 func TestBridgeFormatReaderReadContextCancel(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)
-	reader := NewBridgeFormatReader(pool, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
 	// Simulate an acquired bridge (as if Open was called).
 	reader.bridge = b
 

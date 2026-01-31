@@ -78,15 +78,19 @@ func TestIntegrationReadHTML(t *testing.T) {
 	skipIfNoJava(t)
 	jarPath := skipIfNoJAR(t)
 
-	bridge := NewJavaBridge(BridgeConfig{
+	cfg := BridgeConfig{
 		JARPath: jarPath,
-	}, log.Default())
-	require.NoError(t, bridge.Start())
-	defer bridge.Stop()
+	}
+	b := NewJavaBridge(cfg, log.Default())
+	require.NoError(t, b.Start())
+
+	pool := NewBridgePool(1, log.Default())
+	pool.Seed(b)
+	defer pool.Shutdown()
 
 	htmlContent := []byte("<html><body><p>Hello world</p></body></html>")
 
-	reader := NewBridgeFormatReader(bridge, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(pool, cfg, "net.sf.okapi.filters.html.HtmlFilter")
 
 	doc := &model.RawDocument{
 		URI:          "test.html",
@@ -141,13 +145,17 @@ func TestIntegrationReadDOCX(t *testing.T) {
 	docxContent, err := os.ReadFile(docxPath)
 	require.NoError(t, err)
 
-	bridge := NewJavaBridge(BridgeConfig{
+	cfg := BridgeConfig{
 		JARPath: jarPath,
-	}, log.Default())
-	require.NoError(t, bridge.Start())
-	defer bridge.Stop()
+	}
+	b := NewJavaBridge(cfg, log.Default())
+	require.NoError(t, b.Start())
 
-	reader := NewBridgeFormatReader(bridge, "net.sf.okapi.filters.openxml.OpenXMLFilter")
+	pool := NewBridgePool(1, log.Default())
+	pool.Seed(b)
+	defer pool.Shutdown()
+
+	reader := NewBridgeFormatReader(pool, cfg, "net.sf.okapi.filters.openxml.OpenXMLFilter")
 
 	doc := &model.RawDocument{
 		URI:          "sample.docx",

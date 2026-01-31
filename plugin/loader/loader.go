@@ -38,9 +38,9 @@ type PluginInfo struct {
 	Formats []string
 }
 
-// managedBridge tracks a running Java bridge pool.
+// managedBridge tracks a loaded Java bridge descriptor.
 type managedBridge struct {
-	pool       *bridge.BridgePool
+	cfg        bridge.BridgeConfig
 	descriptor *ParsedBridgeDescriptor
 	version    string
 	formats    []string
@@ -50,6 +50,7 @@ type managedBridge struct {
 type PluginLoader struct {
 	dir     string
 	manager *host.PluginManager
+	pool    *bridge.BridgePool // single shared pool for all bridge plugins
 	bridges []*managedBridge
 	plugins []PluginInfo
 	logger  *log.Logger
@@ -223,7 +224,12 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 		CommandTimeout: parsed.ResolvedCommandTimeout,
 	}
 
-	// Start the first bridge for filter discovery, then seed it into the pool.
+	// Lazily create the shared pool on first bridge load.
+	if l.pool == nil {
+		l.pool = bridge.NewBridgePool(runtime.NumCPU(), l.logger)
+	}
+
+	// Start the first bridge for filter discovery, then seed it into the shared pool.
 	b := bridge.NewJavaBridge(cfg, l.logger)
 	if err := b.Start(); err != nil {
 		return nil, fmt.Errorf("starting bridge %q: %w", parsed.Name, err)
@@ -235,14 +241,16 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 		return nil, fmt.Errorf("listing filters from bridge %q: %w", parsed.Name, err)
 	}
 
-	pool := bridge.NewBridgePool(cfg, runtime.NumCPU(), l.logger)
-	pool.Seed(b)
+	l.pool.Seed(b)
 
 	mb := &managedBridge{
-		pool:       pool,
+		cfg:        cfg,
 		descriptor: parsed,
 		version:    version,
 	}
+
+	sharedPool := l.pool
+	bridgeCfg := cfg
 
 	var formats []string
 	for _, f := range filters.Filters {
@@ -252,14 +260,13 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 		formats = append(formats, versionedName)
 
 		filterClass := f.FilterClass
-		bridgePool := pool
 
 		if formatReg != nil {
 			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
-				return bridge.NewBridgeFormatReader(bridgePool, filterClass)
+				return bridge.NewBridgeFormatReader(sharedPool, bridgeCfg, filterClass)
 			})
 			formatReg.RegisterWriter(versionedName, func() format.DataFormatWriter {
-				return bridge.NewBridgeFormatWriter(bridgePool, filterClass)
+				return bridge.NewBridgeFormatWriter(sharedPool, bridgeCfg, filterClass)
 			})
 		}
 
@@ -293,8 +300,9 @@ func (l *PluginLoader) Shutdown() {
 	if l.manager != nil {
 		l.manager.Shutdown()
 	}
-	for _, mb := range l.bridges {
-		mb.pool.Shutdown()
+	if l.pool != nil {
+		l.pool.Shutdown()
+		l.pool = nil
 	}
 	l.bridges = nil
 }
