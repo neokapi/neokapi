@@ -95,7 +95,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `cmd/gokapi-server/` — Echo v4 REST API server
 - `apps/bowrain/` — Wails v3 desktop app (Go backend + React 19/TypeScript/Vite frontend)
 - `internal/testutil/` — shared test helpers
-- `docs/` — OVERVIEW.md, ARCHITECTURE.md, INTERFACES.md, PHASES.md, TESTING.md
+- `docs/` — ARCHITECTURE.md, INTERFACES.md, TESTING.md, RELEASE.md, adr/
 
 ## Implementing a New Format
 
@@ -108,3 +108,7 @@ Create a type embedding `tool.BaseTool` and set `HandleBlockFn` / `HandleDataFn`
 ## Testing
 
 Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
+
+## Architecture Decision Records
+
+ADRs live in `docs/adr/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each ADR should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing ADR in place rather than appending a new one. Only create a new ADR when a genuinely new architectural concern is introduced.
