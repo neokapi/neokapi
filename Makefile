@@ -13,7 +13,8 @@ SERVER_PKG  := $(MODULE)/cmd/gokapi-server
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-LDFLAGS     := -ldflags "-X $(MODULE)/cmd/kapi.version=$(VERSION) -X $(MODULE)/cmd/kapi.commit=$(COMMIT) -X $(MODULE)/cmd/kapi.buildDate=$(BUILD_DATE)"
+VERSION_PKG := $(MODULE)/core/version
+LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 BIN_DIR     := bin
 COVER_DIR   := coverage
 PROTO_DIR   := plugin/proto/v1
@@ -27,7 +28,7 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || test -x "$$(go env G
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-server build-all build-frontend test test-unit test-integration \
+.PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
         test-race lint fmt vet proto clean install cover tools help \
         frontend-deps frontend-dev frontend-build \
         docs-deps docs-dev docs-build docs-serve
@@ -48,6 +49,9 @@ build: ## Build the kapi CLI
 build-server: ## Build the gokapi REST server
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/gokapi-server $(SERVER_PKG)
+
+build-bowrain: frontend-build ## Build the Bowrain desktop app
+	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
 build-all: build build-server ## Build all Go binaries
 

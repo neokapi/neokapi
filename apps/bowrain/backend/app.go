@@ -12,6 +12,7 @@ import (
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
 	"github.com/gokapi/gokapi/core/config"
+	"github.com/gokapi/gokapi/core/version"
 	"github.com/gokapi/gokapi/core/credentials"
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/model"
@@ -83,6 +84,22 @@ func (a *App) GetInitialProject() string {
 	path := a.initialProjectPath
 	a.initialProjectPath = ""
 	return path
+}
+
+// VersionInfo describes the application version.
+type VersionInfo struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
+}
+
+// GetVersion returns the application version information.
+func (a *App) GetVersion() VersionInfo {
+	return VersionInfo{
+		Version:   version.Version,
+		Commit:    version.Commit,
+		BuildDate: version.BuildDate,
+	}
 }
 
 // FormatInfo describes a registered data format.

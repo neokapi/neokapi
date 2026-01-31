@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/version"
 	"github.com/labstack/echo/v4"
 )
 
@@ -67,7 +68,7 @@ type FlowExecuteResponse struct {
 func (s *Server) handleHealth(c echo.Context) error {
 	return c.JSON(http.StatusOK, HealthResponse{
 		Status:  "ok",
-		Version: "0.8.0",
+		Version: version.Version,
 	})
 }
 
