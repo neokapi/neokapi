@@ -31,6 +31,7 @@ func NewAppConfig() *AppConfig {
 		pluginDir = filepath.Join(home, ".kapi", "plugins")
 	}
 	v.SetDefault("plugins.directory", pluginDir)
+	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
 
 	return &AppConfig{v: v}
 }
@@ -79,4 +80,9 @@ func (c *AppConfig) ChannelBuffer() int {
 // PluginDirectory returns the configured plugin directory.
 func (c *AppConfig) PluginDirectory() string {
 	return c.v.GetString("plugins.directory")
+}
+
+// RegistryURL returns the URL of the remote plugin registry.
+func (c *AppConfig) RegistryURL() string {
+	return c.v.GetString("plugins.registry")
 }

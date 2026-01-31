@@ -31,6 +31,9 @@ type App struct {
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
 
+	// pluginSearchRegistry overrides the registry URL for testing.
+	pluginSearchRegistry string
+
 	initialProjectMu   sync.Mutex
 	initialProjectPath string
 }
