@@ -86,3 +86,23 @@ func (c *AppConfig) PluginDirectory() string {
 func (c *AppConfig) RegistryURL() string {
 	return c.v.GetString("plugins.registry")
 }
+
+// FormatPriorities returns the configured format priority overrides.
+// The map keys are format names and values are priority integers.
+// Higher values are preferred when multiple formats match the same
+// MIME type or file extension.
+func (c *AppConfig) FormatPriorities() map[string]int {
+	result := make(map[string]int)
+	sub := c.v.GetStringMap("formats.priorities")
+	for name, val := range sub {
+		switch v := val.(type) {
+		case int:
+			result[name] = v
+		case int64:
+			result[name] = int(v)
+		case float64:
+			result[name] = int(v)
+		}
+	}
+	return result
+}

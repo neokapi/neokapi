@@ -38,14 +38,16 @@ translation and quality checking capabilities.`,
 		formatReg = registry.NewFormatRegistry()
 		formats.RegisterAll(formatReg)
 
+		// Load configuration.
+		cfg := config.NewAppConfig()
+		_ = cfg.Load()
+
 		// Resolve plugin directory: flag > env > config.
 		dir := pluginDir
 		if dir == "" {
 			dir = os.Getenv("KAPI_PLUGIN_DIR")
 		}
 		if dir == "" {
-			cfg := config.NewAppConfig()
-			_ = cfg.Load()
 			dir = cfg.PluginDirectory()
 		}
 
@@ -59,6 +61,11 @@ translation and quality checking capabilities.`,
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "Warning: plugin loading: %v\n", err)
 			}
+		}
+
+		// Apply format priority overrides from configuration.
+		for name, priority := range cfg.FormatPriorities() {
+			formatReg.SetFormatPriority(name, priority)
 		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {

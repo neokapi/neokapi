@@ -24,7 +24,8 @@ type FormatInfo struct {
 	Extensions  []string `json:"extensions,omitempty"`
 	HasReader   bool     `json:"has_reader"`
 	HasWriter   bool     `json:"has_writer"`
-	Source      string   `json:"source"` // "built-in" or plugin name
+	Source      string   `json:"source"`   // "built-in" or plugin name
+	Priority    int      `json:"priority"` // higher = preferred when multiple formats match
 }
 
 // FormatRegistry manages available DataFormats and their configurations.
@@ -66,6 +67,13 @@ func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory
 	if len(sig.Extensions) > 0 {
 		info.Extensions = sig.Extensions
 	}
+	// Ensure detector priority matches the info priority (which may have
+	// been set before registration, e.g. via SetFormatPriority).
+	if info.Priority != 0 {
+		r.detector.SetPriority(name, info.Priority)
+	} else {
+		info.Priority = format.DefaultBuiltInPriority
+	}
 }
 
 // RegisterWriter registers a DataFormatWriter factory.
@@ -80,11 +88,44 @@ func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory
 
 // SetFormatSource sets the source (provider) for a format. Use "built-in" for
 // built-in formats or the plugin name for plugin-provided formats.
+// Plugin formats automatically receive DefaultPluginPriority unless a priority
+// has already been explicitly set.
 func (r *FormatRegistry) SetFormatSource(name, source string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	info := r.getOrCreateInfo(name)
 	info.Source = source
+
+	// Assign default plugin priority if the source is not built-in and no
+	// explicit priority has been set (priority is still at default built-in).
+	if source != "" && source != "built-in" && info.Priority == format.DefaultBuiltInPriority {
+		info.Priority = format.DefaultPluginPriority
+		r.detector.SetPriority(name, format.DefaultPluginPriority)
+	}
+}
+
+// SetFormatPriority sets an explicit priority for the named format. Higher
+// values are preferred when multiple formats match the same MIME type or
+// extension during detection.
+func (r *FormatRegistry) SetFormatPriority(name string, priority int) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	info := r.getOrCreateInfo(name)
+	info.Priority = priority
+	r.detector.SetPriority(name, priority)
+}
+
+// ResolveFormat finds the best format name for a given MIME type by consulting
+// the detector (which considers priorities). Returns an empty string if no
+// format matches.
+func (r *FormatRegistry) ResolveFormat(mimeType string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	name, err := r.detector.DetectByMIME(mimeType)
+	if err != nil {
+		return ""
+	}
+	return name
 }
 
 // FormatInfos returns metadata for all registered formats, sorted by name.

@@ -231,3 +231,166 @@ func TestFormatInfoWriterOnly(t *testing.T) {
 	assert.False(t, infos[0].HasReader)
 	assert.True(t, infos[0].HasWriter)
 }
+
+// --- Priority tests ---
+
+func TestDefaultPriorityBuiltIn(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	assert.Equal(t, format.DefaultBuiltInPriority, info.Priority)
+}
+
+func TestSetFormatSourceSetsPluginPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	info := reg.FormatInfo("okapi-html")
+	require.NotNil(t, info)
+	assert.Equal(t, format.DefaultPluginPriority, info.Priority)
+}
+
+func TestSetFormatSourceBuiltInKeepsDefaultPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("html", "built-in")
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	assert.Equal(t, format.DefaultBuiltInPriority, info.Priority)
+}
+
+func TestSetFormatPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+
+	reg.SetFormatPriority("html", 200)
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	assert.Equal(t, 200, info.Priority)
+}
+
+func TestSetFormatPriorityOverridesPluginDefault(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	// Priority should now be plugin default.
+	info := reg.FormatInfo("okapi-html")
+	require.NotNil(t, info)
+	assert.Equal(t, format.DefaultPluginPriority, info.Priority)
+
+	// Override it.
+	reg.SetFormatPriority("okapi-html", 25)
+	info = reg.FormatInfo("okapi-html")
+	require.NotNil(t, info)
+	assert.Equal(t, 25, info.Priority)
+}
+
+func TestResolveFormatWithPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	// Plugin format should win by default (priority 100 > 50).
+	name := reg.ResolveFormat("text/html")
+	assert.Equal(t, "okapi-html", name)
+}
+
+func TestResolveFormatConfigOverride(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	// Override built-in to have higher priority.
+	reg.SetFormatPriority("html", 200)
+
+	name := reg.ResolveFormat("text/html")
+	assert.Equal(t, "html", name)
+}
+
+func TestResolveFormatNoMatch(t *testing.T) {
+	reg := NewFormatRegistry()
+	name := reg.ResolveFormat("application/octet-stream")
+	assert.Equal(t, "", name)
+}
+
+func TestFormatInfoIncludesPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatPriority("html", 150)
+
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 1)
+	assert.Equal(t, 150, infos[0].Priority)
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	assert.Equal(t, 150, info.Priority)
+}
+
+func TestSetFormatPriorityBeforeRegister(t *testing.T) {
+	reg := NewFormatRegistry()
+	// Set priority before registering the reader.
+	reg.SetFormatPriority("html", 300)
+
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	// Priority set before registration should be preserved.
+	assert.Equal(t, 300, info.Priority)
+}
+
+func TestDetectorUsedByResolveFormat(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("json", func() format.DataFormatReader {
+		return newStubReaderWithSig("json", "JSON", []string{"application/json"}, []string{".json"})
+	})
+
+	name := reg.ResolveFormat("application/json")
+	assert.Equal(t, "json", name)
+}
+
+func TestSetFormatSourceDoesNotDowngradeExplicitPriority(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	// Explicitly set a high priority first.
+	reg.SetFormatPriority("okapi-html", 500)
+	// Now set the source — should NOT downgrade to DefaultPluginPriority.
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	info := reg.FormatInfo("okapi-html")
+	require.NotNil(t, info)
+	assert.Equal(t, 500, info.Priority)
+}
