@@ -22,10 +22,10 @@ import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from ".
 
 // --- Custom Node Components ---
 
-const nodeColors: Record<string, { bg: string; border: string; label: string }> = {
-  reader: { bg: "#dcfce7", border: "#16a34a", label: "Input" },
-  writer: { bg: "#dbeafe", border: "#2563eb", label: "Output" },
-  tool: { bg: "#f3f4f6", border: "#6b7280", label: "Tool" },
+const nodeColors: Record<string, { bg: string; border: string; label: string; text: string; sub: string }> = {
+  reader: { bg: "rgba(34, 197, 94, 0.12)", border: "#22c55e", label: "Input", text: "#e4e4e7", sub: "#86efac" },
+  writer: { bg: "rgba(96, 165, 250, 0.12)", border: "#60a5fa", label: "Output", text: "#e4e4e7", sub: "#93c5fd" },
+  tool: { bg: "rgba(148, 163, 184, 0.08)", border: "#64748b", label: "Tool", text: "#e4e4e7", sub: "#94a3b8" },
 };
 
 function ReaderNode({ data }: NodeProps) {
@@ -41,13 +41,14 @@ function ReaderNode({ data }: NodeProps) {
         minWidth: 140,
         textAlign: "center",
         fontSize: 13,
+        color: colors.text,
       }}
     >
       <div style={{ fontSize: 10, color: colors.border, fontWeight: 600, marginBottom: 2 }}>
         INPUT
       </div>
       <div style={{ fontWeight: 600 }}>{(data.label as string) || "Reader"}</div>
-      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{data.formatName as string}</div>
+      <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{data.formatName as string}</div>
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
   );
@@ -66,6 +67,7 @@ function WriterNode({ data }: NodeProps) {
         minWidth: 140,
         textAlign: "center",
         fontSize: 13,
+        color: colors.text,
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
@@ -73,7 +75,7 @@ function WriterNode({ data }: NodeProps) {
         OUTPUT
       </div>
       <div style={{ fontWeight: 600 }}>{(data.label as string) || "Writer"}</div>
-      <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{data.formatName as string}</div>
+      <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{data.formatName as string}</div>
     </div>
   );
 }
@@ -86,21 +88,22 @@ function ToolNode({ data, selected }: NodeProps) {
       style={{
         padding: "10px 16px",
         borderRadius: 8,
-        border: `2px solid ${selected ? "var(--accent, #3b82f6)" : colors.border}`,
-        background: selected ? "#eff6ff" : colors.bg,
+        border: `2px solid ${selected ? "var(--accent, #6366f1)" : colors.border}`,
+        background: selected ? "rgba(99, 102, 241, 0.15)" : colors.bg,
         minWidth: 140,
         textAlign: "center",
         fontSize: 13,
-        boxShadow: selected ? "0 0 0 2px rgba(59,130,246,0.3)" : "none",
+        color: colors.text,
+        boxShadow: selected ? "0 0 0 2px rgba(99,102,241,0.3)" : "none",
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 600, marginBottom: 2 }}>
+      <div style={{ fontSize: 10, color: colors.sub, fontWeight: 600, marginBottom: 2 }}>
         TOOL
       </div>
       <div style={{ fontWeight: 600 }}>{(data.label as string) || (data.toolName as string)}</div>
       {data.description ? (
-        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>{String(data.description)}</div>
+        <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{String(data.description)}</div>
       ) : null}
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
@@ -132,7 +135,7 @@ function defToReactFlow(def: FlowDefinitionInfo): { nodes: Node[]; edges: Edge[]
     source: e.source,
     target: e.target,
     animated: true,
-    style: { stroke: "#94a3b8", strokeWidth: 2 },
+    style: { stroke: "#6366f1", strokeWidth: 2 },
   }));
   return { nodes, edges };
 }
@@ -173,14 +176,14 @@ function ToolPalette({ tools, onAddTool }: { tools: ToolInfo[]; onAddTool: (tool
       data-testid="tool-palette"
       style={{
         padding: 12,
-        borderBottom: "1px solid var(--border, #e5e7eb)",
+        borderBottom: "1px solid var(--border, #2e3039)",
         display: "flex",
         gap: 8,
         flexWrap: "wrap",
         alignItems: "center",
       }}
     >
-      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #6b7280)" }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #a1a1aa)" }}>
         Add Tool:
       </span>
       {tools.map((tool) => (
@@ -191,10 +194,10 @@ function ToolPalette({ tools, onAddTool }: { tools: ToolInfo[]; onAddTool: (tool
           style={{
             padding: "4px 10px",
             fontSize: 12,
-            border: "1px solid var(--border, #d1d5db)",
+            border: "1px solid var(--border, #2e3039)",
             borderRadius: 6,
-            background: "var(--bg-primary, #fff)",
-            color: "var(--text-primary, #111)",
+            background: "var(--bg-secondary, #1a1d27)",
+            color: "var(--text-primary, #e4e4e7)",
             cursor: "pointer",
           }}
         >
@@ -223,7 +226,7 @@ function FlowList({
       data-testid="flow-list"
       style={{
         width: 240,
-        borderRight: "1px solid var(--border, #e5e7eb)",
+        borderRight: "1px solid var(--border, #2e3039)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -232,22 +235,22 @@ function FlowList({
       <div
         style={{
           padding: "12px 16px",
-          borderBottom: "1px solid var(--border, #e5e7eb)",
+          borderBottom: "1px solid var(--border, #2e3039)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
         }}
       >
-        <span style={{ fontWeight: 600, fontSize: 14 }}>Flows</span>
+        <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary, #e4e4e7)" }}>Flows</span>
         <button
           data-testid="new-flow-btn"
           onClick={onNew}
           style={{
             padding: "4px 10px",
             fontSize: 12,
-            border: "1px solid var(--border, #d1d5db)",
+            border: "none",
             borderRadius: 6,
-            background: "var(--accent, #3b82f6)",
+            background: "var(--accent, #6366f1)",
             color: "#fff",
             cursor: "pointer",
           }}
@@ -266,14 +269,15 @@ function FlowList({
               padding: "10px 16px",
               textAlign: "left",
               border: "none",
-              borderLeft: activeId === def.id ? "3px solid var(--accent, #3b82f6)" : "3px solid transparent",
-              background: activeId === def.id ? "var(--bg-tertiary, #f3f4f6)" : "transparent",
+              borderLeft: activeId === def.id ? "3px solid var(--accent, #6366f1)" : "3px solid transparent",
+              background: activeId === def.id ? "var(--bg-tertiary, #252830)" : "transparent",
+              color: "var(--text-primary, #e4e4e7)",
               cursor: "pointer",
               fontSize: 13,
             }}
           >
             <div style={{ fontWeight: 500 }}>{def.name}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary, #6b7280)", marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: "var(--text-secondary, #a1a1aa)", marginTop: 2 }}>
               {def.source} &middot; {def.nodes.filter((n) => n.type === "tool").length} tool(s)
             </div>
           </button>
@@ -303,7 +307,7 @@ export function FlowBuilder() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) => addEdge(connection, eds).map((e) => ({ ...e, animated: true, style: { stroke: "#94a3b8", strokeWidth: 2 } })));
+      setEdges((eds) => addEdge(connection, eds).map((e) => ({ ...e, animated: true, style: { stroke: "#6366f1", strokeWidth: 2 } })));
       setDirty(true);
     },
     [setEdges],
@@ -424,7 +428,7 @@ export function FlowBuilder() {
   );
 
   return (
-    <div data-testid="flow-builder" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: 8, border: "1px solid var(--border, #e5e7eb)", overflow: "hidden" }}>
+    <div data-testid="flow-builder" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: 8, border: "1px solid var(--border, #2e3039)", overflow: "hidden" }}>
       <FlowList
         definitions={definitions}
         activeId={activeDef?.id || null}
@@ -439,7 +443,7 @@ export function FlowBuilder() {
               data-testid="flow-toolbar"
               style={{
                 padding: "8px 16px",
-                borderBottom: "1px solid var(--border, #e5e7eb)",
+                borderBottom: "1px solid var(--border, #2e3039)",
                 display: "flex",
                 gap: 12,
                 alignItems: "center",
@@ -453,10 +457,11 @@ export function FlowBuilder() {
                 style={{
                   fontWeight: 600,
                   fontSize: 16,
-                  border: isBuiltIn ? "none" : "1px solid var(--border, #d1d5db)",
+                  border: isBuiltIn ? "none" : "1px solid var(--border, #2e3039)",
                   borderRadius: 4,
                   padding: "4px 8px",
-                  background: isBuiltIn ? "transparent" : "var(--bg-primary, #fff)",
+                  background: isBuiltIn ? "transparent" : "var(--bg-secondary, #1a1d27)",
+                  color: "var(--text-primary, #e4e4e7)",
                   flex: 1,
                   maxWidth: 300,
                 }}
@@ -469,12 +474,12 @@ export function FlowBuilder() {
                 disabled={isBuiltIn}
                 style={{
                   fontSize: 13,
-                  border: isBuiltIn ? "none" : "1px solid var(--border, #d1d5db)",
+                  border: isBuiltIn ? "none" : "1px solid var(--border, #2e3039)",
                   borderRadius: 4,
                   padding: "4px 8px",
-                  background: isBuiltIn ? "transparent" : "var(--bg-primary, #fff)",
+                  background: isBuiltIn ? "transparent" : "var(--bg-secondary, #1a1d27)",
                   flex: 1,
-                  color: "var(--text-secondary, #6b7280)",
+                  color: "var(--text-secondary, #a1a1aa)",
                 }}
               />
               <span
@@ -482,8 +487,8 @@ export function FlowBuilder() {
                   fontSize: 11,
                   padding: "2px 8px",
                   borderRadius: 4,
-                  background: isBuiltIn ? "#dbeafe" : "#dcfce7",
-                  color: isBuiltIn ? "#2563eb" : "#16a34a",
+                  background: isBuiltIn ? "rgba(96, 165, 250, 0.15)" : "rgba(34, 197, 94, 0.15)",
+                  color: isBuiltIn ? "#60a5fa" : "#4ade80",
                   fontWeight: 600,
                 }}
               >
@@ -501,8 +506,8 @@ export function FlowBuilder() {
                       fontWeight: 600,
                       border: "none",
                       borderRadius: 6,
-                      background: dirty ? "var(--accent, #3b82f6)" : "#94a3b8",
-                      color: "#fff",
+                      background: dirty ? "var(--accent, #6366f1)" : "#3e4047",
+                      color: dirty ? "#fff" : "#71717a",
                       cursor: dirty ? "pointer" : "default",
                     }}
                   >
@@ -543,10 +548,15 @@ export function FlowBuilder() {
                 elementsSelectable={!isBuiltIn}
                 deleteKeyCode={isBuiltIn ? null : "Backspace"}
                 proOptions={{ hideAttribution: true }}
+                style={{ background: "var(--bg-primary, #0f1117)" }}
               >
-                <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+                <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#3e4047" />
                 <Controls />
-                <MiniMap nodeColor={miniMapNodeColor} style={{ height: 80 }} />
+                <MiniMap
+                  nodeColor={miniMapNodeColor}
+                  style={{ height: 80, background: "var(--bg-secondary, #1a1d27)" }}
+                  maskColor="rgba(0, 0, 0, 0.4)"
+                />
               </ReactFlow>
             </div>
           </>
@@ -558,7 +568,7 @@ export function FlowBuilder() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "var(--text-secondary, #6b7280)",
+              color: "var(--text-secondary, #a1a1aa)",
               fontSize: 14,
             }}
           >
