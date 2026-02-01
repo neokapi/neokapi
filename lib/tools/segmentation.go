@@ -110,12 +110,6 @@ func segmentText(text string, rules []compiledRule) []string {
 	}
 
 	// Find all potential break points.
-	type breakCandidate struct {
-		pos     int
-		isBreak bool
-		priority int // no-break rules have higher priority (checked first)
-	}
-
 	runes := []rune(text)
 	textLen := len(runes)
 
