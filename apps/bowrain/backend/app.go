@@ -30,6 +30,7 @@ type App struct {
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
 	projects     *projectStore
+	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
 
@@ -40,32 +41,50 @@ type App struct {
 	initialProjectPath string
 }
 
-// NewApp creates a new Bowrain backend with all formats registered.
+// NewApp creates a new Bowrain backend with all formats and plugins registered.
+// This blocks until plugin loading completes (which may start a JVM subprocess).
+// For GUI use, prefer NewAppWithoutPlugins followed by LoadPlugins in a goroutine.
 func NewApp() *App {
+	a := NewAppWithoutPlugins()
+	a.LoadPlugins()
+	return a
+}
+
+// NewAppWithoutPlugins creates a Bowrain backend with built-in formats and tools
+// registered but without loading plugins. Call LoadPlugins separately (possibly
+// in a background goroutine) to discover and register plugins.
+func NewAppWithoutPlugins() *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 
-	// Resolve plugin directory: env var overrides config default.
+	return &App{
+		formatReg:   reg,
+		toolReg:     toolReg,
+		projects:    newProjectStore(),
+		credentials: credentials.NewStore(credentials.DefaultPath()),
+	}
+}
+
+// LoadPlugins discovers and loads plugins from the configured plugin directory.
+// This may start JVM subprocesses for Java bridge plugins and can take several
+// seconds. Safe to call from a goroutine.
+func (a *App) LoadPlugins() {
 	pluginDir := os.Getenv("KAPI_PLUGIN_DIR")
 	if pluginDir == "" {
 		pluginDir = config.NewAppConfig().PluginDirectory()
 	}
 
 	pl := loader.NewPluginLoader(pluginDir, nil)
-	if err := pl.LoadAll(reg, nil); err != nil {
+	if err := pl.LoadAll(a.formatReg, nil); err != nil {
 		log.Printf("bowrain: failed to load plugins: %v", err)
 	}
 
-	return &App{
-		formatReg:    reg,
-		toolReg:      toolReg,
-		pluginLoader: pl,
-		projects:     newProjectStore(),
-		credentials:  credentials.NewStore(credentials.DefaultPath()),
-	}
+	a.pluginMu.Lock()
+	a.pluginLoader = pl
+	a.pluginMu.Unlock()
 }
 
 // SetApplication stores the Wails v3 application reference for dialog and event access.
@@ -284,10 +303,13 @@ func (a *App) ListFlows() []FlowInfo {
 
 // ListPlugins returns all loaded plugins.
 func (a *App) ListPlugins() []PluginInfo {
-	if a.pluginLoader == nil {
+	a.pluginMu.Lock()
+	pl := a.pluginLoader
+	a.pluginMu.Unlock()
+	if pl == nil {
 		return []PluginInfo{}
 	}
-	raw := a.pluginLoader.Plugins()
+	raw := pl.Plugins()
 	out := make([]PluginInfo, len(raw))
 	for i, p := range raw {
 		out[i] = PluginInfo{
@@ -302,10 +324,13 @@ func (a *App) ListPlugins() []PluginInfo {
 
 // PluginDir returns the configured plugin directory path.
 func (a *App) PluginDir() string {
-	if a.pluginLoader == nil {
+	a.pluginMu.Lock()
+	pl := a.pluginLoader
+	a.pluginMu.Unlock()
+	if pl == nil {
 		return ""
 	}
-	return a.pluginLoader.Dir()
+	return pl.Dir()
 }
 
 // ServiceShutdown is called by Wails v3 when the application exits.
@@ -316,8 +341,11 @@ func (a *App) ServiceShutdown() error {
 			p.tm.Close()
 		}
 	}
-	if a.pluginLoader != nil {
-		a.pluginLoader.Shutdown()
+	a.pluginMu.Lock()
+	pl := a.pluginLoader
+	a.pluginMu.Unlock()
+	if pl != nil {
+		pl.Shutdown()
 	}
 	return nil
 }

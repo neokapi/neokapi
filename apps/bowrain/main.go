@@ -35,7 +35,10 @@ func parseProjectArg(args []string) string {
 }
 
 func main() {
-	appService := backend.NewApp()
+	// Create the backend without plugins first so the window can appear
+	// immediately. Plugin loading (which may start a JVM subprocess) is
+	// deferred to the background.
+	appService := backend.NewAppWithoutPlugins()
 
 	// Check if a .kaz project file was passed as a CLI argument.
 	if path := parseProjectArg(os.Args[1:]); path != "" {
@@ -74,6 +77,11 @@ func main() {
 	win.OnWindowEvent(events.Common.WindowFilesDropped, func(event *application.WindowEvent) {
 		files := event.Context().DroppedFiles()
 		app.Event.Emit("files-dropped", files)
+	})
+
+	// Load plugins in the background after the window is ready.
+	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
+		go appService.LoadPlugins()
 	})
 
 	if err := app.Run(); err != nil {
