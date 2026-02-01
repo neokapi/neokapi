@@ -90,6 +90,11 @@ jobs:
           cp resources/bowrain-launcher.sh bin/Bowrain.app/Contents/Resources/bin/bowrain
           chmod +x bin/Bowrain.app/Contents/Resources/bin/bowrain
 
+      - name: Re-sign after adding launcher
+        if: runner.os == 'macOS'
+        working-directory: apps/bowrain
+        run: codesign --force --deep --sign - bin/Bowrain.app
+
       - name: Create DMG
         if: runner.os == 'macOS'
         working-directory: apps/bowrain
