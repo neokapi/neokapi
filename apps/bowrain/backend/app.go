@@ -223,13 +223,17 @@ func (a *App) ListTools() []ToolInfo {
 	}
 }
 
-// ListFlows returns all available flows.
+// ListFlows returns all available flows (summary info).
 func (a *App) ListFlows() []FlowInfo {
-	return []FlowInfo{
-		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
-		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
+	defs := a.ListFlowDefinitions()
+	result := make([]FlowInfo, len(defs))
+	for i, d := range defs {
+		result[i] = FlowInfo{
+			Name:        d.ID,
+			Description: d.Description,
+		}
 	}
+	return result
 }
 
 // ListPlugins returns all loaded plugins.

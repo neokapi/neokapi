@@ -3,6 +3,7 @@ import type {
   FormatInfo,
   ToolInfo,
   FlowInfo,
+  FlowDefinitionInfo,
   PluginInfo,
   ProjectInfo,
   BlockInfo,
@@ -381,4 +382,51 @@ export function useProviderApi() {
   );
 
   return { saveProviderConfig, deleteProviderConfig, testProviderConfig };
+}
+
+// Flow definition hooks
+
+export function useFlowDefinitions() {
+  const [definitions, setDefinitions] = useState<FlowDefinitionInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(() => {
+    setLoading(true);
+    Backend.ListFlowDefinitions()
+      .then((r: FlowDefinitionInfo[]) => setDefinitions(r || []))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { definitions, loading, error, refresh };
+}
+
+export function useFlowDefinitionApi() {
+  const getFlowDefinition = useCallback(
+    async (id: string): Promise<FlowDefinitionInfo> => {
+      return Backend.GetFlowDefinition(id) as Promise<FlowDefinitionInfo>;
+    },
+    [],
+  );
+
+  const saveFlowDefinition = useCallback(
+    async (def: FlowDefinitionInfo): Promise<FlowDefinitionInfo> => {
+      return Backend.SaveFlowDefinition(def) as Promise<FlowDefinitionInfo>;
+    },
+    [],
+  );
+
+  const deleteFlowDefinition = useCallback(
+    async (id: string): Promise<void> => {
+      return Backend.DeleteFlowDefinition(id);
+    },
+    [],
+  );
+
+  return { getFlowDefinition, saveFlowDefinition, deleteFlowDefinition };
 }

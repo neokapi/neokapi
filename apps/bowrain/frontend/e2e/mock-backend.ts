@@ -131,12 +131,15 @@ export async function injectMockBackend(page: Page) {
       AddFilesDialog: 2566359367,
       CloseProject: 3497243272,
       CreateProject: 2219834270,
+      DeleteFlowDefinition: 3801002001,
       DeleteProviderConfig: 2103858573,
       ExportTranslatedFile: 2327530811,
       GetFileBlocks: 711926175,
+      GetFlowDefinition: 3801002002,
       GetInitialProject: 4269707510,
       GetProject: 1329939084,
       GetWordCount: 2276123042,
+      ListFlowDefinitions: 3801002003,
       ListFlows: 2730811374,
       ListFormats: 1658666415,
       ListPlugins: 1851753111,
@@ -152,6 +155,7 @@ export async function injectMockBackend(page: Page) {
       RemoveFile: 1600906915,
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
+      SaveFlowDefinition: 3801002004,
       SaveProject: 179173205,
       SaveProjectAs: 3259052957,
       SaveProjectDialog: 2824494121,
@@ -192,6 +196,67 @@ export async function injectMockBackend(page: Page) {
       { name: "ai-translate", description: "AI translation flow" },
       { name: "pseudo-translate", description: "Pseudo-translation flow" },
     ];
+
+    // --- Flow definition storage ---
+    const builtInFlowDefs: Record<string, any> = {
+      "ai-translate": {
+        id: "ai-translate",
+        name: "AI Translate",
+        description: "Translate content using AI/LLM",
+        source: "built-in",
+        nodes: [
+          { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
+          { id: "ai-translate", type: "tool", name: "ai-translate", label: "AI Translate", position: { x: 250, y: 100 } },
+          { id: "writer", type: "writer", name: "auto", label: "Output", position: { x: 500, y: 100 } },
+        ],
+        edges: [
+          { id: "e-reader-translate", source: "reader", target: "ai-translate" },
+          { id: "e-translate-writer", source: "ai-translate", target: "writer" },
+        ],
+      },
+      "pseudo-translate": {
+        id: "pseudo-translate",
+        name: "Pseudo Translate",
+        description: "Generate pseudo-translations for testing",
+        source: "built-in",
+        nodes: [
+          { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
+          { id: "pseudo-translate", type: "tool", name: "pseudo-translate", label: "Pseudo Translate", position: { x: 250, y: 100 } },
+          { id: "writer", type: "writer", name: "auto", label: "Output", position: { x: 500, y: 100 } },
+        ],
+        edges: [
+          { id: "e-reader-pseudo", source: "reader", target: "pseudo-translate" },
+          { id: "e-pseudo-writer", source: "pseudo-translate", target: "writer" },
+        ],
+      },
+    };
+    const userFlowDefs: Record<string, any> = {};
+
+    mock[IDS.ListFlowDefinitions] = () => [
+      ...Object.values(builtInFlowDefs),
+      ...Object.values(userFlowDefs),
+    ];
+
+    mock[IDS.GetFlowDefinition] = (id: string) => {
+      if (builtInFlowDefs[id]) return builtInFlowDefs[id];
+      if (userFlowDefs[id]) return userFlowDefs[id];
+      throw new Error(`Flow ${id} not found`);
+    };
+
+    mock[IDS.SaveFlowDefinition] = (def: any) => {
+      if (def.source === "built-in") throw new Error("Cannot modify built-in flows");
+      def.source = "user";
+      def.modified_at = new Date().toISOString();
+      if (!def.created_at) def.created_at = def.modified_at;
+      userFlowDefs[def.id] = { ...def };
+      return { ...def };
+    };
+
+    mock[IDS.DeleteFlowDefinition] = (id: string) => {
+      if (builtInFlowDefs[id]) throw new Error(`Cannot delete built-in flow ${id}`);
+      if (!userFlowDefs[id]) throw new Error(`Flow ${id} not found`);
+      delete userFlowDefs[id];
+    };
 
     mock[IDS.ListPlugins] = () => [];
     mock[IDS.PluginDir] = () => "~/.kapi/plugins";

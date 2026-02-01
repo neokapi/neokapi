@@ -17,6 +17,41 @@ export interface FlowInfo {
   description: string;
 }
 
+/** Flow node position */
+export interface FlowNodePosition {
+  x: number;
+  y: number;
+}
+
+/** Flow node in a flow definition */
+export interface FlowNodeInfo {
+  id: string;
+  type: "tool" | "reader" | "writer";
+  name: string;
+  label?: string;
+  config?: Record<string, unknown>;
+  position: FlowNodePosition;
+}
+
+/** Flow edge in a flow definition */
+export interface FlowEdgeInfo {
+  id: string;
+  source: string;
+  target: string;
+}
+
+/** Full flow definition for the flow builder */
+export interface FlowDefinitionInfo {
+  id: string;
+  name: string;
+  description?: string;
+  nodes: FlowNodeInfo[];
+  edges: FlowEdgeInfo[];
+  source: string;
+  created_at?: string;
+  modified_at?: string;
+}
+
 /** Plugin descriptor */
 export interface PluginInfo {
   name: string;

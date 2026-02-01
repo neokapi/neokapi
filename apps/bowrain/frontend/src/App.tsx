@@ -8,6 +8,7 @@ import { ProjectDashboard } from "./components/ProjectDashboard";
 import { ProjectView } from "./components/ProjectView";
 import { TranslationEditor } from "./components/TranslationEditor";
 import { TMExplorer } from "./components/TMExplorer";
+import { FlowBuilder } from "./components/FlowBuilder";
 import { useHealth, useProjectApi } from "./hooks/useApi";
 import type { ProjectInfo } from "./types/api";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -215,10 +216,13 @@ function App() {
         return <ConvertPanel />;
       case "translate":
         return <TranslatePanel />;
+      case "flows":
+        return <FlowBuilder />;
     }
   };
 
   const isEditor = activeView === "projects" && activeProject != null && activeFile != null;
+  const isFlowBuilder = activeView === "flows";
 
   return (
     <div
@@ -235,7 +239,7 @@ function App() {
           style={{
             flex: 1,
             padding: 24,
-            overflow: isEditor ? "hidden" : "auto",
+            overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
             display: "flex",
             flexDirection: "column",
             minHeight: 0,

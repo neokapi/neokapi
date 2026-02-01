@@ -145,6 +145,15 @@ export function DeleteTMEntry(projectID, entryID) {
 }
 
 /**
+ * DeleteFlowDefinition removes a user flow definition.
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function DeleteFlowDefinition(id) {
+    return $Call.ByID(3801002001, id);
+}
+
+/**
  * DetectFormat detects the format of a file by its extension.
  * @param {string} filePath
  * @returns {$CancellablePromise<string>}
@@ -196,6 +205,15 @@ export function GetFileBlocks(projectID, fileName) {
     return $Call.ByID(711926175, projectID, fileName).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType11($result);
     }));
+}
+
+/**
+ * GetFlowDefinition returns a specific flow definition by ID.
+ * @param {string} id
+ * @returns {$CancellablePromise<any>}
+ */
+export function GetFlowDefinition(id) {
+    return $Call.ByID(3801002002, id);
 }
 
 /**
@@ -268,7 +286,15 @@ export function GetWordCount(projectID, itemName) {
 }
 
 /**
- * ListFlows returns all available flows.
+ * ListFlowDefinitions returns all flow definitions (built-in + user).
+ * @returns {$CancellablePromise<any[]>}
+ */
+export function ListFlowDefinitions() {
+    return $Call.ByID(3801002003);
+}
+
+/**
+ * ListFlows returns all available flows (summary info).
  * @returns {$CancellablePromise<$models.FlowInfo[]>}
  */
 export function ListFlows() {
@@ -451,6 +477,15 @@ export function RenderBlockHTML(projectID, itemName, blockID, targetLocale) {
  */
 export function RenderDocumentPreview(projectID, itemName, targetLocale) {
     return $Call.ByID(3649056848, projectID, itemName, targetLocale);
+}
+
+/**
+ * SaveFlowDefinition saves a user flow definition.
+ * @param {any} info
+ * @returns {$CancellablePromise<any>}
+ */
+export function SaveFlowDefinition(info) {
+    return $Call.ByID(3801002004, info);
 }
 
 /**
