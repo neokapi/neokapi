@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/config"
@@ -28,10 +29,8 @@ var pluginsListCmd = &cobra.Command{
 }
 
 func listInstalledPlugins() error {
-	// Show locally loaded plugins (discovered by the plugin loader).
 	plugins := pluginLoader.Plugins()
 
-	// Also show version-tracked installations.
 	cfg := config.NewAppConfig()
 	_ = cfg.Load()
 	reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
@@ -46,45 +45,46 @@ func listInstalledPlugins() error {
 		return nil
 	}
 
-	if len(plugins) > 0 {
-		fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", "NAME", "VERSION", "TYPE", "FORMATS", "SOURCE")
-		fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", "----", "-------", "----", "-------", "------")
-		for _, p := range plugins {
-			fmts := strings.Join(p.Formats, ", ")
-			version := p.Version
-			if version == "" {
-				version = "-"
-			}
-			fmt.Printf("  %-20s %-10s %-10s %-30s %s\n", p.Name, version, p.Type, fmts, p.Source)
+	// Group installed versions by name.
+	byName := make(map[string][]string)
+	var nameOrder []string
+	for _, iv := range installed {
+		if _, exists := byName[iv.Name]; !exists {
+			nameOrder = append(nameOrder, iv.Name)
 		}
-		fmt.Printf("\n%d plugin(s) loaded from %s\n", len(plugins), pluginLoader.Dir())
+		byName[iv.Name] = append(byName[iv.Name], iv.Version)
 	}
 
-	if len(installed) > 0 {
-		if len(plugins) > 0 {
-			fmt.Println()
-		}
-		fmt.Println("Installed plugins (version tracked):")
-
-		// Determine latest versions per name for marking.
-		latestByName := make(map[string]string)
-		for _, iv := range installed {
-			if cur, ok := latestByName[iv.Name]; !ok || registry.CompareSemver(iv.Version, cur) > 0 {
-				latestByName[iv.Name] = iv.Version
+	// Include loaded plugins that may lack version tracking.
+	for _, p := range plugins {
+		if _, exists := byName[p.Name]; !exists {
+			nameOrder = append(nameOrder, p.Name)
+			v := p.Version
+			if v == "" {
+				v = "0.0.0"
 			}
-		}
-
-		fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", "NAME", "VERSION", "TYPE", "INSTALLED", "STATUS")
-		fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", "----", "-------", "----", "---------", "------")
-		for _, iv := range installed {
-			status := ""
-			if latestByName[iv.Name] == iv.Version {
-				status = "(latest)"
-			}
-			fmt.Printf("  %-25s %-10s %-10s %-25s %s\n", iv.Name, iv.Version, iv.InstallType, iv.InstalledAt, status)
+			byName[p.Name] = []string{v}
 		}
 	}
 
+	sort.Strings(nameOrder)
+
+	var items []string
+	for _, name := range nameOrder {
+		versions := byName[name]
+		sort.Slice(versions, func(i, j int) bool {
+			return registry.CompareSemver(versions[i], versions[j]) > 0
+		})
+		// Latest version shown as bare name.
+		items = append(items, name+" \u2714")
+		// Older versions shown as name@version.
+		for _, v := range versions[1:] {
+			items = append(items, name+"@"+v+" \u2714")
+		}
+	}
+
+	fmt.Print(formatColumns(items))
+	fmt.Printf("\nPlugin directory: %s\n", pluginLoader.Dir())
 	return nil
 }
 
@@ -93,27 +93,81 @@ func listAvailablePlugins() error {
 	_ = cfg.Load()
 	reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
-	available, err := reg.ListAvailable()
+	groups, err := reg.ListAvailableGrouped()
 	if err != nil {
 		return fmt.Errorf("fetching available plugins: %w", err)
 	}
 
-	if len(available) == 0 {
+	if len(groups) == 0 {
 		fmt.Println("No plugins available in the registry.")
 		return nil
 	}
 
-	fmt.Printf("  %-25s %-10s %-10s %s\n", "NAME", "VERSION", "TYPE", "DESCRIPTION")
-	fmt.Printf("  %-25s %-10s %-10s %s\n", "----", "-------", "----", "-----------")
-	for _, m := range available {
-		desc := m.Description
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
-		}
-		fmt.Printf("  %-25s %-10s %-10s %s\n", m.Name, m.Version, m.PluginType, desc)
+	// Build installed version set.
+	installed, _ := reg.ListInstalled()
+	installedSet := make(map[string]bool)
+	for _, iv := range installed {
+		installedSet[iv.Name+"/"+iv.Version] = true
 	}
-	fmt.Printf("\n%d plugin(s) available\n", len(available))
+
+	// Build display items: bare name for latest, name@version for others.
+	var items []string
+	for _, g := range groups {
+		label := g.Name
+		if installedSet[g.Name+"/"+g.Latest.Version] {
+			label += " \u2714"
+		}
+		items = append(items, label)
+
+		for _, v := range g.Versions[1:] {
+			vLabel := g.Name + "@" + v.Version
+			if installedSet[g.Name+"/"+v.Version] {
+				vLabel += " \u2714"
+			}
+			items = append(items, vLabel)
+		}
+	}
+
+	fmt.Print(formatColumns(items))
 	return nil
+}
+
+// formatColumns arranges items in a multi-column grid layout, similar to
+// homebrew's search output. Returns the formatted string.
+func formatColumns(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+
+	const termWidth = 80
+
+	maxWidth := 0
+	for _, item := range items {
+		w := len([]rune(item))
+		if w > maxWidth {
+			maxWidth = w
+		}
+	}
+
+	colWidth := maxWidth + 2
+	cols := termWidth / colWidth
+	if cols < 1 {
+		cols = 1
+	}
+
+	var sb strings.Builder
+	for i, item := range items {
+		if i > 0 && i%cols == 0 {
+			sb.WriteByte('\n')
+		}
+		sb.WriteString(item)
+		pad := colWidth - len([]rune(item))
+		if pad > 0 {
+			sb.WriteString(strings.Repeat(" ", pad))
+		}
+	}
+	sb.WriteByte('\n')
+	return sb.String()
 }
 
 var pluginsInstallCmd = &cobra.Command{
@@ -139,7 +193,7 @@ var pluginsInstallCmd = &cobra.Command{
 		if !quiet {
 			fmt.Printf("Installed %s v%s (%s)\n", result.Name, result.Version, result.InstallType)
 			for _, f := range result.Files {
-				fmt.Printf("  → %s\n", f)
+				fmt.Printf("  \u2192 %s\n", f)
 			}
 		}
 		return nil
@@ -182,7 +236,7 @@ var pluginsUpdateCmd = &cobra.Command{
 
 		for _, u := range updates {
 			if !quiet {
-				fmt.Printf("Updating %s: %s → %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
+				fmt.Printf("Updating %s: %s \u2192 %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
 			}
 			result, err := reg.InstallPlugin(registry.PluginRef{Name: u.Name})
 			if err != nil {

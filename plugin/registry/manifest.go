@@ -4,6 +4,7 @@ package registry
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -95,6 +96,48 @@ type RegistryIndex struct {
 
 	// Plugins lists all available plugin manifests.
 	Plugins []PluginManifest `json:"plugins"`
+}
+
+// PluginGroup holds all available versions of a plugin grouped by name.
+type PluginGroup struct {
+	// Name is the plugin name (e.g., "okapi").
+	Name string
+
+	// Latest is the manifest with the highest version.
+	Latest PluginManifest
+
+	// Versions contains all versions sorted descending by semantic version.
+	Versions []PluginManifest
+}
+
+// GroupByName groups manifests by plugin name for the given platform,
+// returning groups sorted alphabetically with versions sorted descending.
+func (idx *RegistryIndex) GroupByName(platform string) []PluginGroup {
+	byName := make(map[string][]PluginManifest)
+	for _, m := range idx.Plugins {
+		if m.Platform != platform && m.Platform != "" {
+			continue
+		}
+		byName[m.Name] = append(byName[m.Name], m)
+	}
+
+	groups := make([]PluginGroup, 0, len(byName))
+	for name, manifests := range byName {
+		sort.Slice(manifests, func(i, j int) bool {
+			return CompareSemver(manifests[i].Version, manifests[j].Version) > 0
+		})
+		groups = append(groups, PluginGroup{
+			Name:     name,
+			Latest:   manifests[0],
+			Versions: manifests,
+		})
+	}
+
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].Name < groups[j].Name
+	})
+
+	return groups
 }
 
 // FindVersions returns all manifests for the given plugin name and platform,

@@ -81,6 +81,18 @@ func (r *RemoteRegistry) ListAvailable() ([]PluginManifest, error) {
 	return matching, nil
 }
 
+// ListAvailableGrouped returns plugins grouped by name for the current platform.
+// Each group contains all versions sorted descending, with the latest version
+// identified in the Latest field.
+func (r *RemoteRegistry) ListAvailableGrouped() ([]PluginGroup, error) {
+	index, err := r.FetchIndex()
+	if err != nil {
+		return nil, err
+	}
+	platform := runtime.GOOS + "/" + runtime.GOARCH
+	return index.GroupByName(platform), nil
+}
+
 // FindPlugin searches for a plugin by ref in the registry. If the ref includes
 // a version, it finds that exact version; otherwise it finds the latest.
 func (r *RemoteRegistry) FindPlugin(ref PluginRef) (*PluginManifest, error) {

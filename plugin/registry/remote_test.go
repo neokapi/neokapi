@@ -722,3 +722,48 @@ func TestRemovePluginNotInstalled(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not installed")
 }
+
+func TestListAvailableGrouped(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{Name: "okapi", Version: "1.47.0", Description: "Okapi bridge"},
+			{Name: "okapi", Version: "1.46.0", Description: "Okapi bridge"},
+			{Name: "deepl", Version: "1.0.0", Description: "DeepL connector"},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	groups, err := reg.ListAvailableGrouped()
+	require.NoError(t, err)
+	require.Len(t, groups, 2)
+
+	// Sorted alphabetically: deepl first, then okapi.
+	assert.Equal(t, "deepl", groups[0].Name)
+	assert.Equal(t, "1.0.0", groups[0].Latest.Version)
+
+	assert.Equal(t, "okapi", groups[1].Name)
+	assert.Equal(t, "1.47.0", groups[1].Latest.Version)
+	assert.Len(t, groups[1].Versions, 2)
+}
+
+func TestListAvailableGroupedEmpty(t *testing.T) {
+	index := RegistryIndex{Version: 1}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	groups, err := reg.ListAvailableGrouped()
+	require.NoError(t, err)
+	assert.Empty(t, groups)
+}
