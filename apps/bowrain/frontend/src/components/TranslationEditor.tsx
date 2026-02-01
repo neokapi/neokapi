@@ -14,6 +14,29 @@ interface TranslationEditorProps {
   onBack: () => void;
 }
 
+type LayoutMode = "grid" | "focus" | "split-h" | "split-v";
+type BlockStatus = "not-started" | "draft" | "translated" | "reviewed";
+
+function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
+  if (block.properties["translation-status"] === "reviewed") return "reviewed";
+  if (block.properties["translation-status"] === "draft") return "draft";
+  if (!block.targets[locale]) return "not-started";
+  if (
+    block.properties["translation-origin"] === "machine" ||
+    block.properties["translation-origin"] === "pseudo"
+  ) {
+    return "draft";
+  }
+  return "translated";
+}
+
+const statusColors: Record<BlockStatus, string> = {
+  "not-started": "transparent",
+  draft: "#f59e0b",
+  translated: "#3b82f6",
+  reviewed: "#22c55e",
+};
+
 export function TranslationEditor({ project, fileName, onBack }: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -25,9 +48,11 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showPreview, setShowPreview] = useState(false);
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("grid");
+  const [focusEditValue, setFocusEditValue] = useState("");
 
   const api = useEditorApi();
+  const { getFileBlocks, getWordCount: getWordCountApi } = api;
   const { configs: providerConfigs } = useProviderConfigs();
   const [selectedProvider, setSelectedProvider] = useState("");
   const editInputRef = useRef<HTMLTextAreaElement>(null);
@@ -36,21 +61,21 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   // Load blocks
   const loadBlocks = useCallback(async () => {
     try {
-      const b = await api.getFileBlocks(project.id, fileName);
+      const b = await getFileBlocks(project.id, fileName);
       setBlocks(b || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load blocks");
     }
-  }, [api, project.id, fileName]);
+  }, [getFileBlocks, project.id, fileName]);
 
   const loadWordCount = useCallback(async () => {
     try {
-      const wc = await api.getWordCount(project.id, fileName);
+      const wc = await getWordCountApi(project.id, fileName);
       setWordCount(wc);
     } catch {
       // ignore word count errors
     }
-  }, [api, project.id, fileName]);
+  }, [getWordCountApi, project.id, fileName]);
 
   useEffect(() => {
     loadBlocks();
@@ -72,10 +97,19 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     ? Math.round((translatedCount / translatableBlocks.length) * 100)
     : 0;
 
+  // Status counts for progress bar
+  const statusCounts = useMemo(() => {
+    const counts = { "not-started": 0, draft: 0, translated: 0, reviewed: 0 };
+    for (const b of translatableBlocks) {
+      counts[getBlockStatus(b, targetLocale)]++;
+    }
+    return counts;
+  }, [translatableBlocks, targetLocale]);
+
   // Selected block ID for preview synchronization
   const selectedBlockId = filteredBlocks[selectedIndex]?.id;
 
-  // Handle block selection from preview iframe — use ref to avoid re-renders
+  // Handle block selection from preview iframe -- use ref to avoid re-renders
   const filteredBlocksRef = useRef(filteredBlocks);
   filteredBlocksRef.current = filteredBlocks;
   const startEditingRef = useRef<(index: number) => void>(() => {});
@@ -136,6 +170,16 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       editInputRef.current.focus();
     }
   }, [editingIndex]);
+
+  // Update focusEditValue when selectedIndex changes and we're in focus mode
+  useEffect(() => {
+    if (layoutMode === "focus") {
+      const block = filteredBlocks[selectedIndex];
+      if (block) {
+        setFocusEditValue(block.targets[targetLocale] || "");
+      }
+    }
+  }, [layoutMode, selectedIndex, filteredBlocks, targetLocale]);
 
   const startEditing = (index: number) => {
     const block = filteredBlocks[index];
@@ -292,111 +336,212 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     }
   };
 
+  // --- New action handlers ---
+
+  const handleCopySource = async () => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block || !block.translatable) return;
+    try {
+      await api.updateBlockTarget({
+        project_id: project.id,
+        item_name: fileName,
+        block_id: block.id,
+        target_locale: targetLocale,
+        text: block.source,
+      });
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...b, targets: { ...b.targets, [targetLocale]: block.source } }
+            : b,
+        ),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to copy source");
+    }
+  };
+
+  const handleMarkReviewed = () => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === block.id
+          ? { ...b, properties: { ...b.properties, "translation-status": "reviewed" } }
+          : b,
+      ),
+    );
+  };
+
+  const handleNextUntranslated = () => {
+    for (let i = selectedIndex + 1; i < filteredBlocks.length; i++) {
+      if (filteredBlocks[i].translatable && !filteredBlocks[i].targets[targetLocale]) {
+        setSelectedIndex(i);
+        return;
+      }
+    }
+  };
+
+  const handlePrevUntranslated = () => {
+    for (let i = selectedIndex - 1; i >= 0; i--) {
+      if (filteredBlocks[i].translatable && !filteredBlocks[i].targets[targetLocale]) {
+        setSelectedIndex(i);
+        return;
+      }
+    }
+  };
+
+  const handleFocusSave = async () => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block || !block.translatable) return;
+    if (focusEditValue === (block.targets[targetLocale] || "")) return;
+    try {
+      await api.updateBlockTarget({
+        project_id: project.id,
+        item_name: fileName,
+        block_id: block.id,
+        target_locale: targetLocale,
+        text: focusEditValue,
+      });
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...b, targets: { ...b.targets, [targetLocale]: focusEditValue } }
+            : b,
+        ),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save");
+    }
+  };
+
+  // Current block for focus view
+  const currentBlock = filteredBlocks[selectedIndex] || null;
+
   const blockGrid = (
     <div ref={blockListRef} style={gridContainerStyle} data-testid="block-grid">
       {/* Header row */}
       <div style={gridHeaderStyle}>
-        <span style={{ width: 50, textAlign: "center" }}>#</span>
+        <span style={{ width: 40, textAlign: "center" }}>#</span>
+        <span style={{ width: 16 }} />
         <span style={{ flex: 1 }}>Source</span>
         <span style={{ flex: 1 }}>Target ({targetLocale})</span>
       </div>
 
       {/* Block rows */}
-      {filteredBlocks.map((block, index) => (
-        <div
-          key={block.id}
-          data-row-index={index}
-          data-testid={`block-row-${index}`}
-          onClick={() => {
-            setSelectedIndex(index);
-            if (editingIndex !== index) setEditingIndex(null);
-          }}
-          onDoubleClick={() => startEditing(index)}
-          style={{
-            ...blockRowStyle,
-            backgroundColor:
-              selectedIndex === index ? "var(--bg-tertiary)" : "transparent",
-            borderLeft:
-              selectedIndex === index
-                ? "3px solid var(--accent)"
-                : "3px solid transparent",
-          }}
-        >
-          <span style={indexCellStyle}>{index + 1}</span>
-          <div style={sourceCellStyle}>
-            {block.has_spans && block.source_coded && block.source_spans ? (
-              <SourceCellDisplay
-                codedText={block.source_coded}
-                spans={block.source_spans}
-              />
-            ) : (
-              block.source
-            )}
-            {!block.translatable && (
-              <span style={nonTransBadge}>non-translatable</span>
-            )}
-          </div>
+      {filteredBlocks.map((block, index) => {
+        const status = getBlockStatus(block, targetLocale);
+        return (
           <div
-            style={targetCellStyle}
-            data-testid={`target-cell-${index}`}
-            onClick={(e) => {
-              if (editingIndex !== index) {
-                e.stopPropagation();
-                setSelectedIndex(index);
-                startEditing(index);
-              }
+            key={block.id}
+            data-row-index={index}
+            data-testid={`block-row-${index}`}
+            onClick={() => {
+              setSelectedIndex(index);
+              if (editingIndex !== index) setEditingIndex(null);
+            }}
+            onDoubleClick={() => startEditing(index)}
+            style={{
+              ...blockRowStyle,
+              backgroundColor:
+                selectedIndex === index ? "var(--bg-tertiary)" : "transparent",
+              borderLeft:
+                selectedIndex === index
+                  ? "3px solid var(--accent)"
+                  : status !== "not-started"
+                    ? `3px solid ${statusColors[status]}`
+                    : "3px solid transparent",
             }}
           >
-            {editingIndex === index ? (
-              block.has_spans && block.source_spans ? (
-                <TargetCellEditor
-                  initialCodedText={block.targets_coded?.[targetLocale] || ""}
-                  initialSpans={block.source_spans}
-                  sourceSpans={block.source_spans}
-                  onSave={handleSaveCodedEdit}
-                  onCancel={() => setEditingIndex(null)}
+            <span style={indexCellStyle}>{index + 1}</span>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: statusColors[status],
+                flexShrink: 0,
+                marginTop: 6,
+                marginRight: 8,
+              }}
+              data-testid={`status-dot-${index}`}
+              title={status}
+            />
+            <div style={sourceCellStyle}>
+              {block.has_spans && block.source_coded && block.source_spans ? (
+                <SourceCellDisplay
+                  codedText={block.source_coded}
+                  spans={block.source_spans}
                 />
               ) : (
-                <textarea
-                  ref={editInputRef}
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onBlur={handleSaveEdit}
-                  style={editTextareaStyle}
-                  data-testid={`edit-target-${index}`}
-                />
-              )
-            ) : (
-              <span
-                style={{
-                  color: block.targets[targetLocale]
-                    ? "var(--text-primary)"
-                    : "var(--text-secondary)",
-                  fontStyle: block.targets[targetLocale] ? "normal" : "italic",
-                }}
-                data-testid={`target-text-${index}`}
-              >
-                {block.has_spans && block.targets_coded?.[targetLocale] ? (
-                  <>
-                    <CodedTextDisplay
-                      codedText={block.targets_coded[targetLocale]}
-                      spans={block.source_spans || []}
-                    />
-                    {block.source_spans && (
-                      <RowTagWarning
-                        sourceSpans={block.source_spans}
-                        targetCodedText={block.targets_coded[targetLocale]}
-                      />
-                    )}
-                  </>
+                block.source
+              )}
+              {!block.translatable && (
+                <span style={nonTransBadge}>non-translatable</span>
+              )}
+            </div>
+            <div
+              style={targetCellStyle}
+              data-testid={`target-cell-${index}`}
+              onClick={(e) => {
+                if (editingIndex !== index) {
+                  e.stopPropagation();
+                  setSelectedIndex(index);
+                  startEditing(index);
+                }
+              }}
+            >
+              {editingIndex === index ? (
+                block.has_spans && block.source_spans ? (
+                  <TargetCellEditor
+                    initialCodedText={block.targets_coded?.[targetLocale] || ""}
+                    initialSpans={block.source_spans}
+                    sourceSpans={block.source_spans}
+                    onSave={handleSaveCodedEdit}
+                    onCancel={() => setEditingIndex(null)}
+                  />
                 ) : (
-                  block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")
-                )}
-              </span>
-            )}
+                  <textarea
+                    ref={editInputRef}
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onBlur={handleSaveEdit}
+                    style={editTextareaStyle}
+                    data-testid={`edit-target-${index}`}
+                  />
+                )
+              ) : (
+                <span
+                  style={{
+                    color: block.targets[targetLocale]
+                      ? "var(--text-primary)"
+                      : "var(--text-secondary)",
+                    fontStyle: block.targets[targetLocale] ? "normal" : "italic",
+                  }}
+                  data-testid={`target-text-${index}`}
+                >
+                  {block.has_spans && block.targets_coded?.[targetLocale] ? (
+                    <>
+                      <CodedTextDisplay
+                        codedText={block.targets_coded[targetLocale]}
+                        spans={block.source_spans || []}
+                      />
+                      {block.source_spans && (
+                        <RowTagWarning
+                          sourceSpans={block.source_spans}
+                          targetCodedText={block.targets_coded[targetLocale]}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")
+                  )}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {filteredBlocks.length === 0 && (
         <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)" }}>
@@ -406,6 +551,158 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
     </div>
   );
 
+  const previewComponent = (
+    <DocumentPreview
+      projectId={project.id}
+      itemName={fileName}
+      targetLocale={targetLocale}
+      selectedBlockId={selectedBlockId}
+      onBlockSelect={handlePreviewBlockSelect}
+      blocks={blocks}
+    />
+  );
+
+  const focusView = currentBlock ? (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", gap: 16, padding: 16 }} data-testid="focus-view">
+      {/* Navigation header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <button
+          onClick={() => setSelectedIndex(Math.max(0, selectedIndex - 1))}
+          style={toolBtnStyle}
+          data-testid="focus-prev"
+          disabled={selectedIndex <= 0}
+        >
+          &larr;
+        </button>
+        <span style={{ flex: 1, textAlign: "center", fontWeight: 600, fontSize: 14 }}>
+          Block {selectedIndex + 1} of {filteredBlocks.length}
+          <span
+            style={{
+              marginLeft: 8,
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#fff",
+              backgroundColor: statusColors[getBlockStatus(currentBlock, targetLocale)] === "transparent"
+                ? "var(--text-secondary)"
+                : statusColors[getBlockStatus(currentBlock, targetLocale)],
+            }}
+            data-testid="focus-status-badge"
+          >
+            {getBlockStatus(currentBlock, targetLocale)}
+          </span>
+        </span>
+        <button
+          onClick={() => setSelectedIndex(Math.min(filteredBlocks.length - 1, selectedIndex + 1))}
+          style={toolBtnStyle}
+          data-testid="focus-next"
+          disabled={selectedIndex >= filteredBlocks.length - 1}
+        >
+          &rarr;
+        </button>
+      </div>
+
+      {/* Context: previous block */}
+      {selectedIndex > 0 && (
+        <div style={contextBlockStyle} data-testid="focus-context-prev">
+          <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600 }}>Previous</span>
+          <div style={{ opacity: 0.5, fontSize: 13 }}>{filteredBlocks[selectedIndex - 1].source}</div>
+        </div>
+      )}
+
+      {/* Current block - Source */}
+      <div style={focusCardStyle}>
+        <div style={{ marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" as const }}>
+          Source
+        </div>
+        <div style={{ fontSize: 16, lineHeight: 1.6 }} data-testid="focus-source">
+          {currentBlock.has_spans && currentBlock.source_coded && currentBlock.source_spans ? (
+            <SourceCellDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
+          ) : (
+            currentBlock.source
+          )}
+        </div>
+      </div>
+
+      {/* Current block - Target */}
+      <div style={focusCardStyle}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" as const }}>
+            Target ({targetLocale})
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleCopySource} style={{ ...toolBtnStyle, fontSize: 11, padding: "2px 8px" }} data-testid="focus-copy-source">
+              Copy Source
+            </button>
+            <button onClick={handleMarkReviewed} style={{ ...toolBtnStyle, fontSize: 11, padding: "2px 8px" }} data-testid="focus-mark-reviewed">
+              Reviewed
+            </button>
+          </div>
+        </div>
+        <div data-testid="focus-target">
+          {currentBlock.has_spans && currentBlock.source_spans ? (
+            <TargetCellEditor
+              key={`focus-${currentBlock.id}-${targetLocale}`}
+              initialCodedText={currentBlock.targets_coded?.[targetLocale] || ""}
+              initialSpans={currentBlock.source_spans}
+              sourceSpans={currentBlock.source_spans}
+              onSave={handleSaveCodedEdit}
+              onCancel={() => {}}
+            />
+          ) : (
+            <textarea
+              value={focusEditValue}
+              onChange={(e) => setFocusEditValue(e.target.value)}
+              onBlur={handleFocusSave}
+              style={{ ...editTextareaStyle, minHeight: 120 }}
+              data-testid="focus-edit-target"
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Context: next block */}
+      {selectedIndex < filteredBlocks.length - 1 && (
+        <div style={contextBlockStyle} data-testid="focus-context-next">
+          <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 600 }}>Next</span>
+          <div style={{ opacity: 0.5, fontSize: 13 }}>{filteredBlocks[selectedIndex + 1].source}</div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  // Build progress bar segments
+  const progressSegments = (
+    <div style={{ display: "flex", height: "100%", width: "100%", position: "absolute", top: 0, left: 0 }}>
+      {statusCounts.reviewed > 0 && (
+        <div
+          data-testid="progress-reviewed"
+          style={{ width: `${(statusCounts.reviewed / Math.max(translatableBlocks.length, 1)) * 100}%`, backgroundColor: "#22c55e", opacity: 0.4 }}
+        />
+      )}
+      {statusCounts.translated > 0 && (
+        <div
+          data-testid="progress-translated"
+          style={{ width: `${(statusCounts.translated / Math.max(translatableBlocks.length, 1)) * 100}%`, backgroundColor: "#3b82f6", opacity: 0.4 }}
+        />
+      )}
+      {statusCounts.draft > 0 && (
+        <div
+          data-testid="progress-draft"
+          style={{ width: `${(statusCounts.draft / Math.max(translatableBlocks.length, 1)) * 100}%`, backgroundColor: "#f59e0b", opacity: 0.4 }}
+        />
+      )}
+    </div>
+  );
+
+  // Build progress text with status breakdown
+  const progressBreakdown: string[] = [];
+  if (statusCounts.reviewed > 0) progressBreakdown.push(`${statusCounts.reviewed} reviewed`);
+  if (statusCounts.translated > 0) progressBreakdown.push(`${statusCounts.translated} translated`);
+  if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
+  if (statusCounts["not-started"] > 0) progressBreakdown.push(`${statusCounts["not-started"]} pending`);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {/* Header */}
@@ -414,17 +711,29 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
           &#8592; {project.name}
         </button>
         <span style={{ fontSize: 16, fontWeight: 600, flex: 1 }}>{fileName}</span>
-        <button
-          onClick={() => setShowPreview(!showPreview)}
-          style={{
-            ...toolBtnStyle,
-            backgroundColor: showPreview ? "var(--accent)" : "var(--bg-secondary)",
-            color: showPreview ? "#fff" : "var(--text-primary)",
-          }}
-          data-testid="preview-toggle"
-        >
-          Preview
-        </button>
+        {/* Layout mode switcher */}
+        <div style={{ display: "flex", gap: 2, backgroundColor: "var(--bg-tertiary)", borderRadius: 6, padding: 2 }} data-testid="layout-switcher">
+          {(["grid", "focus", "split-h", "split-v"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setLayoutMode(mode)}
+              data-testid={`layout-${mode}`}
+              style={{
+                padding: "4px 8px",
+                backgroundColor: layoutMode === mode ? "var(--accent)" : "transparent",
+                color: layoutMode === mode ? "#fff" : "var(--text-secondary)",
+                border: "none",
+                borderRadius: 4,
+                fontSize: 11,
+                cursor: "pointer",
+                fontWeight: layoutMode === mode ? 600 : 400,
+              }}
+              title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : "Vertical Split"}
+            >
+              {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : "V-Split"}
+            </button>
+          ))}
+        </div>
         <select
           value={targetLocale}
           onChange={(e) => setTargetLocale(e.target.value)}
@@ -469,6 +778,20 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         <button onClick={handleTMTranslate} disabled={loading} style={toolBtnStyle} data-testid="tm-btn">
           TM Lookup
         </button>
+        <div style={{ width: 1, height: 20, backgroundColor: "var(--border)" }} />
+        <button onClick={handleCopySource} disabled={loading || selectedIndex < 0} style={toolBtnStyle} data-testid="copy-source-btn">
+          Copy Source
+        </button>
+        <button onClick={handleMarkReviewed} disabled={loading || selectedIndex < 0} style={toolBtnStyle} data-testid="mark-reviewed-btn">
+          Reviewed
+        </button>
+        <div style={{ width: 1, height: 20, backgroundColor: "var(--border)" }} />
+        <button onClick={handlePrevUntranslated} style={toolBtnStyle} data-testid="prev-untranslated-btn">
+          &larr; Untranslated
+        </button>
+        <button onClick={handleNextUntranslated} style={toolBtnStyle} data-testid="next-untranslated-btn">
+          Untranslated &rarr;
+        </button>
         <div style={{ flex: 1 }} />
         <input
           type="text"
@@ -481,10 +804,11 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       </div>
 
       {/* Progress bar */}
-      <div style={progressContainerStyle}>
-        <div style={{ ...progressBarStyle, width: `${progress}%` }} />
+      <div style={progressContainerStyle} data-testid="progress-bar">
+        {progressSegments}
         <span style={progressTextStyle} data-testid="progress-text">
           {progress}% ({translatedCount}/{translatableBlocks.length} translated)
+          {progressBreakdown.length > 0 && ` \u2014 ${progressBreakdown.join(", ")}`}
         </span>
       </div>
 
@@ -492,25 +816,28 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       {error && <div style={errorStyle}>{error}</div>}
       {message && <div style={messageStyle}>{message}</div>}
 
-      {/* Main content: preview + grid or just grid */}
-      {showPreview ? (
+      {/* Main content area based on layout mode */}
+      {layoutMode === "grid" && blockGrid}
+      {layoutMode === "focus" && focusView}
+      {layoutMode === "split-h" && (
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 12, overflow: "hidden" }}>
+          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {blockGrid}
+          </div>
+          <div style={{ height: "40%", minHeight: 200, overflow: "hidden" }} data-testid="split-h-preview">
+            {previewComponent}
+          </div>
+        </div>
+      )}
+      {layoutMode === "split-v" && (
         <div style={splitContainerStyle} data-testid="split-layout">
           <div style={previewPaneStyle}>
-            <DocumentPreview
-              projectId={project.id}
-              itemName={fileName}
-              targetLocale={targetLocale}
-              selectedBlockId={selectedBlockId}
-              onBlockSelect={handlePreviewBlockSelect}
-              blocks={blocks}
-            />
+            {previewComponent}
           </div>
           <div style={gridPaneStyle}>
             {blockGrid}
           </div>
         </div>
-      ) : (
-        blockGrid
       )}
 
       {/* Status bar */}
@@ -651,6 +978,7 @@ const toolbarStyle: React.CSSProperties = {
   gap: 8,
   padding: "8px 0",
   alignItems: "center",
+  flexWrap: "wrap",
 };
 
 const toolBtnStyle: React.CSSProperties = {
@@ -684,14 +1012,6 @@ const progressContainerStyle: React.CSSProperties = {
   marginBottom: 8,
 };
 
-const progressBarStyle: React.CSSProperties = {
-  height: "100%",
-  backgroundColor: "var(--accent)",
-  transition: "width 0.3s ease",
-  borderRadius: 4,
-  opacity: 0.3,
-};
-
 const progressTextStyle: React.CSSProperties = {
   position: "absolute",
   top: "50%",
@@ -700,6 +1020,7 @@ const progressTextStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 600,
   color: "var(--text-primary)",
+  whiteSpace: "nowrap",
 };
 
 const errorStyle: React.CSSProperties = {
@@ -756,7 +1077,7 @@ const blockRowStyle: React.CSSProperties = {
 };
 
 const indexCellStyle: React.CSSProperties = {
-  width: 50,
+  width: 40,
   textAlign: "center",
   fontSize: 12,
   color: "var(--text-secondary)",
@@ -835,4 +1156,18 @@ const gridPaneStyle: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
   overflow: "hidden",
+};
+
+const focusCardStyle: React.CSSProperties = {
+  padding: 16,
+  backgroundColor: "var(--bg-secondary)",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+};
+
+const contextBlockStyle: React.CSSProperties = {
+  padding: 12,
+  backgroundColor: "var(--bg-tertiary)",
+  borderRadius: 6,
+  opacity: 0.7,
 };

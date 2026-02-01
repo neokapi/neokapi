@@ -206,17 +206,19 @@ test.describe("Translation Editor", () => {
     await expect(page.getByText("Exported to")).toBeVisible();
   });
 
-  test("should show preview toggle button", async ({ page }) => {
+  test("should show layout switcher with grid selected by default", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await expect(page.getByTestId("preview-toggle")).toBeVisible();
+    await expect(page.getByTestId("layout-switcher")).toBeVisible();
+    await expect(page.getByTestId("layout-grid")).toBeVisible();
+    await expect(page.getByTestId("layout-split-v")).toBeVisible();
   });
 
-  test("should toggle preview on and show split layout", async ({ page }) => {
+  test("should switch to split-v and show split layout", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Click preview toggle
-    await clickTestId(page, "preview-toggle");
+    // Click split-v layout button
+    await clickTestId(page, "layout-split-v");
     await page.waitForTimeout(300);
 
     // Split layout should be visible
@@ -227,16 +229,16 @@ test.describe("Translation Editor", () => {
     await expect(page.getByTestId("block-grid")).toBeVisible();
   });
 
-  test("should toggle preview off and show full grid", async ({ page }) => {
+  test("should switch back to grid from split-v", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v
+    await clickTestId(page, "layout-split-v");
     await page.waitForTimeout(300);
     await expect(page.getByTestId("split-layout")).toBeVisible();
 
-    // Toggle off
-    await clickTestId(page, "preview-toggle");
+    // Switch back to grid
+    await clickTestId(page, "layout-grid");
     await page.waitForTimeout(300);
 
     // Split layout should be gone, grid should remain
@@ -247,7 +249,7 @@ test.describe("Translation Editor", () => {
   test("should render kat-block elements in preview iframe", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "preview-toggle");
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -262,7 +264,7 @@ test.describe("Translation Editor", () => {
   test("should select grid row when clicking block in preview", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "preview-toggle");
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -279,7 +281,7 @@ test.describe("Translation Editor", () => {
   test("should highlight preview block when selecting grid row", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "preview-toggle");
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -296,7 +298,7 @@ test.describe("Translation Editor", () => {
   test("should clear previous preview highlight when selecting different grid row", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "preview-toggle");
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -319,8 +321,8 @@ test.describe("Translation Editor", () => {
   test("should show source/target toggle on preview hover", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     // Overlay is hidden until hover
@@ -340,8 +342,8 @@ test.describe("Translation Editor", () => {
   test("should switch preview to target text after pseudo-translate", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -370,8 +372,8 @@ test.describe("Translation Editor", () => {
   test("should switch preview back to source text", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on, pseudo-translate, switch to target
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v, pseudo-translate, switch to target
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -401,8 +403,8 @@ test.describe("Translation Editor", () => {
   test("should keep showing source text when toggling to Target with no translations", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -446,8 +448,8 @@ test.describe("Translation Editor", () => {
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
-    // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -468,8 +470,8 @@ test.describe("Translation Editor", () => {
   test("should preserve toggle state when switching locale", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on and pseudo-translate for fr
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v and pseudo-translate for fr
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -504,8 +506,8 @@ test.describe("Translation Editor", () => {
   test("should update preview when translating with Target mode active", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    // Switch to split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
@@ -561,8 +563,8 @@ test.describe("Translation Editor", () => {
   test("should enter edit mode when clicking block in preview", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Open preview
-    await clickTestId(page, "preview-toggle");
+    // Open split-v layout
+    await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');

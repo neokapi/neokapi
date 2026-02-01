@@ -413,6 +413,9 @@ export async function injectMockBackend(page: Page) {
       for (const b of blocks) {
         if (b.translatable) {
           b.targets[targetLocale] = `[${b.source}]`;
+          if (!b.properties) b.properties = {};
+          b.properties["translation-origin"] = "pseudo";
+          b.properties["translation-status"] = "draft";
           translated++;
           wordCount += b.source.split(/\s+/).length;
         }
@@ -430,6 +433,9 @@ export async function injectMockBackend(page: Page) {
       for (const b of blocks) {
         if (b.translatable) {
           b.targets[req.target_locale] = `[AI] ${b.source}`;
+          if (!b.properties) b.properties = {};
+          b.properties["translation-origin"] = "machine";
+          b.properties["translation-status"] = "draft";
           translated++;
           wordCount += b.source.split(/\s+/).length;
         }

@@ -176,7 +176,7 @@ test.describe("Screenshots", () => {
     await openEditor(page);
 
     // Toggle preview on
-    await clickTestId(page, "preview-toggle");
+    await clickTestId(page, "layout-split-v");
     await page.waitForTimeout(300);
     await expect(page.getByTestId("split-layout")).toBeVisible();
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
