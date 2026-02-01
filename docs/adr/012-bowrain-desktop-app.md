@@ -1,7 +1,5 @@
 # ADR-012: Bowrain desktop app with Wails v3
 
-**Status:** Accepted
-
 ## Context
 
 A desktop GUI is needed for translators who prefer visual editing over CLI

@@ -1,7 +1,5 @@
 # ADR-009: First-class AI/LLM integration
 
-**Status:** Accepted
-
 ## Context
 
 Large language models have become capable translators and quality reviewers.

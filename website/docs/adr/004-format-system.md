@@ -6,8 +6,6 @@ title: "ADR-004: Format System"
 
 # ADR-004: Tiered format system
 
-**Status:** Accepted
-
 ## Context
 
 Localization requires support for many document formats. Okapi provides 40+

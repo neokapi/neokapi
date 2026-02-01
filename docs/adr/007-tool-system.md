@@ -1,7 +1,5 @@
 # ADR-007: Tool system with BaseTool dispatch
 
-**Status:** Accepted
-
 ## Context
 
 Most tools in a localization pipeline only care about one or two Part types.

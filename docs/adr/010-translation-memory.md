@@ -1,7 +1,5 @@
 # ADR-010: Pensieve built-in translation memory
 
-**Status:** Accepted
-
 ## Context
 
 Translation memory (TM) is essential for localization: previously translated

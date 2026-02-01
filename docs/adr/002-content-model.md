@@ -1,7 +1,5 @@
 # ADR-002: Part-Resource content model with nested layers
 
-**Status:** Accepted
-
 ## Context
 
 Okapi's content model uses a deep inheritance hierarchy rooted in `IResource`

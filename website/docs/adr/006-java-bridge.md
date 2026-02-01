@@ -6,8 +6,6 @@ title: "ADR-006: Java Bridge"
 
 # ADR-006: Java bridge and global bridge pool
 
-**Status:** Accepted
-
 ## Context
 
 Okapi provides 40+ production-proven format filters (DOCX, XLSX, EPUB, IDML,

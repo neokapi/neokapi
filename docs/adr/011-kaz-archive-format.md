@@ -1,7 +1,5 @@
 # ADR-011: KAZ archive format for project packaging
 
-**Status:** Accepted
-
 ## Context
 
 Localization projects involve multiple source files, translation state, block

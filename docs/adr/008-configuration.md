@@ -1,7 +1,5 @@
 # ADR-008: Viper-based layered configuration
 
-**Status:** Accepted
-
 ## Context
 
 The framework needs configuration at multiple levels: global defaults, user

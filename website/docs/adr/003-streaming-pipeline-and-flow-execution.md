@@ -6,8 +6,6 @@ title: "ADR-003: Streaming Pipeline"
 
 # ADR-003: Streaming pipeline and flow execution
 
-**Status:** Accepted
-
 ## Context
 
 Okapi uses a synchronous pull-based iterator pattern (`IFilter.hasNext()` /

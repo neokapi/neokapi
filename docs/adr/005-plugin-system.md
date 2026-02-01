@@ -1,7 +1,5 @@
 # ADR-005: Plugin system
 
-**Status:** Accepted
-
 ## Context
 
 A plugin system is needed for third-party format readers, writers, and tools.

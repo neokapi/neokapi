@@ -1,7 +1,5 @@
 # ADR-001: Go reimagining of the Okapi Framework
 
-**Status:** Accepted
-
 ## Context
 
 The [Okapi Framework](https://okapiframework.org/) is a mature, open-source
