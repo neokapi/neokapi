@@ -70,7 +70,7 @@ gokapi/
 │   ├── model/                  # Part, Block, Layer, Fragment, Span, Data, Media
 │   ├── format/                 # DataFormatReader/Writer interfaces, detection
 │   ├── tool/                   # Tool interface, BaseTool dispatch
-│   ├── flow/                   # FlowExecutor, FlowBuilder
+│   ├── flow/                   # FlowExecutor, FlowBuilder, FlowDefinition, FlowStore
 │   ├── registry/               # FormatRegistry, ToolRegistry
 │   ├── config/                 # Viper-based AppConfig
 │   ├── encoding/               # Text encoding utilities
@@ -103,7 +103,7 @@ gokapi/
 │
 ├── lib/
 │   ├── pensieve/               # Translation memory (in-memory + SQLite)
-│   └── tools/                  # Utility tools (wordcount, pseudo-translate, etc.)
+│   └── tools/                  # Utility tools (wordcount, pseudo-translate, segmentation, qa-check, tm-leverage, etc.)
 │
 ├── plugin/
 │   ├── host/                   # PluginManager, gRPC clients

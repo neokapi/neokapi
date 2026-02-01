@@ -101,3 +101,48 @@ func TestUppercaseTool(t *testing.T) {
     assert.Equal(t, "HELLO", block.TargetText(model.LocaleEnglish))
 }
 ```
+
+## Built-in Tools
+
+### Utility Tools (`lib/tools/`)
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `wordcount` | Validate | Counts words and characters per locale, with per-locale properties |
+| `charcount` | Validate | Counts characters per locale |
+| `pseudo-translate` | Transform | Generates pseudo-translations for testing by applying character substitution |
+| `search-replace` | Transform | Regex-based search and replace on block content |
+| `segmentation` | Transform | SRX-like sentence segmentation with configurable regex rules |
+| `qa-check` | Validate | Configurable quality checks: missing translations, whitespace mismatches, number mismatches |
+| `tm-leverage` | Enrich | Pre-fills translations from Pensieve translation memory with fuzzy matching |
+
+### Registering Built-in Tools
+
+All built-in tools can be registered at once:
+
+```go
+import "github.com/gokapi/gokapi/lib/tools"
+
+toolReg := registry.NewToolRegistry()
+tools.RegisterTools(toolReg)
+```
+
+Individual tools can also be created directly:
+
+```go
+// Segmentation with default SRX-like rules
+segTool := tools.NewSegmentationTool(&tools.SegmentationConfig{})
+
+// QA check with specific checks enabled
+qaTool := tools.NewQACheckTool(&tools.QACheckConfig{
+    TargetLocale: "fr",
+    Checks: []string{"missing-translation", "whitespace-mismatch", "number-mismatch"},
+})
+
+// TM leverage with custom threshold
+tmTool := tools.NewTMLeverageTool(&tools.TMLeverageConfig{
+    TargetLocale: "fr",
+    Threshold: 0.8,
+    TM: pensieveInstance,
+})
+```

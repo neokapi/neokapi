@@ -34,9 +34,37 @@ API stability and ES module support.
 
 ### Key UI Features
 
-- **Translation editor** with inline code/tag support, semantic tag
-  validation, and block preview
-- **Flow editor** for drag-and-drop tool chain building
+- **Translation editor** with four layout modes:
+  - *Grid* (default) — table view with source and target columns for all blocks
+  - *Focus* — single-block deep editing with full-width source/target panels
+    and block navigation (prev/next)
+  - *Split Horizontal* / *Split Vertical* — side-by-side or stacked editing
+    with a live document preview pane
+
+  Block status tracking: `not-started`, `draft` (has target text),
+  `translated` (translation-origin property set), `reviewed`
+  (translation-status is "reviewed"). A status-colored progress bar shows
+  block completion at a glance.
+
+  Enhanced toolbar with: Copy Source to Target, Mark as Reviewed, Navigate
+  to Prev/Next Untranslated.
+
+- **Flow editor** built on React Flow (@xyflow/react v12) for drag-and-drop
+  visual flow building:
+  - Nodes represent readers, tools, and writers with color-coded type
+    indicators
+  - Edges represent the data flow between nodes
+  - Add/remove nodes and edges interactively
+  - Built-in flows available as templates; user-created flows are persisted
+    via FlowStore
+  - Flow definitions are validated (cycle detection via TopologicalOrder,
+    node reference integrity) before saving
+
+- **Action tools integration** — built-in action tools (Segmentation,
+  QA Check, TM Leverage) are available in the flow builder. Tools appear
+  as nodes in the flow graph with their category color coding (Transform,
+  Enrich, Validate).
+
 - **Translation Memory explorer** with fuzzy match visualization
 - **Plugin manager** for install/update from registry
 - **Batch file manager** with per-file locale/format configuration

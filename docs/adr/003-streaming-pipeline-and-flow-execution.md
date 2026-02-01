@@ -60,6 +60,51 @@ terminology lists). They implement a `Collect(ctx, item, parts)` method
 called after each document completes and a `Result()` method for the final
 aggregate. Collectors must be thread-safe.
 
+### Flow Definitions
+
+`FlowDefinition` is a JSON-serializable struct that captures a visual flow graph
+(nodes + edges) and tool configurations needed to reconstruct a runnable Flow.
+This separates the declarative description of a flow from its runtime execution.
+
+Each `FlowNode` has:
+
+- **ID** — unique identifier within the definition
+- **Type** — one of `"tool"`, `"reader"`, or `"writer"`
+- **Name** — the registered name of the tool/format (e.g., `"pseudo-translate"`, `"html"`)
+- **Label** — optional display label for UI rendering
+- **Config** — optional key-value configuration map
+- **Position** — x/y coordinates for visual layout in the flow editor
+
+Each `FlowEdge` has:
+
+- **ID** — unique identifier
+- **Source** — node ID of the upstream node
+- **Target** — node ID of the downstream node
+
+`TopologicalOrder()` computes the execution order of nodes using Kahn's
+algorithm. It returns an error if a cycle is detected, preventing invalid
+flow graphs from reaching the runtime executor.
+
+`ToolNodeNames()` returns tool names in topological order, providing the
+ordered list needed to build the runtime tool chain for `FlowExecutor`.
+
+Five built-in flow definitions are provided:
+
+| Name                  | Description                                      |
+|-----------------------|--------------------------------------------------|
+| `ai-translate`        | AI-powered translation using configured provider |
+| `ai-translate-qa`     | AI translation followed by QA validation         |
+| `pseudo-translate`    | Pseudo-translation for internationalization testing |
+| `qa-check`            | Quality assurance checks on existing translations |
+| `tm-leverage`         | Translation memory leveraging from Pensieve TM   |
+
+`FlowStore` persists user-created flow definitions as JSON files on disk.
+Flow definitions are distinguished by source:
+
+- `source: "built-in"` — shipped with gokapi, immutable
+- `source: "user"` — created by the user, stored in the user's config directory
+- `source: "project"` — stored within a project's `.kaz` archive or project directory
+
 ## Alternatives Considered
 
 - **Synchronous iterator** (Okapi style): simpler but no concurrency within
@@ -85,3 +130,9 @@ aggregate. Collectors must be thread-safe.
 - ToolFactories ensure no shared mutable state between parallel documents
 - Collectors provide cross-document aggregation without breaking the
   streaming model
+- Flow definitions enable visual flow editing in Bowrain (drag-and-drop
+  node graph)
+- TopologicalOrder validation catches cycles before runtime, providing
+  fast feedback during flow authoring
+- JSON serialization supports import/export and version control of flow
+  configurations

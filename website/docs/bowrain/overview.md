@@ -23,7 +23,7 @@ Each project displays its source files with format detection, word counts, and a
 
 ### Translation Editor
 
-The editor shows source and target text side by side with a toolbar for translation actions.
+The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical (with live preview). Block status is visualized with a color-coded progress bar showing not-started, draft, translated, and reviewed states.
 
 ![Translation editor with source blocks and target column](/img/bowrain/editor.png)
 
@@ -33,6 +33,18 @@ Toggle the split layout to see a live document preview alongside the translation
 
 ![Split layout with translation grid and document preview](/img/bowrain/editor-preview.png)
 
+### Editor Focus View
+
+Focus mode provides single-block deep editing with full-width source and target panels and block navigation (previous/next). Use it for detailed editing of individual translation segments.
+
+![Focus view with single-block source and target panels](/img/bowrain/editor-focus.png)
+
+### Flow Editor
+
+The visual flow editor provides a drag-and-drop workflow builder powered by React Flow. Create multi-step translation workflows by connecting reader, tool, and writer nodes on an interactive canvas. Five built-in flow templates are included: AI Translate, AI Translate + QA, Pseudo Translate, QA Check, and TM Leverage. User-created flows are saved and can be reused across projects.
+
+![Flow editor with connected reader, tool, and writer nodes](/img/bowrain/flow-editor.png)
+
 ### Settings
 
 Configure AI providers, manage plugins, and view system information from the settings page.
@@ -41,13 +53,14 @@ Configure AI providers, manage plugins, and view system information from the set
 
 ## Features
 
-- **Translation editor** with inline tag support, tag validation, and document preview
+- **Translation editor** with four layout modes (grid, focus, split-h, split-v), inline tag support, block status tracking, and live document preview
+- **Flow editor** with drag-and-drop visual workflow builder and built-in flow templates
 - **AI translation** using Anthropic, OpenAI, or Ollama providers
-- **Translation Memory** with fuzzy matching
-- **Drag-and-drop flow editor** for building multi-step translation workflows
-- **Plugin support** for extending with custom tools
+- **Translation Memory** with fuzzy matching and TM explorer
+- **Action tools** including segmentation, QA check, and TM leverage
+- **Plugin support** for extending with custom formats and tools
 - **Batch file management** with per-file language and format configuration
-- **Progress tracking** with real-time progress bars
+- **Progress tracking** with status-colored progress bars
 
 ## Project Format
 

@@ -57,6 +57,44 @@ sniffing. The registry stores a `FormatSignature` per format with MIME types,
 extensions, magic byte prefixes, and an optional sniff function. The detector
 tries strategies in order until a match is found.
 
+### Plugin Format Listing
+
+Plugin-provided formats are listed alongside built-in formats via
+`kapi formats list`. Each format entry shows:
+
+- **Name** — the registered format name (e.g., `html`, `okapi-docx`)
+- **Provider** — `built-in` for native Go formats, or the plugin name
+  (e.g., `okapi-bridge`) for plugin-provided formats
+- **MIME types** — content types the format handles (e.g., `text/html`)
+- **Extensions** — file extensions the format recognizes (e.g., `.html`, `.htm`)
+
+Format search supports querying by MIME type (`kapi formats list --mime text/html`)
+and by file extension (`kapi formats list --ext .docx`).
+
+### Format Priorities
+
+When both a built-in format and a plugin format match the same document
+(e.g., built-in `html` vs. plugin `okapi-html`), priority determines which
+implementation is selected.
+
+Priority order (highest to lowest):
+
+1. **Explicit format name** — user specifies `--format okapi-html` on the CLI
+2. **Project config** — format pinned in `gokapi.yaml` per file pattern
+3. **Built-in** — native Go implementations take precedence by default
+4. **Plugin** — plugin-provided formats are used when no built-in matches
+
+Users can pin a specific format implementation in `gokapi.yaml` per project:
+
+```yaml
+formats:
+  "*.html": okapi-html
+  "*.docx": okapi-docx
+```
+
+The format registry resolves bare names (e.g., `"html"`) to the
+highest-priority implementation available.
+
 ### Skeleton Strategies
 
 Two approaches for document reconstruction:
@@ -78,3 +116,7 @@ Two approaches for document reconstruction:
 - The bridge tier adds JVM startup latency for first use, mitigated by the
   bridge pool keeping JVMs warm
 - New native formats follow a consistent package structure under `formats/`
+- Plugin formats integrate seamlessly into the format listing, giving users
+  a unified view of all available formats regardless of implementation tier
+- Format priorities ensure deterministic selection when multiple
+  implementations exist for the same document type

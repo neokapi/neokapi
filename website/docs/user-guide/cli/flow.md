@@ -55,6 +55,34 @@ kapi flow run --input docs/ --output out/ \
 | `--channel-size` | | Channel buffer size (default: 64) |
 | `--fail-fast` | | Stop on first error (default: true) |
 
+## Built-in Flows
+
+gokapi ships with five built-in flow definitions:
+
+| Flow | Description | Tools |
+|------|-------------|-------|
+| `ai-translate` | Translate content using AI/LLM | ai-translate |
+| `ai-translate-qa` | Translate then quality check | ai-translate, ai-qa |
+| `pseudo-translate` | Generate pseudo-translations for testing | pseudo-translate |
+| `qa-check` | Run rule-based quality checks on translations | qa-check |
+| `tm-leverage` | Pre-fill translations from translation memory | tm-leverage |
+
+Run a built-in flow by name:
+
+```bash
+kapi flow run --flow ai-translate-qa --input docs/ --output out/ -s en -t fr
+```
+
+## Flow Definitions
+
+Flow definitions describe a processing graph with nodes and edges:
+
+- **Nodes** represent processing steps: `reader` (input), `tool` (processing), `writer` (output)
+- **Edges** define the data flow direction between nodes
+- Flows are validated for cycles and dangling references before execution
+
+User-created flows are stored as JSON files in `~/.config/gokapi/flows/` and can be edited visually in the Bowrain desktop app.
+
 ## Listing Available Tools
 
 ```bash

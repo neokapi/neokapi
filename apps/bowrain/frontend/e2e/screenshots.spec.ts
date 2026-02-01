@@ -239,6 +239,43 @@ test.describe("Screenshots", () => {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "tm-explorer.png") });
   });
 
+  test("capture flow editor", async ({ page }) => {
+    await injectMockBackend(page);
+    await page.goto("/");
+
+    // Navigate to Flows view
+    await page.locator("nav button", { hasText: "Flows" }).click();
+    await expect(page.getByTestId("flow-list")).toBeVisible();
+
+    // Select AI Translate flow
+    await page.getByTestId("flow-item-ai-translate").click();
+    await page.waitForTimeout(300);
+
+    // Verify flow nodes are visible
+    await expect(page.getByTestId("flow-node-reader")).toBeVisible();
+
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "flow-editor.png") });
+  });
+
+  test("capture focus view", async ({ page }) => {
+    await openEditor(page);
+
+    // Pseudo-translate to create mixed statuses
+    await clickTestId(page, "pseudo-btn");
+    await page.waitForTimeout(500);
+
+    // Switch to focus view
+    await clickTestId(page, "layout-focus");
+    await page.waitForTimeout(300);
+    await expect(page.getByTestId("focus-view")).toBeVisible();
+
+    // Verify focus view elements
+    await expect(page.getByTestId("focus-source")).toBeVisible();
+    await expect(page.getByTestId("focus-target")).toBeVisible();
+
+    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor-focus.png") });
+  });
+
   test("capture settings", async ({ page }) => {
     await injectMockBackend(page);
     await page.goto("/");
