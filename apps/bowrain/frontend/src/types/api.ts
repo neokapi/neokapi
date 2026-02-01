@@ -9,6 +9,7 @@ export interface FormatInfo {
 export interface ToolInfo {
   name: string;
   description: string;
+  category: "transform" | "validate" | "enrich" | "utility";
 }
 
 /** Flow descriptor */

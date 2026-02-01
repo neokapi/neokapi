@@ -220,6 +220,9 @@ var flowListCmd = &cobra.Command{
 		fmt.Printf("  %-25s %s\n", "ai-translate", "Translate content using AI/LLM")
 		fmt.Printf("  %-25s %s\n", "ai-translate-qa", "Translate + quality check using AI/LLM")
 		fmt.Printf("  %-25s %s\n", "pseudo-translate", "Generate pseudo-translations for testing")
+		fmt.Printf("  %-25s %s\n", "qa-check", "Run rule-based quality checks on translations")
+		fmt.Printf("  %-25s %s\n", "tm-leverage", "Pre-fill translations from translation memory")
+		fmt.Printf("  %-25s %s\n", "segmentation", "Split source text into sentence segments")
 	},
 }
 
@@ -264,6 +267,25 @@ func buildFlowTools(flowName string) ([]tool.Tool, error) {
 				TargetLocale: model.LocaleID(targetLang),
 			}),
 		}, nil
+	case "qa-check":
+		return []tool.Tool{
+			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))),
+		}, nil
+	case "segmentation":
+		return []tool.Tool{
+			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}),
+		}, nil
+	case "tm-leverage":
+		return []tool.Tool{
+			libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
+				SourceLocale:   model.LocaleID(sourceLang),
+				TargetLocale:   model.LocaleID(targetLang),
+				FuzzyThreshold: 70,
+				Provider:       libtools.NullTMProvider{},
+			}),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
@@ -305,6 +327,31 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 			func() (tool.Tool, error) {
 				return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 					TargetLocale: model.LocaleID(targetLang),
+				}), nil
+			},
+		}, nil
+	case "qa-check":
+		return []flow.ToolFactory{
+			func() (tool.Tool, error) {
+				return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))), nil
+			},
+		}, nil
+	case "segmentation":
+		return []flow.ToolFactory{
+			func() (tool.Tool, error) {
+				return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
+					TargetLocale: model.LocaleID(targetLang),
+				}), nil
+			},
+		}, nil
+	case "tm-leverage":
+		return []flow.ToolFactory{
+			func() (tool.Tool, error) {
+				return libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
+					SourceLocale:   model.LocaleID(sourceLang),
+					TargetLocale:   model.LocaleID(targetLang),
+					FuzzyThreshold: 70,
+					Provider:       libtools.NullTMProvider{},
 				}), nil
 			},
 		}, nil

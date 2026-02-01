@@ -70,6 +70,10 @@ func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 // For each plugin name, both versioned format names (e.g., "okapi-html@1.46.0")
 // and bare aliases (pointing to the latest version) are registered.
 // If the directory does not exist, this is a no-op.
+//
+// The toolReg parameter is accepted for future use: tool plugin registration
+// is ready but pending bridge-level tool support (steps are not yet exposed
+// via the bridge protocol).
 func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *registry.ToolRegistry) error {
 	if l.dir == "" {
 		return nil

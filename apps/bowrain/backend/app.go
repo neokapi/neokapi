@@ -18,6 +18,7 @@ import (
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/formats"
+	libtools "github.com/gokapi/gokapi/lib/tools"
 	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -27,6 +28,7 @@ import (
 type App struct {
 	app          *application.App
 	formatReg    *registry.FormatRegistry
+	toolReg      *registry.ToolRegistry
 	projects     *projectStore
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
@@ -43,6 +45,9 @@ func NewApp() *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
+	toolReg := registry.NewToolRegistry()
+	libtools.RegisterAll(toolReg)
+
 	// Resolve plugin directory: env var overrides config default.
 	pluginDir := os.Getenv("KAPI_PLUGIN_DIR")
 	if pluginDir == "" {
@@ -56,6 +61,7 @@ func NewApp() *App {
 
 	return &App{
 		formatReg:    reg,
+		toolReg:      toolReg,
 		pluginLoader: pl,
 		projects:     newProjectStore(),
 		credentials:  credentials.NewStore(credentials.DefaultPath()),
@@ -116,6 +122,7 @@ type FormatInfo struct {
 type ToolInfo struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Category    string `json:"category"`
 }
 
 // FlowInfo describes an available flow.
@@ -200,27 +207,66 @@ func (a *App) ListFormats() []FormatInfo {
 	return result
 }
 
+// toolCategory maps tool names to their categories.
+var toolCategory = map[string]string{
+	// utility tools
+	"word-count":     "utility",
+	"char-count":     "utility",
+	"segment-count":  "utility",
+	"encoding-detect": "utility",
+	// transform tools
+	"pseudo-translate": "transform",
+	"search-replace":   "transform",
+	"case-transform":   "transform",
+	"xslt-transform":   "transform",
+	"segmentation":     "transform",
+	// validate tools
+	"xml-validation": "validate",
+	"qa-check":       "validate",
+	"term-check":     "validate",
+	// enrich tools
+	"tag-protect":  "enrich",
+	"tm-leverage":  "enrich",
+	// AI tools
+	"ai-translate":   "transform",
+	"ai-qa":          "validate",
+	"ai-terminology": "enrich",
+	"ai-review":      "validate",
+}
+
 // ListTools returns all available tools.
 func (a *App) ListTools() []ToolInfo {
-	return []ToolInfo{
-		// lib/tools
-		{Name: "word-count", Description: "Count words in source and target text"},
-		{Name: "char-count", Description: "Count characters in source and target text"},
-		{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-		{Name: "search-replace", Description: "Search and replace text in blocks"},
-		{Name: "segment-count", Description: "Count segments in translatable blocks"},
-		{Name: "case-transform", Description: "Transform text case (upper, lower, title)"},
-		{Name: "xslt-transform", Description: "Apply XSLT transformations to XML content"},
-		{Name: "encoding-detect", Description: "Detect character encoding of content"},
-		{Name: "xml-validation", Description: "Validate XML content against schemas"},
-		{Name: "tag-protect", Description: "Protect inline tags from modification"},
-		{Name: "term-check", Description: "Check terminology consistency"},
-		// ai/tools
-		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-		{Name: "ai-qa", Description: "Quality check translations using AI"},
-		{Name: "ai-terminology", Description: "Extract terminology using AI"},
-		{Name: "ai-review", Description: "Review translations using AI"},
+	var result []ToolInfo
+
+	// Add tools from the registry.
+	if a.toolReg != nil {
+		for _, name := range a.toolReg.Names() {
+			t, err := a.toolReg.NewTool(name)
+			if err != nil {
+				continue
+			}
+			category := toolCategory[name]
+			if category == "" {
+				category = "utility"
+			}
+			result = append(result, ToolInfo{
+				Name:        name,
+				Description: t.Description(),
+				Category:    category,
+			})
+		}
 	}
+
+	// AI tools (not in tool registry, managed separately).
+	aiTools := []ToolInfo{
+		{Name: "ai-translate", Description: "Translate content using AI/LLM", Category: "transform"},
+		{Name: "ai-qa", Description: "Quality check translations using AI", Category: "validate"},
+		{Name: "ai-terminology", Description: "Extract terminology using AI", Category: "enrich"},
+		{Name: "ai-review", Description: "Review translations using AI", Category: "validate"},
+	}
+	result = append(result, aiTools...)
+
+	return result
 }
 
 // ListFlows returns all available flows (summary info).
@@ -692,20 +738,30 @@ func buildFlowTools(flowName, providerName, apiKey, modelName, srcLang, tgtLang 
 			}),
 		}, nil
 	case "pseudo-translate":
-		t := &tool.BaseTool{
-			ToolName:        "pseudo-translate",
-			ToolDescription: "Generates pseudo-translations for testing",
-		}
-		t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-			block, ok := part.Resource.(*model.Block)
-			if !ok || !block.Translatable {
-				return part, nil
-			}
-			pseudo := "[" + block.SourceText() + "]"
-			block.SetTargetText(model.LocaleID(tgtLang), pseudo)
-			return part, nil
-		}
-		return []tool.Tool{t}, nil
+		return []tool.Tool{
+			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
+				TargetLocale: model.LocaleID(tgtLang),
+			}),
+		}, nil
+	case "qa-check":
+		return []tool.Tool{
+			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(tgtLang))),
+		}, nil
+	case "segmentation":
+		return []tool.Tool{
+			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
+				TargetLocale: model.LocaleID(tgtLang),
+			}),
+		}, nil
+	case "tm-leverage":
+		return []tool.Tool{
+			libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
+				SourceLocale:   model.LocaleID(srcLang),
+				TargetLocale:   model.LocaleID(tgtLang),
+				FuzzyThreshold: 70,
+				Provider:       libtools.NullTMProvider{},
+			}),
+		}, nil
 	default:
 		return nil, fmt.Errorf("unknown flow: %q", flowName)
 	}

@@ -40,7 +40,7 @@ func TestListFormats(t *testing.T) {
 func TestListTools(t *testing.T) {
 	app := NewApp()
 	tools := app.ListTools()
-	assert.Equal(t, 15, len(tools), "expected 15 tools")
+	assert.Equal(t, 18, len(tools), "expected 18 tools")
 
 	names := make(map[string]bool)
 	for _, tl := range tools {
@@ -54,12 +54,20 @@ func TestListTools(t *testing.T) {
 	assert.True(t, names["search-replace"])
 	assert.True(t, names["tag-protect"])
 	assert.True(t, names["term-check"])
+	assert.True(t, names["segmentation"])
+	assert.True(t, names["tm-leverage"])
+	assert.True(t, names["qa-check"])
+
+	// Verify category is set on all tools.
+	for _, tl := range tools {
+		assert.NotEmpty(t, tl.Category, "tool %q should have a category", tl.Name)
+	}
 }
 
 func TestListFlows(t *testing.T) {
 	app := NewApp()
 	flows := app.ListFlows()
-	assert.Equal(t, 3, len(flows))
+	assert.Equal(t, 5, len(flows))
 
 	names := make(map[string]bool)
 	for _, f := range flows {
@@ -68,6 +76,8 @@ func TestListFlows(t *testing.T) {
 	assert.True(t, names["ai-translate"])
 	assert.True(t, names["ai-translate-qa"])
 	assert.True(t, names["pseudo-translate"])
+	assert.True(t, names["qa-check"])
+	assert.True(t, names["tm-leverage"])
 }
 
 func TestListPlugins(t *testing.T) {
@@ -172,6 +182,9 @@ func TestBuildFlowTools(t *testing.T) {
 		{"ai-translate", "ai-translate", 1, false},
 		{"ai-translate-qa", "ai-translate-qa", 2, false},
 		{"pseudo-translate", "pseudo-translate", 1, false},
+		{"qa-check", "qa-check", 1, false},
+		{"segmentation", "segmentation", 1, false},
+		{"tm-leverage", "tm-leverage", 1, false},
 		{"unknown", "invalid", 0, true},
 	}
 

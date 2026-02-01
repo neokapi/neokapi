@@ -186,6 +186,36 @@ func BuiltInFlows() []FlowDefinition {
 				{ID: "e-pseudo-writer", Source: "pseudo-translate", Target: "writer"},
 			},
 		},
+		{
+			ID:          "qa-check",
+			Name:        "QA Check",
+			Description: "Run rule-based quality checks on translations",
+			Source:      "built-in",
+			Nodes: []FlowNode{
+				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "qa-check", Type: "tool", Name: "qa-check", Label: "QA Check", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+			},
+			Edges: []FlowEdge{
+				{ID: "e-reader-qa", Source: "reader", Target: "qa-check"},
+				{ID: "e-qa-writer", Source: "qa-check", Target: "writer"},
+			},
+		},
+		{
+			ID:          "tm-leverage",
+			Name:        "TM Leverage",
+			Description: "Pre-fill translations from translation memory",
+			Source:      "built-in",
+			Nodes: []FlowNode{
+				{ID: "reader", Type: "reader", Name: "auto", Label: "Input", Position: NodePosition{X: 0, Y: 100}},
+				{ID: "tm-leverage", Type: "tool", Name: "tm-leverage", Label: "TM Leverage", Position: NodePosition{X: 250, Y: 100}},
+				{ID: "writer", Type: "writer", Name: "auto", Label: "Output", Position: NodePosition{X: 500, Y: 100}},
+			},
+			Edges: []FlowEdge{
+				{ID: "e-reader-tm", Source: "reader", Target: "tm-leverage"},
+				{ID: "e-tm-writer", Source: "tm-leverage", Target: "writer"},
+			},
+		},
 	}
 }
 
