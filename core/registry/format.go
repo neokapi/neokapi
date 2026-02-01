@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,11 +16,23 @@ type FormatReaderFactory func() format.DataFormatReader
 // FormatWriterFactory creates a new DataFormatWriter instance.
 type FormatWriterFactory func() format.DataFormatWriter
 
+// FormatInfo describes a registered format with its metadata.
+type FormatInfo struct {
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name"`
+	MimeTypes   []string `json:"mime_types,omitempty"`
+	Extensions  []string `json:"extensions,omitempty"`
+	HasReader   bool     `json:"has_reader"`
+	HasWriter   bool     `json:"has_writer"`
+	Source      string   `json:"source"` // "built-in" or plugin name
+}
+
 // FormatRegistry manages available DataFormats and their configurations.
 type FormatRegistry struct {
 	mu       sync.RWMutex
 	readers  map[string]FormatReaderFactory
 	writers  map[string]FormatWriterFactory
+	infos    map[string]*FormatInfo
 	detector *format.FormatDetector
 }
 
@@ -28,6 +41,7 @@ func NewFormatRegistry() *FormatRegistry {
 	return &FormatRegistry{
 		readers:  make(map[string]FormatReaderFactory),
 		writers:  make(map[string]FormatWriterFactory),
+		infos:    make(map[string]*FormatInfo),
 		detector: format.NewFormatDetector(),
 	}
 }
@@ -38,9 +52,20 @@ func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory
 	defer r.mu.Unlock()
 	r.readers[name] = factory
 
-	// Register the format signature for detection
+	// Register the format signature for detection and populate format info.
 	reader := factory()
-	r.detector.Register(name, reader.Signature())
+	sig := reader.Signature()
+	r.detector.Register(name, sig)
+
+	info := r.getOrCreateInfo(name)
+	info.HasReader = true
+	info.DisplayName = reader.DisplayName()
+	if len(sig.MIMETypes) > 0 {
+		info.MimeTypes = sig.MIMETypes
+	}
+	if len(sig.Extensions) > 0 {
+		info.Extensions = sig.Extensions
+	}
 }
 
 // RegisterWriter registers a DataFormatWriter factory.
@@ -48,6 +73,64 @@ func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.writers[name] = factory
+
+	info := r.getOrCreateInfo(name)
+	info.HasWriter = true
+}
+
+// SetFormatSource sets the source (provider) for a format. Use "built-in" for
+// built-in formats or the plugin name for plugin-provided formats.
+func (r *FormatRegistry) SetFormatSource(name, source string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	info := r.getOrCreateInfo(name)
+	info.Source = source
+}
+
+// FormatInfos returns metadata for all registered formats, sorted by name.
+func (r *FormatRegistry) FormatInfos() []FormatInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]FormatInfo, 0, len(r.infos))
+	for _, info := range r.infos {
+		cp := *info
+		if cp.Source == "" {
+			cp.Source = "built-in"
+		}
+		result = append(result, cp)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
+	return result
+}
+
+// FormatInfo returns metadata for a specific format, or nil if not found.
+func (r *FormatRegistry) FormatInfo(name string) *FormatInfo {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	info, ok := r.infos[name]
+	if !ok {
+		return nil
+	}
+	cp := *info
+	if cp.Source == "" {
+		cp.Source = "built-in"
+	}
+	return &cp
+}
+
+// getOrCreateInfo returns the FormatInfo for the given name, creating it if needed.
+// Caller must hold the write lock.
+func (r *FormatRegistry) getOrCreateInfo(name string) *FormatInfo {
+	info, ok := r.infos[name]
+	if !ok {
+		info = &FormatInfo{Name: name}
+		r.infos[name] = info
+	}
+	return info
 }
 
 // NewReader creates a new reader instance for the given format name.

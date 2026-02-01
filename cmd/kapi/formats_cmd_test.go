@@ -1,0 +1,62 @@
+package main
+
+import (
+	"testing"
+
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestFilterFormatsEmpty(t *testing.T) {
+	infos := []registry.FormatInfo{
+		{Name: "html", MimeTypes: []string{"text/html"}, Extensions: []string{".html"}},
+		{Name: "csv", MimeTypes: []string{"text/csv"}, Extensions: []string{".csv"}},
+	}
+
+	// No match.
+	result := filterFormats(infos, "application/pdf", "")
+	assert.Empty(t, result)
+}
+
+func TestFilterFormatsByMime(t *testing.T) {
+	infos := []registry.FormatInfo{
+		{Name: "html", MimeTypes: []string{"text/html"}, Extensions: []string{".html"}},
+		{Name: "csv", MimeTypes: []string{"text/csv"}, Extensions: []string{".csv"}},
+		{Name: "xml", MimeTypes: []string{"application/xml"}, Extensions: []string{".xml"}},
+	}
+
+	result := filterFormats(infos, "text/html", "")
+	assert.Len(t, result, 1)
+	assert.Equal(t, "html", result[0].Name)
+}
+
+func TestFilterFormatsByExt(t *testing.T) {
+	infos := []registry.FormatInfo{
+		{Name: "html", MimeTypes: []string{"text/html"}, Extensions: []string{".html", ".htm"}},
+		{Name: "csv", Extensions: []string{".csv"}},
+	}
+
+	result := filterFormats(infos, "", ".htm")
+	assert.Len(t, result, 1)
+	assert.Equal(t, "html", result[0].Name)
+}
+
+func TestFilterFormatsCombined(t *testing.T) {
+	infos := []registry.FormatInfo{
+		{Name: "html", MimeTypes: []string{"text/html"}, Extensions: []string{".html"}},
+		{Name: "okapi-html", MimeTypes: []string{"text/html"}, Extensions: []string{".html", ".htm"}},
+		{Name: "csv", MimeTypes: []string{"text/csv"}, Extensions: []string{".csv"}},
+	}
+
+	// Both MIME and extension filter: only okapi-html has .htm + text/html.
+	result := filterFormats(infos, "text/html", ".htm")
+	assert.Len(t, result, 1)
+	assert.Equal(t, "okapi-html", result[0].Name)
+}
+
+func TestContainsLower(t *testing.T) {
+	assert.True(t, containsLower([]string{"text/html", "TEXT/XML"}, "text/html"))
+	assert.True(t, containsLower([]string{"TEXT/HTML"}, "text/html"))
+	assert.False(t, containsLower([]string{"text/html"}, "application/json"))
+	assert.False(t, containsLower(nil, "text/html"))
+}

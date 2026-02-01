@@ -193,6 +193,10 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 						r, _ := formatReg.NewReader(versionedName)
 						return r
 					})
+					// Propagate source from the versioned format.
+					if info := formatReg.FormatInfo(versionedName); info != nil {
+						formatReg.SetFormatSource(baseName, info.Source)
+					}
 				}
 			}
 			if !formatReg.HasWriter(baseName) {
@@ -268,6 +272,7 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 			formatReg.RegisterWriter(versionedName, func() format.DataFormatWriter {
 				return bridge.NewBridgeFormatWriter(sharedPool, bridgeCfg, filterClass)
 			})
+			formatReg.SetFormatSource(versionedName, parsed.Name)
 		}
 
 		l.logf("registered bridge format: %s (filter: %s)", versionedName, filterClass)

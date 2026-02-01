@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"sync"
 
 	"github.com/gokapi/gokapi/ai/provider"
@@ -104,9 +103,13 @@ func (a *App) GetVersion() VersionInfo {
 
 // FormatInfo describes a registered data format.
 type FormatInfo struct {
-	Name      string `json:"name"`
-	HasReader bool   `json:"has_reader"`
-	HasWriter bool   `json:"has_writer"`
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name,omitempty"`
+	MimeTypes   []string `json:"mime_types,omitempty"`
+	Extensions  []string `json:"extensions,omitempty"`
+	HasReader   bool     `json:"has_reader"`
+	HasWriter   bool     `json:"has_writer"`
+	Source      string   `json:"source"`
 }
 
 // ToolInfo describes an available tool.
@@ -179,30 +182,21 @@ type TranslateResult struct {
 	BlockCount int    `json:"block_count"`
 }
 
-// ListFormats returns all registered formats.
+// ListFormats returns all registered formats with metadata.
 func (a *App) ListFormats() []FormatInfo {
-	readers := a.formatReg.ReaderNames()
-	writers := a.formatReg.WriterNames()
-
-	nameSet := make(map[string]bool)
-	for _, n := range readers {
-		nameSet[n] = true
+	regInfos := a.formatReg.FormatInfos()
+	result := make([]FormatInfo, len(regInfos))
+	for i, ri := range regInfos {
+		result[i] = FormatInfo{
+			Name:        ri.Name,
+			DisplayName: ri.DisplayName,
+			MimeTypes:   ri.MimeTypes,
+			Extensions:  ri.Extensions,
+			HasReader:   ri.HasReader,
+			HasWriter:   ri.HasWriter,
+			Source:      ri.Source,
+		}
 	}
-	for _, n := range writers {
-		nameSet[n] = true
-	}
-
-	var result []FormatInfo
-	for name := range nameSet {
-		result = append(result, FormatInfo{
-			Name:      name,
-			HasReader: a.formatReg.HasReader(name),
-			HasWriter: a.formatReg.HasWriter(name),
-		})
-	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
-	})
 	return result
 }
 

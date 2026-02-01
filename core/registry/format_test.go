@@ -13,6 +13,7 @@ import (
 // stubReader is a minimal DataFormatReader for testing.
 type stubReader struct {
 	format.BaseFormatReader
+	sig format.FormatSignature
 }
 
 func newStubReader(name string) *stubReader {
@@ -21,7 +22,22 @@ func newStubReader(name string) *stubReader {
 	}
 }
 
-func (s *stubReader) Signature() format.FormatSignature { return format.FormatSignature{} }
+func newStubReaderWithSig(name, displayName string, mimes, exts []string) *stubReader {
+	return &stubReader{
+		BaseFormatReader: format.BaseFormatReader{
+			FormatName:        name,
+			FormatDisplayName: displayName,
+		},
+		sig: format.FormatSignature{
+			MIMETypes:  mimes,
+			Extensions: exts,
+		},
+	}
+}
+
+func (s *stubReader) Signature() format.FormatSignature {
+	return s.sig
+}
 func (s *stubReader) Open(_ context.Context, _ *model.RawDocument) error {
 	return nil
 }
@@ -135,4 +151,83 @@ func TestInternalCompareSemver(t *testing.T) {
 	assert.Equal(t, -1, compareSemver("1.0.0", "2.0.0"))
 	assert.Equal(t, 1, compareSemver("2.0.0", "1.0.0"))
 	assert.Equal(t, 1, compareSemver("1.47.0", "1.46.0"))
+}
+
+func TestFormatInfosBuiltIn(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html", ".htm"})
+	})
+	reg.RegisterWriter("html", func() format.DataFormatWriter {
+		return newStubWriter("html")
+	})
+
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 1)
+	assert.Equal(t, "html", infos[0].Name)
+	assert.Equal(t, "HTML", infos[0].DisplayName)
+	assert.Equal(t, []string{"text/html"}, infos[0].MimeTypes)
+	assert.Equal(t, []string{".html", ".htm"}, infos[0].Extensions)
+	assert.True(t, infos[0].HasReader)
+	assert.True(t, infos[0].HasWriter)
+	assert.Equal(t, "built-in", infos[0].Source)
+}
+
+func TestFormatInfosPluginSource(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("okapi-html", "okapi")
+
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 1)
+	assert.Equal(t, "okapi", infos[0].Source)
+}
+
+func TestFormatInfosSorted(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("yaml", func() format.DataFormatReader {
+		return newStubReader("yaml")
+	})
+	reg.RegisterReader("csv", func() format.DataFormatReader {
+		return newStubReader("csv")
+	})
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReader("html")
+	})
+
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 3)
+	assert.Equal(t, "csv", infos[0].Name)
+	assert.Equal(t, "html", infos[1].Name)
+	assert.Equal(t, "yaml", infos[2].Name)
+}
+
+func TestFormatInfoSingleLookup(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+	reg.SetFormatSource("html", "built-in")
+
+	info := reg.FormatInfo("html")
+	require.NotNil(t, info)
+	assert.Equal(t, "html", info.Name)
+	assert.Equal(t, "HTML", info.DisplayName)
+
+	// Non-existent format returns nil.
+	assert.Nil(t, reg.FormatInfo("nonexistent"))
+}
+
+func TestFormatInfoWriterOnly(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterWriter("custom", func() format.DataFormatWriter {
+		return newStubWriter("custom")
+	})
+
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 1)
+	assert.False(t, infos[0].HasReader)
+	assert.True(t, infos[0].HasWriter)
 }
