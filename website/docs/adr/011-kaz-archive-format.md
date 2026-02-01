@@ -45,8 +45,10 @@ highlighting.
 
 ## Alternatives Considered
 
-- **XLIFF as container**: XLIFF is a segment format, not a project format;
-  no room for previews or metadata.
+- **XLIFF as container**: XLIFF is an interchange format for translatable
+  content, not a project container; it has no native support for bundling
+  previews, original source files, or project-level metadata alongside
+  translation data.
 - **Directory-based project**: harder to share; no atomic save.
 - **Custom binary format**: harder to inspect and debug; ZIP is universally
   supported.
