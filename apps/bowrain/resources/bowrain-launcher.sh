@@ -3,8 +3,15 @@
 # process detaches and returns control to the shell immediately.
 #
 # This script lives at Bowrain.app/Contents/Resources/bin/bowrain.
-# Resolve the .app bundle: bin/ → Resources/ → Contents/ → Bowrain.app/
-APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+# Resolve symlinks (e.g. Homebrew /opt/homebrew/bin/bowrain → real path)
+# before computing the .app bundle: bin/ → Resources/ → Contents/ → Bowrain.app/
+SOURCE="$0"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+APP_DIR="$(cd -P "$(dirname "$SOURCE")/../../.." && pwd)"
 
 if [ $# -eq 0 ]; then
   open "$APP_DIR"
