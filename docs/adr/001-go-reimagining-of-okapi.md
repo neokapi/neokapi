@@ -1,3 +1,8 @@
+---
+id: 001-go-reimagining-of-okapi
+sidebar_position: 1
+title: "ADR-001: Go Reimagining of Okapi"
+---
 # ADR-001: Go reimagining of the Okapi Framework
 
 ## Context

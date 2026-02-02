@@ -1,3 +1,8 @@
+---
+id: 003-streaming-pipeline-and-flow-execution
+sidebar_position: 3
+title: "ADR-003: Streaming Pipeline"
+---
 # ADR-003: Streaming pipeline and flow execution
 
 ## Context

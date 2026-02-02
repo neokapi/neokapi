@@ -1,3 +1,8 @@
+---
+sidebar_position: 0
+title: Overview
+slug: index
+---
 # Architecture Decision Records
 
 This directory contains Architecture Decision Records (ADRs) for gokapi.

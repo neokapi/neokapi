@@ -1,0 +1,21 @@
+import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
+
+const sidebars: SidebarsConfig = {
+  adr: [
+    'README',
+    '001-go-reimagining-of-okapi',
+    '002-content-model',
+    '003-streaming-pipeline-and-flow-execution',
+    '004-format-system',
+    '005-plugin-system',
+    '006-java-bridge',
+    '007-tool-system',
+    '008-configuration',
+    '009-ai-integration',
+    '010-translation-memory',
+    '011-kaz-archive-format',
+    '012-bowrain-desktop-app',
+  ],
+};
+
+export default sidebars;

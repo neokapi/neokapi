@@ -1,3 +1,8 @@
+---
+id: 007-tool-system
+sidebar_position: 7
+title: "ADR-007: Tool System"
+---
 # ADR-007: Tool system with BaseTool dispatch
 
 ## Context

@@ -1,3 +1,8 @@
+---
+id: 004-format-system
+sidebar_position: 4
+title: "ADR-004: Format System"
+---
 # ADR-004: Tiered format system
 
 ## Context

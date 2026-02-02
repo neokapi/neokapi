@@ -1,3 +1,8 @@
+---
+id: 008-configuration
+sidebar_position: 8
+title: "ADR-008: Configuration"
+---
 # ADR-008: Viper-based layered configuration
 
 ## Context

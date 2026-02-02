@@ -30,6 +30,19 @@ const config: Config = {
 
   themes: ['@docusaurus/theme-mermaid'],
 
+  plugins: [
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'adr',
+        path: '../docs/adr',
+        routeBasePath: 'docs/adr',
+        sidebarPath: './sidebars-adr.ts',
+        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+      },
+    ],
+  ],
+
   presets: [
     [
       'classic',

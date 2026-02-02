@@ -1,3 +1,8 @@
+---
+id: 002-content-model
+sidebar_position: 2
+title: "ADR-002: Content Model"
+---
 # ADR-002: Part-Resource content model with nested layers
 
 ## Context

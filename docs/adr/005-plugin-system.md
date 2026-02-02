@@ -1,3 +1,8 @@
+---
+id: 005-plugin-system
+sidebar_position: 5
+title: "ADR-005: Plugin System"
+---
 # ADR-005: Plugin system
 
 ## Context

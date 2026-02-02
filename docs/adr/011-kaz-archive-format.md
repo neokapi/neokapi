@@ -1,3 +1,8 @@
+---
+id: 011-kaz-archive-format
+sidebar_position: 11
+title: "ADR-011: KAZ Archive"
+---
 # ADR-011: KAZ archive format for project packaging
 
 ## Context

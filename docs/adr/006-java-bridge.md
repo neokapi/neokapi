@@ -1,3 +1,8 @@
+---
+id: 006-java-bridge
+sidebar_position: 6
+title: "ADR-006: Java Bridge"
+---
 # ADR-006: Java bridge and global bridge pool
 
 ## Context

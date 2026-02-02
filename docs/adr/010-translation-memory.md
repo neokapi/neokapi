@@ -1,3 +1,8 @@
+---
+id: 010-translation-memory
+sidebar_position: 10
+title: "ADR-010: Translation Memory"
+---
 # ADR-010: Pensieve built-in translation memory
 
 ## Context

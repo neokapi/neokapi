@@ -1,3 +1,8 @@
+---
+id: 009-ai-integration
+sidebar_position: 9
+title: "ADR-009: AI Integration"
+---
 # ADR-009: First-class AI/LLM integration
 
 ## Context

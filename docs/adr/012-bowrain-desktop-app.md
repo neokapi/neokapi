@@ -1,3 +1,8 @@
+---
+id: 012-bowrain-desktop-app
+sidebar_position: 12
+title: "ADR-012: Bowrain Desktop App"
+---
 # ADR-012: Bowrain desktop app with Wails v3
 
 ## Context
