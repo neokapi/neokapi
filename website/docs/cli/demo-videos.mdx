@@ -1,0 +1,72 @@
+# CLI Demo Videos
+
+These videos demonstrate common `kapi` CLI workflows.
+
+:::note
+CLI videos are generated using [VHS](https://github.com/charmbracelet/vhs) and require local terminal access to regenerate.
+:::
+
+## Overview
+
+Quick tour of kapi's capabilities.
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/overview.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Format Conversion
+
+Convert between JSON, YAML, XML, and other formats.
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/convert.webm" type="video/webm" />
+</video>
+
+```bash
+# Convert JSON to YAML
+kapi convert messages.json -f json --to yaml
+
+# Convert YAML to JSON
+kapi convert messages.yaml -f yaml --to json
+```
+
+## Word Count
+
+Estimate translation costs with word counting.
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/word-count.webm" type="video/webm" />
+</video>
+
+```bash
+kapi word-count messages.json
+```
+
+## Pseudo-Translation
+
+Generate pseudo-translations to test UI for truncation and RTL issues.
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/pseudo-translate.webm" type="video/webm" />
+</video>
+
+```bash
+kapi pseudo-translate messages.json --target-lang fr
+```
+
+---
+
+## Regenerating Videos
+
+Videos are generated from VHS tape files in `docs/tapes/`:
+
+```bash
+# Generate all CLI demos
+make cli-recordings
+
+# Or manually
+cd docs/tapes && ./generate.sh
+```
+
+Requires VHS (`brew install charmbracelet/tap/vhs`) and a local terminal with TTY access.

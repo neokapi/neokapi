@@ -1,0 +1,86 @@
+# Use Case: Translating a Website
+
+This guide walks through a complete workflow for translating website content using kapi CLI and Bowrain's visual editor.
+
+## Overview
+
+1. **CLI**: Create a translation project from source files
+2. **Bowrain**: Open and translate with visual tools
+3. **CLI**: Export translated files
+
+## Step 1: Create Project with kapi
+
+First, use the CLI to pack your source files into a translation project:
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/create-project.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+```bash
+# Check word count for estimation
+kapi word-count landing-page.html
+
+# Create a .kaz translation project
+kapi pack -i landing-page.html \
+  --source-lang en \
+  --target-lang fr,de \
+  -o acme-website.kaz
+```
+
+The `.kaz` file contains:
+- Original source files
+- Extracted translatable blocks
+- Preview HTML for visual context
+- Project metadata
+
+## Step 2: Translate in Bowrain
+
+Open the project in Bowrain to translate with visual context:
+
+<video controls width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/bowrain/end-to-end-translation-workflow.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+### Editor Views
+
+Bowrain offers multiple views for different translation tasks:
+
+| View | Best For |
+|------|----------|
+| **Grid View** | Overview, batch operations |
+| **Split Preview** | Context-sensitive translation with live rendering |
+| **Focus View** | Distraction-free, segment-by-segment work |
+
+### Translation Methods
+
+- **Manual**: Type translations directly in the editor
+- **AI Translation**: Use configured AI providers for machine translation
+- **Pseudo-Translation**: Generate test translations to find UI issues
+- **Translation Memory**: Leverage previous translations for consistency
+
+## Step 3: Export Translations
+
+After translation, export the localized files:
+
+```bash
+# Unpack translated files
+kapi unpack acme-website.kaz -o output/
+
+# Or export specific language
+kapi unpack acme-website.kaz --target-lang fr -o output/fr/
+```
+
+## Tips
+
+- **Start with pseudo-translation** to identify potential UI truncation issues
+- **Use split preview** when translating content that appears in specific layouts
+- **Configure AI providers** in Settings → AI Providers for machine translation
+- **Build translation memory** to maintain consistency across projects
+
+## Related
+
+- [AI Translation](/docs/user-guide/ai-translation)
+- [Translation Memory](/docs/user-guide/translation-memory)
+- [CLI Reference](/docs/cli/demo-videos)

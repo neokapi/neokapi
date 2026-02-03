@@ -30,7 +30,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
         test-race lint fmt vet proto clean install cover tools help \
-        frontend-deps frontend-dev frontend-build \
+        frontend-deps frontend-dev frontend-build screenshots recordings cli-recordings docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
 # Default target
@@ -70,6 +70,19 @@ frontend-build: ## Build frontend for production
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 build-ui: build-server frontend-build ## Build server + frontend
+
+# ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
+
+screenshots: frontend-deps ## Generate documentation screenshots
+	cd $(FRONTEND_DIR) && $(NPM) run screenshots
+
+recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
+	cd $(FRONTEND_DIR) && $(NPM) run recordings:all
+
+cli-recordings: build ## Generate CLI demo videos using VHS
+	./docs/tapes/generate.sh
+
+docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 

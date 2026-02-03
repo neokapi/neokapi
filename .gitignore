@@ -50,3 +50,4 @@ playwright-report/
 # Docusaurus
 website/build/
 website/.docusaurus/
+apps/bowrain/frontend/recordings-output/
