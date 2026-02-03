@@ -35,12 +35,13 @@ export async function injectCursor(page: Page) {
         position: fixed;
         pointer-events: none;
         z-index: 999998;
-        width: 40px;
-        height: 40px;
+        width: 60px;
+        height: 60px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(59,130,246,0.4) 0%, rgba(59,130,246,0) 70%);
+        background: radial-gradient(circle, rgba(255,200,0,0.7) 0%, rgba(255,180,0,0.3) 50%, rgba(255,160,0,0) 70%);
+        border: 2px solid rgba(255,180,0,0.6);
         transform: translate(-50%, -50%) scale(0);
-        animation: click-ripple-anim 0.4s ease-out forwards;
+        animation: click-ripple-anim 0.5s ease-out forwards;
       }
       
       @keyframes click-ripple-anim {
@@ -48,8 +49,11 @@ export async function injectCursor(page: Page) {
           transform: translate(-50%, -50%) scale(0);
           opacity: 1;
         }
+        50% {
+          opacity: 0.8;
+        }
         100% {
-          transform: translate(-50%, -50%) scale(2);
+          transform: translate(-50%, -50%) scale(2.5);
           opacity: 0;
         }
       }
