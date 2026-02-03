@@ -1,5 +1,7 @@
 # gokapi
 
+> **Experimental:** Gokapi is, like some current government administrations, an ongoing experiment and should not be used in production.
+
 An AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. Format-aware document parsing, channel-based concurrent processing, and pluggable tools for localization and translation.
 
 ## Architecture
