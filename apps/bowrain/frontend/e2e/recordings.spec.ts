@@ -87,6 +87,8 @@ test.describe("Video Recordings", () => {
   });
 
   test("record translation editor workflow", async ({ page }) => {
+    // Hero demo: Translating a realistic HTML page to Norwegian
+    // Shows: grid view → translate blocks → toggle to split view → translate more
     await setupRecording(page, "Bowrain — Translation Editor");
 
     // Create project with Norwegian as target
@@ -96,7 +98,7 @@ test.describe("Video Recordings", () => {
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-    // Add HTML file with rich content - inject custom blocks
+    // Add HTML file with rich content - realistic webpage with headers, paragraphs, inline elements
     await page.evaluate(async () => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
@@ -107,30 +109,34 @@ test.describe("Video Recordings", () => {
       // Add the file entry
       const p = projects[0];
       p.items.push({
-        name: "landing-page.html",
+        name: "about-us.html",
         format: "html",
         type: "file",
-        size: 4096,
-        block_count: 6,
-        word_count: 52,
+        size: 8192,
+        block_count: 10,
+        word_count: 156,
       });
 
-      // Create rich content blocks
+      // Rich HTML content with headers, paragraphs, and inline formatting
       const blocks = [
-        { id: "block-1", source: "Welcome to TechCorp", targets: {}, translatable: true, has_spans: false, properties: {} },
-        { id: "block-2", source: "We build innovative software solutions for businesses worldwide.", targets: {}, translatable: true, has_spans: false, properties: {} },
-        { id: "block-3", source: "Our Services", targets: {}, translatable: true, has_spans: false, properties: {} },
-        { id: "block-4", source: "From cloud infrastructure to mobile apps, we deliver excellence.", targets: {}, translatable: true, has_spans: false, properties: {} },
-        { id: "block-5", source: "Get in Touch", targets: {}, translatable: true, has_spans: false, properties: {} },
-        { id: "block-6", source: "Contact us today to discuss your next project.", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-h1", source: "About Our Company", targets: {}, translatable: true, has_spans: false, properties: { element: "h1" } },
+        { id: "block-p1", source: "We are a leading technology company founded in 2015.", targets: {}, translatable: true, has_spans: false, properties: { element: "p" } },
+        { id: "block-p2", source: "Our mission is to deliver innovative solutions that transform businesses.", targets: {}, translatable: true, has_spans: true, properties: { element: "p" } },
+        { id: "block-h2", source: "Our Values", targets: {}, translatable: true, has_spans: false, properties: { element: "h2" } },
+        { id: "block-p3", source: "We believe in quality, integrity, and customer success.", targets: {}, translatable: true, has_spans: true, properties: { element: "p" } },
+        { id: "block-p4", source: "Every project starts with understanding your unique needs.", targets: {}, translatable: true, has_spans: false, properties: { element: "p" } },
+        { id: "block-h2b", source: "Meet the Team", targets: {}, translatable: true, has_spans: false, properties: { element: "h2" } },
+        { id: "block-p5", source: "Our talented team brings decades of combined experience.", targets: {}, translatable: true, has_spans: false, properties: { element: "p" } },
+        { id: "block-p6", source: "Contact us to learn how we can help your business grow.", targets: {}, translatable: true, has_spans: true, properties: { element: "p" } },
+        { id: "block-link", source: "Read more about our services", targets: {}, translatable: true, has_spans: false, properties: { element: "a" } },
       ];
 
-      // Store blocks in the mock's internal storage
+      // Store blocks
       if (!(window as any).__projectFiles) (window as any).__projectFiles = {};
       if (!(window as any).__projectFiles[projectId]) (window as any).__projectFiles[projectId] = {};
-      (window as any).__projectFiles[projectId]["landing-page.html"] = blocks;
+      (window as any).__projectFiles[projectId]["about-us.html"] = blocks;
 
-      // Patch GetFileBlocks to use our custom blocks
+      // Patch GetFileBlocks
       const origGetFileBlocks = backend[IDS.GetFileBlocks];
       backend[IDS.GetFileBlocks] = (pid: string, fileName: string) => {
         const customBlocks = (window as any).__projectFiles?.[pid]?.[fileName];
@@ -138,13 +144,57 @@ test.describe("Video Recordings", () => {
         return origGetFileBlocks(pid, fileName);
       };
 
-      // Patch UpdateBlockTarget to update our custom blocks
+      // Patch UpdateBlockTarget
       backend[IDS.UpdateBlockTarget] = (req: any) => {
         const blocks = (window as any).__projectFiles?.[req.project_id]?.[req.item_name || req.file_name];
         if (blocks) {
           const block = blocks.find((b: any) => b.id === req.block_id);
           if (block) block.targets[req.target_locale] = req.text;
         }
+      };
+
+      // Patch RenderDocumentPreview for rich HTML preview
+      backend[IDS.RenderDocumentPreview] = (_projectID: string, _itemName: string, targetLocale: string) => {
+        const b = (window as any).__projectFiles?.[projectId]?.["about-us.html"] || [];
+        const getContent = (block: any) => block.targets[targetLocale] || block.source;
+        return `<!DOCTYPE html><html><head><style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding: 24px; line-height: 1.6; color: #1a1a1a; max-width: 640px; }
+          h1 { font-size: 28px; margin-bottom: 16px; color: #111; }
+          h2 { font-size: 20px; margin-top: 24px; margin-bottom: 12px; color: #333; }
+          p { margin-bottom: 12px; color: #444; }
+          a { color: #2563eb; }
+          em { font-style: italic; }
+          strong { font-weight: 600; }
+          kat-block { cursor: pointer; border-radius: 2px; display: inline; transition: background 0.15s; }
+          kat-block:hover { background-color: rgba(59,130,246,0.12); }
+          kat-block.kat-selected { background-color: rgba(59,130,246,0.2); outline: 2px solid #3b82f6; outline-offset: 1px; }
+        </style></head><body>
+          <h1><kat-block id="block-h1">${getContent(b[0])}</kat-block></h1>
+          <p><kat-block id="block-p1">${getContent(b[1])}</kat-block></p>
+          <p><kat-block id="block-p2">${getContent(b[2])}</kat-block></p>
+          <h2><kat-block id="block-h2">${getContent(b[3])}</kat-block></h2>
+          <p><kat-block id="block-p3">${getContent(b[4])}</kat-block></p>
+          <p><kat-block id="block-p4">${getContent(b[5])}</kat-block></p>
+          <h2><kat-block id="block-h2b">${getContent(b[6])}</kat-block></h2>
+          <p><kat-block id="block-p5">${getContent(b[7])}</kat-block></p>
+          <p><kat-block id="block-p6">${getContent(b[8])}</kat-block></p>
+          <p><a href="#"><kat-block id="block-link">${getContent(b[9])}</kat-block></a></p>
+        <script>
+          document.querySelectorAll('kat-block').forEach(el => {
+            el.addEventListener('click', () => window.parent.postMessage({ type: 'kat-block-click', blockId: el.id }, '*'));
+          });
+          window.addEventListener('message', (e) => {
+            if (e.data?.type === 'kat-select-block') {
+              document.querySelector('.kat-selected')?.classList.remove('kat-selected');
+              document.getElementById(e.data.blockId)?.classList.add('kat-selected');
+            }
+            if (e.data?.type === 'kat-update-block') {
+              const el = document.getElementById(e.data.blockId);
+              if (el) el.innerHTML = e.data.html;
+            }
+          });
+          window.parent.postMessage({ type: 'kat-iframe-ready' }, '*');
+        </script></body></html>`;
       };
     });
 
@@ -155,70 +205,104 @@ test.describe("Video Recordings", () => {
     await page.waitForTimeout(200);
     await humanClick(page, page.getByText("Company Website").first());
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
+    await pause(page, 400);
 
     // Open the HTML file in editor
-    await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
-    await humanClick(page, page.getByTestId("open-file-landing-page.html"));
+    await expect(page.getByTestId("open-file-about-us.html")).toBeVisible({ timeout: 5000 });
+    await humanClick(page, page.getByTestId("open-file-about-us.html"));
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
-    // View the content - read through the blocks
+    // View content in grid view - all source strings visible
     await expect(page.getByTestId("block-row-0")).toBeVisible();
-    await pause(page, 800); // Pause to read
+    await pause(page, 500);
 
-    // Enable split preview to see layout
-    await humanClick(page, page.getByTestId("layout-split-v"));
-    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
-    await pause(page, 700);
+    // === PHASE 1: Translate first 4 blocks in grid view ===
 
-    // Click first block and read the source
+    // Block 0: h1 - "About Our Company"
     await humanClick(page, page.getByTestId("block-row-0"));
-    await pause(page, 600); // Reading "Welcome to TechCorp"
-
-    // Type Norwegian translation
+    await pause(page, 400);
     const targetInput0 = page.locator('[data-testid="block-row-0"] [data-testid="target-input"]');
     if (await targetInput0.isVisible()) {
-      await humanType(page, targetInput0, "Velkommen til TechCorp");
-      await pause(page, 500);
-    }
-
-    // Move to second block - the longer description
-    await humanClick(page, page.getByTestId("block-row-1"));
-    await pause(page, 900); // Longer pause to "read" the longer source text
-
-    // Type translation
-    const targetInput1 = page.locator('[data-testid="block-row-1"] [data-testid="target-input"]');
-    if (await targetInput1.isVisible()) {
-      await humanType(page, targetInput1, "Vi bygger innovative programvareløsninger for bedrifter over hele verden.");
-      await pause(page, 500);
-    }
-
-    // Move to third block - section header
-    await humanClick(page, page.getByTestId("block-row-2"));
-    await pause(page, 500); // Quick read for short text
-
-    const targetInput2 = page.locator('[data-testid="block-row-2"] [data-testid="target-input"]');
-    if (await targetInput2.isVisible()) {
-      await humanType(page, targetInput2, "Våre tjenester");
+      await humanType(page, targetInput0, "Om selskapet vårt");
       await pause(page, 400);
     }
 
-    // Scroll down to see more blocks if needed
-    await page.getByTestId("block-row-3").scrollIntoViewIfNeeded();
-    await pause(page, 300);
+    // Block 1: p - "We are a leading technology company..."
+    await humanClick(page, page.getByTestId("block-row-1"));
+    await pause(page, 500);
+    const targetInput1 = page.locator('[data-testid="block-row-1"] [data-testid="target-input"]');
+    if (await targetInput1.isVisible()) {
+      await humanType(page, targetInput1, "Vi er et ledende teknologiselskap grunnlagt i 2015.");
+      await pause(page, 400);
+    }
 
-    // Fourth block
+    // Block 2: p - "Our mission is to deliver..."
+    await humanClick(page, page.getByTestId("block-row-2"));
+    await pause(page, 500);
+    const targetInput2 = page.locator('[data-testid="block-row-2"] [data-testid="target-input"]');
+    if (await targetInput2.isVisible()) {
+      await humanType(page, targetInput2, "Vår misjon er å levere innovative løsninger som transformerer bedrifter.");
+      await pause(page, 400);
+    }
+
+    // Block 3: h2 - "Our Values"
     await humanClick(page, page.getByTestId("block-row-3"));
-    await pause(page, 700);
-
+    await pause(page, 400);
     const targetInput3 = page.locator('[data-testid="block-row-3"] [data-testid="target-input"]');
     if (await targetInput3.isVisible()) {
-      await humanType(page, targetInput3, "Fra skyinfrastruktur til mobilapper, vi leverer kvalitet.");
+      await humanType(page, targetInput3, "Våre verdier");
+      await pause(page, 500);
+    }
+
+    // === PHASE 2: Toggle to split view to see translations in context ===
+    await humanClick(page, page.getByTestId("layout-split-v"));
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    await pause(page, 800); // Let user see the preview with translated content
+
+    // === PHASE 3: Continue translating in split view ===
+
+    // Scroll to show more blocks
+    await page.getByTestId("block-row-4").scrollIntoViewIfNeeded();
+    await pause(page, 300);
+
+    // Block 4: p - "We believe in quality..."
+    await humanClick(page, page.getByTestId("block-row-4"));
+    await pause(page, 500);
+    const targetInput4 = page.locator('[data-testid="block-row-4"] [data-testid="target-input"]');
+    if (await targetInput4.isVisible()) {
+      await humanType(page, targetInput4, "Vi tror på kvalitet, integritet og kundesuksess.");
+      await pause(page, 400);
+    }
+
+    // Block 5: p - "Every project starts..."
+    await humanClick(page, page.getByTestId("block-row-5"));
+    await pause(page, 500);
+    const targetInput5 = page.locator('[data-testid="block-row-5"] [data-testid="target-input"]');
+    if (await targetInput5.isVisible()) {
+      await humanType(page, targetInput5, "Hvert prosjekt starter med å forstå dine unike behov.");
+      await pause(page, 400);
+    }
+
+    // Block 6: h2 - "Meet the Team"
+    await humanClick(page, page.getByTestId("block-row-6"));
+    await pause(page, 400);
+    const targetInput6 = page.locator('[data-testid="block-row-6"] [data-testid="target-input"]');
+    if (await targetInput6.isVisible()) {
+      await humanType(page, targetInput6, "Møt teamet");
+      await pause(page, 400);
+    }
+
+    // Block 7: p - "Our talented team..."
+    await humanClick(page, page.getByTestId("block-row-7"));
+    await pause(page, 500);
+    const targetInput7 = page.locator('[data-testid="block-row-7"] [data-testid="target-input"]');
+    if (await targetInput7.isVisible()) {
+      await humanType(page, targetInput7, "Vårt talentfulle team har flere tiår med samlet erfaring.");
       await pause(page, 600);
     }
 
-    // Show progress - should be partially complete
+    // Final pause to show progress
     await pause(page, 800);
   });
 
