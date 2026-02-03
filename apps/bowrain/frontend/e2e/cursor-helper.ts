@@ -163,27 +163,31 @@ export async function humanClick(page: Page, locator: Locator, force: boolean = 
   if (box) {
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
+    
+    // Create ripple and click cursor animation (these run async in the browser)
     await page.evaluate(({ x, y }) => {
       // Trigger cursor click animation
       const cursor = document.getElementById('playwright-cursor');
       if (cursor) cursor.classList.add('clicking');
       
-      // Create ripple effect
+      // Create ripple effect - browser will animate this independently
       const ripple = document.createElement('div');
       ripple.className = 'click-ripple';
       ripple.style.left = x + 'px';
       ripple.style.top = y + 'px';
       document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 400);
       
-      // Remove clicking class after animation
+      // These timeouts run in browser, not blocked by Playwright
+      setTimeout(() => ripple.remove(), 600);
       setTimeout(() => cursor?.classList.remove('clicking'), 150);
     }, { x, y });
   }
   
-  await page.waitForTimeout(50); // Let ripple start
+  // Click immediately - the ripple animation continues in the browser
   await locator.click({ force });
-  await page.waitForTimeout(200); // Let ripple finish
+  
+  // Wait after click so the ripple animation is visible in the recording
+  await page.waitForTimeout(350);
 }
 
 /**
