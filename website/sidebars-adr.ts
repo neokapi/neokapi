@@ -15,6 +15,7 @@ const sidebars: SidebarsConfig = {
     '010-translation-memory',
     '011-kaz-archive-format',
     '012-bowrain-desktop-app',
+    '013-website-and-documentation',
   ],
 };
 
