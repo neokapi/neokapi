@@ -27,6 +27,14 @@ const sidebars: SidebarsConfig = {
             'user-guide/cli/plugins',
           ],
         },
+        {
+          type: 'category',
+          label: 'Use Cases',
+          items: [
+            'user-guide/use-cases/website-translation',
+          ],
+        },
+        'cli/demo-videos',
         'user-guide/formats',
         'user-guide/translation-memory',
         'user-guide/ai-translation',
@@ -40,6 +48,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'bowrain/overview',
         'bowrain/getting-started',
+        'bowrain/demo-videos',
       ],
     },
     {
