@@ -35,6 +35,7 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
         {navItems.map(({ view, label, icon }) => (
           <button
             key={view}
+            data-testid={`nav-${view}`}
             onClick={() => onViewChange(view)}
             style={{
               display: "flex",
