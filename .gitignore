@@ -51,6 +51,6 @@ playwright-report/
 website/build/
 website/.docusaurus/
 apps/bowrain/frontend/recordings-output/
-docs/tapes/output/
-docs/tapes/out/
-docs/tapes/*.kaz
+website/tapes/output/
+website/tapes/out/
+website/tapes/*.kaz

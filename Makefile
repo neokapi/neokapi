@@ -80,7 +80,7 @@ recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
 	cd $(FRONTEND_DIR) && $(NPM) run recordings:all
 
 cli-recordings: build ## Generate CLI demo videos using VHS
-	./docs/tapes/generate.sh
+	./website/tapes/generate.sh
 
 docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
 

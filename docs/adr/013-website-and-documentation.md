@@ -130,10 +130,10 @@ CLI and UI implementation through automated generation.
 #### CLI Demos: VHS
 
 [VHS](https://github.com/charmbracelet/vhs) generates terminal screencasts from
-declarative "tape" files. Tape files live in `docs/tapes/`:
+declarative "tape" files. Tape files live in `website/tapes/`:
 
 ```
-docs/tapes/
+website/tapes/
 ├── overview.tape           # kapi --help, formats, tools
 ├── convert.tape            # Format conversion demo
 ├── word-count.tape         # Word counting for estimation

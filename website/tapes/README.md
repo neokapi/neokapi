@@ -30,7 +30,7 @@ Videos are generated in two formats:
 - **GIF** - For README/GitHub embeds
 
 Output files go to:
-- `docs/tapes/output/` - Raw output
+- `website/tapes/output/` - Raw output
 - `website/static/video/cli/` - Copied for docs
 
 ## Tape Files
