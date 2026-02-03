@@ -3,6 +3,10 @@ import { injectMockBackend } from "./mock-backend";
 import { injectCursor, humanClick, humanType, moveCursorTo } from "./cursor-helper";
 import { injectWindowChrome } from "./window-chrome";
 
+// Skip recording tests in CI - they use human-speed typing and exceed CI timeouts
+// Run locally with: npx playwright test --config=playwright.recordings.config.ts
+const isCI = process.env.CI === "true" || process.env.CI === "1";
+
 /** Setup helper - injects mock backend, cursor, and window chrome */
 async function setupRecording(page: any, title: string = "Bowrain") {
   await injectMockBackend(page);
@@ -38,9 +42,13 @@ async function pause(page: any, ms: number = 500) {
   await page.waitForTimeout(ms);
 }
 
-test.describe("Video Recordings", () => {
+// Use conditional describe to skip entire suite in CI
+const describeOrSkip = isCI ? test.describe.skip : test.describe;
+
+describeOrSkip("Video Recordings", () => {
   // Video settings are configured in playwright.recordings.config.ts
   // Videos are saved to test-results/ - use `npm run recordings:copy` to copy to docs
+  // Skipped in CI due to human-speed typing exceeding timeouts
 
   test("record create project flow", async ({ page }) => {
     await setupRecording(page, "Bowrain — New Project");
