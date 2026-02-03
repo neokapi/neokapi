@@ -147,14 +147,39 @@ export async function moveCursorToElement(page: Page, locator: Locator, duration
 }
 
 /**
- * Human-like click: move cursor smoothly, pause, then click.
+ * Human-like click: move cursor smoothly, pause, then click with ripple effect.
  * Use force=true for elements covered by overlays (like React Flow nodes).
  */
 export async function humanClick(page: Page, locator: Locator, force: boolean = false) {
   await moveCursorToElement(page, locator, 400);
   await page.waitForTimeout(100); // Brief pause before click
+  
+  // Get element position and trigger ripple manually
+  const box = await locator.boundingBox();
+  if (box) {
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+    await page.evaluate(({ x, y }) => {
+      // Trigger cursor click animation
+      const cursor = document.getElementById('playwright-cursor');
+      if (cursor) cursor.classList.add('clicking');
+      
+      // Create ripple effect
+      const ripple = document.createElement('div');
+      ripple.className = 'click-ripple';
+      ripple.style.left = x + 'px';
+      ripple.style.top = y + 'px';
+      document.body.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 400);
+      
+      // Remove clicking class after animation
+      setTimeout(() => cursor?.classList.remove('clicking'), 150);
+    }, { x, y });
+  }
+  
+  await page.waitForTimeout(50); // Let ripple start
   await locator.click({ force });
-  await page.waitForTimeout(50);
+  await page.waitForTimeout(200); // Let ripple finish
 }
 
 /**
