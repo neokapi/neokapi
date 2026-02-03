@@ -282,10 +282,7 @@ test.describe("Video Recordings", () => {
 
     // === PHASE 4: Use pseudo-translate for remaining blocks ===
     await humanClick(page, page.getByTestId("pseudo-btn"));
-    await pause(page, 600);
-
-    // Final pause to show completed state
-    await pause(page, 800);
+    await pause(page, 4000); // Hold for 4 seconds to show completed state
   });
 
   test("record focus view editing", async ({ page }) => {
