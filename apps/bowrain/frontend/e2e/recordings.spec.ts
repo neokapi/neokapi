@@ -217,84 +217,74 @@ test.describe("Video Recordings", () => {
     await expect(page.getByTestId("block-row-0")).toBeVisible();
     await pause(page, 500);
 
-    // === PHASE 1: Translate first 4 blocks in grid view ===
-    // Double-click on target cell to open editor, type translation, Tab to save and move to next
+    // === PHASE 1: Translate 2 units in default grid view (no preview) ===
 
     // Block 0: h1 - "About Our Company"
     await page.getByTestId("target-cell-0").dblclick();
     await expect(page.getByTestId("edit-target-0")).toBeVisible();
-    await moveCursorTo(page, 900, 200, 200); // Move cursor to target area
+    await moveCursorTo(page, 900, 200, 200);
     await humanType(page, page.getByTestId("edit-target-0"), "Om selskapet vårt");
-    await pause(page, 300);
-    await page.keyboard.press("Tab"); // Save and close
-    await pause(page, 300);
+    await pause(page, 200);
+    await page.keyboard.press("Tab");
+    await pause(page, 200);
 
     // Block 1: p - "We are a leading technology company..."
     await page.getByTestId("target-cell-1").dblclick();
     await expect(page.getByTestId("edit-target-1")).toBeVisible();
     await humanType(page, page.getByTestId("edit-target-1"), "Vi er et ledende teknologiselskap grunnlagt i 2015.");
-    await pause(page, 300);
+    await pause(page, 200);
     await page.keyboard.press("Tab");
-    await pause(page, 300);
+    await pause(page, 400);
+
+    // === PHASE 2: Switch to Split View, translate 2 units (preview shows source) ===
+    await humanClick(page, page.getByTestId("layout-split-v"));
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
 
     // Block 2: p - "Our mission is to deliver..."
     await page.getByTestId("target-cell-2").dblclick();
     await expect(page.getByTestId("edit-target-2")).toBeVisible();
     await humanType(page, page.getByTestId("edit-target-2"), "Vår misjon er å levere innovative løsninger som transformerer bedrifter.");
-    await pause(page, 300);
+    await pause(page, 200);
     await page.keyboard.press("Tab");
-    await pause(page, 300);
+    await pause(page, 200);
 
     // Block 3: h2 - "Our Values"
     await page.getByTestId("target-cell-3").dblclick();
     await expect(page.getByTestId("edit-target-3")).toBeVisible();
     await humanType(page, page.getByTestId("edit-target-3"), "Våre verdier");
-    await pause(page, 300);
+    await pause(page, 200);
     await page.keyboard.press("Tab");
     await pause(page, 400);
 
-    // === PHASE 2: Toggle to split view to see translations in context ===
-    await humanClick(page, page.getByTestId("layout-split-v"));
-    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
-    await pause(page, 800); // Let user see the preview with translated content
-
-    // === PHASE 3: Continue translating in split view ===
-
-    // Scroll to show more blocks
-    await page.getByTestId("block-row-4").scrollIntoViewIfNeeded();
+    // === PHASE 3: Toggle preview to show Target, translate 2 more units ===
+    // Hover over preview to reveal toggle button
+    await page.getByTestId("preview-iframe").hover();
     await pause(page, 300);
+    await humanClick(page, page.getByTestId("preview-target-toggle"));
+    await pause(page, 600); // Show that preview now displays translated text
 
     // Block 4: p - "We believe in quality..."
     await page.getByTestId("target-cell-4").dblclick();
     await expect(page.getByTestId("edit-target-4")).toBeVisible();
     await humanType(page, page.getByTestId("edit-target-4"), "Vi tror på kvalitet, integritet og kundesuksess.");
-    await pause(page, 300);
+    await pause(page, 200);
     await page.keyboard.press("Tab");
-    await pause(page, 300);
+    await pause(page, 200);
 
     // Block 5: p - "Every project starts..."
     await page.getByTestId("target-cell-5").dblclick();
     await expect(page.getByTestId("edit-target-5")).toBeVisible();
     await humanType(page, page.getByTestId("edit-target-5"), "Hvert prosjekt starter med å forstå dine unike behov.");
-    await pause(page, 300);
+    await pause(page, 200);
     await page.keyboard.press("Tab");
-    await pause(page, 300);
+    await pause(page, 400);
 
-    // Block 6: h2 - "Meet the Team"
-    await page.getByTestId("target-cell-6").dblclick();
-    await expect(page.getByTestId("edit-target-6")).toBeVisible();
-    await humanType(page, page.getByTestId("edit-target-6"), "Møt teamet");
-    await pause(page, 300);
-    await page.keyboard.press("Tab");
-    await pause(page, 300);
+    // === PHASE 4: Use pseudo-translate for remaining blocks ===
+    await humanClick(page, page.getByTestId("pseudo-btn"));
+    await pause(page, 600);
 
-    // Block 7: p - "Our talented team..."
-    await page.getByTestId("target-cell-7").dblclick();
-    await expect(page.getByTestId("edit-target-7")).toBeVisible();
-    await humanType(page, page.getByTestId("edit-target-7"), "Vårt talentfulle team har flere tiår med samlet erfaring.");
-    await pause(page, 500);
-
-    // Final pause to show progress
+    // Final pause to show completed state
     await pause(page, 800);
   });
 
