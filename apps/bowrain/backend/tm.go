@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/lib/pensieve"
+	"github.com/gokapi/gokapi/lib/sievepen"
 	"github.com/google/uuid"
 )
 
@@ -36,11 +36,11 @@ type TMUpdateRequest struct {
 }
 
 // getOrCreateTM lazily initializes the project's in-memory SQLite TM.
-func getOrCreateTM(p *project) (*pensieve.SQLiteTM, error) {
+func getOrCreateTM(p *project) (*sievepen.SQLiteTM, error) {
 	if p.tm != nil {
 		return p.tm, nil
 	}
-	tm, err := pensieve.NewSQLiteTM(":memory:")
+	tm, err := sievepen.NewSQLiteTM(":memory:")
 	if err != nil {
 		return nil, err
 	}
@@ -48,8 +48,8 @@ func getOrCreateTM(p *project) (*pensieve.SQLiteTM, error) {
 	return tm, nil
 }
 
-// entryToInfo converts a pensieve.TMEntry to a TMEntryInfo.
-func entryToInfo(e pensieve.TMEntry) TMEntryInfo {
+// entryToInfo converts a sievepen.TMEntry to a TMEntryInfo.
+func entryToInfo(e sievepen.TMEntry) TMEntryInfo {
 	return TMEntryInfo{
 		ID:           e.ID,
 		Source:       e.Source,
@@ -153,7 +153,7 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 	}
 
 	now := time.Now()
-	entry := pensieve.TMEntry{
+	entry := sievepen.TMEntry{
 		ID:           uuid.New().String(),
 		Source:       source,
 		Target:       target,

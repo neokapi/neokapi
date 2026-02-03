@@ -99,7 +99,7 @@ Bowrain is a native desktop translation editor built with [Wails](https://wails.
 - Side-by-side translation editing
 - Document preview
 - AI-powered translation via Anthropic, OpenAI, and Ollama
-- Translation memory (Pensieve)
+- Translation memory (Sievepen)
 
 Build: `cd apps/bowrain && wails build`
 

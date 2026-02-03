@@ -1,4 +1,4 @@
-package pensieve
+package sievepen
 
 import (
 	"encoding/xml"
@@ -27,7 +27,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocal
 
 	doc := tmxDocument{
 		Header: tmxHeader{
-			CreationTool:        "gokapi-pensieve",
+			CreationTool:        "gokapi-sievepen",
 			CreationToolVersion: "1.0",
 			SegType:             "sentence",
 			AdminLang:           string(sourceLocale),

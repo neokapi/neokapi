@@ -1,4 +1,4 @@
-package pensieve_test
+package sievepen_test
 
 import (
 	"bytes"
@@ -8,15 +8,15 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/lib/pensieve"
+	"github.com/gokapi/gokapi/lib/sievepen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInMemoryTM_AddAndLookup(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	entry := pensieve.TMEntry{
+	entry := sievepen.TMEntry{
 		ID:           "entry-1",
 		Source:       "Hello",
 		Target:       "Bonjour",
@@ -31,25 +31,25 @@ func TestInMemoryTM_AddAndLookup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, tm.Count())
 
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, pensieve.DefaultLookupOptions())
+	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Bonjour", matches[0].Entry.Target)
 	assert.Equal(t, 1.0, matches[0].Score)
-	assert.Equal(t, pensieve.MatchExact, matches[0].MatchType)
+	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
 }
 
 func TestInMemoryTM_ExactMatch(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Save",
 		Target:       "Sauvegarder",
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
 		Source:       "Cancel",
 		Target:       "Annuler",
@@ -57,20 +57,20 @@ func TestInMemoryTM_ExactMatch(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	}))
 
-	matches, err := tm.Lookup("Save", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err := tm.Lookup("Save", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Sauvegarder", matches[0].Entry.Target)
-	assert.Equal(t, pensieve.MatchExact, matches[0].MatchType)
+	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
 }
 
 func TestInMemoryTM_FuzzyMatch(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "The file was saved successfully",
 		Target:       "Le fichier a ete sauvegarde avec succes",
@@ -79,28 +79,28 @@ func TestInMemoryTM_FuzzyMatch(t *testing.T) {
 	}))
 
 	// Search with slightly different text.
-	matches, err := tm.Lookup("The file was saved", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err := tm.Lookup("The file was saved", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   0.5,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, matches)
-	assert.Equal(t, pensieve.MatchFuzzy, matches[0].MatchType)
+	assert.Equal(t, sievepen.MatchFuzzy, matches[0].MatchType)
 	assert.Greater(t, matches[0].Score, 0.5)
 	assert.Less(t, matches[0].Score, 1.0)
 }
 
 func TestInMemoryTM_Delete(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Hello",
 		Target:       "Bonjour",
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
 		Source:       "Goodbye",
 		Target:       "Au revoir",
@@ -114,7 +114,7 @@ func TestInMemoryTM_Delete(t *testing.T) {
 	assert.Equal(t, 1, tm.Count())
 
 	// Should not find deleted entry.
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -122,7 +122,7 @@ func TestInMemoryTM_Delete(t *testing.T) {
 	assert.Empty(t, matches)
 
 	// Should still find remaining entry.
-	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -136,8 +136,8 @@ func TestInMemoryTM_Delete(t *testing.T) {
 }
 
 func TestInMemoryTM_EmptyIDError(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
-	err := tm.Add(pensieve.TMEntry{
+	tm := sievepen.NewInMemoryTM()
+	err := tm.Add(sievepen.TMEntry{
 		Source:       "Hello",
 		Target:       "Bonjour",
 		SourceLocale: model.LocaleEnglish,
@@ -147,9 +147,9 @@ func TestInMemoryTM_EmptyIDError(t *testing.T) {
 }
 
 func TestInMemoryTM_UpdateExisting(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Hello",
 		Target:       "Bonjour",
@@ -158,7 +158,7 @@ func TestInMemoryTM_UpdateExisting(t *testing.T) {
 	}))
 
 	// Update with same ID.
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Hello",
 		Target:       "Salut",
@@ -167,23 +167,23 @@ func TestInMemoryTM_UpdateExisting(t *testing.T) {
 	}))
 
 	assert.Equal(t, 1, tm.Count())
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, pensieve.DefaultLookupOptions())
+	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Salut", matches[0].Entry.Target)
 }
 
 func TestInMemoryTM_LocaleFiltering(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Hello",
 		Target:       "Bonjour",
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
 		Source:       "Hello",
 		Target:       "Hallo",
@@ -192,13 +192,13 @@ func TestInMemoryTM_LocaleFiltering(t *testing.T) {
 	}))
 
 	// Search for French.
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, pensieve.DefaultLookupOptions())
+	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Bonjour", matches[0].Entry.Target)
 
 	// Search for German.
-	matches, err = tm.Lookup("Hello", model.LocaleEnglish, model.LocaleGerman, pensieve.DefaultLookupOptions())
+	matches, err = tm.Lookup("Hello", model.LocaleEnglish, model.LocaleGerman, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Hallo", matches[0].Entry.Target)
@@ -221,7 +221,7 @@ func TestLevenshteinDistance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.a+"_"+tt.b, func(t *testing.T) {
-			dist := pensieve.LevenshteinDistance(tt.a, tt.b)
+			dist := sievepen.LevenshteinDistance(tt.a, tt.b)
 			assert.Equal(t, tt.expected, dist)
 		})
 	}
@@ -242,7 +242,7 @@ func TestLevenshteinRatio(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.a+"_"+tt.b, func(t *testing.T) {
-			ratio := pensieve.LevenshteinRatio(tt.a, tt.b)
+			ratio := sievepen.LevenshteinRatio(tt.a, tt.b)
 			assert.GreaterOrEqual(t, ratio, tt.minRatio, "ratio %f below minimum %f", ratio, tt.minRatio)
 			assert.LessOrEqual(t, ratio, tt.maxRatio, "ratio %f above maximum %f", ratio, tt.maxRatio)
 		})
@@ -250,8 +250,8 @@ func TestLevenshteinRatio(t *testing.T) {
 }
 
 func TestTMLeverageTool(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	tm := sievepen.NewInMemoryTM()
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "Hello World",
 		Target:       "Bonjour le monde",
@@ -259,7 +259,7 @@ func TestTMLeverageTool(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	}))
 
-	leverageTool := pensieve.NewTMLeverageTool(tm, pensieve.TMLeverageConfig{
+	leverageTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
 		SourceLocale: model.LocaleEnglish,
@@ -305,14 +305,14 @@ func TestTMLeverageTool(t *testing.T) {
 	require.True(t, ok)
 	altTrans, ok := alt.(*model.AltTranslation)
 	require.True(t, ok)
-	assert.Equal(t, "tm:pensieve", altTrans.Origin)
+	assert.Equal(t, "tm:sievepen", altTrans.Origin)
 	assert.Equal(t, 1.0, altTrans.Score)
 	assert.Equal(t, "exact", altTrans.MatchType)
 }
 
 func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	tm := sievepen.NewInMemoryTM()
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
 		Source:       "The document was saved successfully",
 		Target:       "Le document a ete sauvegarde avec succes",
@@ -320,7 +320,7 @@ func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
 		TargetLocale: model.LocaleFrench,
 	}))
 
-	leverageTool := pensieve.NewTMLeverageTool(tm, pensieve.TMLeverageConfig{
+	leverageTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.5,
 		MaxResults:   5,
 		SourceLocale: model.LocaleEnglish,
@@ -395,14 +395,14 @@ func TestTMXImportExport(t *testing.T) {
 </tmx>`
 
 	// Import.
-	tm := pensieve.NewInMemoryTM()
-	count, err := pensieve.ImportTMX(tm, strings.NewReader(tmxContent), model.LocaleEnglish, model.LocaleFrench)
+	tm := sievepen.NewInMemoryTM()
+	count, err := sievepen.ImportTMX(tm, strings.NewReader(tmxContent), model.LocaleEnglish, model.LocaleFrench)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count) // tu3 should be skipped (no French)
 	assert.Equal(t, 2, tm.Count())
 
 	// Verify entries were imported correctly.
-	matches, err := tm.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err := tm.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -410,7 +410,7 @@ func TestTMXImportExport(t *testing.T) {
 	require.Len(t, matches, 1)
 	assert.Equal(t, "Bonjour le monde", matches[0].Entry.Target)
 
-	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -420,7 +420,7 @@ func TestTMXImportExport(t *testing.T) {
 
 	// Export.
 	var buf bytes.Buffer
-	err = pensieve.ExportTMX(tm, &buf, model.LocaleEnglish, model.LocaleFrench)
+	err = sievepen.ExportTMX(tm, &buf, model.LocaleEnglish, model.LocaleFrench)
 	require.NoError(t, err)
 
 	exported := buf.String()
@@ -432,12 +432,12 @@ func TestTMXImportExport(t *testing.T) {
 	assert.Contains(t, exported, "Au revoir")
 
 	// Roundtrip: re-import the exported TMX.
-	tm2 := pensieve.NewInMemoryTM()
-	count2, err := pensieve.ImportTMX(tm2, strings.NewReader(exported), model.LocaleEnglish, model.LocaleFrench)
+	tm2 := sievepen.NewInMemoryTM()
+	count2, err := sievepen.ImportTMX(tm2, strings.NewReader(exported), model.LocaleEnglish, model.LocaleFrench)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count2)
 
-	matches2, err := tm2.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches2, err := tm2.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -447,17 +447,17 @@ func TestTMXImportExport(t *testing.T) {
 }
 
 func TestMatchTypeString(t *testing.T) {
-	assert.Equal(t, "exact", pensieve.MatchExact.String())
-	assert.Equal(t, "fuzzy", pensieve.MatchFuzzy.String())
-	assert.Equal(t, "unknown", pensieve.MatchType(99).String())
+	assert.Equal(t, "exact", sievepen.MatchExact.String())
+	assert.Equal(t, "fuzzy", sievepen.MatchFuzzy.String())
+	assert.Equal(t, "unknown", sievepen.MatchType(99).String())
 }
 
 func TestInMemoryTM_MaxResults(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
 	// Add many similar entries.
 	for i := 0; i < 20; i++ {
-		require.NoError(t, tm.Add(pensieve.TMEntry{
+		require.NoError(t, tm.Add(sievepen.TMEntry{
 			ID:           strings.Replace("e-NN", "NN", strings.Repeat("x", i+1), 1),
 			Source:       "Hello",
 			Target:       "Bonjour",
@@ -466,7 +466,7 @@ func TestInMemoryTM_MaxResults(t *testing.T) {
 		}))
 	}
 
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, pensieve.LookupOptions{
+	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   0.5,
 		MaxResults: 5,
 	})
@@ -475,23 +475,23 @@ func TestInMemoryTM_MaxResults(t *testing.T) {
 }
 
 func TestInMemoryTM_Close(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 	err := tm.Close()
 	assert.NoError(t, err)
 }
 
 func TestInMemoryTM_SearchEntries(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1", Source: "Hello World", Target: "Bonjour le monde",
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e2", Source: "Goodbye", Target: "Au revoir",
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e3", Source: "Hello", Target: "Hallo",
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleGerman,
 	}))
@@ -537,9 +537,9 @@ func TestInMemoryTM_SearchEntries(t *testing.T) {
 }
 
 func TestInMemoryTM_GetEntry(t *testing.T) {
-	tm := pensieve.NewInMemoryTM()
+	tm := sievepen.NewInMemoryTM()
 
-	require.NoError(t, tm.Add(pensieve.TMEntry{
+	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID: "e1", Source: "Hello", Target: "Bonjour",
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))

@@ -12,7 +12,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/lib/pensieve"
+	"github.com/gokapi/gokapi/lib/sievepen"
 	"github.com/google/uuid"
 )
 
@@ -109,7 +109,7 @@ type project struct {
 	info  ProjectInfo
 	items map[string]*projectItemData
 	dirty bool
-	tm    *pensieve.SQLiteTM
+	tm    *sievepen.SQLiteTM
 }
 
 // projectItemData holds the parsed content of an item within a project.

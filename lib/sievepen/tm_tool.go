@@ -1,4 +1,4 @@
-package pensieve
+package sievepen
 
 import (
 	"github.com/gokapi/gokapi/core/model"
@@ -91,7 +91,7 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		Source:    model.NewFragment(best.Entry.Source),
 		Target:    model.NewFragment(best.Entry.Target),
 		Locale:    t.cfg.TargetLocale,
-		Origin:    "tm:pensieve",
+		Origin:    "tm:sievepen",
 		Score:     best.Score,
 		MatchType: best.MatchType.String(),
 	}

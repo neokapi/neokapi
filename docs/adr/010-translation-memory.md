@@ -3,7 +3,7 @@ id: 010-translation-memory
 sidebar_position: 10
 title: "ADR-010: Translation Memory"
 ---
-# ADR-010: Pensieve built-in translation memory
+# ADR-010: Sievepen built-in translation memory
 
 ## Context
 
@@ -17,7 +17,7 @@ dependencies.
 
 ### Storage Backends
 
-Implement the Pensieve translation memory library (`lib/pensieve/`) with two
+Implement the Sievepen translation memory library (`lib/sievepen/`) with two
 storage backends:
 
 1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch

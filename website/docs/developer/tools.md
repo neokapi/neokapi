@@ -114,7 +114,7 @@ func TestUppercaseTool(t *testing.T) {
 | `search-replace` | Transform | Regex-based search and replace on block content |
 | `segmentation` | Transform | SRX-like sentence segmentation with configurable regex rules |
 | `qa-check` | Validate | Configurable quality checks: missing translations, whitespace mismatches, number mismatches |
-| `tm-leverage` | Enrich | Pre-fills translations from Pensieve translation memory with fuzzy matching |
+| `tm-leverage` | Enrich | Pre-fills translations from Sievepen translation memory with fuzzy matching |
 
 ### Registering Built-in Tools
 
@@ -143,6 +143,6 @@ qaTool := tools.NewQACheckTool(&tools.QACheckConfig{
 tmTool := tools.NewTMLeverageTool(&tools.TMLeverageConfig{
     TargetLocale: "fr",
     Threshold: 0.8,
-    TM: pensieveInstance,
+    TM: sievepenInstance,
 })
 ```

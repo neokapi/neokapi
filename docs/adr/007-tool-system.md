@@ -81,7 +81,7 @@ checks.
 
 **TM Leverage** (`tm-leverage`) — Category: Enrich
 
-Pre-fills translations from translation memory. Searches the Pensieve TM
+Pre-fills translations from translation memory. Searches the Sievepen TM
 for exact and fuzzy matches above a configurable threshold (default 0.7).
 Exact matches (score >= 0.99) and fuzzy matches are distinguished. Sets
 `translation-origin: tm` property on matched Blocks, allowing downstream

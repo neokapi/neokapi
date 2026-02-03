@@ -107,7 +107,7 @@ gokapi/
 │                               # DeepL, Google, Microsoft, MyMemory
 │
 ├── lib/
-│   ├── pensieve/               # Translation memory (in-memory + SQLite)
+│   ├── sievepen/               # Translation memory (in-memory + SQLite)
 │   └── tools/                  # Utility tools (wordcount, pseudo-translate, segmentation, qa-check, tm-leverage, etc.)
 │
 ├── plugin/

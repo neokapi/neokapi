@@ -52,7 +52,7 @@ immediately, allowing the two ecosystems to coexist.
 - `formats/` -- built-in format implementations
 - `ai/` -- LLM provider interface and AI-powered tools
 - `connectors/` -- external translation service integrations
-- `lib/pensieve/` -- translation memory system
+- `lib/sievepen/` -- translation memory system
 - `lib/tools/` -- utility tools
 - `plugin/` -- plugin system (host, bridge, loader, registry)
 - `cmd/kapi/` -- Cobra CLI

@@ -20,7 +20,7 @@ gokapi reuses Okapi's conceptual model (filters, pipelines, events) but redesign
 - **Channel-based pipeline** — concurrent streaming with goroutines, buffered channels, and automatic backpressure
 - **AI-native translation** — first-class LLM integration with Anthropic, OpenAI, and Ollama
 - **Plugin system** — crash-isolated gRPC plugins in any language, plus a Java bridge for 40+ Okapi filters
-- **Translation memory** — built-in Pensieve TM with Levenshtein fuzzy matching and TMX import/export
+- **Translation memory** — built-in Sievepen TM with Levenshtein fuzzy matching and TMX import/export
 - **Desktop app** — Bowrain, a cross-platform GUI built with Wails v3, React, and TypeScript
 - **Single binary** — CLI, server, and desktop app all compile to standalone executables
 

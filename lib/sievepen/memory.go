@@ -1,4 +1,4 @@
-package pensieve
+package sievepen
 
 import (
 	"fmt"

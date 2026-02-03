@@ -12,7 +12,7 @@ import (
 	"github.com/gokapi/gokapi/core/credentials"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/lib/pensieve"
+	"github.com/gokapi/gokapi/lib/sievepen"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.
@@ -421,7 +421,7 @@ func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*Transl
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
-	tmTool := pensieve.NewTMLeverageTool(tm, pensieve.TMLeverageConfig{
+	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
 		SourceLocale: model.LocaleID(p.info.SourceLocale),

@@ -82,7 +82,7 @@ Task-oriented documentation for end users:
   `merge`, `pack`, `unpack`, `plugins`)
 - **Use Cases** — Real-world workflow tutorials (website translation, etc.)
 - **Formats** — Supported file formats with configuration options
-- **Translation Memory** — Pensieve usage, TMX import/export
+- **Translation Memory** — Sievepen usage, TMX import/export
 - **AI Translation** — LLM provider configuration, prompt customization
 - **Connectors** — DeepL, Google, Microsoft, MyMemory integration
 - **Bowrain** — Desktop app overview, getting started, feature documentation

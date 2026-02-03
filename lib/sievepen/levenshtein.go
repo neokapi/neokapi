@@ -1,4 +1,4 @@
-package pensieve
+package sievepen
 
 // LevenshteinDistance calculates the edit distance between two strings.
 // It counts the minimum number of single-character edits (insertions,

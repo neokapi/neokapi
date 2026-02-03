@@ -56,7 +56,7 @@ const FeatureList: FeatureItem[] = [
   {
     title: 'Translation Memory',
     description:
-      'Built-in Pensieve TM with Levenshtein fuzzy matching, SQLite persistence, and TMX import/export.',
+      'Built-in Sievepen TM with Levenshtein fuzzy matching, SQLite persistence, and TMX import/export.',
   },
   {
     title: 'Desktop App',

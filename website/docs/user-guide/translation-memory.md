@@ -5,7 +5,7 @@ title: Translation Memory
 
 # Translation Memory
 
-gokapi includes Pensieve, a built-in translation memory (TM) system with fuzzy matching and TMX import/export.
+gokapi includes Sievepen, a built-in translation memory (TM) system with fuzzy matching and TMX import/export.
 
 ## Storage Backends
 
@@ -14,7 +14,7 @@ gokapi includes Pensieve, a built-in translation memory (TM) system with fuzzy m
 
 ## Fuzzy Matching
 
-Pensieve uses Levenshtein edit distance with a configurable threshold (default 75%). Match types:
+Sievepen uses Levenshtein edit distance with a configurable threshold (default 75%). Match types:
 
 | Match Type | Description |
 |-----------|-------------|

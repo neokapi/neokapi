@@ -21,7 +21,7 @@ architectural concern rather than chronologically.
 | [007](007-tool-system.md) | Tool system with BaseTool dispatch |
 | [008](008-configuration.md) | Viper-based layered configuration |
 | [009](009-ai-integration.md) | First-class AI/LLM integration |
-| [010](010-translation-memory.md) | Pensieve built-in translation memory |
+| [010](010-translation-memory.md) | Sievepen built-in translation memory |
 | [011](011-kaz-archive-format.md) | KAZ archive format for project packaging |
 | [012](012-bowrain-desktop-app.md) | Bowrain desktop app with Wails v3 |
 | [013](013-website-and-documentation.md) | Website and documentation system |
