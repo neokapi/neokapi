@@ -14,11 +14,21 @@ if ! command -v vhs &> /dev/null; then
   exit 1
 fi
 
-# Build kapi if needed
-echo "Building kapi..."
-(cd ../.. && go build -o bin/kapi ./cmd/kapi)
+# Run CLI tests first
+echo "============================================"
+echo "Running CLI tests before recording..."
+echo "============================================"
+echo ""
 
-# Add bin to PATH
+if ! bash "$SCRIPT_DIR/test-cli.sh"; then
+  echo ""
+  echo "❌ CLI tests failed. Fix issues before recording."
+  exit 1
+fi
+
+echo ""
+
+# Add bin to PATH (kapi was built by test-cli.sh)
 export PATH="$SCRIPT_DIR/../../bin:$PATH"
 
 # Create output directory

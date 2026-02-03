@@ -6,7 +6,7 @@ Output output/pseudo-translate.gif
 
 Set FontSize 16
 Set Width 900
-Set Height 500
+Set Height 550
 Set Theme "Dracula"
 Set Padding 20
 
@@ -19,6 +19,10 @@ Enter
 Sleep 1s
 
 Type "kapi pseudo-translate samples/messages.json --target-lang fr"
+Enter
+Sleep 1500ms
+
+Type "cat out/messages.json"
 Enter
 Sleep 2s
 

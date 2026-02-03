@@ -18,7 +18,11 @@ Type "cat samples/messages.json"
 Enter
 Sleep 1s
 
-Type "kapi convert samples/messages.json -f json --to yaml"
+Type "kapi convert -i samples/messages.json -o output.yaml"
+Enter
+Sleep 1500ms
+
+Type "cat output.yaml"
 Enter
 Sleep 2s
 
@@ -26,11 +30,15 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Convert back to JSON"
+Type "# Convert YAML back to JSON"
 Enter
 Sleep 500ms
 
-Type "kapi convert samples/messages.json -f json --to yaml | kapi convert -f yaml --to json"
+Type "kapi convert -i output.yaml -o output.json"
+Enter
+Sleep 1500ms
+
+Type "cat output.json"
 Enter
 Sleep 2s
 
