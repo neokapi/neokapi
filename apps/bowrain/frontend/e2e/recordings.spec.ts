@@ -218,42 +218,40 @@ test.describe("Video Recordings", () => {
     await pause(page, 500);
 
     // === PHASE 1: Translate first 4 blocks in grid view ===
+    // Double-click on target cell to open editor, type translation, Tab to save and move to next
 
     // Block 0: h1 - "About Our Company"
-    await humanClick(page, page.getByTestId("block-row-0"));
-    await pause(page, 400);
-    const targetInput0 = page.locator('[data-testid="block-row-0"] [data-testid="target-input"]');
-    if (await targetInput0.isVisible()) {
-      await humanType(page, targetInput0, "Om selskapet vårt");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-0").dblclick();
+    await expect(page.getByTestId("edit-target-0")).toBeVisible();
+    await moveCursorTo(page, 900, 200, 200); // Move cursor to target area
+    await humanType(page, page.getByTestId("edit-target-0"), "Om selskapet vårt");
+    await pause(page, 300);
+    await page.keyboard.press("Tab"); // Save and close
+    await pause(page, 300);
 
     // Block 1: p - "We are a leading technology company..."
-    await humanClick(page, page.getByTestId("block-row-1"));
-    await pause(page, 500);
-    const targetInput1 = page.locator('[data-testid="block-row-1"] [data-testid="target-input"]');
-    if (await targetInput1.isVisible()) {
-      await humanType(page, targetInput1, "Vi er et ledende teknologiselskap grunnlagt i 2015.");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-1").dblclick();
+    await expect(page.getByTestId("edit-target-1")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-1"), "Vi er et ledende teknologiselskap grunnlagt i 2015.");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
+    await pause(page, 300);
 
     // Block 2: p - "Our mission is to deliver..."
-    await humanClick(page, page.getByTestId("block-row-2"));
-    await pause(page, 500);
-    const targetInput2 = page.locator('[data-testid="block-row-2"] [data-testid="target-input"]');
-    if (await targetInput2.isVisible()) {
-      await humanType(page, targetInput2, "Vår misjon er å levere innovative løsninger som transformerer bedrifter.");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-2").dblclick();
+    await expect(page.getByTestId("edit-target-2")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-2"), "Vår misjon er å levere innovative løsninger som transformerer bedrifter.");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
+    await pause(page, 300);
 
     // Block 3: h2 - "Our Values"
-    await humanClick(page, page.getByTestId("block-row-3"));
+    await page.getByTestId("target-cell-3").dblclick();
+    await expect(page.getByTestId("edit-target-3")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-3"), "Våre verdier");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
     await pause(page, 400);
-    const targetInput3 = page.locator('[data-testid="block-row-3"] [data-testid="target-input"]');
-    if (await targetInput3.isVisible()) {
-      await humanType(page, targetInput3, "Våre verdier");
-      await pause(page, 500);
-    }
 
     // === PHASE 2: Toggle to split view to see translations in context ===
     await humanClick(page, page.getByTestId("layout-split-v"));
@@ -267,40 +265,34 @@ test.describe("Video Recordings", () => {
     await pause(page, 300);
 
     // Block 4: p - "We believe in quality..."
-    await humanClick(page, page.getByTestId("block-row-4"));
-    await pause(page, 500);
-    const targetInput4 = page.locator('[data-testid="block-row-4"] [data-testid="target-input"]');
-    if (await targetInput4.isVisible()) {
-      await humanType(page, targetInput4, "Vi tror på kvalitet, integritet og kundesuksess.");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-4").dblclick();
+    await expect(page.getByTestId("edit-target-4")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-4"), "Vi tror på kvalitet, integritet og kundesuksess.");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
+    await pause(page, 300);
 
     // Block 5: p - "Every project starts..."
-    await humanClick(page, page.getByTestId("block-row-5"));
-    await pause(page, 500);
-    const targetInput5 = page.locator('[data-testid="block-row-5"] [data-testid="target-input"]');
-    if (await targetInput5.isVisible()) {
-      await humanType(page, targetInput5, "Hvert prosjekt starter med å forstå dine unike behov.");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-5").dblclick();
+    await expect(page.getByTestId("edit-target-5")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-5"), "Hvert prosjekt starter med å forstå dine unike behov.");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
+    await pause(page, 300);
 
     // Block 6: h2 - "Meet the Team"
-    await humanClick(page, page.getByTestId("block-row-6"));
-    await pause(page, 400);
-    const targetInput6 = page.locator('[data-testid="block-row-6"] [data-testid="target-input"]');
-    if (await targetInput6.isVisible()) {
-      await humanType(page, targetInput6, "Møt teamet");
-      await pause(page, 400);
-    }
+    await page.getByTestId("target-cell-6").dblclick();
+    await expect(page.getByTestId("edit-target-6")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-6"), "Møt teamet");
+    await pause(page, 300);
+    await page.keyboard.press("Tab");
+    await pause(page, 300);
 
     // Block 7: p - "Our talented team..."
-    await humanClick(page, page.getByTestId("block-row-7"));
+    await page.getByTestId("target-cell-7").dblclick();
+    await expect(page.getByTestId("edit-target-7")).toBeVisible();
+    await humanType(page, page.getByTestId("edit-target-7"), "Vårt talentfulle team har flere tiår med samlet erfaring.");
     await pause(page, 500);
-    const targetInput7 = page.locator('[data-testid="block-row-7"] [data-testid="target-input"]');
-    if (await targetInput7.isVisible()) {
-      await humanType(page, targetInput7, "Vårt talentfulle team har flere tiår med samlet erfaring.");
-      await pause(page, 600);
-    }
 
     // Final pause to show progress
     await pause(page, 800);
