@@ -89,56 +89,136 @@ test.describe("Video Recordings", () => {
   test("record translation editor workflow", async ({ page }) => {
     await setupRecording(page, "Bowrain — Translation Editor");
 
-    // Create project quickly
+    // Create project with Norwegian as target
     await page.getByTestId("new-project-btn").click();
-    await page.getByTestId("project-name-input").fill("Website Redesign");
-    await page.getByTestId("target-langs-input").fill("fr, de");
+    await page.getByTestId("project-name-input").fill("Company Website");
+    await page.getByTestId("target-langs-input").fill("nb-NO");
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-    // Add file
+    // Add HTML file with rich content - inject custom blocks
     await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects.length > 0) {
-        await backend.AddFiles(projects[0].id, ["/src/index.html"]);
-      }
+      const backend = (window as any).__wailsMock;
+      const IDS = (window as any).__wailsIDs;
+      const projects = await backend[IDS.ListProjects]();
+      const projectId = projects[0]?.id;
+      if (!projectId) return;
+
+      // Add the file entry
+      const p = projects[0];
+      p.items.push({
+        name: "landing-page.html",
+        format: "html",
+        type: "file",
+        size: 4096,
+        block_count: 6,
+        word_count: 52,
+      });
+
+      // Create rich content blocks
+      const blocks = [
+        { id: "block-1", source: "Welcome to TechCorp", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-2", source: "We build innovative software solutions for businesses worldwide.", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-3", source: "Our Services", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-4", source: "From cloud infrastructure to mobile apps, we deliver excellence.", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-5", source: "Get in Touch", targets: {}, translatable: true, has_spans: false, properties: {} },
+        { id: "block-6", source: "Contact us today to discuss your next project.", targets: {}, translatable: true, has_spans: false, properties: {} },
+      ];
+
+      // Store blocks in the mock's internal storage
+      if (!(window as any).__projectFiles) (window as any).__projectFiles = {};
+      if (!(window as any).__projectFiles[projectId]) (window as any).__projectFiles[projectId] = {};
+      (window as any).__projectFiles[projectId]["landing-page.html"] = blocks;
+
+      // Patch GetFileBlocks to use our custom blocks
+      const origGetFileBlocks = backend[IDS.GetFileBlocks];
+      backend[IDS.GetFileBlocks] = (pid: string, fileName: string) => {
+        const customBlocks = (window as any).__projectFiles?.[pid]?.[fileName];
+        if (customBlocks) return customBlocks.map((b: any) => ({ ...b, targets: { ...b.targets } }));
+        return origGetFileBlocks(pid, fileName);
+      };
+
+      // Patch UpdateBlockTarget to update our custom blocks
+      backend[IDS.UpdateBlockTarget] = (req: any) => {
+        const blocks = (window as any).__projectFiles?.[req.project_id]?.[req.item_name || req.file_name];
+        if (blocks) {
+          const block = blocks.find((b: any) => b.id === req.block_id);
+          if (block) block.targets[req.target_locale] = req.text;
+        }
+      };
     });
 
-    // Refresh and open editor
+    // Refresh to show the file
     await page.locator("nav button", { hasText: "Settings" }).click();
     await page.waitForTimeout(100);
     await page.locator("nav button", { hasText: "Projects" }).click();
     await page.waitForTimeout(200);
-    await page.getByText("Website Redesign").first().click();
+    await humanClick(page, page.getByText("Company Website").first());
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 400);
-
-    // Open file in editor - this is where the interesting part starts
-    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
-    await humanClick(page, page.getByTestId("open-file-index.html"));
-    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 500);
 
-    // Show the editor with blocks
-    await expect(page.getByTestId("block-row-0")).toBeVisible();
-    await pause(page, 300);
-
-    // Click on first block to select it
-    await humanClick(page, page.getByTestId("block-row-0"));
-    await pause(page, 400);
-
-    // Enable split preview
-    await humanClick(page, page.getByTestId("layout-split-v"));
-    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    // Open the HTML file in editor
+    await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
+    await humanClick(page, page.getByTestId("open-file-landing-page.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
-    // Run pseudo-translate
-    await humanClick(page, page.getByTestId("pseudo-btn"));
-    await pause(page, 500);
+    // View the content - read through the blocks
+    await expect(page.getByTestId("block-row-0")).toBeVisible();
+    await pause(page, 800); // Pause to read
 
-    // Verify progress
-    await expect(page.getByTestId("progress-text")).toContainText("100%");
+    // Enable split preview to see layout
+    await humanClick(page, page.getByTestId("layout-split-v"));
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    await pause(page, 700);
+
+    // Click first block and read the source
+    await humanClick(page, page.getByTestId("block-row-0"));
+    await pause(page, 600); // Reading "Welcome to TechCorp"
+
+    // Type Norwegian translation
+    const targetInput0 = page.locator('[data-testid="block-row-0"] [data-testid="target-input"]');
+    if (await targetInput0.isVisible()) {
+      await humanType(page, targetInput0, "Velkommen til TechCorp");
+      await pause(page, 500);
+    }
+
+    // Move to second block - the longer description
+    await humanClick(page, page.getByTestId("block-row-1"));
+    await pause(page, 900); // Longer pause to "read" the longer source text
+
+    // Type translation
+    const targetInput1 = page.locator('[data-testid="block-row-1"] [data-testid="target-input"]');
+    if (await targetInput1.isVisible()) {
+      await humanType(page, targetInput1, "Vi bygger innovative programvareløsninger for bedrifter over hele verden.");
+      await pause(page, 500);
+    }
+
+    // Move to third block - section header
+    await humanClick(page, page.getByTestId("block-row-2"));
+    await pause(page, 500); // Quick read for short text
+
+    const targetInput2 = page.locator('[data-testid="block-row-2"] [data-testid="target-input"]');
+    if (await targetInput2.isVisible()) {
+      await humanType(page, targetInput2, "Våre tjenester");
+      await pause(page, 400);
+    }
+
+    // Scroll down to see more blocks if needed
+    await page.getByTestId("block-row-3").scrollIntoViewIfNeeded();
+    await pause(page, 300);
+
+    // Fourth block
+    await humanClick(page, page.getByTestId("block-row-3"));
+    await pause(page, 700);
+
+    const targetInput3 = page.locator('[data-testid="block-row-3"] [data-testid="target-input"]');
+    if (await targetInput3.isVisible()) {
+      await humanType(page, targetInput3, "Fra skyinfrastruktur til mobilapper, vi leverer kvalitet.");
+      await pause(page, 600);
+    }
+
+    // Show progress - should be partially complete
     await pause(page, 800);
   });
 
