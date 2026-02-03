@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Page, Locator } from "@playwright/test";
 
 /**
  * Injects a visible cursor element that follows mouse movements.
@@ -8,25 +8,26 @@ export async function injectCursor(page: Page) {
   await page.addStyleTag({
     content: `
       #playwright-cursor {
-        width: 20px;
-        height: 20px;
+        width: 24px;
+        height: 24px;
         position: fixed;
         top: 0;
         left: 0;
         z-index: 999999;
         pointer-events: none;
-        transition: transform 0.05s ease-out;
+        transition: left 0.15s cubic-bezier(0.25, 0.1, 0.25, 1), 
+                    top 0.15s cubic-bezier(0.25, 0.1, 0.25, 1);
       }
       #playwright-cursor svg {
         width: 100%;
         height: 100%;
-        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.3));
+        filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
       }
       #playwright-cursor.clicking {
-        transform: scale(0.9);
+        transform: scale(0.85);
       }
-      #playwright-cursor.clicking svg {
-        filter: drop-shadow(0px 0px 2px rgba(59,130,246,0.8));
+      #playwright-cursor.clicking svg path {
+        fill: #e8e8e8;
       }
     `,
   });
@@ -39,16 +40,20 @@ export async function injectCursor(page: Page) {
         // macOS-style cursor SVG
         cursor.innerHTML = \`
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.86a.5.5 0 0 0-.85.35z" fill="#fff" stroke="#000" stroke-width="1"/>
+            <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.87a.5.5 0 0 0 .35-.85L6.35 2.86a.5.5 0 0 0-.85.35z" fill="#fff" stroke="#000" stroke-width="1.2"/>
           </svg>
         \`;
         document.body.appendChild(cursor);
         
-        let lastX = 0, lastY = 0;
+        // Track position for smooth transitions
+        window.__cursorX = 100;
+        window.__cursorY = 100;
+        cursor.style.left = '100px';
+        cursor.style.top = '100px';
         
         document.addEventListener('mousemove', (e) => {
-          lastX = e.clientX;
-          lastY = e.clientY;
+          window.__cursorX = e.clientX;
+          window.__cursorY = e.clientY;
           cursor.style.left = e.clientX + 'px';
           cursor.style.top = e.clientY + 'px';
         });
@@ -61,34 +66,71 @@ export async function injectCursor(page: Page) {
           cursor.classList.remove('clicking');
         });
         
-        // Expose for programmatic updates
-        window.__moveCursor = (x, y) => {
+        // Expose for programmatic smooth movement
+        window.__moveCursorSmooth = (x, y) => {
           cursor.style.left = x + 'px';
           cursor.style.top = y + 'px';
+          window.__cursorX = x;
+          window.__cursorY = y;
         };
+        
+        window.__getCursorPos = () => ({ x: window.__cursorX, y: window.__cursorY });
       })();
     `,
   });
 }
 
 /**
- * Smoothly moves the cursor to a position (for visual effect in recordings).
+ * Smoothly moves the cursor to a position with human-like motion.
  */
-export async function moveCursorTo(page: Page, x: number, y: number) {
-  await page.evaluate(({ x, y }) => {
-    (window as any).__moveCursor?.(x, y);
-  }, { x, y });
+export async function moveCursorTo(page: Page, x: number, y: number, duration: number = 300) {
+  const start = await page.evaluate(() => (window as any).__getCursorPos?.() || { x: 100, y: 100 });
+  const steps = Math.max(10, Math.floor(duration / 16)); // ~60fps
+  
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    // Ease-out cubic for natural deceleration
+    const ease = 1 - Math.pow(1 - t, 3);
+    const currentX = start.x + (x - start.x) * ease;
+    const currentY = start.y + (y - start.y) * ease;
+    
+    await page.evaluate(({ x, y }) => {
+      (window as any).__moveCursorSmooth?.(x, y);
+    }, { x: currentX, y: currentY });
+    
+    await page.waitForTimeout(16);
+  }
 }
 
 /**
- * Moves cursor to an element's center before clicking.
+ * Moves cursor smoothly to an element's center.
  */
-export async function clickWithCursor(page: Page, selector: string) {
-  const element = page.locator(selector);
-  const box = await element.boundingBox();
+export async function moveCursorToElement(page: Page, locator: Locator, duration: number = 300) {
+  const box = await locator.boundingBox();
   if (box) {
-    await moveCursorTo(page, box.x + box.width / 2, box.y + box.height / 2);
-    await page.waitForTimeout(100);
+    await moveCursorTo(page, box.x + box.width / 2, box.y + box.height / 2, duration);
   }
-  await element.click();
+}
+
+/**
+ * Human-like click: move cursor smoothly, pause, then click.
+ * Use force=true for elements covered by overlays (like React Flow nodes).
+ */
+export async function humanClick(page: Page, locator: Locator, force: boolean = false) {
+  await moveCursorToElement(page, locator, 400);
+  await page.waitForTimeout(100); // Brief pause before click
+  await locator.click({ force });
+  await page.waitForTimeout(50);
+}
+
+/**
+ * Human-like typing: slower, with slight variations.
+ */
+export async function humanType(page: Page, locator: Locator, text: string) {
+  await moveCursorToElement(page, locator, 350);
+  await page.waitForTimeout(100);
+  await locator.click();
+  await page.waitForTimeout(150);
+  // Type with variable speed (80-150ms per char)
+  await locator.pressSequentially(text, { delay: 100 });
 }
