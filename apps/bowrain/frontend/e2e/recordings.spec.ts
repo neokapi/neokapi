@@ -1,5 +1,15 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { injectCursor } from "./cursor-helper";
+import { injectWindowChrome } from "./window-chrome";
+
+/** Setup helper - injects mock backend, cursor, and window chrome */
+async function setupRecording(page: any, title: string = "Bowrain") {
+  await injectMockBackend(page);
+  await page.goto("/");
+  await injectCursor(page);
+  await injectWindowChrome(page, title);
+}
 
 /** Helper to click by test ID using native DOM click. */
 async function clickTestId(page: any, testId: string) {
@@ -31,8 +41,7 @@ test.describe("Video Recordings", () => {
   // Videos are saved to test-results/ - use `npm run recordings:copy` to copy to docs
 
   test("record create project flow", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — New Project");
     await pause(page, 800);
 
     // Click new project button
@@ -82,8 +91,7 @@ test.describe("Video Recordings", () => {
   });
 
   test("record translation editor workflow", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Translation Editor");
 
     // Create project quickly
     await page.getByTestId("new-project-btn").click();
@@ -143,8 +151,7 @@ test.describe("Video Recordings", () => {
   });
 
   test("record focus view editing", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Focus View");
 
     // Quick setup
     await page.getByTestId("new-project-btn").click();
@@ -202,8 +209,7 @@ test.describe("Video Recordings", () => {
   });
 
   test("record TM explorer", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Translation Memory");
 
     // Create project
     await page.getByTestId("new-project-btn").click();
@@ -256,8 +262,7 @@ test.describe("Video Recordings", () => {
   });
 
   test("record flow editor", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Flow Editor");
     await pause(page, 400);
 
     // Navigate to Flows view
@@ -294,8 +299,7 @@ test.describe("Video Recordings", () => {
     // 4. Use different editor views (grid, split preview, focus)
     // 5. Translate content
     
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Translation Workflow");
     await pause(page, 600);
 
     // Create project to simulate opening a .kaz file from CLI
@@ -403,8 +407,7 @@ test.describe("Video Recordings", () => {
   });
 
   test("record settings configuration", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupRecording(page, "Bowrain — Settings");
     await pause(page, 300);
 
     // Navigate to Settings
