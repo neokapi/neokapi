@@ -1,8 +1,8 @@
 # VHS Tape: kapi overview demo
 # Quick overview of kapi CLI capabilities
 
-Output docs/tapes/output/overview.webm
-Output docs/tapes/output/overview.gif
+Output output/overview.webm
+Output output/overview.gif
 
 Set FontSize 16
 Set Width 1000

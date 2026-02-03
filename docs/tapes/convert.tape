@@ -1,8 +1,8 @@
 # VHS Tape: kapi convert demo
 # Demonstrates format conversion between JSON and YAML
 
-Output docs/tapes/output/convert.webm
-Output docs/tapes/output/convert.gif
+Output output/convert.webm
+Output output/convert.gif
 
 Set FontSize 16
 Set Width 900

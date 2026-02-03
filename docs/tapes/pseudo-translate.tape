@@ -1,8 +1,8 @@
 # VHS Tape: kapi pseudo-translate demo
 # Demonstrates pseudo-translation for UI testing
 
-Output docs/tapes/output/pseudo-translate.webm
-Output docs/tapes/output/pseudo-translate.gif
+Output output/pseudo-translate.webm
+Output output/pseudo-translate.gif
 
 Set FontSize 16
 Set Width 900

@@ -1,8 +1,8 @@
 # VHS Tape: End-to-end translation project creation
 # Shows creating a .kaz project from source files
 
-Output docs/tapes/output/create-project.webm
-Output docs/tapes/output/create-project.gif
+Output output/create-project.webm
+Output output/create-project.gif
 
 Set FontSize 15
 Set Width 1000

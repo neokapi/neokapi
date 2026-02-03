@@ -1,8 +1,8 @@
 # VHS Tape: kapi word-count demo
 # Demonstrates word counting for localization estimation
 
-Output docs/tapes/output/word-count.webm
-Output docs/tapes/output/word-count.gif
+Output output/word-count.webm
+Output output/word-count.gif
 
 Set FontSize 16
 Set Width 900
