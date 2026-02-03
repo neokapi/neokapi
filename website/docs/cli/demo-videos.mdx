@@ -5,73 +5,85 @@ sidebar_label: CLI Demos
 
 # CLI Demo Videos
 
-These videos demonstrate common `kapi` CLI workflows.
+Quick examples of common `kapi` CLI workflows.
 
-:::note
-CLI videos are generated using [VHS](https://github.com/charmbracelet/vhs) and require local terminal access to regenerate.
+:::tip Generate Demo Videos
+Run `make cli-recordings` locally to generate animated demos from the VHS tape files.
 :::
 
 ## Overview
 
-Quick tour of kapi's capabilities.
+```bash
+# See all available commands
+kapi --help
 
-<video controls width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/overview.webm" type="video/webm" />
-  Your browser does not support the video tag.
-</video>
+# List supported formats
+kapi formats
+
+# List available tools
+kapi tools
+```
 
 ## Format Conversion
 
 Convert between JSON, YAML, XML, and other formats.
 
-<video controls width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/convert.webm" type="video/webm" />
-</video>
-
 ```bash
 # Convert JSON to YAML
 kapi convert messages.json -f json --to yaml
 
-# Convert YAML to JSON
+# Convert YAML to JSON  
 kapi convert messages.yaml -f yaml --to json
+
+# Pipe conversions
+cat data.json | kapi convert -f json --to yaml
 ```
 
 ## Word Count
 
 Estimate translation costs with word counting.
 
-<video controls width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/word-count.webm" type="video/webm" />
-</video>
-
 ```bash
 kapi word-count messages.json
+kapi word-count src/*.html --recursive
 ```
 
 ## Pseudo-Translation
 
 Generate pseudo-translations to test UI for truncation and RTL issues.
 
-<video controls width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/pseudo-translate.webm" type="video/webm" />
-</video>
-
 ```bash
 kapi pseudo-translate messages.json --target-lang fr
+kapi pseudo-translate src/strings.json -o src/strings.fr.json
+```
+
+## Create Translation Project
+
+Pack source files into a `.kaz` translation project for Bowrain.
+
+```bash
+# Pack files into a project
+kapi pack -i landing-page.html -i about.html \
+  --source-lang en \
+  --target-lang fr,de \
+  -o website.kaz
+
+# Unpack after translation
+kapi unpack website.kaz -o output/
 ```
 
 ---
 
-## Regenerating Videos
+## Generating Video Demos
 
-Videos are generated from VHS tape files in `docs/tapes/`:
+Video demos are generated using [VHS](https://github.com/charmbracelet/vhs) from tape files in `docs/tapes/`.
 
 ```bash
-# Generate all CLI demos
-make cli-recordings
+# Install VHS
+brew install charmbracelet/tap/vhs
 
-# Or manually
-cd docs/tapes && ./generate.sh
+# Generate all demos (requires local terminal)
+make cli-recordings
 ```
 
-Requires VHS (`brew install charmbracelet/tap/vhs`) and a local terminal with TTY access.
+VHS requires a local terminal with TTY access - won't work in SSH or CI.
