@@ -29,6 +29,30 @@ export async function injectCursor(page: Page) {
       #playwright-cursor.clicking svg path {
         fill: #e8e8e8;
       }
+      
+      /* Click ripple effect */
+      .click-ripple {
+        position: fixed;
+        pointer-events: none;
+        z-index: 999998;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(59,130,246,0.4) 0%, rgba(59,130,246,0) 70%);
+        transform: translate(-50%, -50%) scale(0);
+        animation: click-ripple-anim 0.4s ease-out forwards;
+      }
+      
+      @keyframes click-ripple-anim {
+        0% {
+          transform: translate(-50%, -50%) scale(0);
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(2);
+          opacity: 0;
+        }
+      }
     `,
   });
 
@@ -58,8 +82,18 @@ export async function injectCursor(page: Page) {
           cursor.style.top = e.clientY + 'px';
         });
         
-        document.addEventListener('mousedown', () => {
+        document.addEventListener('mousedown', (e) => {
           cursor.classList.add('clicking');
+          
+          // Create click ripple
+          const ripple = document.createElement('div');
+          ripple.className = 'click-ripple';
+          ripple.style.left = e.clientX + 'px';
+          ripple.style.top = e.clientY + 'px';
+          document.body.appendChild(ripple);
+          
+          // Remove ripple after animation
+          setTimeout(() => ripple.remove(), 400);
         });
         
         document.addEventListener('mouseup', () => {
