@@ -2020,13 +2020,44 @@ Each phase must pass:
 
 ## References
 
-- Apache Beam Programming Model
-- Kubernetes Job Patterns
-- KEDA Event-Driven Autoscaling
-- Redis Streams Documentation
-- etcd Concurrency Package
-- Temporal.io Workflow Patterns
-- Yjs CRDT Documentation
-- Phrase/Lokalise/Crowdin API Documentation
-- Okapi Framework Architecture
-- XLIFF 2.0 Specification
+### Work Queue & Message Systems
+
+- [Redis Streams](https://redis.io/docs/latest/develop/data-types/streams/) — Redis documentation for streams with consumer groups and exactly-once delivery
+- [NATS JetStream](https://docs.nats.io/nats-concepts/jetstream) — NATS persistence engine for streaming and work queues
+- [Apache Kafka Streams](https://kafka.apache.org/documentation/streams/) — Stream processing library for Apache Kafka
+- [Temporal.io Workflows](https://docs.temporal.io/workflows) — Durable workflow orchestration with automatic retries and timeouts
+
+### Distributed Coordination
+
+- [etcd Leader Election](https://etcd.io/docs/v3.5/tutorials/how-to-conduct-elections/) — Tutorial on conducting leader elections in etcd clusters
+- [etcd Go Concurrency Package](https://github.com/etcd-io/etcd/blob/main/client/v3/concurrency/election.go) — Go client library for elections and distributed locks
+
+### Kubernetes Scaling
+
+- [KEDA](https://keda.sh/) — Kubernetes Event-driven Autoscaling, scales containers based on event metrics
+- [KEDA Scalers Catalog](https://keda.sh/docs/2.18/scalers/) — 70+ built-in scalers for various event sources
+
+### Go Concurrency Patterns
+
+- [singleflight](https://pkg.go.dev/golang.org/x/sync/singleflight) — Duplicate function call suppression for Go
+- [sony/gobreaker](https://github.com/sony/gobreaker) — Circuit Breaker pattern implementation in Go
+- [golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate) — Token bucket rate limiter
+
+### Real-Time Collaboration & CRDTs
+
+- [Yjs Documentation](https://docs.yjs.dev/) — High-performance CRDT for collaborative editing
+- [Yjs GitHub](https://github.com/yjs/yjs) — Shared data types for building collaborative software
+- [Automerge](https://automerge.org/docs/hello/) — JSON-like CRDT that merges concurrent changes automatically
+- [CRDT.tech](https://crdt.tech/) — Resources and implementations for Conflict-free Replicated Data Types
+
+### Localization Standards & Frameworks
+
+- [Okapi Framework](https://okapiframework.org/) — Open-source Java localization toolkit
+- [XLIFF 2.0 Specification](https://docs.oasis-open.org/xliff/xliff-core/v2.0/xliff-core-v2.0.html) — OASIS standard for localization interchange
+- [XLIFF 2.0 Modules](https://docs.oasis-open.org/xliff/xliff-core/v2.0/xliff-core-v2.0.html#modules) — Change tracking, metadata, and glossary modules
+
+### TMS API References
+
+- [Phrase API](https://developers.phrase.com/api/) — Translation management platform API
+- [Lokalise API](https://developers.lokalise.com/reference/api-overview) — Localization platform API documentation
+- [Crowdin API](https://developer.crowdin.com/api/v2/) — Crowdin REST API v2 documentation
