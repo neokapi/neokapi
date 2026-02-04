@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
     '011-kaz-archive-format',
     '012-bowrain-desktop-app',
     '013-website-and-documentation',
+    '020-distributed-processing-architecture',
   ],
 };
 
