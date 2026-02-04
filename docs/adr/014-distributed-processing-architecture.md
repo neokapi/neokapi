@@ -21,6 +21,105 @@ This ADR synthesizes research on distributed processing patterns, modern TMS arc
 
 ---
 
+## Local vs Distributed Processing
+
+Gokapi must serve two fundamentally different usage patterns without forcing the complexity of one onto the other.
+
+### Local-First: Developers and CI
+
+The primary mode of gokapi is local, single-machine processing. This is the experience for:
+
+- **Developers** running `kapi convert`, `kapi extract`, or `kapi translate` from the command line on individual files or small projects
+- **CI/CD pipelines** executing translation flows as build steps—extracting translatable content, running quality checks, merging translations back into source files
+- **Individual translators** using Bowrain as a desktop CAT tool, working offline with a local TM and glossary
+- **Build systems** integrating gokapi as a library for format-aware content processing
+
+In this mode, gokapi ships as a single static binary with zero external dependencies. The existing channel-based pipeline runs entirely in-process. TM is a local SQLite database. Assets are files on disk. There is no Redis, no Kubernetes, no coordination layer. This must remain fast, simple, and self-contained—the Unix philosophy of doing one thing well.
+
+### Distributed: Teams and Enterprise
+
+The second mode is distributed processing for teams and organizations:
+
+- **Localization teams** managing thousands of documents across dozens of target locales, where processing a full project takes hours of AI translation time
+- **Enterprise deployments** needing centralized TM, glossary, and project management with access control
+- **Scaling AI workloads** across multiple workers to stay within rate limits while maximizing throughput
+- **Continuous localization** where source content changes frequently and incremental re-extraction must be efficient
+
+In this mode, gokapi runs as a service (or cluster of services) with external infrastructure: a work queue for distributing jobs, shared storage for TM and assets, coordination for leader election and checkpointing, and an API layer for remote clients like Bowrain.
+
+### The Spectrum Between
+
+These are not two separate products but endpoints on a spectrum. A freelance translator working locally should be able to connect their Bowrain instance to a team server when joining a project. A developer running `kapi translate` locally should be able to point at a remote TM server for better matches. A CI pipeline should be able to offload heavy AI translation to a remote worker pool while keeping format conversion local.
+
+The architecture achieves this through **interface-driven abstraction** at the boundaries:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                        APPLICATION LAYER                              │
+│          kapi CLI  /  gokapi-server  /  Bowrain                       │
+│                                                                       │
+│    Same flow definitions, same tool chain, same format readers        │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │
+┌────────────────────────────┴─────────────────────────────────────────┐
+│                       ABSTRACTION LAYER                               │
+│                                                                       │
+│   WorkQueue interface     TMStore interface     AssetStore interface   │
+│   StateStore interface    EventBus interface    Config interface       │
+└────────┬──────────────────────────┬──────────────────────────────────┘
+         │                          │
+   ┌─────┴──────┐           ┌──────┴───────┐
+   │   LOCAL     │           │ DISTRIBUTED  │
+   │             │           │              │
+   │ chan *Part  │           │ Redis Streams│
+   │ SQLite TM  │           │ PostgreSQL TM│
+   │ File system │           │ S3 / MinIO   │
+   │ In-process  │           │ etcd / KEDA  │
+   └─────────────┘           └──────────────┘
+```
+
+Each infrastructure concern is defined by a Go interface. The local implementation uses in-process primitives (channels, mutexes, local files). The distributed implementation swaps in networked backends. The application layer does not change—the same flow definition, the same tool chain, and the same `kapi` commands work in both modes.
+
+### Design Principles
+
+1. **Local is the default.** Distributed features are opt-in. Running `kapi translate file.html` must work without any configuration file, environment variable, or external service.
+
+2. **Incremental adoption.** A team can start local and adopt distributed components one at a time: use a remote TM first, add a work queue later, deploy to Kubernetes when ready. There is no "big bang" migration.
+
+3. **Same interfaces, same flows.** A flow definition that works locally must work identically in a distributed cluster. The difference is operational (where and how fast it runs), not behavioral.
+
+4. **Graceful degradation.** If a distributed component is unavailable (TM server down, work queue unreachable), the system falls back to local processing with a warning rather than failing hard. Developers should never be blocked by infrastructure issues.
+
+5. **Configuration over code.** Switching between local and distributed is a configuration concern. A `.gokapi.yaml` or environment variables control which implementations are used, similar to how a database connection string switches between SQLite and PostgreSQL.
+
+```yaml
+# Local mode (default, no config needed)
+tm:
+  driver: sqlite
+  path: ./project.tm
+
+# Team mode (remote TM, local processing)
+tm:
+  driver: postgres
+  url: postgres://tm.company.com/gokapi
+
+# Full distributed mode
+tm:
+  driver: postgres
+  url: postgres://tm.company.com/gokapi
+queue:
+  driver: redis
+  url: redis://queue.company.com:6379
+assets:
+  driver: s3
+  bucket: gokapi-assets
+  region: eu-west-1
+```
+
+The rest of this ADR describes the distributed components. Each should be understood as an alternative implementation of an interface that already has a local counterpart—channels become queues, files become object storage, mutexes become distributed locks—but the processing model remains the same streaming pipeline described in [ADR-003](./003-streaming-pipeline-and-flow-execution.md).
+
+---
+
 ## Open Questions Requiring Decisions
 
 This section documents architectural decisions that need stakeholder input. Each question includes options with their significance and trade-offs.
