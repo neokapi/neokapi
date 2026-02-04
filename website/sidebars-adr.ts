@@ -17,6 +17,7 @@ const sidebars: SidebarsConfig = {
     '012-bowrain-desktop-app',
     '013-website-and-documentation',
     '014-distributed-processing-architecture',
+    '015-real-time-collaborative-editing',
   ],
 };
 

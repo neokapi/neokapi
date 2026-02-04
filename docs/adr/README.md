@@ -26,3 +26,4 @@ architectural concern rather than chronologically.
 | [012](012-bowrain-desktop-app.md) | Bowrain desktop app with Wails v3 |
 | [013](013-website-and-documentation.md) | Website and documentation system |
 | [014](014-distributed-processing-architecture.md) | Distributed processing architecture |
+| [015](015-real-time-collaborative-editing.md) | Real-time collaborative editing |

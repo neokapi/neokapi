@@ -14,9 +14,10 @@ Gokapi needs to evolve from a single-machine, single-flow processing system to s
 4. Binary asset handling (images, audio, video)
 5. KAZ as both file format and API protocol
 6. Thread-safe concurrent access to shared resources (TM, glossaries)
-7. Real-time collaboration in Bowrain editor
 
 This ADR synthesizes research on distributed processing patterns, modern TMS architectures, and Go concurrency best practices to design a comprehensive solution.
+
+**Note:** Real-time collaborative editing in Bowrain is covered separately in [ADR-015: Real-Time Collaborative Editing](./015-real-time-collaborative-editing.md).
 
 ---
 
@@ -149,33 +150,7 @@ This section documents architectural decisions that need stakeholder input. Each
 
 ---
 
-### Q6: Real-Time Collaboration Technology
-
-**Question:** What technology should power Bowrain's collaborative editing?
-
-| Option | Offline Support | Conflict Resolution | Complexity |
-|--------|-----------------|---------------------|------------|
-| **A. OT (Operational Transform)** | Limited | Server-coordinated | High |
-| **B. CRDTs (Yjs/Automerge)** | Full | Automatic merge | Medium |
-| **C. Last-Write-Wins** | Full | Data loss possible | Low |
-| **D. Segment Locking** | No | Prevention-based | Low |
-
-**Significance:**
-- **If OT**: Google Docs-style. Requires central server coordination. Risk: Complex implementation, no offline.
-- **If CRDTs**: Offline-first, automatic merge. Risk: Merge results may surprise users.
-- **If Last-Write-Wins**: Simple but lossy. Risk: Translator work can be overwritten.
-- **If Segment Locking**: Traditional CAT tool model. Risk: Blocks concurrent work on same segment.
-
-**Sub-questions:**
-- Is offline translation a requirement?
-- How many concurrent translators per project?
-- Should we support real-time cursor sharing?
-
-**Recommendation:** Option B (CRDTs via Yjs) for segment content, Option D (Locking) for segment assignment.
-
----
-
-### Q7: Asset Storage Strategy
+### Q6: Asset Storage Strategy
 
 **Question:** How should binary assets be stored and distributed?
 
@@ -201,7 +176,7 @@ This section documents architectural decisions that need stakeholder input. Each
 
 ---
 
-### Q8: API Protocol Choice
+### Q7: API Protocol Choice
 
 **Question:** What protocol should the Gokapi service API use?
 
@@ -1270,60 +1245,6 @@ func (tm *DistributedTM) Lookup(ctx context.Context, source string, srcLocale, t
 }
 ```
 
-### 7.2 Segment Locking for Concurrent Editing
-
-```go
-// core/collab/locks.go
-type SegmentLocker struct {
-    redis   *redis.Client
-    ttl     time.Duration
-}
-
-func (l *SegmentLocker) TryLock(ctx context.Context, projectID, blockID, userID string) (bool, error) {
-    key := fmt.Sprintf("lock:%s:%s", projectID, blockID)
-
-    // SET NX with TTL
-    ok, err := l.redis.SetNX(ctx, key, userID, l.ttl).Result()
-    if err != nil {
-        return false, err
-    }
-
-    if !ok {
-        // Check if we already own the lock
-        owner, _ := l.redis.Get(ctx, key).Result()
-        return owner == userID, nil
-    }
-
-    return true, nil
-}
-
-func (l *SegmentLocker) Extend(ctx context.Context, projectID, blockID, userID string) error {
-    key := fmt.Sprintf("lock:%s:%s", projectID, blockID)
-
-    // Only extend if we own the lock
-    script := `
-        if redis.call("GET", KEYS[1]) == ARGV[1] then
-            return redis.call("PEXPIRE", KEYS[1], ARGV[2])
-        end
-        return 0
-    `
-    return l.redis.Eval(ctx, script, []string{key}, userID, l.ttl.Milliseconds()).Err()
-}
-
-func (l *SegmentLocker) Unlock(ctx context.Context, projectID, blockID, userID string) error {
-    key := fmt.Sprintf("lock:%s:%s", projectID, blockID)
-
-    // Only unlock if we own the lock
-    script := `
-        if redis.call("GET", KEYS[1]) == ARGV[1] then
-            return redis.call("DEL", KEYS[1])
-        end
-        return 0
-    `
-    return l.redis.Eval(ctx, script, []string{key}, userID).Err()
-}
-```
-
 ---
 
 ## Part 8: Implementation Roadmap
@@ -1826,129 +1747,6 @@ func TestEndToEndAssetWorkflow(t *testing.T) {
 
 ---
 
-### Phase 5: Collaboration [Size: LARGE]
-
-**Scope:** Real-time collaborative editing in Bowrain with conflict resolution.
-
-**Prerequisites:** Phase 3 complete (Phase 4 optional but recommended)
-
-**Dependencies:** Yjs library, WebSocket infrastructure
-
-#### Checklist
-
-**5.1 Segment Locking**
-- [ ] Implement `SegmentLocker` with Redis
-- [ ] Add lock acquisition with TTL
-- [ ] Implement lock extension (heartbeat)
-- [ ] Add lock release on completion
-- [ ] Create automatic lock expiration
-- [ ] Implement lock ownership verification
-- [ ] Add lock status in UI
-- [ ] Test concurrent lock requests
-
-**5.2 CRDT Integration (Yjs)**
-- [ ] Evaluate Yjs Go port vs JavaScript runtime
-- [ ] Implement Yjs document model for blocks
-- [ ] Create Y.Text for translation content
-- [ ] Add Y.Map for block metadata
-- [ ] Implement sync protocol
-- [ ] Create awareness protocol for presence
-- [ ] Add offline change buffering
-- [ ] Test merge scenarios
-
-**5.3 Conflict Resolution**
-- [ ] Design conflict detection logic
-- [ ] Create conflict notification system
-- [ ] Implement manual resolution UI
-- [ ] Add automatic resolution rules
-- [ ] Create conflict history tracking
-- [ ] Implement resolution audit log
-- [ ] Test complex merge scenarios
-
-**5.4 Presence Indicators**
-- [ ] Implement cursor position tracking
-- [ ] Add user avatars/colors
-- [ ] Create "who's editing" display
-- [ ] Implement typing indicators
-- [ ] Add online/offline status
-- [ ] Create activity feed
-- [ ] Test with many concurrent users
-
-**5.5 Collaboration UI (Bowrain)**
-- [ ] Add collaborative editing mode toggle
-- [ ] Create presence display component
-- [ ] Implement conflict resolution dialog
-- [ ] Add sync status indicator
-- [ ] Create offline mode indicator
-- [ ] Implement collaborative comments
-- [ ] Add @mentions in comments
-- [ ] Test UI responsiveness under sync load
-
-#### Testing Strategy for Phase 5
-
-**Unit Tests:**
-```go
-func TestSegmentLocking(t *testing.T) {
-    // Lock acquisition succeeds
-    // Second lock attempt fails
-    // Lock extension works
-    // Expired lock can be acquired
-    // Unlock only by owner
-}
-
-func TestCRDTMerge(t *testing.T) {
-    // Concurrent inserts merge correctly
-    // Concurrent deletes merge correctly
-    // Insert + delete preserves intention
-    // Complex multi-user scenario
-}
-
-func TestConflictDetection(t *testing.T) {
-    // Same block, same time = conflict
-    // Same block, different fields = no conflict
-    // Resolve keeps correct version
-}
-```
-
-**Integration Tests:**
-```go
-func TestCollaborativeEditing(t *testing.T) {
-    // Two users open same project
-    // User A edits block 1
-    // User B sees update in real-time
-    // User B edits block 1
-    // User A sees update
-    // Verify final state consistent
-}
-
-func TestOfflineSync(t *testing.T) {
-    // User goes offline
-    // User makes edits
-    // User comes online
-    // Changes sync correctly
-    // No data loss
-}
-```
-
-**User Acceptance Tests:**
-- [ ] 5 concurrent translators on same project
-- [ ] Network interruption recovery
-- [ ] Large project (1000+ blocks) performance
-- [ ] Mobile device (Bowrain future) compatibility
-
-**Stress Tests:**
-```go
-func TestHighConcurrency(t *testing.T) {
-    // 50 concurrent users
-    // 10 updates per second per user
-    // Verify no lost updates
-    // Verify UI remains responsive
-    // Measure sync latency p99
-}
-```
-
----
-
 ## Decision Summary
 
 | Concern | Decision | Rationale |
@@ -1958,7 +1756,6 @@ func TestHighConcurrency(t *testing.T) {
 | **Block Identity** | Content-hash + context-hash | Stable across source changes |
 | **AI Rate Limiting** | Token bucket + circuit breaker | Handles burst and failures |
 | **TM Concurrency** | Optimistic locking + singleflight | Read-heavy workload optimization |
-| **Real-time Sync** | gRPC streaming + CRDTs | Offline-first with conflict resolution |
 | **Asset Storage** | Content-addressable (S3/MinIO) | Deduplication, immutability |
 | **Scaling** | KEDA on Kubernetes | Event-driven, cost-efficient |
 
@@ -1998,7 +1795,6 @@ func TestHighConcurrency(t *testing.T) {
 | 2 Distribution | ✓✓ | ✓✓✓ | ✓ | ✓✓ | ✓✓ |
 | 3 API | ✓✓ | ✓✓ | ✓✓ | ✓ | ✓ |
 | 4 Assets | ✓✓ | ✓✓ | ✓✓✓ | ✓✓ | ✓✓ |
-| 5 Collaboration | ✓✓ | ✓✓✓ | ✓✓ | ✓✓✓ | ✓ |
 
 ### Continuous Integration Requirements
 
@@ -2043,13 +1839,6 @@ Each phase must pass:
 - [sony/gobreaker](https://github.com/sony/gobreaker) — Circuit Breaker pattern implementation in Go
 - [golang.org/x/time/rate](https://pkg.go.dev/golang.org/x/time/rate) — Token bucket rate limiter
 
-### Real-Time Collaboration & CRDTs
-
-- [Yjs Documentation](https://docs.yjs.dev/) — High-performance CRDT for collaborative editing
-- [Yjs GitHub](https://github.com/yjs/yjs) — Shared data types for building collaborative software
-- [Automerge](https://automerge.org/docs/hello/) — JSON-like CRDT that merges concurrent changes automatically
-- [CRDT.tech](https://crdt.tech/) — Resources and implementations for Conflict-free Replicated Data Types
-
 ### Localization Standards & Frameworks
 
 - [Okapi Framework](https://okapiframework.org/) — Open-source Java localization toolkit
@@ -2061,3 +1850,7 @@ Each phase must pass:
 - [Phrase API](https://developers.phrase.com/api/) — Translation management platform API
 - [Lokalise API](https://developers.lokalise.com/reference/api-overview) — Localization platform API documentation
 - [Crowdin API](https://developer.crowdin.com/api/v2/) — Crowdin REST API v2 documentation
+
+### Related ADRs
+
+- [ADR-015: Real-Time Collaborative Editing](./015-real-time-collaborative-editing.md) — Collaborative editing architecture for Bowrain (CRDTs, presence, conflict resolution)
