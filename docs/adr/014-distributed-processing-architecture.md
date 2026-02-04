@@ -1,9 +1,9 @@
 ---
-id: 020-distributed-processing-architecture
-sidebar_position: 20
-title: "ADR-020: Distributed Processing Architecture"
+id: 014-distributed-processing-architecture
+sidebar_position: 14
+title: "ADR-014: Distributed Processing Architecture"
 ---
-# ADR-020: Distributed Processing Architecture
+# ADR-014: Distributed Processing Architecture
 
 ## Context
 
