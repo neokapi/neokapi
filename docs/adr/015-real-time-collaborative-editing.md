@@ -553,7 +553,7 @@ func TestHighConcurrency(t *testing.T) {
 ### CAT Tool Collaboration Models
 
 - [memoQ Server](https://www.memoq.com/products/memoq-server) — Traditional segment locking model
-- [Phrase TMS](https://support.phrase.com/hc/en-us/articles/5709686763284-Real-time-Collaboration) — Real-time collaboration in TMS
+- [Phrase TMS](https://phrase.com/platform/tms/) — Translation management with collaborative workflows
 
 ### Related ADRs
 
