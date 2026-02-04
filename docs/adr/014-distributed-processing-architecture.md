@@ -1968,7 +1968,7 @@ func TestHighConcurrency(t *testing.T) {
 
 | Size | Characteristics | Team Scope |
 |------|-----------------|------------|
-| **Small** | Single component, <10 files changed, self-contained | 1 developer |
+| **Small** | Single component, ~10 files changed, self-contained | 1 developer |
 | **Medium** | Multiple components, 10-30 files, some integration | 1-2 developers |
 | **Large** | Cross-cutting, 30-100 files, external dependencies | 2-3 developers |
 | **X-Large** | System-wide, 100+ files, infrastructure changes | Team effort |
