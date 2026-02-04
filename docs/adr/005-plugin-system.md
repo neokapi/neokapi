@@ -186,6 +186,266 @@ kapi flow run translate -i src/ --target-lang fr,de,ja
 
 ---
 
+## Plugin-Contributed Configuration and Arguments
+
+Plugins don't just add capabilities—they add configuration surface area.
+A DOCX plugin needs options for handling tracked changes. A terminology tool
+needs a glossary file path. An MT provider needs an API key and endpoint URL.
+This configuration must integrate cleanly with gokapi's existing config system
+without creating a fragmented experience.
+
+### Parameter Declaration
+
+Plugins declare their configuration parameters as part of the `Info()` RPC
+response. Each parameter has a name, type, default value, description, and
+required/optional status:
+
+```go
+// plugin/shared/types.go (extension to InfoResult)
+type ParameterDescriptor struct {
+    Name         string      `json:"name"`
+    Type         string      `json:"type"`          // string, int, float, bool, []string, file
+    Default      interface{} `json:"default"`
+    Description  string      `json:"description"`
+    Required     bool        `json:"required"`
+    Choices      []string    `json:"choices,omitempty"`  // Valid values (for enum-like params)
+    Sensitive    bool        `json:"sensitive"`          // API keys, passwords — never log
+}
+
+type InfoResult struct {
+    Name        string                `json:"name"`
+    DisplayName string                `json:"display_name"`
+    MIMETypes   []string              `json:"mime_types"`
+    Extensions  []string              `json:"extensions"`
+    Parameters  []ParameterDescriptor `json:"parameters,omitempty"`
+}
+```
+
+For example, a DOCX format plugin might declare:
+
+```json
+{
+  "name": "docx",
+  "display_name": "Microsoft Word (DOCX)",
+  "extensions": [".docx"],
+  "parameters": [
+    {
+      "name": "extract_comments",
+      "type": "bool",
+      "default": false,
+      "description": "Extract document comments as translatable content"
+    },
+    {
+      "name": "track_changes",
+      "type": "string",
+      "default": "accept",
+      "description": "How to handle tracked changes",
+      "choices": ["accept", "reject", "extract_both"]
+    },
+    {
+      "name": "extract_hidden_text",
+      "type": "bool",
+      "default": false,
+      "description": "Include hidden text in extraction"
+    }
+  ]
+}
+```
+
+### Namespaced Configuration in gokapi.yaml
+
+Plugin configuration lives under a namespace in the project configuration file,
+scoped by plugin type and name. This prevents name collisions between plugins
+and keeps configuration organized:
+
+```yaml
+# gokapi.yaml
+formats:
+  docx:
+    extract_comments: true
+    track_changes: accept
+  idml:
+    extract_master_spreads: false
+    paragraph_style_as_context: true
+
+tools:
+  terminology:
+    glossary: ./glossaries/corporate.tbx
+    match_threshold: 85
+    case_sensitive: false
+  mt-deepl:
+    api_key: ${DEEPL_API_KEY}     # Environment variable substitution
+    formality: prefer_more
+    preserve_formatting: true
+
+providers:
+  custom-llm:
+    endpoint: https://llm.internal.company.com/v1
+    model: company-translate-7b
+    timeout: 30s
+```
+
+The host reads plugin configuration from the Viper config tree using the
+plugin's namespace and passes it to the plugin via the `Open` or `Configure`
+RPC. Plugins never read `gokapi.yaml` directly—configuration flows through
+the host.
+
+### CLI Flag Integration
+
+When a plugin is involved in a command, its parameters become available as
+CLI flags. Flags are namespaced with the plugin name to avoid collisions
+with core flags and other plugins:
+
+```bash
+# Core flags (no namespace)
+kapi convert -i report.docx -o report.xliff --source-lang en
+
+# Plugin format flags (namespaced by format name)
+kapi convert -i report.docx -o report.xliff \
+  --docx.extract-comments \
+  --docx.track-changes=reject
+
+# Plugin tool flags in flows
+kapi flow run corporate-translate -i content.html --target-lang fr \
+  --terminology.glossary=./glossaries/fr.tbx \
+  --terminology.match-threshold=90
+
+# Plugin provider flags
+kapi translate -i page.html --target-lang de \
+  --provider deepl \
+  --deepl.formality=prefer_more
+```
+
+Dynamic flag registration works as follows:
+
+1. `kapi` loads all plugins on startup (as it does today)
+2. For format-specific commands (`convert`, `extract`, `merge`), the format's
+   parameters are registered as flags after format detection
+3. For flow commands, each tool in the flow contributes its flags
+4. `kapi <command> --help` shows both core and plugin flags, clearly grouped:
+
+```
+$ kapi convert -i report.docx --help
+Usage: kapi convert [flags]
+
+Core flags:
+  -i, --input string        Input file path
+  -o, --output string       Output file path
+  -f, --format string       Override format detection
+      --source-lang string  Source language (default "en")
+      --encoding string     Input encoding (default "UTF-8")
+
+Format: docx (gokapi-format-docx v1.2.0)
+      --docx.extract-comments       Extract comments as translatable (default false)
+      --docx.track-changes string   Handle tracked changes: accept|reject|extract_both
+                                    (default "accept")
+      --docx.extract-hidden-text    Include hidden text (default false)
+```
+
+### Configuration in Flow Definitions
+
+Flow YAML files can set per-tool configuration inline, overriding project-level
+defaults. This makes flows self-contained and reproducible:
+
+```yaml
+# flows/corporate-translate.flow.yaml
+name: corporate-translate
+description: Full corporate translation pipeline
+
+tools:
+  - name: segmentation
+    config: {}                          # Uses defaults
+
+  - name: terminology                   # Plugin tool
+    config:
+      glossary: ./glossaries/${TARGET_LOCALE}.tbx
+      match_threshold: 85
+    required: false                     # Skip if plugin not installed
+
+  - name: tm-leverage
+    config:
+      fuzzy_threshold: 70
+
+  - name: ai-translate
+    config:
+      provider: anthropic
+      model: claude-sonnet-4-5-20250929
+      context: "Corporate marketing content. Maintain formal tone."
+
+  - name: qa-check
+    config:
+      rules: [terminology_consistency, number_mismatch, tag_integrity]
+```
+
+### Configuration Portability
+
+Plugin configuration that affects the output must travel with the project.
+When a KAZ project is created, the effective configuration for each plugin
+is recorded in the manifest:
+
+```yaml
+# manifest.yaml inside project.kaz
+plugins:
+  formats:
+    - name: gokapi-format-docx
+      version: "1.2.0"
+      config:                           # Captured at extraction time
+        extract_comments: true
+        track_changes: accept
+
+  tools:
+    - name: gokapi-tool-terminology
+      version: "1.0.3"
+      config:
+        match_threshold: 85
+```
+
+When Bob opens Alice's project, the captured config is used by default. If
+Bob's local `gokapi.yaml` has conflicting settings, the project manifest
+takes precedence with a warning:
+
+```
+$ kapi merge -i project.kaz
+Note: using project config for gokapi-format-docx (extract_comments=true)
+      Local config has extract_comments=false — project setting takes precedence.
+      Use --ignore-project-config to override.
+```
+
+### Risks and Mitigation
+
+**Risk: Dynamic flags make the CLI unpredictable.** A user who doesn't have
+the DOCX plugin won't see `--docx.*` flags in help output. This is by design—
+you only see flags for capabilities you have—but can confuse users reading
+documentation or shared scripts.
+
+*Mitigation:* `kapi <command> --help-all` shows flags for all known plugins
+(including uninstalled ones from the registry), with availability status.
+Documentation generates flag reference from the registry, not local state.
+
+**Risk: Flag name collisions.** Two plugins might want a `--glossary` flag.
+
+*Mitigation:* All plugin flags are namespaced (`--terminology.glossary`,
+`--qa.glossary`). The host rejects plugin parameter names that collide with
+core flags during loading.
+
+**Risk: Configuration sprawl.** A project with many plugins accumulates a
+large config surface that is hard to understand and audit.
+
+*Mitigation:* All plugin parameters must have sensible defaults. A plugin
+with zero configuration should work for the common case. `kapi config show`
+displays the effective merged configuration, and `kapi config diff` shows
+deviations from defaults.
+
+**Risk: Sensitive values in config files.** API keys and passwords should not
+be committed to version control.
+
+*Mitigation:* Parameters marked `sensitive: true` support environment variable
+substitution (`${DEEPL_API_KEY}`) and are redacted in `kapi config show` output.
+The KAZ manifest never captures sensitive parameters—they must be provided at
+runtime.
+
+---
+
 ## Project Portability
 
 The central risk of a plugin system is that **projects created by person A
