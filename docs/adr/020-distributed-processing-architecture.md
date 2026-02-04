@@ -1,7 +1,9 @@
+---
+id: 020-distributed-processing-architecture
+sidebar_position: 20
+title: "ADR-020: Distributed Processing Architecture"
+---
 # ADR-020: Distributed Processing Architecture
-
-## Status
-**Proposed** — Deep research and design phase
 
 ## Context
 
@@ -15,6 +17,213 @@ Gokapi needs to evolve from a single-machine, single-flow processing system to s
 7. Real-time collaboration in Bowrain editor
 
 This ADR synthesizes research on distributed processing patterns, modern TMS architectures, and Go concurrency best practices to design a comprehensive solution.
+
+---
+
+## Open Questions Requiring Decisions
+
+This section documents architectural decisions that need stakeholder input. Each question includes options with their significance and trade-offs.
+
+### Q1: Work Queue Technology
+
+**Question:** Which message queue/work distribution system should we use?
+
+| Option | Pros | Cons | Complexity |
+|--------|------|------|------------|
+| **A. Redis Streams** | Simple ops, KEDA native, atomic consumer groups, good Go support | Single point of failure (without Cluster), no built-in priorities | Low |
+| **B. NATS JetStream** | Cloud-native, excellent Go support, built-in KV store, lightweight | Less mature tooling, smaller community | Medium |
+| **C. Apache Kafka** | Battle-tested at scale, excellent durability, rich ecosystem | Heavy ops burden, overkill for small deployments | High |
+| **D. Temporal.io** | Full workflow orchestration, retries/timeouts built-in, visibility | Additional infrastructure, learning curve | High |
+
+**Significance:**
+- **If Redis Streams**: Simplest path, but need to implement workflow logic ourselves. Good for teams familiar with Redis. Risk: Must handle priority queues manually.
+- **If NATS JetStream**: Modern, lightweight alternative. Built-in work-queue retention policy. Risk: Less ecosystem tooling.
+- **If Kafka**: Enterprise-grade durability and exactly-once semantics. Risk: Operational complexity inappropriate for small teams.
+- **If Temporal**: Eliminates need to build workflow orchestration. Risk: Additional service dependency, steeper learning curve.
+
+**Recommendation:** Redis Streams for initial implementation (Option A), with abstraction layer allowing migration to Temporal for complex workflows.
+
+---
+
+### Q2: Block Identity Strategy
+
+**Question:** How should we uniquely identify blocks across extract-merge cycles?
+
+| Option | Stability | Performance | Migration Complexity |
+|--------|-----------|-------------|---------------------|
+| **A. Content Hash Only** | High for unchanged content | O(1) lookup | Low |
+| **B. Content + Context Hash** | Higher (survives reordering) | O(1) lookup | Medium |
+| **C. Structural Path** | Format-dependent | Varies by format | High |
+| **D. Hybrid (Hash + Path hints)** | Highest | O(1) + hints | Medium |
+
+**Significance:**
+- **If Content Hash Only**: Simple, but reordering same content creates new IDs. TM leverage breaks if paragraph order changes.
+- **If Content + Context**: More robust to structural changes. Risk: Context changes when adjacent blocks change.
+- **If Structural Path**: XPath/JSONPath provides human-readable IDs. Risk: Brittle to structural refactoring.
+- **If Hybrid**: Best of both worlds. Content hash for identity, path for human reference. Risk: More complex migration logic.
+
+**Sub-questions:**
+- Should we normalize whitespace before hashing? (Affects: "Hello  World" vs "Hello World")
+- Should inline markup affect hash? (Affects: `<b>Hello</b>` vs `Hello`)
+- How do we handle the "Ship of Theseus" problem when content gradually changes?
+
+**Recommendation:** Option D (Hybrid) with configurable normalization rules per format.
+
+---
+
+### Q3: Multi-Locale Processing Model
+
+**Question:** How should flows handle multiple target locales?
+
+| Option | Throughput | Resource Usage | Complexity |
+|--------|------------|----------------|------------|
+| **A. Sequential (current)** | 1 locale at a time | Low | Low |
+| **B. Parallel Flows** | N locales parallel | N× memory | Medium |
+| **C. Block-level Fanout** | Highest | Efficient | High |
+| **D. Locale-aware Batching** | High | Moderate | Medium |
+
+**Significance:**
+- **If Sequential**: Simple, but slow for many locales. 10 locales = 10× time.
+- **If Parallel Flows**: Good parallelism but N copies of document in memory. Risk: Memory pressure with large docs.
+- **If Block-level Fanout**: Each block translated to all locales before moving to next. Best for AI batching. Risk: Complex state management.
+- **If Locale-aware Batching**: Group blocks by locale, process in batches. Balances throughput and memory.
+
+**Sub-questions:**
+- Should TM lookup happen once (source) or per-locale?
+- How do we handle locale-specific formatting rules?
+- Should AI translation use multi-locale prompts (translate to 5 languages at once)?
+
+**Recommendation:** Option D (Locale-aware Batching) for AI translation, Option B (Parallel Flows) for TM-only workflows.
+
+---
+
+### Q4: Checkpoint Granularity
+
+**Question:** At what level should we checkpoint for resumable processing?
+
+| Option | Recovery Speed | Storage Cost | Implementation |
+|--------|----------------|--------------|----------------|
+| **A. No Checkpointing** | Restart from beginning | None | Current |
+| **B. Document-level** | Resume from last doc | Low | Small |
+| **C. Block-level** | Resume from last block | Medium | Medium |
+| **D. Tool-level** | Resume mid-pipeline | High | Large |
+
+**Significance:**
+- **If No Checkpointing**: Acceptable for small projects. Risk: Large projects lose hours of work on failure.
+- **If Document-level**: Good balance. Complete documents saved, failed doc restarts. Risk: Large single documents still problematic.
+- **If Block-level**: Fine-grained recovery. Risk: More I/O, complex state reconstruction.
+- **If Tool-level**: Maximum recovery. Risk: Must serialize tool internal state, not always possible.
+
+**Sub-questions:**
+- Where should checkpoints be stored? (Local disk, Redis, S3?)
+- How long should checkpoints be retained?
+- Should checkpoints include TM cache state?
+
+**Recommendation:** Option B (Document-level) for Phase 1, Option C (Block-level) for Phase 2.
+
+---
+
+### Q5: TM Architecture for Scale
+
+**Question:** How should Translation Memory scale for distributed workers?
+
+| Option | Read Latency | Write Consistency | Operational Complexity |
+|--------|--------------|-------------------|------------------------|
+| **A. Shared SQLite (current)** | ~1ms | Strong (single writer) | Low |
+| **B. PostgreSQL + Read Replicas** | ~5ms | Eventual (replicas) | Medium |
+| **C. Redis + PostgreSQL** | ~0.5ms (cached) | Eventual | Medium |
+| **D. Dedicated TM Service** | ~2ms (RPC) | Configurable | High |
+
+**Significance:**
+- **If Shared SQLite**: Works for single-machine. Risk: Cannot scale horizontally.
+- **If PostgreSQL + Replicas**: Standard scaling pattern. Risk: Replica lag may cause stale matches.
+- **If Redis + PostgreSQL**: Cache hot segments, persist all. Risk: Cache invalidation complexity.
+- **If Dedicated TM Service**: Clean separation, can optimize independently. Risk: Additional service to operate.
+
+**Sub-questions:**
+- What is the expected TM size? (10K, 100K, 1M+ entries?)
+- What fuzzy match algorithm? (Levenshtein, n-gram, embedding-based?)
+- Should TM be project-scoped or global?
+
+**Recommendation:** Option C (Redis + PostgreSQL) with singleflight for deduplication.
+
+---
+
+### Q6: Real-Time Collaboration Technology
+
+**Question:** What technology should power Bowrain's collaborative editing?
+
+| Option | Offline Support | Conflict Resolution | Complexity |
+|--------|-----------------|---------------------|------------|
+| **A. OT (Operational Transform)** | Limited | Server-coordinated | High |
+| **B. CRDTs (Yjs/Automerge)** | Full | Automatic merge | Medium |
+| **C. Last-Write-Wins** | Full | Data loss possible | Low |
+| **D. Segment Locking** | No | Prevention-based | Low |
+
+**Significance:**
+- **If OT**: Google Docs-style. Requires central server coordination. Risk: Complex implementation, no offline.
+- **If CRDTs**: Offline-first, automatic merge. Risk: Merge results may surprise users.
+- **If Last-Write-Wins**: Simple but lossy. Risk: Translator work can be overwritten.
+- **If Segment Locking**: Traditional CAT tool model. Risk: Blocks concurrent work on same segment.
+
+**Sub-questions:**
+- Is offline translation a requirement?
+- How many concurrent translators per project?
+- Should we support real-time cursor sharing?
+
+**Recommendation:** Option B (CRDTs via Yjs) for segment content, Option D (Locking) for segment assignment.
+
+---
+
+### Q7: Asset Storage Strategy
+
+**Question:** How should binary assets be stored and distributed?
+
+| Option | Deduplication | Latency | Cost |
+|--------|---------------|---------|------|
+| **A. Embedded in KAZ** | Per-package | Local fast | Package bloat |
+| **B. Content-Addressable (S3)** | Global | Network | Storage efficient |
+| **C. Hybrid (small embedded, large external)** | Partial | Variable | Balanced |
+| **D. CDN with Signed URLs** | Global | Edge-cached | Higher |
+
+**Significance:**
+- **If Embedded**: Self-contained packages. Risk: 100MB image duplicated across packages.
+- **If Content-Addressable**: Global dedup via hash. Risk: Requires network access.
+- **If Hybrid**: Best of both for common case. Risk: Complex logic for size thresholds.
+- **If CDN**: Best performance for distributed teams. Risk: Cost, CDN dependency.
+
+**Sub-questions:**
+- What is the size threshold for external storage? (100KB? 1MB?)
+- Should assets be versioned or immutable?
+- How do we handle asset cleanup when no longer referenced?
+
+**Recommendation:** Option C (Hybrid) with 1MB threshold, content-addressable for external.
+
+---
+
+### Q8: API Protocol Choice
+
+**Question:** What protocol should the Gokapi service API use?
+
+| Option | Streaming | Browser Support | Tooling |
+|--------|-----------|-----------------|---------|
+| **A. REST + WebSocket** | Separate channels | Native | Excellent |
+| **B. gRPC** | Native bidirectional | Via proxy | Good |
+| **C. gRPC-Web** | Client streaming only | Native | Growing |
+| **D. GraphQL + Subscriptions** | Via WebSocket | Native | Excellent |
+
+**Significance:**
+- **If REST + WebSocket**: Universal compatibility. Risk: Two protocols to maintain.
+- **If gRPC**: Efficient binary protocol, great for service-to-service. Risk: Browser needs Envoy proxy.
+- **If gRPC-Web**: Browser-native gRPC subset. Risk: No server streaming from browser.
+- **If GraphQL**: Flexible queries, good for Bowrain. Risk: Complexity for simple operations.
+
+**Sub-questions:**
+- Is browser-direct access required, or always via Bowrain desktop?
+- Do we need to support third-party integrations?
+- What's the expected request volume?
+
+**Recommendation:** Option B (gRPC) for service-to-service, REST gateway for external integrations.
 
 ---
 
@@ -1119,35 +1328,624 @@ func (l *SegmentLocker) Unlock(ctx context.Context, projectID, blockID, userID s
 
 ## Part 8: Implementation Roadmap
 
-### Phase 1: Foundation (Weeks 1-4)
-- [ ] Implement stable block identity (content-hash based)
-- [ ] Add optimistic locking to TM
-- [ ] Create AI worker pool with rate limiting
-- [ ] Add block batching for AI translation
+### Phase 1: Foundation [Size: MEDIUM]
 
-### Phase 2: Distribution (Weeks 5-8)
-- [ ] Implement Redis Streams work queue
-- [ ] Add leader election for coordinator
-- [ ] Create KEDA-based worker autoscaling
-- [ ] Implement checkpointing for long flows
+**Scope:** Core improvements to existing single-machine processing that enable future distribution.
 
-### Phase 3: API & Protocol (Weeks 9-12)
-- [ ] Design and implement gRPC API
-- [ ] Create KAZ streaming protocol
-- [ ] Implement connection code system for Bowrain
-- [ ] Add real-time sync manager
+**Prerequisites:** None (builds on current codebase)
 
-### Phase 4: Assets & Scale (Weeks 13-16)
-- [ ] Implement content-addressable storage
-- [ ] Add chunked upload/download
-- [ ] Create asset extraction pipeline (OCR, transcription)
-- [ ] Deploy to Kubernetes with full scaling
+**Dependencies:** None external
 
-### Phase 5: Collaboration (Weeks 17-20)
-- [ ] Implement segment locking
-- [ ] Add CRDT-based offline editing (Yjs integration)
-- [ ] Create conflict resolution UI
-- [ ] Add presence indicators
+#### Checklist
+
+**1.1 Stable Block Identity**
+- [ ] Design `BlockIdentity` struct with content hash + context hash
+- [ ] Implement `normalizeForHashing()` with configurable rules
+- [ ] Add `ComputeBlockIdentity()` function
+- [ ] Update all format readers to use new identity system
+- [ ] Add `PreviousID` tracking for block migrations
+- [ ] Create migration tool for existing KAZ files
+- [ ] Update KAZ block index schema for new identity fields
+- [ ] Document normalization rules per format
+
+**1.2 TM Optimistic Locking**
+- [ ] Add `Version` field to `TMEntry` struct
+- [ ] Implement version check in `Add()` method
+- [ ] Add retry logic with configurable attempts
+- [ ] Create `ErrVersionConflict` error type
+- [ ] Update SQLite schema with version column
+- [ ] Implement cache invalidation on write
+- [ ] Add `singleflight` for concurrent lookup deduplication
+- [ ] Create TM migration script for version field
+
+**1.3 AI Worker Pool**
+- [ ] Implement `AIWorkerPool` struct with semaphore
+- [ ] Add `golang.org/x/time/rate` limiter integration
+- [ ] Integrate `sony/gobreaker` circuit breaker
+- [ ] Implement `RetryConfig` with exponential backoff
+- [ ] Add jitter to backoff calculation
+- [ ] Create `PoolMetrics` for observability
+- [ ] Implement provider-specific rate limit detection (429 handling)
+- [ ] Add pool configuration via environment variables
+
+**1.4 Block Batching**
+- [ ] Implement `BlockBatcher` with configurable batch size
+- [ ] Add flush timer for time-based batching
+- [ ] Create `BatchItem` response channel pattern
+- [ ] Implement `TranslateBatch()` in provider interface
+- [ ] Add batch support to Anthropic provider
+- [ ] Add batch support to OpenAI provider
+- [ ] Handle partial batch failures gracefully
+- [ ] Add metrics for batch efficiency
+
+#### Testing Strategy for Phase 1
+
+**Unit Tests:**
+```go
+// block_identity_test.go
+func TestBlockIdentityStability(t *testing.T) {
+    // Same content produces same hash
+    // Different content produces different hash
+    // Whitespace normalization works correctly
+    // Context hash changes when neighbors change
+}
+
+func TestTMOptimisticLocking(t *testing.T) {
+    // Concurrent writes with same version fail correctly
+    // Version increments on successful update
+    // Stale version rejected
+    // Retry logic works with backoff
+}
+
+func TestAIWorkerPool(t *testing.T) {
+    // Rate limiting enforced (use mock time)
+    // Semaphore limits concurrent requests
+    // Circuit breaker opens after failures
+    // Retry with backoff works correctly
+}
+
+func TestBlockBatcher(t *testing.T) {
+    // Batch flushes at size threshold
+    // Batch flushes at time threshold
+    // Results distributed to correct callers
+    // Partial failures handled per-item
+}
+```
+
+**Integration Tests:**
+```go
+func TestBlockIdentityAcrossFormats(t *testing.T) {
+    // Extract HTML, modify whitespace, re-extract
+    // Verify unchanged blocks keep same identity
+    // Verify changed blocks get new identity with migration link
+}
+
+func TestTMConcurrentAccess(t *testing.T) {
+    // 100 goroutines reading simultaneously
+    // 10 goroutines writing simultaneously
+    // Verify no data corruption
+    // Verify singleflight deduplication
+}
+
+func TestAIPoolUnderLoad(t *testing.T) {
+    // Submit 1000 requests with pool size 10
+    // Verify rate limit not exceeded
+    // Verify all requests eventually complete
+    // Measure p50/p99 latency
+}
+```
+
+**Benchmark Tests:**
+```go
+func BenchmarkBlockIdentityComputation(b *testing.B) {
+    // Measure hash computation overhead
+    // Compare with/without normalization
+}
+
+func BenchmarkTMLookupWithCache(b *testing.B) {
+    // 100K entry TM, measure lookup latency
+    // Compare cached vs uncached
+    // Measure singleflight effectiveness
+}
+```
+
+---
+
+### Phase 2: Distribution [Size: LARGE]
+
+**Scope:** Enable processing across multiple machines with work distribution and coordination.
+
+**Prerequisites:** Phase 1 complete
+
+**Dependencies:** Redis, etcd (or alternatives per Q1 decision)
+
+#### Checklist
+
+**2.1 Redis Streams Work Queue**
+- [ ] Implement `WorkQueue` struct with Redis client
+- [ ] Add consumer group creation on startup
+- [ ] Implement `Submit()` with priority support
+- [ ] Implement `Consume()` with blocking read
+- [ ] Add `ClaimAbandoned()` for failed worker recovery
+- [ ] Create dead-letter queue handling
+- [ ] Implement work unit serialization/deserialization
+- [ ] Add queue metrics (depth, processing time, failures)
+- [ ] Create queue health check endpoint
+
+**2.2 Leader Election**
+- [ ] Implement `LeaderElection` with etcd client
+- [ ] Add session management with TTL
+- [ ] Implement campaign/resign lifecycle
+- [ ] Add leader health monitoring
+- [ ] Create graceful leadership transfer
+- [ ] Implement leader-only operations guard
+- [ ] Add leader change notifications
+- [ ] Test split-brain scenarios
+
+**2.3 Worker Autoscaling**
+- [ ] Create Kubernetes Deployment manifests
+- [ ] Implement KEDA ScaledObject configuration
+- [ ] Add worker registration/deregistration
+- [ ] Create worker health check endpoint
+- [ ] Implement graceful shutdown with work completion
+- [ ] Add worker-specific configuration (AI vs TM vs Format)
+- [ ] Create Helm chart for deployment
+- [ ] Document scaling parameters
+
+**2.4 Checkpointing**
+- [ ] Design checkpoint data structure
+- [ ] Implement document-level checkpoint storage
+- [ ] Add checkpoint creation after document completion
+- [ ] Implement checkpoint restoration on startup
+- [ ] Create checkpoint cleanup (TTL-based)
+- [ ] Add checkpoint validation (detect corruption)
+- [ ] Implement flow resumption from checkpoint
+- [ ] Add checkpoint metrics and monitoring
+
+#### Testing Strategy for Phase 2
+
+**Unit Tests:**
+```go
+func TestWorkQueueOperations(t *testing.T) {
+    // Submit adds to stream
+    // Consume reads and acknowledges
+    // Priority ordering works
+    // Dead-letter after max retries
+}
+
+func TestLeaderElection(t *testing.T) {
+    // Single candidate becomes leader
+    // Leadership transfers on resign
+    // Session expiry triggers re-election
+    // Multiple candidates elect exactly one
+}
+
+func TestCheckpointing(t *testing.T) {
+    // Checkpoint created after document
+    // Restoration rebuilds correct state
+    // Corrupted checkpoint detected
+    // TTL cleanup works
+}
+```
+
+**Integration Tests (require Redis/etcd):**
+```go
+func TestDistributedWorkProcessing(t *testing.T) {
+    // Start 3 workers
+    // Submit 100 work units
+    // Verify all processed exactly once
+    // Kill 1 worker mid-processing
+    // Verify abandoned work reclaimed
+}
+
+func TestLeaderFailover(t *testing.T) {
+    // Elect leader
+    // Kill leader process
+    // Verify new leader elected within TTL
+    // Verify no duplicate leadership
+}
+```
+
+**Chaos Tests:**
+```go
+func TestNetworkPartition(t *testing.T) {
+    // Simulate network split between workers and Redis
+    // Verify work not duplicated on reconnect
+    // Verify checkpoint consistency
+}
+
+func TestWorkerCrashRecovery(t *testing.T) {
+    // Worker crashes mid-document
+    // Verify work reclaimed by other worker
+    // Verify no partial state corruption
+}
+```
+
+**Load Tests:**
+```bash
+# k6 or custom load test
+# Target: 1000 documents/minute sustained
+# Verify: Auto-scaling triggers correctly
+# Verify: No memory leaks over 1 hour
+```
+
+---
+
+### Phase 3: API & Protocol [Size: LARGE]
+
+**Scope:** Expose gokapi functionality via gRPC API and enable Bowrain remote connection.
+
+**Prerequisites:** Phase 2 complete
+
+**Dependencies:** gRPC, protobuf compiler
+
+#### Checklist
+
+**3.1 gRPC API Design**
+- [ ] Define proto files for all services
+- [ ] Generate Go code from protos
+- [ ] Implement `GokapiService` server
+- [ ] Add authentication interceptor
+- [ ] Implement rate limiting interceptor
+- [ ] Add request logging middleware
+- [ ] Create API versioning strategy
+- [ ] Document all RPC methods
+
+**3.2 Project Management API**
+- [ ] Implement `CreateProject` RPC
+- [ ] Implement `GetProject` RPC
+- [ ] Implement `ListProjects` RPC with pagination
+- [ ] Implement `DeleteProject` RPC
+- [ ] Add project-level access control
+- [ ] Create project settings management
+- [ ] Implement project export/import
+
+**3.3 Document & Block Operations**
+- [ ] Implement `AddDocument` with streaming upload
+- [ ] Implement `GetDocument` RPC
+- [ ] Implement `StreamBlocks` for pagination
+- [ ] Implement `UpdateTranslation` RPC
+- [ ] Implement `BatchUpdateTranslations` streaming
+- [ ] Add document locking for concurrent access
+- [ ] Create document version tracking
+
+**3.4 Connection Code System**
+- [ ] Design connection code format
+- [ ] Implement code generation with HMAC
+- [ ] Create code parsing and validation
+- [ ] Add code expiration handling
+- [ ] Implement code revocation
+- [ ] Create QR code generation option
+- [ ] Add Bowrain UI for code entry
+- [ ] Test code security (brute force resistance)
+
+**3.5 Real-Time Sync**
+- [ ] Implement `Subscribe` RPC with event streaming
+- [ ] Create event bus for internal notifications
+- [ ] Add event filtering per subscription
+- [ ] Implement reconnection handling
+- [ ] Create conflict detection logic
+- [ ] Add sync state management
+- [ ] Implement offline queue for pending changes
+- [ ] Test high-frequency update scenarios
+
+#### Testing Strategy for Phase 3
+
+**Unit Tests:**
+```go
+func TestGRPCServiceMethods(t *testing.T) {
+    // Each RPC method with valid input
+    // Each RPC method with invalid input
+    // Authentication required when configured
+    // Rate limiting enforced
+}
+
+func TestConnectionCode(t *testing.T) {
+    // Code generation produces valid format
+    // Code parsing extracts correct fields
+    // Expired code rejected
+    // Tampered code (invalid HMAC) rejected
+    // Brute force infeasible (timing analysis)
+}
+
+func TestRealTimeSync(t *testing.T) {
+    // Event delivered to subscriber
+    // Filtering works correctly
+    // Reconnection resumes from last event
+    // Conflicts detected correctly
+}
+```
+
+**Integration Tests:**
+```go
+func TestEndToEndProjectWorkflow(t *testing.T) {
+    // Create project via API
+    // Add document via streaming
+    // Execute translation flow
+    // Verify translations via API
+    // Export and verify KAZ
+}
+
+func TestBowrainConnection(t *testing.T) {
+    // Generate connection code
+    // Connect Bowrain (simulated)
+    // Sync project data
+    // Update translation in Bowrain
+    // Verify sync to server
+}
+```
+
+**Contract Tests:**
+```go
+func TestAPIBackwardCompatibility(t *testing.T) {
+    // Record API responses as golden files
+    // Verify no breaking changes on update
+    // Test with previous client versions
+}
+```
+
+**Performance Tests:**
+```go
+func BenchmarkStreamingUpload(b *testing.B) {
+    // Upload 100MB document
+    // Measure throughput and latency
+}
+
+func BenchmarkEventBroadcast(b *testing.B) {
+    // 100 subscribers
+    // 1000 events/second
+    // Measure delivery latency
+}
+```
+
+---
+
+### Phase 4: Assets & Scale [Size: X-LARGE]
+
+**Scope:** Production-ready asset handling and full Kubernetes deployment.
+
+**Prerequisites:** Phase 3 complete
+
+**Dependencies:** S3/MinIO, OCR service (optional), Kubernetes cluster
+
+#### Checklist
+
+**4.1 Content-Addressable Storage**
+- [ ] Implement `ContentAddressableStorage` struct
+- [ ] Add S3 backend implementation
+- [ ] Add MinIO backend implementation
+- [ ] Add local filesystem backend (for dev)
+- [ ] Implement hash-based deduplication
+- [ ] Create asset index with metadata
+- [ ] Add garbage collection for unreferenced assets
+- [ ] Implement asset integrity verification
+
+**4.2 Chunked Upload/Download**
+- [ ] Implement `ChunkedUploader` struct
+- [ ] Create upload session management
+- [ ] Implement chunk storage and tracking
+- [ ] Add chunk completion and assembly
+- [ ] Implement resumable uploads
+- [ ] Add download with range requests
+- [ ] Create progress reporting
+- [ ] Test upload interruption recovery
+
+**4.3 Asset Extraction Pipeline**
+- [ ] Implement image OCR integration (optional)
+- [ ] Add audio transcription integration (optional)
+- [ ] Create alt-text extraction from images
+- [ ] Implement video subtitle extraction
+- [ ] Add extracted content to Block model
+- [ ] Create extraction job queue
+- [ ] Add extraction result caching
+
+**4.4 Kubernetes Production Deployment**
+- [ ] Create production Helm chart
+- [ ] Add ConfigMaps for configuration
+- [ ] Create Secrets management
+- [ ] Implement health and readiness probes
+- [ ] Add resource limits and requests
+- [ ] Create PodDisruptionBudgets
+- [ ] Implement NetworkPolicies
+- [ ] Add Prometheus ServiceMonitor
+- [ ] Create Grafana dashboards
+- [ ] Document deployment procedures
+- [ ] Create disaster recovery runbook
+
+**4.5 Observability**
+- [ ] Add OpenTelemetry tracing
+- [ ] Implement structured logging
+- [ ] Create custom metrics for business KPIs
+- [ ] Add alerting rules
+- [ ] Create operational runbooks
+- [ ] Implement log aggregation
+- [ ] Add distributed tracing correlation
+
+#### Testing Strategy for Phase 4
+
+**Unit Tests:**
+```go
+func TestContentAddressableStorage(t *testing.T) {
+    // Store returns correct hash
+    // Duplicate content returns existing asset
+    // Get retrieves correct content
+    // Missing asset returns error
+}
+
+func TestChunkedUpload(t *testing.T) {
+    // Multi-chunk upload assembles correctly
+    // Missing chunk detected
+    // Out-of-order chunks handled
+    // Session expiration works
+}
+
+func TestAssetExtraction(t *testing.T) {
+    // OCR extracts text from image
+    // Transcription extracts audio text
+    // Extraction errors handled gracefully
+}
+```
+
+**Integration Tests:**
+```go
+func TestS3Backend(t *testing.T) {
+    // Upload to real S3 (localstack)
+    // Download from S3
+    // Verify content integrity
+}
+
+func TestEndToEndAssetWorkflow(t *testing.T) {
+    // Upload document with images
+    // Extract to KAZ
+    // Verify assets in package
+    // Translate with asset references
+    // Merge and verify output
+}
+```
+
+**End-to-End Tests (Kubernetes):**
+```bash
+# Deploy to test cluster
+# Run full workflow
+# Verify scaling behavior
+# Test failover scenarios
+# Measure resource utilization
+```
+
+**Security Tests:**
+- [ ] Penetration testing of API endpoints
+- [ ] Signed URL expiration verification
+- [ ] Access control boundary testing
+- [ ] Secrets exposure audit
+
+**Disaster Recovery Tests:**
+- [ ] Simulate node failure
+- [ ] Simulate zone failure
+- [ ] Test backup restoration
+- [ ] Verify data integrity after recovery
+
+---
+
+### Phase 5: Collaboration [Size: LARGE]
+
+**Scope:** Real-time collaborative editing in Bowrain with conflict resolution.
+
+**Prerequisites:** Phase 3 complete (Phase 4 optional but recommended)
+
+**Dependencies:** Yjs library, WebSocket infrastructure
+
+#### Checklist
+
+**5.1 Segment Locking**
+- [ ] Implement `SegmentLocker` with Redis
+- [ ] Add lock acquisition with TTL
+- [ ] Implement lock extension (heartbeat)
+- [ ] Add lock release on completion
+- [ ] Create automatic lock expiration
+- [ ] Implement lock ownership verification
+- [ ] Add lock status in UI
+- [ ] Test concurrent lock requests
+
+**5.2 CRDT Integration (Yjs)**
+- [ ] Evaluate Yjs Go port vs JavaScript runtime
+- [ ] Implement Yjs document model for blocks
+- [ ] Create Y.Text for translation content
+- [ ] Add Y.Map for block metadata
+- [ ] Implement sync protocol
+- [ ] Create awareness protocol for presence
+- [ ] Add offline change buffering
+- [ ] Test merge scenarios
+
+**5.3 Conflict Resolution**
+- [ ] Design conflict detection logic
+- [ ] Create conflict notification system
+- [ ] Implement manual resolution UI
+- [ ] Add automatic resolution rules
+- [ ] Create conflict history tracking
+- [ ] Implement resolution audit log
+- [ ] Test complex merge scenarios
+
+**5.4 Presence Indicators**
+- [ ] Implement cursor position tracking
+- [ ] Add user avatars/colors
+- [ ] Create "who's editing" display
+- [ ] Implement typing indicators
+- [ ] Add online/offline status
+- [ ] Create activity feed
+- [ ] Test with many concurrent users
+
+**5.5 Collaboration UI (Bowrain)**
+- [ ] Add collaborative editing mode toggle
+- [ ] Create presence display component
+- [ ] Implement conflict resolution dialog
+- [ ] Add sync status indicator
+- [ ] Create offline mode indicator
+- [ ] Implement collaborative comments
+- [ ] Add @mentions in comments
+- [ ] Test UI responsiveness under sync load
+
+#### Testing Strategy for Phase 5
+
+**Unit Tests:**
+```go
+func TestSegmentLocking(t *testing.T) {
+    // Lock acquisition succeeds
+    // Second lock attempt fails
+    // Lock extension works
+    // Expired lock can be acquired
+    // Unlock only by owner
+}
+
+func TestCRDTMerge(t *testing.T) {
+    // Concurrent inserts merge correctly
+    // Concurrent deletes merge correctly
+    // Insert + delete preserves intention
+    // Complex multi-user scenario
+}
+
+func TestConflictDetection(t *testing.T) {
+    // Same block, same time = conflict
+    // Same block, different fields = no conflict
+    // Resolve keeps correct version
+}
+```
+
+**Integration Tests:**
+```go
+func TestCollaborativeEditing(t *testing.T) {
+    // Two users open same project
+    // User A edits block 1
+    // User B sees update in real-time
+    // User B edits block 1
+    // User A sees update
+    // Verify final state consistent
+}
+
+func TestOfflineSync(t *testing.T) {
+    // User goes offline
+    // User makes edits
+    // User comes online
+    // Changes sync correctly
+    // No data loss
+}
+```
+
+**User Acceptance Tests:**
+- [ ] 5 concurrent translators on same project
+- [ ] Network interruption recovery
+- [ ] Large project (1000+ blocks) performance
+- [ ] Mobile device (Bowrain future) compatibility
+
+**Stress Tests:**
+```go
+func TestHighConcurrency(t *testing.T) {
+    // 50 concurrent users
+    // 10 updates per second per user
+    // Verify no lost updates
+    // Verify UI remains responsive
+    // Measure sync latency p99
+}
+```
 
 ---
 
@@ -1163,6 +1961,60 @@ func (l *SegmentLocker) Unlock(ctx context.Context, projectID, blockID, userID s
 | **Real-time Sync** | gRPC streaming + CRDTs | Offline-first with conflict resolution |
 | **Asset Storage** | Content-addressable (S3/MinIO) | Deduplication, immutability |
 | **Scaling** | KEDA on Kubernetes | Event-driven, cost-efficient |
+
+---
+
+## Size Definitions
+
+| Size | Characteristics | Team Scope |
+|------|-----------------|------------|
+| **Small** | Single component, <10 files changed, self-contained | 1 developer |
+| **Medium** | Multiple components, 10-30 files, some integration | 1-2 developers |
+| **Large** | Cross-cutting, 30-100 files, external dependencies | 2-3 developers |
+| **X-Large** | System-wide, 100+ files, infrastructure changes | Team effort |
+
+---
+
+## Testing Philosophy
+
+### Test Pyramid
+
+```
+                    /\
+                   /  \
+                  / E2E \         <- Few, slow, expensive
+                 /──────\
+                /  Integ  \       <- Some, moderate
+               /──────────\
+              /    Unit     \     <- Many, fast, cheap
+             /________________\
+```
+
+### Test Categories by Phase
+
+| Phase | Unit | Integration | E2E | Performance | Chaos |
+|-------|------|-------------|-----|-------------|-------|
+| 1 Foundation | ✓✓✓ | ✓✓ | ✓ | ✓ | - |
+| 2 Distribution | ✓✓ | ✓✓✓ | ✓ | ✓✓ | ✓✓ |
+| 3 API | ✓✓ | ✓✓ | ✓✓ | ✓ | ✓ |
+| 4 Assets | ✓✓ | ✓✓ | ✓✓✓ | ✓✓ | ✓✓ |
+| 5 Collaboration | ✓✓ | ✓✓✓ | ✓✓ | ✓✓✓ | ✓ |
+
+### Continuous Integration Requirements
+
+Each phase must pass:
+1. All existing tests (regression)
+2. New unit tests (>80% coverage for new code)
+3. Integration tests for new features
+4. Linting and static analysis
+5. Security scanning (dependencies)
+
+### Test Data Management
+
+- Use factories for test data generation
+- Golden files for expected outputs
+- Seed data for integration tests
+- Anonymized production data for load tests
 
 ---
 
