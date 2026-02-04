@@ -547,7 +547,7 @@ func TestHighConcurrency(t *testing.T) {
 
 ### Operational Transform (Alternative)
 
-- [OT FAQ](https://www3.ntu.edu.sg/scse/staff/czsun/projects/otfaq/) — Comprehensive OT explanation
+- [Operational Transformation (Wikipedia)](https://en.wikipedia.org/wiki/Operational_transformation) — Comprehensive overview of OT algorithms and properties
 - [Google Wave OT](https://svn.apache.org/repos/asf/incubator/wave/whitepapers/operational-transform/operational-transform.html) — Google's OT implementation details
 
 ### CAT Tool Collaboration Models
