@@ -1,67 +1,72 @@
 package sievepen
 
 import (
-	"database/sql"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
-
-	// Pure Go SQLite driver.
-	_ "modernc.org/sqlite"
+	"github.com/gokapi/gokapi/internal/storage"
 )
 
-// SQLiteTM is a persistent translation memory backed by SQLite.
+// SQLiteTM is a persistent translation memory backed by SQLite with
+// content-aware matching using derived keys (plain, structural, generalized).
 type SQLiteTM struct {
-	db *sql.DB
+	db *storage.DB
 }
 
-// NewSQLiteTM opens (or creates) a SQLite-backed translation memory at the given path.
+// NewSQLiteTM opens (or creates) a SQLite-backed translation memory.
 // Use ":memory:" for an in-memory database (useful for testing).
 func NewSQLiteTM(dbPath string) (*SQLiteTM, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := storage.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	if err := createSchema(db); err != nil {
+	if err := storage.Migrate(db, tmMigrations); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("create schema: %w", err)
+		return nil, fmt.Errorf("migrate schema: %w", err)
 	}
 
 	return &SQLiteTM{db: db}, nil
 }
 
-func createSchema(db *sql.DB) error {
-	schema := `
-	CREATE TABLE IF NOT EXISTS tm_entries (
-		id            TEXT PRIMARY KEY,
-		source        TEXT NOT NULL,
-		target        TEXT NOT NULL,
-		source_locale TEXT NOT NULL,
-		target_locale TEXT NOT NULL,
-		created_at    TEXT NOT NULL,
-		updated_at    TEXT NOT NULL
-	);
-	CREATE TABLE IF NOT EXISTS tm_properties (
-		entry_id TEXT NOT NULL,
-		key      TEXT NOT NULL,
-		value    TEXT NOT NULL,
-		PRIMARY KEY (entry_id, key),
-		FOREIGN KEY (entry_id) REFERENCES tm_entries(id) ON DELETE CASCADE
-	);
-	CREATE INDEX IF NOT EXISTS idx_tm_entries_locales ON tm_entries(source_locale, target_locale);
-	`
-	_, err := db.Exec(schema)
-	return err
+var tmMigrations = []storage.Migration{
+	{
+		Version:     1,
+		Description: "content-aware TM schema",
+		SQL: `
+		CREATE TABLE IF NOT EXISTS tm_entries (
+			id              TEXT PRIMARY KEY,
+			source_coded    TEXT NOT NULL,
+			target_coded    TEXT NOT NULL,
+			source_plain    TEXT NOT NULL,
+			source_struct   TEXT NOT NULL,
+			source_general  TEXT NOT NULL,
+			source_locale   TEXT NOT NULL,
+			target_locale   TEXT NOT NULL,
+			entities        TEXT,
+			annotations     TEXT,
+			properties      TEXT,
+			created_at      TEXT NOT NULL,
+			updated_at      TEXT NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_tm_general ON tm_entries(source_general, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_struct  ON tm_entries(source_struct, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_plain   ON tm_entries(source_plain, source_locale, target_locale);
+		`,
+	},
 }
 
 // Add inserts or updates a translation memory entry.
 func (tm *SQLiteTM) Add(entry TMEntry) error {
 	if entry.ID == "" {
 		return fmt.Errorf("entry ID is required")
+	}
+	if entry.Source == nil {
+		return fmt.Errorf("entry source Fragment is required")
 	}
 
 	now := time.Now()
@@ -72,112 +77,292 @@ func (tm *SQLiteTM) Add(entry TMEntry) error {
 		entry.UpdatedAt = now
 	}
 
-	tx, err := tm.db.Begin()
+	sourceJSON, err := json.Marshal(entry.Source)
 	if err != nil {
-		return fmt.Errorf("begin transaction: %w", err)
+		return fmt.Errorf("marshal source: %w", err)
 	}
-	defer func() { _ = tx.Rollback() }()
+	targetJSON, err := json.Marshal(entry.Target)
+	if err != nil {
+		return fmt.Errorf("marshal target: %w", err)
+	}
 
-	_, err = tx.Exec(`
-		INSERT INTO tm_entries (id, source, target, source_locale, target_locale, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+	var entitiesJSON, annotationsJSON, propertiesJSON []byte
+	if len(entry.Entities) > 0 {
+		entitiesJSON, _ = json.Marshal(entry.Entities)
+	}
+	if len(entry.Properties) > 0 {
+		propertiesJSON, _ = json.Marshal(entry.Properties)
+	}
+	_ = annotationsJSON // annotations are not serialized for now
+
+	_, err = tm.db.Exec(`
+		INSERT INTO tm_entries (id, source_coded, target_coded,
+			source_plain, source_struct, source_general,
+			source_locale, target_locale,
+			entities, annotations, properties,
+			created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
-			source = excluded.source,
-			target = excluded.target,
+			source_coded = excluded.source_coded,
+			target_coded = excluded.target_coded,
+			source_plain = excluded.source_plain,
+			source_struct = excluded.source_struct,
+			source_general = excluded.source_general,
 			source_locale = excluded.source_locale,
 			target_locale = excluded.target_locale,
+			entities = excluded.entities,
+			annotations = excluded.annotations,
+			properties = excluded.properties,
 			updated_at = excluded.updated_at
-	`, entry.ID, entry.Source, entry.Target,
+	`, entry.ID,
+		string(sourceJSON), string(targetJSON),
+		normalizeText(entry.SourceText()),
+		normalizeText(entry.SourceStructural()),
+		normalizeText(entry.SourceGeneralized()),
 		string(entry.SourceLocale), string(entry.TargetLocale),
+		nullableString(entitiesJSON), nullableString(annotationsJSON), nullableString(propertiesJSON),
 		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert entry: %w", err)
 	}
 
-	// Replace properties.
-	_, err = tx.Exec("DELETE FROM tm_properties WHERE entry_id = ?", entry.ID)
-	if err != nil {
-		return fmt.Errorf("delete properties: %w", err)
+	return nil
+}
+
+// Lookup searches for matches using tiered matching with the full content model.
+func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	if source == nil {
+		return nil, nil
 	}
-	for k, v := range entry.Properties {
-		_, err = tx.Exec("INSERT INTO tm_properties (entry_id, key, value) VALUES (?, ?, ?)",
-			entry.ID, k, v)
+
+	opts = applyDefaults(opts)
+	frag := source.FirstFragment()
+	if frag == nil {
+		return nil, nil
+	}
+
+	plainKey := normalizeText(frag.Text())
+	structKey := normalizeText(frag.StructuralText())
+	generalKey := normalizeText(frag.GeneralizedText())
+	entityAnnotations := extractEntityAnnotations(source)
+
+	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts)
+}
+
+// LookupText searches for matches using plain text only.
+// This always uses plain-mode matching, returning MatchExact/MatchFuzzy types.
+func (tm *SQLiteTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	opts = applyDefaults(opts)
+	opts.MatchModes = []MatchMode{MatchModePlain}
+	normalizedSource := normalizeText(source)
+	return tm.tieredLookup(normalizedSource, normalizedSource, normalizedSource, nil, sourceLocale, targetLocale, opts)
+}
+
+func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	var matches []TMMatch
+	seen := make(map[string]bool)
+
+	modeEnabled := matchModesEnabled(opts.MatchModes)
+
+	// Tier 1-3: Exact matches (indexed lookups — fast even for large TMs).
+	if modeEnabled[MatchModeGeneralized] {
+		exactMatches, err := tm.queryExact("source_general", generalKey, sourceLocale, targetLocale)
 		if err != nil {
-			return fmt.Errorf("insert property: %w", err)
+			return nil, err
+		}
+		for _, entry := range exactMatches {
+			if !seen[entry.ID] {
+				seen[entry.ID] = true
+				adaptations := computeEntityAdaptations(entry, entityAnnotations)
+				matches = append(matches, TMMatch{
+					Entry:             entry,
+					Score:             1.0,
+					MatchType:         MatchGeneralizedExact,
+					EntityAdaptations: adaptations,
+				})
+			}
 		}
 	}
 
-	return tx.Commit()
+	if modeEnabled[MatchModeStructural] {
+		exactMatches, err := tm.queryExact("source_struct", structKey, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range exactMatches {
+			if !seen[entry.ID] {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     1.0,
+					MatchType: MatchStructuralExact,
+				})
+			}
+		}
+	}
+
+	if modeEnabled[MatchModePlain] {
+		exactMatches, err := tm.queryExact("source_plain", plainKey, sourceLocale, targetLocale)
+		if err != nil {
+			return nil, err
+		}
+		for _, entry := range exactMatches {
+			if !seen[entry.ID] {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     1.0,
+					MatchType: MatchExact,
+				})
+			}
+		}
+	}
+
+	// If we have exact matches and threshold is 1.0, return early.
+	if len(matches) > 0 && opts.MinScore >= 1.0 {
+		return limitResults(matches, opts.MaxResults), nil
+	}
+
+	// Tier 4-6: Fuzzy matches (scan with Levenshtein — acceptable because
+	// exact/near-exact matches dominate in localization workflows).
+	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, entry := range allEntries {
+		if seen[entry.ID] {
+			continue
+		}
+
+		// Try each fuzzy tier in priority order.
+		var bestScore float64
+		var bestType MatchType
+		var adaptations []EntityAdaptation
+
+		if modeEnabled[MatchModeGeneralized] {
+			score := LevenshteinRatio(generalKey, normalizeText(entry.SourceGeneralized()))
+			if score >= opts.MinScore && score > bestScore {
+				bestScore = score
+				bestType = MatchGeneralizedFuzzy
+				adaptations = computeEntityAdaptations(entry, entityAnnotations)
+			}
+		}
+		if modeEnabled[MatchModeStructural] {
+			score := LevenshteinRatio(structKey, normalizeText(entry.SourceStructural()))
+			if score >= opts.MinScore && score > bestScore {
+				bestScore = score
+				bestType = MatchStructuralFuzzy
+				adaptations = nil
+			}
+		}
+		if modeEnabled[MatchModePlain] {
+			score := LevenshteinRatio(plainKey, normalizeText(entry.SourceText()))
+			if score >= opts.MinScore && score > bestScore {
+				bestScore = score
+				bestType = MatchFuzzy
+				adaptations = nil
+			}
+		}
+
+		if bestScore >= opts.MinScore {
+			seen[entry.ID] = true
+			matches = append(matches, TMMatch{
+				Entry:             entry,
+				Score:             bestScore,
+				MatchType:         bestType,
+				EntityAdaptations: adaptations,
+			})
+		}
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		pi := matchTypePriority(matches[i].MatchType)
+		pj := matchTypePriority(matches[j].MatchType)
+		if pi != pj {
+			return pi < pj
+		}
+		return matches[i].Score > matches[j].Score
+	})
+
+	return limitResults(matches, opts.MaxResults), nil
 }
 
-// Lookup searches for matches of the given source text.
-func (tm *SQLiteTM) Lookup(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
-	if opts.MinScore <= 0 {
-		opts.MinScore = 0.7
-	}
-	if opts.MaxResults <= 0 {
-		opts.MaxResults = 10
-	}
+func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]TMEntry, error) {
+	query := fmt.Sprintf(`
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries
+		WHERE %s = ? AND source_locale = ? AND target_locale = ?
+	`, column)
 
-	normalizedSource := normalizeText(source)
+	rows, err := tm.db.Query(query, value, string(sourceLocale), string(targetLocale))
+	if err != nil {
+		return nil, fmt.Errorf("query exact: %w", err)
+	}
+	defer rows.Close()
 
+	return tm.scanEntries(rows)
+}
+
+func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]TMEntry, error) {
 	rows, err := tm.db.Query(`
-		SELECT id, source, target, source_locale, target_locale, created_at, updated_at
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE source_locale = ? AND target_locale = ?
 	`, string(sourceLocale), string(targetLocale))
 	if err != nil {
-		return nil, fmt.Errorf("query entries: %w", err)
+		return nil, fmt.Errorf("query locale: %w", err)
 	}
 	defer rows.Close()
 
-	var matches []TMMatch
+	return tm.scanEntries(rows)
+}
+
+func (tm *SQLiteTM) scanEntries(rows interface{ Next() bool; Scan(...any) error; Err() error }) ([]TMEntry, error) {
+	var entries []TMEntry
 	for rows.Next() {
 		var entry TMEntry
+		var sourceJSON, targetJSON string
 		var srcLocale, tgtLocale string
+		var entitiesJSON, propertiesJSON *string
 		var createdStr, updatedStr string
-		if err := rows.Scan(&entry.ID, &entry.Source, &entry.Target,
-			&srcLocale, &tgtLocale, &createdStr, &updatedStr); err != nil {
+
+		if err := rows.Scan(&entry.ID, &sourceJSON, &targetJSON,
+			&srcLocale, &tgtLocale,
+			&entitiesJSON, &propertiesJSON,
+			&createdStr, &updatedStr); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
+
+		entry.Source = &model.Fragment{}
+		if err := json.Unmarshal([]byte(sourceJSON), entry.Source); err != nil {
+			return nil, fmt.Errorf("unmarshal source: %w", err)
+		}
+		entry.Target = &model.Fragment{}
+		if err := json.Unmarshal([]byte(targetJSON), entry.Target); err != nil {
+			return nil, fmt.Errorf("unmarshal target: %w", err)
+		}
+
 		entry.SourceLocale = model.LocaleID(srcLocale)
 		entry.TargetLocale = model.LocaleID(tgtLocale)
 		entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 
-		normalizedEntry := normalizeText(entry.Source)
-		var score float64
-		var matchType MatchType
-
-		if normalizedEntry == normalizedSource {
-			score = 1.0
-			matchType = MatchExact
-		} else {
-			score = LevenshteinRatio(normalizedSource, normalizedEntry)
-			matchType = MatchFuzzy
+		if entitiesJSON != nil && *entitiesJSON != "" {
+			json.Unmarshal([]byte(*entitiesJSON), &entry.Entities)
+		}
+		if propertiesJSON != nil && *propertiesJSON != "" {
+			json.Unmarshal([]byte(*propertiesJSON), &entry.Properties)
 		}
 
-		if score >= opts.MinScore {
-			matches = append(matches, TMMatch{
-				Entry:     entry,
-				Score:     score,
-				MatchType: matchType,
-			})
-		}
+		entries = append(entries, entry)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
-
-	sort.Slice(matches, func(i, j int) bool {
-		return matches[i].Score > matches[j].Score
-	})
-
-	if len(matches) > opts.MaxResults {
-		matches = matches[:opts.MaxResults]
-	}
-
-	return matches, nil
+	return entries, nil
 }
 
 // Delete removes an entry by ID.
@@ -208,15 +393,12 @@ func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()
 }
 
-// SearchEntries performs a case-insensitive substring search on source/target text
-// with optional locale filtering and pagination. Empty strings mean "no filter".
-// Returns matched entries and total count.
+// SearchEntries performs a case-insensitive substring search on source/target text.
 func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
-	// Build WHERE clause dynamically.
 	where := "1=1"
 	var args []any
 	if query != "" {
-		where += " AND (LOWER(source) LIKE ? OR LOWER(target) LIKE ?)"
+		where += " AND (LOWER(source_plain) LIKE ? OR LOWER(target_coded) LIKE ?)"
 		pattern := "%" + strings.ToLower(query) + "%"
 		args = append(args, pattern, pattern)
 	}
@@ -229,14 +411,14 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 		args = append(args, targetLocale)
 	}
 
-	// Count total matches.
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
-	// Fetch page.
-	q := fmt.Sprintf("SELECT id, source, target, source_locale, target_locale, created_at, updated_at FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?", where)
+	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?`, where)
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
 	if err != nil {
@@ -244,45 +426,34 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 	}
 	defer rows.Close()
 
-	var entries []TMEntry
-	for rows.Next() {
-		var entry TMEntry
-		var srcLocale, tgtLocale, createdStr, updatedStr string
-		if err := rows.Scan(&entry.ID, &entry.Source, &entry.Target,
-			&srcLocale, &tgtLocale, &createdStr, &updatedStr); err != nil {
-			continue
-		}
-		entry.SourceLocale = model.LocaleID(srcLocale)
-		entry.TargetLocale = model.LocaleID(tgtLocale)
-		entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-		entries = append(entries, entry)
-	}
+	entries, _ := tm.scanEntries(rows)
 	return entries, total
 }
 
 // GetEntry fetches a single entry by ID.
 func (tm *SQLiteTM) GetEntry(id string) (TMEntry, bool) {
-	var entry TMEntry
-	var srcLocale, tgtLocale, createdStr, updatedStr string
-	err := tm.db.QueryRow(
-		"SELECT id, source, target, source_locale, target_locale, created_at, updated_at FROM tm_entries WHERE id = ?",
-		id,
-	).Scan(&entry.ID, &entry.Source, &entry.Target, &srcLocale, &tgtLocale, &createdStr, &updatedStr)
+	rows, err := tm.db.Query(`
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries WHERE id = ?
+	`, id)
 	if err != nil {
 		return TMEntry{}, false
 	}
-	entry.SourceLocale = model.LocaleID(srcLocale)
-	entry.TargetLocale = model.LocaleID(tgtLocale)
-	entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-	entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-	return entry, true
+	defer rows.Close()
+
+	entries, err := tm.scanEntries(rows)
+	if err != nil || len(entries) == 0 {
+		return TMEntry{}, false
+	}
+	return entries[0], true
 }
 
 // Entries returns all entries. Used for export operations.
 func (tm *SQLiteTM) Entries() []TMEntry {
 	rows, err := tm.db.Query(`
-		SELECT id, source, target, source_locale, target_locale, created_at, updated_at
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
 		FROM tm_entries ORDER BY id
 	`)
 	if err != nil {
@@ -290,33 +461,14 @@ func (tm *SQLiteTM) Entries() []TMEntry {
 	}
 	defer rows.Close()
 
-	var entries []TMEntry
-	for rows.Next() {
-		var entry TMEntry
-		var srcLocale, tgtLocale string
-		var createdStr, updatedStr string
-		if err := rows.Scan(&entry.ID, &entry.Source, &entry.Target,
-			&srcLocale, &tgtLocale, &createdStr, &updatedStr); err != nil {
-			continue
-		}
-		entry.SourceLocale = model.LocaleID(srcLocale)
-		entry.TargetLocale = model.LocaleID(tgtLocale)
-		entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
-
-		// Load properties.
-		propRows, err := tm.db.Query("SELECT key, value FROM tm_properties WHERE entry_id = ?", entry.ID)
-		if err == nil {
-			entry.Properties = make(map[string]string)
-			for propRows.Next() {
-				var k, v string
-				if propRows.Scan(&k, &v) == nil {
-					entry.Properties[k] = v
-				}
-			}
-			propRows.Close()
-		}
-		entries = append(entries, entry)
-	}
+	entries, _ := tm.scanEntries(rows)
 	return entries
+}
+
+func nullableString(b []byte) *string {
+	if len(b) == 0 {
+		return nil
+	}
+	s := string(b)
+	return &s
 }

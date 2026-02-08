@@ -49,7 +49,9 @@ type tmxTUV struct {
 }
 
 // ImportTMX reads a TMX file and imports matching translation units into the TM.
-// It returns the number of entries successfully imported.
+// Plain text TMX segments are stored as plain Fragments (no spans/entities).
+// They participate in plain matching only. Over time, as content is
+// re-processed through the entity-annotate pipeline, entries can be enriched.
 func ImportTMX(tm TranslationMemory, reader io.Reader, sourceLocale, targetLocale model.LocaleID) (int, error) {
 	var doc tmxDocument
 	decoder := xml.NewDecoder(reader)
@@ -96,8 +98,8 @@ func ImportTMX(tm TranslationMemory, reader io.Reader, sourceLocale, targetLocal
 
 		entry := TMEntry{
 			ID:           id,
-			Source:       sourceText,
-			Target:       targetText,
+			Source:       model.NewFragment(sourceText),
+			Target:       model.NewFragment(targetText),
 			SourceLocale: sourceLocale,
 			TargetLocale: targetLocale,
 			CreatedAt:    createdAt,
@@ -119,10 +121,8 @@ func parseTime(s string) time.Time {
 	if s == "" {
 		return time.Time{}
 	}
-	// TMX date format: YYYYMMDDTHHmmssZ
 	t, err := time.Parse("20060102T150405Z", s)
 	if err != nil {
-		// Try RFC3339 as fallback.
 		t, err = time.Parse(time.RFC3339, s)
 		if err != nil {
 			return time.Time{}

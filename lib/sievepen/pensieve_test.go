@@ -18,8 +18,8 @@ func TestInMemoryTM_AddAndLookup(t *testing.T) {
 
 	entry := sievepen.TMEntry{
 		ID:           "entry-1",
-		Source:       "Hello",
-		Target:       "Bonjour",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		CreatedAt:    time.Now(),
@@ -31,10 +31,10 @@ func TestInMemoryTM_AddAndLookup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, tm.Count())
 
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Bonjour", matches[0].Entry.Target)
+	assert.Equal(t, "Bonjour", matches[0].Entry.TargetText())
 	assert.Equal(t, 1.0, matches[0].Score)
 	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
 }
@@ -44,26 +44,26 @@ func TestInMemoryTM_ExactMatch(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Save",
-		Target:       "Sauvegarder",
+		Source:       model.NewFragment("Save"),
+		Target:       model.NewFragment("Sauvegarder"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
-		Source:       "Cancel",
-		Target:       "Annuler",
+		Source:       model.NewFragment("Cancel"),
+		Target:       model.NewFragment("Annuler"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 
-	matches, err := tm.Lookup("Save", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err := tm.LookupText("Save", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Sauvegarder", matches[0].Entry.Target)
+	assert.Equal(t, "Sauvegarder", matches[0].Entry.TargetText())
 	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
 }
 
@@ -72,14 +72,14 @@ func TestInMemoryTM_FuzzyMatch(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "The file was saved successfully",
-		Target:       "Le fichier a ete sauvegarde avec succes",
+		Source:       model.NewFragment("The file was saved successfully"),
+		Target:       model.NewFragment("Le fichier a ete sauvegarde avec succes"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 
 	// Search with slightly different text.
-	matches, err := tm.Lookup("The file was saved", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err := tm.LookupText("The file was saved", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   0.5,
 		MaxResults: 10,
 	})
@@ -95,15 +95,15 @@ func TestInMemoryTM_Delete(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Hello",
-		Target:       "Bonjour",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
-		Source:       "Goodbye",
-		Target:       "Au revoir",
+		Source:       model.NewFragment("Goodbye"),
+		Target:       model.NewFragment("Au revoir"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
@@ -114,7 +114,7 @@ func TestInMemoryTM_Delete(t *testing.T) {
 	assert.Equal(t, 1, tm.Count())
 
 	// Should not find deleted entry.
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
@@ -122,13 +122,13 @@ func TestInMemoryTM_Delete(t *testing.T) {
 	assert.Empty(t, matches)
 
 	// Should still find remaining entry.
-	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err = tm.LookupText("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Au revoir", matches[0].Entry.Target)
+	assert.Equal(t, "Au revoir", matches[0].Entry.TargetText())
 
 	// Deleting non-existent entry returns error.
 	err = tm.Delete("non-existent")
@@ -138,8 +138,19 @@ func TestInMemoryTM_Delete(t *testing.T) {
 func TestInMemoryTM_EmptyIDError(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	err := tm.Add(sievepen.TMEntry{
-		Source:       "Hello",
-		Target:       "Bonjour",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+	assert.Error(t, err)
+}
+
+func TestInMemoryTM_NilSourceError(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+	err := tm.Add(sievepen.TMEntry{
+		ID:           "e1",
+		Target:       model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	})
@@ -151,8 +162,8 @@ func TestInMemoryTM_UpdateExisting(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Hello",
-		Target:       "Bonjour",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
@@ -160,17 +171,17 @@ func TestInMemoryTM_UpdateExisting(t *testing.T) {
 	// Update with same ID.
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Hello",
-		Target:       "Salut",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Salut"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 
 	assert.Equal(t, 1, tm.Count())
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Salut", matches[0].Entry.Target)
+	assert.Equal(t, "Salut", matches[0].Entry.TargetText())
 }
 
 func TestInMemoryTM_LocaleFiltering(t *testing.T) {
@@ -178,30 +189,30 @@ func TestInMemoryTM_LocaleFiltering(t *testing.T) {
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Hello",
-		Target:       "Bonjour",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e2",
-		Source:       "Hello",
-		Target:       "Hallo",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Hallo"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleGerman,
 	}))
 
 	// Search for French.
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Bonjour", matches[0].Entry.Target)
+	assert.Equal(t, "Bonjour", matches[0].Entry.TargetText())
 
 	// Search for German.
-	matches, err = tm.Lookup("Hello", model.LocaleEnglish, model.LocaleGerman, sievepen.DefaultLookupOptions())
+	matches, err = tm.LookupText("Hello", model.LocaleEnglish, model.LocaleGerman, sievepen.DefaultLookupOptions())
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Hallo", matches[0].Entry.Target)
+	assert.Equal(t, "Hallo", matches[0].Entry.TargetText())
 }
 
 func TestLevenshteinDistance(t *testing.T) {
@@ -253,8 +264,8 @@ func TestTMLeverageTool(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "Hello World",
-		Target:       "Bonjour le monde",
+		Source:       model.NewFragment("Hello World"),
+		Target:       model.NewFragment("Bonjour le monde"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
@@ -307,15 +318,16 @@ func TestTMLeverageTool(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "tm:sievepen", altTrans.Origin)
 	assert.Equal(t, 1.0, altTrans.Score)
-	assert.Equal(t, "exact", altTrans.MatchType)
+	// Plain text blocks match at generalized-exact tier (generalized key == plain key).
+	assert.Equal(t, "generalized-exact", altTrans.MatchType)
 }
 
 func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 	require.NoError(t, tm.Add(sievepen.TMEntry{
 		ID:           "e1",
-		Source:       "The document was saved successfully",
-		Target:       "Le document a ete sauvegarde avec succes",
+		Source:       model.NewFragment("The document was saved successfully"),
+		Target:       model.NewFragment("Le document a ete sauvegarde avec succes"),
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 	}))
@@ -360,7 +372,8 @@ func TestTMLeverageTool_FuzzyMatch(t *testing.T) {
 	require.True(t, ok)
 	altTrans, ok := alt.(*model.AltTranslation)
 	require.True(t, ok)
-	assert.Equal(t, "fuzzy", altTrans.MatchType)
+	// Plain text blocks match at generalized-fuzzy tier (generalized key == plain key).
+	assert.Equal(t, "generalized-fuzzy", altTrans.MatchType)
 	assert.Greater(t, altTrans.Score, 0.5)
 	assert.Less(t, altTrans.Score, 1.0)
 }
@@ -402,21 +415,21 @@ func TestTMXImportExport(t *testing.T) {
 	assert.Equal(t, 2, tm.Count())
 
 	// Verify entries were imported correctly.
-	matches, err := tm.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err := tm.LookupText("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Bonjour le monde", matches[0].Entry.Target)
+	assert.Equal(t, "Bonjour le monde", matches[0].Entry.TargetText())
 
-	matches, err = tm.Lookup("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err = tm.LookupText("Goodbye", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
-	assert.Equal(t, "Au revoir", matches[0].Entry.Target)
+	assert.Equal(t, "Au revoir", matches[0].Entry.TargetText())
 
 	// Export.
 	var buf bytes.Buffer
@@ -437,19 +450,31 @@ func TestTMXImportExport(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, count2)
 
-	matches2, err := tm2.Lookup("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches2, err := tm2.LookupText("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 10,
 	})
 	require.NoError(t, err)
 	require.Len(t, matches2, 1)
-	assert.Equal(t, "Bonjour le monde", matches2[0].Entry.Target)
+	assert.Equal(t, "Bonjour le monde", matches2[0].Entry.TargetText())
 }
 
 func TestMatchTypeString(t *testing.T) {
 	assert.Equal(t, "exact", sievepen.MatchExact.String())
 	assert.Equal(t, "fuzzy", sievepen.MatchFuzzy.String())
-	assert.Equal(t, "unknown", sievepen.MatchType(99).String())
+	assert.Equal(t, "generalized-exact", sievepen.MatchGeneralizedExact.String())
+	assert.Equal(t, "structural-exact", sievepen.MatchStructuralExact.String())
+	assert.Equal(t, "generalized-fuzzy", sievepen.MatchGeneralizedFuzzy.String())
+	assert.Equal(t, "structural-fuzzy", sievepen.MatchStructuralFuzzy.String())
+}
+
+func TestMatchType_IsExact(t *testing.T) {
+	assert.True(t, sievepen.MatchExact.IsExact())
+	assert.True(t, sievepen.MatchGeneralizedExact.IsExact())
+	assert.True(t, sievepen.MatchStructuralExact.IsExact())
+	assert.False(t, sievepen.MatchFuzzy.IsExact())
+	assert.False(t, sievepen.MatchGeneralizedFuzzy.IsExact())
+	assert.False(t, sievepen.MatchStructuralFuzzy.IsExact())
 }
 
 func TestInMemoryTM_MaxResults(t *testing.T) {
@@ -459,14 +484,14 @@ func TestInMemoryTM_MaxResults(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		require.NoError(t, tm.Add(sievepen.TMEntry{
 			ID:           strings.Replace("e-NN", "NN", strings.Repeat("x", i+1), 1),
-			Source:       "Hello",
-			Target:       "Bonjour",
+			Source:       model.NewFragment("Hello"),
+			Target:       model.NewFragment("Bonjour"),
 			SourceLocale: model.LocaleEnglish,
 			TargetLocale: model.LocaleFrench,
 		}))
 	}
 
-	matches, err := tm.Lookup("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
 		MinScore:   0.5,
 		MaxResults: 5,
 	})
@@ -484,15 +509,15 @@ func TestInMemoryTM_SearchEntries(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: "Hello World", Target: "Bonjour le monde",
+		ID: "e1", Source: model.NewFragment("Hello World"), Target: model.NewFragment("Bonjour le monde"),
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e2", Source: "Goodbye", Target: "Au revoir",
+		ID: "e2", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e3", Source: "Hello", Target: "Hallo",
+		ID: "e3", Source: model.NewFragment("Hello"), Target: model.NewFragment("Hallo"),
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleGerman,
 	}))
 
@@ -540,15 +565,139 @@ func TestInMemoryTM_GetEntry(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 
 	require.NoError(t, tm.Add(sievepen.TMEntry{
-		ID: "e1", Source: "Hello", Target: "Bonjour",
+		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
 		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
 	}))
 
 	entry, ok := tm.GetEntry("e1")
 	assert.True(t, ok)
-	assert.Equal(t, "Hello", entry.Source)
-	assert.Equal(t, "Bonjour", entry.Target)
+	assert.Equal(t, "Hello", entry.SourceText())
+	assert.Equal(t, "Bonjour", entry.TargetText())
 
 	_, ok = tm.GetEntry("nonexistent")
 	assert.False(t, ok)
+}
+
+// --- Content-aware matching tests ---
+
+func TestInMemoryTM_BlockLookup(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID:           "e1",
+		Source:       model.NewFragment("Click the Save button"),
+		Target:       model.NewFragment("Cliquez sur le bouton Enregistrer"),
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	}))
+
+	// Lookup using a Block (the primary content-aware path).
+	block := model.NewBlock("tu1", "Click the Save button")
+	matches, err := tm.Lookup(block, model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, 1.0, matches[0].Score)
+	// Plain text blocks match at generalized-exact tier (all keys identical).
+	assert.True(t, matches[0].MatchType.IsExact())
+}
+
+func TestInMemoryTM_NilBlockLookup(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	matches, err := tm.Lookup(nil, model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	assert.Nil(t, matches)
+}
+
+func TestInMemoryTM_TieredMatchPriority(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	// Add entries that match at different tiers.
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID:           "plain-match",
+		Source:       model.NewFragment("Hello World"),
+		Target:       model.NewFragment("Bonjour le monde"),
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	}))
+
+	matches, err := tm.LookupText("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore:   0.5,
+		MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+
+	// When all tiers match the same text, the highest priority tier wins
+	// (generalized-exact has priority 0, exact has priority 2 for plain text).
+	// For plain fragments (no spans), all three tiers produce the same key,
+	// so the first hit (generalized-exact) should appear first.
+	assert.Equal(t, 1.0, matches[0].Score)
+}
+
+func TestInMemoryTM_PlainOnlyMatchMode(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID:           "e1",
+		Source:       model.NewFragment("Hello"),
+		Target:       model.NewFragment("Bonjour"),
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	}))
+
+	// Restrict to plain matching only.
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore:   0.7,
+		MaxResults: 10,
+		MatchModes: []sievepen.MatchMode{sievepen.MatchModePlain},
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, sievepen.MatchExact, matches[0].MatchType)
+}
+
+func TestInMemoryTM_Entries(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e1", Source: model.NewFragment("Hello"), Target: model.NewFragment("Bonjour"),
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "e2", Source: model.NewFragment("Goodbye"), Target: model.NewFragment("Au revoir"),
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+
+	entries := tm.Entries()
+	assert.Len(t, entries, 2)
+}
+
+func TestInMemoryTM_InterfaceCompliance(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	// Verify it satisfies the TranslationMemory interface.
+	var _ sievepen.TranslationMemory = tm
+	var _ sievepen.EntryProvider = tm
+
+	err := tm.Close()
+	assert.NoError(t, err)
+}
+
+func TestTMEntry_HelperMethods(t *testing.T) {
+	entry := sievepen.TMEntry{
+		ID:     "e1",
+		Source: model.NewFragment("Hello"),
+		Target: model.NewFragment("Bonjour"),
+	}
+
+	assert.Equal(t, "Hello", entry.SourceText())
+	assert.Equal(t, "Bonjour", entry.TargetText())
+
+	// Nil fragments return empty strings.
+	nilEntry := sievepen.TMEntry{ID: "e2"}
+	assert.Equal(t, "", nilEntry.SourceText())
+	assert.Equal(t, "", nilEntry.TargetText())
+	assert.Equal(t, "", nilEntry.SourceStructural())
+	assert.Equal(t, "", nilEntry.SourceGeneralized())
 }

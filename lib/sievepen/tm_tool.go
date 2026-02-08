@@ -1,6 +1,8 @@
 package sievepen
 
 import (
+	"strings"
+
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
 )
@@ -25,16 +27,17 @@ func (c *TMLeverageConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TMLeverageConfig) Validate() error { return nil }
 
-// TMLeverageTool applies translation memory matches to translatable blocks.
-// When a TM match is found, it is attached as an AltTranslation annotation.
-// For exact matches (score = 1.0), the target text is also set directly.
+// TMLeverageTool applies content-aware translation memory matches to
+// translatable blocks. When a TM match is found, it is attached as an
+// AltTranslation annotation. For exact matches (including generalized-exact),
+// entity adaptations are applied and the target is set directly.
 type TMLeverageTool struct {
 	tool.BaseTool
 	tm  TranslationMemory
 	cfg TMLeverageConfig
 }
 
-// NewTMLeverageTool creates a new TM leverage tool.
+// NewTMLeverageTool creates a new content-aware TM leverage tool.
 func NewTMLeverageTool(tm TranslationMemory, cfg TMLeverageConfig) *TMLeverageTool {
 	if cfg.MinScore <= 0 {
 		cfg.MinScore = 0.7
@@ -48,7 +51,7 @@ func NewTMLeverageTool(tm TranslationMemory, cfg TMLeverageConfig) *TMLeverageTo
 		cfg: cfg,
 	}
 	t.ToolName = "tm-leverage"
-	t.ToolDescription = "Leverages translation memory to find and apply matches"
+	t.ToolDescription = "Content-aware TM leverage with generalized, structural, and plain matching"
 	t.HandleBlockFn = t.handleBlock
 	return t
 }
@@ -64,12 +67,13 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
-	matches, err := t.tm.Lookup(sourceText, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
+	// Use the full Block for content-aware matching (entity annotations, spans).
+	matches, err := t.tm.Lookup(block, t.cfg.SourceLocale, t.cfg.TargetLocale, LookupOptions{
 		MinScore:   t.cfg.MinScore,
 		MaxResults: t.cfg.MaxResults,
 	})
 	if err != nil {
-		return part, nil // Continue processing even if TM lookup fails
+		return part, nil // Continue processing even if TM lookup fails.
 	}
 
 	if len(matches) == 0 {
@@ -78,9 +82,10 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	best := matches[0]
 
-	// For exact matches, set the target text directly.
-	if best.MatchType == MatchExact {
-		block.SetTargetText(t.cfg.TargetLocale, best.Entry.Target)
+	// For exact matches (any tier), apply the target directly.
+	if best.MatchType.IsExact() {
+		adapted := applyEntityAdaptations(best.Entry.Target, best.EntityAdaptations)
+		block.SetTargetFragment(t.cfg.TargetLocale, adapted)
 	}
 
 	// Add the best match as an AltTranslation annotation.
@@ -88,8 +93,8 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 		block.Annotations = make(map[string]model.Annotation)
 	}
 	block.Annotations["alt-translation"] = &model.AltTranslation{
-		Source:    model.NewFragment(best.Entry.Source),
-		Target:    model.NewFragment(best.Entry.Target),
+		Source:    best.Entry.Source,
+		Target:    best.Entry.Target,
 		Locale:    t.cfg.TargetLocale,
 		Origin:    "tm:sievepen",
 		Score:     best.Score,
@@ -97,4 +102,23 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 	}
 
 	return part, nil
+}
+
+// applyEntityAdaptations substitutes entity values in a target Fragment
+// based on the adaptations computed during matching. Returns a new Fragment
+// with adapted values.
+func applyEntityAdaptations(target *model.Fragment, adaptations []EntityAdaptation) *model.Fragment {
+	if target == nil || len(adaptations) == 0 {
+		return target
+	}
+
+	// Apply adaptations to the plain text representation.
+	// This is a simple string replacement — for each adaptation, replace
+	// the stored value with the current value.
+	text := target.Text()
+	for _, adapt := range adaptations {
+		text = strings.Replace(text, adapt.StoredValue, adapt.CurrentValue, 1)
+	}
+
+	return model.NewFragment(text)
 }

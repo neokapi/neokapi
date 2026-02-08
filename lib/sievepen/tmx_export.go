@@ -8,27 +8,30 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// ExportTMX writes translation memory entries to TMX format.
-// Only entries matching the specified source and target locales are exported.
-func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocale model.LocaleID) error {
-	// Collect matching entries by performing a broad lookup.
-	// Since we need all entries, we use the Entries method if available,
-	// otherwise fall back to an interface-based approach.
-	var entries []TMEntry
+// EntryProvider is implemented by TM backends that can list all entries.
+type EntryProvider interface {
+	Entries() []TMEntry
+}
 
-	if mem, ok := tm.(*InMemoryTM); ok {
-		all := mem.Entries()
-		for _, e := range all {
-			if e.SourceLocale == sourceLocale && e.TargetLocale == targetLocale {
-				entries = append(entries, e)
-			}
+// ExportTMX writes translation memory entries to TMX format.
+// The TM must implement EntryProvider (both InMemoryTM and SQLiteTM do).
+func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocale model.LocaleID) error {
+	provider, ok := tm.(EntryProvider)
+	if !ok {
+		return fmt.Errorf("TM does not support entry listing")
+	}
+
+	var entries []TMEntry
+	for _, e := range provider.Entries() {
+		if e.SourceLocale == sourceLocale && e.TargetLocale == targetLocale {
+			entries = append(entries, e)
 		}
 	}
 
 	doc := tmxDocument{
 		Header: tmxHeader{
 			CreationTool:        "gokapi-sievepen",
-			CreationToolVersion: "1.0",
+			CreationToolVersion: "2.0",
 			SegType:             "sentence",
 			AdminLang:           string(sourceLocale),
 			SrcLang:             string(sourceLocale),
@@ -45,11 +48,11 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocal
 			TUVs: []tmxTUV{
 				{
 					Lang: string(entry.SourceLocale),
-					Seg:  entry.Source,
+					Seg:  entry.SourceText(),
 				},
 				{
 					Lang: string(entry.TargetLocale),
-					Seg:  entry.Target,
+					Seg:  entry.TargetText(),
 				},
 			},
 		}
@@ -63,6 +66,14 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocal
 
 		for k, v := range entry.Properties {
 			tu.Properties = append(tu.Properties, tmxProp{Type: k, Value: v})
+		}
+
+		// Export entity mappings as TMX properties.
+		for _, em := range entry.Entities {
+			tu.Properties = append(tu.Properties, tmxProp{
+				Type:  fmt.Sprintf("entity:%s", em.PlaceholderID),
+				Value: fmt.Sprintf("%s:%s", em.Type, em.SourceValue),
+			})
 		}
 
 		doc.Body.TUs = append(doc.Body.TUs, tu)

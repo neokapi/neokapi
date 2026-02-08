@@ -52,8 +52,8 @@ func getOrCreateTM(p *project) (*sievepen.SQLiteTM, error) {
 func entryToInfo(e sievepen.TMEntry) TMEntryInfo {
 	return TMEntryInfo{
 		ID:           e.ID,
-		Source:       e.Source,
-		Target:       e.Target,
+		Source:       e.SourceText(),
+		Target:       e.TargetText(),
 		SourceLocale: string(e.SourceLocale),
 		TargetLocale: string(e.TargetLocale),
 		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
@@ -116,8 +116,8 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 		return fmt.Errorf("TM entry %q not found", req.EntryID)
 	}
 
-	entry.Source = req.Source
-	entry.Target = req.Target
+	entry.Source = model.NewFragment(req.Source)
+	entry.Target = model.NewFragment(req.Target)
 	entry.SourceLocale = model.LocaleID(req.SourceLocale)
 	entry.TargetLocale = model.LocaleID(req.TargetLocale)
 	entry.UpdatedAt = time.Now()
@@ -155,8 +155,8 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 	now := time.Now()
 	entry := sievepen.TMEntry{
 		ID:           uuid.New().String(),
-		Source:       source,
-		Target:       target,
+		Source:       model.NewFragment(source),
+		Target:       model.NewFragment(target),
 		SourceLocale: model.LocaleID(sourceLocale),
 		TargetLocale: model.LocaleID(targetLocale),
 		CreatedAt:    now,

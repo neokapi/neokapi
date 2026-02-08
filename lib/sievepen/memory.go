@@ -9,7 +9,8 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory.
+// InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory
+// with content-aware tiered matching (generalized → structural → plain).
 type InMemoryTM struct {
 	mu      sync.RWMutex
 	entries []TMEntry
@@ -24,7 +25,7 @@ func NewInMemoryTM() *InMemoryTM {
 	}
 }
 
-// Add inserts a new entry into the translation memory.
+// Add inserts or updates an entry in the translation memory.
 func (tm *InMemoryTM) Add(entry TMEntry) error {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
@@ -32,9 +33,11 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 	if entry.ID == "" {
 		return fmt.Errorf("entry ID is required")
 	}
+	if entry.Source == nil {
+		return fmt.Errorf("entry source Fragment is required")
+	}
 
 	if _, exists := tm.byID[entry.ID]; exists {
-		// Update existing entry.
 		idx := tm.byID[entry.ID]
 		tm.entries[idx] = entry
 		return nil
@@ -45,58 +48,180 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 	return nil
 }
 
-// Lookup searches for matches of the given source text in the translation memory.
-func (tm *InMemoryTM) Lookup(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+// Lookup searches for matches using tiered matching. The source Block's
+// entity annotations are used to compute the generalized key.
+func (tm *InMemoryTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	if source == nil {
+		return nil, nil
+	}
+
+	opts = applyDefaults(opts)
+	frag := source.FirstFragment()
+	if frag == nil {
+		return nil, nil
+	}
+
+	// Compute lookup keys from the source block.
+	plainKey := normalizeText(frag.Text())
+	structKey := normalizeText(frag.StructuralText())
+	generalKey := normalizeText(frag.GeneralizedText())
+
+	// Extract entity annotations from the block for adaptation computation.
+	entityAnnotations := extractEntityAnnotations(source)
+
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
 
-	if opts.MinScore <= 0 {
-		opts.MinScore = 0.7
-	}
-	if opts.MaxResults <= 0 {
-		opts.MaxResults = 10
-	}
+	return tm.tieredLookup(plainKey, structKey, generalKey, entityAnnotations, sourceLocale, targetLocale, opts), nil
+}
 
+// LookupText searches for matches using plain text only.
+// This always uses plain-mode matching, returning MatchExact/MatchFuzzy types.
+func (tm *InMemoryTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) ([]TMMatch, error) {
+	opts = applyDefaults(opts)
+	opts.MatchModes = []MatchMode{MatchModePlain}
 	normalizedSource := normalizeText(source)
+
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	return tm.tieredLookup(normalizedSource, normalizedSource, normalizedSource, nil, sourceLocale, targetLocale, opts), nil
+}
+
+// tieredLookup performs the 6-tier matching pipeline.
+func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts LookupOptions) []TMMatch {
 	var matches []TMMatch
+	seen := make(map[string]bool) // track entry IDs to avoid duplicates
 
-	for _, entry := range tm.entries {
-		if entry.SourceLocale != sourceLocale || entry.TargetLocale != targetLocale {
-			continue
-		}
+	modeEnabled := matchModesEnabled(opts.MatchModes)
 
-		normalizedEntry := normalizeText(entry.Source)
-
-		var score float64
-		var matchType MatchType
-
-		if normalizedEntry == normalizedSource {
-			score = 1.0
-			matchType = MatchExact
-		} else {
-			score = LevenshteinRatio(normalizedSource, normalizedEntry)
-			matchType = MatchFuzzy
-		}
-
-		if score >= opts.MinScore {
-			matches = append(matches, TMMatch{
-				Entry:     entry,
-				Score:     score,
-				MatchType: matchType,
-			})
+	// Tier 1: generalized exact
+	if modeEnabled[MatchModeGeneralized] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) {
+				continue
+			}
+			if normalizeText(entry.SourceGeneralized()) == generalKey {
+				if !seen[entry.ID] {
+					seen[entry.ID] = true
+					adaptations := computeEntityAdaptations(entry, entityAnnotations)
+					matches = append(matches, TMMatch{
+						Entry:             entry,
+						Score:             1.0,
+						MatchType:         MatchGeneralizedExact,
+						EntityAdaptations: adaptations,
+					})
+				}
+			}
 		}
 	}
 
-	// Sort by score descending.
+	// Tier 2: structural exact
+	if modeEnabled[MatchModeStructural] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+				continue
+			}
+			if normalizeText(entry.SourceStructural()) == structKey {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     1.0,
+					MatchType: MatchStructuralExact,
+				})
+			}
+		}
+	}
+
+	// Tier 3: plain exact
+	if modeEnabled[MatchModePlain] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+				continue
+			}
+			if normalizeText(entry.SourceText()) == plainKey {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     1.0,
+					MatchType: MatchExact,
+				})
+			}
+		}
+	}
+
+	// If we have exact matches at or above threshold, return early.
+	if len(matches) > 0 && opts.MinScore >= 1.0 {
+		return limitResults(matches, opts.MaxResults)
+	}
+
+	// Tier 4: generalized fuzzy
+	if modeEnabled[MatchModeGeneralized] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+				continue
+			}
+			score := LevenshteinRatio(generalKey, normalizeText(entry.SourceGeneralized()))
+			if score >= opts.MinScore {
+				seen[entry.ID] = true
+				adaptations := computeEntityAdaptations(entry, entityAnnotations)
+				matches = append(matches, TMMatch{
+					Entry:             entry,
+					Score:             score,
+					MatchType:         MatchGeneralizedFuzzy,
+					EntityAdaptations: adaptations,
+				})
+			}
+		}
+	}
+
+	// Tier 5: structural fuzzy
+	if modeEnabled[MatchModeStructural] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+				continue
+			}
+			score := LevenshteinRatio(structKey, normalizeText(entry.SourceStructural()))
+			if score >= opts.MinScore {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     score,
+					MatchType: MatchStructuralFuzzy,
+				})
+			}
+		}
+	}
+
+	// Tier 6: plain fuzzy
+	if modeEnabled[MatchModePlain] {
+		for _, entry := range tm.entries {
+			if !matchesLocale(entry, sourceLocale, targetLocale) || seen[entry.ID] {
+				continue
+			}
+			score := LevenshteinRatio(plainKey, normalizeText(entry.SourceText()))
+			if score >= opts.MinScore {
+				seen[entry.ID] = true
+				matches = append(matches, TMMatch{
+					Entry:     entry,
+					Score:     score,
+					MatchType: MatchFuzzy,
+				})
+			}
+		}
+	}
+
+	// Sort by match type priority, then by score descending.
 	sort.Slice(matches, func(i, j int) bool {
+		pi := matchTypePriority(matches[i].MatchType)
+		pj := matchTypePriority(matches[j].MatchType)
+		if pi != pj {
+			return pi < pj
+		}
 		return matches[i].Score > matches[j].Score
 	})
 
-	if len(matches) > opts.MaxResults {
-		matches = matches[:opts.MaxResults]
-	}
-
-	return matches, nil
+	return limitResults(matches, opts.MaxResults)
 }
 
 // Delete removes an entry by ID.
@@ -109,7 +234,6 @@ func (tm *InMemoryTM) Delete(id string) error {
 		return fmt.Errorf("entry not found: %s", id)
 	}
 
-	// Remove from slice by swapping with last element.
 	lastIdx := len(tm.entries) - 1
 	if idx != lastIdx {
 		tm.entries[idx] = tm.entries[lastIdx]
@@ -142,9 +266,7 @@ func (tm *InMemoryTM) Entries() []TMEntry {
 	return out
 }
 
-// SearchEntries performs a case-insensitive substring search on source/target text
-// with optional locale filtering and pagination. Empty strings mean "no filter".
-// Returns matched entries and total count.
+// SearchEntries performs a case-insensitive substring search on source/target text.
 func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int) {
 	tm.mu.RLock()
 	defer tm.mu.RUnlock()
@@ -159,10 +281,12 @@ func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, of
 		if targetLocale != "" && string(entry.TargetLocale) != targetLocale {
 			continue
 		}
-		if query != "" &&
-			!strings.Contains(strings.ToLower(entry.Source), lowerQuery) &&
-			!strings.Contains(strings.ToLower(entry.Target), lowerQuery) {
-			continue
+		if query != "" {
+			srcText := strings.ToLower(entry.SourceText())
+			tgtText := strings.ToLower(entry.TargetText())
+			if !strings.Contains(srcText, lowerQuery) && !strings.Contains(tgtText, lowerQuery) {
+				continue
+			}
 		}
 		matched = append(matched, entry)
 	}
@@ -188,6 +312,117 @@ func (tm *InMemoryTM) GetEntry(id string) (TMEntry, bool) {
 		return TMEntry{}, false
 	}
 	return tm.entries[idx], true
+}
+
+// --- helpers ---
+
+func applyDefaults(opts LookupOptions) LookupOptions {
+	if opts.MinScore <= 0 {
+		opts.MinScore = 0.7
+	}
+	if opts.MaxResults <= 0 {
+		opts.MaxResults = 10
+	}
+	return opts
+}
+
+func matchesLocale(entry TMEntry, sourceLocale, targetLocale model.LocaleID) bool {
+	return entry.SourceLocale == sourceLocale && entry.TargetLocale == targetLocale
+}
+
+func matchModesEnabled(modes []MatchMode) map[MatchMode]bool {
+	if len(modes) == 0 {
+		return map[MatchMode]bool{
+			MatchModeGeneralized: true,
+			MatchModeStructural:  true,
+			MatchModePlain:       true,
+		}
+	}
+	m := make(map[MatchMode]bool)
+	for _, mode := range modes {
+		m[mode] = true
+	}
+	return m
+}
+
+func matchTypePriority(mt MatchType) int {
+	switch mt {
+	case MatchGeneralizedExact:
+		return 0
+	case MatchStructuralExact:
+		return 1
+	case MatchExact:
+		return 2
+	case MatchGeneralizedFuzzy:
+		return 3
+	case MatchStructuralFuzzy:
+		return 4
+	case MatchFuzzy:
+		return 5
+	default:
+		return 6
+	}
+}
+
+func limitResults(matches []TMMatch, max int) []TMMatch {
+	if len(matches) > max {
+		return matches[:max]
+	}
+	return matches
+}
+
+// extractEntityAnnotations pulls EntityAnnotation instances from a Block's annotations.
+func extractEntityAnnotations(block *model.Block) []*model.EntityAnnotation {
+	if block.Annotations == nil {
+		return nil
+	}
+	var entities []*model.EntityAnnotation
+	for _, ann := range block.Annotations {
+		if ea, ok := ann.(*model.EntityAnnotation); ok {
+			entities = append(entities, ea)
+		}
+	}
+	return entities
+}
+
+// computeEntityAdaptations computes how to adapt entity values from a stored
+// TM entry to match the current source content.
+func computeEntityAdaptations(entry TMEntry, currentEntities []*model.EntityAnnotation) []EntityAdaptation {
+	if len(entry.Entities) == 0 || len(currentEntities) == 0 {
+		return nil
+	}
+
+	var adaptations []EntityAdaptation
+
+	// Match stored entities to current entities by type, in order.
+	// This is a simple positional matching — entities of the same type
+	// are matched left-to-right.
+	typeQueues := make(map[model.EntityType][]*model.EntityAnnotation)
+	for _, ea := range currentEntities {
+		typeQueues[ea.Type] = append(typeQueues[ea.Type], ea)
+	}
+
+	typeIdx := make(map[model.EntityType]int)
+	for _, em := range entry.Entities {
+		queue := typeQueues[em.Type]
+		idx := typeIdx[em.Type]
+		if idx < len(queue) {
+			current := queue[idx]
+			typeIdx[em.Type] = idx + 1
+
+			if em.TargetValue != current.Text {
+				adaptations = append(adaptations, EntityAdaptation{
+					PlaceholderID: em.PlaceholderID,
+					Type:          em.Type,
+					StoredValue:   em.TargetValue,
+					CurrentValue:  current.Text,
+					TargetPos:     em.TargetPos,
+				})
+			}
+		}
+	}
+
+	return adaptations
 }
 
 // normalizeText normalizes text for comparison by trimming whitespace
