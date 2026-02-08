@@ -6,6 +6,7 @@ package storage
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	// Pure Go SQLite driver — no CGo dependencies.
 	_ "modernc.org/sqlite"
@@ -23,6 +24,12 @@ func Open(dbPath string) (*DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
+	}
+
+	// In-memory databases create a separate DB per connection. Force a single
+	// connection so all queries share the same in-memory state.
+	if dbPath == ":memory:" || strings.Contains(dbPath, "mode=memory") {
+		db.SetMaxOpenConns(1)
 	}
 
 	if err := applyPragmas(db); err != nil {
