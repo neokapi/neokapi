@@ -2,6 +2,7 @@ package termbase_test
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
@@ -484,4 +485,209 @@ func TestJSONImportExport(t *testing.T) {
 	c, ok := tb2.GetConcept("c1")
 	assert.True(t, ok)
 	assert.Equal(t, "software", c.Domain)
+}
+
+// --- Pipeline tool tests ---
+
+func processBlock(t *testing.T, tl interface {
+	Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error
+}, block *model.Block) *model.Block {
+	t.Helper()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	err := tl.Process(context.Background(), in, out)
+	require.NoError(t, err)
+
+	result := <-out
+	return result.Resource.(*model.Block)
+}
+
+func TestTermLookupTool_Basic(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	tl := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Click Save to save your work")
+	result := processBlock(t, tl, block)
+
+	// Should find "Save" and "save" (case-insensitive).
+	count := result.Properties["term-count"]
+	require.NotEmpty(t, count, "should have term annotations")
+
+	// Verify at least one term annotation exists.
+	var found bool
+	for key, ann := range result.Annotations {
+		if strings.HasPrefix(key, "term:") {
+			ta, ok := ann.(*model.TermAnnotation)
+			require.True(t, ok, "annotation should be TermAnnotation")
+			assert.Equal(t, "c1", ta.ConceptID)
+			assert.Equal(t, model.MatchStrategyExact, ta.MatchType)
+			assert.NotEmpty(t, ta.TargetTerms)
+			assert.Equal(t, "Sauvegarder", ta.TargetTerms[0].Text)
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "should have at least one term annotation")
+}
+
+func TestTermLookupTool_MultipleTerms(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	tl := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleGerman,
+	})
+
+	block := model.NewBlock("b1", "Click Save or Cancel")
+	result := processBlock(t, tl, block)
+
+	count := result.Properties["term-count"]
+	assert.Equal(t, "2", count, "should find Save and Cancel")
+}
+
+func TestTermLookupTool_NonTranslatable(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	tl := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+		SourceLocale: model.LocaleEnglish,
+	})
+
+	block := model.NewBlock("b1", "Click Save")
+	block.Translatable = false
+	result := processBlock(t, tl, block)
+
+	// Should pass through without annotations.
+	assert.Empty(t, result.Annotations)
+}
+
+func TestTermLookupTool_DomainFilter(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "med-1",
+		Domain: "medical",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	// With domain filter, only software terms.
+	tl := termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+		SourceLocale: model.LocaleEnglish,
+		Domains:      []string{"software"},
+	})
+
+	block := model.NewBlock("b1", "Click Save")
+	result := processBlock(t, tl, block)
+
+	count := result.Properties["term-count"]
+	assert.Equal(t, "1", count, "should find only software 'Save'")
+}
+
+func TestTermEnforceTool_Pass(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	te := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Click Save")
+	block.SetTargetText(model.LocaleFrench, "Cliquez sur Sauvegarder")
+	result := processBlock(t, te, block)
+
+	assert.Equal(t, "true", result.Properties["term-enforce-passed"])
+	assert.Equal(t, "0", result.Properties["term-enforce-violations"])
+}
+
+func TestTermEnforceTool_Violation(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	te := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Click Save")
+	block.SetTargetText(model.LocaleFrench, "Cliquez sur Enregistrer") // wrong term
+	result := processBlock(t, te, block)
+
+	assert.Equal(t, "false", result.Properties["term-enforce-passed"])
+	assert.Equal(t, "1", result.Properties["term-enforce-violations"])
+	assert.Contains(t, result.Properties["term-enforce-errors"], "Save")
+	assert.Contains(t, result.Properties["term-enforce-errors"], "Sauvegarder")
+
+	// Should have violation annotation.
+	var hasViolation bool
+	for key := range result.Annotations {
+		if strings.HasPrefix(key, "term-violation:") {
+			hasViolation = true
+			break
+		}
+	}
+	assert.True(t, hasViolation, "should have term-violation annotation")
+}
+
+func TestTermEnforceTool_NoTarget(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	te := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Click Save")
+	// No target set — should pass through without enforcement.
+	result := processBlock(t, te, block)
+
+	assert.Empty(t, result.Properties["term-enforce-passed"])
+}
+
+func TestTermEnforceTool_MultipleTerms(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	te := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	block := model.NewBlock("b1", "Click Save or Cancel")
+	block.SetTargetText(model.LocaleFrench, "Cliquez sur Sauvegarder ou Annuler")
+	result := processBlock(t, te, block)
+
+	assert.Equal(t, "true", result.Properties["term-enforce-passed"])
+	assert.Equal(t, "0", result.Properties["term-enforce-violations"])
+}
+
+func TestTermEnforceTool_PartialViolation(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	populateTB(t, tb)
+
+	te := termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: model.LocaleFrench,
+	})
+
+	// "Save" correct, "Cancel" wrong.
+	block := model.NewBlock("b1", "Click Save or Cancel")
+	block.SetTargetText(model.LocaleFrench, "Cliquez sur Sauvegarder ou Supprimer")
+	result := processBlock(t, te, block)
+
+	assert.Equal(t, "false", result.Properties["term-enforce-passed"])
+	assert.Equal(t, "1", result.Properties["term-enforce-violations"])
+	assert.Contains(t, result.Properties["term-enforce-errors"], "Cancel")
 }
