@@ -21,6 +21,7 @@ manifest.yaml              # project metadata, source/target locales, items
 blocks/<item>.json         # block index per source item (translatable segments)
 preview/<item>.html        # HTML preview for editor display
 items/<file>               # original source files (optional)
+termbase.json              # terminology snapshot (optional, see ADR-016)
 ```
 
 ### Manifest
@@ -52,6 +53,17 @@ highlighting.
 - **SQLite project file**: considered but ZIP is simpler for the file-based
   content and enables standard archive tools for inspection.
 
+### Terminology Snapshot
+
+An optional `termbase.json` file can embed a snapshot of the project's
+terminology (see ADR-016). This makes the archive self-contained for
+offline use and sharing. The snapshot is read-only within the archive;
+the master termbase is managed externally (SQLite file or server).
+
+The snapshot is always embedded for self-containment; the master termbase
+is managed externally. On project open, Bowrain checks whether the snapshot
+is stale compared to the master and offers to refresh it.
+
 ## Consequences
 
 - Single file for sharing projects (email, cloud storage, version control)
@@ -59,3 +71,5 @@ highlighting.
 - Previews display instantly without format-specific rendering
 - Standard ZIP tooling can inspect and extract .kaz files
 - The Bowrain desktop app uses .kaz as its native project format
+- Optional terminology snapshot enables fully offline terminology-aware
+  editing

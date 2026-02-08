@@ -85,6 +85,35 @@ recursively: HTML in JSON in YAML is three levels deep with no special cases.
 - **Separate sub-document channel**: overcomplicates the pipeline; breaks the
   single-stream model.
 
+### Annotation System
+
+Blocks carry an `Annotations` map (`map[string]Annotation`) for attaching
+metadata produced by pipeline tools. Each annotation type implements the
+`Annotation` interface:
+
+```go
+type Annotation interface {
+    AnnotationType() string
+}
+```
+
+Built-in annotation types:
+
+| Annotation          | Type Key           | Producer              | Purpose                               |
+|---------------------|--------------------|-----------------------|---------------------------------------|
+| `AltTranslation`    | `alt-translation`  | TM leverage, AI tools | Alternative translations with scores  |
+| `TermAnnotation`    | `term`             | term-lookup tool      | Matched terminology with target terms |
+| `EntityAnnotation`  | `entity`           | entity-annotate tool  | Named entities (people, places, dates)|
+
+Annotations are keyed by type and instance (e.g., `"term:0"`, `"term:1"`)
+to support multiple annotations of the same type per Block. See ADR-016 for
+the terminology and entity annotation data models.
+
+Annotations carry character-level positions via `TextRange` (start/end
+offsets within source text). This enables precise inline highlighting in
+Bowrain without re-detecting boundaries at render time. See ADR-016 for
+the full annotation data models.
+
 ## Consequences
 
 - Type dispatch via `switch part.Type` instead of instanceof; compile-time
@@ -96,3 +125,5 @@ recursively: HTML in JSON in YAML is three levels deep with no special cases.
 - The Part stream remains a single ordered channel; no fan-out complexity
 - Format readers that detect embedded content must emit child Layers with the
   correct format identifier
+- The Annotation interface is open for extension — new annotation types can
+  be added by tools without modifying the content model

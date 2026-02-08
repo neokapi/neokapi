@@ -104,6 +104,15 @@ Registered built-in tools:
 | `segmentation`     | Transform  |
 | `qa-check`         | Validate   |
 | `tm-leverage`      | Enrich     |
+| `term-lookup`      | Enrich     |
+| `term-enforce`     | Validate   |
+
+The `term-lookup` tool scans Block source text for known terms from a
+TermBase and attaches `TermAnnotation` annotations with matched concepts
+and target translations. The `term-enforce` tool validates that preferred
+terms are used consistently in target text, flagging forbidden, deprecated,
+or inconsistent term usage. See ADR-016 for the full terminology system
+design.
 
 ## Alternatives Considered
 

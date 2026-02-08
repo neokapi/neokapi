@@ -69,6 +69,27 @@ API stability and ES module support.
   Enrich, Validate).
 
 - **Translation Memory explorer** with fuzzy match visualization
+
+- **Terminology module** (ADR-016) — dedicated terminology management
+  interface:
+  - *Browse and search*: faceted search by locale, domain, product,
+    status; concept graph visualization; term concordance showing all
+    Blocks where a term appears in the current project
+  - *Edit and review*: create/edit concepts and terms; inline term
+    suggestion during translation (right-click on selected text to
+    suggest a new term); moderation queue for proposed terms; approval
+    workflow with comments
+  - *Import and export*: CSV, TBX, JSON import with field mapping UI;
+    export in any supported format; merge imported terms with existing
+    termbase (conflict resolution UI)
+  - *Analytics dashboard*: term usage statistics across project content;
+    coverage (percentage of source terms with approved translations);
+    consistency (preferred terms vs. variants in target text); freshness
+    (terms not reviewed since configurable date)
+  - *Editor integration*: recognized terms highlighted inline in the
+    translation editor; hover to see definition, preferred translation,
+    and status; click to navigate to the term in the terminology module
+
 - **Plugin manager** for install/update from registry
 - **Batch file manager** with per-file locale/format configuration
 - **Progress tracking** with real-time progress bars
