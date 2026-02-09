@@ -1,0 +1,148 @@
+package event
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestAutomationRuleMatching(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var executed []string
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+		mu.Lock()
+		executed = append(executed, action.Type)
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "auto-translate",
+		EventType: EventBlockCreated,
+		Actions:   []AutomationAction{{Type: "flow", Config: map[string]string{"flow": "translate"}}},
+	})
+
+	bus.Publish(Event{Type: EventBlockCreated})
+	bus.Publish(Event{Type: EventBlockUpdated}) // Should not trigger
+
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Len(t, executed, 1)
+	assert.Equal(t, "flow", executed[0])
+	mu.Unlock()
+}
+
+func TestAutomationConditionEvaluation(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var triggered int
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+		mu.Lock()
+		triggered++
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "priority-only",
+		EventType: EventBlockUpdated,
+		Conditions: []AutomationCondition{
+			{Field: "priority", Operator: "equals", Value: "high"},
+		},
+		Actions: []AutomationAction{{Type: "notify"}},
+	})
+
+	bus.Publish(Event{Type: EventBlockUpdated, Data: map[string]string{"priority": "low"}})
+	bus.Publish(Event{Type: EventBlockUpdated, Data: map[string]string{"priority": "high"}})
+
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Equal(t, 1, triggered)
+	mu.Unlock()
+}
+
+func TestAutomationLoopPrevention(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var count int
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+		mu.Lock()
+		count++
+		mu.Unlock()
+		// Simulate re-emitting an event (which would loop without prevention).
+		bus.Publish(Event{
+			Type:        EventBlockUpdated,
+			CausationID: NextCausationID(event),
+		})
+		return nil
+	})
+	defer engine.Close()
+	engine.SetMaxChainDepth(3)
+
+	engine.AddRule(AutomationRule{
+		Name:      "loopy",
+		EventType: EventBlockUpdated,
+		Actions:   []AutomationAction{{Type: "flow"}},
+	})
+
+	bus.Publish(Event{Type: EventBlockUpdated})
+	time.Sleep(500 * time.Millisecond)
+
+	mu.Lock()
+	assert.LessOrEqual(t, count, 3, "loop should be broken at max chain depth")
+	mu.Unlock()
+}
+
+func TestAutomationPause(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var count int
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+		mu.Lock()
+		count++
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "test",
+		EventType: EventBlockCreated,
+		Actions:   []AutomationAction{{Type: "flow"}},
+	})
+
+	engine.Pause()
+	bus.Publish(Event{Type: EventBlockCreated})
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Equal(t, 0, count)
+	mu.Unlock()
+
+	engine.Resume()
+	bus.Publish(Event{Type: EventBlockCreated})
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Equal(t, 1, count)
+	mu.Unlock()
+}
