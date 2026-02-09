@@ -145,6 +145,25 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
     input.click();
   }, [project, termsApi, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
+  const handleImportJSON = useCallback(async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const content = await file.text();
+      try {
+        const count = await termsApi.importTermsJSON(project.id, content);
+        alert(`Imported ${count} concepts`);
+        fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+      } catch (e) {
+        console.error("JSON import failed:", e);
+      }
+    };
+    input.click();
+  }, [project.id, termsApi, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+
   const handleExportJSON = useCallback(async () => {
     try {
       const json = await termsApi.exportTermsJSON(project.id, project.name);
@@ -236,6 +255,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
         </select>
         <div style={{ flex: 1 }} />
         <button onClick={handleImportCSV} style={toolBtnStyle}>Import CSV</button>
+        <button onClick={handleImportJSON} style={toolBtnStyle}>Import JSON</button>
         <button onClick={handleExportJSON} style={toolBtnStyle}>Export JSON</button>
         <button onClick={() => setShowAddForm(!showAddForm)} style={addBtnStyle}>
           + Add Concept
@@ -319,6 +339,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                       <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
                         <button onClick={() => setShowAddForm(true)} style={addBtnStyle}>+ Add Concept</button>
                         <button onClick={handleImportCSV} style={toolBtnStyle}>Import CSV</button>
+                        <button onClick={handleImportJSON} style={toolBtnStyle}>Import JSON</button>
                       </div>
                     </div>
                   ) : (

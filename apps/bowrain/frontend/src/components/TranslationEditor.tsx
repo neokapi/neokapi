@@ -650,6 +650,8 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         <div style={{ fontSize: 16, lineHeight: 1.6 }} data-testid="focus-source">
           {currentBlock.has_spans && currentBlock.source_coded && currentBlock.source_spans ? (
             <SourceCellDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
+          ) : showContextPanel && termMatches.length > 0 ? (
+            <HighlightedSource text={currentBlock.source} termMatches={termMatches} />
           ) : (
             currentBlock.source
           )}
