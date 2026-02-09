@@ -11,6 +11,7 @@ interface ProjectViewProps {
   onRemoveFile: (fileName: string) => void;
   onSave: () => void;
   onOpenTM: () => void;
+  onOpenTerms: () => void;
 }
 
 export function ProjectView({
@@ -22,6 +23,7 @@ export function ProjectView({
   onRemoveFile,
   onSave,
   onOpenTM,
+  onOpenTerms,
 }: ProjectViewProps) {
   const dropRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +65,9 @@ export function ProjectView({
           &#8592; Projects
         </button>
         <h2 style={{ margin: 0, flex: 1 }}>{project.name}</h2>
+        <button onClick={onOpenTerms} style={tmBtnStyle} data-testid="open-terms-btn">
+          Terminology
+        </button>
         <button onClick={onOpenTM} style={tmBtnStyle} data-testid="open-tm-btn">
           Translation Memory
         </button>

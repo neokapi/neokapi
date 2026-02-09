@@ -244,3 +244,76 @@ export interface TMUpdateRequest {
   source_locale: string;
   target_locale: string;
 }
+
+/** Term info */
+export interface TermInfo {
+  text: string;
+  locale: string;
+  status: string;
+  part_of_speech?: string;
+  gender?: string;
+  note?: string;
+}
+
+/** Concept info */
+export interface ConceptInfo {
+  id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+  properties?: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Term search result */
+export interface TermSearchResult {
+  concepts: ConceptInfo[];
+  total_count: number;
+}
+
+/** Term match info */
+export interface TermMatchInfo {
+  source_term: string;
+  concept_id: string;
+  domain: string;
+  score: number;
+  match_type: string;
+  status: string;
+  target_terms: TermInfo[];
+  position: { start: number; end: number };
+}
+
+/** Term lookup result */
+export interface TermLookupResult {
+  matches: TermMatchInfo[];
+}
+
+/** Add concept request */
+export interface AddConceptRequest {
+  project_id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+}
+
+/** Update concept request */
+export interface UpdateConceptRequest {
+  project_id: string;
+  concept_id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+}
+
+/** Term enforcement result */
+export interface TermEnforceResult {
+  block_id: string;
+  source_term: string;
+  concept_id: string;
+  expected: string[];
+  source_text: string;
+  target_text: string;
+  source_locale: string;
+  target_locale: string;
+}

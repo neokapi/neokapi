@@ -13,6 +13,7 @@ import (
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/lib/sievepen"
+	"github.com/gokapi/gokapi/lib/termbase"
 	"github.com/google/uuid"
 )
 
@@ -110,6 +111,7 @@ type project struct {
 	items map[string]*projectItemData
 	dirty bool
 	tm    *sievepen.SQLiteTM
+	tb    *termbase.InMemoryTermBase
 }
 
 // projectItemData holds the parsed content of an item within a project.
@@ -219,6 +221,9 @@ func (a *App) CloseProject(projectID string) error {
 	}
 	if p.tm != nil {
 		p.tm.Close()
+	}
+	if p.tb != nil {
+		p.tb.Close()
 	}
 	a.projects.remove(projectID)
 	return nil

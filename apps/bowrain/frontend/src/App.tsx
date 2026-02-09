@@ -8,6 +8,7 @@ import { ProjectDashboard } from "./components/ProjectDashboard";
 import { ProjectView } from "./components/ProjectView";
 import { TranslationEditor } from "./components/TranslationEditor";
 import { TMExplorer } from "./components/TMExplorer";
+import { TermExplorer } from "./components/TermExplorer";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { useHealth, useProjectApi } from "./hooks/useApi";
 import type { ProjectInfo } from "./types/api";
@@ -25,6 +26,7 @@ function App() {
   const [activeProject, setActiveProject] = useState<ProjectInfo | null>(null);
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [showTMExplorer, setShowTMExplorer] = useState(false);
+  const [showTermExplorer, setShowTermExplorer] = useState(false);
 
   const projectApi = useProjectApi();
 
@@ -142,15 +144,23 @@ function App() {
     setActiveProject(null);
     setActiveFile(null);
     setShowTMExplorer(false);
+    setShowTermExplorer(false);
   }, []);
 
   const handleBackToProject = useCallback(() => {
     setActiveFile(null);
     setShowTMExplorer(false);
+    setShowTermExplorer(false);
   }, []);
 
   const handleOpenTM = useCallback(() => {
     setShowTMExplorer(true);
+    setShowTermExplorer(false);
+  }, []);
+
+  const handleOpenTerms = useCallback(() => {
+    setShowTermExplorer(true);
+    setShowTMExplorer(false);
   }, []);
 
   const handleViewChange = useCallback((view: View) => {
@@ -163,6 +173,16 @@ function App() {
   }, []);
 
   const renderView = () => {
+    // If we're in the projects view and have Term explorer open, show it
+    if (activeView === "projects" && activeProject && showTermExplorer) {
+      return (
+        <TermExplorer
+          project={activeProject}
+          onBack={handleBackToProject}
+        />
+      );
+    }
+
     // If we're in the projects view and have TM explorer open, show it
     if (activeView === "projects" && activeProject && showTMExplorer) {
       return (
@@ -196,6 +216,7 @@ function App() {
           onRemoveFile={handleRemoveFile}
           onSave={handleSaveProject}
           onOpenTM={handleOpenTM}
+          onOpenTerms={handleOpenTerms}
         />
       );
     }
