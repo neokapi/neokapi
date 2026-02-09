@@ -255,11 +255,11 @@ func TestInMemoryTermBase_Search(t *testing.T) {
 	assert.Equal(t, "c2", results[0].ID)
 
 	// Search by domain.
-	results, total = tb.Search("software", "", "", 0, 100)
+	_, total = tb.Search("software", "", "", 0, 100)
 	assert.Equal(t, 3, total)
 
 	// Filter by locale.
-	results, total = tb.Search("", "de", "", 0, 100)
+	_, total = tb.Search("", "de", "", 0, 100)
 	assert.Equal(t, 3, total)
 
 	// Pagination.

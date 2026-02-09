@@ -114,7 +114,9 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 	defer csvWriter.Flush()
 
 	if includeHeader {
-		csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id"})
+		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id"}); err != nil {
+			return fmt.Errorf("write CSV header: %w", err)
+		}
 	}
 
 	for _, concept := range tb.Concepts() {
@@ -124,14 +126,16 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 		}
 
 		for _, target := range concept.TargetTerms(targetLocale) {
-			csvWriter.Write([]string{
+			if err := csvWriter.Write([]string{
 				sourceTerm.Text,
 				target.Text,
 				concept.Domain,
 				concept.Definition,
 				string(target.Status),
 				concept.ID,
-			})
+			}); err != nil {
+				return fmt.Errorf("write CSV row: %w", err)
+			}
 		}
 	}
 

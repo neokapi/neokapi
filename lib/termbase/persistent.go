@@ -86,7 +86,7 @@ func (tb *SQLiteTermBase) AddConcept(concept Concept) error {
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Upsert concept.
 	_, err = tx.Exec(`
@@ -347,7 +347,7 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 	c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 
 	if propsJSON != nil && *propsJSON != "" {
-		json.Unmarshal([]byte(*propsJSON), &c.Properties)
+		_ = json.Unmarshal([]byte(*propsJSON), &c.Properties)
 	}
 
 	// Load terms.

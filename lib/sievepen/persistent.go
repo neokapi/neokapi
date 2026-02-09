@@ -351,10 +351,10 @@ func (tm *SQLiteTM) scanEntries(rows interface{ Next() bool; Scan(...any) error;
 		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 
 		if entitiesJSON != nil && *entitiesJSON != "" {
-			json.Unmarshal([]byte(*entitiesJSON), &entry.Entities)
+			_ = json.Unmarshal([]byte(*entitiesJSON), &entry.Entities)
 		}
 		if propertiesJSON != nil && *propertiesJSON != "" {
-			json.Unmarshal([]byte(*propertiesJSON), &entry.Properties)
+			_ = json.Unmarshal([]byte(*propertiesJSON), &entry.Properties)
 		}
 
 		entries = append(entries, entry)

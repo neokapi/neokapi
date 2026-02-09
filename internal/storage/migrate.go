@@ -45,7 +45,7 @@ func Migrate(db *DB, migrations []Migration) error {
 		}
 
 		if _, err := tx.Exec(m.SQL); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("apply migration %d (%s): %w", m.Version, m.Description, err)
 		}
 
@@ -53,7 +53,7 @@ func Migrate(db *DB, migrations []Migration) error {
 			"INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
 			m.Version, m.Description,
 		); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("record migration %d: %w", m.Version, err)
 		}
 
