@@ -10,6 +10,10 @@ type ServerConfig struct {
 
 	// DataDir is the directory for temporary files during processing.
 	DataDir string
+
+	// StorePath is the path to the SQLite content store database.
+	// If empty, project/block/connector APIs are disabled.
+	StorePath string
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.
