@@ -1,0 +1,207 @@
+package connector
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/gokapi/gokapi/core/registry"
+)
+
+// GitConnector pulls and pushes localization content from Git repositories.
+// It clones/pulls repos, discovers resource files via glob patterns,
+// and uses a FileConnector internally for reading/writing.
+type GitConnector struct {
+	id             string
+	name           string
+	repoURL        string
+	branch         string
+	localPath      string
+	patterns       []string // glob patterns to discover resource files
+	formatRegistry *registry.FormatRegistry
+	fileConnector  *FileConnector
+	config         map[string]string
+}
+
+// NewGitConnector creates a new GitConnector.
+func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]string) (*GitConnector, error) {
+	repoURL := config["repo"]
+	if repoURL == "" {
+		return nil, fmt.Errorf("git connector requires 'repo' config")
+	}
+	branch := config["branch"]
+	if branch == "" {
+		branch = "main"
+	}
+	localPath := config["local_path"]
+	if localPath == "" {
+		localPath = filepath.Join(os.TempDir(), "gokapi-git-"+filepath.Base(repoURL))
+	}
+	id := config["id"]
+	if id == "" {
+		id = "git-" + filepath.Base(repoURL)
+	}
+	patterns := strings.Split(config["patterns"], ",")
+	if len(patterns) == 1 && patterns[0] == "" {
+		patterns = []string{"**/*.html", "**/*.json", "**/*.yaml", "**/*.yml", "**/*.properties"}
+	}
+
+	return &GitConnector{
+		id:             id,
+		name:           config["name"],
+		repoURL:        repoURL,
+		branch:         branch,
+		localPath:      localPath,
+		patterns:       patterns,
+		formatRegistry: formatReg,
+		config:         config,
+	}, nil
+}
+
+func (c *GitConnector) ID() string         { return c.id }
+func (c *GitConnector) Name() string       { return c.name }
+func (c *GitConnector) Category() Category { return CategoryCode }
+
+func (c *GitConnector) Configure(config map[string]string) error {
+	for k, v := range config {
+		c.config[k] = v
+	}
+	return nil
+}
+
+func (c *GitConnector) Close() error { return nil }
+
+// ensureRepo clones or pulls the repository.
+func (c *GitConnector) ensureRepo(ctx context.Context) error {
+	if _, err := os.Stat(filepath.Join(c.localPath, ".git")); err == nil {
+		// Repo exists, pull latest.
+		cmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "pull", "origin", c.branch)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git pull: %s: %w", string(out), err)
+		}
+		return nil
+	}
+
+	// Clone.
+	cmd := exec.CommandContext(ctx, "git", "clone", "--branch", c.branch, "--single-branch", c.repoURL, c.localPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git clone: %s: %w", string(out), err)
+	}
+	return nil
+}
+
+// ensureFileConnector lazily initializes the internal file connector.
+func (c *GitConnector) ensureFileConnector() error {
+	if c.fileConnector != nil {
+		return nil
+	}
+	fc, err := NewFileConnector(c.formatRegistry, map[string]string{
+		"id":   c.id + "-files",
+		"path": c.localPath,
+	})
+	if err != nil {
+		return err
+	}
+	c.fileConnector = fc
+	return nil
+}
+
+func (c *GitConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+	if err := c.ensureRepo(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.ensureFileConnector(); err != nil {
+		return nil, err
+	}
+
+	if len(opts.Paths) == 0 {
+		// Discover files matching patterns.
+		items, err := c.List(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			opts.Paths = append(opts.Paths, item.Path)
+		}
+	}
+
+	return c.fileConnector.Pull(ctx, opts)
+}
+
+func (c *GitConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+	if err := c.ensureFileConnector(); err != nil {
+		return err
+	}
+
+	if err := c.fileConnector.Push(ctx, items, opts); err != nil {
+		return err
+	}
+
+	// Commit and push.
+	message := opts.Message
+	if message == "" {
+		message = "Update translations"
+	}
+
+	cmds := [][]string{
+		{"git", "-C", c.localPath, "add", "-A"},
+		{"git", "-C", c.localPath, "commit", "-m", message},
+		{"git", "-C", c.localPath, "push", "origin", c.branch},
+	}
+	for _, args := range cmds {
+		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("%s: %s: %w", args[1], string(out), err)
+		}
+	}
+	return nil
+}
+
+func (c *GitConnector) List(ctx context.Context) ([]*ContentItem, error) {
+	if err := c.ensureRepo(ctx); err != nil {
+		return nil, err
+	}
+	if err := c.ensureFileConnector(); err != nil {
+		return nil, err
+	}
+
+	allItems, err := c.fileConnector.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter by glob patterns.
+	var filtered []*ContentItem
+	for _, item := range allItems {
+		for _, pattern := range c.patterns {
+			matched, _ := filepath.Match(pattern, item.Path)
+			if matched {
+				filtered = append(filtered, item)
+				break
+			}
+			// Try matching just the filename for simple patterns.
+			matched, _ = filepath.Match(pattern, filepath.Base(item.Path))
+			if matched {
+				filtered = append(filtered, item)
+				break
+			}
+		}
+	}
+	return filtered, nil
+}
+
+func (c *GitConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+	items, err := c.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &SyncStatus{
+		ConnectorID: c.id,
+		LastSync:    time.Now(),
+		ItemCount:   len(items),
+	}, nil
+}
