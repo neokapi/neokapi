@@ -15,6 +15,9 @@ type Block struct {
 	Targets      map[LocaleID][]*Segment
 	Properties   map[string]string
 	Annotations  map[string]Annotation
+	Identity     *BlockIdentity // Content-addressable hash for deduplication
+	ContentRef   *ContentRef    // Link to external connector source
+	DisplayHint  *DisplayHint   // UI rendering guidance
 }
 
 // ResourceID returns the Block's unique identifier.
