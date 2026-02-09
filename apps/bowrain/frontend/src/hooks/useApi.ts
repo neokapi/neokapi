@@ -17,6 +17,8 @@ import type {
   TMSearchResult,
   TMUpdateRequest,
   TMEntryInfo,
+  TMMatchInfo,
+  BlockTermMatch,
   TermSearchResult,
   ConceptInfo,
   AddConceptRequest,
@@ -272,6 +274,20 @@ export function useEditorApi() {
     [],
   );
 
+  const lookupTMForBlock = useCallback(
+    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<TMMatchInfo[]> => {
+      return Backend.LookupTMForBlock(projectID, itemName, blockID, targetLocale) as Promise<TMMatchInfo[]>;
+    },
+    [],
+  );
+
+  const lookupTermsForBlock = useCallback(
+    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<BlockTermMatch[]> => {
+      return Backend.LookupTermsForBlock(projectID, itemName, blockID, targetLocale) as Promise<BlockTermMatch[]>;
+    },
+    [],
+  );
+
   return {
     getFileBlocks,
     updateBlockTarget,
@@ -284,6 +300,8 @@ export function useEditorApi() {
     openFileInOS,
     renderDocumentPreview,
     renderBlockHTML,
+    lookupTMForBlock,
+    lookupTermsForBlock,
   };
 }
 

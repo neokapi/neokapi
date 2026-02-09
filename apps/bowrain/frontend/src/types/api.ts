@@ -306,6 +306,24 @@ export interface UpdateConceptRequest {
   terms: TermInfo[];
 }
 
+/** TM match for a single block */
+export interface TMMatchInfo {
+  source: string;
+  target: string;
+  score: number;
+  match_type: string;
+}
+
+/** Term match for a block */
+export interface BlockTermMatch {
+  source_term: string;
+  target_terms: string[];
+  domain: string;
+  status: string;
+  start: number;
+  end: number;
+}
+
 /** Term enforcement result */
 export interface TermEnforceResult {
   block_id: string;

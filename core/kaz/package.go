@@ -19,6 +19,8 @@ type PackOptions struct {
 	SourceLocale  string
 	TargetLocales []string
 	Items         []PackItem
+	TMData        []byte // JSON-encoded TM entries (optional, stored in tm/entries.json)
+	TermsData     []byte // JSON-encoded term concepts (optional, stored in terms/concepts.json)
 }
 
 // PackItem represents a single item to include in a .kaz package.
@@ -32,10 +34,12 @@ type PackItem struct {
 
 // Package is the in-memory representation of a .kaz package.
 type Package struct {
-	Manifest Manifest
-	Items    map[string][]byte      // source items (may be empty)
-	Blocks   map[string]*BlockIndex // block indices per item
-	Previews map[string]string      // preview HTML per item
+	Manifest  Manifest
+	Items     map[string][]byte      // source items (may be empty)
+	Blocks    map[string]*BlockIndex // block indices per item
+	Previews  map[string]string      // preview HTML per item
+	TMData    []byte                 // JSON-encoded TM entries (from tm/entries.json)
+	TermsData []byte                 // JSON-encoded term concepts (from terms/concepts.json)
 }
 
 // Pack writes a .kaz package to the writer.
@@ -130,11 +134,34 @@ func Pack(w io.Writer, opts PackOptions) error {
 		return fmt.Errorf("write manifest: %w", err)
 	}
 
+	// Write TM data if present
+	if len(opts.TMData) > 0 {
+		tw, err := zw.Create("tm/entries.json")
+		if err != nil {
+			return fmt.Errorf("create tm/entries.json: %w", err)
+		}
+		if _, err := tw.Write(opts.TMData); err != nil {
+			return fmt.Errorf("write tm/entries.json: %w", err)
+		}
+	} else {
+		if _, err := zw.Create("tm/"); err != nil {
+			return err
+		}
+	}
+
+	// Write terms data if present
+	if len(opts.TermsData) > 0 {
+		tw, err := zw.Create("terms/concepts.json")
+		if err != nil {
+			return fmt.Errorf("create terms/concepts.json: %w", err)
+		}
+		if _, err := tw.Write(opts.TermsData); err != nil {
+			return fmt.Errorf("write terms/concepts.json: %w", err)
+		}
+	}
+
 	// Create empty dirs for structure
 	if _, err := zw.Create("assets/"); err != nil {
-		return err
-	}
-	if _, err := zw.Create("tm/"); err != nil {
 		return err
 	}
 
@@ -187,6 +214,10 @@ func Unpack(r io.ReaderAt, size int64) (*Package, error) {
 			name := strings.TrimPrefix(f.Name, "preview/")
 			name = strings.TrimSuffix(name, ".html")
 			pkg.Previews[name] = string(data)
+		case f.Name == "tm/entries.json":
+			pkg.TMData = data
+		case f.Name == "terms/concepts.json":
+			pkg.TermsData = data
 		}
 	}
 

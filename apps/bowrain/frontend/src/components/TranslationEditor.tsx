@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo } from "../types/api";
+import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch } from "../types/api";
 import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
 import { DocumentPreview } from "./DocumentPreview";
 import { SourceCellDisplay } from "./editor/SourceCellDisplay";
@@ -50,6 +50,11 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [searchQuery, setSearchQuery] = useState("");
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("grid");
   const [focusEditValue, setFocusEditValue] = useState("");
+
+  // Context panel state
+  const [showContextPanel, setShowContextPanel] = useState(false);
+  const [tmMatches, setTmMatches] = useState<TMMatchInfo[]>([]);
+  const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
 
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
@@ -170,6 +175,25 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       editInputRef.current.focus();
     }
   }, [editingIndex]);
+
+  // Load TM and term matches when selected block changes (only if panel open)
+  useEffect(() => {
+    if (!showContextPanel) return;
+    const block = filteredBlocks[selectedIndex];
+    if (!block || !block.translatable) {
+      setTmMatches([]);
+      setTermMatches([]);
+      return;
+    }
+    // TM lookup
+    api.lookupTMForBlock(project.id, fileName, block.id, targetLocale)
+      .then((m) => setTmMatches(m || []))
+      .catch(() => setTmMatches([]));
+    // Term lookup
+    api.lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
+      .then((m) => setTermMatches(m || []))
+      .catch(() => setTermMatches([]));
+  }, [showContextPanel, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
 
   // Update focusEditValue when selectedIndex changes and we're in focus mode
   useEffect(() => {
@@ -793,6 +817,18 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
           Untranslated &rarr;
         </button>
         <div style={{ flex: 1 }} />
+        <button
+          onClick={() => setShowContextPanel(!showContextPanel)}
+          style={{
+            ...toolBtnStyle,
+            backgroundColor: showContextPanel ? "var(--accent)" : "var(--bg-secondary)",
+            color: showContextPanel ? "#fff" : "var(--text-primary)",
+          }}
+          data-testid="context-panel-toggle"
+          title="Toggle TM & Terminology panel"
+        >
+          Context
+        </button>
         <input
           type="text"
           placeholder="Search blocks..."
@@ -816,29 +852,122 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       {error && <div style={errorStyle}>{error}</div>}
       {message && <div style={messageStyle}>{message}</div>}
 
-      {/* Main content area based on layout mode */}
-      {layoutMode === "grid" && blockGrid}
-      {layoutMode === "focus" && focusView}
-      {layoutMode === "split-h" && (
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 12, overflow: "hidden" }}>
-          <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            {blockGrid}
-          </div>
-          <div style={{ height: "40%", minHeight: 200, overflow: "hidden" }} data-testid="split-h-preview">
-            {previewComponent}
-          </div>
+      {/* Main content area with optional context panel */}
+      <div style={{ display: "flex", flex: 1, gap: 0, overflow: "hidden", minHeight: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+          {layoutMode === "grid" && blockGrid}
+          {layoutMode === "focus" && focusView}
+          {layoutMode === "split-h" && (
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 12, overflow: "hidden" }}>
+              <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {blockGrid}
+              </div>
+              <div style={{ height: "40%", minHeight: 200, overflow: "hidden" }} data-testid="split-h-preview">
+                {previewComponent}
+              </div>
+            </div>
+          )}
+          {layoutMode === "split-v" && (
+            <div style={splitContainerStyle} data-testid="split-layout">
+              <div style={previewPaneStyle}>
+                {previewComponent}
+              </div>
+              <div style={gridPaneStyle}>
+                {blockGrid}
+              </div>
+            </div>
+          )}
         </div>
-      )}
-      {layoutMode === "split-v" && (
-        <div style={splitContainerStyle} data-testid="split-layout">
-          <div style={previewPaneStyle}>
-            {previewComponent}
+
+        {/* Context Panel - TM & Terminology */}
+        {showContextPanel && (
+          <div style={contextPanelStyle} data-testid="context-panel">
+            {/* TM Matches */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={contextSectionHeader}>TM Matches</div>
+              {tmMatches.length === 0 ? (
+                <div style={contextEmptyStyle}>No TM matches</div>
+              ) : (
+                tmMatches.map((m, i) => (
+                  <div key={i} style={tmMatchCardStyle} data-testid={`tm-match-${i}`}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={tmScoreBadge(m.score)}>
+                        {Math.round(m.score * 100)}%
+                      </span>
+                      <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
+                        {m.match_type}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, marginBottom: 4, color: "var(--text-secondary)" }}>
+                      {m.source}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 500 }}>
+                      {m.target}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const block = filteredBlocks[selectedIndex];
+                        if (!block || !block.translatable) return;
+                        api.updateBlockTarget({
+                          project_id: project.id,
+                          item_name: fileName,
+                          block_id: block.id,
+                          target_locale: targetLocale,
+                          text: m.target,
+                        }).then(() => {
+                          setBlocks((prev) =>
+                            prev.map((b) =>
+                              b.id === block.id
+                                ? { ...b, targets: { ...b.targets, [targetLocale]: m.target } }
+                                : b,
+                            ),
+                          );
+                        });
+                      }}
+                      style={tmApplyBtnStyle}
+                      data-testid={`tm-apply-${i}`}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Term Matches */}
+            <div>
+              <div style={contextSectionHeader}>Terminology</div>
+              {termMatches.length === 0 ? (
+                <div style={contextEmptyStyle}>No term matches</div>
+              ) : (
+                termMatches.map((m, i) => (
+                  <div key={i} style={termMatchCardStyle} data-testid={`term-match-${i}`}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{m.source_term}</span>
+                      <span style={termStatusBadge(m.status)}>{m.status}</span>
+                    </div>
+                    {m.target_terms && m.target_terms.length > 0 ? (
+                      <div style={{ fontSize: 12 }}>
+                        <span style={{ color: "var(--text-secondary)" }}>&#8594; </span>
+                        {m.target_terms.join(", ")}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--text-secondary)" }}>
+                        No target term defined
+                      </div>
+                    )}
+                    {m.domain && (
+                      <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
+                        {m.domain}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          <div style={gridPaneStyle}>
-            {blockGrid}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Status bar */}
       <div style={statusBarStyle} data-testid="status-bar">
@@ -1171,3 +1300,89 @@ const contextBlockStyle: React.CSSProperties = {
   borderRadius: 6,
   opacity: 0.7,
 };
+
+const contextPanelStyle: React.CSSProperties = {
+  width: 280,
+  minWidth: 280,
+  borderLeft: "1px solid var(--border)",
+  backgroundColor: "var(--bg-secondary)",
+  overflow: "auto",
+  padding: 12,
+  flexShrink: 0,
+};
+
+const contextSectionHeader: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
+  color: "var(--text-secondary)",
+  textTransform: "uppercase",
+  letterSpacing: 0.5,
+  marginBottom: 8,
+  paddingBottom: 4,
+  borderBottom: "1px solid var(--border)",
+};
+
+const contextEmptyStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "var(--text-secondary)",
+  fontStyle: "italic",
+  padding: "8px 0",
+};
+
+const tmMatchCardStyle: React.CSSProperties = {
+  padding: 8,
+  backgroundColor: "var(--bg-tertiary)",
+  borderRadius: 6,
+  marginBottom: 6,
+  border: "1px solid var(--border)",
+};
+
+const tmApplyBtnStyle: React.CSSProperties = {
+  marginTop: 6,
+  padding: "2px 8px",
+  fontSize: 11,
+  backgroundColor: "var(--accent)",
+  color: "#fff",
+  border: "none",
+  borderRadius: 4,
+  cursor: "pointer",
+  fontWeight: 500,
+};
+
+function tmScoreBadge(score: number): React.CSSProperties {
+  const color = score >= 1.0 ? "#22c55e" : score >= 0.9 ? "#3b82f6" : "#f59e0b";
+  return {
+    fontSize: 11,
+    fontWeight: 700,
+    color,
+    padding: "1px 6px",
+    borderRadius: 3,
+    backgroundColor: `${color}20`,
+  };
+}
+
+const termMatchCardStyle: React.CSSProperties = {
+  padding: 8,
+  backgroundColor: "var(--bg-tertiary)",
+  borderRadius: 6,
+  marginBottom: 6,
+  border: "1px solid var(--border)",
+};
+
+function termStatusBadge(status: string): React.CSSProperties {
+  const colors: Record<string, string> = {
+    preferred: "#22c55e",
+    approved: "#3b82f6",
+    admitted: "#8b5cf6",
+    deprecated: "#ef4444",
+  };
+  const color = colors[status] || "var(--text-secondary)";
+  return {
+    fontSize: 10,
+    fontWeight: 600,
+    color,
+    padding: "1px 5px",
+    borderRadius: 3,
+    backgroundColor: `${color}15`,
+  };
+}

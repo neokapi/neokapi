@@ -13,6 +13,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/lib/sievepen"
+	"github.com/gokapi/gokapi/lib/termbase"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.
@@ -572,6 +573,130 @@ func (a *App) OpenFileInOS(filePath string) error {
 		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
 	}
 	return cmd.Start()
+}
+
+// TMMatchInfo is a TM match result for a single block, exposed to the frontend.
+type TMMatchInfo struct {
+	Source    string  `json:"source"`
+	Target    string  `json:"target"`
+	Score     float64 `json:"score"`
+	MatchType string  `json:"match_type"`
+}
+
+// LookupTMForBlock looks up TM matches for a specific block.
+func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string) ([]TMMatchInfo, error) {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if p.tm == nil || p.tm.Count() == 0 {
+		return nil, nil
+	}
+
+	id, ok := p.items[itemName]
+	if !ok {
+		return nil, fmt.Errorf("item %q not found", itemName)
+	}
+
+	// Find the block
+	for _, pt := range id.parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok || block.ID != blockID {
+			continue
+		}
+
+		opts := sievepen.DefaultLookupOptions()
+		opts.MaxResults = 5
+		matches, err := p.tm.Lookup(block, model.LocaleID(p.info.SourceLocale), model.LocaleID(targetLocale), opts)
+		if err != nil {
+			return nil, err
+		}
+
+		result := make([]TMMatchInfo, len(matches))
+		for i, m := range matches {
+			result[i] = TMMatchInfo{
+				Source:    m.Entry.SourceText(),
+				Target:    m.Entry.TargetText(),
+				Score:     m.Score,
+				MatchType: string(m.MatchType),
+			}
+		}
+		return result, nil
+	}
+
+	return nil, nil
+}
+
+// BlockTermMatch is a term match for a block, exposed to the frontend.
+type BlockTermMatch struct {
+	SourceTerm string   `json:"source_term"`
+	TargetTerms []string `json:"target_terms"`
+	Domain     string   `json:"domain"`
+	Status     string   `json:"status"`
+	Start      int      `json:"start"`
+	End        int      `json:"end"`
+}
+
+// LookupTermsForBlock looks up term matches in a specific block's source text.
+func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale string) ([]BlockTermMatch, error) {
+	p, err := a.projects.get(projectID)
+	if err != nil {
+		return nil, err
+	}
+	if p.tb == nil {
+		return nil, nil
+	}
+
+	id, ok := p.items[itemName]
+	if !ok {
+		return nil, fmt.Errorf("item %q not found", itemName)
+	}
+
+	for _, pt := range id.parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok || block.ID != blockID {
+			continue
+		}
+
+		sourceText := block.SourceText()
+		if sourceText == "" {
+			return nil, nil
+		}
+
+		matches := p.tb.LookupAll(sourceText, termbase.LookupOptions{
+			SourceLocale: model.LocaleID(p.info.SourceLocale),
+			TargetLocale: model.LocaleID(targetLocale),
+		})
+
+		var result []BlockTermMatch
+		for _, m := range matches {
+			// Collect target terms for the requested locale
+			var targetTerms []string
+			for _, t := range m.Concept.Terms {
+				if t.Locale == model.LocaleID(targetLocale) {
+					targetTerms = append(targetTerms, t.Text)
+				}
+			}
+
+			result = append(result, BlockTermMatch{
+				SourceTerm:  m.Term.Text,
+				TargetTerms: targetTerms,
+				Domain:      m.Concept.Domain,
+				Status:      string(m.Term.Status),
+				Start:       m.Position.Start,
+				End:         m.Position.End,
+			})
+		}
+		return result, nil
+	}
+
+	return nil, nil
 }
 
 // computeStats calculates translation statistics from parts.

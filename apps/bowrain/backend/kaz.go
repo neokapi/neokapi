@@ -3,6 +3,7 @@ package backend
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/lib/sievepen"
+	"github.com/gokapi/gokapi/lib/termbase"
 	"github.com/google/uuid"
 )
 
@@ -54,12 +57,30 @@ func (a *App) SaveProjectAs(projectID, path string) error {
 		})
 	}
 
-	err = kaz.Pack(f, kaz.PackOptions{
+	packOpts := kaz.PackOptions{
 		Name:          p.info.Name,
 		SourceLocale:  p.info.SourceLocale,
 		TargetLocales: p.info.TargetLocales,
 		Items:         packItems,
-	})
+	}
+
+	// Serialize TM entries if present
+	if p.tm != nil && p.tm.Count() > 0 {
+		tmData, err := exportTMJSON(p.tm)
+		if err == nil {
+			packOpts.TMData = tmData
+		}
+	}
+
+	// Serialize termbase concepts if present
+	if p.tb != nil {
+		var buf bytes.Buffer
+		if err := termbase.ExportJSON(p.tb, &buf, p.info.Name); err == nil && buf.Len() > 0 {
+			packOpts.TermsData = buf.Bytes()
+		}
+	}
+
+	err = kaz.Pack(f, packOpts)
 	if err != nil {
 		return fmt.Errorf("pack: %w", err)
 	}
@@ -229,8 +250,79 @@ func (a *App) OpenProject(path string) (*ProjectInfo, error) {
 		})
 	}
 
+	// Restore TM entries if present in package
+	if len(pkg.TMData) > 0 {
+		tm, err := getOrCreateTM(p)
+		if err == nil {
+			importTMJSON(tm, pkg.TMData)
+		}
+	}
+
+	// Restore termbase concepts if present in package
+	if len(pkg.TermsData) > 0 {
+		tb := getOrCreateTB(p)
+		termbase.ImportJSON(tb, bytes.NewReader(pkg.TermsData))
+	}
+
 	a.projects.put(p)
 	return &p.info, nil
+}
+
+// tmJSONEntry is a simple JSON-serializable representation of a TM entry.
+type tmJSONEntry struct {
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+// exportTMJSON serializes all TM entries as JSON.
+func exportTMJSON(tm *sievepen.SQLiteTM) ([]byte, error) {
+	entries := tm.Entries()
+	jEntries := make([]tmJSONEntry, len(entries))
+	for i, e := range entries {
+		jEntries[i] = tmJSONEntry{
+			ID:           e.ID,
+			Source:       e.SourceText(),
+			Target:       e.TargetText(),
+			SourceLocale: string(e.SourceLocale),
+			TargetLocale: string(e.TargetLocale),
+			CreatedAt:    e.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
+		}
+	}
+	return json.Marshal(jEntries)
+}
+
+// importTMJSON deserializes TM entries from JSON and adds them to the TM.
+func importTMJSON(tm *sievepen.SQLiteTM, data []byte) {
+	var entries []tmJSONEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return
+	}
+	for _, e := range entries {
+		createdAt, _ := time.Parse(time.RFC3339, e.CreatedAt)
+		updatedAt, _ := time.Parse(time.RFC3339, e.UpdatedAt)
+		if createdAt.IsZero() {
+			createdAt = time.Now()
+		}
+		if updatedAt.IsZero() {
+			updatedAt = time.Now()
+		}
+		entry := sievepen.TMEntry{
+			ID:           e.ID,
+			Source:       model.NewFragment(e.Source),
+			Target:       model.NewFragment(e.Target),
+			SourceLocale: model.LocaleID(e.SourceLocale),
+			TargetLocale: model.LocaleID(e.TargetLocale),
+			CreatedAt:    createdAt,
+			UpdatedAt:    updatedAt,
+		}
+		tm.Add(entry)
+	}
 }
 
 // parseItem parses source bytes using the appropriate format reader.
