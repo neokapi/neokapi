@@ -65,7 +65,7 @@ graph TB
 
 Documents flow through a channel-based concurrent pipeline. Each tool runs in
 its own goroutine. Buffered channels provide backpressure. See
-[ADR-003](/docs/adr/003-streaming-pipeline-and-flow-execution).
+[ADR-003](/docs/adr/004-processing-engine).
 
 ## Package Layout
 

@@ -62,4 +62,4 @@ preview/<item>.html        # HTML preview for editor display
 items/<file>               # Original source files
 ```
 
-See [ADR-011](/docs/adr/011-kaz-archive-format) for the design rationale.
+See [ADR-011](/docs/adr/003-content-store) for the design rationale.

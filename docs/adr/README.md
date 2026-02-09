@@ -5,26 +5,51 @@ slug: index
 ---
 # Architecture Decision Records
 
-This directory contains Architecture Decision Records (ADRs) for gokapi.
-Each ADR documents a significant architectural choice, the context behind it,
-alternatives considered, and the consequences. ADRs are organized by
-architectural concern rather than chronologically.
+This directory contains Architecture Decision Records (ADRs) for gokapi —
+the open localization platform. Each ADR documents a significant architectural
+choice, the context behind it, alternatives considered, and the consequences.
+ADRs are organized by architectural layer rather than chronologically.
 
-| ADR | Title |
-|-----|-------|
-| [001](001-go-reimagining-of-okapi.md) | Go reimagining of the Okapi Framework |
-| [002](002-content-model.md) | Part-Resource content model with nested layers |
-| [003](003-streaming-pipeline-and-flow-execution.md) | Streaming pipeline and flow execution |
-| [004](004-format-system.md) | Tiered format system |
-| [005](005-plugin-system.md) | Plugin system |
-| [006](006-java-bridge.md) | Java bridge and global bridge pool |
-| [007](007-tool-system.md) | Tool system with BaseTool dispatch |
-| [008](008-configuration.md) | Viper-based layered configuration |
-| [009](009-ai-integration.md) | First-class AI/LLM integration |
-| [010](010-translation-memory.md) | Sievepen built-in translation memory |
-| [011](011-kaz-archive-format.md) | KAZ archive format for project packaging |
-| [012](012-bowrain-desktop-app.md) | Bowrain desktop app with Wails v3 |
-| [013](013-website-and-documentation.md) | Website and documentation system |
-| [014](014-distributed-processing-architecture.md) | Distributed processing architecture |
-| [015](015-real-time-collaborative-editing.md) | Real-time collaborative editing |
-| [016](016-terminology-and-brand-management.md) | Terminology and brand management system |
+## Layer 1: Identity and Data
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [001](001-vision.md) | Vision — The Open Localization Platform | Platform identity, principles, configuration, locale handling |
+| [002](002-content-model.md) | Content Model | Part/Resource, Block identity, Fragments, Annotations, Properties |
+| [003](003-content-store.md) | Content Store and Versioning | Versioned persistence, content addressing, diffing, KAZ serialization |
+
+## Layer 2: Processing and Integration
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [004](004-processing-engine.md) | Processing Engine | Channel-based streaming, FlowExecutor, flow definitions |
+| [005](005-connector-system.md) | Connector System | Bidirectional connectors, FileConnector, format system |
+
+## Layer 3: Extension Mechanisms
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [006](006-tool-system.md) | Tool System | BaseTool dispatch, categories, built-in tools |
+| [007](007-plugin-system.md) | Plugin System and Okapi Bridge | go-plugin, gRPC, Java bridge, plugin governance |
+
+## Layer 4: Domain Intelligence
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [008](008-ai-integration.md) | AI Integration | LLM providers, AI tools, worker pool, batching |
+| [009](009-translation-memory.md) | Translation Memory | Sievepen content-aware TM, tiered matching, entity adaptation |
+| [010](010-terminology.md) | Terminology and Brand Management | Concept model, pipeline tools, streams, brand voice |
+
+## Layer 5: Automation
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [011](011-automation.md) | Automation and Event System | Events, triggers, quality gates, continuous sync |
+
+## Layer 6: Applications and Operations
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| [012](012-bowrain.md) | Bowrain Desktop App | Wails v3, connector-driven UX, translation editor |
+| [013](013-cli-and-server.md) | Kapi CLI and Server | Cobra CLI, REST/gRPC server, CI/CD patterns |
+| [014](014-testing-and-docs.md) | Testing, Documentation, and Website | Test pyramid, Docusaurus, VHS/Playwright demos |
