@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/core/tool"
 	"golang.org/x/sync/errgroup"
 )
@@ -18,10 +19,12 @@ type FlowExecutor interface {
 
 // ExecutorConfig holds configuration for the DefaultFlowExecutor.
 type ExecutorConfig struct {
-	MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
-	ChannelSize    int         // default 64
-	FailFast       bool        // default true; cancel remaining on first error
-	Collectors     []Collector // aggregators fed after each document completes
+	MaxConcurrency int              // 0 = runtime.NumCPU(); 1 = sequential
+	ChannelSize    int              // default 64
+	FailFast       bool             // default true; cancel remaining on first error
+	Collectors     []Collector      // aggregators fed after each document completes
+	Store          store.ContentStore // optional backing store for read/write
+	StoreProjectID string           // project ID when using store-backed flows
 }
 
 // ExecutorOption is a functional option for configuring a DefaultFlowExecutor.
@@ -56,6 +59,14 @@ func WithFailFast(b bool) ExecutorOption {
 func WithCollectors(c ...Collector) ExecutorOption {
 	return func(cfg *ExecutorConfig) {
 		cfg.Collectors = append(cfg.Collectors, c...)
+	}
+}
+
+// WithStore configures the executor to use a ContentStore for reading/writing blocks.
+func WithStore(s store.ContentStore, projectID string) ExecutorOption {
+	return func(cfg *ExecutorConfig) {
+		cfg.Store = s
+		cfg.StoreProjectID = projectID
 	}
 }
 
