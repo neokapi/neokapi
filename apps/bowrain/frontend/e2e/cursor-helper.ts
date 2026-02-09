@@ -185,8 +185,41 @@ export async function humanClick(page: Page, locator: Locator, force: boolean = 
   
   // Click immediately - the ripple animation continues in the browser
   await locator.click({ force });
-  
+
   // Wait after click so the ripple animation is visible in the recording
+  await page.waitForTimeout(350);
+}
+
+/**
+ * Human-like click using native DOM click. Use this for buttons that trigger
+ * React navigation/unmount which causes Playwright's click() to hang.
+ * Still shows cursor movement and ripple animation.
+ */
+export async function humanClickNative(page: Page, testId: string) {
+  const locator = page.getByTestId(testId);
+  await moveCursorToElement(page, locator, 400);
+  await page.waitForTimeout(100);
+
+  const box = await locator.boundingBox();
+  if (box) {
+    const x = box.x + box.width / 2;
+    const y = box.y + box.height / 2;
+
+    await page.evaluate(({ x, y, tid }) => {
+      const cursor = document.getElementById('playwright-cursor');
+      if (cursor) cursor.classList.add('clicking');
+      const ripple = document.createElement('div');
+      ripple.className = 'click-ripple';
+      ripple.style.left = x + 'px';
+      ripple.style.top = y + 'px';
+      document.body.appendChild(ripple);
+      setTimeout(() => ripple.remove(), 600);
+      setTimeout(() => cursor?.classList.remove('clicking'), 150);
+      // Native DOM click
+      (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
+    }, { x, y, tid: testId });
+  }
+
   await page.waitForTimeout(350);
 }
 
@@ -200,4 +233,27 @@ export async function humanType(page: Page, locator: Locator, text: string) {
   await page.waitForTimeout(150);
   // Type with variable speed (80-150ms per char)
   await locator.pressSequentially(text, { delay: 100 });
+}
+
+/**
+ * Human-like typing using native input. Use for React-controlled inputs
+ * where Playwright's pressSequentially hangs.
+ */
+export async function humanTypeNative(page: Page, testId: string, text: string) {
+  const locator = page.getByTestId(testId);
+  await moveCursorToElement(page, locator, 350);
+  await page.waitForTimeout(100);
+
+  // Set value natively with React-compatible events
+  await page.evaluate(({ tid, val }) => {
+    const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
+    if (!input) return;
+    input.focus();
+    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+    nativeSetter.call(input, val);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }, { tid: testId, val: text });
+
+  await page.waitForTimeout(200);
 }

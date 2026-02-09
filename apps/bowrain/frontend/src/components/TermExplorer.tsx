@@ -221,11 +221,11 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
-    <div>
+    <div data-testid="term-explorer">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button onClick={onBack} style={backBtnStyle}>&#8592; Project</button>
+        <button onClick={onBack} style={backBtnStyle} data-testid="term-back-btn">&#8592; Project</button>
         <h2 style={{ margin: 0, flex: 1 }}>Terminology</h2>
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{totalCount} concepts</span>
+        <span style={{ fontSize: 13, color: "var(--text-secondary)" }} data-testid="term-count-badge">{totalCount} concepts</span>
       </div>
 
       {/* Toolbar */}
@@ -236,11 +236,13 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           defaultValue={query}
           onChange={(e) => handleQueryChange(e.target.value)}
           style={inputStyle}
+          data-testid="term-search-input"
         />
         <select
           value={sourceLocaleFilter}
           onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }}
           style={selectStyle}
+          data-testid="term-source-locale-filter"
         >
           <option value="">All source locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
@@ -249,22 +251,23 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           value={targetLocaleFilter}
           onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }}
           style={selectStyle}
+          data-testid="term-target-locale-filter"
         >
           <option value="">All target locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
         </select>
         <div style={{ flex: 1 }} />
-        <button onClick={handleImportCSV} style={toolBtnStyle}>Import CSV</button>
-        <button onClick={handleImportJSON} style={toolBtnStyle}>Import JSON</button>
-        <button onClick={handleExportJSON} style={toolBtnStyle}>Export JSON</button>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={addBtnStyle}>
+        <button onClick={handleImportCSV} style={toolBtnStyle} data-testid="term-import-csv-btn">Import CSV</button>
+        <button onClick={handleImportJSON} style={toolBtnStyle} data-testid="term-import-json-btn">Import JSON</button>
+        <button onClick={handleExportJSON} style={toolBtnStyle} data-testid="term-export-json-btn">Export JSON</button>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={addBtnStyle} data-testid="term-add-btn">
           + Add Concept
         </button>
       </div>
 
       {/* Add concept form */}
       {showAddForm && (
-        <div style={formStyle}>
+        <div style={formStyle} data-testid="term-add-form">
           <h4 style={{ margin: "0 0 8px" }}>New Concept</h4>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <input
@@ -272,12 +275,14 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
               value={newDomain}
               onChange={(e) => setNewDomain(e.target.value)}
               style={{ ...inputStyle, flex: 1 }}
+              data-testid="term-add-domain"
             />
             <input
               placeholder="Definition"
               value={newDefinition}
               onChange={(e) => setNewDefinition(e.target.value)}
               style={{ ...inputStyle, flex: 2 }}
+              data-testid="term-add-definition"
             />
           </div>
           <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Terms:</div>
@@ -309,8 +314,8 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <button onClick={() => addTermRow(newTerms, setNewTerms)} style={toolBtnStyle}>+ Term</button>
             <div style={{ flex: 1 }} />
-            <button onClick={() => setShowAddForm(false)} style={toolBtnStyle}>Cancel</button>
-            <button onClick={handleAdd} style={addBtnStyle}>Save</button>
+            <button onClick={() => setShowAddForm(false)} style={toolBtnStyle} data-testid="term-add-cancel">Cancel</button>
+            <button onClick={handleAdd} style={addBtnStyle} data-testid="term-add-submit">Save</button>
           </div>
         </div>
       )}
@@ -331,7 +336,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
               <tr>
                 <td colSpan={4} style={{ padding: 32, textAlign: "center" }}>
                   {totalCount === 0 ? (
-                    <div>
+                    <div data-testid="term-empty-state">
                       <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>No concepts yet</div>
                       <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
                         Add terms manually or import from a CSV or JSON termbase file.
@@ -349,7 +354,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
               </tr>
             )}
             {concepts.map((concept) => (
-              <tr key={concept.id} style={{ borderBottom: "1px solid var(--border)" }}>
+              <tr key={concept.id} style={{ borderBottom: "1px solid var(--border)" }} data-testid={`term-concept-${concept.id}`}>
                 {editingId === concept.id && editConcept ? (
                   <>
                     <td style={tdStyle}>
@@ -408,7 +413,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                       />
                     </td>
                     <td style={tdStyle}>
-                      <button onClick={handleSaveEdit} style={saveBtnStyle}>Save</button>
+                      <button onClick={handleSaveEdit} style={saveBtnStyle} data-testid={`term-save-btn-${concept.id}`}>Save</button>
                       <button onClick={() => { setEditingId(null); setEditConcept(null); }} style={toolBtnStyle}>Cancel</button>
                     </td>
                   </>
@@ -432,14 +437,14 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                       <span style={{ fontSize: 12 }}>{concept.definition || "-"}</span>
                     </td>
                     <td style={tdStyle}>
-                      <button onClick={() => handleEdit(concept)} style={toolBtnStyle}>Edit</button>
+                      <button onClick={() => handleEdit(concept)} style={toolBtnStyle} data-testid={`term-edit-btn-${concept.id}`}>Edit</button>
                       {deleteConfirmId === concept.id ? (
                         <span style={{ display: "inline-flex", gap: 4, marginLeft: 4 }}>
-                          <button onClick={() => handleDelete(concept.id)} style={{ ...delBtnStyle, background: "#ef4444", color: "#fff", border: "none" }}>Confirm</button>
+                          <button onClick={() => handleDelete(concept.id)} style={{ ...delBtnStyle, background: "#ef4444", color: "#fff", border: "none" }} data-testid={`term-confirm-delete-${concept.id}`}>Confirm</button>
                           <button onClick={() => setDeleteConfirmId(null)} style={toolBtnStyle}>Cancel</button>
                         </span>
                       ) : (
-                        <button onClick={() => setDeleteConfirmId(concept.id)} style={delBtnStyle}>Delete</button>
+                        <button onClick={() => setDeleteConfirmId(concept.id)} style={delBtnStyle} data-testid={`term-delete-btn-${concept.id}`}>Delete</button>
                       )}
                     </td>
                   </>

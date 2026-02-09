@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
-import { injectCursor, humanClick, humanType, moveCursorTo } from "./cursor-helper";
+import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo } from "./cursor-helper";
 import { injectWindowChrome } from "./window-chrome";
 
 // Skip recording tests in CI - they use human-speed typing and exceed CI timeouts
@@ -565,6 +565,300 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("layout-grid"));
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 1200);
+  });
+
+  test("record TM leverage workflow", async ({ page }) => {
+    await setupRecording(page, "Bowrain — TM Leverage");
+    await pause(page, 600);
+
+    // Create project
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Website Translation");
+    await pause(page, 200);
+    await humanType(page, page.getByTestId("target-langs-input"), "fr");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Seed TM entries and add file via mock backend
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = await backend.ListProjects();
+      const pid = projects[0]?.id;
+      if (!pid) return;
+
+      // Add TM entries matching the generated blocks
+      backend.AddTMEntry(pid, "Hello from landing.html", "Bonjour depuis landing.html", "en", "fr");
+      backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+
+      await backend.AddFiles(pid, ["/content/landing.html"]);
+    });
+
+    // Refresh to show file
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await pause(page, 200);
+    await humanClick(page, page.getByTestId("nav-projects"));
+    await expect(page.getByText("Website Translation")).toBeVisible({ timeout: 5000 });
+    await pause(page, 200);
+
+    await humanClick(page, page.getByText("Website Translation").first());
+    await expect(page.getByTestId("open-file-landing.html")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Open file in editor
+    await humanClick(page, page.getByTestId("open-file-landing.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Show blocks are untranslated
+    await pause(page, 400);
+
+    // Click TM Lookup button
+    await humanClick(page, page.getByTestId("tm-btn"));
+    await pause(page, 1000);
+
+    // Navigate away and back to show TM-filled blocks
+    await page.locator("nav button", { hasText: "Settings" }).click();
+    await page.waitForTimeout(100);
+    await page.locator("nav button", { hasText: "Projects" }).click();
+    await page.waitForTimeout(200);
+    await page.getByText("Website Translation").first().click();
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="open-file-landing.html"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Show filled blocks
+    await pause(page, 500);
+
+    // Open context panel to show per-block TM matches
+    await humanClickNative(page, "context-panel-toggle");
+    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Click on block 1 to see its TM match
+    await humanClickNative(page, "block-row-1");
+    await pause(page, 600);
+
+    // Click on block 2 to see different matches
+    await humanClickNative(page, "block-row-2");
+    await pause(page, 1200);
+  });
+
+  test("record term explorer", async ({ page }) => {
+    await setupRecording(page, "Bowrain — Terminology");
+    await pause(page, 600);
+
+    // Create project
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Software Docs");
+    await pause(page, 200);
+    await humanType(page, page.getByTestId("target-langs-input"), "fr");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Open terminology explorer
+    await expect(page.getByTestId("open-terms-btn")).toBeVisible();
+    await humanClickNative(page, "open-terms-btn");
+    await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Show empty state
+    await expect(page.getByTestId("term-empty-state")).toBeVisible();
+    await pause(page, 400);
+
+    // Add first concept via the form
+    await humanClickNative(page, "term-add-btn");
+    await expect(page.getByTestId("term-add-form")).toBeVisible();
+    await pause(page, 300);
+
+    await humanTypeNative(page, "term-add-domain", "Security");
+    await pause(page, 200);
+    await humanTypeNative(page, "term-add-definition", "Process of verifying identity");
+    await pause(page, 200);
+
+    // Fill first term using native input (React-controlled inputs)
+    await page.evaluate(() => {
+      const inputs = document.querySelectorAll('[data-testid="term-add-form"] input[placeholder="Term text"]');
+      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
+      if (inputs[0]) {
+        nativeSetter.call(inputs[0], 'authentication');
+        inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
+        inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (inputs[1]) {
+        nativeSetter.call(inputs[1], 'authentification');
+        inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
+        inputs[1].dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    await pause(page, 300);
+
+    await humanClickNative(page, "term-add-submit");
+    await pause(page, 400);
+
+    // Add more concepts via mock backend for demo
+    await page.evaluate(() => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = backend.ListProjects();
+      const pid = projects[0]?.id;
+      if (pid) {
+        backend.AddConcept({
+          project_id: pid, domain: "Security",
+          definition: "Converting data to prevent unauthorized access",
+          terms: [
+            { text: "encryption", locale: "en", status: "preferred" },
+            { text: "chiffrement", locale: "fr", status: "preferred" },
+          ],
+        });
+        backend.AddConcept({
+          project_id: pid, domain: "UI",
+          definition: "Visual panel for settings",
+          terms: [
+            { text: "dashboard", locale: "en", status: "approved" },
+            { text: "tableau de bord", locale: "fr", status: "approved" },
+          ],
+        });
+        backend.AddConcept({
+          project_id: pid, domain: "Data",
+          definition: "Structured data storage",
+          terms: [
+            { text: "database", locale: "en", status: "preferred" },
+            { text: "base de données", locale: "fr", status: "preferred" },
+          ],
+        });
+      }
+    });
+
+    // Search to refresh list and show new concepts
+    await humanTypeNative(page, "term-search-input", " ");
+    await pause(page, 400);
+
+    // Clear search to show all
+    await humanTypeNative(page, "term-search-input", "");
+    await pause(page, 400);
+
+    // Search for "encrypt"
+    await humanTypeNative(page, "term-search-input", "encrypt");
+    await pause(page, 600);
+
+    // Show filtered result
+    await pause(page, 400);
+
+    // Clear and show all
+    await humanTypeNative(page, "term-search-input", "");
+    await pause(page, 400);
+
+    // Trigger a refresh
+    await humanTypeNative(page, "term-search-input", " ");
+    await pause(page, 400);
+    await humanTypeNative(page, "term-search-input", "");
+    await pause(page, 1200);
+  });
+
+  test("record context panel", async ({ page }) => {
+    await setupRecording(page, "Bowrain — Context Panel");
+    await pause(page, 600);
+
+    // Create project
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Web Application");
+    await pause(page, 200);
+    await humanType(page, page.getByTestId("target-langs-input"), "fr");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+
+    // Add TM entries and terminology, then add file
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = await backend.ListProjects();
+      const pid = projects[0]?.id;
+      if (!pid) return;
+
+      // TM entries
+      backend.AddTMEntry(pid, "Hello from app.html", "Bonjour depuis app.html", "en", "fr");
+      backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+
+      // Terminology
+      backend.AddConcept({
+        project_id: pid, domain: "UI",
+        terms: [
+          { text: "application", locale: "en", status: "preferred" },
+          { text: "application", locale: "fr", status: "preferred" },
+        ],
+      });
+      backend.AddConcept({
+        project_id: pid, domain: "Navigation",
+        terms: [
+          { text: "continue", locale: "en", status: "approved" },
+          { text: "continuer", locale: "fr", status: "approved" },
+        ],
+      });
+
+      await backend.AddFiles(pid, ["/src/app.html"]);
+    });
+
+    // Refresh to show file
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await pause(page, 200);
+    await humanClick(page, page.getByTestId("nav-projects"));
+    await expect(page.getByText("Web Application")).toBeVisible({ timeout: 5000 });
+    await pause(page, 200);
+
+    await humanClick(page, page.getByText("Web Application").first());
+    await expect(page.getByTestId("open-file-app.html")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Open editor
+    await humanClick(page, page.getByTestId("open-file-app.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Open context panel
+    await humanClickNative(page, "context-panel-toggle");
+    await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Select block 0 - show TM match
+    await humanClickNative(page, "block-row-0");
+    await pause(page, 800);
+
+    // Navigate to block 1 - show TM + term matches (has "application")
+    await humanClickNative(page, "block-row-1");
+    await pause(page, 800);
+
+    // Navigate to block 2 - show TM + term matches (has "continue")
+    await humanClickNative(page, "block-row-2");
+    await pause(page, 800);
+
+    // Apply TM match on block 2
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="tm-apply-0"]') as HTMLElement)?.click();
+    });
+    await pause(page, 800);
+
+    // Show "Applied" feedback
+    await pause(page, 1000);
   });
 
   test("record settings configuration", async ({ page }) => {

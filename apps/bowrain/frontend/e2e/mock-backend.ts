@@ -127,19 +127,30 @@ export async function injectMockBackend(page: Page) {
     // Call IDs from the generated bindings (app.js)
     const IDS = {
       AITranslateFile: 112372233,
+      AddConcept: 3793362128,
       AddFiles: 253527467,
       AddFilesDialog: 2566359367,
+      AddTMEntry: 4152216329,
       CloseProject: 3497243272,
       CreateProject: 2219834270,
-      DeleteFlowDefinition: 3801002001,
+      DeleteConcept: 3900518770,
+      DeleteFlowDefinition: 488503031,
       DeleteProviderConfig: 2103858573,
+      DeleteTMEntry: 1886996955,
+      ExportTermsJSON: 166152904,
       ExportTranslatedFile: 2327530811,
       GetFileBlocks: 711926175,
-      GetFlowDefinition: 3801002002,
+      GetFlowDefinition: 2095856838,
       GetInitialProject: 4269707510,
       GetProject: 1329939084,
+      GetTMCount: 1658982651,
+      GetTMEntries: 2865323100,
+      GetTermCount: 433951236,
+      GetTerms: 2057317714,
       GetWordCount: 2276123042,
-      ListFlowDefinitions: 3801002003,
+      ImportTermsCSV: 4189664393,
+      ImportTermsJSON: 498422205,
+      ListFlowDefinitions: 3738265581,
       ListFlows: 2730811374,
       ListFormats: 1658666415,
       ListPlugins: 1851753111,
@@ -147,6 +158,9 @@ export async function injectMockBackend(page: Page) {
       ListProjects: 1552139139,
       ListProviderConfigs: 1091807543,
       ListTools: 2273599896,
+      LookupTMForBlock: 2472708440,
+      LookupTerms: 1594665302,
+      LookupTermsForBlock: 2436021002,
       OpenFileInOS: 2953479918,
       OpenProject: 3349152314,
       OpenProjectDialog: 3415023882,
@@ -155,26 +169,28 @@ export async function injectMockBackend(page: Page) {
       RemoveFile: 1600906915,
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
-      SaveFlowDefinition: 3801002004,
+      SaveFlowDefinition: 2719448633,
       SaveProject: 179173205,
       SaveProjectAs: 3259052957,
       SaveProjectDialog: 2824494121,
       SaveProviderConfig: 755781535,
       SetApplication: 1182474139,
       TMTranslateFile: 49623414,
+      TermEnforceItem: 2381680068,
       TestProviderConfig: 2576607394,
       UpdateBlockTarget: 1528557592,
       UpdateBlockTargetCoded: 1612164251,
+      UpdateConcept: 1418320064,
       UpdateTMEntry: 1441483449,
-      GetTMEntries: 2865323100,
-      GetTMCount: 1658982651,
-      DeleteTMEntry: 1886996955,
-      AddTMEntry: 4152216329,
     };
 
     // Per-project TM storage
     const projectTM: Record<string, Record<string, any>> = {};
     let tmEntryCounter = 0;
+
+    // Per-project terminology storage
+    const projectTerms: Record<string, Record<string, any>> = {};
+    let conceptCounter = 0;
 
     const mock: Record<number, (...args: any[]) => any> = {};
 
@@ -443,10 +459,31 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.TMTranslateFile] = (projectID: string, fileName: string, _targetLocale: string) => {
+    mock[IDS.TMTranslateFile] = (projectID: string, fileName: string, targetLocale: string) => {
       const files = projectFiles[projectID];
       if (!files || !files[fileName]) throw new Error("File not found");
-      return { total_blocks: files[fileName].length, translated_blocks: 0, word_count: 0 };
+      const blocks = files[fileName];
+      const tm = projectTM[projectID] || {};
+      const entries = Object.values(tm);
+      let translated = 0;
+      let wordCount = 0;
+      for (const b of blocks) {
+        if (!b.translatable || b.targets[targetLocale]) continue;
+        // Find exact or fuzzy match from TM
+        const exact = entries.find((e: any) =>
+          e.source.toLowerCase() === b.source.toLowerCase() &&
+          e.target_locale === targetLocale
+        );
+        if (exact) {
+          b.targets[targetLocale] = (exact as any).target;
+          if (!b.properties) b.properties = {};
+          b.properties["translation-origin"] = "tm";
+          b.properties["translation-status"] = "draft";
+          translated++;
+          wordCount += b.source.split(/\s+/).length;
+        }
+      }
+      return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
     mock[IDS.GetWordCount] = (projectID: string, fileName: string) => {
@@ -608,6 +645,280 @@ export async function injectMockBackend(page: Page) {
       const tm = projectTM[projectID];
       if (!tm || !tm[entryID]) throw new Error("TM entry not found");
       delete tm[entryID];
+    };
+
+    // --- Context panel: per-block TM and term lookup ---
+
+    mock[IDS.LookupTMForBlock] = (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+      const files = projectFiles[projectID];
+      if (!files || !files[itemName]) return [];
+      const block = files[itemName].find((b: any) => b.id === blockID);
+      if (!block) return [];
+      const tm = projectTM[projectID] || {};
+      const entries = Object.values(tm);
+      const matches: any[] = [];
+      for (const e of entries) {
+        const entry = e as any;
+        if (targetLocale && entry.target_locale !== targetLocale) continue;
+        const srcLower = block.source.toLowerCase();
+        const entryLower = entry.source.toLowerCase();
+        if (srcLower === entryLower) {
+          matches.push({ source: entry.source, target: entry.target, score: 1.0, match_type: "exact" });
+        } else if (srcLower.includes(entryLower) || entryLower.includes(srcLower)) {
+          const longer = Math.max(srcLower.length, entryLower.length);
+          const shorter = Math.min(srcLower.length, entryLower.length);
+          const score = shorter / longer;
+          if (score > 0.5) {
+            matches.push({ source: entry.source, target: entry.target, score, match_type: "fuzzy" });
+          }
+        }
+      }
+      matches.sort((a: any, b: any) => b.score - a.score);
+      return matches;
+    };
+
+    mock[IDS.LookupTermsForBlock] = (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+      const files = projectFiles[projectID];
+      if (!files || !files[itemName]) return [];
+      const block = files[itemName].find((b: any) => b.id === blockID);
+      if (!block) return [];
+      const terms = projectTerms[projectID] || {};
+      const concepts = Object.values(terms);
+      const matches: any[] = [];
+      const srcLower = block.source.toLowerCase();
+      for (const c of concepts) {
+        const concept = c as any;
+        for (const t of concept.terms) {
+          if (!t.text) continue;
+          const termLower = t.text.toLowerCase();
+          const idx = srcLower.indexOf(termLower);
+          if (idx >= 0) {
+            const targetTerms = concept.terms
+              .filter((tt: any) => tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale))
+              .map((tt: any) => tt.text);
+            matches.push({
+              source_term: t.text,
+              target_terms: targetTerms,
+              domain: concept.domain || "",
+              status: t.status || "approved",
+              start: idx,
+              end: idx + t.text.length,
+            });
+            break; // One match per concept
+          }
+        }
+      }
+      return matches;
+    };
+
+    // --- Terminology mock handlers ---
+
+    mock[IDS.GetTerms] = (projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+      const terms = projectTerms[projectID] || {};
+      let concepts = Object.values(terms);
+
+      if (query) {
+        const q = query.toLowerCase();
+        concepts = concepts.filter((c: any) =>
+          c.terms.some((t: any) => t.text.toLowerCase().includes(q)) ||
+          (c.domain && c.domain.toLowerCase().includes(q)) ||
+          (c.definition && c.definition.toLowerCase().includes(q))
+        );
+      }
+      if (sourceLocale) {
+        concepts = concepts.filter((c: any) =>
+          c.terms.some((t: any) => t.locale === sourceLocale)
+        );
+      }
+      if (targetLocale) {
+        concepts = concepts.filter((c: any) =>
+          c.terms.some((t: any) => t.locale === targetLocale)
+        );
+      }
+
+      const total = concepts.length;
+      const page = concepts.slice(offset, offset + limit);
+      return { concepts: page, total_count: total };
+    };
+
+    mock[IDS.GetTermCount] = (projectID: string) => {
+      const terms = projectTerms[projectID] || {};
+      return Object.keys(terms).length;
+    };
+
+    mock[IDS.AddConcept] = (req: any) => {
+      const pid = req.project_id;
+      if (!projectTerms[pid]) projectTerms[pid] = {};
+      const id = `concept-${++conceptCounter}`;
+      const now = new Date().toISOString();
+      const concept = {
+        id,
+        domain: req.domain || "",
+        definition: req.definition || "",
+        terms: (req.terms || []).map((t: any) => ({
+          text: t.text || "",
+          locale: t.locale || "",
+          status: t.status || "approved",
+          part_of_speech: t.part_of_speech || "",
+          gender: t.gender || "",
+          note: t.note || "",
+        })),
+        properties: {},
+        created_at: now,
+        updated_at: now,
+      };
+      projectTerms[pid][id] = concept;
+      return concept;
+    };
+
+    mock[IDS.UpdateConcept] = (req: any) => {
+      const pid = req.project_id;
+      const terms = projectTerms[pid];
+      if (!terms || !terms[req.concept_id]) throw new Error("Concept not found");
+      terms[req.concept_id] = {
+        ...terms[req.concept_id],
+        domain: req.domain || "",
+        definition: req.definition || "",
+        terms: (req.terms || []).map((t: any) => ({
+          text: t.text || "",
+          locale: t.locale || "",
+          status: t.status || "approved",
+          part_of_speech: t.part_of_speech || "",
+          gender: t.gender || "",
+          note: t.note || "",
+        })),
+        updated_at: new Date().toISOString(),
+      };
+    };
+
+    mock[IDS.DeleteConcept] = (projectID: string, conceptID: string) => {
+      const terms = projectTerms[projectID];
+      if (!terms || !terms[conceptID]) throw new Error("Concept not found");
+      delete terms[conceptID];
+    };
+
+    mock[IDS.LookupTerms] = (projectID: string, text: string, _sourceLocale: string, targetLocale: string) => {
+      const terms = projectTerms[projectID] || {};
+      const concepts = Object.values(terms);
+      const textLower = text.toLowerCase();
+      const matches: any[] = [];
+      for (const c of concepts) {
+        const concept = c as any;
+        for (const t of concept.terms) {
+          if (!t.text) continue;
+          const termLower = t.text.toLowerCase();
+          const idx = textLower.indexOf(termLower);
+          if (idx >= 0) {
+            const targetTerms = concept.terms
+              .filter((tt: any) => tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale))
+              .map((tt: any) => ({ text: tt.text, locale: tt.locale, status: tt.status }));
+            matches.push({
+              source_term: t.text,
+              concept_id: concept.id,
+              domain: concept.domain,
+              score: 1.0,
+              match_type: "exact",
+              status: t.status,
+              target_terms: targetTerms,
+              position: { start: idx, end: idx + t.text.length },
+            });
+            break;
+          }
+        }
+      }
+      return { matches };
+    };
+
+    mock[IDS.ImportTermsCSV] = (projectID: string, content: string, sourceLocale: string, targetLocale: string, domain: string, hasHeader: boolean) => {
+      if (!projectTerms[projectID]) projectTerms[projectID] = {};
+      const lines = content.split("\n").filter((l: string) => l.trim());
+      const startIdx = hasHeader ? 1 : 0;
+      let count = 0;
+      for (let i = startIdx; i < lines.length; i++) {
+        const parts = lines[i].split(",").map((s: string) => s.trim());
+        if (parts.length >= 2 && parts[0] && parts[1]) {
+          const id = `concept-${++conceptCounter}`;
+          const now = new Date().toISOString();
+          projectTerms[projectID][id] = {
+            id,
+            domain: domain || "",
+            definition: "",
+            terms: [
+              { text: parts[0], locale: sourceLocale, status: "preferred" },
+              { text: parts[1], locale: targetLocale, status: "preferred" },
+            ],
+            created_at: now,
+            updated_at: now,
+          };
+          count++;
+        }
+      }
+      return count;
+    };
+
+    mock[IDS.ImportTermsJSON] = (projectID: string, content: string) => {
+      if (!projectTerms[projectID]) projectTerms[projectID] = {};
+      const data = JSON.parse(content);
+      const concepts = data.concepts || data;
+      let count = 0;
+      for (const c of concepts) {
+        const id = c.id || `concept-${++conceptCounter}`;
+        const now = new Date().toISOString();
+        projectTerms[projectID][id] = {
+          id,
+          domain: c.domain || "",
+          definition: c.definition || "",
+          terms: c.terms || [],
+          created_at: c.created_at || now,
+          updated_at: now,
+        };
+        count++;
+      }
+      return count;
+    };
+
+    mock[IDS.ExportTermsJSON] = (projectID: string, name: string) => {
+      const terms = projectTerms[projectID] || {};
+      return JSON.stringify({
+        name,
+        concepts: Object.values(terms),
+      }, null, 2);
+    };
+
+    mock[IDS.TermEnforceItem] = (projectID: string, itemName: string, targetLocale: string) => {
+      const files = projectFiles[projectID];
+      if (!files || !files[itemName]) return [];
+      const terms = projectTerms[projectID] || {};
+      const concepts = Object.values(terms);
+      const results: any[] = [];
+      for (const b of files[itemName]) {
+        if (!b.translatable || !b.targets[targetLocale]) continue;
+        const srcLower = b.source.toLowerCase();
+        const tgtLower = b.targets[targetLocale].toLowerCase();
+        for (const c of concepts) {
+          const concept = c as any;
+          const srcTerms = concept.terms.filter((t: any) =>
+            srcLower.includes(t.text.toLowerCase())
+          );
+          for (const st of srcTerms) {
+            const tgtTerms = concept.terms.filter((t: any) => t.locale !== st.locale);
+            const found = tgtTerms.some((tt: any) => tgtLower.includes(tt.text.toLowerCase()));
+            if (!found && tgtTerms.length > 0) {
+              results.push({
+                block_id: b.id,
+                source_term: st.text,
+                concept_id: concept.id,
+                expected: tgtTerms.map((tt: any) => tt.text),
+                source_text: b.source,
+                target_text: b.targets[targetLocale],
+                source_locale: "en",
+                target_locale: targetLocale,
+              });
+            }
+          }
+        }
+      }
+      return results;
     };
 
     mock[IDS.OpenProject] = (path: string) => {
