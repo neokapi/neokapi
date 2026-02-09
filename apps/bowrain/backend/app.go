@@ -11,13 +11,16 @@ import (
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
 	"github.com/gokapi/gokapi/core/config"
-	"github.com/gokapi/gokapi/core/locale"
-	"github.com/gokapi/gokapi/core/version"
+	"github.com/gokapi/gokapi/core/connector"
 	"github.com/gokapi/gokapi/core/credentials"
+	"github.com/gokapi/gokapi/core/event"
 	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/version"
 	"github.com/gokapi/gokapi/formats"
 	libtools "github.com/gokapi/gokapi/lib/tools"
 	"github.com/gokapi/gokapi/plugin/loader"
@@ -34,6 +37,11 @@ type App struct {
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
+
+	// ContentStore and event system for platform integration.
+	contentStore store.ContentStore
+	connectorReg *connector.Registry
+	eventBus     *event.ChannelEventBus
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string
@@ -61,11 +69,16 @@ func NewAppWithoutPlugins() *App {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 
+	connReg := connector.NewRegistry()
+	connector.RegisterAll(connReg, reg)
+
 	return &App{
-		formatReg:   reg,
-		toolReg:     toolReg,
-		projects:    newProjectStore(),
-		credentials: credentials.NewStore(credentials.DefaultPath()),
+		formatReg:    reg,
+		toolReg:      toolReg,
+		projects:     newProjectStore(),
+		credentials:  credentials.NewStore(credentials.DefaultPath()),
+		connectorReg: connReg,
+		eventBus:     event.NewChannelEventBus(),
 	}
 }
 
@@ -351,6 +364,9 @@ func (a *App) ServiceShutdown() error {
 		if p, err := a.projects.get(info.ID); err == nil && p.tm != nil {
 			p.tm.Close()
 		}
+	}
+	if a.contentStore != nil {
+		a.contentStore.Close()
 	}
 	a.pluginMu.Lock()
 	pl := a.pluginLoader

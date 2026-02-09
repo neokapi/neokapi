@@ -10,6 +10,7 @@ import { TranslationEditor } from "./components/TranslationEditor";
 import { TMExplorer } from "./components/TMExplorer";
 import { TermExplorer } from "./components/TermExplorer";
 import { FlowBuilder } from "./components/FlowBuilder";
+import { ConnectorPanel } from "./components/ConnectorPanel";
 import { useHealth, useProjectApi } from "./hooks/useApi";
 import type { ProjectInfo } from "./types/api";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -239,6 +240,8 @@ function App() {
         return <TranslatePanel />;
       case "flows":
         return <FlowBuilder />;
+      case "connectors":
+        return <ConnectorPanel />;
     }
   };
 
