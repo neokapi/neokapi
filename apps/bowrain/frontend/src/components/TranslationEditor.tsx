@@ -55,6 +55,8 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [showContextPanel, setShowContextPanel] = useState(false);
   const [tmMatches, setTmMatches] = useState<TMMatchInfo[]>([]);
   const [termMatches, setTermMatches] = useState<BlockTermMatch[]>([]);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [appliedTMIndex, setAppliedTMIndex] = useState<number | null>(null);
 
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
@@ -185,14 +187,17 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       setTermMatches([]);
       return;
     }
+    setContextLoading(true);
+    setAppliedTMIndex(null);
     // TM lookup
-    api.lookupTMForBlock(project.id, fileName, block.id, targetLocale)
+    const tmPromise = api.lookupTMForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTmMatches(m || []))
       .catch(() => setTmMatches([]));
     // Term lookup
-    api.lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
+    const termPromise = api.lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
+    Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
   }, [showContextPanel, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
 
   // Update focusEditValue when selectedIndex changes and we're in focus mode
@@ -497,6 +502,8 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                   codedText={block.source_coded}
                   spans={block.source_spans}
                 />
+              ) : showContextPanel && selectedIndex === index && termMatches.length > 0 ? (
+                <HighlightedSource text={block.source} termMatches={termMatches} />
               ) : (
                 block.source
               )}
@@ -882,20 +889,33 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         {/* Context Panel - TM & Terminology */}
         {showContextPanel && (
           <div style={contextPanelStyle} data-testid="context-panel">
+            {contextLoading && (
+              <div style={{ textAlign: "center", padding: "12px 0", fontSize: 12, color: "var(--text-secondary)" }}>
+                Loading...
+              </div>
+            )}
             {/* TM Matches */}
             <div style={{ marginBottom: 16 }}>
-              <div style={contextSectionHeader}>TM Matches</div>
-              {tmMatches.length === 0 ? (
-                <div style={contextEmptyStyle}>No TM matches</div>
+              <div style={contextSectionHeader}>
+                TM Matches
+                {tmMatches.length > 0 && (
+                  <span style={{ marginLeft: 6, fontWeight: 400, fontSize: 10 }}>({tmMatches.length})</span>
+                )}
+              </div>
+              {!contextLoading && tmMatches.length === 0 ? (
+                <div style={contextEmptyStyle}>No TM matches for this block</div>
               ) : (
                 tmMatches.map((m, i) => (
-                  <div key={i} style={tmMatchCardStyle} data-testid={`tm-match-${i}`}>
+                  <div key={i} style={{
+                    ...tmMatchCardStyle,
+                    ...(appliedTMIndex === i ? { borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,0.05)" } : {}),
+                  }} data-testid={`tm-match-${i}`}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                       <span style={tmScoreBadge(m.score)}>
                         {Math.round(m.score * 100)}%
                       </span>
                       <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-                        {m.match_type}
+                        {m.match_type.replace(/-/g, " ")}
                       </span>
                     </div>
                     <div style={{ fontSize: 12, marginBottom: 4, color: "var(--text-secondary)" }}>
@@ -918,16 +938,22 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                           setBlocks((prev) =>
                             prev.map((b) =>
                               b.id === block.id
-                                ? { ...b, targets: { ...b.targets, [targetLocale]: m.target } }
+                                ? {
+                                    ...b,
+                                    targets: { ...b.targets, [targetLocale]: m.target },
+                                    properties: { ...b.properties, "translation-origin": "tm" },
+                                  }
                                 : b,
                             ),
                           );
+                          setAppliedTMIndex(i);
                         });
                       }}
-                      style={tmApplyBtnStyle}
+                      style={appliedTMIndex === i ? tmAppliedBtnStyle : tmApplyBtnStyle}
                       data-testid={`tm-apply-${i}`}
+                      disabled={appliedTMIndex === i}
                     >
-                      Apply
+                      {appliedTMIndex === i ? "Applied" : "Apply"}
                     </button>
                   </div>
                 ))
@@ -936,9 +962,14 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
 
             {/* Term Matches */}
             <div>
-              <div style={contextSectionHeader}>Terminology</div>
-              {termMatches.length === 0 ? (
-                <div style={contextEmptyStyle}>No term matches</div>
+              <div style={contextSectionHeader}>
+                Terminology
+                {termMatches.length > 0 && (
+                  <span style={{ marginLeft: 6, fontWeight: 400, fontSize: 10 }}>({termMatches.length})</span>
+                )}
+              </div>
+              {!contextLoading && termMatches.length === 0 ? (
+                <div style={contextEmptyStyle}>No terms found in this block</div>
               ) : (
                 termMatches.map((m, i) => (
                   <div key={i} style={termMatchCardStyle} data-testid={`term-match-${i}`}>
@@ -949,7 +980,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                     {m.target_terms && m.target_terms.length > 0 ? (
                       <div style={{ fontSize: 12 }}>
                         <span style={{ color: "var(--text-secondary)" }}>&#8594; </span>
-                        {m.target_terms.join(", ")}
+                        <span style={{ fontWeight: 500 }}>{m.target_terms.join(", ")}</span>
                       </div>
                     ) : (
                       <div style={{ fontSize: 12, fontStyle: "italic", color: "var(--text-secondary)" }}>
@@ -957,9 +988,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
                       </div>
                     )}
                     {m.domain && (
-                      <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 2 }}>
-                        {m.domain}
-                      </div>
+                      <span style={domainBadgeStyle}>{m.domain}</span>
                     )}
                   </div>
                 ))
@@ -1071,6 +1100,48 @@ function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo
     </span>
   );
 }
+
+/** Highlights matched terminology in source text with underline styling. */
+function HighlightedSource({ text, termMatches }: { text: string; termMatches: BlockTermMatch[] }) {
+  if (termMatches.length === 0) return <>{text}</>;
+
+  // Sort matches by start position, deduplicate overlapping
+  const sorted = [...termMatches]
+    .filter(m => m.start >= 0 && m.end > m.start && m.end <= text.length)
+    .sort((a, b) => a.start - b.start);
+
+  const parts: React.ReactNode[] = [];
+  let lastEnd = 0;
+
+  for (const m of sorted) {
+    if (m.start < lastEnd) continue; // skip overlapping
+    if (m.start > lastEnd) {
+      parts.push(<span key={`t-${lastEnd}`}>{text.slice(lastEnd, m.start)}</span>);
+    }
+    parts.push(
+      <span
+        key={`h-${m.start}`}
+        style={termHighlightStyle}
+        title={`${m.source_term} → ${m.target_terms?.join(", ") || "?"} (${m.status})`}
+      >
+        {text.slice(m.start, m.end)}
+      </span>,
+    );
+    lastEnd = m.end;
+  }
+  if (lastEnd < text.length) {
+    parts.push(<span key={`t-${lastEnd}`}>{text.slice(lastEnd)}</span>);
+  }
+  return <>{parts}</>;
+}
+
+const termHighlightStyle: React.CSSProperties = {
+  textDecoration: "underline",
+  textDecorationStyle: "dotted",
+  textDecorationColor: "#8b5cf6",
+  textUnderlineOffset: "2px",
+  cursor: "help",
+};
 
 const backBtnStyle: React.CSSProperties = {
   padding: "6px 12px",
@@ -1347,6 +1418,24 @@ const tmApplyBtnStyle: React.CSSProperties = {
   borderRadius: 4,
   cursor: "pointer",
   fontWeight: 500,
+};
+
+const tmAppliedBtnStyle: React.CSSProperties = {
+  ...tmApplyBtnStyle,
+  backgroundColor: "#22c55e",
+  cursor: "default",
+  opacity: 0.8,
+};
+
+const domainBadgeStyle: React.CSSProperties = {
+  display: "inline-block",
+  marginTop: 4,
+  fontSize: 10,
+  color: "var(--text-secondary)",
+  padding: "1px 6px",
+  borderRadius: 3,
+  backgroundColor: "var(--bg-secondary)",
+  border: "1px solid var(--border)",
 };
 
 function tmScoreBadge(score: number): React.CSSProperties {

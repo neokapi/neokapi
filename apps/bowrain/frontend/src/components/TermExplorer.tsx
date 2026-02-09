@@ -106,10 +106,13 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
     }
   }, [project.id, termsApi, editConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleDelete = useCallback(
     async (conceptId: string) => {
       try {
         await termsApi.deleteConcept(project.id, conceptId);
+        setDeleteConfirmId(null);
         fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("Failed to delete concept:", e);
@@ -306,8 +309,21 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           <tbody>
             {concepts.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)" }}>
-                  {totalCount === 0 ? "No concepts yet. Add terms or import a termbase." : "No results found."}
+                <td colSpan={4} style={{ padding: 32, textAlign: "center" }}>
+                  {totalCount === 0 ? (
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>No concepts yet</div>
+                      <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+                        Add terms manually or import from a CSV or JSON termbase file.
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                        <button onClick={() => setShowAddForm(true)} style={addBtnStyle}>+ Add Concept</button>
+                        <button onClick={handleImportCSV} style={toolBtnStyle}>Import CSV</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>No results match your search.</div>
+                  )}
                 </td>
               </tr>
             )}
@@ -396,7 +412,14 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                     </td>
                     <td style={tdStyle}>
                       <button onClick={() => handleEdit(concept)} style={toolBtnStyle}>Edit</button>
-                      <button onClick={() => handleDelete(concept.id)} style={delBtnStyle}>Delete</button>
+                      {deleteConfirmId === concept.id ? (
+                        <span style={{ display: "inline-flex", gap: 4, marginLeft: 4 }}>
+                          <button onClick={() => handleDelete(concept.id)} style={{ ...delBtnStyle, background: "#ef4444", color: "#fff", border: "none" }}>Confirm</button>
+                          <button onClick={() => setDeleteConfirmId(null)} style={toolBtnStyle}>Cancel</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setDeleteConfirmId(concept.id)} style={delBtnStyle}>Delete</button>
+                      )}
                     </td>
                   </>
                 )}
