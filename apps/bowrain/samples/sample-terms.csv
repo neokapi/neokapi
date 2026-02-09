@@ -1,0 +1,18 @@
+source,target,domain
+cloud storage,stockage cloud,infrastructure
+synchronization,synchronisation,infrastructure
+encryption,chiffrement,security
+authentication,authentification,security
+authorization,autorisation,security
+dashboard,tableau de bord,ui
+notification,notification,ui
+upload,télécharger,ui
+download,télécharger,ui
+settings,paramètres,ui
+profile,profil,ui
+file sharing,partage de fichiers,features
+version history,historique des versions,features
+two-factor authentication,authentification à deux facteurs,security
+end-to-end encryption,chiffrement de bout en bout,security
+storage limit,limite de stockage,infrastructure
+free trial,essai gratuit,marketing

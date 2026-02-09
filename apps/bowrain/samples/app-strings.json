@@ -1,0 +1,64 @@
+{
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "profile": "Profile",
+    "notifications": "Notifications",
+    "logout": "Log Out"
+  },
+  "dashboard": {
+    "welcome_message": "Welcome back! Here is your activity summary.",
+    "recent_activity": "Recent Activity",
+    "quick_actions": "Quick Actions",
+    "storage_usage": "Storage Usage",
+    "storage_remaining": "You have {remaining} GB remaining out of {total} GB.",
+    "no_recent_files": "No recent files. Start syncing to see your activity here."
+  },
+  "sync": {
+    "status_syncing": "Syncing...",
+    "status_paused": "Sync paused",
+    "status_up_to_date": "All files are up to date",
+    "status_error": "Sync error. Click for details.",
+    "last_synced": "Last synced: {time}",
+    "pause_sync": "Pause Synchronization",
+    "resume_sync": "Resume Synchronization",
+    "sync_now": "Sync Now"
+  },
+  "files": {
+    "upload": "Upload File",
+    "download": "Download",
+    "rename": "Rename",
+    "move": "Move to...",
+    "share": "Share",
+    "delete": "Delete",
+    "restore": "Restore",
+    "properties": "Properties",
+    "confirm_delete": "Are you sure you want to delete \"{name}\"? This action cannot be undone.",
+    "file_shared": "File shared successfully. The link has been copied to your clipboard.",
+    "upload_progress": "Uploading {count} files... ({percent}% complete)",
+    "upload_complete": "Upload complete! {count} files have been added."
+  },
+  "settings": {
+    "general": "General",
+    "account": "Account",
+    "security": "Security",
+    "sync_preferences": "Sync Preferences",
+    "notifications_settings": "Notification Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "theme_light": "Light",
+    "theme_dark": "Dark",
+    "theme_system": "System Default",
+    "save_changes": "Save Changes",
+    "changes_saved": "Your settings have been saved successfully."
+  },
+  "errors": {
+    "network_error": "Unable to connect to the server. Please check your internet connection.",
+    "permission_denied": "You do not have permission to perform this action.",
+    "file_too_large": "The file is too large. Maximum file size is {max_size} MB.",
+    "storage_full": "Your storage is full. Please free up space or upgrade your plan.",
+    "session_expired": "Your session has expired. Please log in again.",
+    "unknown_error": "Something went wrong. Please try again later."
+  }
+}
