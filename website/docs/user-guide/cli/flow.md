@@ -25,6 +25,18 @@ kapi flow run --input docs/ --output out/ \
   --tools segmentation,tm-leverage,ai-translate \
   -s en -t fr
 
+# Translation flow with terminology lookup, TM, and AI
+kapi flow run --input docs/ --output out/ \
+  --tools term-lookup,tm-leverage,ai-translate \
+  -s en -t fr \
+  --termbase project.tb
+
+# Post-translation terminology enforcement
+kapi flow run --input translated/ --output qa/ \
+  --tools term-enforce \
+  -s en -t fr \
+  --termbase project.tb
+
 # Word count flow
 kapi flow run --input docs/ \
   --tools wordcount \
@@ -53,6 +65,8 @@ kapi flow run --input docs/ --output out/ \
 | `--target-lang` | `-t` | Target language |
 | `--concurrency` | | Max parallel documents (default: CPU count) |
 | `--channel-size` | | Channel buffer size (default: 64) |
+| `--tm` | | Translation memory database path (for tm-leverage tool) |
+| `--termbase` | | Termbase database path (for term-lookup, term-enforce tools) |
 | `--fail-fast` | | Stop on first error (default: true) |
 
 ## Built-in Flows
@@ -66,6 +80,8 @@ gokapi ships with five built-in flow definitions:
 | `pseudo-translate` | Generate pseudo-translations for testing | pseudo-translate |
 | `qa-check` | Run rule-based quality checks on translations | qa-check |
 | `tm-leverage` | Pre-fill translations from translation memory | tm-leverage |
+| `term-lookup-translate` | Annotate terms then translate with AI | term-lookup, ai-translate |
+| `term-enforce` | Check translations for correct terminology | term-enforce |
 
 Run a built-in flow by name:
 

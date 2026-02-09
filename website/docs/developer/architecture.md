@@ -108,7 +108,8 @@ gokapi/
 │
 ├── lib/
 │   ├── sievepen/               # Translation memory (in-memory + SQLite)
-│   └── tools/                  # Utility tools (wordcount, pseudo-translate, segmentation, qa-check, tm-leverage, etc.)
+│   ├── termbase/               # Terminology management (in-memory + SQLite, TBX-inspired)
+│   └── tools/                  # Utility tools (wordcount, pseudo-translate, segmentation, qa-check, tm-leverage, term-lookup, term-enforce, etc.)
 │
 ├── plugin/
 │   ├── host/                   # PluginManager, gRPC clients

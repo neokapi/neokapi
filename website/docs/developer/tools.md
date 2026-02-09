@@ -115,6 +115,8 @@ func TestUppercaseTool(t *testing.T) {
 | `segmentation` | Transform | SRX-like sentence segmentation with configurable regex rules |
 | `qa-check` | Validate | Configurable quality checks: missing translations, whitespace mismatches, number mismatches |
 | `tm-leverage` | Enrich | Pre-fills translations from Sievepen translation memory with fuzzy matching |
+| `term-lookup` | Enrich | Scans source text for terminology matches, attaches `TermAnnotation` entries |
+| `term-enforce` | Validate | Checks translations for correct terminology usage, reports violations |
 
 ### Registering Built-in Tools
 
@@ -144,5 +146,19 @@ tmTool := tools.NewTMLeverageTool(&tools.TMLeverageConfig{
     TargetLocale: "fr",
     Threshold: 0.8,
     TM: sievepenInstance,
+})
+
+// Term lookup — scans source text for terminology matches
+termLookupTool := tools.NewTermLookupTool(&tools.TermLookupConfig{
+    SourceLocale: "en",
+    TargetLocale: "fr",
+    TB: termbaseInstance,
+})
+
+// Term enforce — validates translations use correct terminology
+termEnforceTool := tools.NewTermEnforceTool(&tools.TermEnforceConfig{
+    SourceLocale: "en",
+    TargetLocale: "fr",
+    TB: termbaseInstance,
 })
 ```

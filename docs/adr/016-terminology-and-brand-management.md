@@ -402,7 +402,7 @@ const (
 **`redact`** — Category: Transform
 
 Replaces entity values in Block source text with typed placeholders (e.g.,
-"John" → `{PERSON}`), using entity annotations produced by
+"John" → `\{PERSON\}`), using entity annotations produced by
 `entity-annotate`. This is a **privacy tool** — it prevents sensitive
 information (personal names, addresses, etc.) from reaching external
 services like AI translation or MT providers. The redacted content uses

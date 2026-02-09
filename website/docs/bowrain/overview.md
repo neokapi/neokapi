@@ -51,23 +51,66 @@ Configure AI providers, manage plugins, and view system information from the set
 
 ![Settings page with AI provider configuration](/img/bowrain/settings.png)
 
+### Context Panel
+
+In the translation editor, the Context panel provides instant per-block linguistic resources. TM matches show source, target, score, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status. The panel updates automatically as you navigate between blocks.
+
+![Context panel showing TM matches and terminology](pathname:///img/bowrain/context-panel.png)
+
+### Terminology Explorer
+
+The Terminology panel provides full concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status (preferred, approved, admitted, deprecated, proposed, forbidden) and domain classification.
+
+![Terminology explorer with concept browser](pathname:///img/bowrain/term-explorer.png)
+
+### Translation Memory Explorer
+
+The TM Explorer provides full access to the translation memory. Browse, search, add, edit, and delete entries. Import and export TMX files. Each entry preserves inline markup through the content-aware matching system.
+
+![TM Explorer with entry browser](pathname:///img/bowrain/tm-explorer-full.png)
+
 ## Features
 
 - **Translation editor** with four layout modes (grid, focus, split-h, split-v), inline tag support, block status tracking, and live document preview
+- **Context panel** with per-block TM matches and terminology suggestions, one-click apply
+- **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
+- **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
 - **Flow editor** with drag-and-drop visual workflow builder and built-in flow templates
 - **AI translation** using Anthropic, OpenAI, or Ollama providers
-- **Translation Memory** with fuzzy matching and TM explorer
-- **Action tools** including segmentation, QA check, and TM leverage
+- **Action tools** including segmentation, QA check, TM leverage, term lookup, and term enforcement
 - **Plugin support** for extending with custom formats and tools
 - **Batch file management** with per-file language and format configuration
 - **Progress tracking** with status-colored progress bars
+- **Sample projects** included for immediate testing and evaluation
 
 ## Project Format
 
-Bowrain uses the `.kaz` archive format as its native project format. Projects can be opened from the command line:
+Bowrain uses the `.kaz` archive format as its native project format. A `.kaz` file is a ZIP archive containing:
+
+- **Source documents** in their original formats
+- **Translation blocks** with per-locale target segments
+- **Translation memory** entries (persisted as `tm/entries.json`)
+- **Terminology** concepts (persisted as `terms/concepts.json`)
+- **Preview HTML** for live document preview
+
+TM and terminology are saved automatically when you save the project and restored when you open it. This means each project carries its own linguistic resources — no external database setup required.
+
+Projects can be opened from the command line:
 
 ```bash
 bowrain project.kaz
 ```
 
 Bowrain runs as a single native application on macOS, Windows, and Linux — no additional runtimes or dependencies required.
+
+## Sample Projects
+
+Bowrain ships with sample `.kaz` projects for immediate testing:
+
+| Project | Content | Status | Use Case |
+|---------|---------|--------|----------|
+| `website-translation.kaz` | Corporate website (HTML) | Half-translated (en→fr,de) | TM leverage demo — auto-fill translations |
+| `software-ui.kaz` | Task manager UI strings (JSON) | New, with 27-entry TM | Start with existing TM, translate remaining strings |
+| `marketing-content.kaz` | Marketing landing page (HTML) | Fully translated (en→fr,de,es) | Review and export workflows |
+
+Sample files are located in `apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.

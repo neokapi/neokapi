@@ -18,6 +18,7 @@ const sidebars: SidebarsConfig = {
     '013-website-and-documentation',
     '014-distributed-processing-architecture',
     '015-real-time-collaborative-editing',
+    '016-terminology-and-brand-management',
   ],
 };
 

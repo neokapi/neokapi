@@ -62,8 +62,16 @@ Bowrain offers multiple views for different translation tasks:
 
 - **Manual**: Type translations directly in the editor
 - **AI Translation**: Use configured AI providers for machine translation
+- **TM Leverage**: Click "TM Lookup" to auto-fill translations from translation memory
+- **Context Panel**: Click "Context" to see per-block TM matches and terminology suggestions
 - **Pseudo-Translation**: Generate test translations to find UI issues
-- **Translation Memory**: Leverage previous translations for consistency
+
+### Using Terminology
+
+1. Click **"Terminology"** in the project view to import a termbase (CSV or JSON)
+2. In the editor, the **Context panel** shows matched terms with target suggestions for each block
+3. Terms with "preferred" status should be used consistently across all translations
+4. After translating, run the **term-enforce** flow to validate terminology compliance
 
 ## Step 3: Export Translations
 
@@ -79,6 +87,9 @@ kapi unpack acme-website.kaz --target-lang fr -o output/fr/
 
 ## Tips
 
+- **Start with TM Lookup** to auto-fill translations from previous projects
+- **Import terminology** before translating to ensure consistent term usage
+- **Use the Context panel** for per-block TM and terminology guidance
 - **Start with pseudo-translation** to identify potential UI truncation issues
 - **Use split preview** when translating content that appears in specific layouts
 - **Configure AI providers** in Settings → AI Providers for machine translation
@@ -88,4 +99,6 @@ kapi unpack acme-website.kaz --target-lang fr -o output/fr/
 
 - [AI Translation](/docs/user-guide/ai-translation)
 - [Translation Memory](/docs/user-guide/translation-memory)
+- [Terminology Management](/docs/user-guide/terminology)
+- [Bowrain Walkthroughs](/docs/bowrain/walkthroughs)
 - [CLI Reference](/docs/cli/demo-videos)

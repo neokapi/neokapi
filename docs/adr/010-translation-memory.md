@@ -82,7 +82,7 @@ Stored source Fragment: "John is a great guy working on gokapi"
 Derived keys:
   plain:        "John is a great guy working on gokapi"
   structural:   "{1} is a great guy working on {2}"
-  generalized:  "{PERSON} is a great guy working on {PRODUCT}"
+  generalized:  "\{PERSON\} is a great guy working on \{PRODUCT\}"
 ```
 
 | Key | How it's derived | What it enables |
@@ -92,8 +92,8 @@ Derived keys:
 | `generalized` | Entity Spans as typed placeholders, structural Spans as numbered | Maximum reuse — entities are interchangeable |
 
 The `generalized` key is the most powerful: "John works at Acme" and
-"Alice works at Globex" both generalize to "{PERSON} works at
-{ORGANIZATION}" — an exact match.
+"Alice works at Globex" both generalize to "\{PERSON\} works at
+\{ORGANIZATION\}" — an exact match.
 
 ### Tiered Matching Pipeline
 
