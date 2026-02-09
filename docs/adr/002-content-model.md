@@ -127,3 +127,5 @@ the full annotation data models.
   correct format identifier
 - The Annotation interface is open for extension — new annotation types can
   be added by tools without modifying the content model
+- `LocaleID` fields on Blocks and Layers hold BCP-47 tags validated by the
+  `core/locale` package (see ADR-017)

@@ -1,0 +1,151 @@
+import type { Page } from "@playwright/test";
+
+/**
+ * Select a single locale from a LocaleSelect component.
+ * The component has a trigger button that opens a dropdown with searchable options.
+ * Clicking an option automatically closes the dropdown.
+ */
+export async function selectLocale(page: Page, testId: string, code: string) {
+  await page.evaluate(
+    ({ testId }: { testId: string }) => {
+      const trigger = document.querySelector(
+        `[data-testid="${testId}-trigger"]`,
+      ) as HTMLElement;
+      if (trigger) trigger.click();
+    },
+    { testId },
+  );
+  await page.waitForTimeout(50);
+  await page.evaluate(
+    ({ testId, code }: { testId: string; code: string }) => {
+      const option = document.querySelector(
+        `[data-testid="${testId}-option-${code}"]`,
+      ) as HTMLElement;
+      if (option) option.click();
+    },
+    { testId, code },
+  );
+  await page.waitForTimeout(50);
+}
+
+/**
+ * Select multiple locales from a MultiLocaleSelect component.
+ * The dropdown stays open between selections (by design), so we
+ * dismiss it after all selections by clicking outside.
+ */
+export async function selectMultiLocales(
+  page: Page,
+  testId: string,
+  codes: string[],
+) {
+  // Open the dropdown
+  await page.evaluate(
+    ({ testId }: { testId: string }) => {
+      const chips = document.querySelector(
+        `[data-testid="${testId}-chips"]`,
+      ) as HTMLElement;
+      if (chips) chips.click();
+    },
+    { testId },
+  );
+  await page.waitForTimeout(50);
+
+  // Click each option in sequence
+  for (const code of codes) {
+    await page.evaluate(
+      ({ testId, code }: { testId: string; code: string }) => {
+        const option = document.querySelector(
+          `[data-testid="${testId}-option-${code}"]`,
+        ) as HTMLElement;
+        if (option) option.click();
+      },
+      { testId, code },
+    );
+    await page.waitForTimeout(50);
+  }
+
+  // Close the dropdown by dispatching a mousedown outside the wrapper
+  await page.evaluate(
+    ({ testId }: { testId: string }) => {
+      const wrapper = document.querySelector(
+        `[data-testid="${testId}"]`,
+      ) as HTMLElement;
+      // Dispatch mousedown on body, outside the wrapper, to trigger click-outside close
+      document.body.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true }),
+      );
+    },
+    { testId },
+  );
+  await page.waitForTimeout(50);
+}
+
+/**
+ * Select multiple locales with human-like typing for recordings.
+ */
+export async function selectMultiLocalesHuman(
+  page: Page,
+  testId: string,
+  codes: string[],
+  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+) {
+  for (const code of codes) {
+    // Click to open dropdown
+    const chips = page.getByTestId(`${testId}-chips`);
+    await chips.click();
+    await page.waitForTimeout(200);
+
+    // Type to search
+    const search = page.getByTestId(`${testId}-search`);
+    await humanTypeFn(page, search, code);
+    await page.waitForTimeout(200);
+
+    // Click option
+    await page.evaluate(
+      ({ testId, code }: { testId: string; code: string }) => {
+        const option = document.querySelector(
+          `[data-testid="${testId}-option-${code}"]`,
+        ) as HTMLElement;
+        if (option) option.click();
+      },
+      { testId, code },
+    );
+    await page.waitForTimeout(200);
+  }
+
+  // Close dropdown
+  await page.evaluate(() => {
+    document.body.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true }),
+    );
+  });
+  await page.waitForTimeout(100);
+}
+
+/**
+ * Select a single locale with human-like typing for recordings.
+ */
+export async function selectLocaleHuman(
+  page: Page,
+  testId: string,
+  code: string,
+  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+) {
+  await page.getByTestId(`${testId}-trigger`).click();
+  await page.waitForTimeout(200);
+
+  const search = page.getByTestId(`${testId}-search`);
+  await humanTypeFn(page, search, code);
+  await page.waitForTimeout(200);
+
+  await page.evaluate(
+    ({ testId, code }: { testId: string; code: string }) => {
+      const option = document.querySelector(
+        `[data-testid="${testId}-option-${code}"]`,
+      ) as HTMLElement;
+      if (option) option.click();
+    },
+    { testId, code },
+  );
+  await page.waitForTimeout(200);
+}

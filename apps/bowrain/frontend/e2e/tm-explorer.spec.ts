@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { selectMultiLocales } from "./locale-helper";
 
 async function createProjectAndOpenTM(page: any) {
   await injectMockBackend(page);
@@ -8,7 +9,7 @@ async function createProjectAndOpenTM(page: any) {
   // Create project
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("TM Test");
-  await page.getByTestId("target-langs-input").fill("fr,de");
+  await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
   // Wait for project view

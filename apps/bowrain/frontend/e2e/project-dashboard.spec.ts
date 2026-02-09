@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { selectLocale, selectMultiLocales } from "./locale-helper";
 
 test.beforeEach(async ({ page }) => {
   await injectMockBackend(page);
@@ -30,8 +31,8 @@ test("should open create project dialog", async ({ page }) => {
 test("should create a new project", async ({ page }) => {
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("My Test Project");
-  await page.getByTestId("source-lang-input").fill("en");
-  await page.getByTestId("target-langs-input").fill("fr, de");
+  await selectLocale(page, "source-lang-input", "en");
+  await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
   // Should navigate to project view
@@ -43,7 +44,7 @@ test("should navigate back from project view to dashboard", async ({ page }) => 
   // Create a project
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Test");
-  await page.getByTestId("target-langs-input").fill("fr");
+  await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
 
   // Should be in project view

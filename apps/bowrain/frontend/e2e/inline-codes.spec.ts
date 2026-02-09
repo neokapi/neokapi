@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { selectMultiLocales } from "./locale-helper";
 
 // Unicode markers matching the Go model
 const M_OPEN = "\uE001";
@@ -17,7 +18,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   // Create project
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Inline Test");
-  await page.getByTestId("target-langs-input").fill("fr, de");
+  await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 

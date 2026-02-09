@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ConvertResult } from "../types/api";
+import { LocaleSelect } from "./LocaleSelect";
 
 export function ConvertPanel() {
   const [inputPath, setInputPath] = useState("");
@@ -68,21 +69,18 @@ export function ConvertPanel() {
         <div style={{ display: "flex", gap: 12 }}>
           <label style={{ ...labelStyle, flex: 1 }}>
             Source Language
-            <input
-              type="text"
+            <LocaleSelect
               value={sourceLang}
-              onChange={(e) => setSourceLang(e.target.value)}
-              style={inputStyle}
+              onChange={setSourceLang}
+              data-testid="convert-source-lang"
             />
           </label>
           <label style={{ ...labelStyle, flex: 1 }}>
             Target Language
-            <input
-              type="text"
+            <LocaleSelect
               value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value)}
-              placeholder="fr"
-              style={inputStyle}
+              onChange={setTargetLang}
+              data-testid="convert-target-lang"
             />
           </label>
         </div>

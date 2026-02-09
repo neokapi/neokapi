@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Events } from "@wailsio/runtime";
 import type { ProjectInfo } from "../types/api";
+import { useLocales } from "../hooks/useLocale";
 
 interface ProjectViewProps {
   project: ProjectInfo;
@@ -25,6 +26,7 @@ export function ProjectView({
   onOpenTM,
   onOpenTerms,
 }: ProjectViewProps) {
+  const { getDisplayName } = useLocales();
   const dropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -91,7 +93,7 @@ export function ProjectView({
         </div>
         <div style={statStyle}>
           <div style={{ fontSize: 14, fontWeight: 600 }}>
-            {project.source_locale} &#8594; {project.target_locales.join(", ")}
+            {getDisplayName(project.source_locale)} &#8594; {project.target_locales.map(l => getDisplayName(l)).join(", ")}
           </div>
           <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>Languages</div>
         </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch } from "../types/api";
 import { useEditorApi, useProviderConfigs } from "../hooks/useApi";
+import { useLocales } from "../hooks/useLocale";
 import { DocumentPreview } from "./DocumentPreview";
 import { SourceCellDisplay } from "./editor/SourceCellDisplay";
 import { TargetCellEditor } from "./editor/TargetCellEditor";
@@ -58,6 +59,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
   const [contextLoading, setContextLoading] = useState(false);
   const [appliedTMIndex, setAppliedTMIndex] = useState<number | null>(null);
 
+  const { getDisplayName } = useLocales();
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
   const { configs: providerConfigs } = useProviderConfigs();
@@ -454,7 +456,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
         <span style={{ width: 40, textAlign: "center" }}>#</span>
         <span style={{ width: 16 }} />
         <span style={{ flex: 1 }}>Source</span>
-        <span style={{ flex: 1 }}>Target ({targetLocale})</span>
+        <span style={{ flex: 1 }}>Target ({getDisplayName(targetLocale)})</span>
       </div>
 
       {/* Block rows */}
@@ -662,7 +664,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
       <div style={focusCardStyle}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase" as const }}>
-            Target ({targetLocale})
+            Target ({getDisplayName(targetLocale)})
           </span>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={handleCopySource} style={{ ...toolBtnStyle, fontSize: 11, padding: "2px 8px" }} data-testid="focus-copy-source">
@@ -774,7 +776,7 @@ export function TranslationEditor({ project, fileName, onBack }: TranslationEdit
           data-testid="locale-selector"
         >
           {project.target_locales.map((l) => (
-            <option key={l} value={l}>{l}</option>
+            <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
           ))}
         </select>
         <button onClick={handleExport} disabled={loading} style={exportBtnStyle} data-testid="export-btn">

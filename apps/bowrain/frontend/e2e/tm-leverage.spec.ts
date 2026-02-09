@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { selectMultiLocales } from "./locale-helper";
 
 /** Helper: click by test ID using native DOM click. */
 function clickTestId(page: any, testId: string) {
@@ -18,7 +19,7 @@ async function openEditorWithTM(page: any) {
   // Create project
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("TM Leverage Test");
-  await page.getByTestId("target-langs-input").fill("fr");
+  await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 

@@ -19,6 +19,7 @@ const sidebars: SidebarsConfig = {
     '014-distributed-processing-architecture',
     '015-real-time-collaborative-editing',
     '016-terminology-and-brand-management',
+    '017-locale-handling',
   ],
 };
 

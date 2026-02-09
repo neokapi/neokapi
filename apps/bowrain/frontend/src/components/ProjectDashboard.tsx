@@ -1,5 +1,7 @@
 import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
+import { useLocales } from "../hooks/useLocale";
+import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 
 interface ProjectDashboardProps {
   projects: ProjectInfo[];
@@ -14,19 +16,19 @@ export function ProjectDashboard({
   onOpenProject,
   onOpenKaz,
 }: ProjectDashboardProps) {
+  const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [sourceLang, setSourceLang] = useState("en");
-  const [targetLangs, setTargetLangs] = useState("fr");
+  const [targetLangsList, setTargetLangsList] = useState<string[]>(["fr"]);
 
   const handleCreate = () => {
     if (!name.trim()) return;
-    const langs = targetLangs.split(",").map((l) => l.trim()).filter(Boolean);
-    if (langs.length === 0) return;
-    onCreateProject(name.trim(), sourceLang.trim(), langs);
+    if (targetLangsList.length === 0) return;
+    onCreateProject(name.trim(), sourceLang, targetLangsList);
     setShowCreate(false);
     setName("");
-    setTargetLangs("fr");
+    setTargetLangsList(["fr"]);
   };
 
   return (
@@ -62,22 +64,17 @@ export function ProjectDashboard({
             <div style={{ display: "flex", gap: 12 }}>
               <label style={{ ...labelStyle, flex: 1 }}>
                 Source Language
-                <input
-                  type="text"
+                <LocaleSelect
                   value={sourceLang}
-                  onChange={(e) => setSourceLang(e.target.value)}
-                  style={inputStyle}
+                  onChange={setSourceLang}
                   data-testid="source-lang-input"
                 />
               </label>
               <label style={{ ...labelStyle, flex: 1 }}>
                 Target Languages
-                <input
-                  type="text"
-                  value={targetLangs}
-                  onChange={(e) => setTargetLangs(e.target.value)}
-                  placeholder="fr, de, ja"
-                  style={inputStyle}
+                <MultiLocaleSelect
+                  value={targetLangsList}
+                  onChange={setTargetLangsList}
                   data-testid="target-langs-input"
                 />
               </label>
@@ -113,7 +110,7 @@ export function ProjectDashboard({
           >
             <h3 style={{ margin: "0 0 8px 0", fontSize: 16 }}>{p.name}</h3>
             <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
-              {p.source_locale} &#8594; {p.target_locales.join(", ")}
+              {getDisplayName(p.source_locale)} &#8594; {p.target_locales.map(l => getDisplayName(l)).join(", ")}
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {p.items.length} file{p.items.length !== 1 ? "s" : ""}

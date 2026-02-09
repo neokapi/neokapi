@@ -1,3 +1,9 @@
+/** BCP-47 locale info with display name */
+export interface LocaleInfo {
+  code: string;
+  display_name: string;
+}
+
 /** Data format descriptor */
 export interface FormatInfo {
   name: string;

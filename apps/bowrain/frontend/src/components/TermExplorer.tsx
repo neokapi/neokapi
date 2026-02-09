@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTermsApi } from "../hooks/useApi";
 import type { ProjectInfo, ConceptInfo, TermInfo } from "../types/api";
+import { useLocales } from "../hooks/useLocale";
 
 interface TermExplorerProps {
   project: ProjectInfo;
@@ -12,6 +13,7 @@ const PAGE_SIZE = 50;
 const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprecated", "forbidden"];
 
 export function TermExplorer({ project, onBack }: TermExplorerProps) {
+  const { getDisplayName } = useLocales();
   const termsApi = useTermsApi();
   const [concepts, setConcepts] = useState<ConceptInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -245,7 +247,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           data-testid="term-source-locale-filter"
         >
           <option value="">All source locales</option>
-          {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
+          {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
         <select
           value={targetLocaleFilter}
@@ -254,7 +256,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
           data-testid="term-target-locale-filter"
         >
           <option value="">All target locales</option>
-          {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
+          {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
         <div style={{ flex: 1 }} />
         <button onClick={handleImportCSV} style={toolBtnStyle} data-testid="term-import-csv-btn">Import CSV</button>
@@ -299,7 +301,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                 onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "locale", e.target.value)}
                 style={{ ...selectStyle, flex: 1 }}
               >
-                {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
+                {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
               </select>
               <select
                 value={term.status}
@@ -385,7 +387,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                             }}
                             style={{ ...selectStyle, width: 60 }}
                           >
-                            {allLocales.map((l) => <option key={l} value={l}>{l}</option>)}
+                            {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
                           </select>
                           <select
                             value={term.status}
@@ -426,7 +428,7 @@ export function TermExplorer({ project, onBack }: TermExplorerProps) {
                       {concept.terms.map((term, idx) => (
                         <div key={idx} style={{ marginBottom: 2 }}>
                           <span style={{ fontWeight: term.status === "preferred" ? 600 : 400 }}>{term.text}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 4 }}>[{term.locale}]</span>
+                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 4 }}>[{getDisplayName(term.locale)}]</span>
                           {" "}
                           {statusBadge(term.status)}
                           {term.note && <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 4 }}>({term.note})</span>}

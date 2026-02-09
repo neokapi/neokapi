@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { TranslateResult } from "../types/api";
+import { LocaleSelect } from "./LocaleSelect";
 
 export function TranslatePanel() {
   const [inputPath, setInputPath] = useState("");
@@ -74,21 +75,18 @@ export function TranslatePanel() {
         <div style={{ display: "flex", gap: 12 }}>
           <label style={{ ...labelStyle, flex: 1 }}>
             Source
-            <input
-              type="text"
+            <LocaleSelect
               value={sourceLang}
-              onChange={(e) => setSourceLang(e.target.value)}
-              style={inputStyle}
+              onChange={setSourceLang}
+              data-testid="translate-source-lang"
             />
           </label>
           <label style={{ ...labelStyle, flex: 1 }}>
             Target
-            <input
-              type="text"
+            <LocaleSelect
               value={targetLang}
-              onChange={(e) => setTargetLang(e.target.value)}
-              placeholder="fr"
-              style={inputStyle}
+              onChange={setTargetLang}
+              data-testid="translate-target-lang"
             />
           </label>
         </div>

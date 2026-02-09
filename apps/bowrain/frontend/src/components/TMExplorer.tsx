@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useTMApi } from "../hooks/useApi";
 import type { ProjectInfo, TMEntryInfo } from "../types/api";
+import { useLocales } from "../hooks/useLocale";
 
 interface TMExplorerProps {
   project: ProjectInfo;
@@ -10,6 +11,7 @@ interface TMExplorerProps {
 const PAGE_SIZE = 50;
 
 export function TMExplorer({ project, onBack }: TMExplorerProps) {
+  const { getDisplayName } = useLocales();
   const tmApi = useTMApi();
   const [entries, setEntries] = useState<TMEntryInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -186,7 +188,7 @@ export function TMExplorer({ project, onBack }: TMExplorerProps) {
               data-testid="tm-add-source-locale"
             >
               {allLocales.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
               ))}
             </select>
             <select
@@ -196,7 +198,7 @@ export function TMExplorer({ project, onBack }: TMExplorerProps) {
               data-testid="tm-add-target-locale"
             >
               {allLocales.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
               ))}
             </select>
             <button onClick={handleAdd} style={saveBtnStyle} data-testid="tm-add-submit">
@@ -234,7 +236,7 @@ export function TMExplorer({ project, onBack }: TMExplorerProps) {
         >
           <option value="">All source locales</option>
           {allLocales.map((l) => (
-            <option key={l} value={l}>{l}</option>
+            <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
           ))}
         </select>
         <select
@@ -248,7 +250,7 @@ export function TMExplorer({ project, onBack }: TMExplorerProps) {
         >
           <option value="">All target locales</option>
           {allLocales.map((l) => (
-            <option key={l} value={l}>{l}</option>
+            <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
           ))}
         </select>
       </div>
@@ -308,8 +310,8 @@ export function TMExplorer({ project, onBack }: TMExplorerProps) {
                       entry.target
                     )}
                   </td>
-                  <td style={tdStyle}>{entry.source_locale}</td>
-                  <td style={tdStyle}>{entry.target_locale}</td>
+                  <td style={tdStyle}>{getDisplayName(entry.source_locale)}</td>
+                  <td style={tdStyle}>{getDisplayName(entry.target_locale)}</td>
                   <td style={tdStyle}>
                     {new Date(entry.updated_at).toLocaleDateString()}
                   </td>

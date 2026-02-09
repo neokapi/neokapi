@@ -73,3 +73,5 @@ is stale compared to the master and offers to refresh it.
 - The Bowrain desktop app uses .kaz as its native project format
 - Optional terminology snapshot enables fully offline terminology-aware
   editing
+- Manifest locale fields (`source_locale`, `target_locales`) store BCP-47
+  tags in canonical form (see ADR-017)

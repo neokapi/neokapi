@@ -412,3 +412,4 @@ Redaction for privacy remains a separate, orthogonal pipeline tool
   `internal/storage/` reduces code duplication
 - The `entity-annotate` tool (ADR-016) is the single source of entity
   information for both TM generalization and terminology management
+- TM entry locale columns store BCP-47 tags in canonical form (see ADR-017)

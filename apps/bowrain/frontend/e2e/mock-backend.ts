@@ -140,6 +140,8 @@ export async function injectMockBackend(page: Page) {
       ExportTermsJSON: 166152904,
       ExportTranslatedFile: 2327530811,
       GetFileBlocks: 711926175,
+      GetKnownLocales: 3316047929,
+      GetLocaleDisplayName: 804882882,
       GetFlowDefinition: 2095856838,
       GetInitialProject: 4269707510,
       GetProject: 1329939084,
@@ -278,6 +280,68 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.PluginDir] = () => "~/.kapi/plugins";
     mock[IDS.SetApplication] = () => {};
     mock[IDS.GetInitialProject] = () => "";
+
+    // Locale handlers
+    const knownLocales = [
+      { code: "af", display_name: "Afrikaans" },
+      { code: "ar", display_name: "Arabic" },
+      { code: "bg", display_name: "Bulgarian" },
+      { code: "bn", display_name: "Bengali" },
+      { code: "pt-BR", display_name: "Brazilian Portuguese" },
+      { code: "ca", display_name: "Catalan" },
+      { code: "cs", display_name: "Czech" },
+      { code: "da", display_name: "Danish" },
+      { code: "nl", display_name: "Dutch" },
+      { code: "en", display_name: "English" },
+      { code: "et", display_name: "Estonian" },
+      { code: "fi", display_name: "Finnish" },
+      { code: "fr", display_name: "French" },
+      { code: "de", display_name: "German" },
+      { code: "el", display_name: "Greek" },
+      { code: "gu", display_name: "Gujarati" },
+      { code: "he", display_name: "Hebrew" },
+      { code: "hi", display_name: "Hindi" },
+      { code: "hr", display_name: "Croatian" },
+      { code: "hu", display_name: "Hungarian" },
+      { code: "id", display_name: "Indonesian" },
+      { code: "it", display_name: "Italian" },
+      { code: "ja", display_name: "Japanese" },
+      { code: "kn", display_name: "Kannada" },
+      { code: "ko", display_name: "Korean" },
+      { code: "lt", display_name: "Lithuanian" },
+      { code: "lv", display_name: "Latvian" },
+      { code: "ml", display_name: "Malayalam" },
+      { code: "mr", display_name: "Marathi" },
+      { code: "ms", display_name: "Malay" },
+      { code: "nb", display_name: "Norwegian Bokm\u00e5l" },
+      { code: "fa", display_name: "Persian" },
+      { code: "pl", display_name: "Polish" },
+      { code: "pt", display_name: "Portuguese" },
+      { code: "ro", display_name: "Romanian" },
+      { code: "ru", display_name: "Russian" },
+      { code: "sr", display_name: "Serbian" },
+      { code: "zh-Hans", display_name: "Simplified Chinese" },
+      { code: "sk", display_name: "Slovak" },
+      { code: "sl", display_name: "Slovenian" },
+      { code: "es", display_name: "Spanish" },
+      { code: "sw", display_name: "Swahili" },
+      { code: "sv", display_name: "Swedish" },
+      { code: "ta", display_name: "Tamil" },
+      { code: "te", display_name: "Telugu" },
+      { code: "th", display_name: "Thai" },
+      { code: "zh-Hant", display_name: "Traditional Chinese" },
+      { code: "tr", display_name: "Turkish" },
+      { code: "uk", display_name: "Ukrainian" },
+      { code: "ur", display_name: "Urdu" },
+      { code: "vi", display_name: "Vietnamese" },
+      { code: "zh", display_name: "Chinese" },
+    ];
+
+    mock[IDS.GetKnownLocales] = () => knownLocales;
+    mock[IDS.GetLocaleDisplayName] = (code: string) => {
+      const found = knownLocales.find((l: any) => l.code === code);
+      return found ? found.display_name : code;
+    };
 
     mock[IDS.CreateProject] = (name: string, sourceLang: string, targetLangs: string[]) => {
       const id = `project-${++projectCounter}`;

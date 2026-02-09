@@ -118,3 +118,5 @@ project format. Projects can be opened from the CLI via
 - Wails auto-generates TypeScript bindings from Go method signatures
 - Hot reload in development via `wails3 dev`
 - Playwright E2E tests validate UI workflows in CI
+- Locale selectors show friendly names via the `core/locale` package
+  (see ADR-017)

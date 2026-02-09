@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
+import { selectMultiLocales } from "./locale-helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
 
@@ -44,7 +45,7 @@ async function seedDashboard(page: any) {
   for (const def of projectDefs) {
     await page.getByTestId("new-project-btn").click();
     await page.getByTestId("project-name-input").fill(def.name);
-    await page.getByTestId("target-langs-input").fill(def.targets);
+    await selectMultiLocales(page, "target-langs-input", def.targets.split(",").map(s => s.trim()));
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
@@ -73,7 +74,7 @@ async function openProjectView(page: any) {
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
-  await page.getByTestId("target-langs-input").fill("fr, de, ja");
+  await selectMultiLocales(page, "target-langs-input", ["fr", "de", "ja"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
@@ -110,7 +111,7 @@ async function openEditor(page: any) {
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
-  await page.getByTestId("target-langs-input").fill("fr, de");
+  await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
@@ -204,7 +205,7 @@ test.describe("Screenshots", () => {
     // Create project
     await page.getByTestId("new-project-btn").click();
     await page.getByTestId("project-name-input").fill("Website Redesign");
-    await page.getByTestId("target-langs-input").fill("fr, de");
+    await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("back-to-projects")).toBeVisible();
 

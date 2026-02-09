@@ -11,6 +11,7 @@ import (
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
 	"github.com/gokapi/gokapi/core/config"
+	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/version"
 	"github.com/gokapi/gokapi/core/credentials"
 	"github.com/gokapi/gokapi/core/flow"
@@ -206,6 +207,16 @@ type ConvertResult struct {
 type TranslateResult struct {
 	OutputPath string `json:"output_path"`
 	BlockCount int    `json:"block_count"`
+}
+
+// GetKnownLocales returns a curated list of well-known BCP-47 locales with display names.
+func (a *App) GetKnownLocales() []locale.LocaleInfo {
+	return locale.WellKnownLocales()
+}
+
+// GetLocaleDisplayName returns the English display name for a BCP-47 locale code.
+func (a *App) GetLocaleDisplayName(code string) string {
+	return locale.DisplayName(model.LocaleID(code))
 }
 
 // ListFormats returns all registered formats with metadata.
