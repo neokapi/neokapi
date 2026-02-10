@@ -340,7 +340,7 @@ package config
 
 // AppConfig holds application-level configuration with layered lookup.
 type AppConfig struct {
-    // internal config store
+    v *viper.Viper
 }
 
 func NewAppConfig() *AppConfig {
