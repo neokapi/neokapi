@@ -49,16 +49,17 @@ gokapi automatically detects formats using a cascade strategy:
 2. File extension mapping
 3. Magic bytes / content sniffing
 
-```bash
-# Auto-detect format
-kapi convert input.html -o output.xliff
-
-# Override format detection
-kapi convert input.txt --format markdown -o output.xliff
-```
+You can override detection with the `--format` flag on any command.
 
 ## Listing Formats
 
 ```bash
-kapi formats list
+kapi formats
+```
+
+Use `--mime` or `--ext` to filter:
+
+```bash
+kapi formats --mime text/html
+kapi formats --ext .docx
 ```

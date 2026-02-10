@@ -36,13 +36,13 @@ mt:
 
 ## Usage
 
-```bash
-# Translate using DeepL
-kapi translate input.html -o output.html -s en -t de --mt deepl
+MT services are available as pipeline tools via `kapi flow run`. Configure the desired service in `gokapi.yaml` and use flows to translate documents:
 
-# Translate using Google
-kapi translate input.json -o output.json -s en -t ja --mt google
+```bash
+kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang de
 ```
+
+The MT provider is selected based on your configuration. See [Configuration](/docs/user-guide/configuration) for details.
 
 ## Comparison with AI Translation
 

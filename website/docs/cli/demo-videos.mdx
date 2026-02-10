@@ -54,14 +54,8 @@ This demo will be auto-generated once the TM CLI end-to-end test is added.
 :::
 
 ```bash
-# Import TMX file
-kapi tm import --db project.tm translations.tmx
-
-# Export TM as TMX
-kapi tm export --db project.tm -o output.tmx
-
-# Look up a segment in the TM
-kapi tm lookup --db project.tm "Welcome to our platform" -s en -t fr
+# Leverage TM in a translation flow
+kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Terminology Management
@@ -98,17 +92,11 @@ This demo will be auto-generated once the terminology-aware flow end-to-end test
 :::
 
 ```bash
-# Translation flow with terminology lookup
-kapi flow run --input docs/ --output out/ \
-  --tools term-lookup,tm-leverage,ai-translate \
-  -s en -t fr \
-  --termbase project.tb
+# AI translation flow
+kapi flow run ai-translate -i docs/input.html -o out/output.html --source-lang en --target-lang fr
 
-# Post-translation terminology enforcement
-kapi flow run --input translated/ --output qa/ \
-  --tools term-enforce \
-  -s en -t fr \
-  --termbase project.tb
+# Translation + quality assurance flow
+kapi flow run ai-translate-qa -i docs/input.html -o out/output.html --source-lang en --target-lang fr
 ```
 
 ## Project Workflow

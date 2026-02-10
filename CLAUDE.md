@@ -27,6 +27,12 @@ make proto              # Generate gRPC code from protobuf definitions
 
 Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
+**Web UI (embedded in kapi serve):**
+```bash
+make web-deps                        # npm install for web UI
+make web-build                       # Build web UI → apps/web/dist/
+```
+
 **Bowrain (desktop GUI):**
 ```bash
 cd apps/bowrain && wails3 build       # Build native macOS/Linux/Windows app
@@ -40,6 +46,10 @@ make frontend-build                   # Production frontend build
 cd website && npm start              # Dev server with hot reload
 cd website && npm run build          # Production build → website/build/
 ```
+
+## Build Conventions
+
+Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make build` requires `make web-build` first for the embedded web UI) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
 
 ## Architecture
 

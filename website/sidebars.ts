@@ -19,11 +19,7 @@ const sidebars: SidebarsConfig = {
           type: 'category',
           label: 'CLI Reference',
           items: [
-            'user-guide/cli/convert',
-            'user-guide/cli/translate',
-            'user-guide/cli/extract-merge',
             'user-guide/cli/flow',
-            'user-guide/cli/pack-unpack',
             'user-guide/cli/plugins',
             'user-guide/cli/connect',
             'user-guide/cli/store',

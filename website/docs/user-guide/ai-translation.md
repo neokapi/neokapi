@@ -49,20 +49,14 @@ export ANTHROPIC_API_KEY=sk-...
 ### Translate a file
 
 ```bash
-kapi translate input.html -o output.html -s en -t fr --provider anthropic
+kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
-### Use in a flow
-
-AI tools compose naturally in flows with other tools:
+### Translate and quality-check
 
 ```bash
-kapi flow run --input docs/ --output out/ \
-  --tools segmentation,tm-leverage,ai-translate,ai-qa \
-  -s en -t fr
+kapi flow run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
-
-The ordering matters: TM leverage before AI translation avoids retranslating exact matches, reducing cost and improving consistency.
 
 ## Prompt Engineering
 

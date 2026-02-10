@@ -10,97 +10,67 @@ Run multi-step processing flows.
 ## Synopsis
 
 ```bash
-kapi flow run --input <path> --output <path> --tools <tool1,tool2,...> [flags]
+kapi flow run <flow-name> -i <path> [-o <path>] [flags]
+kapi flow list
 ```
 
 ## Description
 
-The `flow` command orchestrates a sequence of tools into a processing pipeline. Documents are read, streamed through each tool in order, and written to the output. Multiple documents can be processed in parallel.
+The `flow run` command executes a named processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
+
+Use `flow list` to see available built-in flows.
 
 ## Examples
 
 ```bash
-# Translation flow with TM and AI
-kapi flow run --input docs/ --output out/ \
-  --tools segmentation,tm-leverage,ai-translate \
-  -s en -t fr
+# Translate with AI
+kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
-# Translation flow with terminology lookup, TM, and AI
-kapi flow run --input docs/ --output out/ \
-  --tools term-lookup,tm-leverage,ai-translate \
-  -s en -t fr \
-  --termbase project.tb
+# Translate then quality-check
+kapi flow run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
-# Post-translation terminology enforcement
-kapi flow run --input translated/ --output qa/ \
-  --tools term-enforce \
-  -s en -t fr \
-  --termbase project.tb
+# Pseudo-translate for testing
+kapi flow run pseudo-translate -i input.html -o output.html --target-lang fr
 
-# Word count flow
-kapi flow run --input docs/ \
-  --tools wordcount \
-  -s en
+# Process multiple files in parallel
+kapi flow run ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
 
-# Quality assurance flow
-kapi flow run --input translations/ --output qa-report/ \
-  --tools ai-qa \
-  -s en -t fr
+# Leverage translation memory
+kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
 
-# Multi-tool flow with parallelism
-kapi flow run --input docs/ --output out/ \
-  --tools segmentation,tm-leverage,ai-translate,ai-qa \
-  -s en -t fr \
-  --concurrency 8
+# Run quality checks
+kapi flow run qa-check -i translations.html -o qa-report.html --target-lang fr
+
+# List available flows
+kapi flow list
 ```
 
-## Flags
+## Flags (flow run)
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--input` | `-i` | Input file or directory (required) |
-| `--output` | `-o` | Output file or directory |
-| `--tools` | | Comma-separated list of tools |
-| `--source-lang` | `-s` | Source language |
-| `--target-lang` | `-t` | Target language |
-| `--concurrency` | | Max parallel documents (default: CPU count) |
-| `--channel-size` | | Channel buffer size (default: 64) |
-| `--tm` | | Translation memory database path (for tm-leverage tool) |
-| `--termbase` | | Termbase database path (for term-lookup, term-enforce tools) |
-| `--fail-fast` | | Stop on first error (default: true) |
+| `--input` | `-i` | Input file path(s); repeat for multiple files (required) |
+| `--output` | `-o` | Output file path (single-file mode only) |
+| `--concurrency` | `-j` | Max parallel documents (0 = auto, 1 = sequential) |
+| `--provider` | | LLM provider: anthropic, openai, ollama (default: anthropic) |
+| `--api-key` | | API key for LLM provider |
+| `--model` | | LLM model name |
+| `--source-lang` | | Source language, BCP 47 (default: en) |
+| `--target-lang` | | Target language, BCP 47 (required) |
 
 ## Built-in Flows
 
-gokapi ships with five built-in flow definitions:
-
-| Flow | Description | Tools |
-|------|-------------|-------|
-| `ai-translate` | Translate content using AI/LLM | ai-translate |
-| `ai-translate-qa` | Translate then quality check | ai-translate, ai-qa |
-| `pseudo-translate` | Generate pseudo-translations for testing | pseudo-translate |
-| `qa-check` | Run rule-based quality checks on translations | qa-check |
-| `tm-leverage` | Pre-fill translations from translation memory | tm-leverage |
-| `term-lookup-translate` | Annotate terms then translate with AI | term-lookup, ai-translate |
-| `term-enforce` | Check translations for correct terminology | term-enforce |
-
-Run a built-in flow by name:
-
-```bash
-kapi flow run --flow ai-translate-qa --input docs/ --output out/ -s en -t fr
-```
-
-## Flow Definitions
-
-Flow definitions describe a processing graph with nodes and edges:
-
-- **Nodes** represent processing steps: `reader` (input), `tool` (processing), `writer` (output)
-- **Edges** define the data flow direction between nodes
-- Flows are validated for cycles and dangling references before execution
-
-User-created flows are stored as JSON files in `~/.config/gokapi/flows/` and can be edited visually in the Bowrain desktop app.
+| Flow | Description |
+|------|-------------|
+| `ai-translate` | Translate content using AI/LLM |
+| `ai-translate-qa` | Translate then quality check using AI/LLM |
+| `pseudo-translate` | Generate pseudo-translations for testing |
+| `qa-check` | Run rule-based quality checks on translations |
+| `tm-leverage` | Pre-fill translations from translation memory |
+| `segmentation` | Split source text into sentence segments |
 
 ## Listing Available Tools
 
 ```bash
-kapi tools list
+kapi tools
 ```

@@ -32,26 +32,13 @@ Sievepen uses Levenshtein edit distance with a configurable threshold (default 7
 
 ## Pipeline Integration
 
-The `tm-leverage` tool queries the TM for each Block's source segments and applies matches:
+The `tm-leverage` flow queries the TM for each Block's source segments and applies matches:
 
 ```bash
-kapi flow run --input docs/ --output out/ \
-  --tools tm-leverage,ai-translate \
-  -s en -t fr \
-  --tm translations.tmx
+kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches are attached as `AltTranslation` annotations for translator review.
-
-## TMX Import/Export
-
-```bash
-# Import TMX file into a project TM
-kapi tm import translations.tmx
-
-# Export project TM as TMX
-kapi tm export -o project-tm.tmx
-```
 
 ## Bowrain Integration
 
@@ -62,19 +49,6 @@ In Bowrain, each project has its own in-memory TM that persists in the `.kaz` pr
 3. **Context Panel**: Click "Context" in the editor toolbar to see per-block TM matches. Each match shows the source, target, match score, and match type. Click "Apply" to insert a match into the current block.
 
 TM entries are automatically saved when you save the project and restored when you open it.
-
-## CLI Usage
-
-```bash
-# Import TMX into a SQLite TM database
-kapi tm import --db project.tm translations.tmx
-
-# Export TM as TMX
-kapi tm export --db project.tm -o output.tmx
-
-# Lookup a term in the TM
-kapi tm lookup --db project.tm "Welcome to our website" -s en -t fr
-```
 
 ## Configuration
 

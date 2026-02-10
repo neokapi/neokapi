@@ -100,27 +100,11 @@ Two pipeline tools integrate terminology into the translation workflow:
 
 ### Term Lookup Tool
 
-The `term-lookup` tool scans source text in each Block and annotates it with matched terminology:
-
-```bash
-kapi flow run --input docs/ --output out/ \
-  --tools term-lookup,ai-translate \
-  -s en -t fr \
-  --termbase project.tb
-```
-
-Matched terms are attached as `TermAnnotation` entries on the Block, providing source term, target suggestions, positions, and status information.
+The `term-lookup` tool scans source text in each Block and annotates it with matched terminology. Matched terms are attached as `TermAnnotation` entries on the Block, providing source term, target suggestions, positions, and status information.
 
 ### Term Enforce Tool
 
-The `term-enforce` tool checks that translated blocks use the correct terminology:
-
-```bash
-kapi flow run --input translated/ --output qa/ \
-  --tools term-enforce \
-  -s en -t fr \
-  --termbase project.tb
-```
+The `term-enforce` tool checks that translated blocks use the correct terminology.
 
 Violations are reported as block properties (`term-enforce-errors`, `term-enforce-violations`) and as annotations with details about expected vs. actual term usage.
 

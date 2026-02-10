@@ -9,13 +9,13 @@ This guide walks through a complete workflow for translating website content usi
 
 ## Overview
 
-1. **CLI**: Create a translation project from source files
-2. **Bowrain**: Open and translate with visual tools
-3. **CLI**: Export translated files
+1. **CLI**: Check word count for cost estimation
+2. **Bowrain / Web UI**: Create project, translate with visual tools
+3. **CLI**: Export translated project as a KAZ archive
 
-## Step 1: Create Project with kapi
+## Step 1: Estimate and Open
 
-First, use the CLI to pack your source files into a translation project:
+Use the CLI for estimation and to launch the web editor:
 
 <video controls width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/cli/create-project.webm" type="video/webm" />
@@ -23,21 +23,12 @@ First, use the CLI to pack your source files into a translation project:
 </video>
 
 ```bash
-# Check word count for estimation
+# Check word count for cost estimation
 kapi word-count landing-page.html
 
-# Create a .kaz translation project
-kapi pack -i landing-page.html \
-  --source-lang en \
-  --target-lang fr,de \
-  -o acme-website.kaz
+# Open a project in the web editor
+kapi serve project.kaz
 ```
-
-The `.kaz` file contains:
-- Original source files
-- Extracted translatable blocks
-- Preview HTML for visual context
-- Project metadata
 
 ## Step 2: Translate in Bowrain
 
@@ -75,14 +66,11 @@ Bowrain offers multiple views for different translation tasks:
 
 ## Step 3: Export Translations
 
-After translation, export the localized files:
+After translation, export the project from the content store:
 
 ```bash
-# Unpack translated files
-kapi unpack acme-website.kaz -o output/
-
-# Or export specific language
-kapi unpack acme-website.kaz --target-lang fr -o output/fr/
+# Export a project as a KAZ archive
+kapi store export <project-id> acme-website.kaz --store gokapi.db
 ```
 
 ## Tips

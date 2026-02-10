@@ -62,10 +62,10 @@ export GOKAPI_FLOW_CHANNELBUFFER=128
 CLI flags override all other configuration sources:
 
 ```bash
-kapi translate input.html -o output.html \
+kapi flow run ai-translate -i input.html -o output.html \
   --provider anthropic \
   --model claude-sonnet-4-20250514 \
-  -s en -t fr
+  --source-lang en --target-lang fr
 ```
 
 ## Config File Locations

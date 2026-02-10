@@ -62,7 +62,7 @@ The Okapi Java bridge plugin provides access to 40+ Okapi format filters:
 kapi plugins install okapi
 ```
 
-Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats list`.
+Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats`.
 
 ## Version Pinning
 

@@ -7,56 +7,56 @@ title: Quick Start
 
 This guide walks through basic usage of the `kapi` CLI.
 
-## Convert a Document
-
-Convert an HTML file to XLIFF for translation:
-
-```bash
-kapi convert input.html -o output.xliff -s en -t fr
-```
-
 ## Translate with AI
 
-Translate a file using an AI provider:
+Translate a file using a built-in AI flow:
 
 ```bash
-kapi translate input.html -o output.html -s en -t fr --provider anthropic
+kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
-## Extract and Merge
+## Pseudo-Translate for Testing
 
-Extract translatable content to XLIFF, translate externally, then merge back:
+Generate pseudo-translations to test UI for truncation and RTL issues:
 
 ```bash
-# Extract
-kapi extract input.html -o translations.xliff -s en -t fr
-
-# ... translate translations.xliff with your preferred tool ...
-
-# Merge translations back
-kapi merge translations.xliff -o output.html
+kapi pseudo-translate input.json --target-lang fr
 ```
 
-## Run a Flow
+## Word Count
 
-Define a multi-step processing flow:
+Estimate translation costs:
 
 ```bash
-kapi flow run --input docs/ --output out/ \
-  --tools segmentation,tm-leverage,ai-translate \
-  -s en -t fr
+kapi word-count docs/*.html
+```
+
+## Run a Multi-Step Flow
+
+Use a flow that translates and then quality-checks the result:
+
+```bash
+kapi flow run ai-translate-qa -i docs/input.html -o out/output.html --source-lang en --target-lang fr
 ```
 
 ## List Supported Formats
 
 ```bash
-kapi formats list
+kapi formats
 ```
 
 ## List Available Tools
 
 ```bash
-kapi tools list
+kapi tools
+```
+
+## Open in the Web Editor
+
+Start a local web UI for a project:
+
+```bash
+kapi serve project.kaz
 ```
 
 ## Configuration
