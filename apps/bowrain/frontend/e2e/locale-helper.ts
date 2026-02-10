@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 
 /**
  * Select a single locale from a LocaleSelect component.
@@ -148,4 +148,84 @@ export async function selectLocaleHuman(
     { testId, code },
   );
   await page.waitForTimeout(200);
+}
+
+/**
+ * Remove all existing locale chips from a MultiLocaleSelect component.
+ */
+export async function clearMultiLocales(page: Page, testId: string) {
+  const removed = await page.evaluate(
+    ({ testId }: { testId: string }) => {
+      const buttons = document.querySelectorAll(
+        `[data-testid^="${testId}-remove-"]`,
+      );
+      // Click in reverse order so indices stay stable
+      const arr = Array.from(buttons) as HTMLElement[];
+      for (let i = arr.length - 1; i >= 0; i--) {
+        arr[i].click();
+      }
+      return arr.length;
+    },
+    { testId },
+  );
+  if (removed > 0) {
+    await page.waitForTimeout(50);
+  }
+}
+
+/**
+ * Set exact locales on a MultiLocaleSelect: clears existing chips, then adds the desired ones.
+ */
+export async function setMultiLocales(
+  page: Page,
+  testId: string,
+  codes: string[],
+) {
+  await clearMultiLocales(page, testId);
+  await selectMultiLocales(page, testId, codes);
+}
+
+/**
+ * Set exact locales with human-like typing for recordings.
+ * Clears existing chips visually, then adds the desired ones.
+ */
+export async function setMultiLocalesHuman(
+  page: Page,
+  testId: string,
+  codes: string[],
+  humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
+) {
+  await clearMultiLocales(page, testId);
+  await selectMultiLocalesHuman(page, testId, codes, humanTypeFn);
+}
+
+/**
+ * Assert that exactly the given locale chips are visible.
+ */
+export async function expectLocaleChips(
+  page: Page,
+  testId: string,
+  codes: string[],
+) {
+  for (const code of codes) {
+    await expect(
+      page.getByTestId(`${testId}-remove-${code}`),
+    ).toBeVisible();
+  }
+  // Ensure no extra chips exist
+  const count = await page.locator(`[data-testid^="${testId}-remove-"]`).count();
+  expect(count).toBe(codes.length);
+}
+
+/**
+ * Assert that a single-locale trigger displays the expected locale.
+ */
+export async function expectSourceLocale(
+  page: Page,
+  testId: string,
+  code: string,
+) {
+  await expect(
+    page.getByTestId(`${testId}-trigger`),
+  ).toContainText(code, { ignoreCase: true });
 }

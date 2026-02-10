@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
 import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo } from "./cursor-helper";
-import { selectMultiLocales, selectMultiLocalesHuman } from "./locale-helper";
+import { setMultiLocales, setMultiLocalesHuman, expectLocaleChips } from "./locale-helper";
 import { injectWindowChrome } from "./window-chrome";
 
 // Skip recording tests in CI - they use human-speed typing and exceed CI timeouts
@@ -66,7 +66,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     // Fill in target languages
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr", "de", "ja"]);
     await pause(page, 400);
 
     // Create project
@@ -109,7 +110,7 @@ describeOrSkip("Video Recordings", () => {
     // Create project with Norwegian as target
     await page.getByTestId("new-project-btn").click();
     await page.getByTestId("project-name-input").fill("Company Website");
-    await selectMultiLocales(page, "target-langs-input", ["nb"]);
+    await setMultiLocales(page, "target-langs-input", ["nb"]);
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
@@ -311,9 +312,10 @@ describeOrSkip("Video Recordings", () => {
     
     await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
     await pause(page, 300);
-    
+
     await humanClick(page, page.getByTestId("create-project-submit"));
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
@@ -383,9 +385,10 @@ describeOrSkip("Video Recordings", () => {
     
     await humanType(page, page.getByTestId("project-name-input"), "Documentation");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
     await pause(page, 300);
-    
+
     await humanClick(page, page.getByTestId("create-project-submit"));
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
@@ -493,7 +496,8 @@ describeOrSkip("Video Recordings", () => {
     
     await humanType(page, page.getByTestId("project-name-input"), "Product Launch");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr", "de"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -579,7 +583,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Website Translation");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -665,7 +670,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Software Docs");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -782,7 +788,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Web Application");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -874,7 +881,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr", "de"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -890,7 +898,8 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("project-name-input")).toBeVisible();
     await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["es", "ja"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["es", "ja"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["es", "ja"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -1009,7 +1018,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Website Redesign");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr", "de", "ja"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -1048,7 +1058,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2.0");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["es"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["es"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["es"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));
@@ -1074,7 +1085,8 @@ describeOrSkip("Video Recordings", () => {
 
     await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
     await pause(page, 200);
-    await selectMultiLocalesHuman(page, "target-langs-input", ["ko"], humanType);
+    await setMultiLocalesHuman(page, "target-langs-input", ["ko"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["ko"]);
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("create-project-submit"));

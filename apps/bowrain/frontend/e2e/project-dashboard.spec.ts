@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
-import { selectLocale, selectMultiLocales } from "./locale-helper";
+import { selectLocale, selectMultiLocales, setMultiLocales, expectLocaleChips } from "./locale-helper";
 
 test.beforeEach(async ({ page }) => {
   await injectMockBackend(page);
@@ -26,13 +26,16 @@ test("should open create project dialog", async ({ page }) => {
   await expect(page.getByTestId("project-name-input")).toBeVisible();
   await expect(page.getByTestId("source-lang-input")).toBeVisible();
   await expect(page.getByTestId("target-langs-input")).toBeVisible();
+  // Verify default locale chip is present
+  await expectLocaleChips(page, "target-langs-input", ["fr"]);
 });
 
 test("should create a new project", async ({ page }) => {
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("My Test Project");
   await selectLocale(page, "source-lang-input", "en");
-  await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
+  await setMultiLocales(page, "target-langs-input", ["fr", "de"]);
+  await expectLocaleChips(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
 
   // Should navigate to project view
@@ -41,10 +44,10 @@ test("should create a new project", async ({ page }) => {
 });
 
 test("should navigate back from project view to dashboard", async ({ page }) => {
-  // Create a project
+  // Create a project (default "fr" chip is already present)
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Test");
-  await selectMultiLocales(page, "target-langs-input", ["fr"]);
+  await expectLocaleChips(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
 
   // Should be in project view
