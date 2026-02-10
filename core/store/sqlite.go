@@ -138,7 +138,7 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO blocks (id, project_id, name, type, mime_type, translatable, content_hash, context_hash,
@@ -276,7 +276,7 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, descr
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	versionID := uuid.NewString()
 	now := time.Now().UTC()

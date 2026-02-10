@@ -43,7 +43,7 @@ func setupHubSpotServer(t *testing.T) *httptest.Server {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(pages)
+		_ = json.NewEncoder(w).Encode(pages)
 	})
 
 	return httptest.NewServer(mux)

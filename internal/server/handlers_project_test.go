@@ -111,7 +111,7 @@ func TestVersionEndpoints(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	var project store.Project
-	json.Unmarshal(rec.Body.Bytes(), &project)
+	_ = json.Unmarshal(rec.Body.Bytes(), &project)
 
 	blocksBody := `{"blocks":[{"id":"b1","text":"Hello"}]}`
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+project.ID+"/blocks", strings.NewReader(blocksBody))

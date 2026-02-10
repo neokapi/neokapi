@@ -35,17 +35,17 @@ func setupWordPressServer(t *testing.T) *httptest.Server {
 
 	mux.HandleFunc("/wp-json/wp/v2/posts", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(posts)
+		_ = json.NewEncoder(w).Encode(posts)
 	})
 
 	mux.HandleFunc("/wp-json/wp/v2/posts/1", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"id":1}`))
+			_, _ = w.Write([]byte(`{"id":1}`))
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(posts[0])
+		_ = json.NewEncoder(w).Encode(posts[0])
 	})
 
 	return httptest.NewServer(mux)
