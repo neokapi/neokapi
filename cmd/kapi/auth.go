@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -69,8 +71,6 @@ var authLoginCmd = &cobra.Command{
 			return fmt.Errorf("authorization failed: %w", err)
 		}
 
-		// Validate the token and extract user info.
-		// In a full implementation, we'd decode the ID token or call /auth/me.
 		stored := StoredAuth{
 			ServerURL:    authServerURL,
 			AccessToken:  token.AccessToken,
@@ -78,11 +78,20 @@ var authLoginCmd = &cobra.Command{
 			Expiry:       time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
 		}
 
+		// Fetch user info from /auth/me using the new token.
+		if user, err := fetchUserInfo(authServerURL, token.AccessToken); err == nil {
+			stored.User = *user
+		}
+
 		if err := saveAuth(stored); err != nil {
 			return fmt.Errorf("save token: %w", err)
 		}
 
-		fmt.Println("Login successful! Token saved.")
+		if stored.User.Email != "" {
+			fmt.Printf("Logged in as %s\n", stored.User.Email)
+		} else {
+			fmt.Println("Login successful! Token saved.")
+		}
 		return nil
 	},
 }
@@ -167,4 +176,30 @@ func loadAuth() (*StoredAuth, error) {
 		return nil, err
 	}
 	return &a, nil
+}
+
+// fetchUserInfo calls /api/v1/auth/me to get user details from the server.
+func fetchUserInfo(serverURL, token string) (*StoredUser, error) {
+	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("auth/me returned %d: %s", resp.StatusCode, body)
+	}
+
+	var user StoredUser
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+	return &user, nil
 }

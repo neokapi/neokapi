@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 
 	"github.com/gokapi/gokapi/internal/server"
@@ -54,14 +56,16 @@ If no argument is given, the current directory is used.`,
 		srv := server.NewServer(cfg)
 
 		// If given a .kaz file, import it.
-		if filepath.Ext(absPath) == ".kaz" {
+		isKAZ := filepath.Ext(absPath) == ".kaz"
+		var projectID string
+		if isKAZ {
 			if srv.ContentStore != nil {
 				f, err := os.Open(absPath)
 				if err != nil {
 					return fmt.Errorf("open KAZ file: %w", err)
 				}
 				defer f.Close()
-				projectID, err := srv.ContentStore.ImportKAZ(cmd.Context(), f)
+				projectID, err = srv.ContentStore.ImportKAZ(cmd.Context(), f)
 				if err != nil {
 					return fmt.Errorf("import KAZ: %w", err)
 				}
@@ -75,9 +79,7 @@ If no argument is given, the current directory is used.`,
 		fmt.Printf("Starting local project server at %s\n", url)
 		fmt.Printf("Project: %s\n", absPath)
 		if !serveNoOpen {
-			fmt.Printf("Opening browser... (use --no-open to disable)\n")
-			// Browser opening would use github.com/pkg/browser here.
-			// For now, just print the URL.
+			openBrowser(url)
 		}
 		fmt.Println("Press Ctrl+C to stop.")
 
@@ -90,9 +92,23 @@ If no argument is given, the current directory is used.`,
 			fmt.Println("\nShutting down...")
 
 			// If we imported a .kaz file, export changes back.
-			if filepath.Ext(absPath) == ".kaz" && srv.ContentStore != nil {
-				// Export back to the .kaz file.
+			if isKAZ && srv.ContentStore != nil && projectID != "" {
 				log.Printf("Saving changes back to %s", absPath)
+				f, err := os.Create(absPath)
+				if err != nil {
+					log.Printf("ERROR: create export file: %v", err)
+				} else {
+					if err := srv.ContentStore.ExportKAZ(cmd.Context(), projectID, f); err != nil {
+						log.Printf("ERROR: export KAZ: %v", err)
+					} else {
+						log.Printf("Saved project to %s", absPath)
+					}
+					f.Close()
+				}
+			}
+
+			if srv.ContentStore != nil {
+				srv.ContentStore.Close()
 			}
 
 			os.Exit(0)
@@ -106,4 +122,23 @@ func init() {
 	serveCmd.Flags().IntVar(&servePort, "port", 3000, "Port to listen on")
 	serveCmd.Flags().BoolVar(&serveNoOpen, "no-open", false, "Don't open browser automatically")
 	rootCmd.AddCommand(serveCmd)
+}
+
+// openBrowser opens the given URL in the user's default browser.
+func openBrowser(url string) {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		fmt.Printf("Open %s in your browser\n", url)
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		fmt.Printf("Open %s in your browser\n", url)
+	}
 }

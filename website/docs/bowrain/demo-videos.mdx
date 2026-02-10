@@ -85,40 +85,40 @@ Configure AI providers for machine translation.
 
 Navigate between workspaces using the Slack-inspired sidebar with workspace icon rail and navigation panel.
 
-:::note[Video coming soon]
-This demo will be auto-generated once the workspace switcher Playwright test is added.
-:::
+The workspace UI follows a three-column layout:
 
-Key features shown:
+| Column | Width | Content |
+|--------|-------|---------|
+| Workspace Rail | 60px | Workspace icons, create button, user avatar |
+| Navigation Sidebar | 220px | View menu (Translate, Termbase, Memory, Flows, Connectors, Settings) |
+| Main Content | flex | Active view content |
+
+Key features:
 - **Workspace rail** with colored icons for each workspace
 - **Switching** between workspaces updates the project list and navigation
-- **Creating** a new workspace via the "+" button
+- **Creating** a new workspace via the "+" button opens a dialog
 - **Account menu** with user info and sign-out
 
 ## Account and Authentication
 
 Login flow for connecting Bowrain to a gokapi-server for team collaboration.
 
-:::note[Video coming soon]
-This demo will be auto-generated once the auth Playwright test is added.
-:::
+The authentication flow works as follows:
 
-Key features shown:
-- **Server connection** setup in Settings
-- **OAuth login** flow opening in the browser
-- **Workspace sync** — server workspaces appear in the rail after login
-- **Account menu** showing connected user info
+1. Open **Settings** and enter your gokapi server URL
+2. Click **Sign in with SSO** — your browser opens the server's Dex login page
+3. Authenticate with your identity provider (Google, GitHub, LDAP, etc.)
+4. The server issues a JWT token and your session is established
+5. Server workspaces appear in the workspace rail
+
+For CLI authentication, see the [CLI Auth guide](/docs/user-guide/cli/auth).
 
 ## Workspace Project Management
 
 Create and manage projects within a workspace context.
 
-:::note[Video coming soon]
-This demo will be auto-generated once the workspace project management Playwright test is added.
-:::
-
-Key features shown:
-- **Project list** scoped to the active workspace
-- **Creating** a project in a workspace
+Key features:
+- **Project list** scoped to the active workspace with locale and file count info
+- **Create project** dialog with name, source locale, and target locale selection
 - **Quick project switching** via the sidebar project list
-- **Workspace-scoped** connectors and flows
+- **Workspace-scoped** connectors, flows, and termbase

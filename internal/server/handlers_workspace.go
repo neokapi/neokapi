@@ -189,18 +189,24 @@ func (s *Server) HandleRemoveMember(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleListWorkspaceProjects lists projects in a workspace.
+// HandleListWorkspaceProjects lists projects in a workspace, filtered by workspace_id.
 func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	// For now, delegate to the flat project list.
-	// Once WorkspaceID is on projects, this will filter by workspace.
-	projects, err := s.Services.Project.ListProjects(c.Request().Context())
+	workspaceID, _ := c.Get("workspace_id").(string)
+	allProjects, err := s.Services.Project.ListProjects(c.Request().Context())
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
-	return c.JSON(http.StatusOK, projects)
+	// Filter to only projects belonging to this workspace.
+	var filtered []*store.Project
+	for _, p := range allProjects {
+		if p.WorkspaceID == workspaceID {
+			filtered = append(filtered, p)
+		}
+	}
+	return c.JSON(http.StatusOK, filtered)
 }
 
 // HandleCreateWorkspaceProject creates a project in a workspace.
@@ -219,10 +225,12 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 		locales[i] = model.LocaleID(l)
 	}
 
+	workspaceID, _ := c.Get("workspace_id").(string)
 	p := &store.Project{
 		Name:          req.Name,
 		SourceLocale:  model.LocaleID(req.SourceLocale),
 		TargetLocales: locales,
+		WorkspaceID:   workspaceID,
 	}
 	if err := s.Services.Project.CreateProject(c.Request().Context(), p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

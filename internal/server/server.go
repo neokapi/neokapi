@@ -60,6 +60,20 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
+	// Initialize auth store for multi-user mode.
+	if !cfg.LocalMode && cfg.JWTSecret != "" && cfg.StorePath != "" {
+		authDBPath := cfg.StorePath + ".auth"
+		as, err := auth.NewSQLiteAuthStore(authDBPath)
+		if err != nil {
+			log.Printf("WARNING: failed to open auth store at %s: %v", authDBPath, err)
+		} else {
+			s.AuthStore = as
+			if s.Services != nil {
+				s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
+			}
+		}
+	}
+
 	return s
 }
 
@@ -108,28 +122,47 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Auth endpoints (only for multi-user mode)
 	if !s.Config.LocalMode && s.Config.JWTSecret != "" {
+		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart)
 		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
 		authGroup.GET("/callback", s.HandleAuthCallback)
-		authGroup.GET("/me", s.HandleAuthMe)
-		authGroup.POST("/logout", s.HandleAuthLogout)
+		authGroup.POST("/callback", s.HandleAuthCallback)
 
-		// Workspace endpoints
+		// Device verification page (user opens in browser)
+		authGroup.GET("/device/verify", s.HandleAuthCallback)
+		authGroup.POST("/device/verify", func(c echo.Context) error {
+			return s.handleDeviceVerification(c, c.FormValue("user_code"))
+		})
+
+		// Protected auth routes (require valid token)
+		authProtected := authGroup.Group("")
+		authProtected.Use(AuthMiddleware(s.Config.JWTSecret))
+		authProtected.GET("/me", s.HandleAuthMe)
+		authProtected.POST("/logout", s.HandleAuthLogout)
+
+		// Workspace endpoints (require auth + workspace membership)
 		wsGroup := v1.Group("/workspaces")
+		wsGroup.Use(AuthMiddleware(s.Config.JWTSecret))
 		wsGroup.POST("", s.HandleCreateWorkspace)
 		wsGroup.GET("", s.HandleListWorkspaces)
-		wsGroup.GET("/:ws", s.HandleGetWorkspace)
-		wsGroup.PUT("/:ws", s.HandleUpdateWorkspace)
-		wsGroup.DELETE("/:ws", s.HandleDeleteWorkspace)
-		wsGroup.GET("/:ws/members", s.HandleListMembers)
-		wsGroup.POST("/:ws/members", s.HandleAddMember)
-		wsGroup.PUT("/:ws/members/:uid/role", s.HandleUpdateMemberRole)
-		wsGroup.DELETE("/:ws/members/:uid", s.HandleRemoveMember)
+
+		// Workspace-specific routes also check membership
+		wsSpecific := wsGroup.Group("/:ws")
+		if s.AuthStore != nil {
+			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
+		}
+		wsSpecific.GET("", s.HandleGetWorkspace)
+		wsSpecific.PUT("", s.HandleUpdateWorkspace)
+		wsSpecific.DELETE("", s.HandleDeleteWorkspace)
+		wsSpecific.GET("/members", s.HandleListMembers)
+		wsSpecific.POST("/members", s.HandleAddMember)
+		wsSpecific.PUT("/members/:uid/role", s.HandleUpdateMemberRole)
+		wsSpecific.DELETE("/members/:uid", s.HandleRemoveMember)
 
 		// Workspace-scoped project routes
-		wsGroup.GET("/:ws/projects", s.HandleListWorkspaceProjects)
-		wsGroup.POST("/:ws/projects", s.HandleCreateWorkspaceProject)
+		wsSpecific.GET("/projects", s.HandleListWorkspaceProjects)
+		wsSpecific.POST("/projects", s.HandleCreateWorkspaceProject)
 	}
 
 	// Web UI static file serving
