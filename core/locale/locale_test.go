@@ -19,10 +19,10 @@ func TestParse(t *testing.T) {
 		{"pt-BR", "pt-BR", false},
 		{"zh-Hans", "zh-Hans", false},
 		{"zh-Hant", "zh-Hant", false},
-		{"EN", "en", false},      // normalized casing
+		{"EN", "en", false},       // normalized casing
 		{"FR-fr", "fr-FR", false}, // normalized
 		{"", "", true},            // empty
-		{"!!!", "", true}, // garbage
+		{"!!!", "", true},         // garbage
 	}
 
 	for _, tt := range tests {

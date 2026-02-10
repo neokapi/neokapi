@@ -632,12 +632,12 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 
 // BlockTermMatch is a term match for a block, exposed to the frontend.
 type BlockTermMatch struct {
-	SourceTerm string   `json:"source_term"`
+	SourceTerm  string   `json:"source_term"`
 	TargetTerms []string `json:"target_terms"`
-	Domain     string   `json:"domain"`
-	Status     string   `json:"status"`
-	Start      int      `json:"start"`
-	End        int      `json:"end"`
+	Domain      string   `json:"domain"`
+	Status      string   `json:"status"`
+	Start       int      `json:"start"`
+	End         int      `json:"end"`
 }
 
 // LookupTermsForBlock looks up term matches in a specific block's source text.

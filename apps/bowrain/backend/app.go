@@ -192,9 +192,9 @@ func (a *App) ListFormats() []FormatInfo {
 // toolCategory maps tool names to their categories.
 var toolCategory = map[string]string{
 	// utility tools
-	"word-count":     "utility",
-	"char-count":     "utility",
-	"segment-count":  "utility",
+	"word-count":      "utility",
+	"char-count":      "utility",
+	"segment-count":   "utility",
 	"encoding-detect": "utility",
 	// transform tools
 	"pseudo-translate": "transform",
@@ -207,8 +207,8 @@ var toolCategory = map[string]string{
 	"qa-check":       "validate",
 	"term-check":     "validate",
 	// enrich tools
-	"tag-protect":  "enrich",
-	"tm-leverage":  "enrich",
+	"tag-protect": "enrich",
+	"tm-leverage": "enrich",
 	// AI tools
 	"ai-translate":   "transform",
 	"ai-qa":          "validate",
@@ -325,4 +325,3 @@ func createProvider(name, apiKey, modelName string) provider.LLMProvider {
 		return provider.NewMockProvider()
 	}
 }
-

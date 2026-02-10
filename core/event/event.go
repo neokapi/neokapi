@@ -11,9 +11,9 @@ type EventType string
 
 const (
 	// Content events
-	EventBlockCreated  EventType = "block.created"
-	EventBlockUpdated  EventType = "block.updated"
-	EventBlockDeleted  EventType = "block.deleted"
+	EventBlockCreated EventType = "block.created"
+	EventBlockUpdated EventType = "block.updated"
+	EventBlockDeleted EventType = "block.deleted"
 
 	// Project events
 	EventProjectCreated EventType = "project.created"
@@ -24,9 +24,9 @@ const (
 	EventVersionCreated EventType = "version.created"
 
 	// Connector events
-	EventPullCompleted  EventType = "connector.pull.completed"
-	EventPushCompleted  EventType = "connector.push.completed"
-	EventSyncCompleted  EventType = "connector.sync.completed"
+	EventPullCompleted EventType = "connector.pull.completed"
+	EventPushCompleted EventType = "connector.push.completed"
+	EventSyncCompleted EventType = "connector.sync.completed"
 
 	// Flow events
 	EventFlowStarted   EventType = "flow.started"
@@ -42,7 +42,7 @@ const (
 type Event struct {
 	ID          string            `json:"id"`
 	Type        EventType         `json:"type"`
-	Source      string            `json:"source"`       // Component that emitted the event
+	Source      string            `json:"source"` // Component that emitted the event
 	ProjectID   string            `json:"project_id"`
 	Data        map[string]string `json:"data"`         // Event-specific key-value data
 	CausationID string            `json:"causation_id"` // For tracing automation chains

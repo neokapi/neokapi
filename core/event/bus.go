@@ -16,8 +16,8 @@ type ChannelEventBus struct {
 }
 
 type subscriber struct {
-	sub *Subscription
-	ch  chan Event
+	sub  *Subscription
+	ch   chan Event
 	done chan struct{}
 }
 

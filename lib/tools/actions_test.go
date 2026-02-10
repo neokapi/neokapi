@@ -172,8 +172,8 @@ func TestSegmentationConfigValidation(t *testing.T) {
 
 // mockTMProvider implements TMProvider for testing.
 type mockTMProvider struct {
-	exact map[string]string            // source -> translation
-	fuzzy map[string]fuzzyMatch        // source -> {translation, score}
+	exact map[string]string     // source -> translation
+	fuzzy map[string]fuzzyMatch // source -> {translation, score}
 }
 
 type fuzzyMatch struct {

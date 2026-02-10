@@ -17,10 +17,10 @@ type MatchStrategy string
 
 const (
 	MatchStrategyExact      MatchStrategy = "exact"      // exact string match
-	MatchStrategyNormalized MatchStrategy = "normalized"  // case/whitespace/diacritics normalized
-	MatchStrategyFuzzy      MatchStrategy = "fuzzy"       // Levenshtein edit distance
-	MatchStrategyStem       MatchStrategy = "stem"        // linguistic stemming
-	MatchStrategyAI         MatchStrategy = "ai"          // LLM-assisted matching
+	MatchStrategyNormalized MatchStrategy = "normalized" // case/whitespace/diacritics normalized
+	MatchStrategyFuzzy      MatchStrategy = "fuzzy"      // Levenshtein edit distance
+	MatchStrategyStem       MatchStrategy = "stem"       // linguistic stemming
+	MatchStrategyAI         MatchStrategy = "ai"         // LLM-assisted matching
 )
 
 // TermRef is a lightweight reference to a target term.

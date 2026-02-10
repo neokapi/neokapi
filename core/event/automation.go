@@ -73,7 +73,7 @@ func (e *AutomationEngine) SetMaxChainDepth(depth int) {
 }
 
 // Pause temporarily stops automation processing.
-func (e *AutomationEngine) Pause()  { e.paused.Store(true) }
+func (e *AutomationEngine) Pause() { e.paused.Store(true) }
 
 // Resume restarts automation processing.
 func (e *AutomationEngine) Resume() { e.paused.Store(false) }

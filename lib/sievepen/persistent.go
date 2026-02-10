@@ -320,7 +320,11 @@ func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]TM
 	return tm.scanEntries(rows)
 }
 
-func (tm *SQLiteTM) scanEntries(rows interface{ Next() bool; Scan(...any) error; Err() error }) ([]TMEntry, error) {
+func (tm *SQLiteTM) scanEntries(rows interface {
+	Next() bool
+	Scan(...any) error
+	Err() error
+}) ([]TMEntry, error) {
 	var entries []TMEntry
 	for rows.Next() {
 		var entry TMEntry

@@ -4,7 +4,7 @@ import "encoding/json"
 
 // fragmentJSON is the JSON-serializable representation of a Fragment.
 type fragmentJSON struct {
-	CodedText string     `json:"coded_text"`
+	CodedText string      `json:"coded_text"`
 	Spans     []*spanJSON `json:"spans,omitempty"`
 }
 

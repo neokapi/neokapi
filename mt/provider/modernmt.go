@@ -16,9 +16,9 @@ const DefaultModernMTBaseURL = "https://api.modernmt.com"
 
 // ModernMTConfig holds configuration for the ModernMT provider.
 type ModernMTConfig struct {
-	APIKey string
-	Hints  []int64 // Optional memory IDs to bias translations
-	BaseURL string // Override for testing
+	APIKey  string
+	Hints   []int64 // Optional memory IDs to bias translations
+	BaseURL string  // Override for testing
 }
 
 // Validate checks configuration validity.

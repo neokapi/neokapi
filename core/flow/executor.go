@@ -19,12 +19,12 @@ type FlowExecutor interface {
 
 // ExecutorConfig holds configuration for the DefaultFlowExecutor.
 type ExecutorConfig struct {
-	MaxConcurrency int              // 0 = runtime.NumCPU(); 1 = sequential
-	ChannelSize    int              // default 64
-	FailFast       bool             // default true; cancel remaining on first error
-	Collectors     []Collector      // aggregators fed after each document completes
+	MaxConcurrency int                // 0 = runtime.NumCPU(); 1 = sequential
+	ChannelSize    int                // default 64
+	FailFast       bool               // default true; cancel remaining on first error
+	Collectors     []Collector        // aggregators fed after each document completes
 	Store          store.ContentStore // optional backing store for read/write
-	StoreProjectID string           // project ID when using store-backed flows
+	StoreProjectID string             // project ID when using store-backed flows
 }
 
 // ExecutorOption is a functional option for configuring a DefaultFlowExecutor.

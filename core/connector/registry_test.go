@@ -16,14 +16,14 @@ type mockConnector struct {
 	category Category
 }
 
-func (m *mockConnector) ID() string           { return m.id }
-func (m *mockConnector) Name() string         { return m.name }
-func (m *mockConnector) Category() Category   { return m.category }
+func (m *mockConnector) ID() string         { return m.id }
+func (m *mockConnector) Name() string       { return m.name }
+func (m *mockConnector) Category() Category { return m.category }
 func (m *mockConnector) Pull(_ context.Context, _ PullOptions) ([]*ContentItem, error) {
 	return []*ContentItem{{ID: "item1", Name: "test"}}, nil
 }
 func (m *mockConnector) Push(_ context.Context, _ []*ContentItem, _ PushOptions) error { return nil }
-func (m *mockConnector) List(_ context.Context) ([]*ContentItem, error) { return nil, nil }
+func (m *mockConnector) List(_ context.Context) ([]*ContentItem, error)                { return nil, nil }
 func (m *mockConnector) Sync(_ context.Context) (*SyncStatus, error) {
 	return &SyncStatus{ConnectorID: m.id}, nil
 }

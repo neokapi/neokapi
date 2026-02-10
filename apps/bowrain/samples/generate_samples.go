@@ -377,13 +377,13 @@ func generateMarketingProject() error {
 // Helper types and functions
 
 type blockDef struct {
-	id             string
-	source         string
-	targetFR       string
-	targetDE       string
-	targetES       string
-	targetJA       string
-	translatable   bool // ignored — use nonTranslatable instead
+	id              string
+	source          string
+	targetFR        string
+	targetDE        string
+	targetES        string
+	targetJA        string
+	translatable    bool // ignored — use nonTranslatable instead
 	nonTranslatable bool // set to true to mark as non-translatable
 }
 

@@ -33,12 +33,12 @@ func (mt MatchType) IsExact() bool {
 // placeholders in the matching key, so structurally identical segments
 // match regardless of entity values.
 type EntityMapping struct {
-	PlaceholderID string          // "e1", "e2" — links source and target positions
+	PlaceholderID string           // "e1", "e2" — links source and target positions
 	Type          model.EntityType // person, product, organization, date, etc.
-	SourceValue   string          // original value in source ("John")
-	SourcePos     model.TextRange // position in source fragment
-	TargetValue   string          // original value in target ("John" or adapted form)
-	TargetPos     model.TextRange // position in target fragment
+	SourceValue   string           // original value in source ("John")
+	SourcePos     model.TextRange  // position in source fragment
+	TargetValue   string           // original value in target ("John" or adapted form)
+	TargetPos     model.TextRange  // position in target fragment
 }
 
 // TMEntry represents a single translation memory entry with full
@@ -46,8 +46,8 @@ type EntityMapping struct {
 // to preserve inline markup and entity metadata.
 type TMEntry struct {
 	ID           string
-	Source       *model.Fragment             // coded text + inline spans
-	Target       *model.Fragment             // coded text + inline spans
+	Source       *model.Fragment // coded text + inline spans
+	Target       *model.Fragment // coded text + inline spans
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
 	Entities     []EntityMapping             // entity placeholders in this entry
@@ -92,11 +92,11 @@ func (e *TMEntry) SourceGeneralized() string {
 // EntityAdaptation describes how to substitute an entity value
 // in the matched target to produce a translation for the current source.
 type EntityAdaptation struct {
-	PlaceholderID string          // which entity ("e1")
+	PlaceholderID string           // which entity ("e1")
 	Type          model.EntityType // person, product, etc.
-	StoredValue   string          // value in the TM target ("Bob")
-	CurrentValue  string          // value in the current source ("John")
-	TargetPos     model.TextRange // where to substitute in the target
+	StoredValue   string           // value in the TM target ("Bob")
+	CurrentValue  string           // value in the current source ("John")
+	TargetPos     model.TextRange  // where to substitute in the target
 }
 
 // TMMatch represents a match result from a TM lookup.
@@ -120,7 +120,7 @@ type MatchMode string
 const (
 	MatchModeGeneralized MatchMode = "generalized" // entity-aware matching
 	MatchModeStructural  MatchMode = "structural"  // inline-code-aware matching
-	MatchModePlain       MatchMode = "plain"        // text-only matching
+	MatchModePlain       MatchMode = "plain"       // text-only matching
 )
 
 // DefaultLookupOptions returns sensible defaults for TM lookups.

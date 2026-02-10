@@ -8,24 +8,24 @@ import (
 
 // Term represents a single term in a specific locale with lifecycle metadata.
 type Term struct {
-	Text       string           // the term text
-	Locale     model.LocaleID   // language/locale
-	Status     model.TermStatus // lifecycle status
-	PartOfSpeech string         // noun, verb, adjective, etc.
-	Gender     string           // grammatical gender (if applicable)
-	Note       string           // usage note or context
+	Text         string           // the term text
+	Locale       model.LocaleID   // language/locale
+	Status       model.TermStatus // lifecycle status
+	PartOfSpeech string           // noun, verb, adjective, etc.
+	Gender       string           // grammatical gender (if applicable)
+	Note         string           // usage note or context
 }
 
 // Concept is the central unit of a termbase — a language-neutral concept
 // with terms in multiple locales, organized following TBX principles.
 type Concept struct {
-	ID          string            // unique concept identifier
-	Domain      string            // subject field (software, medical, legal, etc.)
-	Definition  string            // language-neutral definition
-	Terms       []Term            // terms across locales
-	Properties  map[string]string // extensible metadata
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID         string            // unique concept identifier
+	Domain     string            // subject field (software, medical, legal, etc.)
+	Definition string            // language-neutral definition
+	Terms      []Term            // terms across locales
+	Properties map[string]string // extensible metadata
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
 // SourceTerm returns the first term matching the given locale.
@@ -70,10 +70,10 @@ func (c *Concept) PreferredTerm(locale model.LocaleID) *Term {
 // TermMatch represents a term found during lookup.
 type TermMatch struct {
 	Concept   Concept
-	Term      Term              // the matched source term
-	Score     float64           // match confidence (1.0 = exact)
+	Term      Term    // the matched source term
+	Score     float64 // match confidence (1.0 = exact)
 	MatchType model.MatchStrategy
-	Position  model.TextRange   // where in the source text
+	Position  model.TextRange // where in the source text
 }
 
 // LookupOptions controls term lookup behavior.
@@ -81,9 +81,9 @@ type LookupOptions struct {
 	SourceLocale  model.LocaleID
 	TargetLocale  model.LocaleID
 	CaseSensitive bool
-	MinScore      float64   // minimum match score for fuzzy (default 0.8)
+	MinScore      float64 // minimum match score for fuzzy (default 0.8)
 	MatchModes    []model.MatchStrategy
-	Domains       []string  // restrict to specific domains
+	Domains       []string           // restrict to specific domains
 	StatusFilter  []model.TermStatus // only return terms with these statuses
 }
 

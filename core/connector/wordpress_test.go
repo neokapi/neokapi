@@ -17,18 +17,18 @@ func setupWordPressServer(t *testing.T) *httptest.Server {
 
 	posts := []wpPost{
 		{
-			ID:   1,
-			Slug: "hello-world",
-			Title:   wpContent{Rendered: "Hello World"},
-			Content: wpContent{Rendered: "<p>Welcome to WordPress.</p>"},
-			Excerpt: wpContent{Rendered: "A welcome post"},
+			ID:       1,
+			Slug:     "hello-world",
+			Title:    wpContent{Rendered: "Hello World"},
+			Content:  wpContent{Rendered: "<p>Welcome to WordPress.</p>"},
+			Excerpt:  wpContent{Rendered: "A welcome post"},
 			Modified: "2024-01-15T10:30:00",
 		},
 		{
-			ID:   2,
-			Slug: "sample-page",
-			Title:   wpContent{Rendered: "Sample Page"},
-			Content: wpContent{Rendered: "<p>This is a sample page.</p>"},
+			ID:       2,
+			Slug:     "sample-page",
+			Title:    wpContent{Rendered: "Sample Page"},
+			Content:  wpContent{Rendered: "<p>This is a sample page.</p>"},
 			Modified: "2024-01-16T08:00:00",
 		},
 	}

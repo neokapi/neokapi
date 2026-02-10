@@ -32,14 +32,14 @@ type StoredBlock struct {
 
 // BlockQuery filters blocks when listing or searching.
 type BlockQuery struct {
-	ProjectID   string
-	IDs         []string         // Filter by block IDs
-	ContentHash string           // Filter by content hash
-	Translatable *bool           // Filter by translatable flag
-	HasTarget   *model.LocaleID  // Filter blocks that have a target for this locale
+	ProjectID     string
+	IDs           []string        // Filter by block IDs
+	ContentHash   string          // Filter by content hash
+	Translatable  *bool           // Filter by translatable flag
+	HasTarget     *model.LocaleID // Filter blocks that have a target for this locale
 	MissingTarget *model.LocaleID // Filter blocks missing a target for this locale
-	Limit       int              // Max results (0 = no limit)
-	Offset      int              // Pagination offset
+	Limit         int             // Max results (0 = no limit)
+	Offset        int             // Pagination offset
 }
 
 // Version represents a named snapshot of project state.

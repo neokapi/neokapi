@@ -11,14 +11,14 @@ import (
 
 // FlowDefinitionInfo is the frontend-facing flow definition type.
 type FlowDefinitionInfo struct {
-	ID          string             `json:"id"`
-	Name        string             `json:"name"`
-	Description string             `json:"description,omitempty"`
-	Nodes       []FlowNodeInfo     `json:"nodes"`
-	Edges       []FlowEdgeInfo     `json:"edges"`
-	Source      string             `json:"source"`
-	CreatedAt   string             `json:"created_at,omitempty"`
-	ModifiedAt  string             `json:"modified_at,omitempty"`
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Nodes       []FlowNodeInfo `json:"nodes"`
+	Edges       []FlowEdgeInfo `json:"edges"`
+	Source      string         `json:"source"`
+	CreatedAt   string         `json:"created_at,omitempty"`
+	ModifiedAt  string         `json:"modified_at,omitempty"`
 }
 
 // FlowNodeInfo is the frontend-facing flow node type.

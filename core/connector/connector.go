@@ -35,29 +35,29 @@ type ContentItem struct {
 
 // SyncStatus reports the synchronization state between the store and a connector.
 type SyncStatus struct {
-	ConnectorID  string
-	LastSync     time.Time
-	ItemCount    int
-	PendingPull  int // Items changed externally since last pull
-	PendingPush  int // Items changed locally since last push
-	Errors       []string
+	ConnectorID string
+	LastSync    time.Time
+	ItemCount   int
+	PendingPull int // Items changed externally since last pull
+	PendingPush int // Items changed locally since last push
+	Errors      []string
 }
 
 // PullOptions configures a pull operation.
 type PullOptions struct {
-	Paths       []string       // Specific paths/IDs to pull (empty = all)
-	Locales     []model.LocaleID
-	Force       bool           // Re-pull even if unchanged
-	DryRun      bool           // Report what would change without modifying
+	Paths   []string // Specific paths/IDs to pull (empty = all)
+	Locales []model.LocaleID
+	Force   bool // Re-pull even if unchanged
+	DryRun  bool // Report what would change without modifying
 }
 
 // PushOptions configures a push operation.
 type PushOptions struct {
-	Paths       []string       // Specific paths/IDs to push (empty = all)
-	Locales     []model.LocaleID
-	Force       bool           // Push even if remote hasn't changed
-	DryRun      bool           // Report what would change without modifying
-	Message     string         // Commit/change message for systems that support it
+	Paths   []string // Specific paths/IDs to push (empty = all)
+	Locales []model.LocaleID
+	Force   bool   // Push even if remote hasn't changed
+	DryRun  bool   // Report what would change without modifying
+	Message string // Commit/change message for systems that support it
 }
 
 // Connector is the bidirectional interface for external content systems.

@@ -19,7 +19,7 @@ type BridgePool struct {
 	mu      sync.Mutex
 	cond    *sync.Cond
 	maxSize int
-	active  int                    // total running bridges (idle + in-use)
+	active  int // total running bridges (idle + in-use)
 	closed  bool
 	logger  *log.Logger
 	idle    map[string][]*JavaBridge // keyed by JARPath

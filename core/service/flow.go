@@ -11,9 +11,9 @@ import (
 
 // FlowService manages flow execution with optional store integration.
 type FlowService struct {
-	store      store.ContentStore
-	formatReg  *registry.FormatRegistry
-	toolReg    *registry.ToolRegistry
+	store     store.ContentStore
+	formatReg *registry.FormatRegistry
+	toolReg   *registry.ToolRegistry
 }
 
 // NewFlowService creates a new FlowService.

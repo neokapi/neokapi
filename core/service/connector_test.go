@@ -17,8 +17,8 @@ type testConnector struct {
 	items []*connector.ContentItem
 }
 
-func (c *testConnector) ID() string              { return c.id }
-func (c *testConnector) Name() string            { return "test" }
+func (c *testConnector) ID() string                   { return c.id }
+func (c *testConnector) Name() string                 { return "test" }
 func (c *testConnector) Category() connector.Category { return connector.CategoryFile }
 func (c *testConnector) Pull(_ context.Context, _ connector.PullOptions) ([]*connector.ContentItem, error) {
 	return c.items, nil
@@ -26,7 +26,9 @@ func (c *testConnector) Pull(_ context.Context, _ connector.PullOptions) ([]*con
 func (c *testConnector) Push(_ context.Context, _ []*connector.ContentItem, _ connector.PushOptions) error {
 	return nil
 }
-func (c *testConnector) List(_ context.Context) ([]*connector.ContentItem, error) { return c.items, nil }
+func (c *testConnector) List(_ context.Context) ([]*connector.ContentItem, error) {
+	return c.items, nil
+}
 func (c *testConnector) Sync(_ context.Context) (*connector.SyncStatus, error) {
 	return &connector.SyncStatus{ConnectorID: c.id, ItemCount: len(c.items)}, nil
 }

@@ -23,17 +23,17 @@ type FigmaConnector struct {
 
 // figmaFile represents a Figma file response.
 type figmaFile struct {
-	Name     string                `json:"name"`
-	Document figmaNode             `json:"document"`
+	Name     string    `json:"name"`
+	Document figmaNode `json:"document"`
 }
 
 type figmaNode struct {
-	ID         string      `json:"id"`
-	Name       string      `json:"name"`
-	Type       string      `json:"type"`
-	Characters string      `json:"characters"`
-	Children   []figmaNode `json:"children"`
-	BoundingBox *figmaBBox `json:"absoluteBoundingBox"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Type        string      `json:"type"`
+	Characters  string      `json:"characters"`
+	Children    []figmaNode `json:"children"`
+	BoundingBox *figmaBBox  `json:"absoluteBoundingBox"`
 }
 
 type figmaBBox struct {
