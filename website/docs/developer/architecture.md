@@ -77,7 +77,7 @@ gokapi/
 │   ├── tool/                   # Tool interface, BaseTool dispatch
 │   ├── flow/                   # FlowExecutor, FlowBuilder, FlowDefinition, FlowStore
 │   ├── registry/               # FormatRegistry, ToolRegistry
-│   ├── config/                 # Viper-based AppConfig
+│   ├── config/                 # AppConfig (layered YAML/env/flags)
 │   ├── encoding/               # Text encoding utilities
 │   └── kaz/                    # KAZ archive format
 │

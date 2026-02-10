@@ -5,7 +5,7 @@ title: Configuration
 
 # Configuration
 
-gokapi uses [Viper](https://github.com/spf13/viper) for layered configuration.
+gokapi uses layered configuration with multiple sources.
 
 ## Precedence (highest to lowest)
 

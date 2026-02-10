@@ -338,9 +338,9 @@ fb := flow.NewFlow("translate-html").
 ```go
 package config
 
-// AppConfig holds application-level configuration loaded via Viper.
+// AppConfig holds application-level configuration with layered lookup.
 type AppConfig struct {
-    v *viper.Viper
+    // internal config store
 }
 
 func NewAppConfig() *AppConfig {
