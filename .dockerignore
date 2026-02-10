@@ -1,0 +1,40 @@
+# Version control
+.git/
+.github/
+
+# Build artifacts
+bin/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Node modules (installed in container)
+node_modules/
+
+# Frontend dist (built in container)
+apps/web/dist/
+apps/bowrain/frontend/dist/
+
+# Bowrain desktop app (not needed for server)
+apps/bowrain/
+
+# Website / docs
+website/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Plugin binaries
+gokapi-plugin-*
+
+# Test / CI artifacts
+test-results/
+playwright-report/
+
+# Serena / Claude
+.serena/
+.claude/

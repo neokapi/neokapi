@@ -89,3 +89,8 @@ release:
     ```
     brew install --cask gokapi/tap/bowrain
     ```
+
+    **Docker (server):**
+    ```
+    docker pull ghcr.io/gokapi/gokapi-server:{{ .Version }}
+    ```

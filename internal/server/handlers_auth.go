@@ -191,8 +191,15 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 
 	// For now, authorize with a default user (in production, this would come from the Dex OIDC session).
 	// When Dex is configured, the user would already be authenticated via the OIDC session cookie.
+	// Check both query params and form values to support programmatic e2e testing.
 	email := c.QueryParam("email")
+	if email == "" {
+		email = c.FormValue("email")
+	}
 	name := c.QueryParam("name")
+	if name == "" {
+		name = c.FormValue("name")
+	}
 	if email == "" {
 		email = "user@gokapi.local"
 	}

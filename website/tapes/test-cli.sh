@@ -125,6 +125,16 @@ echo "serve.tape commands:"
 test_cmd "kapi serve --help" "kapi serve --help" "Start a lightweight"
 echo ""
 
+# workspaces.tape tests (only if server is running)
+echo "workspaces.tape commands:"
+if curl -sf http://localhost:8080/api/v1/health > /dev/null 2>&1; then
+  test_cmd "server health" "curl -sf http://localhost:8080/api/v1/health" '"status":"ok"'
+  echo -e "  ${YELLOW}(Server-backed tests ran against live server)${NC}"
+else
+  echo -e "  ${YELLOW}(Skipped: server not running)${NC}"
+fi
+echo ""
+
 echo "============================================"
 echo -e "Results: ${GREEN}$passed passed${NC}, ${RED}$failed failed${NC}"
 echo "============================================"

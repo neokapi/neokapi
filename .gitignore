@@ -54,3 +54,4 @@ apps/bowrain/frontend/recordings-output/
 website/tapes/output/
 website/tapes/out/
 website/tapes/*.kaz
+website/tapes/.server-token

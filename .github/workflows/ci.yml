@@ -119,3 +119,19 @@ jobs:
           name: playwright-report
           path: apps/bowrain/frontend/playwright-report/
           retention-days: 30
+
+  e2e:
+    name: E2E (Docker)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.6"
+
+      - name: Run e2e tests
+        run: bash e2e/run.sh
+        timeout-minutes: 10

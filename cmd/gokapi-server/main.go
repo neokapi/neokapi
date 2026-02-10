@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net"
 	"os"
 	"strconv"
 
+	"github.com/gokapi/gokapi/apps/web"
 	"github.com/gokapi/gokapi/internal/server"
 	pb "github.com/gokapi/gokapi/proto/v1"
 	"google.golang.org/grpc"
@@ -63,6 +65,10 @@ func main() {
 	}
 
 	srv := server.NewServer(cfg)
+
+	// Serve embedded web UI.
+	webFS, _ := fs.Sub(web.Assets, "dist")
+	srv.WebUIFS = webFS
 
 	// Start gRPC server if a port is configured.
 	if grpcPort > 0 {

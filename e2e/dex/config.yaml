@@ -1,0 +1,37 @@
+# Dex configuration for e2e testing.
+# Uses static passwords for deterministic test flows.
+
+issuer: http://localhost:5556/dex
+
+storage:
+  type: sqlite3
+  config:
+    file: /var/dex/dex.db
+
+web:
+  http: 0.0.0.0:5556
+
+oauth2:
+  deviceRequests:
+    enabled: true
+
+staticClients:
+  - id: gokapi
+    name: gokapi
+    secret: gokapi-secret
+    redirectURIs:
+      - http://localhost:8080/api/v1/auth/callback
+
+# Use mock callback connector for deterministic e2e testing.
+connectors:
+  - type: mockCallback
+    id: mock
+    name: "Login with Email"
+
+# Static passwords for e2e tests (deterministic users).
+enablePasswordDB: true
+staticPasswords:
+  - email: admin@example.com
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"  # "password"
+    username: admin
+    userID: e2e-admin-001

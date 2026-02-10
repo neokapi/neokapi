@@ -42,6 +42,8 @@ const sidebars: SidebarsConfig = {
         'user-guide/mt-services',
         'user-guide/content-store',
         'user-guide/workspaces',
+        'user-guide/server-walkthrough',
+        'user-guide/self-hosting',
         'user-guide/automation',
         'user-guide/configuration',
       ],

@@ -1,5 +1,8 @@
 # Development docker-compose for gokapi with Dex OIDC provider.
 #
+# For production self-hosting, see:
+#   https://gokapi.dev/docs/user-guide/self-hosting
+#
 # Usage:
 #   cd deploy && docker-compose up
 #
@@ -21,9 +24,12 @@ services:
     command: ["dex", "serve", "/etc/dex/config.yaml"]
 
   gokapi:
+    # For development (builds from source):
     build:
       context: ..
       dockerfile: Dockerfile
+    # For production (use pre-built image instead of build):
+    # image: ghcr.io/gokapi/gokapi-server:latest
     ports:
       - "8080:8080"
     environment:

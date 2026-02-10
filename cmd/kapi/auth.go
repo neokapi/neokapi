@@ -147,6 +147,9 @@ func init() {
 }
 
 func authFilePath() string {
+	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "auth.json")
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")

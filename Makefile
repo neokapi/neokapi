@@ -30,8 +30,9 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
-        test-race lint fmt vet proto clean install cover tools help \
+        test-race test-e2e lint fmt vet proto clean install cover tools help \
         frontend-deps frontend-dev frontend-build web-deps web-build \
+        docker-build docker-push \
         screenshots recordings cli-recordings docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
@@ -48,7 +49,7 @@ build: ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi $(CLI_PKG)
 
-build-server: ## Build the gokapi REST server
+build-server: web-build ## Build the gokapi REST server
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/gokapi-server $(SERVER_PKG)
 
@@ -81,6 +82,17 @@ web-deps: ## Install web UI dependencies
 web-build: ## Build web UI for production
 	cd $(WEB_DIR) && $(NPM) run build
 
+# ── Docker ──────────────────────────────────────────────────────────────────
+
+DOCKER_IMAGE := ghcr.io/gokapi/gokapi-server
+
+docker-build: ## Build Docker image for gokapi-server
+	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+
+docker-push: ## Push Docker image to GHCR
+	docker push $(DOCKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_IMAGE):latest
+
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 
 screenshots: frontend-deps ## Generate documentation screenshots
@@ -107,6 +119,9 @@ test-race: ## Run tests with race detector
 
 test-integration: ## Run integration tests
 	$(GOTEST) ./... -count=1 -tags=integration -run Integration
+
+test-e2e: ## Run end-to-end tests against Docker stack
+	bash e2e/run.sh
 
 test-verbose: ## Run tests with verbose output
 	$(GOTEST) ./... -count=1 -v
