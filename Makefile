@@ -44,7 +44,12 @@ help: ## Show this help
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build: web-build ## Build the kapi CLI
+# Ensure apps/web/dist/ exists for go:embed (placeholder if not yet built).
+$(WEB_DIR)/dist/index.html:
+	@mkdir -p $(WEB_DIR)/dist
+	@echo '<!DOCTYPE html><html><body>Run "make web-build" to build the web UI.</body></html>' > $@
+
+build: $(WEB_DIR)/dist/index.html ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi $(CLI_PKG)
 

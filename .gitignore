@@ -29,7 +29,6 @@ plugin/bridge/java/dependency-reduced-pom.xml
 # Frontend
 node_modules/
 dist/
-!apps/web/dist/index.html
 *.tsbuildinfo
 
 # Wails
