@@ -93,7 +93,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `core/` — model types, format/tool/flow interfaces, registry, config, encoding
 - `formats/` — 15 built-in format implementations (html, xml, xliff, xliff2, json, yaml, po, properties, plaintext, markdown, csv, srt, vtt, tmx). Each has reader.go, writer.go, config.go. Registration in `register.go`
 - `ai/` — LLM provider interface + implementations (anthropic, openai, ollama), AI-powered tools (translate, QA, terminology, review), prompt templates
-- `connectors/` — external translation service integrations (deepl, google, microsoft, mymemory)
+- `mt/` — machine translation provider interface + implementations (deepl, google, microsoft, modernmt, mymemory), MT translate tool
 - `lib/sievepen/` — translation memory system with Levenshtein fuzzy matching and TMX import/export
 - `lib/tools/` — utility tools (wordcount, charcount, pseudo-translation, search/replace)
 - `plugin/` — HashiCorp go-plugin + gRPC plugin system (host, server, proto definitions, Java bridge)

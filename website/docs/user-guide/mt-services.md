@@ -1,11 +1,11 @@
 ---
 sidebar_position: 5
-title: Connectors
+title: Machine Translation Services
 ---
 
-# Translation Connectors
+# Machine Translation Services
 
-gokapi integrates with external translation services as an alternative to LLM-based translation.
+gokapi integrates with external machine translation (MT) services as an alternative to LLM-based translation.
 
 ## Supported Services
 
@@ -19,10 +19,10 @@ gokapi integrates with external translation services as an alternative to LLM-ba
 
 ## Configuration
 
-Configure connectors in `gokapi.yaml`:
+Configure MT providers in `gokapi.yaml`:
 
 ```yaml
-connectors:
+mt:
   deepl:
     apiKey: ${DEEPL_API_KEY}
     formality: more    # less, more, default
@@ -38,20 +38,20 @@ connectors:
 
 ```bash
 # Translate using DeepL
-kapi translate input.html -o output.html -s en -t de --connector deepl
+kapi translate input.html -o output.html -s en -t de --mt deepl
 
 # Translate using Google
-kapi translate input.json -o output.json -s en -t ja --connector google
+kapi translate input.json -o output.json -s en -t ja --mt google
 ```
 
 ## Comparison with AI Translation
 
-| Feature | Connectors | AI Translation |
-|---------|-----------|----------------|
+| Feature | MT Services | AI Translation |
+|---------|-------------|----------------|
 | Speed | Faster for bulk | Slower per segment |
 | Cost | Per-character pricing | Per-token pricing |
 | Quality | Consistent | Context-aware |
 | Customization | Limited | Full prompt control |
 | Offline | No | Yes (with Ollama) |
 
-Both approaches can be combined in a flow: use connectors for bulk translation and AI for quality review.
+Both approaches can be combined in a flow: use MT services for bulk translation and AI for quality review.

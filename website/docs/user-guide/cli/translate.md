@@ -5,7 +5,7 @@ title: translate
 
 # kapi translate
 
-Translate a document using AI or a translation connector.
+Translate a document using AI or a machine translation service.
 
 ## Synopsis
 
@@ -15,7 +15,7 @@ kapi translate <input> -o <output> -s <source> -t <target> [flags]
 
 ## Description
 
-The `translate` command reads a document, translates all translatable content, and writes the translated document. It can use AI providers (Anthropic, OpenAI, Ollama) or translation connectors (DeepL, Google, Microsoft).
+The `translate` command reads a document, translates all translatable content, and writes the translated document. It can use AI providers (Anthropic, OpenAI, Ollama) or machine translation services (DeepL, Google, Microsoft, ModernMT, MyMemory).
 
 ## Examples
 
@@ -26,8 +26,8 @@ kapi translate input.html -o output.html -s en -t fr
 # Translate with a specific provider
 kapi translate input.json -o output.json -s en -t de --provider anthropic
 
-# Translate with DeepL connector
-kapi translate input.html -o output.html -s en -t ja --connector deepl
+# Translate with DeepL
+kapi translate input.html -o output.html -s en -t ja --mt deepl
 
 # Translate with TM leverage first
 kapi translate input.html -o output.html -s en -t fr --tm project.tmx
@@ -42,6 +42,6 @@ kapi translate input.html -o output.html -s en -t fr --tm project.tmx
 | `--target-lang` | `-t` | Target language (required) |
 | `--provider` | | AI provider (anthropic, openai, ollama) |
 | `--model` | | Model name |
-| `--connector` | | Translation connector (deepl, google, microsoft) |
+| `--mt` | | Machine translation service (deepl, google, microsoft, modernmt, mymemory) |
 | `--tm` | | Translation memory file (TMX) |
 | `--glossary` | | Glossary file for terminology constraints |

@@ -103,8 +103,9 @@ gokapi/
 │   ├── tools/                  # AI translate, QA, terminology, review
 │   └── prompt/                 # Prompt templates
 │
-├── connectors/                 # External translation services
-│                               # DeepL, Google, Microsoft, MyMemory
+├── mt/                         # Machine translation
+│   ├── provider/               # MTProvider: DeepL, Google, Microsoft, ModernMT, MyMemory
+│   └── tools/                  # MT translate tool
 │
 ├── lib/
 │   ├── sievepen/               # Translation memory (in-memory + SQLite)

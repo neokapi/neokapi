@@ -1,0 +1,141 @@
+package provider
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/gokapi/gokapi/core/model"
+)
+
+// DefaultGoogleBaseURL is the default Google Translate API endpoint.
+const DefaultGoogleBaseURL = "https://translation.googleapis.com"
+
+// GoogleConfig holds configuration for the Google Translate provider.
+type GoogleConfig struct {
+	APIKey    string
+	ProjectID string
+	BaseURL   string // Override for testing
+}
+
+// Validate checks configuration validity.
+func (c *GoogleConfig) Validate() error {
+	if c.APIKey == "" {
+		return fmt.Errorf("google: APIKey is required")
+	}
+	return nil
+}
+
+func (c *GoogleConfig) baseURL() string {
+	if c.BaseURL != "" {
+		return c.BaseURL
+	}
+	return DefaultGoogleBaseURL
+}
+
+// GoogleProvider implements MTProvider using the Google Cloud Translation API v2.
+type GoogleProvider struct {
+	cfg GoogleConfig
+}
+
+// NewGoogleProvider creates a new Google Translate MT provider.
+func NewGoogleProvider(cfg GoogleConfig) *GoogleProvider {
+	return &GoogleProvider{cfg: cfg}
+}
+
+func (p *GoogleProvider) Name() string { return "google" }
+
+func (p *GoogleProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+	reqBody := googleTranslateRequest{
+		Q:      req.Source,
+		Target: string(req.TargetLocale),
+		Format: "text",
+	}
+	if !req.SourceLocale.IsEmpty() {
+		reqBody.Source = string(req.SourceLocale)
+	}
+
+	bodyBytes, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	apiURL := fmt.Sprintf("%s/language/translate/v2?key=%s", p.cfg.baseURL(), p.cfg.APIKey)
+	resp, err := http.Post(apiURL, "application/json", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API returned status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result googleTranslateResponse
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("unmarshal response: %w", err)
+	}
+
+	if len(result.Data.Translations) == 0 {
+		return nil, fmt.Errorf("no translations returned")
+	}
+
+	return &TranslateResponse{
+		Translation: result.Data.Translations[0].TranslatedText,
+	}, nil
+}
+
+func (p *GoogleProvider) Close() error { return nil }
+
+// GoogleToolConfig holds configuration for the Google MT tool (provider config + locale overrides).
+type GoogleToolConfig struct {
+	GoogleConfig
+	SourceLocale model.LocaleID
+	TargetLocale model.LocaleID
+}
+
+// ToolName returns the tool name this config applies to.
+func (c *GoogleToolConfig) ToolName() string { return "google-translate" }
+
+// Reset restores default values.
+func (c *GoogleToolConfig) Reset() {
+	c.APIKey = ""
+	c.ProjectID = ""
+	c.SourceLocale = ""
+	c.TargetLocale = ""
+	c.BaseURL = ""
+}
+
+// Validate checks configuration validity.
+func (c *GoogleToolConfig) Validate() error {
+	if c.APIKey == "" {
+		return fmt.Errorf("google: APIKey is required")
+	}
+	if c.TargetLocale.IsEmpty() {
+		return fmt.Errorf("google: TargetLocale is required")
+	}
+	return nil
+}
+
+type googleTranslateRequest struct {
+	Q      string `json:"q"`
+	Source string `json:"source,omitempty"`
+	Target string `json:"target"`
+	Format string `json:"format"`
+}
+
+type googleTranslateResponse struct {
+	Data struct {
+		Translations []struct {
+			TranslatedText string `json:"translatedText"`
+		} `json:"translations"`
+	} `json:"data"`
+}

@@ -1,4 +1,4 @@
-package connectors_test
+package provider_test
 
 import (
 	"context"
@@ -7,18 +7,16 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gokapi/gokapi/connectors/deepl"
-	"github.com/gokapi/gokapi/connectors/google"
-	"github.com/gokapi/gokapi/connectors/microsoft"
-	"github.com/gokapi/gokapi/connectors/modernmt"
-	"github.com/gokapi/gokapi/connectors/mymemory"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/mt/provider"
+	mttools "github.com/gokapi/gokapi/mt/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 // processPart is a helper that sends a single Part through a tool and returns the result.
-func processPart(t *testing.T, tool interface {
+func processPart(t *testing.T, tl interface {
 	Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error
 }, part *model.Part) *model.Part {
 	t.Helper()
@@ -27,7 +25,7 @@ func processPart(t *testing.T, tool interface {
 	in <- part
 	close(in)
 
-	err := tool.Process(context.Background(), in, out)
+	err := tl.Process(context.Background(), in, out)
 	close(out)
 	require.NoError(t, err)
 
@@ -36,7 +34,14 @@ func processPart(t *testing.T, tool interface {
 	return result
 }
 
-func TestGoogleTranslateConnector(t *testing.T) {
+func newTool(p provider.MTProvider, source, target model.LocaleID) *mttools.MTTranslateTool {
+	return mttools.NewMTTranslateTool(p, mttools.MTTranslateConfig{
+		SourceLocale: source,
+		TargetLocale: target,
+	})
+}
+
+func TestGoogleProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/language/translate/v2", r.URL.Path)
 		assert.Equal(t, "test-key", r.URL.Query().Get("key"))
@@ -66,47 +71,44 @@ func TestGoogleTranslateConnector(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &google.GoogleConfig{
-		APIKey:       "test-key",
-		ProjectID:    "test-project",
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := google.NewGoogleTranslateConnector(cfg)
+	p := provider.NewGoogleProvider(provider.GoogleConfig{
+		APIKey:    "test-key",
+		ProjectID: "test-project",
+		BaseURL:   server.URL,
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 	assert.Equal(t, "Hello world", resultBlock.SourceText())
 }
 
-func TestGoogleTranslateConnectorSkipsNonTranslatable(t *testing.T) {
+func TestGoogleProviderSkipsNonTranslatable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called for non-translatable blocks")
 	}))
 	defer server.Close()
 
-	cfg := &google.GoogleConfig{
-		APIKey:       "test-key",
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := google.NewGoogleTranslateConnector(cfg)
+	p := provider.NewGoogleProvider(provider.GoogleConfig{
+		APIKey:  "test-key",
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, "", model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 }
 
-func TestDeepLConnector(t *testing.T) {
+func TestDeepLProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/translate", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
@@ -133,46 +135,43 @@ func TestDeepLConnector(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &deepl.DeepLConfig{
-		APIKey:       "test-deepl-key",
-		Formality:    deepl.FormalityMore,
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := deepl.NewDeepLConnector(cfg)
+	p := provider.NewDeepLProvider(provider.DeepLConfig{
+		APIKey:    "test-deepl-key",
+		Formality: provider.FormalityMore,
+		BaseURL:   server.URL,
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 }
 
-func TestDeepLConnectorSkipsNonTranslatable(t *testing.T) {
+func TestDeepLProviderSkipsNonTranslatable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called for non-translatable blocks")
 	}))
 	defer server.Close()
 
-	cfg := &deepl.DeepLConfig{
-		APIKey:       "test-key",
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := deepl.NewDeepLConnector(cfg)
+	p := provider.NewDeepLProvider(provider.DeepLConfig{
+		APIKey:  "test-key",
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, "", model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 }
 
-func TestMicrosoftTranslatorConnector(t *testing.T) {
+func TestMicrosoftProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/translate", r.URL.Path)
 		assert.Equal(t, "3.0", r.URL.Query().Get("api-version"))
@@ -203,46 +202,43 @@ func TestMicrosoftTranslatorConnector(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &microsoft.MSConfig{
+	p := provider.NewMicrosoftProvider(provider.MicrosoftConfig{
 		SubscriptionKey: "test-sub-key",
 		Region:          "westeurope",
-		SourceLocale:    model.LocaleEnglish,
-		TargetLocale:    model.LocaleFrench,
 		BaseURL:         server.URL,
-	}
-	connector := microsoft.NewMicrosoftTranslatorConnector(cfg)
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 }
 
-func TestMicrosoftTranslatorConnectorSkipsNonTranslatable(t *testing.T) {
+func TestMicrosoftProviderSkipsNonTranslatable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called for non-translatable blocks")
 	}))
 	defer server.Close()
 
-	cfg := &microsoft.MSConfig{
+	p := provider.NewMicrosoftProvider(provider.MicrosoftConfig{
 		SubscriptionKey: "test-key",
-		TargetLocale:    model.LocaleFrench,
 		BaseURL:         server.URL,
-	}
-	connector := microsoft.NewMicrosoftTranslatorConnector(cfg)
+	})
+	tl := newTool(p, "", model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 }
 
-func TestMyMemoryConnector(t *testing.T) {
+func TestMyMemoryProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/get", r.URL.Path)
 		assert.Equal(t, http.MethodGet, r.Method)
@@ -262,109 +258,41 @@ func TestMyMemoryConnector(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &mymemory.MyMemoryConfig{
-		Email:        "test@example.com",
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := mymemory.NewMyMemoryConnector(cfg)
+	p := provider.NewMyMemoryProvider(provider.MyMemoryConfig{
+		Email:   "test@example.com",
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 }
 
-func TestMyMemoryConnectorSkipsNonTranslatable(t *testing.T) {
+func TestMyMemoryProviderSkipsNonTranslatable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called for non-translatable blocks")
 	}))
 	defer server.Close()
 
-	cfg := &mymemory.MyMemoryConfig{
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := mymemory.NewMyMemoryConnector(cfg)
+	p := provider.NewMyMemoryProvider(provider.MyMemoryConfig{
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 }
 
-func TestGoogleConfigValidation(t *testing.T) {
-	cfg := &google.GoogleConfig{}
-	err := cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "APIKey")
-
-	cfg.APIKey = "key"
-	err = cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "TargetLocale")
-
-	cfg.TargetLocale = model.LocaleFrench
-	err = cfg.Validate()
-	assert.NoError(t, err)
-}
-
-func TestDeepLConfigValidation(t *testing.T) {
-	cfg := &deepl.DeepLConfig{}
-	err := cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "APIKey")
-
-	cfg.APIKey = "key"
-	err = cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "TargetLocale")
-
-	cfg.TargetLocale = model.LocaleFrench
-	err = cfg.Validate()
-	assert.NoError(t, err)
-}
-
-func TestMSConfigValidation(t *testing.T) {
-	cfg := &microsoft.MSConfig{}
-	err := cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SubscriptionKey")
-
-	cfg.SubscriptionKey = "key"
-	err = cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "TargetLocale")
-
-	cfg.TargetLocale = model.LocaleFrench
-	err = cfg.Validate()
-	assert.NoError(t, err)
-}
-
-func TestMyMemoryConfigValidation(t *testing.T) {
-	cfg := &mymemory.MyMemoryConfig{}
-	err := cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SourceLocale")
-
-	cfg.SourceLocale = model.LocaleEnglish
-	err = cfg.Validate()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "TargetLocale")
-
-	cfg.TargetLocale = model.LocaleFrench
-	err = cfg.Validate()
-	assert.NoError(t, err)
-}
-
-func TestModernMTConnector(t *testing.T) {
+func TestModernMTProvider(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/translate", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
@@ -394,46 +322,43 @@ func TestModernMTConnector(t *testing.T) {
 	}))
 	defer server.Close()
 
-	cfg := &modernmt.ModernMTConfig{
-		APIKey:       "test-mmt-key",
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := modernmt.NewModernMTConnector(cfg)
+	p := provider.NewModernMTProvider(provider.ModernMTConfig{
+		APIKey:  "test-mmt-key",
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, model.LocaleEnglish, model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello world")
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "Bonjour le monde", resultBlock.TargetText(model.LocaleFrench))
 }
 
-func TestModernMTConnectorSkipsNonTranslatable(t *testing.T) {
+func TestModernMTProviderSkipsNonTranslatable(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("API should not be called for non-translatable blocks")
 	}))
 	defer server.Close()
 
-	cfg := &modernmt.ModernMTConfig{
-		APIKey:       "test-key",
-		TargetLocale: model.LocaleFrench,
-		BaseURL:      server.URL,
-	}
-	connector := modernmt.NewModernMTConnector(cfg)
+	p := provider.NewModernMTProvider(provider.ModernMTConfig{
+		APIKey:  "test-key",
+		BaseURL: server.URL,
+	})
+	tl := newTool(p, "", model.LocaleFrench)
 
 	block := model.NewBlock("tu1", "Hello")
 	block.Translatable = false
 	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, connector, part)
+	result := processPart(t, tl, part)
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.False(t, resultBlock.HasTarget(model.LocaleFrench))
 }
 
-func TestModernMTConfigValidation(t *testing.T) {
-	cfg := &modernmt.ModernMTConfig{}
+func TestGoogleConfigValidation(t *testing.T) {
+	cfg := &provider.GoogleToolConfig{}
 	err := cfg.Validate()
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "APIKey")
@@ -447,3 +372,77 @@ func TestModernMTConfigValidation(t *testing.T) {
 	err = cfg.Validate()
 	assert.NoError(t, err)
 }
+
+func TestDeepLConfigValidation(t *testing.T) {
+	cfg := &provider.DeepLToolConfig{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "APIKey")
+
+	cfg.APIKey = "key"
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TargetLocale")
+
+	cfg.TargetLocale = model.LocaleFrench
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestMicrosoftConfigValidation(t *testing.T) {
+	cfg := &provider.MicrosoftToolConfig{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "SubscriptionKey")
+
+	cfg.SubscriptionKey = "key"
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TargetLocale")
+
+	cfg.TargetLocale = model.LocaleFrench
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestMyMemoryConfigValidation(t *testing.T) {
+	cfg := &provider.MyMemoryToolConfig{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "SourceLocale")
+
+	cfg.SourceLocale = model.LocaleEnglish
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TargetLocale")
+
+	cfg.TargetLocale = model.LocaleFrench
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestModernMTConfigValidation(t *testing.T) {
+	cfg := &provider.ModernMTToolConfig{}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "APIKey")
+
+	cfg.APIKey = "key"
+	err = cfg.Validate()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "TargetLocale")
+
+	cfg.TargetLocale = model.LocaleFrench
+	err = cfg.Validate()
+	assert.NoError(t, err)
+}
+
+// Verify that all providers implement the MTProvider interface.
+var _ provider.MTProvider = (*provider.DeepLProvider)(nil)
+var _ provider.MTProvider = (*provider.GoogleProvider)(nil)
+var _ provider.MTProvider = (*provider.MicrosoftProvider)(nil)
+var _ provider.MTProvider = (*provider.ModernMTProvider)(nil)
+var _ provider.MTProvider = (*provider.MyMemoryProvider)(nil)
+
+// Verify the tool implements the Tool interface via BaseTool.
+var _ tool.Tool = (*mttools.MTTranslateTool)(nil)

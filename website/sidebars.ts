@@ -43,7 +43,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/translation-memory',
         'user-guide/terminology',
         'user-guide/ai-translation',
-        'user-guide/connectors',
+        'user-guide/mt-services',
         'user-guide/content-store',
         'user-guide/workspaces',
         'user-guide/automation',
