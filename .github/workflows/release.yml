@@ -21,6 +21,16 @@ jobs:
         with:
           go-version: "1.25.6"
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Build web UI
+        working-directory: apps/web
+        run: npm ci && npm run build
+
       - name: Run tests
         run: go test ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
