@@ -2,9 +2,15 @@ package server
 
 import (
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
+	"mime"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/auth"
 	"github.com/gokapi/gokapi/core/connector"
@@ -29,6 +35,10 @@ type Server struct {
 	AuthStore      auth.AuthStore
 	EventBus       *event.ChannelEventBus
 	Echo           *echo.Echo
+
+	// WebUIFS is an optional embedded filesystem for serving the web UI.
+	// When set, it takes precedence over Config.WebUIDir.
+	WebUIFS fs.FS
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -166,7 +176,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	}
 
 	// Web UI static file serving
-	if s.Config.WebUIDir != "" {
+	if s.WebUIFS != nil {
+		e.GET("/*", s.serveEmbeddedUI)
+	} else if s.Config.WebUIDir != "" {
 		e.Static("/", s.Config.WebUIDir)
 		// SPA fallback: serve index.html for non-API routes
 		e.GET("/*", func(c echo.Context) error {
@@ -198,4 +210,64 @@ func (s *Server) GetEcho() *echo.Echo {
 		s.SetupRoutes(s.Echo)
 	}
 	return s.Echo
+}
+
+// serveEmbeddedUI serves static files from the embedded WebUIFS filesystem.
+// If the requested file is not found, it falls back to index.html for SPA routing.
+func (s *Server) serveEmbeddedUI(c echo.Context) error {
+	reqPath := c.Param("*")
+	if reqPath == "" {
+		reqPath = "index.html"
+	}
+
+	// Try to open the requested file.
+	f, err := s.WebUIFS.Open(reqPath)
+	if err == nil {
+		defer f.Close()
+		info, statErr := f.Stat()
+		if statErr == nil && !info.IsDir() {
+			contentType := mime.TypeByExtension(path.Ext(reqPath))
+			if contentType == "" {
+				contentType = "application/octet-stream"
+			}
+			// Read the file into a seeker for ServeContent.
+			rs, ok := f.(io.ReadSeeker)
+			if ok {
+				http.ServeContent(c.Response(), c.Request(), info.Name(), info.ModTime(), rs)
+				return nil
+			}
+			// Fallback: read all and stream.
+			data, readErr := io.ReadAll(f)
+			if readErr != nil {
+				return readErr
+			}
+			return c.Blob(http.StatusOK, contentType, data)
+		}
+	}
+
+	// SPA fallback: serve index.html for unmatched routes.
+	indexFile, err := s.WebUIFS.Open("index.html")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusNotFound, "web UI not found")
+	}
+	defer indexFile.Close()
+
+	data, err := io.ReadAll(indexFile)
+	if err != nil {
+		return err
+	}
+
+	// Only fallback for navigation requests (not missing assets).
+	if isAssetPath(reqPath) {
+		return echo.NewHTTPError(http.StatusNotFound)
+	}
+
+	return c.HTMLBlob(http.StatusOK, data)
+}
+
+// isAssetPath returns true if the path looks like a static asset request
+// (has a file extension like .js, .css, .png) rather than an SPA route.
+func isAssetPath(p string) bool {
+	ext := path.Ext(p)
+	return ext != "" && ext != ".html" && !strings.HasSuffix(p, "/")
 }

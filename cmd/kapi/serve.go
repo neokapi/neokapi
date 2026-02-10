@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
+	"github.com/gokapi/gokapi/apps/web"
 	"github.com/gokapi/gokapi/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -54,6 +56,10 @@ If no argument is given, the current directory is used.`,
 		cfg.StorePath = storePath
 
 		srv := server.NewServer(cfg)
+
+		// Serve embedded web UI.
+		webFS, _ := fs.Sub(web.Assets, "dist")
+		srv.WebUIFS = webFS
 
 		// If given a .kaz file, import it.
 		isKAZ := filepath.Ext(absPath) == ".kaz"
