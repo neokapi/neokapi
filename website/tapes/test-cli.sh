@@ -21,9 +21,9 @@ test_cmd() {
   local name="$1"
   local cmd="$2"
   local expected="$3"
-  
+
   printf "  Testing: %-40s" "$name"
-  
+
   if output=$(eval "$cmd" 2>&1); then
     if [ -n "$expected" ]; then
       if echo "$output" | grep -q "$expected"; then
@@ -93,18 +93,10 @@ test_cmd "kapi formats" "kapi formats" "html"
 test_cmd "kapi tools" "kapi tools" "pseudo-translate"
 echo ""
 
-# convert.tape tests
-echo "convert.tape commands:"
-test_cmd "cat messages.json" "cat samples/messages.json" "welcome"
-rm -f /tmp/test-output.yaml /tmp/test-output.json
-test_cmd "convert json → yaml" "kapi convert -i samples/messages.json -o /tmp/test-output.yaml && cat /tmp/test-output.yaml" "welcome:"
-test_cmd "convert yaml → json" "kapi convert -i /tmp/test-output.yaml -o /tmp/test-output.json && cat /tmp/test-output.json" '"welcome"'
-rm -f /tmp/test-output.yaml /tmp/test-output.json
-echo ""
-
 # word-count.tape tests
 echo "word-count.tape commands:"
 test_cmd "word-count messages.json" "kapi word-count samples/messages.json" "WORDS"
+test_cmd "word-count html" "kapi word-count samples/landing-page.html" "WORDS"
 echo ""
 
 # pseudo-translate.tape tests
@@ -117,15 +109,22 @@ echo ""
 # create-project.tape tests
 echo "create-project.tape commands:"
 test_cmd "cat landing-page.html" "cat samples/landing-page.html" "<html"
-test_cmd "word-count html" "kapi word-count samples/landing-page.html" "WORDS"
-
-# Test pack command (creates file)
-rm -f /tmp/test-demo.kaz
-test_cmd "pack to .kaz" "kapi pack -i samples/landing-page.html --source-lang en --target-lang fr,de -o /tmp/test-demo.kaz" ""
-test_file "/tmp/test-demo.kaz"
-rm -f /tmp/test-demo.kaz
-
+rm -rf out
+test_cmd "pseudo-translate html" "kapi pseudo-translate samples/landing-page.html --target-lang fr && cat out/landing-page.html" ""
+rm -rf out
 echo ""
+
+# auth-login.tape tests
+echo "auth-login.tape commands:"
+test_cmd "kapi auth --help" "kapi auth --help" "authentication"
+test_cmd "kapi auth status" "kapi auth status" ""
+echo ""
+
+# serve.tape tests
+echo "serve.tape commands:"
+test_cmd "kapi serve --help" "kapi serve --help" "Start a lightweight"
+echo ""
+
 echo "============================================"
 echo -e "Results: ${GREEN}$passed passed${NC}, ${RED}$failed failed${NC}"
 echo "============================================"

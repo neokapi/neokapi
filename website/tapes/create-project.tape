@@ -1,5 +1,5 @@
-# VHS Tape: End-to-end translation project creation
-# Shows creating a .kaz project from source files
+# VHS Tape: End-to-end project workflow
+# Shows word count and pseudo-translation of source files
 
 Output output/create-project.webm
 Output output/create-project.gif
@@ -10,7 +10,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# Create a translation project with kapi"
+Type "# End-to-end project workflow with kapi"
 Enter
 Sleep 500ms
 
@@ -34,26 +34,26 @@ Sleep 1500ms
 
 Type ""
 Enter
-Type "# Pack into a .kaz translation project"
+Type "# Pseudo-translate to test UI layout"
 Enter
 Sleep 300ms
 
-Type "kapi pack -i samples/landing-page.html --source-lang en --target-lang fr,de -o demo-project.kaz"
+Type "kapi pseudo-translate samples/landing-page.html --target-lang fr"
 Enter
 Sleep 1500ms
 
 Type ""
 Enter
-Type "# Project created! Let's verify"
+Type "# View the pseudo-translated output"
 Enter
 Sleep 300ms
 
-Type "ls -lh demo-project.kaz"
+Type "cat out/landing-page.html"
 Enter
-Sleep 1s
+Sleep 2s
 
 Type ""
 Enter
-Type "# Now open in Bowrain to translate visually..."
+Type "# Open in Bowrain for visual editing, or use 'kapi serve' for web UI"
 Enter
 Sleep 1500ms

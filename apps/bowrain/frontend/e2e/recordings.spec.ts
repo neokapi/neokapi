@@ -90,7 +90,7 @@ describeOrSkip("Video Recordings", () => {
     // Navigate away and back to refresh file list
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 300);
-    await humanClick(page, page.getByTestId("nav-projects"));
+    await humanClick(page, page.getByTestId("nav-translate"));
     await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
     await pause(page, 300);
 
@@ -214,7 +214,7 @@ describeOrSkip("Video Recordings", () => {
     });
 
     // Refresh to show the file
-    await page.locator("nav button", { hasText: "Settings" }).click();
+    await page.getByTestId("nav-settings").click();
     await page.waitForTimeout(100);
     await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
@@ -329,7 +329,7 @@ describeOrSkip("Video Recordings", () => {
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
-    await humanClick(page, page.getByTestId("nav-projects"));
+    await humanClick(page, page.getByTestId("nav-translate"));
     await expect(page.getByText("Marketing Site")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
     
@@ -512,7 +512,7 @@ describeOrSkip("Video Recordings", () => {
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
-    await humanClick(page, page.getByTestId("nav-projects"));
+    await humanClick(page, page.getByTestId("nav-translate"));
     await expect(page.getByText("Product Launch")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
     
@@ -604,7 +604,7 @@ describeOrSkip("Video Recordings", () => {
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
-    await humanClick(page, page.getByTestId("nav-projects"));
+    await humanClick(page, page.getByTestId("nav-translate"));
     await expect(page.getByText("Website Translation")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
@@ -625,7 +625,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1000);
 
     // Navigate away and back to show TM-filled blocks
-    await page.locator("nav button", { hasText: "Settings" }).click();
+    await page.getByTestId("nav-settings").click();
     await page.waitForTimeout(100);
     await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
@@ -822,7 +822,7 @@ describeOrSkip("Video Recordings", () => {
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
-    await humanClick(page, page.getByTestId("nav-projects"));
+    await humanClick(page, page.getByTestId("nav-translate"));
     await expect(page.getByText("Web Application")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
@@ -859,6 +859,255 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 800);
 
     // Show "Applied" feedback
+    await pause(page, 1000);
+  });
+
+  test("record workspace switcher", async ({ page }) => {
+    await setupRecording(page, "Bowrain — Workspace Navigation");
+    await pause(page, 600);
+
+    // Show the sidebar with workspace name "Personal"
+    // Create a project first so the dashboard has content
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
+    await pause(page, 200);
+    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Go back to dashboard
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    // Create a second project
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+    await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2");
+    await pause(page, 200);
+    await selectMultiLocalesHuman(page, "target-langs-input", ["es", "ja"], humanType);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Navigate back to see both projects
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 600);
+
+    // === Demonstrate sidebar navigation ===
+
+    // Navigate to Termbase
+    await humanClick(page, page.getByTestId("nav-termbase"));
+    await pause(page, 500);
+
+    // Navigate to Memory
+    await humanClick(page, page.getByTestId("nav-memory"));
+    await pause(page, 500);
+
+    // Navigate to Flows
+    await humanClick(page, page.getByTestId("nav-flows"));
+    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Navigate to Connectors
+    await humanClick(page, page.getByTestId("nav-connectors"));
+    await pause(page, 500);
+
+    // Navigate to Settings
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Back to Translate (project list)
+    await humanClick(page, page.getByTestId("nav-translate"));
+    await expect(page.getByText("Marketing Site")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Mobile App v2")).toBeVisible();
+    await pause(page, 1200);
+  });
+
+  test("record account and authentication", async ({ page }) => {
+    await setupRecording(page, "Bowrain — Settings & Providers");
+    await pause(page, 600);
+
+    // Navigate to Settings
+    await expect(page.getByTestId("nav-settings")).toBeVisible();
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Switch to AI Providers tab
+    await expect(page.getByTestId("settings-tab-ai-providers")).toBeVisible();
+    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
+    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Add first provider — Anthropic
+    await expect(page.getByTestId("add-provider-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("add-provider-btn"));
+    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-name"), "Anthropic Claude");
+    await pause(page, 200);
+
+    await humanClick(page, page.getByTestId("provider-type"));
+    await page.getByTestId("provider-type").selectOption("anthropic");
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
+    await pause(page, 200);
+
+    await humanType(page, page.getByTestId("provider-model"), "claude-sonnet-4-20250514");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("provider-save-btn"));
+    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Add second provider — OpenAI
+    await humanClick(page, page.getByTestId("add-provider-btn"));
+    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-name"), "OpenAI GPT");
+    await pause(page, 200);
+
+    await humanClick(page, page.getByTestId("provider-type"));
+    await page.getByTestId("provider-type").selectOption("openai");
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-api-key"), "sk-proj-xxxx");
+    await pause(page, 200);
+
+    await humanType(page, page.getByTestId("provider-model"), "gpt-4o");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("provider-save-btn"));
+    await expect(page.getByText("OpenAI GPT")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Navigate back to Translate to show the workspace is ready
+    await humanClick(page, page.getByTestId("nav-translate"));
+    await pause(page, 800);
+  });
+
+  test("record workspace project management", async ({ page }) => {
+    await setupRecording(page, "Bowrain — Project Management");
+    await pause(page, 600);
+
+    // Create first project
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Website Redesign");
+    await pause(page, 200);
+    await selectMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Add files
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = await backend.ListProjects();
+      if (projects[0]) {
+        await backend.AddFiles(projects[0].id, [
+          "/src/index.html",
+          "/src/strings.json",
+          "/content/about.md",
+        ]);
+      }
+    });
+
+    // Refresh to show files
+    await page.getByTestId("nav-settings").click();
+    await page.waitForTimeout(100);
+    await page.getByTestId("nav-translate").click();
+    await page.waitForTimeout(200);
+    await humanClick(page, page.getByText("Website Redesign").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Go back and create second project
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2.0");
+    await pause(page, 200);
+    await selectMultiLocalesHuman(page, "target-langs-input", ["es"], humanType);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Add files to second project
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = await backend.ListProjects();
+      const p = projects[projects.length - 1];
+      if (p) {
+        await backend.AddFiles(p.id, ["/app/strings.json", "/app/config.yaml"]);
+      }
+    });
+
+    // Go back and create third project
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
+    await pause(page, 200);
+    await selectMultiLocalesHuman(page, "target-langs-input", ["ko"], humanType);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Navigate back to dashboard to see all 3 projects
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Mobile App v2.0")).toBeVisible();
+    await expect(page.getByText("API Documentation")).toBeVisible();
+    await pause(page, 800);
+
+    // Open first project to show files
+    await humanClick(page, page.getByText("Website Redesign").first());
+    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Open a file to show quick access
+    await humanClick(page, page.getByTestId("open-file-index.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Navigate back to project list
+    await humanClick(page, page.getByTestId("back-to-project"));
+    await pause(page, 400);
+
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    // Open the second project
+    await humanClick(page, page.getByText("Mobile App v2.0").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 1000);
   });
 

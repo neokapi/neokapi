@@ -21,18 +21,6 @@ kapi formats
 kapi tools
 ```
 
-## Format Conversion
-
-Convert between JSON, YAML, XML, and other formats.
-
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/convert.webm" type="video/webm" />
-</video>
-
-```bash
-kapi convert messages.json -f json --to yaml
-```
-
 ## Word Count
 
 Estimate translation costs with word counting.
@@ -123,19 +111,23 @@ kapi flow run --input translated/ --output qa/ \
   --termbase project.tb
 ```
 
-## Create Translation Project
+## Project Workflow
 
-Pack source files into a `.kaz` project for Bowrain.
+End-to-end project workflow: inspect content, count words, and pseudo-translate.
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/cli/create-project.webm" type="video/webm" />
 </video>
 
 ```bash
-kapi pack -i landing-page.html \
-  --source-lang en \
-  --target-lang fr,de \
-  -o website.kaz
+# Count words for cost estimation
+kapi word-count landing-page.html
+
+# Pseudo-translate for UI testing
+kapi pseudo-translate landing-page.html --target-lang fr
+
+# Open in web UI for visual editing
+kapi serve project.kaz
 ```
 
 ## Authentication
