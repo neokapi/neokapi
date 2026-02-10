@@ -154,8 +154,11 @@ CREATE TABLE projects (
     name TEXT NOT NULL,
     source_locale TEXT NOT NULL,
     target_locales TEXT NOT NULL,    -- JSON array of BCP-47 tags
+    workspace_id TEXT NOT NULL DEFAULT '',  -- FK to workspaces (ADR-015)
     created_at TEXT NOT NULL
 );
+
+CREATE INDEX idx_projects_workspace ON projects(workspace_id);
 
 CREATE TABLE blocks (
     content_hash TEXT PRIMARY KEY,
@@ -303,3 +306,6 @@ own co-located SQLite databases.
   ([ADR-002](./002-content-model.md)).
 - Future PostgreSQL backend for team server scenarios requires only a new
   `ContentStore` implementation -- the interface abstracts the storage layer.
+- Projects are scoped to workspaces ([ADR-015](./015-auth-and-workspaces.md)).
+  The `workspace_id` column links each project to its owning workspace. In local
+  mode (`kapi serve`), a default workspace is used implicitly.

@@ -1,22 +1,23 @@
-type View = "projects" | "convert" | "translate" | "flows" | "connectors" | "settings";
+export type View = "translate" | "termbase" | "memory" | "flows" | "connectors" | "settings";
 
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
+  workspaceName?: string;
 }
 
 const navItems: { view: View; label: string; icon: string }[] = [
-  { view: "projects", label: "Projects", icon: "\u{1F4C1}" },
-  { view: "convert", label: "Convert", icon: "\u{1F504}" },
   { view: "translate", label: "Translate", icon: "\u{1F30D}" },
+  { view: "termbase", label: "Termbase", icon: "\u{1F4DA}" },
+  { view: "memory", label: "Memory", icon: "\u{1F9E0}" },
   { view: "flows", label: "Flows", icon: "\u{1F500}" },
   { view: "connectors", label: "Connectors", icon: "\u{1F517}" },
   { view: "settings", label: "Settings", icon: "\u{2699}\u{FE0F}" },
 ];
 
-export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange, workspaceName }: SidebarProps) {
 
   return (
     <nav
@@ -32,6 +33,25 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
     >
       {/* Spacer for macOS traffic light buttons */}
       <div style={{ height: 38, flexShrink: 0 }} />
+
+      {/* Workspace name */}
+      {!collapsed && workspaceName && (
+        <div
+          style={{
+            padding: "4px 16px 8px",
+            fontWeight: 700,
+            fontSize: 15,
+            color: "var(--text-primary)",
+            borderBottom: "1px solid var(--border)",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {workspaceName}
+        </div>
+      )}
+
       <div style={{ flex: 1, padding: "8px 0" }}>
         {navItems.map(({ view, label, icon }) => (
           <button
@@ -95,4 +115,4 @@ export function Sidebar({ activeView, onViewChange, collapsed, onCollapsedChange
   );
 }
 
-export type { View };
+export type { View as SidebarView };

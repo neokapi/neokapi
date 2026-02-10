@@ -177,6 +177,48 @@ the new content.
 This approach extends the connector concept beyond data exchange to become a
 full in-context translation experience within native tools.
 
+### Workspace Switcher (Slack-like Sidebar)
+
+Bowrain uses a Slack-inspired two-panel sidebar layout for workspace navigation:
+
+- **Workspace Rail** (60px, dark background) -- Far-left icon rail showing
+  workspace icons (first letter or custom logo with colored badge). Active
+  workspace has a pill-shaped highlight. Bottom section has "+" button for
+  creating workspaces and a user avatar with account menu
+- **Main Sidebar** (220px) -- Navigation panel for the active workspace with
+  sections: Translate (project list), Termbase, Memory (TM), Flows, Connectors,
+  Settings. Below navigation: collapsible project list for quick switching
+
+```
+┌──────┬──────────┬────────────────────────────────────────┐
+│ Rail │ Sidebar  │  Main Content                          │
+│ 60px │  220px   │                                        │
+│ [WS] │ Translate│  (ProjectDashboard/Editor/TM/Terms)    │
+│ [WS] │ Termbase │                                        │
+│      │ Memory   │                                        │
+│  +   │ Flows    │                                        │
+│ [AV] │ Settings │                                        │
+└──────┴──────────┴────────────────────────────────────────┘
+```
+
+In local/desktop mode, a "Personal" workspace is created automatically. When
+connected to a `gokapi-server` instance, the rail shows all workspaces the user
+belongs to with role-based access ([ADR-015](./015-auth-and-workspaces.md)).
+
+### Shared Component Library (`packages/ui/`)
+
+Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse
+across Bowrain (desktop) and the web app. The library includes:
+
+- **Layout**: `WorkspaceRail`, `MainSidebar`, `AccountMenu`, `WorkspaceIcon`
+- **Context**: `AuthContext`, `WorkspaceContext` with React hooks
+- **API Adapter**: `ApiAdapter` interface with platform-specific implementations
+  -- `RestApiAdapter` for the web app, Wails bindings for desktop
+
+Bowrain imports from `@gokapi/ui` and provides a Wails-specific API adapter that
+bridges Go method calls to the shared `ApiAdapter` interface. This ensures the
+same UI components render identically in both desktop and browser contexts.
+
 ### Plugin Manager
 
 Install/update plugins from the plugin registry

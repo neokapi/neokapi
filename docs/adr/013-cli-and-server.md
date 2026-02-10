@@ -69,7 +69,11 @@ kapi
 │   ├── update       # Update plugins
 │   ├── search       # Search plugin registry
 │   └── audit        # Audit plugin usage across projects
-└── serve            # Start gokapi-server
+├── auth             # Authentication (ADR-015)
+│   ├── login        # OAuth device flow login against a gokapi-server
+│   ├── logout       # Remove stored token
+│   └── status       # Show current user, server URL, token expiry
+└── serve            # Start local project server (no auth)
 ```
 
 ### Connector-First Commands
@@ -107,26 +111,112 @@ kapi tools run pseudo-translate -i content.xliff -o pseudo.xliff
 kapi flow run ai-translate-qa --project my-website --target fr,de,ja
 ```
 
+### CLI Authentication (`kapi auth`)
+
+The `kapi auth` command group enables CLI users to authenticate against a
+deployed `gokapi-server` instance using OAuth 2.0 Device Authorization Grant
+(RFC 8628) via Dex ([ADR-015](./015-auth-and-workspaces.md)):
+
+```bash
+# Login to a gokapi server
+kapi auth login --server https://gokapi.example.com
+# → Open https://gokapi.example.com/auth/device and enter code: ABCD-1234
+# → Polling for authorization...
+# → Logged in as user@example.com
+
+# Check auth status
+kapi auth status
+# → Server: https://gokapi.example.com
+# → User: user@example.com
+# → Token expires: 2026-02-11 14:30:00
+
+# Logout
+kapi auth logout
+# → Logged out from https://gokapi.example.com
+```
+
+The token is stored at `~/.config/gokapi/auth.json` and automatically attached
+to API requests made by other CLI commands (e.g., `kapi pull`, `kapi push`).
+
+### `kapi serve` — Local Project Server
+
+`kapi serve` is a **local project server** — like `jupyter notebook` or
+`hugo server`. It starts a lightweight web UI for a single local project
+without authentication:
+
+```bash
+kapi serve ./project.kaz              # Open project from KAZ archive
+kapi serve ./my-project/              # Open project directory
+kapi serve --port 4000                # Custom port (default: 3000)
+kapi serve --no-open                  # Don't auto-open browser
+```
+
+Behavior:
+1. Creates a temporary SQLite store, imports the project content
+2. Starts the REST server on `localhost:3000` (localhost only, not `0.0.0.0`)
+3. Serves the web UI (same React components as Bowrain)
+4. Opens the browser automatically (unless `--no-open`)
+5. On exit (Ctrl+C), exports changes back to the project file
+
+This is distinct from `gokapi-server` which is the full multi-user deployment
+with authentication, workspaces, and `0.0.0.0` binding.
+
 ### gokapi-server
 
 The server binary (`cmd/gokapi-server/`) provides remote access via two
-protocols, started by `kapi serve` or directly as `gokapi-server`.
+protocols. Server logic lives in `internal/server/` and is shared between
+`gokapi-server` (multi-user with auth) and `kapi serve` (local, no auth).
 
 **REST API** (Echo v4) serves external integrations, webhooks, and simple HTTP
-clients:
+clients. In multi-user mode, routes are scoped under workspaces and protected
+by JWT auth middleware ([ADR-015](./015-auth-and-workspaces.md)):
 
 ```
+# Public routes
+GET    /api/v1/health
+GET    /api/v1/config                               # Returns server mode (local/server)
+
+# Auth routes (multi-user mode only)
+POST   /api/v1/auth/device/start                    # Start device auth flow
+POST   /api/v1/auth/device/poll                     # Poll for token
+GET    /api/v1/auth/callback                        # OIDC redirect callback
+GET    /api/v1/auth/me                              # Get current user
+POST   /api/v1/auth/logout                          # Revoke token
+
+# Workspace routes (require auth)
+POST   /api/v1/workspaces
+GET    /api/v1/workspaces
+GET    /api/v1/workspaces/:ws
+PUT    /api/v1/workspaces/:ws
+DELETE /api/v1/workspaces/:ws
+GET    /api/v1/workspaces/:ws/members
+POST   /api/v1/workspaces/:ws/members
+PUT    /api/v1/workspaces/:ws/members/:uid/role
+DELETE /api/v1/workspaces/:ws/members/:uid
+
+# Project routes (scoped to workspace)
+POST   /api/v1/workspaces/:ws/projects
+GET    /api/v1/workspaces/:ws/projects
+GET    /api/v1/workspaces/:ws/projects/:id
+PUT    /api/v1/workspaces/:ws/projects/:id
+DELETE /api/v1/workspaces/:ws/projects/:id
+GET    /api/v1/workspaces/:ws/projects/:id/blocks
+PUT    /api/v1/workspaces/:ws/projects/:id/blocks/:hash/translation
+POST   /api/v1/workspaces/:ws/projects/:id/pull
+POST   /api/v1/workspaces/:ws/projects/:id/push
+
+# Unscoped routes (local mode or backward compat)
 POST   /api/v1/projects
 GET    /api/v1/projects/:id
-POST   /api/v1/projects/:id/pull
-POST   /api/v1/projects/:id/push
-GET    /api/v1/projects/:id/blocks
-PUT    /api/v1/projects/:id/blocks/:hash/translation
 POST   /api/v1/flows/run
 GET    /api/v1/connectors
 GET    /api/v1/formats
-GET    /api/v1/health
 ```
+
+Auth middleware validates JWT tokens from the `Authorization: Bearer <token>`
+header, extracts user claims, and sets them on the request context. Workspace
+access middleware verifies the authenticated user has membership in the
+requested workspace.
 
 **gRPC** serves Bowrain-to-server communication with streaming support:
 
@@ -201,3 +291,11 @@ plugins:
   execution flags, and declarative plugin dependencies.
 - `kapi serve` bridges the CLI and server: a single binary distribution includes
   both modes of operation.
+- Server logic lives in `internal/server/` and is imported by both
+  `cmd/gokapi-server/` (multi-user) and `cmd/kapi/serve.go` (local). The
+  `ServerConfig.LocalMode` flag controls auth requirements and binding address.
+- `kapi auth` enables CLI users to authenticate against deployed servers via
+  OAuth device flow, making CI/CD integration seamless with stored tokens.
+- Workspace-scoped API routes enforce multi-tenancy at the HTTP layer,
+  complementing the domain-level workspace model
+  ([ADR-015](./015-auth-and-workspaces.md)).

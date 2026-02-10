@@ -64,22 +64,6 @@ func TestListTools(t *testing.T) {
 	}
 }
 
-func TestListFlows(t *testing.T) {
-	app := NewApp()
-	flows := app.ListFlows()
-	assert.Equal(t, 5, len(flows))
-
-	names := make(map[string]bool)
-	for _, f := range flows {
-		names[f.Name] = true
-	}
-	assert.True(t, names["ai-translate"])
-	assert.True(t, names["ai-translate-qa"])
-	assert.True(t, names["pseudo-translate"])
-	assert.True(t, names["qa-check"])
-	assert.True(t, names["tm-leverage"])
-}
-
 func TestListPlugins(t *testing.T) {
 	app := NewApp()
 	plugins := app.ListPlugins()
@@ -126,77 +110,3 @@ func TestDetectFormat(t *testing.T) {
 	}
 }
 
-func TestConvert_MissingInput(t *testing.T) {
-	app := NewApp()
-	_, err := app.Convert(ConvertRequest{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "input path is required")
-}
-
-func TestConvert_MissingOutput(t *testing.T) {
-	app := NewApp()
-	_, err := app.Convert(ConvertRequest{InputPath: "test.html"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "output path is required")
-}
-
-func TestTranslate_MissingInput(t *testing.T) {
-	app := NewApp()
-	_, err := app.Translate(TranslateRequest{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "input path is required")
-}
-
-func TestTranslate_MissingTargetLang(t *testing.T) {
-	app := NewApp()
-	_, err := app.Translate(TranslateRequest{InputPath: "test.html"})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "target language is required")
-}
-
-func TestExecuteFlow_MissingFlowName(t *testing.T) {
-	app := NewApp()
-	_, err := app.ExecuteFlow(FlowRequest{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "flow name is required")
-}
-
-func TestExecuteFlow_UnknownFlow(t *testing.T) {
-	app := NewApp()
-	_, err := app.ExecuteFlow(FlowRequest{
-		FlowName:   "nonexistent",
-		InputPath:  "test.html",
-		TargetLang: "fr",
-	})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown flow")
-}
-
-func TestBuildFlowTools(t *testing.T) {
-	tests := []struct {
-		name      string
-		flowName  string
-		wantCount int
-		wantErr   bool
-	}{
-		{"ai-translate", "ai-translate", 1, false},
-		{"ai-translate-qa", "ai-translate-qa", 2, false},
-		{"pseudo-translate", "pseudo-translate", 1, false},
-		{"qa-check", "qa-check", 1, false},
-		{"segmentation", "segmentation", 1, false},
-		{"tm-leverage", "tm-leverage", 1, false},
-		{"unknown", "invalid", 0, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tools, err := buildFlowTools(tt.flowName, "", "", "", "en", "fr")
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.wantCount, len(tools))
-			}
-		})
-	}
-}

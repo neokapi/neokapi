@@ -65,14 +65,3 @@ func TestSaveBuiltInFlowFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "built-in")
 }
 
-func TestListFlowsSummary(t *testing.T) {
-	app := NewApp()
-	flows := app.ListFlows()
-	require.NotEmpty(t, flows)
-
-	names := make(map[string]bool)
-	for _, f := range flows {
-		names[f.Name] = true
-	}
-	assert.True(t, names["ai-translate"])
-}

@@ -8,18 +8,25 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gokapi/gokapi/internal/server"
 	pb "github.com/gokapi/gokapi/proto/v1"
 	"google.golang.org/grpc"
 )
 
 func main() {
-	cfg := DefaultServerConfig()
+	cfg := server.DefaultServerConfig()
 
 	var grpcPort int
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")
 	flag.IntVar(&grpcPort, "grpc-port", 0, "gRPC port (0 to disable)")
 	flag.StringVar(&cfg.Host, "host", cfg.Host, "Address to bind to")
 	flag.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "Directory for temporary files")
+	flag.StringVar(&cfg.StorePath, "store", cfg.StorePath, "Path to SQLite content store database")
+	flag.StringVar(&cfg.JWTSecret, "jwt-secret", cfg.JWTSecret, "JWT signing secret")
+	flag.StringVar(&cfg.DexIssuerURL, "dex-issuer-url", cfg.DexIssuerURL, "Dex OIDC issuer URL")
+	flag.StringVar(&cfg.DexClientID, "dex-client-id", cfg.DexClientID, "Dex OAuth client ID")
+	flag.StringVar(&cfg.DexClientSecret, "dex-client-secret", cfg.DexClientSecret, "Dex OAuth client secret")
+	flag.StringVar(&cfg.WebUIDir, "web-ui-dir", cfg.WebUIDir, "Path to built web UI static files")
 	flag.Parse()
 
 	// Allow environment variable overrides.
@@ -34,13 +41,28 @@ func main() {
 	if envDataDir := os.Getenv("GOKAPI_DATA_DIR"); envDataDir != "" {
 		cfg.DataDir = envDataDir
 	}
+	if envStore := os.Getenv("GOKAPI_STORE"); envStore != "" {
+		cfg.StorePath = envStore
+	}
 	if envGRPC := os.Getenv("GOKAPI_GRPC_PORT"); envGRPC != "" {
 		if p, err := strconv.Atoi(envGRPC); err == nil {
 			grpcPort = p
 		}
 	}
+	if envJWT := os.Getenv("GOKAPI_JWT_SECRET"); envJWT != "" {
+		cfg.JWTSecret = envJWT
+	}
+	if envIssuer := os.Getenv("GOKAPI_DEX_ISSUER_URL"); envIssuer != "" {
+		cfg.DexIssuerURL = envIssuer
+	}
+	if envClientID := os.Getenv("GOKAPI_DEX_CLIENT_ID"); envClientID != "" {
+		cfg.DexClientID = envClientID
+	}
+	if envSecret := os.Getenv("GOKAPI_DEX_CLIENT_SECRET"); envSecret != "" {
+		cfg.DexClientSecret = envSecret
+	}
 
-	srv := NewServer(cfg)
+	srv := server.NewServer(cfg)
 
 	// Start gRPC server if a port is configured.
 	if grpcPort > 0 {
@@ -51,7 +73,7 @@ func main() {
 				log.Fatalf("gRPC listen failed: %v", err)
 			}
 			grpcSrv := grpc.NewServer()
-			pb.RegisterGokapiServiceServer(grpcSrv, NewGRPCServer(srv))
+			pb.RegisterGokapiServiceServer(grpcSrv, server.NewGRPCServer(srv))
 			log.Printf("Starting gRPC server on %s", grpcAddr)
 			if err := grpcSrv.Serve(lis); err != nil {
 				log.Fatalf("gRPC server failed: %v", err)

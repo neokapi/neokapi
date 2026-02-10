@@ -65,4 +65,12 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     4,
+		Description: "add workspace_id to projects",
+		SQL: `
+			ALTER TABLE projects ADD COLUMN workspace_id TEXT NOT NULL DEFAULT '';
+			CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+		`,
+	},
 }

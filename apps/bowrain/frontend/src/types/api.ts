@@ -67,54 +67,30 @@ export interface PluginInfo {
   formats: string[];
 }
 
-/** Parameters for format conversion */
-export interface ConvertRequest {
-  input_path: string;
-  output_path: string;
-  input_format?: string;
-  output_format?: string;
-  source_lang?: string;
-  target_lang?: string;
-  encoding?: string;
+/** User info */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url: string;
 }
 
-/** Parameters for AI translation */
-export interface TranslateRequest {
-  input_path: string;
-  output_path?: string;
-  format?: string;
-  source_lang?: string;
-  target_lang: string;
-  provider?: string;
-  api_key?: string;
-  model?: string;
-  encoding?: string;
+/** Workspace — top-level organizational unit */
+export interface Workspace {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  logo_url: string;
+  role: string;
 }
 
-/** Parameters for flow execution */
-export interface FlowRequest {
-  flow_name: string;
-  input_path: string;
-  output_path?: string;
-  format?: string;
-  source_lang?: string;
-  target_lang: string;
-  provider?: string;
-  api_key?: string;
-  model?: string;
-  encoding?: string;
-}
-
-/** Result of a conversion operation */
-export interface ConvertResult {
-  output_path: string;
-  part_count: number;
-}
-
-/** Result of a translation operation */
-export interface TranslateResult {
-  output_path: string;
-  block_count: number;
+/** Membership info */
+export interface Membership {
+  user_id: string;
+  workspace_id: string;
+  role: "owner" | "admin" | "member" | "viewer";
+  user: User;
 }
 
 /** Health check response */

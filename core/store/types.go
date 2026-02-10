@@ -10,13 +10,14 @@ import (
 
 // Project represents a localization project in the store.
 type Project struct {
-	ID           string
-	Name         string
-	SourceLocale model.LocaleID
+	ID            string
+	Name          string
+	SourceLocale  model.LocaleID
 	TargetLocales []model.LocaleID
-	Properties   map[string]string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	Properties    map[string]string
+	WorkspaceID   string
+	CreatedAt     time.Time
+	UpdatedAt     time.Time
 }
 
 // StoredBlock wraps a model.Block with store metadata.

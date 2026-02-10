@@ -2,8 +2,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { SettingsPage } from "./components/SettingsPage";
-import { ConvertPanel } from "./components/ConvertPanel";
-import { TranslatePanel } from "./components/TranslatePanel";
 import { ProjectDashboard } from "./components/ProjectDashboard";
 import { ProjectView } from "./components/ProjectView";
 import { TranslationEditor } from "./components/TranslationEditor";
@@ -18,7 +16,7 @@ import type { ProjectInfo } from "./types/api";
 import * as Backend from "../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
 
 function App() {
-  const [activeView, setActiveView] = useState<View>("projects");
+  const [activeView, setActiveView] = useState<View>("translate");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { connected } = useHealth();
 
@@ -38,7 +36,7 @@ function App() {
       projectApi.openProject(path).then((info) => {
         setProjects((prev) => [...prev, info]);
         setActiveProject(info);
-        setActiveView("projects");
+        setActiveView("translate");
       }).catch((e: unknown) => {
         console.error("Failed to open initial project:", e);
       });
@@ -60,7 +58,6 @@ function App() {
 
   const handleOpenProject = useCallback(
     async (project: ProjectInfo) => {
-      // Fetch fresh data from backend (in case files were added externally)
       try {
         const fresh = await Backend.GetProject(project.id) as ProjectInfo;
         setActiveProject(fresh);
@@ -76,7 +73,7 @@ function App() {
   const handleOpenKaz = useCallback(async () => {
     try {
       const info = await projectApi.openProjectDialog();
-      if (!info) return; // user cancelled
+      if (!info) return;
       setProjects((prev) => [...prev, info]);
       setActiveProject(info);
     } catch (e) {
@@ -102,7 +99,7 @@ function App() {
     if (!activeProject) return;
     try {
       const updated = await projectApi.addFilesDialog(activeProject.id);
-      if (!updated) return; // user cancelled
+      if (!updated) return;
       setActiveProject(updated);
       setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     } catch (e) {
@@ -166,7 +163,7 @@ function App() {
 
   const handleViewChange = useCallback((view: View) => {
     setActiveView(view);
-    if (view !== "projects") {
+    if (view !== "translate") {
       setActiveProject(null);
       setActiveFile(null);
       setShowTMExplorer(false);
@@ -174,8 +171,7 @@ function App() {
   }, []);
 
   const renderView = () => {
-    // If we're in the projects view and have Term explorer open, show it
-    if (activeView === "projects" && activeProject && showTermExplorer) {
+    if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
         <TermExplorer
           project={activeProject}
@@ -184,8 +180,7 @@ function App() {
       );
     }
 
-    // If we're in the projects view and have TM explorer open, show it
-    if (activeView === "projects" && activeProject && showTMExplorer) {
+    if (activeView === "translate" && activeProject && showTMExplorer) {
       return (
         <TMExplorer
           project={activeProject}
@@ -194,8 +189,7 @@ function App() {
       );
     }
 
-    // If we're in the projects view and have an active file, show editor
-    if (activeView === "projects" && activeProject && activeFile) {
+    if (activeView === "translate" && activeProject && activeFile) {
       return (
         <TranslationEditor
           project={activeProject}
@@ -205,8 +199,7 @@ function App() {
       );
     }
 
-    // If we're in the projects view and have an active project, show project view
-    if (activeView === "projects" && activeProject) {
+    if (activeView === "translate" && activeProject) {
       return (
         <ProjectView
           project={activeProject}
@@ -223,7 +216,7 @@ function App() {
     }
 
     switch (activeView) {
-      case "projects":
+      case "translate":
         return (
           <ProjectDashboard
             projects={projects}
@@ -232,12 +225,14 @@ function App() {
             onOpenKaz={handleOpenKaz}
           />
         );
+      case "termbase":
+        // Standalone termbase view (not project-scoped)
+        return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its termbase.</div>;
+      case "memory":
+        // Standalone TM view
+        return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its translation memory.</div>;
       case "settings":
         return <SettingsPage />;
-      case "convert":
-        return <ConvertPanel />;
-      case "translate":
-        return <TranslatePanel />;
       case "flows":
         return <FlowBuilder />;
       case "connectors":
@@ -245,7 +240,7 @@ function App() {
     }
   };
 
-  const isEditor = activeView === "projects" && activeProject != null && activeFile != null;
+  const isEditor = activeView === "translate" && activeProject != null && activeFile != null;
   const isFlowBuilder = activeView === "flows";
 
   return (
@@ -256,7 +251,13 @@ function App() {
         overflow: "hidden",
       }}
     >
-      <Sidebar activeView={activeView} onViewChange={handleViewChange} collapsed={sidebarCollapsed} onCollapsedChange={setSidebarCollapsed} />
+      <Sidebar
+        activeView={activeView}
+        onViewChange={handleViewChange}
+        collapsed={sidebarCollapsed}
+        onCollapsedChange={setSidebarCollapsed}
+        workspaceName="Personal"
+      />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
         <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
         <main

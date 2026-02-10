@@ -13,6 +13,7 @@ type Services struct {
 	Project   *ProjectService
 	Connector *ConnectorService
 	Flow      *FlowService
+	Auth      *AuthService
 }
 
 // NewServices creates the full service layer.

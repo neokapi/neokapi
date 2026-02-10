@@ -57,10 +57,10 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *Project) error {
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, source_locale, target_locales, properties, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO projects (id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.ID, p.Name, string(p.SourceLocale), locales, string(propsJSON),
-		now.Format(time.RFC3339), now.Format(time.RFC3339))
+		p.WorkspaceID, now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert project: %w", err)
 	}
@@ -69,14 +69,14 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *Project) error {
 
 func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, created_at, updated_at
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
 		 FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
 func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, created_at, updated_at
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
 		 FROM projects ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
@@ -103,10 +103,10 @@ func (s *SQLiteStore) UpdateProject(ctx context.Context, p *Project) error {
 	}
 
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE projects SET name=?, source_locale=?, target_locales=?, properties=?, updated_at=?
+		`UPDATE projects SET name=?, source_locale=?, target_locales=?, properties=?, workspace_id=?, updated_at=?
 		 WHERE id=?`,
 		p.Name, string(p.SourceLocale), locales, string(propsJSON),
-		p.UpdatedAt.Format(time.RFC3339), p.ID)
+		p.WorkspaceID, p.UpdatedAt.Format(time.RFC3339), p.ID)
 	if err != nil {
 		return fmt.Errorf("update project: %w", err)
 	}
@@ -568,7 +568,7 @@ type scanner interface {
 func scanProject(row scanner) (*Project, error) {
 	var p Project
 	var srcLocale, targetLocales, propsJSON, createdStr, updatedStr string
-	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &createdStr, &updatedStr)
+	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}

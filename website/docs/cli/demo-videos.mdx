@@ -137,3 +137,62 @@ kapi pack -i landing-page.html \
   --target-lang fr,de \
   -o website.kaz
 ```
+
+## Authentication
+
+Authenticate the CLI against a deployed gokapi-server using the OAuth device flow.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the auth CLI end-to-end test is added.
+:::
+
+```bash
+# Login to a gokapi server
+kapi auth login --server https://gokapi.example.com
+
+# Check authentication status
+kapi auth status
+
+# Logout
+kapi auth logout
+```
+
+## Local Project Server
+
+Start a web-based translation editor for a local project — no server setup or authentication required.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the serve CLI end-to-end test is added.
+:::
+
+```bash
+# Open a project in the browser
+kapi serve website.kaz
+
+# Custom port, don't auto-open browser
+kapi serve website.kaz --port 4000 --no-open
+```
+
+## Workspace Management
+
+Create and manage workspaces via the REST API for team collaboration.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the workspace end-to-end test is added.
+:::
+
+```bash
+# List your workspaces
+curl -H "Authorization: Bearer $TOKEN" \
+  https://gokapi.example.com/api/v1/workspaces
+
+# Create a team workspace
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"name": "Acme Translations", "slug": "acme"}' \
+  https://gokapi.example.com/api/v1/workspaces
+
+# Create a project in the workspace
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"name": "Website", "source_locale": "en", "target_locales": ["fr","de"]}' \
+  https://gokapi.example.com/api/v1/workspaces/acme/projects
+```
