@@ -80,6 +80,7 @@ web-deps: ## Install web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
 web-build: ## Build web UI for production
+	cd packages/ui && npx tsc
 	cd $(WEB_DIR) && $(NPM) run build
 
 # ── Docker ──────────────────────────────────────────────────────────────────

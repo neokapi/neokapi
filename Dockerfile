@@ -1,13 +1,18 @@
 # ── Stage 1: Build web UI ────────────────────────────────────────────────────
 FROM node:22-alpine AS web-builder
-WORKDIR /src/apps/web
-COPY apps/web/package.json apps/web/package-lock.json ./
-RUN npm ci
-COPY apps/web/ ./
+WORKDIR /src
 
-# The web UI imports from the shared @gokapi/ui package via workspace link.
-COPY packages/ /src/packages/
-RUN npm run build
+# Build the shared @gokapi/ui package first (TypeScript project reference).
+COPY packages/ui/package.json packages/ui/package-lock.json* packages/ui/
+RUN cd packages/ui && npm ci
+COPY packages/ui/ packages/ui/
+RUN cd packages/ui && npx tsc
+
+# Build the web UI.
+COPY apps/web/package.json apps/web/package-lock.json apps/web/
+RUN cd apps/web && npm ci
+COPY apps/web/ apps/web/
+RUN cd apps/web && npm run build
 
 # ── Stage 2: Build Go binary ────────────────────────────────────────────────
 FROM golang:1.25-alpine AS go-builder

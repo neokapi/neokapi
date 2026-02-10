@@ -28,6 +28,10 @@ jobs:
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npm ci && npx tsc
+
       - name: Build web UI
         working-directory: apps/web
         run: npm ci && npm run build
