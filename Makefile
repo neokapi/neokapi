@@ -24,7 +24,7 @@ WEBSITE_DIR  := website
 NPM         := npm
 
 # Tools
-GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint")
+GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
@@ -117,7 +117,7 @@ vet: ## Run go vet
 
 lint: ## Run golangci-lint
 ifdef GOLANGCI_LINT
-	$(GOLANGCI_LINT) run --timeout=5m ./...
+	$(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
