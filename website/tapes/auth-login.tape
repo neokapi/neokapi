@@ -1,5 +1,5 @@
-# VHS Tape: kapi auth login demo
-# Demonstrates the CLI authentication flow
+# VHS Tape: kapi auth demo
+# Demonstrates the CLI authentication commands
 
 Output output/auth-login.webm
 Output output/auth-login.gif
@@ -10,45 +10,50 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# Authenticate the CLI against a gokapi server"
+Type "# CLI Authentication for gokapi"
 Enter
 Sleep 500ms
 
-Type "kapi auth login --server http://localhost:8080"
+Type "kapi auth --help"
 Enter
-Sleep 1s
-
-Type "# → Open http://localhost:8080/auth/device and enter code: ABCD-1234"
-Enter
-Sleep 2s
-
-Type "# → Waiting for authorization..."
-Enter
-Sleep 1500ms
-
-Type "# → Logged in as translator@example.com"
-Enter
-Sleep 1500ms
+Sleep 3s
 
 Type ""
 Enter
 Sleep 500ms
 
-Type "# Check authentication status"
+Type "# Check current authentication status"
 Enter
 Sleep 500ms
 
 Type "kapi auth status"
 Enter
-Sleep 1s
+Sleep 2s
 
-Type "# → Server:  http://localhost:8080"
+Type ""
 Enter
-Type "# → User:    translator@example.com"
+Sleep 500ms
+
+Type "# Login connects to a deployed gokapi-server"
 Enter
-Type "# → Name:    Jane Translator"
+Sleep 500ms
+
+Type "kapi auth login --help"
 Enter
-Type "# → Expires: 2026-02-11 14:30:00"
+Sleep 3s
+
+Type ""
+Enter
+Sleep 500ms
+
+Type "# After login, 'auth status' shows your session info"
+Enter
+Sleep 500ms
+Type "# → Server:  https://gokapi.example.com"
+Enter
+Type "# → User:    Jane Translator (jane@example.com)"
+Enter
+Type "# → Expiry:  2026-02-11T14:30:00Z"
 Enter
 Sleep 2s
 
@@ -56,15 +61,11 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Logout when done"
+Type "# Remove stored credentials"
 Enter
 Sleep 500ms
 
 Type "kapi auth logout"
-Enter
-Sleep 1s
-
-Type "# → Logged out from http://localhost:8080"
 Enter
 Sleep 2s
 

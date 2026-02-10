@@ -1,5 +1,5 @@
 # VHS Tape: kapi serve demo
-# Demonstrates the local project server
+# Demonstrates the local project server command
 
 Output output/serve.webm
 Output output/serve.gif
@@ -10,33 +10,31 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# Start a local translation editor in the browser"
+Type "# Local project server — like 'jupyter notebook' for translations"
 Enter
 Sleep 500ms
 
-Type "kapi serve samples/website-translation.kaz"
+Type "kapi serve --help"
 Enter
-Sleep 1500ms
+Sleep 3s
 
-Type "# → Importing project from website-translation.kaz..."
-Enter
-Sleep 500ms
-
-Type "# → Starting local server on http://localhost:3000"
+Type ""
 Enter
 Sleep 500ms
 
-Type "# → Opening browser..."
+Type "# Open a .kaz project in the browser"
+Enter
+Sleep 500ms
+Type "# kapi serve website.kaz"
+Enter
+Sleep 500ms
+Type "# → Starting local project server at http://localhost:3000"
+Enter
+Type "# → Project: /Users/demo/website.kaz"
+Enter
+Type "# → Press Ctrl+C to stop."
 Enter
 Sleep 2s
-
-Type "# The web UI opens with the same editor as Bowrain"
-Enter
-Sleep 1500ms
-
-Type "# No authentication required — localhost only"
-Enter
-Sleep 1500ms
 
 Type ""
 Enter
@@ -45,12 +43,10 @@ Sleep 500ms
 Type "# Use a custom port"
 Enter
 Sleep 500ms
-
-Type "kapi serve samples/software-ui.kaz --port 4000"
+Type "# kapi serve website.kaz --port 4000"
 Enter
-Sleep 1500ms
-
-Type "# → Starting local server on http://localhost:4000"
+Sleep 500ms
+Type "# → Starting local project server at http://localhost:4000"
 Enter
 Sleep 1500ms
 
@@ -58,16 +54,28 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Press Ctrl+C to stop — changes are saved back to the file"
+Type "# Serve the current directory"
+Enter
+Sleep 500ms
+Type "# kapi serve"
+Enter
+Sleep 500ms
+Type "# → Starting local project server at http://localhost:3000"
+Enter
+Type "# → Project: /Users/demo/my-project"
+Enter
+Sleep 1500ms
+
+Type ""
 Enter
 Sleep 500ms
 
-Type "^C"
-Sleep 500ms
-
-Type "# → Exporting changes to software-ui.kaz..."
+Type "# On Ctrl+C, changes are exported back to the .kaz file"
 Enter
-Type "# → Done."
+Sleep 500ms
+Type "# → Saving changes back to website.kaz"
+Enter
+Type "# → Saved project to website.kaz"
 Enter
 Sleep 2s
 
