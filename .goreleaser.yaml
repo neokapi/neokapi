@@ -8,7 +8,7 @@ before:
     # without a real frontend build (bowrain is built separately in the release workflow).
     - mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/placeholder
     - go mod tidy
-    - go test ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
+    - go test ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
 builds:
   - id: kapi

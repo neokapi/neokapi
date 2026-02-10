@@ -21,7 +21,7 @@ jobs:
         run: go mod download && go mod verify
 
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
+        run: go test -race -coverprofile=coverage.out -covermode=atomic ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -45,7 +45,7 @@ jobs:
         with:
           install-mode: binary
           version: latest
-          args: --timeout=5m ./ai/... ./cmd/... ./connectors/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
+          args: --timeout=5m ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
 
   build:
     name: Build
