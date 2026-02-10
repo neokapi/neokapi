@@ -216,7 +216,7 @@ describeOrSkip("Video Recordings", () => {
     // Refresh to show the file
     await page.locator("nav button", { hasText: "Settings" }).click();
     await page.waitForTimeout(100);
-    await page.locator("nav button", { hasText: "Projects" }).click();
+    await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
     await humanClick(page, page.getByText("Company Website").first());
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -627,7 +627,7 @@ describeOrSkip("Video Recordings", () => {
     // Navigate away and back to show TM-filled blocks
     await page.locator("nav button", { hasText: "Settings" }).click();
     await page.waitForTimeout(100);
-    await page.locator("nav button", { hasText: "Projects" }).click();
+    await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
     await page.getByText("Website Translation").first().click();
     await page.waitForTimeout(200);

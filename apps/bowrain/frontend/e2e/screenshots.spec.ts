@@ -96,7 +96,7 @@ async function openProjectView(page: any) {
   // Refresh by navigating away and back
   await page.locator("nav button", { hasText: "Settings" }).click();
   await page.waitForTimeout(100);
-  await page.locator("nav button", { hasText: "Projects" }).click();
+  await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
   await page.getByText("Website Redesign").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -126,7 +126,7 @@ async function openEditor(page: any) {
   // Refresh
   await page.locator("nav button", { hasText: "Settings" }).click();
   await page.waitForTimeout(100);
-  await page.locator("nav button", { hasText: "Projects" }).click();
+  await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
   await page.getByText("Website Redesign").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });

@@ -74,7 +74,7 @@ async function openEditorWithTMAndTerms(page: any) {
   // Navigate away and back to refresh
   await page.locator("nav button", { hasText: "Settings" }).click();
   await page.waitForTimeout(100);
-  await page.locator("nav button", { hasText: "Projects" }).click();
+  await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
   await page.getByText("Context Test").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -207,7 +207,7 @@ test.describe("Context Panel", () => {
     // Navigate to editor
     await page.locator("nav button", { hasText: "Settings" }).click();
     await page.waitForTimeout(100);
-    await page.locator("nav button", { hasText: "Projects" }).click();
+    await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
     await page.getByText("Empty Context").first().click();
     await expect(page.getByTestId("open-file-test.html")).toBeVisible({ timeout: 5000 });

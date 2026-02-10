@@ -28,7 +28,7 @@ async function openEditorWithBlocks(page: any) {
   // Navigate away and back to pick up changes
   await page.locator("nav button", { hasText: "Settings" }).click();
   await page.waitForTimeout(100);
-  await page.locator("nav button", { hasText: "Projects" }).click();
+  await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
 
   await page.getByText("Rich Editor Test").first().click();
