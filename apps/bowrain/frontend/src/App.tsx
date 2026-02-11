@@ -5,6 +5,7 @@ import { SettingsPage } from "./components/SettingsPage";
 import {
   ApiProvider,
   WorkspaceProvider,
+  ThemeProvider,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
@@ -264,9 +265,10 @@ function App() {
   const isFlowBuilder = activeView === "flows";
 
   return (
-    <ApiProvider adapter={wailsAdapter}>
-      <WorkspaceProvider initialWorkspace={localWorkspace}>
-        <div
+    <ThemeProvider>
+      <ApiProvider adapter={wailsAdapter}>
+        <WorkspaceProvider initialWorkspace={localWorkspace}>
+          <div
           style={{
             display: "flex",
             height: "100vh",
@@ -296,8 +298,9 @@ function App() {
             </main>
           </div>
         </div>
-      </WorkspaceProvider>
-    </ApiProvider>
+        </WorkspaceProvider>
+      </ApiProvider>
+    </ThemeProvider>
   );
 }
 

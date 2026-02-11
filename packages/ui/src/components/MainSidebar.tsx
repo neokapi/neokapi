@@ -1,4 +1,5 @@
 import type { Workspace } from "../types/api";
+import { useTheme } from "../context/ThemeContext";
 
 export type View = "translate" | "termbase" | "memory" | "settings";
 
@@ -85,15 +86,17 @@ export function MainSidebar({
         ))}
       </div>
 
-      {/* Collapse toggle */}
+      {/* Footer: theme toggle + collapse */}
       <div
         style={{
           padding: "12px 16px",
           borderTop: "1px solid var(--border)",
           display: "flex",
-          justifyContent: "flex-end",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
+        <ThemeToggle />
         <button
           onClick={() => onCollapsedChange(!collapsed)}
           style={{
@@ -108,5 +111,27 @@ export function MainSidebar({
         </button>
       </div>
     </nav>
+  );
+}
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  return (
+    <button
+      data-testid="theme-toggle"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      style={{
+        background: "none",
+        border: "none",
+        color: "var(--text-secondary)",
+        cursor: "pointer",
+        fontSize: 16,
+        padding: 0,
+        lineHeight: 1,
+      }}
+    >
+      {resolvedTheme === "dark" ? "\u{2600}\u{FE0F}" : "\u{1F319}"}
+    </button>
   );
 }

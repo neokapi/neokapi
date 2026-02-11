@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Copy Playwright recording videos to the documentation website.
 # Matches test names to video filenames.
+#
+# Usage:
+#   THEME=dark  ./copy-recordings.sh   # copy to website/static/video/web-app/dark/
+#   THEME=light ./copy-recordings.sh   # copy to website/static/video/web-app/light/
+#   ./copy-recordings.sh               # copy to website/static/video/web-app/dark/ (default)
 set -euo pipefail
 
+THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RECORDINGS_DIR="$WEB_DIR/recordings-output"
-OUTPUT_DIR="$WEB_DIR/../../website/static/video/web-app"
+OUTPUT_DIR="$WEB_DIR/../../website/static/video/web-app/$THEME"
 
 # Known recording names (must match test names in recordings.spec.ts)
 KNOWN_RECORDINGS=(
@@ -43,6 +49,9 @@ for dir in "$RECORDINGS_DIR"/*/; do
   name=$(echo "$name" | sed -E 's/^web-app-recordings-//')
   name=$(echo "$name" | sed -E 's/^[0-9a-f]+-//')
 
+  # Strip theme suffix from test name (e.g. "login-and-workspace-dark-" -> "login-and-workspace")
+  name=$(echo "$name" | sed -E "s/-${THEME}(-|$)/\1/")
+
   matched=""
   for known in "${KNOWN_RECORDINGS[@]}"; do
     if [[ "$name" == *"$known"* ]]; then
@@ -59,7 +68,7 @@ for dir in "$RECORDINGS_DIR"/*/; do
 
   cp "$video" "$OUTPUT_DIR/$matched.webm"
   size=$(du -h "$video" | cut -f1)
-  echo "  ✓ $matched.webm ($size)"
+  echo "  ✓ $matched.webm ($size) -> $THEME/"
   ((copied++))
 done
 

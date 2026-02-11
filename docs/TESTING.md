@@ -3,6 +3,7 @@
 ## Table of Contents
 - [Principles](#principles)
 - [Test Structure](#test-structure)
+- [Frontend Test Strategy](#frontend-test-strategy)
 - [Porting Okapi Test Cases](#porting-okapi-test-cases)
 - [Test Patterns](#test-patterns)
 - [Integration Tests](#integration-tests)
@@ -97,6 +98,226 @@ gokapi/
         ├── mock_tool.go             # Mock Tool implementation
         ├── mock_reader.go           # Mock DataFormatReader
         └── assert_parts.go          # Custom Part assertion helpers
+```
+
+---
+
+## Frontend Test Strategy
+
+The frontend spans three apps and a shared UI library. Testing is split into two complementary layers: **unit tests** for fast feedback on component logic, and **E2E tests** for full user-flow validation.
+
+### Two-Layer Testing Model
+
+| Layer | Tool | Scope | Speed | Infrastructure |
+|---|---|---|---|---|
+| **Unit** | Vitest + React Testing Library | Components, hooks, utilities | ~2 s for 126 tests | None (jsdom) |
+| **E2E** | Playwright | Full user flows, screenshots, recordings | 30–60 s per suite | Dev server or Docker backend |
+
+Unit tests are the primary fast feedback loop for developers. They run in-memory with no browser or backend. E2E tests verify integration across the full stack and produce visual artifacts for documentation.
+
+### Unit Tests (`packages/ui`)
+
+All shared UI components, contexts, hooks, and utilities live in `packages/ui`. Unit tests are colocated in `packages/ui/src/__tests__/`.
+
+**Stack:** Vitest 4 + React Testing Library + jsdom
+
+**Running:**
+```bash
+cd packages/ui
+npm test            # single run
+npm run test:watch  # watch mode
+```
+
+**Configuration:** `packages/ui/vitest.config.ts`
+```typescript
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/__tests__/setup.ts"],
+  },
+});
+```
+
+The setup file (`src/__tests__/setup.ts`) loads `@testing-library/jest-dom/vitest` for DOM matchers and registers explicit `cleanup()` in `afterEach` for reliable test isolation.
+
+#### What to Unit Test
+
+Tests are organized by what they exercise:
+
+**Pure utilities** (no React, no mocking):
+```
+src/__tests__/codedText.test.ts      — Unicode marker parsing, segment roundtripping
+src/__tests__/tagSemantics.test.ts   — Tag classification, pair building, validation, HTML preview
+```
+
+These are the highest-value tests: pure logic, fast, no dependencies.
+
+**Context providers** (React, lightweight mocking):
+```
+src/__tests__/ThemeContext.test.tsx      — Theme persistence, system preference, DOM attributes
+src/__tests__/AuthContext.test.tsx       — Authentication state transitions
+src/__tests__/WorkspaceContext.test.tsx  — Workspace state management
+src/__tests__/ApiContext.test.tsx        — Adapter injection
+```
+
+Each context test uses a small helper component that exposes the context value through `data-testid` elements, then asserts on DOM text content after `act()` interactions.
+
+**Components** (React, render + interact):
+```
+src/__tests__/MainSidebar.test.tsx      — Navigation, collapse, theme toggle
+src/__tests__/WorkspaceIcon.test.tsx    — Letter rendering, color hashing, active state
+src/__tests__/WorkspaceRail.test.tsx    — Workspace list, selection, create button, avatar
+src/__tests__/AccountMenu.test.tsx      — Dropdown open/close, sign-out callback
+src/__tests__/TagValidationBar.test.tsx — Error/warning display, null handling
+```
+
+**Hooks** (React, mock API adapter):
+```
+src/__tests__/useLocales.test.tsx       — API fetch, loading state, display name resolution
+```
+
+#### What NOT to Unit Test
+
+- **TranslationEditor** and **TargetCellEditor** — These integrate Lexical (rich text editor) which requires significant DOM infrastructure. Covered by E2E tests instead.
+- **App shells** (`apps/web/src/App.tsx`, etc.) — Thin wrappers that compose providers and route views. E2E tests cover the assembled behavior.
+- **Semantic/status colors** — Hardcoded palette values in `tagSemantics.ts` and `WorkspaceIcon.tsx` are intentionally stable across themes. Visual correctness is verified by E2E screenshots.
+
+#### Unit Test Patterns
+
+**Helper component pattern** — Expose hook/context state through testable elements:
+```tsx
+function ThemeDisplay() {
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  return (
+    <div>
+      <span data-testid="theme">{theme}</span>
+      <span data-testid="resolved">{resolvedTheme}</span>
+      <button data-testid="set-dark" onClick={() => setTheme("dark")}>Dark</button>
+    </div>
+  );
+}
+```
+
+**Mock API adapter** — For hooks that depend on `useApi()`, create a mock adapter with `vi.fn()` stubs:
+```tsx
+const adapter = { getKnownLocales: vi.fn().mockResolvedValue(mockLocales), ... };
+render(<ApiProvider adapter={adapter}><Component /></ApiProvider>);
+await waitFor(() => expect(...));
+```
+
+**DOM attribute assertions** — Theme tests verify side effects on the real DOM:
+```tsx
+act(() => screen.getByTestId("set-dark").click());
+expect(document.documentElement.dataset.theme).toBe("dark");
+expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+```
+
+#### Adding a New Unit Test
+
+1. Create `src/__tests__/ComponentName.test.tsx` (or `.test.ts` for pure utilities).
+2. Import from `vitest` and `@testing-library/react`.
+3. Wrap components in the providers they need (ThemeProvider, ApiProvider, etc.).
+4. Use `data-testid` attributes for stable selectors.
+5. Run `npm test` to verify.
+
+### E2E Tests (Playwright)
+
+Each app has its own Playwright setup for integration-level testing against a running frontend (and optionally a backend).
+
+#### Bowrain Desktop (13 spec files)
+
+```
+apps/bowrain/frontend/e2e/
+├── context-panel.spec.ts       — TM/term context panel in editor
+├── flow-builder.spec.ts        — Visual flow builder
+├── inline-codes.spec.ts        — Inline tag editing with coded text
+├── project-dashboard.spec.ts   — Project creation and listing
+├── project-view.spec.ts        — File management, upload, stats
+├── recordings.spec.ts          — Screencast recordings for docs
+├── rich-editor.spec.ts         — Lexical editor behavior
+├── screenshots.spec.ts         — Static screenshots for docs
+├── settings.spec.ts            — Settings page, theme toggle
+├── term-explorer.spec.ts       — Terminology CRUD
+├── tm-explorer.spec.ts         — Translation memory CRUD
+├── tm-leverage.spec.ts         — TM leverage in translation
+└── translation-editor.spec.ts  — Block editing, status, word count
+```
+
+**Running:**
+```bash
+cd apps/bowrain/frontend
+npx playwright test                    # all specs
+npx playwright test e2e/settings.spec.ts  # single spec
+```
+
+**Configuration:** `playwright.config.ts` — uses Vite dev server with mock API routes. Tests seed data via `page.route()` interception, requiring no backend.
+
+#### Web App (`apps/web`)
+
+```
+apps/web/e2e/
+├── screenshots.spec.ts   — Dual-theme screenshots (dark + light)
+├── recordings.spec.ts    — Dual-theme screencast recordings
+└── helpers/
+    └── api-client.ts     — Authentication, workspace/project creation, seeding
+```
+
+**Running:**
+```bash
+cd apps/web
+npm run e2e:screenshots   # requires Docker backend (gokapi-server)
+npm run e2e:recordings    # requires Docker backend
+```
+
+**Configuration:** `playwright.config.ts` — connects to a real backend at `http://localhost:8080`. Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
+
+#### kapi-web (`apps/kapi-web`)
+
+```
+apps/kapi-web/e2e/
+├── screenshots.spec.ts   — Screenshots with mock API
+└── mock-api.ts           — In-memory API mock via page.route()
+```
+
+**Running:**
+```bash
+cd apps/kapi-web
+npx playwright test
+```
+
+**Configuration:** `playwright.config.ts` — auto-starts the Vite dev server. Uses `mock-api.ts` to intercept all `/api/v1/*` routes with in-memory stores. No backend required.
+
+### Test Pyramid Summary
+
+```
+         ┌──────────────────────┐
+         │   E2E (Playwright)   │  Full user flows, screenshots, recordings
+         │   ~30 specs across   │  Requires dev server / Docker backend
+         │   3 apps             │
+         ├──────────────────────┤
+         │                      │
+         │  Unit (Vitest + RTL) │  Components, hooks, contexts, utilities
+         │  126 tests in        │  No browser, no backend, ~2 seconds
+         │  packages/ui         │
+         └──────────────────────┘
+```
+
+The unit tests in `packages/ui` are designed to be the **primary fast feedback loop**. They validate all shared component logic that the three apps consume. The E2E tests then verify the assembled apps work end-to-end, including Lexical editor interactions, API flows, and visual theme correctness.
+
+### Running All Frontend Tests
+
+```bash
+# Unit tests (fast, no infrastructure)
+cd packages/ui && npm test
+
+# E2E — Bowrain (mock API, no backend)
+cd apps/bowrain/frontend && npx playwright test
+
+# E2E — kapi-web (mock API, no backend)
+cd apps/kapi-web && npx playwright test
+
+# E2E — web (requires Docker backend)
+cd apps/web && npm run e2e:screenshots
 ```
 
 ---

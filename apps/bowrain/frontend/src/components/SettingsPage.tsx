@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTheme, type Theme } from "@gokapi/ui";
 import { useFormats, useTools, useFlows, usePlugins, useProviderConfigs, useProviderApi } from "../hooks/useApi";
 import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
 
@@ -65,11 +66,42 @@ export function SettingsPage() {
 /* ── General ── */
 
 function GeneralTab() {
+  const { theme, setTheme } = useTheme();
+  const themeOptions: { value: Theme; label: string }[] = [
+    { value: "system", label: "System" },
+    { value: "light", label: "Light" },
+    { value: "dark", label: "Dark" },
+  ];
+
   return (
     <div data-testid="settings-general" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <p style={{ color: "var(--text-secondary)" }}>
-        General application settings will appear here.
-      </p>
+      <section>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Appearance</h3>
+        <p style={{ color: "var(--text-secondary)", fontSize: 13, marginBottom: 12 }}>
+          Choose your preferred color theme.
+        </p>
+        <div style={{ display: "flex", gap: 8 }}>
+          {themeOptions.map((opt) => (
+            <button
+              key={opt.value}
+              data-testid={`theme-${opt.value}`}
+              onClick={() => setTheme(opt.value)}
+              style={{
+                padding: "6px 16px",
+                fontSize: 13,
+                fontWeight: theme === opt.value ? 600 : 400,
+                backgroundColor: theme === opt.value ? "var(--accent)" : "var(--bg-secondary)",
+                color: theme === opt.value ? "#fff" : "var(--text-primary)",
+                border: theme === opt.value ? "none" : "1px solid var(--border)",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

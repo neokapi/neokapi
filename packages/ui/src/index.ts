@@ -35,6 +35,8 @@ export type {
 export { AuthProvider, useAuth } from "./context/AuthContext";
 export { WorkspaceProvider, useWorkspace } from "./context/WorkspaceContext";
 export { ApiProvider, useApi } from "./context/ApiContext";
+export { ThemeProvider, useTheme } from "./context/ThemeContext";
+export type { Theme } from "./context/ThemeContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";

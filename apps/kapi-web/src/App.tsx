@@ -18,6 +18,7 @@ import {
   type Workspace,
   type ProjectInfo,
   type ConfigResponse,
+  ThemeProvider,
 } from "@gokapi/ui";
 import { LoginPage } from "./auth/LoginPage";
 
@@ -209,8 +210,8 @@ function SettingsView({ workspace }: { workspace: Workspace | null }) {
 function ViewHeader({ title, description }: { title: string; description: string }) {
   return (
     <div style={{ marginBottom: 8 }}>
-      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "#e6edf3" }}>{title}</h2>
-      <p style={{ margin: "4px 0 0", fontSize: 13, color: "#8b949e" }}>{description}</p>
+      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>{title}</h2>
+      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{description}</p>
     </div>
   );
 }
@@ -222,10 +223,10 @@ function EmptyState({ message }: { message: string }) {
         marginTop: 32,
         padding: 32,
         textAlign: "center",
-        color: "#484f58",
+        color: "var(--text-secondary)",
         fontSize: 14,
         borderRadius: 8,
-        border: "1px dashed #30363d",
+        border: "1px dashed var(--border)",
       }}
     >
       {message}
@@ -236,8 +237,8 @@ function EmptyState({ message }: { message: string }) {
 function SettingsField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#8b949e", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 14, color: "#e6edf3", marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: 14, color: "var(--text-primary)", marginTop: 4 }}>{value}</div>
     </div>
   );
 }
@@ -290,25 +291,25 @@ function CreateWorkspaceDialog({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.6)",
+        background: "var(--overlay-bg)",
         zIndex: 1000,
       }}
       onClick={onClose}
     >
       <div
         style={{
-          background: "#161b22",
+          background: "var(--bg-secondary)",
           borderRadius: 12,
-          border: "1px solid #30363d",
+          border: "1px solid var(--border)",
           padding: 32,
           minWidth: 400,
           maxWidth: 480,
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 600, color: "#e6edf3" }}>Create Workspace</h3>
+        <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>Create Workspace</h3>
 
-        <label style={{ fontSize: 13, fontWeight: 600, color: "#8b949e" }}>Name</label>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>Name</label>
         <input
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
@@ -321,16 +322,16 @@ function CreateWorkspaceDialog({
             marginTop: 4,
             marginBottom: 16,
             fontSize: 14,
-            background: "#0d1117",
-            border: "1px solid #30363d",
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border)",
             borderRadius: 6,
-            color: "#e6edf3",
+            color: "var(--text-primary)",
             outline: "none",
             boxSizing: "border-box",
           }}
         />
 
-        <label style={{ fontSize: 13, fontWeight: 600, color: "#8b949e" }}>Slug</label>
+        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>Slug</label>
         <input
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
@@ -342,16 +343,16 @@ function CreateWorkspaceDialog({
             marginTop: 4,
             marginBottom: 16,
             fontSize: 14,
-            background: "#0d1117",
-            border: "1px solid #30363d",
+            background: "var(--bg-primary)",
+            border: "1px solid var(--border)",
             borderRadius: 6,
-            color: "#e6edf3",
+            color: "var(--text-primary)",
             outline: "none",
             boxSizing: "border-box",
           }}
         />
 
-        {error && <div style={{ color: "#f85149", fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ color: "var(--error)", fontSize: 13, marginBottom: 12 }}>{error}</div>}
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button
@@ -360,8 +361,8 @@ function CreateWorkspaceDialog({
               padding: "8px 16px",
               fontSize: 14,
               background: "transparent",
-              color: "#8b949e",
-              border: "1px solid #30363d",
+              color: "var(--text-secondary)",
+              border: "1px solid var(--border)",
               borderRadius: 6,
               cursor: "pointer",
             }}
@@ -375,7 +376,7 @@ function CreateWorkspaceDialog({
               padding: "8px 16px",
               fontSize: 14,
               fontWeight: 600,
-              background: creating ? "#1a7f37" : "#238636",
+              background: creating ? "var(--btn-primary-hover)" : "var(--btn-primary-bg)",
               color: "#fff",
               border: "none",
               borderRadius: 6,
@@ -483,7 +484,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#0d1117", color: "#8b949e" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
         Loading...
       </div>
     );
@@ -497,7 +498,7 @@ function AppContent() {
 
   if (serverMode === "local") {
     return (
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0d1117" }}>
+      <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg-primary)" }}>
         <MainSidebar
           workspace={activeWorkspace}
           activeView={activeView}
@@ -513,7 +514,7 @@ function AppContent() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0d1117" }}>
+    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg-primary)" }}>
       <WorkspaceRail
         workspaces={workspaces}
         activeWorkspace={activeWorkspace}
@@ -540,12 +541,14 @@ function AppContent() {
 
 export function App() {
   return (
-    <ApiProvider adapter={api}>
-      <AuthProvider>
-        <WorkspaceProvider>
-          <AppContent />
-        </WorkspaceProvider>
-      </AuthProvider>
-    </ApiProvider>
+    <ThemeProvider>
+      <ApiProvider adapter={api}>
+        <AuthProvider>
+          <WorkspaceProvider>
+            <AppContent />
+          </WorkspaceProvider>
+        </AuthProvider>
+      </ApiProvider>
+    </ThemeProvider>
   );
 }

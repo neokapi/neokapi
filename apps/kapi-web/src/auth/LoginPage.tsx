@@ -21,8 +21,8 @@ export function LoginPage() {
         height: "100vh",
         flexDirection: "column",
         gap: 24,
-        background: "#0d1117",
-        color: "#e6edf3",
+        background: "var(--bg-primary)",
+        color: "var(--text-primary)",
       }}
     >
       <div
@@ -33,15 +33,15 @@ export function LoginPage() {
           gap: 24,
           padding: 48,
           borderRadius: 12,
-          background: "#161b22",
-          border: "1px solid #30363d",
+          background: "var(--bg-secondary)",
+          border: "1px solid var(--border)",
           minWidth: 360,
         }}
       >
         <h1 style={{ fontSize: 32, fontWeight: 700, margin: 0 }}>gokapi</h1>
         <p
           style={{
-            color: "#8b949e",
+            color: "var(--text-secondary)",
             fontSize: 14,
             margin: 0,
             textAlign: "center",
@@ -56,7 +56,7 @@ export function LoginPage() {
             padding: "12px 32px",
             fontSize: 15,
             fontWeight: 600,
-            backgroundColor: "#238636",
+            backgroundColor: "var(--btn-primary-bg)",
             color: "#fff",
             border: "none",
             borderRadius: 6,
@@ -64,17 +64,17 @@ export function LoginPage() {
             transition: "background-color 0.15s",
           }}
           onMouseEnter={(e) =>
-            (e.currentTarget.style.backgroundColor = "#2ea043")
+            (e.currentTarget.style.backgroundColor = "var(--btn-primary-hover)")
           }
           onMouseLeave={(e) =>
-            (e.currentTarget.style.backgroundColor = "#238636")
+            (e.currentTarget.style.backgroundColor = "var(--btn-primary-bg)")
           }
         >
           Sign in with SSO
         </button>
         <p
           style={{
-            color: "#484f58",
+            color: "var(--text-secondary)",
             fontSize: 12,
             margin: 0,
             textAlign: "center",

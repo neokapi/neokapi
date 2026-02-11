@@ -3,6 +3,8 @@ sidebar_position: 1
 title: Overview
 ---
 
+import ThemedImage from '@theme/ThemedImage';
+
 # Web Application
 
 The gokapi web application is a browser-based translation workbench that provides the same powerful editing experience as the [Bowrain desktop app](/docs/bowrain/overview), accessible from any modern browser. It runs as part of `gokapi-server` for multi-user SaaS deployments, or as part of `kapi serve` for local single-user workflows.
@@ -13,61 +15,121 @@ The gokapi web application is a browser-based translation workbench that provide
 
 Server mode authenticates through your configured identity provider (Dex). Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
 
-![Login page with identity provider options](/img/web-app/login.png)
+<ThemedImage
+  alt="Login page with identity provider options"
+  sources={{
+    light: '/img/web-app/light/login.png',
+    dark: '/img/web-app/dark/login.png',
+  }}
+/>
 
 ### Workspace Selector
 
 In server mode, the workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
 
-![Workspace rail with multiple workspaces](/img/web-app/workspace-rail.png)
+<ThemedImage
+  alt="Workspace rail with multiple workspaces"
+  sources={{
+    light: '/img/web-app/light/workspace-rail.png',
+    dark: '/img/web-app/dark/workspace-rail.png',
+  }}
+/>
 
 ### Project Dashboard
 
 The dashboard shows all projects in the active workspace. Each card displays the project name, source and target languages, and file count. Create new projects or open existing ones from here.
 
-![Project dashboard with project cards](/img/web-app/dashboard.png)
+<ThemedImage
+  alt="Project dashboard with project cards"
+  sources={{
+    light: '/img/web-app/light/dashboard.png',
+    dark: '/img/web-app/dark/dashboard.png',
+  }}
+/>
 
 ### Project View
 
 The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access Translation Memory and Terminology from the header buttons.
 
-![Project view with file list and upload zone](/img/web-app/project-view.png)
+<ThemedImage
+  alt="Project view with file list and upload zone"
+  sources={{
+    light: '/img/web-app/light/project-view.png',
+    dark: '/img/web-app/dark/project-view.png',
+  }}
+/>
 
 ### Translation Editor
 
 The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical. A color-coded progress bar shows translation status across not-started, draft, translated, and reviewed states.
 
-![Translation editor in grid layout](/img/web-app/editor.png)
+<ThemedImage
+  alt="Translation editor in grid layout"
+  sources={{
+    light: '/img/web-app/light/editor.png',
+    dark: '/img/web-app/dark/editor.png',
+  }}
+/>
 
 ### Editor Focus View
 
 Focus mode provides a single-block deep editing experience with full-width source and target panels. Navigate between blocks with keyboard shortcuts or the previous/next buttons.
 
-![Focus view with single-block editing](/img/web-app/editor-focus.png)
+<ThemedImage
+  alt="Focus view with single-block editing"
+  sources={{
+    light: '/img/web-app/light/editor-focus.png',
+    dark: '/img/web-app/dark/editor-focus.png',
+  }}
+/>
 
 ### Context Panel
 
 The context panel provides instant per-block linguistic resources. TM matches show source, target, score percentage, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status.
 
-![Context panel showing TM matches and terminology](/img/web-app/context-panel.png)
+<ThemedImage
+  alt="Context panel showing TM matches and terminology"
+  sources={{
+    light: '/img/web-app/light/context-panel.png',
+    dark: '/img/web-app/dark/context-panel.png',
+  }}
+/>
 
 ### Translation Memory Explorer
 
 The TM Explorer provides full access to the workspace translation memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
 
-![TM Explorer with search and filtering](/img/web-app/tm-explorer.png)
+<ThemedImage
+  alt="TM Explorer with search and filtering"
+  sources={{
+    light: '/img/web-app/light/tm-explorer.png',
+    dark: '/img/web-app/dark/tm-explorer.png',
+  }}
+/>
 
 ### Terminology Explorer
 
 The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status and domain classification.
 
-![Terminology explorer with concept browser](/img/web-app/term-explorer.png)
+<ThemedImage
+  alt="Terminology explorer with concept browser"
+  sources={{
+    light: '/img/web-app/light/term-explorer.png',
+    dark: '/img/web-app/dark/term-explorer.png',
+  }}
+/>
 
 ### Settings
 
 View workspace information including name, slug, description, and your role.
 
-![Settings page with workspace information](/img/web-app/settings.png)
+<ThemedImage
+  alt="Settings page with workspace information"
+  sources={{
+    light: '/img/web-app/light/settings.png',
+    dark: '/img/web-app/dark/settings.png',
+  }}
+/>
 
 ## Features
 

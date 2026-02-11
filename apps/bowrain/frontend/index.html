@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bowrain - Localization Workbench</title>
     <style>
-      :root {
+      :root, [data-theme="dark"] {
         --bg-primary: #0f1117;
         --bg-secondary: #1a1d27;
         --bg-tertiary: #252830;
@@ -17,6 +17,23 @@
         --success: #22c55e;
         --warning: #eab308;
         --error: #ef4444;
+        --overlay-bg: rgba(0,0,0,0.6);
+        --input-bg: #0f1117;
+      }
+      [data-theme="light"] {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f4f4f5;
+        --bg-tertiary: #e4e4e7;
+        --text-primary: #18181b;
+        --text-secondary: #71717a;
+        --accent: #4f46e5;
+        --accent-hover: #4338ca;
+        --border: #d4d4d8;
+        --success: #16a34a;
+        --warning: #ca8a04;
+        --error: #dc2626;
+        --overlay-bg: rgba(0,0,0,0.3);
+        --input-bg: #ffffff;
       }
 
       * {
