@@ -4,6 +4,10 @@ export function LoginPage() {
   const [serverUrl, setServerUrl] = useState("");
 
   const handleLogin = () => {
+    // For browser-based login, redirect to the OIDC callback endpoint.
+    // The server will redirect to Dex for authentication, then back to
+    // /api/v1/auth/callback with the authorization code.
+    // After exchange, the server redirects to /?token=...&user=...
     const base = serverUrl || window.location.origin;
     window.location.href = `${base}/api/v1/auth/callback`;
   };

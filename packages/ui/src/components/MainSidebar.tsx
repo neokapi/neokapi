@@ -1,6 +1,6 @@
 import type { Workspace } from "../types/api";
 
-export type View = "translate" | "termbase" | "memory" | "flows" | "connectors" | "settings";
+export type View = "translate" | "termbase" | "memory" | "settings";
 
 interface MainSidebarProps {
   workspace: Workspace | null;
@@ -14,8 +14,6 @@ const navItems: { view: View; label: string; icon: string }[] = [
   { view: "translate", label: "Translate", icon: "\u{1F30D}" },
   { view: "termbase", label: "Termbase", icon: "\u{1F4DA}" },
   { view: "memory", label: "Memory", icon: "\u{1F9E0}" },
-  { view: "flows", label: "Flows", icon: "\u{1F500}" },
-  { view: "connectors", label: "Connectors", icon: "\u{1F517}" },
   { view: "settings", label: "Settings", icon: "\u{2699}\u{FE0F}" },
 ];
 

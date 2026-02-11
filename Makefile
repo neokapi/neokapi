@@ -20,6 +20,7 @@ COVER_DIR   := coverage
 PROTO_DIR   := plugin/proto/v1
 PROTO_FILES := $(wildcard $(PROTO_DIR)/*.proto)
 FRONTEND_DIR := apps/bowrain/frontend
+KAPI_WEB_DIR := apps/kapi-web
 WEB_DIR      := apps/web
 WEBSITE_DIR  := website
 NPM         := npm
@@ -31,7 +32,8 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
         test-race test-e2e lint fmt vet proto clean install cover tools help \
-        frontend-deps frontend-dev frontend-build web-deps web-build \
+        frontend-deps frontend-dev frontend-build \
+        kapi-web-deps kapi-web-build web-deps web-build \
         docker-build docker-push \
         screenshots recordings cli-recordings docs-assets \
         docs-deps docs-dev docs-build docs-serve
@@ -45,7 +47,7 @@ help: ## Show this help
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build: ## Build the kapi CLI
+build: kapi-web-build ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi $(CLI_PKG)
 
@@ -74,12 +76,21 @@ frontend-build: ## Build frontend for production
 
 build-ui: build-server frontend-build ## Build server + frontend
 
-# ── Web UI (kapi serve) ────────────────────────────────────────────────────
+# ── Kapi Web UI (kapi serve) ───────────────────────────────────────────────
 
-web-deps: ## Install web UI dependencies
+kapi-web-deps: ## Install kapi web UI dependencies
+	cd $(KAPI_WEB_DIR) && $(NPM) install
+
+kapi-web-build: ## Build kapi web UI for production
+	cd packages/ui && npx tsc
+	cd $(KAPI_WEB_DIR) && $(NPM) run build
+
+# ── SaaS Web UI (gokapi-server) ───────────────────────────────────────────
+
+web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
-web-build: ## Build web UI for production
+web-build: ## Build SaaS web UI for production
 	cd packages/ui && npx tsc
 	cd $(WEB_DIR) && $(NPM) run build
 
@@ -177,6 +188,8 @@ clean: ## Remove build artifacts
 	rm -rf $(COVER_DIR)
 	rm -rf $(FRONTEND_DIR)/dist
 	rm -rf $(FRONTEND_DIR)/node_modules
+	rm -rf $(KAPI_WEB_DIR)/dist
+	rm -rf $(KAPI_WEB_DIR)/node_modules
 	rm -rf $(WEB_DIR)/dist
 	rm -rf $(WEB_DIR)/node_modules
 	$(GO) clean -cache -testcache

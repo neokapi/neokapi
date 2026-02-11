@@ -26,6 +26,8 @@ RUN go mod download
 # Copy source (web dist is needed for //go:embed).
 COPY . .
 COPY --from=web-builder /src/apps/web/dist apps/web/dist
+# Create placeholder for kapi-web embed (not used by gokapi-server but needed for compilation).
+RUN mkdir -p apps/kapi-web/dist && echo placeholder > apps/kapi-web/dist/index.html
 
 # Build gokapi-server. Pure Go (modernc.org/sqlite), no CGO needed.
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /gokapi-server ./cmd/gokapi-server

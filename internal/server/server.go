@@ -14,6 +14,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/auth"
 	"github.com/gokapi/gokapi/core/connector"
+	"github.com/gokapi/gokapi/core/credentials"
 	"github.com/gokapi/gokapi/core/event"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/service"
@@ -36,6 +37,12 @@ type Server struct {
 	EventBus       *event.ChannelEventBus
 	Echo           *echo.Echo
 
+	// EditorStore manages in-memory translation editor sessions.
+	EditorStore *EditorStore
+
+	// CredentialStore manages AI provider credentials.
+	CredentialStore *credentials.Store
+
 	// WebUIFS is an optional embedded filesystem for serving the web UI.
 	// When set, it takes precedence over Config.WebUIDir.
 	WebUIFS fs.FS
@@ -57,7 +64,11 @@ func NewServer(cfg ServerConfig) *Server {
 		ToolRegistry:   toolReg,
 		ConnectorReg:   connReg,
 		EventBus:       event.NewChannelEventBus(),
+		EditorStore:    NewEditorStore(50),
 	}
+
+	// Initialize credential store.
+	s.CredentialStore = credentials.NewStore(credentials.DefaultPath())
 
 	// Initialize content store if a store path is configured.
 	if cfg.StorePath != "" {
@@ -109,6 +120,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/config", s.HandleConfig)
 	v1.GET("/formats", s.HandleListFormats)
 	v1.GET("/tools", s.HandleListTools)
+	v1.GET("/locales", s.HandleGetKnownLocales)
 
 	// Project endpoints (backward-compatible flat routes)
 	v1.POST("/projects", s.HandleCreateProject)
@@ -173,6 +185,55 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Workspace-scoped project routes
 		wsSpecific.GET("/projects", s.HandleListWorkspaceProjects)
 		wsSpecific.POST("/projects", s.HandleCreateWorkspaceProject)
+
+		// Editor project routes (in-memory translation projects)
+		wsSpecific.POST("/editor/projects", s.HandleCreateEditorProject)
+		wsSpecific.GET("/editor/projects", s.HandleListEditorProjects)
+		wsSpecific.GET("/editor/projects/:pid", s.HandleGetEditorProject)
+		wsSpecific.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
+
+		// File management
+		wsSpecific.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
+		wsSpecific.DELETE("/editor/projects/:pid/files/:fname", s.HandleRemoveFile)
+
+		// Block editing
+		wsSpecific.GET("/editor/projects/:pid/files/:fname/blocks", s.HandleGetFileBlocks)
+		wsSpecific.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
+		wsSpecific.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
+
+		// Translation operations
+		wsSpecific.POST("/editor/projects/:pid/files/:fname/pseudo", s.HandlePseudoTranslate)
+		wsSpecific.POST("/editor/projects/:pid/files/:fname/ai-translate", s.HandleAITranslate)
+		wsSpecific.POST("/editor/projects/:pid/files/:fname/tm-translate", s.HandleTMTranslate)
+		wsSpecific.GET("/editor/projects/:pid/files/:fname/wordcount", s.HandleGetWordCount)
+		wsSpecific.POST("/editor/projects/:pid/files/:fname/export", s.HandleExportTranslatedFile)
+
+		// Block-level TM and term lookup
+		wsSpecific.GET("/editor/projects/:pid/blocks/:bid/tm-lookup", s.HandleLookupTMForBlock)
+		wsSpecific.GET("/editor/projects/:pid/blocks/:bid/term-lookup", s.HandleLookupTermsForBlock)
+
+		// TM CRUD (workspace-scoped)
+		wsSpecific.GET("/tm", s.HandleGetTMEntries)
+		wsSpecific.GET("/tm/count", s.HandleGetTMCount)
+		wsSpecific.POST("/tm", s.HandleAddTMEntry)
+		wsSpecific.PUT("/tm/:eid", s.HandleUpdateTMEntry)
+		wsSpecific.DELETE("/tm/:eid", s.HandleDeleteTMEntry)
+
+		// Terminology CRUD (workspace-scoped)
+		wsSpecific.GET("/terms", s.HandleGetTerms)
+		wsSpecific.GET("/terms/count", s.HandleGetTermCount)
+		wsSpecific.POST("/terms", s.HandleAddConcept)
+		wsSpecific.PUT("/terms/:cid", s.HandleUpdateConcept)
+		wsSpecific.DELETE("/terms/:cid", s.HandleDeleteConcept)
+		wsSpecific.POST("/terms/import/csv", s.HandleImportTermsCSV)
+		wsSpecific.POST("/terms/import/json", s.HandleImportTermsJSON)
+		wsSpecific.GET("/terms/export/json", s.HandleExportTermsJSON)
+
+		// Provider configs (workspace-level)
+		wsSpecific.GET("/providers", s.HandleListProviderConfigs)
+		wsSpecific.POST("/providers", s.HandleSaveProviderConfig)
+		wsSpecific.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
+		wsSpecific.POST("/providers/test", s.HandleTestProviderConfig)
 	}
 
 	// Web UI static file serving

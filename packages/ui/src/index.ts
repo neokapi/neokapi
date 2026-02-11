@@ -3,15 +3,63 @@ export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";
 export { MainSidebar } from "./components/MainSidebar";
 export { AccountMenu } from "./components/AccountMenu";
+export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
+export { ProjectDashboard } from "./components/ProjectDashboard";
+export { ProjectView } from "./components/ProjectView";
+export { TranslationEditor } from "./components/TranslationEditor";
+export { TMExplorer } from "./components/tm/TMExplorer";
+export { TermExplorer } from "./components/terms/TermExplorer";
+
+// Editor components
+export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
+export { TargetCellEditor } from "./components/editor/TargetCellEditor";
+export { TagChipNode, $createTagChipNode, $isTagChipNode } from "./components/editor/TagChipNode";
+export { TagChipComponent } from "./components/editor/TagChipComponent";
+export { TagPalette } from "./components/editor/TagPalette";
+export { TagValidationBar } from "./components/editor/TagValidationBar";
+export { InlinePreview } from "./components/editor/InlinePreview";
+
+// Editor utilities
+export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
+export type { CodedSegment } from "./components/editor/codedText";
+export {
+  semanticCategory, semanticLabel, semanticTooltip,
+  tagColors, tagNameFromData, buildPairs, validateTags, codedTextToHtml,
+} from "./components/editor/tagSemantics";
+export type {
+  SemanticCategory, TagColorScheme, SpanPairInfo,
+  TagValidationResult, TagValidationIssue,
+} from "./components/editor/tagSemantics";
 
 // Context
 export { AuthProvider, useAuth } from "./context/AuthContext";
 export { WorkspaceProvider, useWorkspace } from "./context/WorkspaceContext";
+export { ApiProvider, useApi } from "./context/ApiContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";
 export { RestApiAdapter } from "./api/rest-adapter";
 
+// Hooks
+export { useProjectApi } from "./hooks/useProjectApi";
+export { useEditorApi } from "./hooks/useEditorApi";
+export { useTMApi } from "./hooks/useTMApi";
+export { useTermsApi } from "./hooks/useTermsApi";
+export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
+export { useLocales } from "./hooks/useLocales";
+export { useFormats } from "./hooks/useFormats";
+export { useTools } from "./hooks/useTools";
+
 // Types
-export type { User, Workspace, Membership, ProjectInfo, ProjectItem, ConfigResponse } from "./types/api";
+export type {
+  User, Workspace, Membership, ProjectInfo, ProjectItem, ConfigResponse,
+  SpanInfo, BlockInfo, UpdateBlockRequest, UpdateBlockTargetCodedRequest,
+  AITranslateFileRequest, TranslationStats, WordCountResult,
+  ProviderConfig, ProviderConfigWithKey,
+  TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
+  TermInfo, ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
+  BlockTermMatch, TermEnforceResult,
+  LocaleInfo, FormatInfo, ToolInfo,
+  FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
+} from "./types/api";
 export type { View } from "./components/MainSidebar";

@@ -21,14 +21,20 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
         working-directory: packages/ui
         run: npm ci && npx tsc
 
-      - name: Build web UI
+      - name: Build SaaS web UI
         working-directory: apps/web
+        run: npm ci && npm run build
+
+      - name: Build kapi web UI
+        working-directory: apps/kapi-web
         run: npm ci && npm run build
 
       - name: Download modules
@@ -54,8 +60,10 @@ jobs:
         with:
           go-version: "1.25.6"
 
-      - name: Create web UI placeholder for embed
-        run: mkdir -p apps/web/dist && echo placeholder > apps/web/dist/index.html
+      - name: Create web UI placeholders for embed
+        run: |
+          mkdir -p apps/web/dist && echo placeholder > apps/web/dist/index.html
+          mkdir -p apps/kapi-web/dist && echo placeholder > apps/kapi-web/dist/index.html
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
@@ -79,14 +87,20 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/web/package-lock.json
+          cache-dependency-path: |
+            apps/web/package-lock.json
+            apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
         working-directory: packages/ui
         run: npm ci && npx tsc
 
-      - name: Build web UI
+      - name: Build SaaS web UI
         working-directory: apps/web
+        run: npm ci && npm run build
+
+      - name: Build kapi web UI
+        working-directory: apps/kapi-web
         run: npm ci && npm run build
 
       - name: Build kapi CLI

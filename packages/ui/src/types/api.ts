@@ -52,3 +52,262 @@ export interface ConfigResponse {
   mode: "local" | "server";
   version: string;
 }
+
+// ---------------------------------------------------------------------------
+// Editor & Block types
+// ---------------------------------------------------------------------------
+
+/** Inline span info */
+export interface SpanInfo {
+  span_type: "opening" | "closing" | "placeholder";
+  type: string;
+  id: string;
+  data: string;
+}
+
+/** Translation block info */
+export interface BlockInfo {
+  id: string;
+  source: string;
+  source_coded?: string;
+  source_spans?: SpanInfo[];
+  targets: Record<string, string>;
+  targets_coded?: Record<string, string>;
+  translatable: boolean;
+  has_spans: boolean;
+  properties: Record<string, string>;
+}
+
+/** Update block request */
+export interface UpdateBlockRequest {
+  project_id: string;
+  item_name: string;
+  block_id: string;
+  target_locale: string;
+  text: string;
+}
+
+/** Update block target with coded text and spans */
+export interface UpdateBlockTargetCodedRequest {
+  project_id: string;
+  item_name: string;
+  block_id: string;
+  target_locale: string;
+  coded_text: string;
+  spans: SpanInfo[];
+}
+
+/** AI translate file request */
+export interface AITranslateFileRequest {
+  project_id: string;
+  item_name: string;
+  target_locale: string;
+  provider: string;
+  api_key: string;
+  model: string;
+  provider_config_id?: string;
+}
+
+/** Translation stats */
+export interface TranslationStats {
+  total_blocks: number;
+  translated_blocks: number;
+  word_count: number;
+}
+
+/** Word count result */
+export interface WordCountResult {
+  source_words: number;
+  source_chars: number;
+  target_words: Record<string, number>;
+  target_chars: Record<string, number>;
+}
+
+// ---------------------------------------------------------------------------
+// Provider types
+// ---------------------------------------------------------------------------
+
+/** Saved AI provider configuration */
+export interface ProviderConfig {
+  id: string;
+  name: string;
+  provider_type: string;
+  model: string;
+  base_url: string;
+}
+
+/** Provider config with API key for save/test operations */
+export interface ProviderConfigWithKey extends ProviderConfig {
+  api_key: string;
+}
+
+// ---------------------------------------------------------------------------
+// Translation Memory types
+// ---------------------------------------------------------------------------
+
+/** TM entry info */
+export interface TMEntryInfo {
+  id: string;
+  source: string;
+  target: string;
+  source_locale: string;
+  target_locale: string;
+  updated_at: string;
+}
+
+/** TM search result */
+export interface TMSearchResult {
+  entries: TMEntryInfo[];
+  total_count: number;
+}
+
+/** TM update request */
+export interface TMUpdateRequest {
+  project_id: string;
+  entry_id: string;
+  source: string;
+  target: string;
+  source_locale: string;
+  target_locale: string;
+}
+
+/** TM match for a single block */
+export interface TMMatchInfo {
+  source: string;
+  target: string;
+  score: number;
+  match_type: string;
+}
+
+// ---------------------------------------------------------------------------
+// Terminology types
+// ---------------------------------------------------------------------------
+
+/** Term info */
+export interface TermInfo {
+  text: string;
+  locale: string;
+  status: string;
+  part_of_speech?: string;
+  gender?: string;
+  note?: string;
+}
+
+/** Concept info */
+export interface ConceptInfo {
+  id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+  properties?: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Term search result */
+export interface TermSearchResult {
+  concepts: ConceptInfo[];
+  total_count: number;
+}
+
+/** Add concept request */
+export interface AddConceptRequest {
+  project_id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+}
+
+/** Update concept request */
+export interface UpdateConceptRequest {
+  project_id: string;
+  concept_id: string;
+  domain: string;
+  definition: string;
+  terms: TermInfo[];
+}
+
+/** Term match for a block */
+export interface BlockTermMatch {
+  source_term: string;
+  target_terms: string[];
+  domain: string;
+  status: string;
+  start: number;
+  end: number;
+}
+
+/** Term enforcement result */
+export interface TermEnforceResult {
+  block_id: string;
+  source_term: string;
+  concept_id: string;
+  expected: string[];
+  source_text: string;
+  target_text: string;
+  source_locale: string;
+  target_locale: string;
+}
+
+// ---------------------------------------------------------------------------
+// Format & Tool types
+// ---------------------------------------------------------------------------
+
+/** BCP-47 locale info with display name */
+export interface LocaleInfo {
+  code: string;
+  display_name: string;
+}
+
+/** Data format descriptor */
+export interface FormatInfo {
+  name: string;
+  has_reader: boolean;
+  has_writer: boolean;
+}
+
+/** Tool descriptor */
+export interface ToolInfo {
+  name: string;
+  description: string;
+  category: "transform" | "validate" | "enrich" | "utility";
+}
+
+// ---------------------------------------------------------------------------
+// Flow types
+// ---------------------------------------------------------------------------
+
+/** Flow node position */
+export interface FlowNodePosition {
+  x: number;
+  y: number;
+}
+
+/** Flow node in a flow definition */
+export interface FlowNodeInfo {
+  id: string;
+  type: "tool" | "reader" | "writer";
+  name: string;
+  label?: string;
+  config?: Record<string, unknown>;
+  position: FlowNodePosition;
+}
+
+/** Flow edge in a flow definition */
+export interface FlowEdgeInfo {
+  id: string;
+  source: string;
+  target: string;
+}
+
+/** Full flow definition for the flow builder */
+export interface FlowDefinitionInfo {
+  id: string;
+  name: string;
+  description?: string;
+  nodes: FlowNodeInfo[];
+  edges: FlowEdgeInfo[];
+  source: string;
+  created_at?: string;
+  modified_at?: string;
+}

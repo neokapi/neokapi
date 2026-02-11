@@ -186,12 +186,12 @@ export async function injectMockBackend(page: Page) {
       UpdateTMEntry: 1441483449,
     };
 
-    // Per-project TM storage
-    const projectTM: Record<string, Record<string, any>> = {};
+    // Global TM storage (workspace-scoped, not per-project)
+    const tmStore: Record<string, any> = {};
     let tmEntryCounter = 0;
 
-    // Per-project terminology storage
-    const projectTerms: Record<string, Record<string, any>> = {};
+    // Global terminology storage (workspace-scoped, not per-project)
+    const termsStore: Record<string, any> = {};
     let conceptCounter = 0;
 
     const mock: Record<number, (...args: any[]) => any> = {};
@@ -527,8 +527,7 @@ export async function injectMockBackend(page: Page) {
       const files = projectFiles[projectID];
       if (!files || !files[fileName]) throw new Error("File not found");
       const blocks = files[fileName];
-      const tm = projectTM[projectID] || {};
-      const entries = Object.values(tm);
+      const entries = Object.values(tmStore);
       let translated = 0;
       let wordCount = 0;
       for (const b of blocks) {
@@ -650,9 +649,8 @@ export async function injectMockBackend(page: Page) {
 
     // --- TM mock handlers ---
 
-    mock[IDS.GetTMEntries] = (projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
-      const tm = projectTM[projectID] || {};
-      let entries = Object.values(tm);
+    mock[IDS.GetTMEntries] = (_projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+      let entries = Object.values(tmStore);
 
       if (query) {
         const q = query.toLowerCase();
@@ -672,13 +670,11 @@ export async function injectMockBackend(page: Page) {
       return { entries: page, total_count: total };
     };
 
-    mock[IDS.GetTMCount] = (projectID: string) => {
-      const tm = projectTM[projectID] || {};
-      return Object.keys(tm).length;
+    mock[IDS.GetTMCount] = () => {
+      return Object.keys(tmStore).length;
     };
 
-    mock[IDS.AddTMEntry] = (projectID: string, source: string, target: string, sourceLocale: string, targetLocale: string) => {
-      if (!projectTM[projectID]) projectTM[projectID] = {};
+    mock[IDS.AddTMEntry] = (_projectID: string, source: string, target: string, sourceLocale: string, targetLocale: string) => {
       const id = `tm-entry-${++tmEntryCounter}`;
       const entry = {
         id,
@@ -688,15 +684,14 @@ export async function injectMockBackend(page: Page) {
         target_locale: targetLocale,
         updated_at: new Date().toISOString(),
       };
-      projectTM[projectID][id] = entry;
+      tmStore[id] = entry;
       return entry;
     };
 
     mock[IDS.UpdateTMEntry] = (req: any) => {
-      const tm = projectTM[req.project_id];
-      if (!tm || !tm[req.entry_id]) throw new Error("TM entry not found");
-      tm[req.entry_id] = {
-        ...tm[req.entry_id],
+      if (!tmStore[req.entry_id]) throw new Error("TM entry not found");
+      tmStore[req.entry_id] = {
+        ...tmStore[req.entry_id],
         source: req.source,
         target: req.target,
         source_locale: req.source_locale,
@@ -705,10 +700,9 @@ export async function injectMockBackend(page: Page) {
       };
     };
 
-    mock[IDS.DeleteTMEntry] = (projectID: string, entryID: string) => {
-      const tm = projectTM[projectID];
-      if (!tm || !tm[entryID]) throw new Error("TM entry not found");
-      delete tm[entryID];
+    mock[IDS.DeleteTMEntry] = (_projectID: string, entryID: string) => {
+      if (!tmStore[entryID]) throw new Error("TM entry not found");
+      delete tmStore[entryID];
     };
 
     // --- Context panel: per-block TM and term lookup ---
@@ -718,8 +712,7 @@ export async function injectMockBackend(page: Page) {
       if (!files || !files[itemName]) return [];
       const block = files[itemName].find((b: any) => b.id === blockID);
       if (!block) return [];
-      const tm = projectTM[projectID] || {};
-      const entries = Object.values(tm);
+      const entries = Object.values(tmStore);
       const matches: any[] = [];
       for (const e of entries) {
         const entry = e as any;
@@ -746,8 +739,7 @@ export async function injectMockBackend(page: Page) {
       if (!files || !files[itemName]) return [];
       const block = files[itemName].find((b: any) => b.id === blockID);
       if (!block) return [];
-      const terms = projectTerms[projectID] || {};
-      const concepts = Object.values(terms);
+      const concepts = Object.values(termsStore);
       const matches: any[] = [];
       const srcLower = block.source.toLowerCase();
       for (const c of concepts) {
@@ -777,9 +769,8 @@ export async function injectMockBackend(page: Page) {
 
     // --- Terminology mock handlers ---
 
-    mock[IDS.GetTerms] = (projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
-      const terms = projectTerms[projectID] || {};
-      let concepts = Object.values(terms);
+    mock[IDS.GetTerms] = (_projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+      let concepts = Object.values(termsStore);
 
       if (query) {
         const q = query.toLowerCase();
@@ -805,14 +796,11 @@ export async function injectMockBackend(page: Page) {
       return { concepts: page, total_count: total };
     };
 
-    mock[IDS.GetTermCount] = (projectID: string) => {
-      const terms = projectTerms[projectID] || {};
-      return Object.keys(terms).length;
+    mock[IDS.GetTermCount] = () => {
+      return Object.keys(termsStore).length;
     };
 
     mock[IDS.AddConcept] = (req: any) => {
-      const pid = req.project_id;
-      if (!projectTerms[pid]) projectTerms[pid] = {};
       const id = `concept-${++conceptCounter}`;
       const now = new Date().toISOString();
       const concept = {
@@ -831,16 +819,14 @@ export async function injectMockBackend(page: Page) {
         created_at: now,
         updated_at: now,
       };
-      projectTerms[pid][id] = concept;
+      termsStore[id] = concept;
       return concept;
     };
 
     mock[IDS.UpdateConcept] = (req: any) => {
-      const pid = req.project_id;
-      const terms = projectTerms[pid];
-      if (!terms || !terms[req.concept_id]) throw new Error("Concept not found");
-      terms[req.concept_id] = {
-        ...terms[req.concept_id],
+      if (!termsStore[req.concept_id]) throw new Error("Concept not found");
+      termsStore[req.concept_id] = {
+        ...termsStore[req.concept_id],
         domain: req.domain || "",
         definition: req.definition || "",
         terms: (req.terms || []).map((t: any) => ({
@@ -855,15 +841,13 @@ export async function injectMockBackend(page: Page) {
       };
     };
 
-    mock[IDS.DeleteConcept] = (projectID: string, conceptID: string) => {
-      const terms = projectTerms[projectID];
-      if (!terms || !terms[conceptID]) throw new Error("Concept not found");
-      delete terms[conceptID];
+    mock[IDS.DeleteConcept] = (_projectID: string, conceptID: string) => {
+      if (!termsStore[conceptID]) throw new Error("Concept not found");
+      delete termsStore[conceptID];
     };
 
-    mock[IDS.LookupTerms] = (projectID: string, text: string, _sourceLocale: string, targetLocale: string) => {
-      const terms = projectTerms[projectID] || {};
-      const concepts = Object.values(terms);
+    mock[IDS.LookupTerms] = (_projectID: string, text: string, _sourceLocale: string, targetLocale: string) => {
+      const concepts = Object.values(termsStore);
       const textLower = text.toLowerCase();
       const matches: any[] = [];
       for (const c of concepts) {
@@ -893,8 +877,7 @@ export async function injectMockBackend(page: Page) {
       return { matches };
     };
 
-    mock[IDS.ImportTermsCSV] = (projectID: string, content: string, sourceLocale: string, targetLocale: string, domain: string, hasHeader: boolean) => {
-      if (!projectTerms[projectID]) projectTerms[projectID] = {};
+    mock[IDS.ImportTermsCSV] = (_projectID: string, content: string, sourceLocale: string, targetLocale: string, domain: string, hasHeader: boolean) => {
       const lines = content.split("\n").filter((l: string) => l.trim());
       const startIdx = hasHeader ? 1 : 0;
       let count = 0;
@@ -903,7 +886,7 @@ export async function injectMockBackend(page: Page) {
         if (parts.length >= 2 && parts[0] && parts[1]) {
           const id = `concept-${++conceptCounter}`;
           const now = new Date().toISOString();
-          projectTerms[projectID][id] = {
+          termsStore[id] = {
             id,
             domain: domain || "",
             definition: "",
@@ -920,15 +903,14 @@ export async function injectMockBackend(page: Page) {
       return count;
     };
 
-    mock[IDS.ImportTermsJSON] = (projectID: string, content: string) => {
-      if (!projectTerms[projectID]) projectTerms[projectID] = {};
+    mock[IDS.ImportTermsJSON] = (_projectID: string, content: string) => {
       const data = JSON.parse(content);
       const concepts = data.concepts || data;
       let count = 0;
       for (const c of concepts) {
         const id = c.id || `concept-${++conceptCounter}`;
         const now = new Date().toISOString();
-        projectTerms[projectID][id] = {
+        termsStore[id] = {
           id,
           domain: c.domain || "",
           definition: c.definition || "",
@@ -941,19 +923,17 @@ export async function injectMockBackend(page: Page) {
       return count;
     };
 
-    mock[IDS.ExportTermsJSON] = (projectID: string, name: string) => {
-      const terms = projectTerms[projectID] || {};
+    mock[IDS.ExportTermsJSON] = (_projectID: string, name: string) => {
       return JSON.stringify({
         name,
-        concepts: Object.values(terms),
+        concepts: Object.values(termsStore),
       }, null, 2);
     };
 
     mock[IDS.TermEnforceItem] = (projectID: string, itemName: string, targetLocale: string) => {
       const files = projectFiles[projectID];
       if (!files || !files[itemName]) return [];
-      const terms = projectTerms[projectID] || {};
-      const concepts = Object.values(terms);
+      const concepts = Object.values(termsStore);
       const results: any[] = [];
       for (const b of files[itemName]) {
         if (!b.translatable || !b.targets[targetLocale]) continue;
