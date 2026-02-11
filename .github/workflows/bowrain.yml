@@ -34,6 +34,10 @@ jobs:
       - name: Install wails3 CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npm ci && npx tsc
+
       - name: Install frontend dependencies
         working-directory: apps/bowrain/frontend
         run: npm install
