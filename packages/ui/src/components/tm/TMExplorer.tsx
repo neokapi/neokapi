@@ -177,8 +177,8 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
             <tbody>
               {entries.map((entry) => (
                 <tr key={entry.id} style={rowStyle} data-testid={`tm-entry-${entry.id}`}>
-                  <td style={tdStyle}>{entry.source}</td>
-                  <td style={tdStyle}>
+                  <td style={tdStyle} data-testid={`tm-source-${entry.id}`}>{entry.source}</td>
+                  <td style={tdStyle} data-testid={`tm-target-${entry.id}`}>
                     {editingId === entry.id ? (
                       <div style={{ display: "flex", gap: 4 }}>
                         <input type="text" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid={`tm-edit-input-${entry.id}`} />
