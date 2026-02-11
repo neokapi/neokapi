@@ -43,6 +43,10 @@ for dir in "$RECORDINGS_DIR"/*/; do
   dirname=$(basename "$dir")
   name=$(echo "$dirname" | tr '[:upper:]' '[:lower:]')
 
+  # Skip directories for the other theme
+  if [[ "$THEME" == "dark" && "$name" == *"-light-"* ]]; then continue; fi
+  if [[ "$THEME" == "light" && "$name" == *"-dark-"* ]]; then continue; fi
+
   # Strip common prefixes from Playwright test output directory names
   name=$(echo "$name" | sed -E 's/^recordings-video-recording[s]?-//')
   name=$(echo "$name" | sed -E 's/^record-//')
