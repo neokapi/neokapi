@@ -60,6 +60,8 @@ checksum:
 
 changelog:
   sort: asc
+  abbrev: 7
+  format: "[`{{ .SHA }}`](https://github.com/gokapi/gokapi/commit/{{ .SHA }}) {{ .Message }}"
   groups:
     - title: Features
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
