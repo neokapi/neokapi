@@ -148,6 +148,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart)
 		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
+		authGroup.GET("/login", s.HandleAuthLogin)
 		authGroup.GET("/callback", s.HandleAuthCallback)
 		authGroup.POST("/callback", s.HandleAuthCallback)
 

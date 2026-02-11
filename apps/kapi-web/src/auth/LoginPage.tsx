@@ -9,7 +9,7 @@ export function LoginPage() {
     // /api/v1/auth/callback with the authorization code.
     // After exchange, the server redirects to /?token=...&user=...
     const base = serverUrl || window.location.origin;
-    window.location.href = `${base}/api/v1/auth/callback`;
+    window.location.href = `${base}/api/v1/auth/login`;
   };
 
   return (

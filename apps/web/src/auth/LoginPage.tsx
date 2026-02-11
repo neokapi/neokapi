@@ -5,7 +5,7 @@ export function LoginPage() {
 
   const handleLogin = () => {
     const base = serverUrl || window.location.origin;
-    window.location.href = `${base}/api/v1/auth/callback`;
+    window.location.href = `${base}/api/v1/auth/login`;
   };
 
   return (

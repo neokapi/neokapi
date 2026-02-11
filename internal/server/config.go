@@ -23,6 +23,7 @@ type ServerConfig struct {
 	DexIssuerURL    string
 	DexClientID     string
 	DexClientSecret string
+	DexPublicURL    string // browser-facing Dex URL; defaults to DexIssuerURL
 
 	// WebUIDir is the path to built web UI static files.
 	// If set, the server serves static files for the web UI.

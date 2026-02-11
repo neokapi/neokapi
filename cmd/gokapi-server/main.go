@@ -63,6 +63,9 @@ func main() {
 	if envSecret := os.Getenv("GOKAPI_DEX_CLIENT_SECRET"); envSecret != "" {
 		cfg.DexClientSecret = envSecret
 	}
+	if envPublic := os.Getenv("GOKAPI_DEX_PUBLIC_URL"); envPublic != "" {
+		cfg.DexPublicURL = envPublic
+	}
 
 	srv := server.NewServer(cfg)
 

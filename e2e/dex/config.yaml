@@ -12,6 +12,7 @@ web:
   http: 0.0.0.0:5556
 
 oauth2:
+  skipApprovalScreen: true
   deviceRequests:
     enabled: true
 
@@ -21,12 +22,6 @@ staticClients:
     secret: gokapi-secret
     redirectURIs:
       - http://localhost:8080/api/v1/auth/callback
-
-# Use mock callback connector for deterministic e2e testing.
-connectors:
-  - type: mockCallback
-    id: mock
-    name: "Login with Email"
 
 # Static passwords for e2e tests (deterministic users).
 enablePasswordDB: true

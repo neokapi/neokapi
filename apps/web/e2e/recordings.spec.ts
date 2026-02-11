@@ -69,13 +69,26 @@ test.describe("Web App Recordings", () => {
 
       await pause(page, 2000);
 
-      // Move cursor to SSO button to highlight it
+      // Click SSO button — redirects to Dex identity provider
       const ssoBtn = page.getByText("Sign in with SSO");
       await humanClick(page, ssoBtn);
 
-      // The actual SSO flow redirects — instead, simulate by navigating with token
-      await pause(page, 1000);
-      await page.goto(`/?token=${token}`);
+      // Wait for Dex login page (password form shown directly)
+      await page.waitForURL("**/dex/**", { timeout: 10000 });
+      await pause(page, 1500);
+
+      // Fill in credentials on Dex login form
+      await page.locator("#login").fill("admin@example.com");
+      await pause(page, 500);
+      await page.locator("#password").fill("password");
+      await pause(page, 500);
+
+      // Submit login — Dex redirects back to gokapi with auth code
+      await page.locator("#submit-login").click();
+
+      // Wait for redirect back to gokapi app
+      await page.waitForURL("**/localhost:8080/**", { timeout: 15000 });
+      await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
