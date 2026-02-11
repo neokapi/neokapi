@@ -10,14 +10,14 @@ import (
 
 // Project represents a localization project in the store.
 type Project struct {
-	ID            string
-	Name          string
-	SourceLocale  model.LocaleID
-	TargetLocales []model.LocaleID
-	Properties    map[string]string
-	WorkspaceID   string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID            string            `json:"id"`
+	Name          string            `json:"name"`
+	SourceLocale  model.LocaleID    `json:"source_locale"`
+	TargetLocales []model.LocaleID  `json:"target_locales"`
+	Properties    map[string]string `json:"properties,omitempty"`
+	WorkspaceID   string            `json:"workspace_id,omitempty"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
 // StoredBlock wraps a model.Block with store metadata.
@@ -44,12 +44,12 @@ type BlockQuery struct {
 
 // Version represents a named snapshot of project state.
 type Version struct {
-	ID          string
-	ProjectID   string
-	Label       string
-	Description string
-	BlockCount  int
-	CreatedAt   time.Time
+	ID          string    `json:"id"`
+	ProjectID   string    `json:"project_id"`
+	Label       string    `json:"label"`
+	Description string    `json:"description"`
+	BlockCount  int       `json:"block_count"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // VersionDiff describes the differences between two versions.
