@@ -380,8 +380,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        setMessage(`Exported ${fileName}`);
       }
+      setMessage(`Exported to ${fileName}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Export failed");
     } finally {
