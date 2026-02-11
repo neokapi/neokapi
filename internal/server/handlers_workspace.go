@@ -209,7 +209,7 @@ func (s *Server) HandleListWorkspaceProjects(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	// Filter to only projects belonging to this workspace.
-	var filtered []*store.Project
+	filtered := make([]*store.Project, 0)
 	for _, p := range allProjects {
 		if p.WorkspaceID == workspaceID {
 			filtered = append(filtered, p)

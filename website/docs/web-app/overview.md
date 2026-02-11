@@ -13,13 +13,13 @@ The gokapi web application is a browser-based translation workbench that provide
 
 Server mode authenticates through your configured identity provider (Dex). Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
 
-![Login page with identity provider options](pathname:///img/web-app/login.png)
+![Login page with identity provider options](/img/web-app/login.png)
 
 ### Workspace Selector
 
 In server mode, the workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
 
-![Workspace rail with multiple workspaces](pathname:///img/web-app/workspace-rail.png)
+![Workspace rail with multiple workspaces](/img/web-app/workspace-rail.png)
 
 ### Project Dashboard
 
@@ -49,7 +49,7 @@ Focus mode provides a single-block deep editing experience with full-width sourc
 
 The context panel provides instant per-block linguistic resources. TM matches show source, target, score percentage, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status.
 
-![Context panel showing TM matches and terminology](pathname:///img/web-app/context-panel.png)
+![Context panel showing TM matches and terminology](/img/web-app/context-panel.png)
 
 ### Translation Memory Explorer
 

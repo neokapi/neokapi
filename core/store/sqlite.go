@@ -83,7 +83,7 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*Project, error) {
 	}
 	defer rows.Close()
 
-	var result []*Project
+	result := make([]*Project, 0)
 	for rows.Next() {
 		p, err := scanProjectRow(rows)
 		if err != nil {

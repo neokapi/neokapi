@@ -453,7 +453,7 @@ function AppContent() {
           const currentUser = await api.getCurrentUser();
           if (currentUser) {
             setUser(currentUser);
-            const ws = await api.listWorkspaces();
+            const ws = (await api.listWorkspaces()) || [];
             setWorkspaces(ws);
             if (ws.length > 0) {
               setActiveWorkspace(ws[0]);

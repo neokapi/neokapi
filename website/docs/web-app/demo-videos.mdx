@@ -5,29 +5,80 @@ title: Demo Videos
 
 # Demo Videos
 
-Short screencasts demonstrating key features of the gokapi web application.
+Short screencasts demonstrating key features of the gokapi web application. For speed and consistency, these videos are auto-generated from end-to-end tests running against a real gokapi-server Docker backend and stay in sync with UI changes.
 
-:::info
-Screencasts for the web application are coming soon. The web app shares the same core components (translation editor, TM explorer, terminology explorer) as the [Bowrain desktop app](/docs/bowrain/demo-videos). See the Bowrain demo videos for screencasts of the shared editing experience.
-:::
+## Login & Workspace Navigation
+
+Authenticating through the OIDC login flow and navigating the workspace rail, sidebar views (Translate, Memory, Terminology, Settings).
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/login-and-workspace.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Translation Editor
+
+Opening a project, selecting a file, editing translations in the grid view, using keyboard navigation, and pseudo-translating remaining blocks.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/translation-editor.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Focus View
+
+Single-block deep editing in focus mode with previous/next navigation and context blocks.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/focus-view.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Pseudo-Translation
+
+One-click pseudo-translation of an entire file for layout testing and QA.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/pseudo-translation.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Translation Memory Explorer
+
+Browsing, searching, and adding TM entries. Workspace-scoped translation memory with filtering.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/tm-explorer.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Terminology Explorer
+
+Browsing, searching, and managing terminology concepts. Multi-locale terms with domain and lifecycle status.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/term-explorer.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Context Panel
+
+Per-block TM matches and terminology suggestions shown alongside the editor. Click different blocks to see matching translations and terms.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/context-panel.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
+
+## Settings
+
+Viewing workspace configuration including name, slug, description, and your role.
+
+<video controls width="100%" style={{maxWidth: '800px'}}>
+  <source src="/video/web-app/settings.webm" type="video/webm" />
+  Your browser does not support the video tag.
+</video>
 
 ## Shared Components
 
-The web application and Bowrain desktop app use the same `@gokapi/ui` shared component library. These Bowrain screencasts show the same editing experience you get in the web app:
-
-- **Translation editor** — grid mode, focus mode, inline editing, tag handling
-- **TM Explorer** — browse, search, add, edit, delete TM entries
-- **Terminology Explorer** — browse, search, add, edit, delete concepts
-- **Context panel** — TM matches and terminology suggestions per block
-- **Progress tracking** — color-coded status bar
-
-See [Bowrain Demo Videos](/docs/bowrain/demo-videos) for these screencasts.
-
-## Web-Specific Features
-
-The following features are unique to the web application and will have dedicated screencasts:
-
-- **OIDC login flow** — authenticating through Dex with GitHub, Google, or LDAP
-- **Workspace management** — creating workspaces, switching between them, workspace rail navigation
-- **File upload** — drag-and-drop file upload with format auto-detection
-- **Multi-user collaboration** — multiple users working in the same workspace
+The web application and Bowrain desktop app share the same `@gokapi/ui` component library. See [Bowrain Demo Videos](/docs/bowrain/demo-videos) for additional screencasts of the editing experience, including Flow Editor and Document Preview features that are desktop-specific.

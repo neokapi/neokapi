@@ -141,7 +141,7 @@ func (es *EditorStore) list(ws string) []ProjectInfoResponse {
 	es.mu.RLock()
 	defer es.mu.RUnlock()
 	prefix := ws + "/"
-	var result []ProjectInfoResponse
+	result := make([]ProjectInfoResponse, 0)
 	for key, p := range es.projects {
 		if strings.HasPrefix(key, prefix) {
 			result = append(result, p.info)
@@ -388,7 +388,7 @@ func (es *EditorStore) removeFile(ws, projectID, fileName string) (*ProjectInfoR
 
 	delete(p.items, fileName)
 
-	var updated []ProjectItemResponse
+	updated := make([]ProjectItemResponse, 0)
 	for _, item := range p.info.Items {
 		if item.Name != fileName {
 			updated = append(updated, item)
@@ -422,7 +422,7 @@ func (es *EditorStore) getBlocks(ws, projectID, itemName string) ([]BlockInfoRes
 	}
 
 	if id.blockIndex != nil {
-		var blocks []BlockInfoResponse
+		blocks := make([]BlockInfoResponse, 0)
 		for _, b := range id.blockIndex.Blocks {
 			bi := BlockInfoResponse{
 				ID:           b.ID,
@@ -440,7 +440,7 @@ func (es *EditorStore) getBlocks(ws, projectID, itemName string) ([]BlockInfoRes
 		return blocks, nil
 	}
 
-	var blocks []BlockInfoResponse
+	blocks := make([]BlockInfoResponse, 0)
 	for _, pt := range id.parts {
 		if pt.Type != model.PartBlock {
 			continue
@@ -881,9 +881,9 @@ func (es *EditorStore) lookupTermsForBlock(ws, projectID, itemName, blockID, tar
 			TargetLocale: model.LocaleID(targetLocale),
 		})
 
-		var result []BlockTermMatchResponse
+		result := make([]BlockTermMatchResponse, 0)
 		for _, m := range matches {
-			var targetTerms []string
+			targetTerms := make([]string, 0)
 			for _, t := range m.Concept.Terms {
 				if t.Locale == model.LocaleID(targetLocale) {
 					targetTerms = append(targetTerms, t.Text)

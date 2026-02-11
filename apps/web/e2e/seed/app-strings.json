@@ -1,0 +1,45 @@
+{
+  "app": {
+    "name": "Acme Cloud Dashboard",
+    "tagline": "Monitor, manage, and scale your infrastructure",
+    "welcome": "Welcome back, {{username}}!"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "deployments": "Deployments",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "help": "Help & Support",
+    "logout": "Sign Out"
+  },
+  "dashboard": {
+    "title": "Project Overview",
+    "subtitle": "Monitor your active deployments and resource usage",
+    "no_projects": "No projects yet. Create your first project to get started.",
+    "create_button": "New Project",
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "deploying": "Deploying",
+      "error": "Error"
+    }
+  },
+  "project": {
+    "create_title": "Create New Project",
+    "name_label": "Project Name",
+    "name_placeholder": "Enter a descriptive project name",
+    "region_label": "Region",
+    "region_help": "Choose the region closest to your users for optimal performance.",
+    "plan_label": "Plan",
+    "plan_help": "You can upgrade your plan at any time from project settings.",
+    "confirm_delete": "Are you sure you want to delete this project? This action cannot be undone.",
+    "delete_success": "Project deleted successfully."
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again later.",
+    "network": "Unable to connect to the server. Check your internet connection.",
+    "unauthorized": "Your session has expired. Please sign in again.",
+    "rate_limit": "Too many requests. Please wait a moment and try again."
+  }
+}

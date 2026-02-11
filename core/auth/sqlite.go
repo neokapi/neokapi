@@ -183,7 +183,7 @@ func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]
 	}
 	defer rows.Close()
 
-	var result []*Workspace
+	result := make([]*Workspace, 0)
 	for rows.Next() {
 		w, err := scanWorkspaceRow(rows)
 		if err != nil {
@@ -280,7 +280,7 @@ func (s *SQLiteAuthStore) ListMembers(ctx context.Context, workspaceID string) (
 	}
 	defer rows.Close()
 
-	var result []*Membership
+	result := make([]*Membership, 0)
 	for rows.Next() {
 		m, err := scanMembershipRow(rows)
 		if err != nil {
