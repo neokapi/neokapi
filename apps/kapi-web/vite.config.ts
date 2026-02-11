@@ -8,6 +8,7 @@ export default defineConfig({
     alias: {
       "@gokapi/ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
+    dedupe: ["react", "react-dom", "lexical", "@lexical/react"],
   },
   build: {
     outDir: "dist",

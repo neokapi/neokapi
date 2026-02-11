@@ -1,0 +1,116 @@
+---
+sidebar_position: 1
+title: Overview
+---
+
+# Web Application
+
+The gokapi web application is a browser-based translation workbench that provides the same powerful editing experience as the [Bowrain desktop app](/docs/bowrain/overview), accessible from any modern browser. It runs as part of `gokapi-server` for multi-user SaaS deployments, or as part of `kapi serve` for local single-user workflows.
+
+## Screenshots
+
+### Login
+
+Server mode authenticates through your configured identity provider (Dex). Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
+
+![Login page with identity provider options](pathname:///img/web-app/login.png)
+
+### Workspace Selector
+
+In server mode, the workspace rail on the left lets you switch between workspaces. Each workspace is an isolated environment with its own projects, translation memory, and terminology.
+
+![Workspace rail with multiple workspaces](pathname:///img/web-app/workspace-rail.png)
+
+### Project Dashboard
+
+The dashboard shows all projects in the active workspace. Each card displays the project name, source and target languages, and file count. Create new projects or open existing ones from here.
+
+![Project dashboard with project cards](/img/web-app/dashboard.png)
+
+### Project View
+
+The project view shows files in the selected project with format detection, word counts, and block counts. Upload new files by dragging them onto the drop zone, or click "Add Files" to browse. Access Translation Memory and Terminology from the header buttons.
+
+![Project view with file list and upload zone](/img/web-app/project-view.png)
+
+### Translation Editor
+
+The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical. A color-coded progress bar shows translation status across not-started, draft, translated, and reviewed states.
+
+![Translation editor in grid layout](/img/web-app/editor.png)
+
+### Editor Focus View
+
+Focus mode provides a single-block deep editing experience with full-width source and target panels. Navigate between blocks with keyboard shortcuts or the previous/next buttons.
+
+![Focus view with single-block editing](/img/web-app/editor-focus.png)
+
+### Context Panel
+
+The context panel provides instant per-block linguistic resources. TM matches show source, target, score percentage, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status.
+
+![Context panel showing TM matches and terminology](pathname:///img/web-app/context-panel.png)
+
+### Translation Memory Explorer
+
+The TM Explorer provides full access to the workspace translation memory. Browse, search, add, edit, and delete entries. Filter by source or target locale.
+
+![TM Explorer with search and filtering](/img/web-app/tm-explorer.png)
+
+### Terminology Explorer
+
+The terminology panel provides concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status and domain classification.
+
+![Terminology explorer with concept browser](/img/web-app/term-explorer.png)
+
+### Settings
+
+View workspace information including name, slug, description, and your role.
+
+![Settings page with workspace information](/img/web-app/settings.png)
+
+## Features
+
+- **Translation editor** with four layout modes (grid, focus, split-h, split-v), inline tag support, block status tracking, and keyboard navigation
+- **Context panel** with per-block TM matches and terminology suggestions, one-click apply
+- **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
+- **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
+- **AI translation** using configurable providers (Anthropic, OpenAI, Ollama)
+- **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
+- **Pseudo-translation** for layout testing and QA
+- **Multi-workspace** environments with role-based access control
+- **OIDC authentication** through Dex (GitHub, Google, LDAP, etc.)
+- **Format-agnostic** editing supporting HTML, XML, JSON, YAML, PO, Properties, Markdown, CSV, XLIFF, SRT, VTT, and more
+- **File export** in original format with translations applied
+- **Drag-and-drop** file upload with format auto-detection
+
+## Deployment Modes
+
+| Mode | Command | Auth | Workspaces | Use Case |
+|------|---------|------|------------|----------|
+| **Server** | `gokapi-server` | OIDC via Dex | Multiple, multi-user | Team/SaaS deployments |
+| **Local** | `kapi serve` | None (single user) | Single, auto-created | Local development, personal use |
+
+In **local mode**, authentication is bypassed and a single workspace is created automatically. The workspace rail is hidden, giving you a streamlined single-workspace experience.
+
+In **server mode**, users authenticate through your identity provider and can belong to multiple workspaces with different roles. See [Self-Hosting](../user-guide/self-hosting.md) for deployment instructions.
+
+## Comparison with Bowrain
+
+The web application and [Bowrain desktop app](/docs/bowrain/overview) share the same core components (translation editor, TM explorer, terminology explorer) through the `@gokapi/ui` shared package. Key differences:
+
+| Feature | Web App | Bowrain Desktop |
+|---------|---------|-----------------|
+| Translation editor | Yes | Yes |
+| TM explorer | Yes | Yes |
+| Terminology explorer | Yes | Yes |
+| Context panel (TM + terms) | Yes | Yes |
+| AI/MT translation | Yes | Yes |
+| Flow editor | No | Yes |
+| Document preview | No | Yes (live preview) |
+| File open from disk | Upload via browser | Native file dialog |
+| Multi-user | Yes (server mode) | No (single user) |
+| OIDC authentication | Yes (server mode) | No |
+| Multiple workspaces | Yes (server mode) | No |
+| `.kaz` project format | No | Yes |
+| Offline use | No | Yes |

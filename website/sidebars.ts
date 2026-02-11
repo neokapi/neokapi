@@ -50,6 +50,19 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Web Application',
+      items: [
+        'web-app/overview',
+        'web-app/getting-started',
+        'web-app/translation-editor',
+        'web-app/translation-memory',
+        'web-app/terminology',
+        'web-app/walkthroughs',
+        'web-app/demo-videos',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Bowrain Desktop App',
       items: [
         'bowrain/overview',
