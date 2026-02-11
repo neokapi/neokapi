@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/gokapi/gokapi/apps/web"
+	kapiweb "github.com/gokapi/gokapi/apps/kapi-web"
 	"github.com/gokapi/gokapi/internal/server"
 	"github.com/spf13/cobra"
 )
@@ -58,7 +58,7 @@ If no argument is given, the current directory is used.`,
 		srv := server.NewServer(cfg)
 
 		// Serve embedded web UI.
-		webFS, _ := fs.Sub(web.Assets, "dist")
+		webFS, _ := fs.Sub(kapiweb.Assets, "dist")
 		srv.WebUIFS = webFS
 
 		// If given a .kaz file, import it.

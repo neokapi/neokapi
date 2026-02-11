@@ -38,7 +38,6 @@ function TranslateView() {
   const [showTM, setShowTM] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
 
-  // Load projects when workspace changes.
   useEffect(() => {
     if (!ws) return;
     adapter.listProjects(ws).then(setProjects).catch(() => setProjects([]));
@@ -102,7 +101,6 @@ function TranslateView() {
     setShowTerms(false);
   }, []);
 
-  // TM/Term explorer within project context
   if (activeProject && showTerms) {
     return (
       <TermExplorer
@@ -124,7 +122,6 @@ function TranslateView() {
     );
   }
 
-  // Translation editor
   if (activeProject && activeFile) {
     return (
       <TranslationEditor
@@ -135,7 +132,6 @@ function TranslateView() {
     );
   }
 
-  // Project detail view
   if (activeProject) {
     return (
       <ProjectView
@@ -150,7 +146,6 @@ function TranslateView() {
     );
   }
 
-  // Project dashboard
   return (
     <ProjectDashboard
       projects={projects}
@@ -428,7 +423,6 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
 
-  // Check for token in URL (OIDC redirect callback sets /?token=...&user=...)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
@@ -438,7 +432,6 @@ function AppContent() {
     }
   }, []);
 
-  // Detect server mode and authenticate
   useEffect(() => {
     (async () => {
       try {
@@ -496,14 +489,12 @@ function AppContent() {
     );
   }
 
-  // Server mode without auth: show login page
   if (serverMode === "server" && !user) {
     return <LoginPage />;
   }
 
   const isEditor = activeView === "translate";
 
-  // Local mode: simplified layout (no workspace rail)
   if (serverMode === "local") {
     return (
       <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0d1117" }}>
@@ -521,7 +512,6 @@ function AppContent() {
     );
   }
 
-  // Server mode: full layout with workspace rail
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#0d1117" }}>
       <WorkspaceRail

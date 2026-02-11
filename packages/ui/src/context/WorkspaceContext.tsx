@@ -10,9 +10,9 @@ interface WorkspaceContextValue {
 
 const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
-export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+export function WorkspaceProvider({ children, initialWorkspace }: { children: ReactNode; initialWorkspace?: Workspace }) {
+  const [workspaces, setWorkspaces] = useState<Workspace[]>(initialWorkspace ? [initialWorkspace] : []);
+  const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(initialWorkspace ?? null);
 
   const value: WorkspaceContextValue = {
     workspaces,

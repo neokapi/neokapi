@@ -1,19 +1,25 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Sidebar, type View } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { SettingsPage } from "./components/SettingsPage";
-import { ProjectDashboard } from "./components/ProjectDashboard";
-import { ProjectView } from "./components/ProjectView";
-import { TranslationEditor } from "./components/TranslationEditor";
-import { TMExplorer } from "./components/TMExplorer";
-import { TermExplorer } from "./components/TermExplorer";
+import {
+  ApiProvider,
+  WorkspaceProvider,
+  ProjectDashboard,
+  ProjectView,
+  TranslationEditor,
+  TMExplorer,
+  TermExplorer,
+} from "@gokapi/ui";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
-import { useHealth, useProjectApi } from "./hooks/useApi";
-import type { ProjectInfo } from "./types/api";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
+import { DocumentPreview } from "./components/DocumentPreview";
+import { useHealth } from "./hooks/useApi";
+import { WailsApiAdapter } from "./api/WailsApiAdapter";
+import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
+
+const wailsAdapter = new WailsApiAdapter();
+const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" as const };
 
 function App() {
   const [activeView, setActiveView] = useState<View>("translate");
@@ -27,13 +33,11 @@ function App() {
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
 
-  const projectApi = useProjectApi();
-
   // Auto-open a project if a .kaz path was passed via CLI args.
   useEffect(() => {
-    Backend.GetInitialProject().then((path: string) => {
+    wailsAdapter.getInitialProject().then((path: string) => {
       if (!path) return;
-      projectApi.openProject(path).then((info) => {
+      wailsAdapter.getProject("personal", path).then((info) => {
         setProjects((prev) => [...prev, info]);
         setActiveProject(info);
         setActiveView("translate");
@@ -41,25 +45,25 @@ function App() {
         console.error("Failed to open initial project:", e);
       });
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {
       try {
-        const info = await projectApi.createProject(name, sourceLang, targetLangs);
+        const info = await wailsAdapter.createProject("personal", name, sourceLang, targetLangs);
         setProjects((prev) => [...prev, info]);
         setActiveProject(info);
       } catch (e) {
         console.error("Create project failed:", e);
       }
     },
-    [projectApi],
+    [],
   );
 
   const handleOpenProject = useCallback(
     async (project: ProjectInfo) => {
       try {
-        const fresh = await Backend.GetProject(project.id) as ProjectInfo;
+        const fresh = await wailsAdapter.getProject("personal", project.id);
         setActiveProject(fresh);
         setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
       } catch {
@@ -72,67 +76,55 @@ function App() {
 
   const handleOpenKaz = useCallback(async () => {
     try {
-      const info = await projectApi.openProjectDialog();
+      const info = await wailsAdapter.openProjectDialog();
       if (!info) return;
       setProjects((prev) => [...prev, info]);
       setActiveProject(info);
     } catch (e) {
       console.error("Open project failed:", e);
     }
-  }, [projectApi]);
+  }, []);
 
-  const handleAddFiles = useCallback(
-    async (filePaths: string[]) => {
+  const handleUploadFiles = useCallback(
+    async (files: File[]) => {
       if (!activeProject) return;
       try {
-        const updated = await projectApi.addFiles(activeProject.id, filePaths);
+        const updated = await wailsAdapter.uploadFiles("personal", activeProject.id, files);
         setActiveProject(updated);
         setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       } catch (e) {
         console.error("Add files failed:", e);
       }
     },
-    [activeProject, projectApi],
+    [activeProject],
   );
-
-  const handleAddFilesDialog = useCallback(async () => {
-    if (!activeProject) return;
-    try {
-      const updated = await projectApi.addFilesDialog(activeProject.id);
-      if (!updated) return;
-      setActiveProject(updated);
-      setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    } catch (e) {
-      console.error("Add files failed:", e);
-    }
-  }, [activeProject, projectApi]);
 
   const handleRemoveFile = useCallback(
     async (fileName: string) => {
       if (!activeProject) return;
       try {
-        const updated = await projectApi.removeFile(activeProject.id, fileName);
+        const updated = await wailsAdapter.removeFile("personal", activeProject.id, fileName);
         setActiveProject(updated);
         setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
       } catch (e) {
         console.error("Remove file failed:", e);
       }
     },
-    [activeProject, projectApi],
+    [activeProject],
   );
 
   const handleSaveProject = useCallback(async () => {
     if (!activeProject) return;
     try {
-      if (activeProject.path) {
-        await projectApi.saveProject(activeProject.id);
+      if ((activeProject as ProjectInfo & { path?: string }).path) {
+        await wailsAdapter.saveProject(activeProject.id);
       } else {
-        await projectApi.saveProjectDialog(activeProject.id);
+        await wailsAdapter.saveProjectDialog(activeProject.id);
       }
     } catch (e) {
       console.error("Save project failed:", e);
     }
-  }, [activeProject, projectApi]);
+  }, [activeProject]);
 
   const handleOpenFile = useCallback((fileName: string) => {
     setActiveFile(fileName);
@@ -170,11 +162,39 @@ function App() {
     }
   }, []);
 
+  // Export handler for desktop: the WailsApiAdapter already handles export + open
+  const handleDesktopExport = useCallback((_blob: Blob, _fileName: string) => {
+    // No-op: WailsApiAdapter.exportTranslatedFile already exported to disk and opened in OS
+  }, []);
+
+  // Render preview for split layout modes
+  const renderDesktopPreview = useMemo(() => {
+    return (props: {
+      projectId: string;
+      itemName: string;
+      targetLocale: string;
+      selectedBlockId?: string;
+      onBlockSelect: (blockId: string) => void;
+      blocks: BlockInfo[];
+    }) => (
+      <DocumentPreview
+        projectId={props.projectId}
+        itemName={props.itemName}
+        targetLocale={props.targetLocale}
+        selectedBlockId={props.selectedBlockId}
+        onBlockSelect={props.onBlockSelect}
+        blocks={props.blocks}
+      />
+    );
+  }, []);
+
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
         <TermExplorer
-          project={activeProject}
+          sourceLocale={activeProject.source_locale}
+          targetLocales={activeProject.target_locales}
+          projectName={activeProject.name}
           onBack={handleBackToProject}
         />
       );
@@ -183,7 +203,8 @@ function App() {
     if (activeView === "translate" && activeProject && showTMExplorer) {
       return (
         <TMExplorer
-          project={activeProject}
+          sourceLocale={activeProject.source_locale}
+          targetLocales={activeProject.target_locales}
           onBack={handleBackToProject}
         />
       );
@@ -195,6 +216,8 @@ function App() {
           project={activeProject}
           fileName={activeFile}
           onBack={handleBackToProject}
+          onExport={handleDesktopExport}
+          renderPreview={renderDesktopPreview}
         />
       );
     }
@@ -205,8 +228,7 @@ function App() {
           project={activeProject}
           onBack={handleBackToProjects}
           onOpenFile={handleOpenFile}
-          onAddFiles={handleAddFiles}
-          onAddFilesDialog={handleAddFilesDialog}
+          onUploadFiles={handleUploadFiles}
           onRemoveFile={handleRemoveFile}
           onSave={handleSaveProject}
           onOpenTM={handleOpenTM}
@@ -226,10 +248,8 @@ function App() {
           />
         );
       case "termbase":
-        // Standalone termbase view (not project-scoped)
         return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its termbase.</div>;
       case "memory":
-        // Standalone TM view
         return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its translation memory.</div>;
       case "settings":
         return <SettingsPage />;
@@ -244,36 +264,40 @@ function App() {
   const isFlowBuilder = activeView === "flows";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        height: "100vh",
-        overflow: "hidden",
-      }}
-    >
-      <Sidebar
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-        workspaceName="Personal"
-      />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-        <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
-        <main
+    <ApiProvider adapter={wailsAdapter}>
+      <WorkspaceProvider initialWorkspace={localWorkspace}>
+        <div
           style={{
-            flex: 1,
-            padding: 24,
-            overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
             display: "flex",
-            flexDirection: "column",
-            minHeight: 0,
+            height: "100vh",
+            overflow: "hidden",
           }}
         >
-          {renderView()}
-        </main>
-      </div>
-    </div>
+          <Sidebar
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            workspaceName="Personal"
+          />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
+            <main
+              style={{
+                flex: 1,
+                padding: 24,
+                overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 0,
+              }}
+            >
+              {renderView()}
+            </main>
+          </div>
+        </div>
+      </WorkspaceProvider>
+    </ApiProvider>
   );
 }
 
