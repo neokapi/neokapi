@@ -6,22 +6,22 @@ import "time"
 
 // User represents an authenticated user.
 type User struct {
-	ID        string
-	Email     string
-	Name      string
-	AvatarURL string
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	Name      string    `json:"name"`
+	AvatarURL string    `json:"avatar_url"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Workspace is the top-level organizational unit containing projects, members, and resources.
 type Workspace struct {
-	ID          string
-	Name        string
-	Slug        string // URL-friendly identifier
-	Description string
-	LogoURL     string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Slug        string    `json:"slug"`
+	Description string    `json:"description"`
+	LogoURL     string    `json:"logo_url"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 // Role defines a member's permission level within a workspace.
@@ -44,8 +44,8 @@ var ValidRoles = map[Role]bool{
 
 // Membership ties a user to a workspace with a specific role.
 type Membership struct {
-	UserID      string
-	WorkspaceID string
-	Role        Role
-	JoinedAt    time.Time
+	UserID      string    `json:"user_id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Role        Role      `json:"role"`
+	JoinedAt    time.Time `json:"joined_at"`
 }

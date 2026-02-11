@@ -44,8 +44,17 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		Description: req.Description,
 		LogoURL:     req.LogoURL,
 	}
-	if err := s.AuthStore.CreateWorkspace(c.Request().Context(), w); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+
+	// Add the creator as owner of the new workspace.
+	userID, _ := c.Get("user_id").(string)
+	if s.Services != nil && s.Services.Auth != nil && userID != "" {
+		if err := s.Services.Auth.CreateWorkspaceWithOwner(c.Request().Context(), w, userID); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+	} else {
+		if err := s.AuthStore.CreateWorkspace(c.Request().Context(), w); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
 	}
 	return c.JSON(http.StatusCreated, w)
 }
