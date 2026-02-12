@@ -64,4 +64,4 @@ export type {
   LocaleInfo, FormatInfo, ToolInfo,
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
 } from "./types/api";
-export type { View } from "./components/MainSidebar";
+export type { View, NavItem } from "./components/MainSidebar";

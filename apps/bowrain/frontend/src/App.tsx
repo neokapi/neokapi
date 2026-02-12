@@ -1,16 +1,18 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
-import { Sidebar, type View } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { SettingsPage } from "./components/SettingsPage";
 import {
   ApiProvider,
   WorkspaceProvider,
   ThemeProvider,
+  MainSidebar,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
   TMExplorer,
   TermExplorer,
+  type View,
+  type NavItem,
 } from "@gokapi/ui";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
@@ -19,11 +21,18 @@ import { useHealth } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
 
+type AppView = View | "flows" | "connectors";
+
+const desktopNavItems: NavItem[] = [
+  { id: "flows", label: "Flows", icon: "\u{1F500}" },
+  { id: "connectors", label: "Connectors", icon: "\u{1F517}" },
+];
+
 const wailsAdapter = new WailsApiAdapter();
 const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" as const };
 
 function App() {
-  const [activeView, setActiveView] = useState<View>("translate");
+  const [activeView, setActiveView] = useState<AppView>("translate");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { connected } = useHealth();
 
@@ -154,7 +163,7 @@ function App() {
     setShowTMExplorer(false);
   }, []);
 
-  const handleViewChange = useCallback((view: View) => {
+  const handleViewChange = useCallback((view: AppView) => {
     setActiveView(view);
     if (view !== "translate") {
       setActiveProject(null);
@@ -269,35 +278,38 @@ function App() {
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={localWorkspace}>
           <div
-          style={{
-            display: "flex",
-            height: "100vh",
-            overflow: "hidden",
-          }}
-        >
-          <Sidebar
-            activeView={activeView}
-            onViewChange={handleViewChange}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-            workspaceName="Personal"
-          />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-            <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
-            <main
-              style={{
-                flex: 1,
-                padding: 24,
-                overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
-                display: "flex",
-                flexDirection: "column",
-                minHeight: 0,
-              }}
-            >
-              {renderView()}
-            </main>
+            style={{
+              display: "flex",
+              height: "100vh",
+              overflow: "hidden",
+            }}
+          >
+            <MainSidebar
+              workspace={localWorkspace}
+              activeView={activeView}
+              onViewChange={handleViewChange}
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              extraNavItems={desktopNavItems}
+              topSpacer={38}
+              collapsedWidth={60}
+            />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+              <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
+              <main
+                style={{
+                  flex: 1,
+                  padding: 24,
+                  overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  minHeight: 0,
+                }}
+              >
+                {renderView()}
+              </main>
+            </div>
           </div>
-        </div>
         </WorkspaceProvider>
       </ApiProvider>
     </ThemeProvider>
