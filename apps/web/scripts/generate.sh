@@ -33,9 +33,11 @@ echo "--- Step 4: Recording screencasts ---"
 npx playwright test --config playwright.recordings.config.ts
 echo ""
 
-# Step 5: Copy recordings to website
+# Step 5: Copy recordings to website (all 3 themes)
 echo "--- Step 5: Copying recordings to website ---"
-"$SCRIPT_DIR/copy-recordings.sh"
+THEME=glass  "$SCRIPT_DIR/copy-recordings.sh"
+THEME=light  "$SCRIPT_DIR/copy-recordings.sh"
+THEME=aurora "$SCRIPT_DIR/copy-recordings.sh"
 echo ""
 
 # Step 6: Stop Docker stack

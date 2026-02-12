@@ -9,9 +9,10 @@ const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../website/static/img/bowrain");
 
 /** Helper: apply theme to the page. */
-async function setTheme(page: any, theme: "light" | "dark") {
+async function setTheme(page: any, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t: string) => {
-    document.documentElement.classList.toggle("dark", t === "dark");
+    const isDark = t !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
@@ -150,7 +151,7 @@ async function openEditor(page: any) {
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
-const themes = ["dark", "light"] as const;
+const themes = ["glass", "light", "aurora"] as const;
 
 test.describe("Screenshots", () => {
   test.use({ viewport: { width: 1280, height: 800 } });

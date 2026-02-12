@@ -512,7 +512,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const blockGrid = (
     <div ref={blockListRef} className="flex-1 overflow-auto border border-border rounded-lg bg-card" data-testid="block-grid">
       {/* Header row */}
-      <div className="flex px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider sticky top-0 bg-card z-[1]">
+      <div className="flex px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider sticky top-0 bg-card/80 backdrop-blur-sm z-[1]">
         <span className="w-10 text-center">#</span>
         <span className="w-4" />
         <span className="flex-1">Source</span>
@@ -818,7 +818,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       </div>
 
       {/* Toolbar */}
-      <div className="flex gap-2 py-2 items-center flex-wrap">
+      <div className="flex gap-2 py-2 items-center flex-wrap backdrop-blur-sm">
         <Button variant="outline" size="sm" onClick={handlePseudoTranslate} disabled={loading} data-testid="pseudo-btn">
           Pseudo
         </Button>

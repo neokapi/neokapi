@@ -9,9 +9,10 @@ import { injectWindowChrome } from "./window-chrome";
 const isCI = process.env.CI === "true" || process.env.CI === "1";
 
 /** Helper: apply theme to the page. */
-async function setTheme(page: any, theme: "light" | "dark") {
+async function setTheme(page: any, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t: string) => {
-    document.documentElement.classList.toggle("dark", t === "dark");
+    const isDark = t !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
@@ -19,7 +20,7 @@ async function setTheme(page: any, theme: "light" | "dark") {
 }
 
 /** Setup helper - injects mock backend, cursor, and window chrome */
-async function setupRecording(page: any, title: string = "Bowrain", theme: "light" | "dark" = "dark") {
+async function setupRecording(page: any, title: string = "Bowrain", theme: "glass" | "light" | "aurora" = "glass") {
   await injectMockBackend(page);
   await page.goto("/");
   await setTheme(page, theme);
@@ -57,7 +58,7 @@ async function pause(page: any, ms: number = 500) {
 // Use conditional describe to skip entire suite in CI
 const describeOrSkip = isCI ? test.describe.skip : test.describe;
 
-const themes = ["dark", "light"] as const;
+const themes = ["glass", "light", "aurora"] as const;
 
 describeOrSkip("Video Recordings", () => {
   // Video settings are configured in playwright.recordings.config.ts

@@ -14,7 +14,7 @@
     "screenshots": "npx playwright test e2e/screenshots.spec.ts",
     "recordings": "npx playwright test --config=playwright.recordings.config.ts",
     "recordings:headed": "npx playwright test --config=playwright.recordings.config.ts --headed",
-    "recordings:copy": "THEME=dark ./scripts/copy-recordings.sh && THEME=light ./scripts/copy-recordings.sh",
+    "recordings:copy": "THEME=glass ./scripts/copy-recordings.sh && THEME=light ./scripts/copy-recordings.sh && THEME=aurora ./scripts/copy-recordings.sh",
     "recordings:all": "npm run recordings && npm run recordings:copy"
   },
   "dependencies": {

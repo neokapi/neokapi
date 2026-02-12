@@ -133,14 +133,14 @@ Screenshots and video recordings serve as documentation and are embedded on the 
 
 Screenshots are captured via Playwright and written directly to `website/static/img/`:
 
-1. **Bowrain (desktop GUI)** — 9 screenshots in `apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/`.
+1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/{dark,light}/`.
 2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `apps/web/e2e/screenshots.spec.ts`. Requires a running gokapi-server with Dex OIDC. Output: `website/static/img/web-app/{dark,light}/`.
 
 ### Recording systems
 
 There are three independent video recording pipelines:
 
-1. **Bowrain (desktop GUI)** — 13 Playwright scenarios in `apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
+1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
 2. **Web app** — 8 scenarios x 2 themes (dark + light) in `apps/web/e2e/recordings.spec.ts`. Requires a running gokapi-server with Dex OIDC.
 3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
 
@@ -148,8 +148,8 @@ There are three independent video recording pipelines:
 
 ```bash
 # 1. Bowrain screenshots + recordings (self-contained)
-make screenshots                 # screenshots → website/static/img/bowrain/
-make recordings                  # recordings → website/static/video/bowrain/
+make screenshots                 # screenshots → website/static/img/bowrain/{dark,light}/
+make recordings                  # recordings → website/static/video/bowrain/{dark,light}/
 
 # 2. Web app screenshots + recordings (needs Docker stack for real auth)
 cd e2e && docker compose up -d   # starts Dex + gokapi-server

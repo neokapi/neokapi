@@ -13,61 +13,61 @@ Bowrain is a cross-platform desktop application for translating documents. It su
 
 The project dashboard shows all open projects at a glance with language and file summaries.
 
-![Bowrain dashboard with sample projects](/img/bowrain/dark/dashboard.png)
+![Bowrain dashboard with sample projects](/img/bowrain/glass/dashboard.png)
 
 ### Project View
 
 Each project displays its source files with format detection, word counts, and a drop zone for adding new files.
 
-![Project view showing files, stats, and drop zone](/img/bowrain/dark/project-view.png)
+![Project view showing files, stats, and drop zone](/img/bowrain/glass/project-view.png)
 
 ### Translation Editor
 
 The editor shows source and target text side by side with a toolbar for translation actions. Four layout modes are available: Grid (table view), Focus (single-block editing), Split Horizontal, and Split Vertical (with live preview). Block status is visualized with a color-coded progress bar showing not-started, draft, translated, and reviewed states.
 
-![Translation editor with source blocks and target column](/img/bowrain/dark/editor.png)
+![Translation editor with source blocks and target column](/img/bowrain/glass/editor.png)
 
 ### Editor with Document Preview
 
 Toggle the split layout to see a live document preview alongside the translation grid. Clicking a segment in either pane selects it in the other.
 
-![Split layout with translation grid and document preview](/img/bowrain/dark/editor-preview.png)
+![Split layout with translation grid and document preview](/img/bowrain/glass/editor-preview.png)
 
 ### Editor Focus View
 
 Focus mode provides single-block deep editing with full-width source and target panels and block navigation (previous/next). Use it for detailed editing of individual translation segments.
 
-![Focus view with single-block source and target panels](/img/bowrain/dark/editor-focus.png)
+![Focus view with single-block source and target panels](/img/bowrain/glass/editor-focus.png)
 
 ### Flow Editor
 
 The visual flow editor provides a drag-and-drop workflow builder powered by React Flow. Create multi-step translation workflows by connecting reader, tool, and writer nodes on an interactive canvas. Five built-in flow templates are included: AI Translate, AI Translate + QA, Pseudo Translate, QA Check, and TM Leverage. User-created flows are saved and can be reused across projects.
 
-![Flow editor with connected reader, tool, and writer nodes](/img/bowrain/dark/flow-editor.png)
+![Flow editor with connected reader, tool, and writer nodes](/img/bowrain/glass/flow-editor.png)
 
 ### Settings
 
 Configure AI providers, manage plugins, and view system information from the settings page.
 
-![Settings page with AI provider configuration](/img/bowrain/dark/settings.png)
+![Settings page with AI provider configuration](/img/bowrain/glass/settings.png)
 
 ### Context Panel
 
 In the translation editor, the Context panel provides instant per-block linguistic resources. TM matches show source, target, score, and match type with one-click apply. Terminology matches show source terms, target suggestions, domain, and lifecycle status. The panel updates automatically as you navigate between blocks.
 
-![Context panel showing TM matches and terminology](pathname:///img/bowrain/dark/context-panel.png)
+![Context panel showing TM matches and terminology](pathname:///img/bowrain/glass/context-panel.png)
 
 ### Terminology Explorer
 
 The Terminology panel provides full concept-oriented term management. Browse, search, add, edit, and delete concepts with multi-locale terms. Import from CSV or JSON, export the full termbase. Each term has a lifecycle status (preferred, approved, admitted, deprecated, proposed, forbidden) and domain classification.
 
-![Terminology explorer with concept browser](pathname:///img/bowrain/dark/term-explorer.png)
+![Terminology explorer with concept browser](pathname:///img/bowrain/glass/term-explorer.png)
 
 ### Translation Memory Explorer
 
 The TM Explorer provides full access to the translation memory. Browse, search, add, edit, and delete entries. Import and export TMX files. Each entry preserves inline markup through the content-aware matching system.
 
-![TM Explorer with entry browser](pathname:///img/bowrain/dark/tm-explorer-full.png)
+![TM Explorer with entry browser](pathname:///img/bowrain/glass/tm-explorer-full.png)
 
 ## Features
 

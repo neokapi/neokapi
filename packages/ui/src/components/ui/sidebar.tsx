@@ -77,7 +77,7 @@ function Sidebar({
     return (
       <div
         className={cn(
-          "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
+          "flex h-full w-[--sidebar-width] flex-col bg-sidebar/80 backdrop-blur-md text-sidebar-foreground border-r border-white/10",
           className,
         )}
         {...props}
@@ -105,7 +105,7 @@ function Sidebar({
       {/* Actual sidebar */}
       <div
         className={cn(
-          "fixed inset-y-0 z-10 flex h-svh w-[--sidebar-width] flex-col bg-sidebar transition-[left,right,width] duration-200 ease-linear",
+          "fixed inset-y-0 z-10 flex h-svh w-[--sidebar-width] flex-col bg-sidebar/80 backdrop-blur-md transition-[left,right,width] duration-200 ease-linear",
           side === "left"
             ? "left-0 border-r border-sidebar-border group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 border-l border-sidebar-border group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",

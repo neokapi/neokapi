@@ -464,113 +464,106 @@ export class ConceptInfo {
 }
 
 /**
- * ConvertRequest holds parameters for format conversion.
+ * ConnectorInfo describes a connector for the frontend.
  */
-export class ConvertRequest {
+export class ConnectorInfo {
     /**
-     * Creates a new ConvertRequest instance.
-     * @param {Partial<ConvertRequest>} [$$source = {}] - The source object to create the ConvertRequest.
+     * Creates a new ConnectorInfo instance.
+     * @param {Partial<ConnectorInfo>} [$$source = {}] - The source object to create the ConnectorInfo.
      */
     constructor($$source = {}) {
-        if (!("input_path" in $$source)) {
+        if (!("id" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["input_path"] = "";
+            this["id"] = "";
         }
-        if (!("output_path" in $$source)) {
+        if (!("name" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["output_path"] = "";
+            this["name"] = "";
         }
-        if (!("input_format" in $$source)) {
+        if (!("type" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["input_format"] = "";
+            this["type"] = "";
         }
-        if (!("output_format" in $$source)) {
+        if (!("category" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["output_format"] = "";
-        }
-        if (!("source_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_lang"] = "";
-        }
-        if (!("target_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_lang"] = "";
-        }
-        if (!("encoding" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["encoding"] = "";
+            this["category"] = "";
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ConvertRequest instance from a string or object.
+     * Creates a new ConnectorInfo instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ConvertRequest}
+     * @returns {ConnectorInfo}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ConvertRequest(/** @type {Partial<ConvertRequest>} */($$parsedSource));
+        return new ConnectorInfo(/** @type {Partial<ConnectorInfo>} */($$parsedSource));
     }
 }
 
 /**
- * ConvertResult holds the result of a conversion.
+ * ContentItemInfo describes a content item pulled from a connector.
  */
-export class ConvertResult {
+export class ContentItemInfo {
     /**
-     * Creates a new ConvertResult instance.
-     * @param {Partial<ConvertResult>} [$$source = {}] - The source object to create the ConvertResult.
+     * Creates a new ContentItemInfo instance.
+     * @param {Partial<ContentItemInfo>} [$$source = {}] - The source object to create the ContentItemInfo.
      */
     constructor($$source = {}) {
-        if (!("output_path" in $$source)) {
+        if (!("id" in $$source)) {
             /**
              * @member
              * @type {string}
              */
-            this["output_path"] = "";
+            this["id"] = "";
         }
-        if (!("part_count" in $$source)) {
+        if (!("path" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["path"] = "";
+        }
+        if (!("title" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["title"] = "";
+        }
+        if (!("block_count" in $$source)) {
             /**
              * @member
              * @type {number}
              */
-            this["part_count"] = 0;
+            this["block_count"] = 0;
         }
 
         Object.assign(this, $$source);
     }
 
     /**
-     * Creates a new ConvertResult instance from a string or object.
+     * Creates a new ContentItemInfo instance from a string or object.
      * @param {any} [$$source = {}]
-     * @returns {ConvertResult}
+     * @returns {ContentItemInfo}
      */
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ConvertResult(/** @type {Partial<ConvertResult>} */($$parsedSource));
+        return new ContentItemInfo(/** @type {Partial<ContentItemInfo>} */($$parsedSource));
     }
 }
 
@@ -708,44 +701,6 @@ export class FlowEdgeInfo {
 }
 
 /**
- * FlowInfo describes an available flow.
- */
-export class FlowInfo {
-    /**
-     * Creates a new FlowInfo instance.
-     * @param {Partial<FlowInfo>} [$$source = {}] - The source object to create the FlowInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FlowInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FlowInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FlowInfo(/** @type {Partial<FlowInfo>} */($$parsedSource));
-    }
-}
-
-/**
  * FlowNodeInfo is the frontend-facing flow node type.
  */
 export class FlowNodeInfo {
@@ -816,100 +771,6 @@ export class FlowNodeInfo {
             $$parsedSource["position"] = $$createField5_0($$parsedSource["position"]);
         }
         return new FlowNodeInfo(/** @type {Partial<FlowNodeInfo>} */($$parsedSource));
-    }
-}
-
-/**
- * FlowRequest holds parameters for flow execution.
- */
-export class FlowRequest {
-    /**
-     * Creates a new FlowRequest instance.
-     * @param {Partial<FlowRequest>} [$$source = {}] - The source object to create the FlowRequest.
-     */
-    constructor($$source = {}) {
-        if (!("flow_name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["flow_name"] = "";
-        }
-        if (!("input_path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["input_path"] = "";
-        }
-        if (!("output_path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["output_path"] = "";
-        }
-        if (!("format" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["format"] = "";
-        }
-        if (!("source_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_lang"] = "";
-        }
-        if (!("target_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_lang"] = "";
-        }
-        if (!("provider" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["provider"] = "";
-        }
-        if (!("api_key" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["api_key"] = "";
-        }
-        if (!("model" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["model"] = "";
-        }
-        if (!("encoding" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["encoding"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new FlowRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FlowRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FlowRequest(/** @type {Partial<FlowRequest>} */($$parsedSource));
     }
 }
 
@@ -1595,6 +1456,58 @@ export class SpanInfo {
 }
 
 /**
+ * SyncStatusInfo describes the sync status of a connector.
+ */
+export class SyncStatusInfo {
+    /**
+     * Creates a new SyncStatusInfo instance.
+     * @param {Partial<SyncStatusInfo>} [$$source = {}] - The source object to create the SyncStatusInfo.
+     */
+    constructor($$source = {}) {
+        if (!("connector_id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["connector_id"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["last_sync"] = undefined;
+        }
+        if (!("item_count" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["item_count"] = 0;
+        }
+        if (!("status" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["status"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new SyncStatusInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {SyncStatusInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new SyncStatusInfo(/** @type {Partial<SyncStatusInfo>} */($$parsedSource));
+    }
+}
+
+/**
  * TMEntryInfo is the frontend-facing representation of a TM entry.
  */
 export class TMEntryInfo {
@@ -2177,131 +2090,6 @@ export class ToolInfo {
 }
 
 /**
- * TranslateRequest holds parameters for AI translation.
- */
-export class TranslateRequest {
-    /**
-     * Creates a new TranslateRequest instance.
-     * @param {Partial<TranslateRequest>} [$$source = {}] - The source object to create the TranslateRequest.
-     */
-    constructor($$source = {}) {
-        if (!("input_path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["input_path"] = "";
-        }
-        if (!("output_path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["output_path"] = "";
-        }
-        if (!("format" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["format"] = "";
-        }
-        if (!("source_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_lang"] = "";
-        }
-        if (!("target_lang" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_lang"] = "";
-        }
-        if (!("provider" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["provider"] = "";
-        }
-        if (!("api_key" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["api_key"] = "";
-        }
-        if (!("model" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["model"] = "";
-        }
-        if (!("encoding" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["encoding"] = "";
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TranslateRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TranslateRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TranslateRequest(/** @type {Partial<TranslateRequest>} */($$parsedSource));
-    }
-}
-
-/**
- * TranslateResult holds the result of a translation.
- */
-export class TranslateResult {
-    /**
-     * Creates a new TranslateResult instance.
-     * @param {Partial<TranslateResult>} [$$source = {}] - The source object to create the TranslateResult.
-     */
-    constructor($$source = {}) {
-        if (!("output_path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["output_path"] = "";
-        }
-        if (!("block_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["block_count"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new TranslateResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TranslateResult}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TranslateResult(/** @type {Partial<TranslateResult>} */($$parsedSource));
-    }
-}
-
-/**
  * TranslationStats holds statistics about a translation operation.
  */
 export class TranslationStats {
@@ -2640,6 +2428,72 @@ export class WordCountResult {
             $$parsedSource["target_chars"] = $$createField3_0($$parsedSource["target_chars"]);
         }
         return new WordCountResult(/** @type {Partial<WordCountResult>} */($$parsedSource));
+    }
+}
+
+/**
+ * WorkspaceInfo represents a workspace as exposed to the Bowrain frontend.
+ */
+export class WorkspaceInfo {
+    /**
+     * Creates a new WorkspaceInfo instance.
+     * @param {Partial<WorkspaceInfo>} [$$source = {}] - The source object to create the WorkspaceInfo.
+     */
+    constructor($$source = {}) {
+        if (!("id" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["id"] = "";
+        }
+        if (!("name" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["name"] = "";
+        }
+        if (!("slug" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["slug"] = "";
+        }
+        if (!("description" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["description"] = "";
+        }
+        if (!("logo_url" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["logo_url"] = "";
+        }
+        if (!("role" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["role"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new WorkspaceInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {WorkspaceInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new WorkspaceInfo(/** @type {Partial<WorkspaceInfo>} */($$parsedSource));
     }
 }
 

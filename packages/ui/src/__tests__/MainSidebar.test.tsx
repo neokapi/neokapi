@@ -4,18 +4,6 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { MainSidebar } from "../components/MainSidebar";
 import type { Workspace } from "../types/api";
 
-function mockMatchMedia(prefersDark: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(prefers-color-scheme: dark)" ? prefersDark : false,
-      media: query,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  });
-}
-
 const acme: Workspace = { id: "1", name: "Acme Inc", slug: "acme", description: "", logo_url: "", role: "owner" };
 
 function renderSidebar(props: Partial<Parameters<typeof MainSidebar>[0]> = {}) {
@@ -41,7 +29,7 @@ describe("MainSidebar", () => {
   beforeEach(() => {
     localStorage.clear();
     delete document.documentElement.dataset.theme;
-    mockMatchMedia(true);
+    document.documentElement.classList.remove("dark");
   });
 
   // -- Navigation --
@@ -112,19 +100,19 @@ describe("MainSidebar", () => {
     expect(screen.getByTestId("theme-toggle")).toBeInTheDocument();
   });
 
-  it("clicking toggle switches from dark to light", () => {
-    localStorage.setItem("gokapi-theme", "dark");
+  it("clicking toggle cycles glass to light", () => {
+    // Default is glass
     renderSidebar();
 
     const toggle = screen.getByTestId("theme-toggle");
-    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("glass");
 
     act(() => toggle.click());
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("gokapi-theme")).toBe("light");
   });
 
-  it("clicking toggle switches from light to dark", () => {
+  it("clicking toggle cycles light to aurora", () => {
     localStorage.setItem("gokapi-theme", "light");
     renderSidebar();
 
@@ -132,7 +120,19 @@ describe("MainSidebar", () => {
     expect(document.documentElement.dataset.theme).toBe("light");
 
     act(() => toggle.click());
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("aurora");
+    expect(localStorage.getItem("gokapi-theme")).toBe("aurora");
+  });
+
+  it("clicking toggle cycles aurora to glass", () => {
+    localStorage.setItem("gokapi-theme", "aurora");
+    renderSidebar();
+
+    const toggle = screen.getByTestId("theme-toggle");
+    expect(document.documentElement.dataset.theme).toBe("aurora");
+
+    act(() => toggle.click());
+    expect(document.documentElement.dataset.theme).toBe("glass");
+    expect(localStorage.getItem("gokapi-theme")).toBe("glass");
   });
 });

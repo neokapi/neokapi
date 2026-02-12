@@ -52,9 +52,9 @@ export function SettingsPage() {
 function GeneralTab() {
   const { theme, setTheme } = useTheme();
   const themeOptions: { value: Theme; label: string }[] = [
-    { value: "system", label: "System" },
+    { value: "glass", label: "Glass" },
     { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
+    { value: "aurora", label: "Aurora" },
   ];
 
   return (

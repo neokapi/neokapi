@@ -1,3 +1,4 @@
+@import "shadcn-glass-ui/styles.css";
 @import "tailwindcss";
 
 @theme {
@@ -38,74 +39,109 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Amber-minimal light theme */
-:root {
-  --background: 40 33% 98%;
-  --foreground: 20 14% 10%;
-  --card: 40 25% 96%;
-  --card-foreground: 20 14% 10%;
-  --popover: 40 33% 98%;
-  --popover-foreground: 20 14% 10%;
-  --primary: 25 95% 50%;
-  --primary-foreground: 40 33% 98%;
-  --secondary: 35 20% 90%;
-  --secondary-foreground: 20 14% 20%;
-  --muted: 35 15% 93%;
-  --muted-foreground: 20 8% 45%;
-  --accent: 35 25% 91%;
-  --accent-foreground: 20 14% 15%;
-  --destructive: 0 72% 51%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 30 12% 83%;
-  --input: 30 12% 83%;
-  --ring: 25 95% 50%;
-  --success: 142 71% 35%;
-  --warning: 38 92% 45%;
+/* Glass theme (default) — dark navy with purple accents, glassmorphism effects */
+:root,
+[data-theme="glass"] {
+  --background: 222 47% 11%;
+  --foreground: 210 40% 98%;
+  --card: 222 84% 5%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 271 91% 65%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 263 70% 50%;
+  --success: 158 64% 52%;
+  --warning: 43 96% 56%;
 
-  --sidebar-background: 35 20% 94%;
-  --sidebar-foreground: 20 14% 10%;
-  --sidebar-primary: 25 95% 50%;
-  --sidebar-primary-foreground: 40 33% 98%;
-  --sidebar-accent: 35 25% 88%;
-  --sidebar-accent-foreground: 20 14% 15%;
-  --sidebar-border: 30 12% 83%;
-  --sidebar-ring: 25 95% 50%;
+  --sidebar-background: 222 47% 9%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 271 91% 65%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 217 33% 20%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 263 70% 50%;
 
-  --radius: 0.625rem;
+  --radius: 1rem;
 }
 
-/* Amber-minimal dark theme */
-.dark {
-  --background: 20 14% 8%;
-  --foreground: 40 15% 90%;
-  --card: 20 14% 11%;
-  --card-foreground: 40 15% 90%;
-  --popover: 20 14% 11%;
-  --popover-foreground: 40 15% 90%;
-  --primary: 25 95% 55%;
-  --primary-foreground: 20 14% 8%;
-  --secondary: 20 10% 18%;
-  --secondary-foreground: 40 15% 85%;
-  --muted: 20 10% 16%;
-  --muted-foreground: 30 8% 55%;
-  --accent: 20 12% 20%;
-  --accent-foreground: 40 15% 88%;
-  --destructive: 0 72% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 20 8% 22%;
-  --input: 20 8% 22%;
-  --ring: 25 95% 55%;
-  --success: 142 71% 45%;
-  --warning: 38 92% 50%;
+/* Light theme — clean white with violet accents */
+[data-theme="light"] {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 263 70% 50%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222 47% 11%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 263 70% 50%;
+  --success: 142 76% 36%;
+  --warning: 43 74% 49%;
 
-  --sidebar-background: 20 14% 10%;
-  --sidebar-foreground: 40 15% 90%;
-  --sidebar-primary: 25 95% 55%;
-  --sidebar-primary-foreground: 20 14% 8%;
-  --sidebar-accent: 20 12% 18%;
-  --sidebar-accent-foreground: 40 15% 88%;
-  --sidebar-border: 20 8% 22%;
-  --sidebar-ring: 25 95% 55%;
+  --sidebar-background: 210 40% 97%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-primary: 263 70% 50%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 210 40% 93%;
+  --sidebar-accent-foreground: 222 47% 11%;
+  --sidebar-border: 214 32% 91%;
+  --sidebar-ring: 263 70% 50%;
+}
+
+/* Aurora theme — dark gradient with violet/purple glow effects */
+[data-theme="aurora"] {
+  --background: 222 84% 5%;
+  --foreground: 210 40% 98%;
+  --card: 222 47% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222 47% 11%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 263 70% 50%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217 33% 17%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 33% 17%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 263 70% 50%;
+  --success: 158 64% 52%;
+  --warning: 43 96% 56%;
+
+  --sidebar-background: 222 84% 4%;
+  --sidebar-foreground: 210 40% 98%;
+  --sidebar-primary: 263 70% 50%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 217 33% 20%;
+  --sidebar-accent-foreground: 210 40% 98%;
+  --sidebar-border: 217 33% 17%;
+  --sidebar-ring: 263 70% 50%;
 }
 
 @layer base {

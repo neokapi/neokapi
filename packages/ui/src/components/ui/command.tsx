@@ -23,7 +23,7 @@ function Command({ className, children, ...props }: CommandProps) {
     <CommandContext value={{ search, setSearch }}>
       <div
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground",
+          "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover/80 backdrop-blur-md text-popover-foreground border border-white/10",
           className,
         )}
         {...props}

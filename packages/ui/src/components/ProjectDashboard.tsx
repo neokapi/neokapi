@@ -114,7 +114,7 @@ export function ProjectDashboard({
           <Card
             key={p.id}
             onClick={() => onOpenProject(p)}
-            className="cursor-pointer hover:border-primary/50 transition-colors"
+            className="cursor-pointer hover:border-primary/50 hover:shadow-[0_0_15px_-3px] hover:shadow-primary/20 transition-all"
             data-testid={`project-card-${p.id}`}
           >
             <CardContent className="pt-4">

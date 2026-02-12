@@ -16,9 +16,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../website/static/img/web-app");
 
-async function setTheme(page: Page, theme: "light" | "dark") {
+async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t) => {
-    document.documentElement.classList.toggle("dark", t === "dark");
+    const isDark = t !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
@@ -29,7 +30,7 @@ async function setTheme(page: Page, theme: "light" | "dark") {
 let token: string;
 let wsSlug: string;
 
-const themes = ["dark", "light"] as const;
+const themes = ["glass", "light", "aurora"] as const;
 
 test.describe("Web App Screenshots", () => {
   test.use({ viewport: { width: 1280, height: 800 } });

@@ -1,55 +1,40 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 
-export type Theme = "light" | "dark" | "system";
+export type Theme = "glass" | "light" | "aurora";
 
 interface ThemeContextValue {
   theme: Theme;
-  resolvedTheme: "light" | "dark";
   setTheme: (theme: Theme) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function getSystemTheme(): "light" | "dark" {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
+const VALID_THEMES: Theme[] = ["glass", "light", "aurora"];
 
-function resolveTheme(theme: Theme): "light" | "dark" {
-  return theme === "system" ? getSystemTheme() : theme;
+function isValidTheme(value: string): value is Theme {
+  return VALID_THEMES.includes(value as Theme);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = localStorage.getItem("gokapi-theme");
-    return (stored === "light" || stored === "dark" || stored === "system") ? stored : "system";
+    return stored && isValidTheme(stored) ? stored : "glass";
   });
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => resolveTheme(theme));
 
   const setTheme = useCallback((t: Theme) => {
     setThemeState(t);
     localStorage.setItem("gokapi-theme", t);
   }, []);
 
-  // Apply resolved theme to DOM and update when system preference changes
   useEffect(() => {
-    const apply = () => {
-      const resolved = resolveTheme(theme);
-      setResolvedTheme(resolved);
-      document.documentElement.classList.toggle("dark", resolved === "dark");
-      document.documentElement.dataset.theme = resolved;
-    };
-
-    apply();
-
-    if (theme === "system") {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      mq.addEventListener("change", apply);
-      return () => mq.removeEventListener("change", apply);
-    }
+    // Glass and Aurora are dark-based, Light is light-based
+    const isDark = theme !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   return (
-    <ThemeContext value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext value={{ theme, setTheme }}>
       {children}
     </ThemeContext>
   );

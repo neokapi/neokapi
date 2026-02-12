@@ -1,7 +1,7 @@
 import { cn } from "../lib/utils";
 import type { Workspace } from "../types/api";
-import { useTheme } from "../context/ThemeContext";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon } from "./icons";
+import { useTheme, type Theme } from "../context/ThemeContext";
+import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Sparkles } from "./icons";
 
 export type View = "translate" | "termbase" | "memory" | "settings";
 
@@ -54,7 +54,7 @@ export function MainSidebar<V extends string = View>({
 
   return (
     <nav
-      className="bg-sidebar flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
+      className="bg-sidebar/80 backdrop-blur-md flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
       style={{
         width,
         borderRight: collapsed && collapsedWidth === 0 ? "none" : undefined,
@@ -111,16 +111,28 @@ export function MainSidebar<V extends string = View>({
   );
 }
 
+const nextTheme: Record<Theme, Theme> = { glass: "light", light: "aurora", aurora: "glass" };
+const themeIcons: Record<Theme, React.ReactNode> = {
+  glass: <Moon className="w-4 h-4" />,
+  light: <Sun className="w-4 h-4" />,
+  aurora: <Sparkles className="w-4 h-4" />,
+};
+const themeLabels: Record<Theme, string> = {
+  glass: "Glass",
+  light: "Light",
+  aurora: "Aurora",
+};
+
 function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   return (
     <button
       data-testid="theme-toggle"
-      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      onClick={() => setTheme(nextTheme[theme])}
+      title={`Theme: ${themeLabels[theme]}`}
       className="bg-transparent border-none text-muted-foreground cursor-pointer p-0 leading-none hover:text-foreground transition-colors"
     >
-      {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      {themeIcons[theme]}
     </button>
   );
 }

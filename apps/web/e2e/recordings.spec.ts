@@ -21,9 +21,10 @@ import {
 
 const isCI = !!process.env.CI;
 
-async function setTheme(page: Page, theme: "light" | "dark") {
+async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t) => {
-    document.documentElement.classList.toggle("dark", t === "dark");
+    const isDark = t !== "light";
+    document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
@@ -33,7 +34,7 @@ async function setTheme(page: Page, theme: "light" | "dark") {
 let token: string;
 let wsSlug: string;
 
-const themes = ["dark", "light"] as const;
+const themes = ["glass", "light", "aurora"] as const;
 
 test.describe("Web App Recordings", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -45,7 +46,7 @@ test.describe("Web App Recordings", () => {
     wsSlug = ws.slug;
   });
 
-  async function setupRecording(page: Page, theme: "light" | "dark") {
+  async function setupRecording(page: Page, theme: "glass" | "light" | "aurora") {
     await page.goto(`/?token=${token}`);
     // Wait for app to fully load (sidebar nav should be visible)
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });

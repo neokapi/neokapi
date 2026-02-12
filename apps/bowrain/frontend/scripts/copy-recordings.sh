@@ -2,13 +2,14 @@
 # Copy Playwright recording videos to docs folder with clean names.
 #
 # Usage:
-#   THEME=dark  ./copy-recordings.sh   # copy to website/static/video/bowrain/dark/
-#   THEME=light ./copy-recordings.sh   # copy to website/static/video/bowrain/light/
-#   ./copy-recordings.sh               # copy to website/static/video/bowrain/dark/ (default)
+#   THEME=glass  ./copy-recordings.sh   # copy to website/static/video/bowrain/glass/
+#   THEME=light  ./copy-recordings.sh   # copy to website/static/video/bowrain/light/
+#   THEME=aurora ./copy-recordings.sh   # copy to website/static/video/bowrain/aurora/
+#   ./copy-recordings.sh                # copy to website/static/video/bowrain/glass/ (default)
 
 set -euo pipefail
 
-THEME="${THEME:-dark}"
+THEME="${THEME:-glass}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$(dirname "$SCRIPT_DIR")"
 RECORDINGS_DIR="$FRONTEND_DIR/recordings-output"
@@ -53,9 +54,10 @@ for dir in "$RECORDINGS_DIR"/*/; do
   dir_name=$(basename "$dir")
   dir_lower=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]')
 
-  # Skip directories for the other theme
-  if [[ "$THEME" == "dark" && "$dir_lower" == *"-light-"* ]]; then continue; fi
-  if [[ "$THEME" == "light" && "$dir_lower" == *"-dark-"* ]]; then continue; fi
+  # Skip directories for other themes
+  for skip_theme in glass light aurora; do
+    if [[ "$THEME" != "$skip_theme" && "$dir_lower" == *"-${skip_theme}-"* ]]; then continue 2; fi
+  done
 
   # Strip common prefixes from Playwright test output directory names
   name=$(echo "$dir_lower" | sed -E 's/^recordings-video-recording[s]?-//')

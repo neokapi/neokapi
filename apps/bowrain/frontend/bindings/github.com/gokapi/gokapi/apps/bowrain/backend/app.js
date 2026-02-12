@@ -17,6 +17,9 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 import * as locale$0 from "../../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as store$0 from "../../../core/store/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as application$0 from "../../../../../wailsapp/wails/v3/pkg/application/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -126,12 +129,13 @@ export function CloseProject(projectID) {
 }
 
 /**
- * Convert converts a file between formats.
- * @param {$models.ConvertRequest} req
- * @returns {$CancellablePromise<$models.ConvertResult | null>}
+ * ConfigureConnector creates and stores a connector instance.
+ * @param {string} connectorType
+ * @param {{ [_: string]: string }} config
+ * @returns {$CancellablePromise<$models.ConnectorInfo | null>}
  */
-export function Convert(req) {
-    return $Call.ByID(733747952, req).then(/** @type {($result: any) => any} */(($result) => {
+export function ConfigureConnector(connectorType, config) {
+    return $Call.ByID(623426718, connectorType, config).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType11($result);
     }));
 }
@@ -146,6 +150,19 @@ export function Convert(req) {
 export function CreateProject(name, sourceLang, targetLangs) {
     return $Call.ByID(2219834270, name, sourceLang, targetLangs).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
+    }));
+}
+
+/**
+ * CreateStoreVersion creates a version snapshot in the content store.
+ * @param {string} projectID
+ * @param {string} label
+ * @param {string} description
+ * @returns {$CancellablePromise<store$0.Version | null>}
+ */
+export function CreateStoreVersion(projectID, label, description) {
+    return $Call.ByID(3924427090, projectID, label, description).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType13($result);
     }));
 }
 
@@ -197,17 +214,6 @@ export function DetectFormat(filePath) {
 }
 
 /**
- * ExecuteFlow runs a named flow on an input file.
- * @param {$models.FlowRequest} req
- * @returns {$CancellablePromise<$models.TranslateResult | null>}
- */
-export function ExecuteFlow(req) {
-    return $Call.ByID(1093637992, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType13($result);
-    }));
-}
-
-/**
  * ExportTermsJSON exports the project's termbase as JSON.
  * @param {string} projectID
  * @param {string} name
@@ -240,6 +246,17 @@ export function ExportTranslatedItem(projectID, itemName, targetLocale) {
 }
 
 /**
+ * GetCurrentWorkspace returns the active workspace. In desktop mode,
+ * this is always the "Personal" workspace.
+ * @returns {$CancellablePromise<$models.WorkspaceInfo>}
+ */
+export function GetCurrentWorkspace() {
+    return $Call.ByID(3228582525).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType14($result);
+    }));
+}
+
+/**
  * GetFileBlocks is an alias for GetItemBlocks for backward compatibility.
  * @param {string} projectID
  * @param {string} fileName
@@ -247,7 +264,7 @@ export function ExportTranslatedItem(projectID, itemName, targetLocale) {
  */
 export function GetFileBlocks(projectID, fileName) {
     return $Call.ByID(711926175, projectID, fileName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType15($result);
+        return $$createType16($result);
     }));
 }
 
@@ -258,7 +275,7 @@ export function GetFileBlocks(projectID, fileName) {
  */
 export function GetFlowDefinition(id) {
     return $Call.ByID(2095856838, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
+        return $$createType18($result);
     }));
 }
 
@@ -279,7 +296,7 @@ export function GetInitialProject() {
  */
 export function GetItemBlocks(projectID, itemName) {
     return $Call.ByID(2825501758, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType15($result);
+        return $$createType16($result);
     }));
 }
 
@@ -289,7 +306,7 @@ export function GetItemBlocks(projectID, itemName) {
  */
 export function GetKnownLocales() {
     return $Call.ByID(3316047929).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType19($result);
+        return $$createType20($result);
     }));
 }
 
@@ -314,6 +331,17 @@ export function GetProject(projectID) {
 }
 
 /**
+ * GetSyncStatus returns the sync status of a connector.
+ * @param {string} connectorID
+ * @returns {$CancellablePromise<$models.SyncStatusInfo | null>}
+ */
+export function GetSyncStatus(connectorID) {
+    return $Call.ByID(3997902314, connectorID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType22($result);
+    }));
+}
+
+/**
  * GetTMCount returns the total number of entries in the project's TM.
  * @param {string} projectID
  * @returns {$CancellablePromise<number>}
@@ -334,7 +362,7 @@ export function GetTMCount(projectID) {
  */
 export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(2865323100, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType21($result);
+        return $$createType24($result);
     }));
 }
 
@@ -359,7 +387,7 @@ export function GetTermCount(projectID) {
  */
 export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(2057317714, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType23($result);
+        return $$createType26($result);
     }));
 }
 
@@ -369,7 +397,7 @@ export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, l
  */
 export function GetVersion() {
     return $Call.ByID(2634198737).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType24($result);
+        return $$createType27($result);
     }));
 }
 
@@ -381,7 +409,7 @@ export function GetVersion() {
  */
 export function GetWordCount(projectID, itemName) {
     return $Call.ByID(2276123042, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType26($result);
+        return $$createType29($result);
     }));
 }
 
@@ -410,13 +438,22 @@ export function ImportTermsJSON(projectID, jsonContent) {
 }
 
 /**
+ * InitContentStore initializes the content store with the given database path.
+ * @param {string} dbPath
+ * @returns {$CancellablePromise<void>}
+ */
+export function InitContentStore(dbPath) {
+    return $Call.ByID(3381103485, dbPath);
+}
+
+/**
  * InstallPlugin downloads and installs a plugin by name from the registry.
  * @param {string} name
  * @returns {$CancellablePromise<$models.PluginInstallResult | null>}
  */
 export function InstallPlugin(name) {
     return $Call.ByID(3779799163, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType31($result);
     }));
 }
 
@@ -426,7 +463,38 @@ export function InstallPlugin(name) {
  */
 export function ListAvailablePlugins() {
     return $Call.ByID(1924078444).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType33($result);
+    }));
+}
+
+/**
+ * ListConnectorTypes returns all available connector type names.
+ * @returns {$CancellablePromise<string[]>}
+ */
+export function ListConnectorTypes() {
+    return $Call.ByID(2405972949).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType34($result);
+    }));
+}
+
+/**
+ * ListConnectors returns all active connector instances.
+ * @returns {$CancellablePromise<$models.ConnectorInfo[]>}
+ */
+export function ListConnectors() {
+    return $Call.ByID(252507085).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType35($result);
+    }));
+}
+
+/**
+ * ListContentItems lists content available from a connector.
+ * @param {string} connectorID
+ * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
+ */
+export function ListContentItems(connectorID) {
+    return $Call.ByID(3747764474, connectorID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType37($result);
     }));
 }
 
@@ -436,17 +504,7 @@ export function ListAvailablePlugins() {
  */
 export function ListFlowDefinitions() {
     return $Call.ByID(3738265581).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
-    }));
-}
-
-/**
- * ListFlows returns all available flows (summary info).
- * @returns {$CancellablePromise<$models.FlowInfo[]>}
- */
-export function ListFlows() {
-    return $Call.ByID(2730811374).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType38($result);
     }));
 }
 
@@ -456,7 +514,7 @@ export function ListFlows() {
  */
 export function ListFormats() {
     return $Call.ByID(1658666415).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType40($result);
     }));
 }
 
@@ -466,7 +524,7 @@ export function ListFormats() {
  */
 export function ListPlugins() {
     return $Call.ByID(1851753111).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType42($result);
     }));
 }
 
@@ -477,7 +535,7 @@ export function ListPlugins() {
  */
 export function ListProjectFiles(projectID) {
     return $Call.ByID(3993987349, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType39($result);
+        return $$createType44($result);
     }));
 }
 
@@ -487,7 +545,7 @@ export function ListProjectFiles(projectID) {
  */
 export function ListProjects() {
     return $Call.ByID(1552139139).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType40($result);
+        return $$createType45($result);
     }));
 }
 
@@ -497,7 +555,28 @@ export function ListProjects() {
  */
 export function ListProviderConfigs() {
     return $Call.ByID(1091807543).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType42($result);
+        return $$createType47($result);
+    }));
+}
+
+/**
+ * ListStoreProjects returns all projects in the content store.
+ * @returns {$CancellablePromise<(store$0.Project | null)[]>}
+ */
+export function ListStoreProjects() {
+    return $Call.ByID(3166171152).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType50($result);
+    }));
+}
+
+/**
+ * ListStoreVersions lists versions for a project.
+ * @param {string} projectID
+ * @returns {$CancellablePromise<(store$0.Version | null)[]>}
+ */
+export function ListStoreVersions(projectID) {
+    return $Call.ByID(3506910791, projectID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType51($result);
     }));
 }
 
@@ -507,7 +586,18 @@ export function ListProviderConfigs() {
  */
 export function ListTools() {
     return $Call.ByID(2273599896).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType44($result);
+        return $$createType53($result);
+    }));
+}
+
+/**
+ * ListWorkspaces returns the workspaces available to the current user.
+ * In desktop mode, this returns a single "Personal" workspace.
+ * @returns {$CancellablePromise<$models.WorkspaceInfo[]>}
+ */
+export function ListWorkspaces() {
+    return $Call.ByID(3212201675).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType54($result);
     }));
 }
 
@@ -531,7 +621,7 @@ export function LoadPlugins() {
  */
 export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
     return $Call.ByID(2472708440, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType46($result);
+        return $$createType56($result);
     }));
 }
 
@@ -545,7 +635,7 @@ export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
  */
 export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
     return $Call.ByID(1594665302, projectID, text, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType48($result);
+        return $$createType58($result);
     }));
 }
 
@@ -559,7 +649,7 @@ export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
  */
 export function LookupTermsForBlock(projectID, itemName, blockID, targetLocale) {
     return $Call.ByID(2436021002, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType50($result);
+        return $$createType60($result);
     }));
 }
 
@@ -628,6 +718,37 @@ export function PseudoTranslateItem(projectID, itemName, targetLocale) {
 }
 
 /**
+ * PullContent pulls content from a connector into the content store.
+ * @param {string} connectorID
+ * @param {string} projectID
+ * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
+ */
+export function PullContent(connectorID, projectID) {
+    return $Call.ByID(1394392007, connectorID, projectID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType37($result);
+    }));
+}
+
+/**
+ * PushContent pushes content from the store to a connector.
+ * @param {string} connectorID
+ * @param {string} projectID
+ * @returns {$CancellablePromise<void>}
+ */
+export function PushContent(connectorID, projectID) {
+    return $Call.ByID(879389618, connectorID, projectID);
+}
+
+/**
+ * RemoveConnector removes an active connector.
+ * @param {string} connectorID
+ * @returns {$CancellablePromise<void>}
+ */
+export function RemoveConnector(connectorID) {
+    return $Call.ByID(3005427920, connectorID);
+}
+
+/**
  * RemoveFile is an alias for RemoveItem for backward compatibility.
  * @param {string} projectID
  * @param {string} fileName
@@ -685,7 +806,7 @@ export function RenderDocumentPreview(projectID, itemName, targetLocale) {
  */
 export function SaveFlowDefinition(info) {
     return $Call.ByID(2719448633, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType17($result);
+        return $$createType18($result);
     }));
 }
 
@@ -725,7 +846,7 @@ export function SaveProjectDialog(projectID) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(755781535, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType51($result);
+        return $$createType61($result);
     }));
 }
 
@@ -736,7 +857,7 @@ export function SaveProviderConfig(req) {
  */
 export function SearchPlugins(query) {
     return $Call.ByID(219729007, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType33($result);
     }));
 }
 
@@ -747,7 +868,7 @@ export function SearchPlugins(query) {
  */
 export function SearchPluginsByMimeType(mimeType) {
     return $Call.ByID(2104841290, mimeType).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType33($result);
     }));
 }
 
@@ -758,7 +879,7 @@ export function SearchPluginsByMimeType(mimeType) {
  */
 export function SearchPluginsByType(capType) {
     return $Call.ByID(3673978410, capType).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType30($result);
+        return $$createType33($result);
     }));
 }
 
@@ -779,6 +900,19 @@ export function SetApplication(app) {
  */
 export function SetInitialProjectPath(path) {
     return $Call.ByID(3437708865, path);
+}
+
+/**
+ * StoreProject creates a project in the content store.
+ * @param {string} name
+ * @param {string} sourceLocale
+ * @param {string[]} targetLocales
+ * @returns {$CancellablePromise<store$0.Project | null>}
+ */
+export function StoreProject(name, sourceLocale, targetLocales) {
+    return $Call.ByID(3310579751, name, sourceLocale, targetLocales).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType49($result);
+    }));
 }
 
 /**
@@ -816,7 +950,7 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(2381680068, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType53($result);
+        return $$createType63($result);
     }));
 }
 
@@ -827,17 +961,6 @@ export function TermEnforceItem(projectID, itemName, targetLocale) {
  */
 export function TestProviderConfig(req) {
     return $Call.ByID(2576607394, req);
-}
-
-/**
- * Translate translates a file using AI.
- * @param {$models.TranslateRequest} req
- * @returns {$CancellablePromise<$models.TranslateResult | null>}
- */
-export function Translate(req) {
-    return $Call.ByID(1621006125, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType13($result);
-    }));
 }
 
 /**
@@ -874,7 +997,7 @@ export function UpdateConcept(req) {
  */
 export function UpdatePlugin(name) {
     return $Call.ByID(2070488879, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType28($result);
+        return $$createType31($result);
     }));
 }
 
@@ -898,47 +1021,57 @@ const $$createType6 = $models.TMEntryInfo.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = $models.PluginUpdateInfo.createFrom;
 const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = $models.ConvertResult.createFrom;
+const $$createType10 = $models.ConnectorInfo.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $models.TranslateResult.createFrom;
+const $$createType12 = store$0.Version.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.BlockInfo.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.FlowDefinitionInfo.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = locale$0.LocaleInfo.createFrom;
-const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $models.TMSearchResult.createFrom;
-const $$createType21 = $Create.Nullable($$createType20);
-const $$createType22 = $models.TermSearchResult.createFrom;
-const $$createType23 = $Create.Nullable($$createType22);
-const $$createType24 = $models.VersionInfo.createFrom;
-const $$createType25 = $models.WordCountResult.createFrom;
+const $$createType14 = $models.WorkspaceInfo.createFrom;
+const $$createType15 = $models.BlockInfo.createFrom;
+const $$createType16 = $Create.Array($$createType15);
+const $$createType17 = $models.FlowDefinitionInfo.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = locale$0.LocaleInfo.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = $models.SyncStatusInfo.createFrom;
+const $$createType22 = $Create.Nullable($$createType21);
+const $$createType23 = $models.TMSearchResult.createFrom;
+const $$createType24 = $Create.Nullable($$createType23);
+const $$createType25 = $models.TermSearchResult.createFrom;
 const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = $models.PluginInstallResult.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = $models.PluginSearchResult.createFrom;
-const $$createType30 = $Create.Array($$createType29);
-const $$createType31 = $Create.Array($$createType16);
-const $$createType32 = $models.FlowInfo.createFrom;
+const $$createType27 = $models.VersionInfo.createFrom;
+const $$createType28 = $models.WordCountResult.createFrom;
+const $$createType29 = $Create.Nullable($$createType28);
+const $$createType30 = $models.PluginInstallResult.createFrom;
+const $$createType31 = $Create.Nullable($$createType30);
+const $$createType32 = $models.PluginSearchResult.createFrom;
 const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $models.FormatInfo.createFrom;
-const $$createType35 = $Create.Array($$createType34);
-const $$createType36 = $models.PluginInfo.createFrom;
+const $$createType34 = $Create.Array($Create.Any);
+const $$createType35 = $Create.Array($$createType10);
+const $$createType36 = $models.ContentItemInfo.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = $models.ProjectItem.createFrom;
-const $$createType39 = $Create.Array($$createType38);
-const $$createType40 = $Create.Array($$createType4);
-const $$createType41 = $models.ProviderConfigInfo.createFrom;
+const $$createType38 = $Create.Array($$createType17);
+const $$createType39 = $models.FormatInfo.createFrom;
+const $$createType40 = $Create.Array($$createType39);
+const $$createType41 = $models.PluginInfo.createFrom;
 const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = $models.ToolInfo.createFrom;
+const $$createType43 = $models.ProjectItem.createFrom;
 const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = $models.TMMatchInfo.createFrom;
-const $$createType46 = $Create.Array($$createType45);
-const $$createType47 = $models.TermLookupResult.createFrom;
-const $$createType48 = $Create.Nullable($$createType47);
-const $$createType49 = $models.BlockTermMatch.createFrom;
+const $$createType45 = $Create.Array($$createType4);
+const $$createType46 = $models.ProviderConfigInfo.createFrom;
+const $$createType47 = $Create.Array($$createType46);
+const $$createType48 = store$0.Project.createFrom;
+const $$createType49 = $Create.Nullable($$createType48);
 const $$createType50 = $Create.Array($$createType49);
-const $$createType51 = $Create.Nullable($$createType41);
-const $$createType52 = $models.TermEnforceResult.createFrom;
+const $$createType51 = $Create.Array($$createType13);
+const $$createType52 = $models.ToolInfo.createFrom;
 const $$createType53 = $Create.Array($$createType52);
+const $$createType54 = $Create.Array($$createType14);
+const $$createType55 = $models.TMMatchInfo.createFrom;
+const $$createType56 = $Create.Array($$createType55);
+const $$createType57 = $models.TermLookupResult.createFrom;
+const $$createType58 = $Create.Nullable($$createType57);
+const $$createType59 = $models.BlockTermMatch.createFrom;
+const $$createType60 = $Create.Array($$createType59);
+const $$createType61 = $Create.Nullable($$createType46);
+const $$createType62 = $models.TermEnforceResult.createFrom;
+const $$createType63 = $Create.Array($$createType62);

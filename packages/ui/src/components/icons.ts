@@ -30,4 +30,6 @@ export {
   Link,
   Package,
   Lock,
+  Sparkles,
+  Palette,
 } from "lucide-react";
