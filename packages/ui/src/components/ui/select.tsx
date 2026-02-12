@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "../../lib/utils";
+import { ChevronDown, Check } from "../icons";
 
 interface SelectContextValue {
   value: string;
@@ -55,7 +56,7 @@ function SelectTrigger({ className, children, ...props }: React.ButtonHTMLAttrib
       {...props}
     >
       {children}
-      <span className="ml-2 opacity-50">{"\u25BE"}</span>
+      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
     </button>
   );
 }
@@ -117,7 +118,7 @@ function SelectItem({ className, value, children, ...props }: SelectItemProps) {
       {children}
       {isSelected && (
         <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
-          &#10003;
+          <Check className="h-4 w-4" />
         </span>
       )}
     </div>

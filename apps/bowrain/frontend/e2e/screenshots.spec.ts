@@ -6,7 +6,17 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCREENSHOT_DIR = path.resolve(__dirname, "../../../../website/static/img/bowrain");
+const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../website/static/img/bowrain");
+
+/** Helper: apply theme to the page. */
+async function setTheme(page: any, theme: "light" | "dark") {
+  await page.evaluate((t: string) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem("gokapi-theme", t);
+  }, theme);
+  await page.waitForTimeout(100);
+}
 
 /** Helper to click by test ID using native DOM click. */
 async function clickTestId(page: any, testId: string) {
@@ -140,164 +150,186 @@ async function openEditor(page: any) {
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
+const themes = ["dark", "light"] as const;
+
 test.describe("Screenshots", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test("capture dashboard", async ({ page }) => {
-    await seedDashboard(page);
+  for (const theme of themes) {
+    test(`capture dashboard [${theme}]`, async ({ page }) => {
+      await seedDashboard(page);
+      await setTheme(page, theme);
 
-    // Should see all three projects on the dashboard
-    await expect(page.getByText("Website Redesign")).toBeVisible();
-    await expect(page.getByText("Mobile App v2.0")).toBeVisible();
-    await expect(page.getByText("API Documentation")).toBeVisible();
+      // Should see all three projects on the dashboard
+      await expect(page.getByText("Website Redesign")).toBeVisible();
+      await expect(page.getByText("Mobile App v2.0")).toBeVisible();
+      await expect(page.getByText("API Documentation")).toBeVisible();
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "dashboard.png") });
-  });
-
-  test("capture project view", async ({ page }) => {
-    await openProjectView(page);
-
-    // Verify files are visible
-    await expect(page.getByTestId("open-file-index.html")).toBeVisible();
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "project-view.png") });
-  });
-
-  test("capture editor", async ({ page }) => {
-    await openEditor(page);
-
-    // Verify editor content
-    await expect(page.getByTestId("block-row-0")).toBeVisible();
-    await expect(page.getByTestId("progress-text")).toContainText("0%");
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor.png") });
-  });
-
-  test("capture editor with preview", async ({ page }) => {
-    await openEditor(page);
-
-    // Toggle preview on
-    await clickTestId(page, "layout-split-v");
-    await page.waitForTimeout(300);
-    await expect(page.getByTestId("split-layout")).toBeVisible();
-    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor-preview.png") });
-  });
-
-  test("capture editor translated", async ({ page }) => {
-    await openEditor(page);
-
-    // Pseudo-translate all blocks
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
-
-    // Verify 100% progress
-    await expect(page.getByTestId("progress-text")).toContainText("100%");
-
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor-translated.png") });
-  });
-
-  test("capture TM explorer", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
-
-    // Create project
-    await page.getByTestId("new-project-btn").click();
-    await page.getByTestId("project-name-input").fill("Website Redesign");
-    await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
-    await page.getByTestId("create-project-submit").click();
-    await expect(page.getByTestId("back-to-projects")).toBeVisible();
-
-    // Seed TM entries via mock backend
-    await page.evaluate(() => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = backend.ListProjects();
-      const pid = projects[0]?.id;
-      if (pid) {
-        backend.AddTMEntry(pid, "Hello World", "Bonjour le monde", "en", "fr");
-        backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-        backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
-        backend.AddTMEntry(pid, "Settings", "Param\u00e8tres", "en", "fr");
-        backend.AddTMEntry(pid, "Save changes", "Enregistrer les modifications", "en", "fr");
-      }
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "dashboard.png") });
     });
 
-    // Open TM explorer
-    await page.evaluate(() => {
-      (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
+    test(`capture project view [${theme}]`, async ({ page }) => {
+      await openProjectView(page);
+      await setTheme(page, theme);
+
+      // Verify files are visible
+      await expect(page.getByTestId("open-file-index.html")).toBeVisible();
+
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "project-view.png") });
     });
-    await expect(page.getByTestId("tm-explorer")).toBeVisible();
 
-    // Trigger a refresh to show entries
-    await setInput(page, "tm-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "tm-search-input", "");
-    await page.waitForTimeout(400);
+    test(`capture editor [${theme}]`, async ({ page }) => {
+      await openEditor(page);
+      await setTheme(page, theme);
 
-    await expect(page.getByTestId("tm-count-badge")).toContainText("5 entries");
+      // Verify editor content
+      await expect(page.getByTestId("block-row-0")).toBeVisible();
+      await expect(page.getByTestId("progress-text")).toContainText("0%");
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "tm-explorer.png") });
-  });
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "editor.png") });
+    });
 
-  test("capture flow editor", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+    test(`capture editor with preview [${theme}]`, async ({ page }) => {
+      await openEditor(page);
+      await setTheme(page, theme);
 
-    // Navigate to Flows view
-    await page.locator("nav button", { hasText: "Flows" }).click();
-    await expect(page.getByTestId("flow-list")).toBeVisible();
+      // Toggle preview on
+      await clickTestId(page, "layout-split-v");
+      await page.waitForTimeout(300);
+      await expect(page.getByTestId("split-layout")).toBeVisible();
+      await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
-    // Select AI Translate flow
-    await page.getByTestId("flow-item-ai-translate").click();
-    await page.waitForTimeout(300);
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "editor-preview.png") });
+    });
 
-    // Verify flow nodes are visible
-    await expect(page.getByTestId("flow-node-reader")).toBeVisible();
+    test(`capture editor translated [${theme}]`, async ({ page }) => {
+      await openEditor(page);
+      await setTheme(page, theme);
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "flow-editor.png") });
-  });
+      // Pseudo-translate all blocks
+      await clickTestId(page, "pseudo-btn");
+      await page.waitForTimeout(500);
 
-  test("capture focus view", async ({ page }) => {
-    await openEditor(page);
+      // Verify 100% progress
+      await expect(page.getByTestId("progress-text")).toContainText("100%");
 
-    // Pseudo-translate to create mixed statuses
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "editor-translated.png") });
+    });
 
-    // Switch to focus view
-    await clickTestId(page, "layout-focus");
-    await page.waitForTimeout(300);
-    await expect(page.getByTestId("focus-view")).toBeVisible();
+    test(`capture TM explorer [${theme}]`, async ({ page }) => {
+      await injectMockBackend(page);
+      await page.goto("/");
 
-    // Verify focus view elements
-    await expect(page.getByTestId("focus-source")).toBeVisible();
-    await expect(page.getByTestId("focus-target")).toBeVisible();
+      // Create project
+      await page.getByTestId("new-project-btn").click();
+      await page.getByTestId("project-name-input").fill("Website Redesign");
+      await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
+      await page.getByTestId("create-project-submit").click();
+      await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor-focus.png") });
-  });
+      // Seed TM entries via mock backend
+      await page.evaluate(() => {
+        const backend = (window as any).__wailsMockByName;
+        const projects = backend.ListProjects();
+        const pid = projects[0]?.id;
+        if (pid) {
+          backend.AddTMEntry(pid, "Hello World", "Bonjour le monde", "en", "fr");
+          backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+          backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+          backend.AddTMEntry(pid, "Settings", "Param\u00e8tres", "en", "fr");
+          backend.AddTMEntry(pid, "Save changes", "Enregistrer les modifications", "en", "fr");
+        }
+      });
 
-  test("capture settings", async ({ page }) => {
-    await injectMockBackend(page);
-    await page.goto("/");
+      // Open TM explorer
+      await page.evaluate(() => {
+        (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
+      });
+      await expect(page.getByTestId("tm-explorer")).toBeVisible();
+      await setTheme(page, theme);
 
-    // Navigate to Settings
-    await page.locator("nav button", { hasText: "Settings" }).click();
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+      // Trigger a refresh to show entries
+      await setInput(page, "tm-search-input", " ");
+      await page.waitForTimeout(400);
+      await setInput(page, "tm-search-input", "");
+      await page.waitForTimeout(400);
 
-    // Switch to AI Providers tab (more interesting than empty General)
-    await page.getByTestId("settings-tab-ai-providers").click();
-    await expect(page.getByTestId("settings-ai-providers")).toBeVisible();
+      await expect(page.getByTestId("tm-count-badge")).toContainText("5 entries");
 
-    // Add a provider to make the page look populated
-    await page.getByTestId("add-provider-btn").click();
-    await page.getByTestId("provider-name").fill("Anthropic Claude");
-    await page.getByTestId("provider-type").selectOption("anthropic");
-    await page.getByTestId("provider-api-key").fill("sk-ant-***");
-    await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
-    await page.getByTestId("provider-save-btn").click();
-    await expect(page.getByText("Anthropic Claude")).toBeVisible();
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "tm-explorer.png") });
+    });
 
-    await page.screenshot({ path: path.join(SCREENSHOT_DIR, "settings.png") });
-  });
+    test(`capture flow editor [${theme}]`, async ({ page }) => {
+      await injectMockBackend(page);
+      await page.goto("/");
+      await setTheme(page, theme);
+
+      // Navigate to Flows view
+      await page.locator("nav button", { hasText: "Flows" }).click();
+      await expect(page.getByTestId("flow-list")).toBeVisible();
+
+      // Select AI Translate flow
+      await page.getByTestId("flow-item-ai-translate").click();
+      await page.waitForTimeout(300);
+
+      // Verify flow nodes are visible
+      await expect(page.getByTestId("flow-node-reader")).toBeVisible();
+
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "flow-editor.png") });
+    });
+
+    test(`capture focus view [${theme}]`, async ({ page }) => {
+      await openEditor(page);
+      await setTheme(page, theme);
+
+      // Pseudo-translate to create mixed statuses
+      await clickTestId(page, "pseudo-btn");
+      await page.waitForTimeout(500);
+
+      // Switch to focus view
+      await clickTestId(page, "layout-focus");
+      await page.waitForTimeout(300);
+      await expect(page.getByTestId("focus-view")).toBeVisible();
+
+      // Verify focus view elements
+      await expect(page.getByTestId("focus-source")).toBeVisible();
+      await expect(page.getByTestId("focus-target")).toBeVisible();
+
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "editor-focus.png") });
+    });
+
+    test(`capture settings [${theme}]`, async ({ page }) => {
+      await injectMockBackend(page);
+      await page.goto("/");
+      await setTheme(page, theme);
+
+      // Navigate to Settings
+      await page.locator("nav button", { hasText: "Settings" }).click();
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+      // Switch to AI Providers tab (more interesting than empty General)
+      await page.getByTestId("settings-tab-ai-providers").click();
+      await expect(page.getByTestId("settings-ai-providers")).toBeVisible();
+
+      // Add a provider to make the page look populated
+      await page.getByTestId("add-provider-btn").click();
+      await page.getByTestId("provider-name").fill("Anthropic Claude");
+      await page.getByTestId("provider-type").selectOption("anthropic");
+      await page.getByTestId("provider-api-key").fill("sk-ant-***");
+      await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
+      await page.getByTestId("provider-save-btn").click();
+      await expect(page.getByText("Anthropic Claude")).toBeVisible();
+
+      const dir = path.join(SCREENSHOT_BASE, theme);
+      await page.screenshot({ path: path.join(dir, "settings.png") });
+    });
+  }
 });

@@ -21,12 +21,13 @@ import { DocumentPreview } from "./components/DocumentPreview";
 import { useHealth } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
+import { Shuffle, Link } from "lucide-react";
 
 type AppView = View | "flows" | "connectors";
 
 const desktopNavItems: NavItem[] = [
-  { id: "flows", label: "Flows", icon: "\u{1F500}" },
-  { id: "connectors", label: "Connectors", icon: "\u{1F517}" },
+  { id: "flows", label: "Flows", icon: <Shuffle className="w-4 h-4" /> },
+  { id: "connectors", label: "Connectors", icon: <Link className="w-4 h-4" /> },
 ];
 
 const wailsAdapter = new WailsApiAdapter();

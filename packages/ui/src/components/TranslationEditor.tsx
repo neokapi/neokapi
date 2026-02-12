@@ -10,6 +10,7 @@ import { TagChipComponent } from "./editor/TagChipComponent";
 import { buildPairs, validateTags } from "./editor/tagSemantics";
 import { Button } from "./ui/button";
 import { cn } from "../lib/utils";
+import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
 interface TranslationEditorProps {
   project: ProjectInfo;
@@ -647,7 +648,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           data-testid="focus-prev"
           disabled={selectedIndex <= 0}
         >
-          &larr;
+          <ArrowLeft className="w-3.5 h-3.5" />
         </Button>
         <span className="flex-1 text-center font-semibold text-sm">
           Block {selectedIndex + 1} of {filteredBlocks.length}
@@ -665,7 +666,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           data-testid="focus-next"
           disabled={selectedIndex >= filteredBlocks.length - 1}
         >
-          &rarr;
+          <ArrowRight className="w-3.5 h-3.5" />
         </Button>
       </div>
 
@@ -779,7 +780,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
         <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-project">
-          &#8592; {project.name}
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {project.name}
         </Button>
         <span className="text-base font-semibold flex-1">{fileName}</span>
         {/* Layout mode switcher */}
@@ -854,10 +855,10 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         </Button>
         <div className="w-px h-5 bg-border" />
         <Button variant="outline" size="sm" onClick={handlePrevUntranslated} data-testid="prev-untranslated-btn">
-          &larr; Untranslated
+          <ArrowLeft className="w-3 h-3 mr-1" /> Untranslated
         </Button>
         <Button variant="outline" size="sm" onClick={handleNextUntranslated} data-testid="next-untranslated-btn">
-          Untranslated &rarr;
+          Untranslated <ArrowRight className="w-3 h-3 ml-1" />
         </Button>
         <div className="flex-1" />
         <Button
@@ -1017,8 +1018,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                       <span className={cn("text-[10px] font-semibold px-1.5 py-px rounded", termStatusClass(m.status))}>{m.status}</span>
                     </div>
                     {m.target_terms && m.target_terms.length > 0 ? (
-                      <div className="text-xs">
-                        <span className="text-muted-foreground">&#8594; </span>
+                      <div className="text-xs inline-flex items-center gap-1">
+                        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
                         <span className="font-medium">{m.target_terms.join(", ")}</span>
                       </div>
                     ) : (
@@ -1050,8 +1051,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             )}
           </span>
         )}
-        <span className="text-muted-foreground">
-          Enter: edit | Esc: cancel | &#8593;&#8595;: navigate
+        <span className="text-muted-foreground inline-flex items-center gap-0.5">
+          Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" /><ArrowDown className="w-3 h-3 inline-block" />: navigate
           {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
             <> | Ctrl+1..9: insert tag</>
           )}
@@ -1127,11 +1128,11 @@ function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo
     <span
       title={tooltip}
       className={cn(
-        "ml-1 cursor-help text-sm",
+        "ml-1 cursor-help inline-flex",
         validation.errors.length > 0 ? "text-red-600" : "text-amber-700",
       )}
     >
-      {"\u26A0"}
+      <AlertTriangle className="w-3.5 h-3.5" />
     </span>
   );
 }

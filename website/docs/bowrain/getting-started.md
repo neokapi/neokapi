@@ -29,7 +29,7 @@ Download the latest release from [GitHub Releases](https://github.com/gokapi/gok
 4. Configure source and target languages
 5. Run a translation flow or edit translations manually
 
-![Editor showing 100% translated blocks](/img/bowrain/editor-translated.png)
+![Editor showing 100% translated blocks](/img/bowrain/dark/editor-translated.png)
 
 ### Quick Start with Sample Projects
 

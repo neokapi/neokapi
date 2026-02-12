@@ -4,6 +4,10 @@ import { useLocales } from "../hooks/useLocales";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
+import {
+  ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
+  FileType, MessageSquare, FileSpreadsheet, Upload, X, Lock, Package,
+} from "./icons";
 
 interface ProjectViewProps {
   project: ProjectInfo;
@@ -51,20 +55,29 @@ export function ProjectView({
   }, [onUploadFiles]);
 
   const formatIcon = (format: string) => {
-    const icons: Record<string, string> = {
-      html: "&#127760;", xml: "&#128196;", json: "&#123;&#125;",
-      yaml: "&#128203;", plaintext: "&#128221;", po: "&#128172;",
-      properties: "&#9881;", markdown: "&#128195;", csv: "&#128202;",
-      xliff: "&#128257;", xliff2: "&#128257;",
+    const cls = "w-4 h-4 inline-block align-text-bottom";
+    const icons: Record<string, React.ReactNode> = {
+      html: <Globe className={cls} />,
+      xml: <FileCode className={cls} />,
+      json: <FileJson className={cls} />,
+      yaml: <FileText className={cls} />,
+      plaintext: <FileType className={cls} />,
+      po: <MessageSquare className={cls} />,
+      properties: <Lock className={cls} />,
+      markdown: <FileText className={cls} />,
+      csv: <FileSpreadsheet className={cls} />,
+      xliff: <ArrowRight className={cls} />,
+      xliff2: <ArrowRight className={cls} />,
     };
-    return icons[format] || "&#128196;";
+    return icons[format] || <FileCode className={cls} />;
   };
 
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
         <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-projects">
-          &#8592; Projects
+          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+          Projects
         </Button>
         <h2 className="flex-1 text-xl font-semibold">{project.name}</h2>
         {onOpenTerms && (
@@ -106,7 +119,7 @@ export function ProjectView({
         <Card className="flex-1 text-center">
           <CardContent className="py-3">
             <div className="text-sm font-semibold">
-              {getDisplayName(project.source_locale)} &#8594; {project.target_locales.map(l => getDisplayName(l)).join(", ")}
+              {getDisplayName(project.source_locale)} <ArrowRight className="w-3.5 h-3.5 inline-block" /> {project.target_locales.map(l => getDisplayName(l)).join(", ")}
             </div>
             <div className="text-xs text-muted-foreground">Languages</div>
           </CardContent>
@@ -121,7 +134,7 @@ export function ProjectView({
         onDrop={handleDrop}
         data-testid="file-drop-zone"
       >
-        <span className="text-3xl opacity-30">&#128230;</span>
+        <Package className="w-8 h-8 text-muted-foreground opacity-30" />
         <span className="text-muted-foreground text-[13px]">
           Drag and drop files here to add them to the project
         </span>
@@ -150,10 +163,10 @@ export function ProjectView({
                   <td className="px-4 py-2.5 text-sm border-b border-border">
                     <button
                       onClick={() => onOpenFile(f.name)}
-                      className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline"
+                      className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5"
                       data-testid={`open-file-${f.name}`}
                     >
-                      <span dangerouslySetInnerHTML={{ __html: formatIcon(f.format) }} /> {f.name}
+                      {formatIcon(f.format)} {f.name}
                     </button>
                   </td>
                   <td className="px-4 py-2.5 text-sm border-b border-border">
@@ -164,10 +177,10 @@ export function ProjectView({
                   <td className="px-4 py-2.5 text-sm border-b border-border text-right">
                     <button
                       onClick={(e) => { e.stopPropagation(); onRemoveFile(f.name); }}
-                      className="bg-transparent border-none text-muted-foreground cursor-pointer text-sm px-2 py-1 rounded hover:text-destructive transition-colors"
+                      className="bg-transparent border-none text-muted-foreground cursor-pointer px-2 py-1 rounded hover:text-destructive transition-colors"
                       data-testid={`remove-file-${f.name}`}
                     >
-                      &#10005;
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   </td>
                 </tr>

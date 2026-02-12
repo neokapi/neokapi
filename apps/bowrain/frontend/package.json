@@ -14,7 +14,7 @@
     "screenshots": "npx playwright test e2e/screenshots.spec.ts",
     "recordings": "npx playwright test --config=playwright.recordings.config.ts",
     "recordings:headed": "npx playwright test --config=playwright.recordings.config.ts --headed",
-    "recordings:copy": "./scripts/copy-recordings.sh",
+    "recordings:copy": "THEME=dark ./scripts/copy-recordings.sh && THEME=light ./scripts/copy-recordings.sh",
     "recordings:all": "npm run recordings && npm run recordings:copy"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "@wailsio/runtime": "^3.0.0-alpha.73",
     "@xyflow/react": "^12.10.0",
     "lexical": "^0.39.0",
+    "lucide-react": "^0.563.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.1.18"

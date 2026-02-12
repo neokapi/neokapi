@@ -5,6 +5,7 @@ import type { TMEntryInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import { ArrowLeft } from "../icons";
 
 interface TMExplorerProps {
   sourceLocale: string;
@@ -118,7 +119,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     <div data-testid="tm-explorer">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn">&#8592; Back</Button>
+        <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn"><ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back</Button>
         <h2 className="flex-1 text-xl font-semibold">Translation Memory</h2>
         <Badge variant="secondary" data-testid="tm-count-badge">
           {totalCount} {totalCount === 1 ? "entry" : "entries"}

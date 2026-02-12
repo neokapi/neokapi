@@ -1,4 +1,5 @@
 import type { TagValidationResult } from "./tagSemantics";
+import { AlertTriangle, Info } from "../icons";
 
 interface TagValidationBarProps {
   validation: TagValidationResult | null;
@@ -14,54 +15,19 @@ export function TagValidationBar({ validation }: TagValidationBarProps) {
   }
 
   return (
-    <div style={containerStyle}>
+    <div className="flex flex-col gap-0.5 mt-1">
       {validation.errors.map((err, i) => (
-        <div key={`e-${i}`} style={errorRowStyle}>
-          <span style={iconStyle}>&#9888;</span>
+        <div key={`e-${i}`} className="text-[11px] px-2 py-0.5 rounded-sm flex items-center gap-1 bg-destructive/10 text-destructive border border-destructive/25">
+          <AlertTriangle className="w-3 h-3 shrink-0" />
           {err.message}
         </div>
       ))}
       {validation.warnings.map((warn, i) => (
-        <div key={`w-${i}`} style={warningRowStyle}>
-          <span style={iconStyle}>&#9432;</span>
+        <div key={`w-${i}`} className="text-[11px] px-2 py-0.5 rounded-sm flex items-center gap-1 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/25">
+          <Info className="w-3 h-3 shrink-0" />
           {warn.message}
         </div>
       ))}
     </div>
   );
 }
-
-const containerStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 2,
-  marginTop: 4,
-};
-
-const baseRowStyle: React.CSSProperties = {
-  fontSize: 11,
-  padding: "2px 8px",
-  borderRadius: 3,
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-};
-
-const errorRowStyle: React.CSSProperties = {
-  ...baseRowStyle,
-  backgroundColor: "rgba(239, 68, 68, 0.1)",
-  color: "rgb(220, 38, 38)",
-  border: "1px solid rgba(239, 68, 68, 0.25)",
-};
-
-const warningRowStyle: React.CSSProperties = {
-  ...baseRowStyle,
-  backgroundColor: "rgba(234, 179, 8, 0.1)",
-  color: "rgb(161, 98, 7)",
-  border: "1px solid rgba(234, 179, 8, 0.25)",
-};
-
-const iconStyle: React.CSSProperties = {
-  fontSize: 12,
-  flexShrink: 0,
-};

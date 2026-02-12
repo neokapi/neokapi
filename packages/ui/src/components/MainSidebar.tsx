@@ -1,14 +1,14 @@
 import { cn } from "../lib/utils";
 import type { Workspace } from "../types/api";
 import { useTheme } from "../context/ThemeContext";
-import { Separator } from "./ui/separator";
+import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon } from "./icons";
 
 export type View = "translate" | "termbase" | "memory" | "settings";
 
 export interface NavItem {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 interface MainSidebarProps<V extends string = View> {
@@ -26,10 +26,10 @@ interface MainSidebarProps<V extends string = View> {
 }
 
 const defaultNavItems: NavItem[] = [
-  { id: "translate", label: "Translate", icon: "\u{1F30D}" },
-  { id: "termbase", label: "Termbase", icon: "\u{1F4DA}" },
-  { id: "memory", label: "Memory", icon: "\u{1F9E0}" },
-  { id: "settings", label: "Settings", icon: "\u{2699}\u{FE0F}" },
+  { id: "translate", label: "Translate", icon: <Globe className="w-4 h-4" /> },
+  { id: "termbase", label: "Termbase", icon: <BookOpen className="w-4 h-4" /> },
+  { id: "memory", label: "Memory", icon: <Brain className="w-4 h-4" /> },
+  { id: "settings", label: "Settings", icon: <Settings className="w-4 h-4" /> },
 ];
 
 export function MainSidebar<V extends string = View>({
@@ -90,7 +90,7 @@ export function MainSidebar<V extends string = View>({
                   : "bg-transparent text-muted-foreground border-l-[3px] border-l-transparent hover:bg-sidebar-accent/50",
               )}
             >
-              <span>{icon}</span>
+              <span className="shrink-0">{icon}</span>
               {!iconsOnly && <span>{label}</span>}
             </button>
           ))}
@@ -101,9 +101,9 @@ export function MainSidebar<V extends string = View>({
           {!iconsOnly && <ThemeToggle />}
           <button
             onClick={() => onCollapsedChange(!collapsed)}
-            className="bg-transparent border-none text-muted-foreground cursor-pointer text-base hover:text-foreground transition-colors"
+            className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
           >
-            {collapsed ? "\u{25B6}" : "\u{25C0}"}
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
       </div>
@@ -118,9 +118,9 @@ function ThemeToggle() {
       data-testid="theme-toggle"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      className="bg-transparent border-none text-muted-foreground cursor-pointer text-base p-0 leading-none hover:text-foreground transition-colors"
+      className="bg-transparent border-none text-muted-foreground cursor-pointer p-0 leading-none hover:text-foreground transition-colors"
     >
-      {resolvedTheme === "dark" ? "\u{2600}\u{FE0F}" : "\u{1F319}"}
+      {resolvedTheme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
     </button>
   );
 }

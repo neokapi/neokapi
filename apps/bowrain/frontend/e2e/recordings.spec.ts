@@ -8,10 +8,21 @@ import { injectWindowChrome } from "./window-chrome";
 // Run locally with: npx playwright test --config=playwright.recordings.config.ts
 const isCI = process.env.CI === "true" || process.env.CI === "1";
 
+/** Helper: apply theme to the page. */
+async function setTheme(page: any, theme: "light" | "dark") {
+  await page.evaluate((t: string) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem("gokapi-theme", t);
+  }, theme);
+  await page.waitForTimeout(100);
+}
+
 /** Setup helper - injects mock backend, cursor, and window chrome */
-async function setupRecording(page: any, title: string = "Bowrain") {
+async function setupRecording(page: any, title: string = "Bowrain", theme: "light" | "dark" = "dark") {
   await injectMockBackend(page);
   await page.goto("/");
+  await setTheme(page, theme);
   await injectCursor(page);
   await injectWindowChrome(page, title);
   // Start cursor in a natural position
@@ -46,13 +57,16 @@ async function pause(page: any, ms: number = 500) {
 // Use conditional describe to skip entire suite in CI
 const describeOrSkip = isCI ? test.describe.skip : test.describe;
 
+const themes = ["dark", "light"] as const;
+
 describeOrSkip("Video Recordings", () => {
   // Video settings are configured in playwright.recordings.config.ts
   // Videos are saved to test-results/ - use `npm run recordings:copy` to copy to docs
   // Skipped in CI due to human-speed typing exceeding timeouts
 
-  test("record create project flow", async ({ page }) => {
-    await setupRecording(page, "Bowrain — New Project");
+  for (const theme of themes) {
+  test(`record create project flow [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — New Project", theme);
     await pause(page, 800);
 
     // Click new project button
@@ -102,10 +116,10 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1500);
   });
 
-  test("record translation editor workflow", async ({ page }) => {
+  test(`record translation editor workflow [${theme}]`, async ({ page }) => {
     // Hero demo: Translating a realistic HTML page to Norwegian
     // Shows: grid view → translate blocks → toggle to split view → translate more
-    await setupRecording(page, "Bowrain — Translation Editor");
+    await setupRecording(page, "Bowrain — Translation Editor", theme);
 
     // Create project with Norwegian as target
     await page.getByTestId("new-project-btn").click();
@@ -301,8 +315,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 4000); // Hold for 4 seconds to show completed state
   });
 
-  test("record focus view editing", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Focus View");
+  test(`record focus view editing [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Focus View", theme);
     await pause(page, 600);
 
     // Create project
@@ -374,8 +388,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 800);
   });
 
-  test("record TM explorer", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Translation Memory");
+  test(`record TM explorer [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Translation Memory", theme);
     await pause(page, 600);
 
     // Create project
@@ -441,8 +455,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 800);
   });
 
-  test("record flow editor", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Flow Editor");
+  test(`record flow editor [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Flow Editor", theme);
     await pause(page, 600);
 
     // Navigate to Flows view
@@ -484,9 +498,9 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1000);
   });
 
-  test("record end-to-end translation workflow", async ({ page }) => {
+  test(`record end-to-end translation workflow [${theme}]`, async ({ page }) => {
     // Complete workflow: create project → add file → translate in different views → export
-    await setupRecording(page, "Bowrain — Complete Workflow");
+    await setupRecording(page, "Bowrain — Complete Workflow", theme);
     await pause(page, 600);
 
     // Create project
@@ -572,8 +586,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
-  test("record TM leverage workflow", async ({ page }) => {
-    await setupRecording(page, "Bowrain — TM Leverage");
+  test(`record TM leverage workflow [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — TM Leverage", theme);
     await pause(page, 600);
 
     // Create project
@@ -659,8 +673,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
-  test("record term explorer", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Terminology");
+  test(`record term explorer [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Terminology", theme);
     await pause(page, 600);
 
     // Create project
@@ -777,8 +791,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
-  test("record context panel", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Context Panel");
+  test(`record context panel [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Context Panel", theme);
     await pause(page, 600);
 
     // Create project
@@ -869,8 +883,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1000);
   });
 
-  test("record workspace switcher", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Workspace Navigation");
+  test(`record workspace switcher [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Workspace Navigation", theme);
     await pause(page, 600);
 
     // Show the sidebar with workspace name "Personal"
@@ -941,8 +955,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
-  test("record account and authentication", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Settings & Providers");
+  test(`record account and authentication [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Settings & Providers", theme);
     await pause(page, 600);
 
     // Navigate to Settings
@@ -1007,8 +1021,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 800);
   });
 
-  test("record workspace project management", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Project Management");
+  test(`record workspace project management [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Project Management", theme);
     await pause(page, 600);
 
     // Create first project
@@ -1123,8 +1137,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1000);
   });
 
-  test("record settings configuration", async ({ page }) => {
-    await setupRecording(page, "Bowrain — Settings");
+  test(`record settings configuration [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Settings", theme);
     await pause(page, 600);
 
     // Navigate to Settings
@@ -1167,4 +1181,5 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
     await pause(page, 1000);
   });
+  } // end for (theme)
 });

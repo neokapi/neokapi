@@ -9,6 +9,9 @@ export { Label } from "./components/ui/label";
 export { Badge, type BadgeProps } from "./components/ui/badge";
 export { Separator } from "./components/ui/separator";
 
+// Icons (Lucide)
+export * from "./components/icons";
+
 // Components
 export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";

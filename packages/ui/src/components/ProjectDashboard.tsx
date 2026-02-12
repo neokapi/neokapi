@@ -6,6 +6,7 @@ import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { FolderOpen, ArrowRight } from "./icons";
 
 interface ProjectDashboardProps {
   projects: ProjectInfo[];
@@ -101,7 +102,7 @@ export function ProjectDashboard({
 
       {projects.length === 0 && !showCreate && (
         <div className="flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border" data-testid="empty-projects">
-          <div className="text-5xl mb-4 opacity-30">&#128194;</div>
+          <FolderOpen className="w-12 h-12 mb-4 text-muted-foreground opacity-30" />
           <p className="text-muted-foreground">
             No projects yet. Create a new project to get started.
           </p>
@@ -119,7 +120,7 @@ export function ProjectDashboard({
             <CardContent className="pt-4">
               <h3 className="font-semibold text-base mb-2">{p.name}</h3>
               <div className="text-[13px] text-muted-foreground mb-2">
-                {getDisplayName(p.source_locale)} &#8594; {p.target_locales.map(l => getDisplayName(l)).join(", ")}
+                {getDisplayName(p.source_locale)} <ArrowRight className="w-3 h-3 inline-block" /> {p.target_locales.map(l => getDisplayName(l)).join(", ")}
               </div>
               <div className="text-xs text-muted-foreground">
                 {(p.items?.length ?? 0)} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
