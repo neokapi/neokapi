@@ -5,67 +5,102 @@ title: Architecture
 
 # gokapi: Architecture
 
-gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
-in Go. For the reasoning behind each major design choice, see the
+gokapi is an open localization platform built in Go. Bidirectional connectors
+sync content from live systems into a versioned store, composable tools process
+content through a concurrent pipeline, and automation drives the workflow. For
+the reasoning behind each major design choice, see the
 [Architecture Decision Records](/docs/adr/index).
 
-## Architecture Diagram
+## Platform Architecture
 
 ```mermaid
 graph TB
-    subgraph Input
-        RD[RawDocument]
+    subgraph "Source Systems"
+        CMS[CMS]
+        Design[Design Tools]
+        Code[Code Repos]
+        Marketing[Marketing]
+        Files[Files]
     end
 
-    subgraph "Data Format Layer"
-        DFR[DataFormatReader]
-        DFW[DataFormatWriter]
+    subgraph "Connectors"
+        C1[CMS Connector]
+        C2[Design Connector]
+        C3[Code Connector]
+        C4[Marketing Connector]
+        C5[FileConnector]
     end
 
-    subgraph "Flow (Pipeline)"
+    CMS --- C1
+    Design --- C2
+    Code --- C3
+    Marketing --- C4
+    Files --- C5
+
+    subgraph "Content Store"
+        CS[Versioned Store<br/>SHA-256 · dedup · history]
+    end
+
+    C1 -->|pull/push| CS
+    C2 -->|pull/push| CS
+    C3 -->|pull/push| CS
+    C4 -->|pull/push| CS
+    C5 -->|pull/push| CS
+
+    subgraph "Processing Pipeline"
         direction LR
-        T1[Tool 1<br/>Segmentation]
-        T2[Tool 2<br/>TM Leverage]
-        T3[Tool 3<br/>AI Translation]
-        T4[Tool N<br/>QA Check]
+        DFR[Format Reader]
+        T1[Segmentation]
+        T2[TM Leverage]
+        T3[AI Translation]
+        T4[QA Check]
+        DFW[Format Writer]
+        DFR -->|"chan Part"| T1
         T1 -->|"chan Part"| T2
         T2 -->|"chan Part"| T3
         T3 -->|"chan Part"| T4
+        T4 -->|"chan Part"| DFW
     end
 
-    subgraph Output
-        OUT[Output Document]
+    CS --> DFR
+    DFW --> CS
+
+    subgraph "Resources"
+        TM[Translation Memory]
+        TB[Terminology]
     end
 
-    RD -->|open| DFR
-    DFR -->|"chan PartResult"| T1
-    T4 -->|"chan Part"| DFW
-    DFW --> OUT
+    TM -.- T2
+    TB -.- T4
 
-    subgraph "Plugin System (go-plugin + gRPC)"
-        P1[Native Go Format]
-        P2[Java Bridge Format]
-        P3[Native Go Tool]
-        P4[AI Tool]
-        P5[Remote Plugin]
+    subgraph "Automation"
+        EVT[Event Bus<br/>triggers · gates · webhooks]
     end
 
-    subgraph "Format Registry"
-        FR[FormatRegistry]
+    CS -.- EVT
+    EVT -.- DFR
+
+    subgraph "Plugin System (gRPC)"
+        P1[Native Go]
+        P2[Java Bridge]
+        P3[Remote Plugin]
     end
 
-    FR -.->|lookup| DFR
-    FR -.->|lookup| DFW
-    P1 -.-> FR
-    P2 -.-> FR
+    P1 -.- T1
+    P2 -.- DFR
+    P3 -.- T3
 
     style T3 fill:#e1f5fe
-    style P4 fill:#e1f5fe
+    style CS fill:#fff3e0
+    style EVT fill:#f3e5f5
 ```
 
-Documents flow through a channel-based concurrent pipeline. Each tool runs in
-its own goroutine. Buffered channels provide backpressure. See
-[ADR-003](/docs/adr/004-processing-engine).
+Content flows from source systems through bidirectional connectors into a
+versioned content store. The processing pipeline runs each tool in its own
+goroutine, connected by buffered channels with automatic backpressure.
+Event-driven automation triggers flows, enforces quality gates, and sends
+notifications. See [ADR-001](/docs/adr/001-vision) and
+[ADR-004](/docs/adr/004-processing-engine).
 
 ## Package Layout
 

@@ -34,34 +34,34 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: '15 Built-in Formats',
+    title: 'Connector-first',
     description:
-      'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, and more. Extensible via plugins for any format.',
+      'Bidirectional connectors sync content from CMS, design tools, code repos, and marketing platforms. Files are one connector type, not the whole story.',
   },
   {
-    title: 'Channel-based Pipeline',
+    title: 'Versioned Content Store',
     description:
-      'Concurrent streaming pipeline using Go channels and goroutines. Each tool runs in its own goroutine with automatic backpressure.',
+      'Content-addressed blocks with SHA-256 identity. Deduplication, version history, and incremental sync that only processes what changed.',
   },
   {
-    title: 'AI-native Translation',
+    title: 'AI-native Tools',
     description:
-      'First-class LLM integration with Anthropic, OpenAI, and Ollama. AI translation, QA, and terminology tools compose in the same pipeline.',
+      'LLM-powered translation, QA, terminology, and review compose in the same pipeline as every other tool. Anthropic, OpenAI, Ollama, plus 5 MT services.',
   },
   {
-    title: 'Plugin System',
+    title: 'Event-driven Automation',
     description:
-      'Crash-isolated gRPC plugins in any language. Java bridge provides access to 40+ Okapi filters without rewriting.',
+      'Triggers, quality gates, and webhooks. Content changes flow through rules that run flows, enforce quality, and notify teams.',
   },
   {
-    title: 'Translation Memory',
+    title: '15+ Formats & Plugins',
     description:
-      'Built-in Sievepen TM with Levenshtein fuzzy matching, SQLite persistence, and TMX import/export.',
+      'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.',
   },
   {
-    title: 'Desktop App',
+    title: 'Progressive Complexity',
     description:
-      'Bowrain: a cross-platform desktop app built with Wails v3, React, and TypeScript for visual translation editing.',
+      'Day one: CLI on files. Grow into flows, content store, automation, and team collaboration. Same content model at every scale — single binary, no runtime dependencies.',
   },
 ];
 
@@ -95,7 +95,7 @@ export default function Home() {
   return (
     <Layout
       title={siteConfig.title}
-      description="AI-native localization framework in Go">
+      description="Open, AI-native localization platform in Go">
       <HomepageHeader />
       <main>
         <HomepageFeatures />
