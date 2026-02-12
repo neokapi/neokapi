@@ -1,0 +1,119 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Amber-minimal light theme */
+:root {
+  --background: 40 33% 98%;
+  --foreground: 20 14% 10%;
+  --card: 40 25% 96%;
+  --card-foreground: 20 14% 10%;
+  --popover: 40 33% 98%;
+  --popover-foreground: 20 14% 10%;
+  --primary: 25 95% 50%;
+  --primary-foreground: 40 33% 98%;
+  --secondary: 35 20% 90%;
+  --secondary-foreground: 20 14% 20%;
+  --muted: 35 15% 93%;
+  --muted-foreground: 20 8% 45%;
+  --accent: 35 25% 91%;
+  --accent-foreground: 20 14% 15%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 12% 83%;
+  --input: 30 12% 83%;
+  --ring: 25 95% 50%;
+  --success: 142 71% 35%;
+  --warning: 38 92% 45%;
+
+  --sidebar-background: 35 20% 94%;
+  --sidebar-foreground: 20 14% 10%;
+  --sidebar-primary: 25 95% 50%;
+  --sidebar-primary-foreground: 40 33% 98%;
+  --sidebar-accent: 35 25% 88%;
+  --sidebar-accent-foreground: 20 14% 15%;
+  --sidebar-border: 30 12% 83%;
+  --sidebar-ring: 25 95% 50%;
+
+  --radius: 0.625rem;
+}
+
+/* Amber-minimal dark theme */
+.dark {
+  --background: 20 14% 8%;
+  --foreground: 40 15% 90%;
+  --card: 20 14% 11%;
+  --card-foreground: 40 15% 90%;
+  --popover: 20 14% 11%;
+  --popover-foreground: 40 15% 90%;
+  --primary: 25 95% 55%;
+  --primary-foreground: 20 14% 8%;
+  --secondary: 20 10% 18%;
+  --secondary-foreground: 40 15% 85%;
+  --muted: 20 10% 16%;
+  --muted-foreground: 30 8% 55%;
+  --accent: 20 12% 20%;
+  --accent-foreground: 40 15% 88%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 20 8% 22%;
+  --input: 20 8% 22%;
+  --ring: 25 95% 55%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+
+  --sidebar-background: 20 14% 10%;
+  --sidebar-foreground: 40 15% 90%;
+  --sidebar-primary: 25 95% 55%;
+  --sidebar-primary-foreground: 20 14% 8%;
+  --sidebar-accent: 20 12% 18%;
+  --sidebar-accent-foreground: 40 15% 88%;
+  --sidebar-border: 20 8% 22%;
+  --sidebar-ring: 25 95% 55%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+}

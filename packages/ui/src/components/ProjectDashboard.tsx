@@ -2,6 +2,10 @@ import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 
 interface ProjectDashboardProps {
   projects: ProjectInfo[];
@@ -34,160 +38,96 @@ export function ProjectDashboard({
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h2 style={{ margin: 0 }}>Translation Projects</h2>
-        <div style={{ display: "flex", gap: 8 }}>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Translation Projects</h2>
+        <div className="flex gap-2">
           {onOpenKaz && (
-            <button onClick={onOpenKaz} style={secondaryBtnStyle} data-testid="open-kaz-btn">
+            <Button variant="outline" onClick={onOpenKaz} data-testid="open-kaz-btn">
               Open a Project
-            </button>
+            </Button>
           )}
-          <button onClick={() => setShowCreate(true)} style={btnStyle} data-testid="new-project-btn">
+          <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
             New Project
-          </button>
+          </Button>
         </div>
       </div>
 
       {showCreate && (
-        <div style={dialogStyle} data-testid="create-project-dialog">
-          <h3 style={{ marginTop: 0, marginBottom: 16 }}>Create Translation Project</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <label style={labelStyle}>
-              Project Name
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Translation Project"
-                style={inputStyle}
-                data-testid="project-name-input"
-                autoFocus
-              />
-            </label>
-            <div style={{ display: "flex", gap: 12 }}>
-              <div style={{ ...labelStyle, flex: 1 }}>
-                Source Language
-                <LocaleSelect
-                  value={sourceLang}
-                  onChange={setSourceLang}
-                  data-testid="source-lang-input"
+        <Card className="mb-6" data-testid="create-project-dialog">
+          <CardContent className="pt-6">
+            <h3 className="text-base font-semibold mb-4">Create Translation Project</h3>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">Project Name</Label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Translation Project"
+                  data-testid="project-name-input"
+                  autoFocus
                 />
               </div>
-              <div style={{ ...labelStyle, flex: 1 }}>
-                Target Languages
-                <MultiLocaleSelect
-                  value={targetLangsList}
-                  onChange={setTargetLangsList}
-                  data-testid="target-langs-input"
-                />
+              <div className="flex gap-3">
+                <div className="flex flex-col gap-1 flex-1">
+                  <Label className="text-muted-foreground">Source Language</Label>
+                  <LocaleSelect
+                    value={sourceLang}
+                    onChange={setSourceLang}
+                    data-testid="source-lang-input"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 flex-1">
+                  <Label className="text-muted-foreground">Target Languages</Label>
+                  <MultiLocaleSelect
+                    value={targetLangsList}
+                    onChange={setTargetLangsList}
+                    data-testid="target-langs-input"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowCreate(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleCreate} data-testid="create-project-submit">
+                  Create
+                </Button>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button onClick={() => setShowCreate(false)} style={secondaryBtnStyle}>
-                Cancel
-              </button>
-              <button onClick={handleCreate} style={btnStyle} data-testid="create-project-submit">
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {projects.length === 0 && !showCreate && (
-        <div style={emptyStyle} data-testid="empty-projects">
-          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>&#128194;</div>
-          <p style={{ color: "var(--text-secondary)", margin: 0 }}>
+        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border" data-testid="empty-projects">
+          <div className="text-5xl mb-4 opacity-30">&#128194;</div>
+          <p className="text-muted-foreground">
             No projects yet. Create a new project to get started.
           </p>
         </div>
       )}
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
         {projects.map((p) => (
-          <div
+          <Card
             key={p.id}
             onClick={() => onOpenProject(p)}
-            style={cardStyle}
+            className="cursor-pointer hover:border-primary/50 transition-colors"
             data-testid={`project-card-${p.id}`}
           >
-            <h3 style={{ margin: "0 0 8px 0", fontSize: 16 }}>{p.name}</h3>
-            <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 8 }}>
-              {getDisplayName(p.source_locale)} &#8594; {p.target_locales.map(l => getDisplayName(l)).join(", ")}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-              {(p.items?.length ?? 0)} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
-            </div>
-          </div>
+            <CardContent className="pt-4">
+              <h3 className="font-semibold text-base mb-2">{p.name}</h3>
+              <div className="text-[13px] text-muted-foreground mb-2">
+                {getDisplayName(p.source_locale)} &#8594; {p.target_locales.map(l => getDisplayName(l)).join(", ")}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {(p.items?.length ?? 0)} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
+              </div>
+            </CardContent>
+          </Card>
         ))}
       </div>
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  backgroundColor: "var(--accent)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  fontSize: 13,
-  cursor: "pointer",
-  fontWeight: 600,
-};
-
-const secondaryBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  backgroundColor: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  fontSize: 13,
-  cursor: "pointer",
-};
-
-const dialogStyle: React.CSSProperties = {
-  backgroundColor: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: 24,
-  marginBottom: 24,
-};
-
-const emptyStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 48,
-  backgroundColor: "var(--bg-secondary)",
-  borderRadius: 8,
-  border: "1px dashed var(--border)",
-};
-
-const labelStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-  fontSize: 13,
-  color: "var(--text-secondary)",
-};
-
-const inputStyle: React.CSSProperties = {
-  padding: "8px 12px",
-  backgroundColor: "var(--bg-tertiary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  color: "var(--text-primary)",
-  fontSize: 14,
-  outline: "none",
-};
-
-const cardStyle: React.CSSProperties = {
-  backgroundColor: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  padding: 16,
-  cursor: "pointer",
-  transition: "border-color 0.15s ease",
-};

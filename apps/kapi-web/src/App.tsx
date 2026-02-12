@@ -19,6 +19,10 @@ import {
   type ProjectInfo,
   type ConfigResponse,
   ThemeProvider,
+  cn,
+  Button,
+  Input,
+  Label,
 } from "@gokapi/ui";
 import { LoginPage } from "./auth/LoginPage";
 
@@ -193,7 +197,7 @@ function SettingsView({ workspace }: { workspace: Workspace | null }) {
   return (
     <div>
       <ViewHeader title="Settings" description="Workspace configuration" />
-      <div style={{ marginTop: 16, display: "grid", gap: 16, maxWidth: 480 }}>
+      <div className="mt-4 grid gap-4 max-w-[480px]">
         <SettingsField label="Name" value={workspace.name} />
         <SettingsField label="Slug" value={workspace.slug} />
         <SettingsField label="Description" value={workspace.description || "No description"} />
@@ -209,26 +213,16 @@ function SettingsView({ workspace }: { workspace: Workspace | null }) {
 
 function ViewHeader({ title, description }: { title: string; description: string }) {
   return (
-    <div style={{ marginBottom: 8 }}>
-      <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600, color: "var(--text-primary)" }}>{title}</h2>
-      <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--text-secondary)" }}>{description}</p>
+    <div className="mb-2">
+      <h2 className="text-xl font-semibold">{title}</h2>
+      <p className="mt-1 text-[13px] text-muted-foreground">{description}</p>
     </div>
   );
 }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div
-      style={{
-        marginTop: 32,
-        padding: 32,
-        textAlign: "center",
-        color: "var(--text-secondary)",
-        fontSize: 14,
-        borderRadius: 8,
-        border: "1px dashed var(--border)",
-      }}
-    >
+    <div className="mt-8 p-8 text-center text-muted-foreground text-sm rounded-lg border border-dashed border-border">
       {message}
     </div>
   );
@@ -237,8 +231,8 @@ function EmptyState({ message }: { message: string }) {
 function SettingsField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 14, color: "var(--text-primary)", marginTop: 4 }}>{value}</div>
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className="text-sm text-foreground mt-1">{value}</div>
     </div>
   );
 }
@@ -285,107 +279,44 @@ function CreateWorkspaceDialog({
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--overlay-bg)",
-        zIndex: 1000,
-      }}
+      className="fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]"
       onClick={onClose}
     >
       <div
-        style={{
-          background: "var(--bg-secondary)",
-          borderRadius: 12,
-          border: "1px solid var(--border)",
-          padding: 32,
-          minWidth: 400,
-          maxWidth: 480,
-        }}
+        className="bg-card rounded-xl border border-border p-8 min-w-[400px] max-w-[480px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 600, color: "var(--text-primary)" }}>Create Workspace</h3>
+        <h3 className="text-lg font-semibold mb-5">Create Workspace</h3>
 
-        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>Name</label>
-        <input
+        <Label className="text-muted-foreground">Name</Label>
+        <Input
           value={name}
           onChange={(e) => handleNameChange(e.target.value)}
           placeholder="My Workspace"
           autoFocus
-          style={{
-            display: "block",
-            width: "100%",
-            padding: "8px 12px",
-            marginTop: 4,
-            marginBottom: 16,
-            fontSize: 14,
-            background: "var(--bg-primary)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            color: "var(--text-primary)",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          className="mt-1 mb-4"
         />
 
-        <label style={{ fontSize: 13, fontWeight: 600, color: "var(--text-secondary)" }}>Slug</label>
-        <input
+        <Label className="text-muted-foreground">Slug</Label>
+        <Input
           value={slug}
           onChange={(e) => setSlug(e.target.value)}
           placeholder="my-workspace"
-          style={{
-            display: "block",
-            width: "100%",
-            padding: "8px 12px",
-            marginTop: 4,
-            marginBottom: 16,
-            fontSize: 14,
-            background: "var(--bg-primary)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            color: "var(--text-primary)",
-            outline: "none",
-            boxSizing: "border-box",
-          }}
+          className="mt-1 mb-4"
         />
 
-        {error && <div style={{ color: "var(--error)", fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        {error && <div className="text-destructive text-[13px] mb-3">{error}</div>}
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button
-            onClick={onClose}
-            style={{
-              padding: "8px 16px",
-              fontSize: 14,
-              background: "transparent",
-              color: "var(--text-secondary)",
-              border: "1px solid var(--border)",
-              borderRadius: 6,
-              cursor: "pointer",
-            }}
-          >
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleCreate}
             disabled={creating || !name.trim() || !slug.trim()}
-            style={{
-              padding: "8px 16px",
-              fontSize: 14,
-              fontWeight: 600,
-              background: creating ? "var(--btn-primary-hover)" : "var(--btn-primary-bg)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 6,
-              cursor: creating ? "default" : "pointer",
-              opacity: !name.trim() || !slug.trim() ? 0.5 : 1,
-            }}
           >
             {creating ? "Creating..." : "Create"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -484,7 +415,7 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "var(--bg-primary)", color: "var(--text-secondary)" }}>
+      <div className="flex items-center justify-center h-screen bg-background text-muted-foreground">
         Loading...
       </div>
     );
@@ -498,7 +429,7 @@ function AppContent() {
 
   if (serverMode === "local") {
     return (
-      <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg-primary)" }}>
+      <div className="flex h-screen overflow-hidden bg-background">
         <MainSidebar
           workspace={activeWorkspace}
           activeView={activeView}
@@ -506,7 +437,7 @@ function AppContent() {
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
         />
-        <main style={{ flex: 1, padding: 24, overflow: isEditor ? "hidden" : "auto", display: "flex", flexDirection: "column", minHeight: 0 }}>
+        <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
           <ViewContent activeView={activeView} workspace={activeWorkspace} />
         </main>
       </div>
@@ -514,7 +445,7 @@ function AppContent() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "var(--bg-primary)" }}>
+    <div className="flex h-screen overflow-hidden bg-background">
       <WorkspaceRail
         workspaces={workspaces}
         activeWorkspace={activeWorkspace}
@@ -530,7 +461,7 @@ function AppContent() {
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
       />
-      <main style={{ flex: 1, padding: 24, overflow: isEditor ? "hidden" : "auto", display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
         <ViewContent activeView={activeView} workspace={activeWorkspace} />
       </main>
 

@@ -11,6 +11,7 @@ import {
   TranslationEditor,
   TMExplorer,
   TermExplorer,
+  cn,
   type View,
   type NavItem,
 } from "@gokapi/ui";
@@ -258,9 +259,9 @@ function App() {
           />
         );
       case "termbase":
-        return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its termbase.</div>;
+        return <div className="text-muted-foreground p-6">Select a project to explore its termbase.</div>;
       case "memory":
-        return <div style={{ color: "var(--text-secondary)", padding: 24 }}>Select a project to explore its translation memory.</div>;
+        return <div className="text-muted-foreground p-6">Select a project to explore its translation memory.</div>;
       case "settings":
         return <SettingsPage />;
       case "flows":
@@ -277,13 +278,7 @@ function App() {
     <ThemeProvider>
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={localWorkspace}>
-          <div
-            style={{
-              display: "flex",
-              height: "100vh",
-              overflow: "hidden",
-            }}
-          >
+          <div className="flex h-screen overflow-hidden">
             <MainSidebar
               workspace={localWorkspace}
               activeView={activeView}
@@ -294,17 +289,13 @@ function App() {
               topSpacer={38}
               collapsedWidth={60}
             />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div className="flex-1 flex flex-col min-h-0">
               <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
               <main
-                style={{
-                  flex: 1,
-                  padding: 24,
-                  overflow: isEditor || isFlowBuilder ? "hidden" : "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  minHeight: 0,
-                }}
+                className={cn(
+                  "flex-1 p-6 flex flex-col min-h-0",
+                  isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
+                )}
               >
                 {renderView()}
               </main>

@@ -23,6 +23,7 @@ const isCI = !!process.env.CI;
 
 async function setTheme(page: Page, theme: "light" | "dark") {
   await page.evaluate((t) => {
+    document.documentElement.classList.toggle("dark", t === "dark");
     document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);

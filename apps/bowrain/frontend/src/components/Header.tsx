@@ -6,33 +6,22 @@ interface HeaderProps {
 export function Header({ connected, sidebarCollapsed }: HeaderProps) {
   return (
     <header
+      className="h-12 bg-card border-b border-border flex items-center justify-between"
       style={{
-        height: 48,
-        backgroundColor: "var(--bg-secondary)",
-        borderBottom: "1px solid var(--border)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
         padding: sidebarCollapsed ? "0 20px 0 80px" : "0 20px",
         // Wails: draggable title bar region
         // @ts-expect-error non-standard CSS property for Wails
         "--wails-draggable": "drag",
       }}
     >
-      <span style={{ fontSize: 14, color: "var(--text-secondary)" }}>
+      <span className="text-sm text-muted-foreground">
         Localization Workbench
       </span>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="flex items-center gap-3">
         <span
-          style={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor: connected ? "var(--success)" : "var(--error)",
-            display: "inline-block",
-          }}
+          className={`w-2 h-2 rounded-full inline-block ${connected ? "bg-green-500" : "bg-destructive"}`}
         />
-        <span style={{ fontSize: 12, color: "var(--text-secondary)" }}>
+        <span className="text-xs text-muted-foreground">
           {connected ? "Connected" : "Disconnected"}
         </span>
       </div>

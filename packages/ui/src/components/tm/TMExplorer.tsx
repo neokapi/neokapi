@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTMApi } from "../../hooks/useTMApi";
 import { useLocales } from "../../hooks/useLocales";
 import type { TMEntryInfo } from "../../types/api";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
 
 interface TMExplorerProps {
   sourceLocale: string;
@@ -114,41 +117,41 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   return (
     <div data-testid="tm-explorer">
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <button onClick={onBack} style={backBtnStyle} data-testid="tm-back-btn">&#8592; Back</button>
-        <h2 style={{ margin: 0, flex: 1 }}>Translation Memory</h2>
-        <span style={badgeStyle} data-testid="tm-count-badge">
+      <div className="flex items-center gap-3 mb-6">
+        <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn">&#8592; Back</Button>
+        <h2 className="flex-1 text-xl font-semibold">Translation Memory</h2>
+        <Badge variant="secondary" data-testid="tm-count-badge">
           {totalCount} {totalCount === 1 ? "entry" : "entries"}
-        </span>
-        <button onClick={() => setShowAddForm(true)} style={addBtnStyle} data-testid="tm-add-entry-btn">Add Entry</button>
+        </Badge>
+        <Button onClick={() => setShowAddForm(true)} data-testid="tm-add-entry-btn">Add Entry</Button>
       </div>
 
       {/* Add entry form */}
       {showAddForm && (
-        <div style={addFormStyle} data-testid="tm-add-form">
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input type="text" placeholder="Source text" value={addSource} onChange={(e) => setAddSource(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid="tm-add-source-input" />
-            <input type="text" placeholder="Target text" value={addTarget} onChange={(e) => setAddTarget(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid="tm-add-target-input" />
-            <select value={addSourceLocale} onChange={(e) => setAddSourceLocale(e.target.value)} style={selectStyle} data-testid="tm-add-source-locale">
+        <div className="mb-4 p-4 bg-card border border-border rounded-lg" data-testid="tm-add-form">
+          <div className="flex gap-2 flex-wrap">
+            <Input type="text" placeholder="Source text" value={addSource} onChange={(e) => setAddSource(e.target.value)} className="flex-1" data-testid="tm-add-source-input" />
+            <Input type="text" placeholder="Target text" value={addTarget} onChange={(e) => setAddTarget(e.target.value)} className="flex-1" data-testid="tm-add-target-input" />
+            <select value={addSourceLocale} onChange={(e) => setAddSourceLocale(e.target.value)} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="tm-add-source-locale">
               {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
             </select>
-            <select value={addTargetLocale} onChange={(e) => setAddTargetLocale(e.target.value)} style={selectStyle} data-testid="tm-add-target-locale">
+            <select value={addTargetLocale} onChange={(e) => setAddTargetLocale(e.target.value)} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="tm-add-target-locale">
               {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
             </select>
-            <button onClick={handleAdd} style={saveBtnStyle} data-testid="tm-add-submit">Add</button>
-            <button onClick={() => setShowAddForm(false)} style={cancelBtnStyle} data-testid="tm-add-cancel">Cancel</button>
+            <Button onClick={handleAdd} data-testid="tm-add-submit">Add</Button>
+            <Button variant="outline" onClick={() => setShowAddForm(false)} data-testid="tm-add-cancel">Cancel</Button>
           </div>
         </div>
       )}
 
       {/* Search and filters */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input type="text" placeholder="Search entries..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid="tm-search-input" />
-        <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} style={selectStyle} data-testid="tm-source-locale-filter">
+      <div className="flex gap-2 mb-4">
+        <Input type="text" placeholder="Search entries..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} className="flex-1" data-testid="tm-search-input" />
+        <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="tm-source-locale-filter">
           <option value="">All source locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
-        <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} style={selectStyle} data-testid="tm-target-locale-filter">
+        <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="tm-target-locale-filter">
           <option value="">All target locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
@@ -156,45 +159,45 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
 
       {/* Table */}
       {entries.length === 0 ? (
-        <div style={emptyStyle} data-testid="tm-empty-state">
+        <div className="p-12 text-center text-muted-foreground bg-card rounded-lg border border-border" data-testid="tm-empty-state">
           {query || sourceLocaleFilter || targetLocaleFilter
             ? "No entries match your search."
             : "No translation memory entries yet. Add entries to build your TM."}
         </div>
       ) : (
         <div>
-          <table style={tableStyle}>
+          <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
             <thead>
               <tr>
-                <th style={thStyle}>Source</th>
-                <th style={thStyle}>Target</th>
-                <th style={thStyle}>Source Locale</th>
-                <th style={thStyle}>Target Locale</th>
-                <th style={thStyle}>Updated</th>
-                <th style={{ ...thStyle, width: 120 }}>Actions</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Source</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Target</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Source Locale</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Target Locale</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Updated</th>
+                <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border w-[120px]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {entries.map((entry) => (
-                <tr key={entry.id} style={rowStyle} data-testid={`tm-entry-${entry.id}`}>
-                  <td style={tdStyle} data-testid={`tm-source-${entry.id}`}>{entry.source}</td>
-                  <td style={tdStyle} data-testid={`tm-target-${entry.id}`}>
+                <tr key={entry.id} className="transition-colors hover:bg-accent/50" data-testid={`tm-entry-${entry.id}`}>
+                  <td className="px-4 py-2.5 text-sm border-b border-border" data-testid={`tm-source-${entry.id}`}>{entry.source}</td>
+                  <td className="px-4 py-2.5 text-sm border-b border-border" data-testid={`tm-target-${entry.id}`}>
                     {editingId === entry.id ? (
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <input type="text" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid={`tm-edit-input-${entry.id}`} />
-                        <button onClick={() => handleSaveEdit(entry)} style={saveBtnSmallStyle} data-testid={`tm-save-btn-${entry.id}`}>Save</button>
-                        <button onClick={handleCancelEdit} style={cancelBtnSmallStyle} data-testid={`tm-cancel-btn-${entry.id}`}>Cancel</button>
+                      <div className="flex gap-1">
+                        <Input type="text" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} className="flex-1 h-8" data-testid={`tm-edit-input-${entry.id}`} />
+                        <Button size="sm" onClick={() => handleSaveEdit(entry)} data-testid={`tm-save-btn-${entry.id}`}>Save</Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit} data-testid={`tm-cancel-btn-${entry.id}`}>Cancel</Button>
                       </div>
                     ) : entry.target}
                   </td>
-                  <td style={tdStyle}>{getDisplayName(entry.source_locale)}</td>
-                  <td style={tdStyle}>{getDisplayName(entry.target_locale)}</td>
-                  <td style={tdStyle}>{new Date(entry.updated_at).toLocaleDateString()}</td>
-                  <td style={tdStyle}>
+                  <td className="px-4 py-2.5 text-sm border-b border-border">{getDisplayName(entry.source_locale)}</td>
+                  <td className="px-4 py-2.5 text-sm border-b border-border">{getDisplayName(entry.target_locale)}</td>
+                  <td className="px-4 py-2.5 text-sm border-b border-border">{new Date(entry.updated_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-2.5 text-sm border-b border-border">
                     {editingId !== entry.id && (
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => handleEdit(entry)} style={actionBtnStyle} data-testid={`tm-edit-btn-${entry.id}`}>Edit</button>
-                        <button onClick={() => handleDelete(entry.id)} style={deleteBtnStyle} data-testid={`tm-delete-btn-${entry.id}`}>Delete</button>
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(entry)} data-testid={`tm-edit-btn-${entry.id}`}>Edit</Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleDelete(entry.id)} data-testid={`tm-delete-btn-${entry.id}`}>Delete</Button>
                       </div>
                     )}
                   </td>
@@ -204,10 +207,10 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
           </table>
 
           {totalPages > 1 && (
-            <div style={paginationStyle} data-testid="tm-pagination">
-              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} style={pageBtnStyle} data-testid="tm-prev-page">Previous</button>
+            <div className="flex items-center justify-center gap-4 mt-4 text-[13px] text-muted-foreground" data-testid="tm-pagination">
+              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} data-testid="tm-prev-page">Previous</Button>
               <span data-testid="tm-page-info">Page {page + 1} of {totalPages}</span>
-              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} style={pageBtnStyle} data-testid="tm-next-page">Next</button>
+              <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} data-testid="tm-next-page">Next</Button>
             </div>
           )}
         </div>
@@ -215,23 +218,3 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     </div>
   );
 }
-
-const backBtnStyle: React.CSSProperties = { padding: "6px 12px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, cursor: "pointer" };
-const badgeStyle: React.CSSProperties = { padding: "4px 10px", backgroundColor: "var(--bg-tertiary)", borderRadius: 12, fontSize: 12, color: "var(--text-secondary)" };
-const addBtnStyle: React.CSSProperties = { padding: "8px 16px", backgroundColor: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, cursor: "pointer", fontWeight: 600 };
-const inputStyle: React.CSSProperties = { padding: "8px 12px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, outline: "none" };
-const selectStyle: React.CSSProperties = { padding: "8px 12px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, outline: "none" };
-const addFormStyle: React.CSSProperties = { marginBottom: 16, padding: 16, backgroundColor: "var(--bg-secondary)", border: "1px solid var(--border)", borderRadius: 8 };
-const saveBtnStyle: React.CSSProperties = { padding: "8px 16px", backgroundColor: "var(--accent)", color: "#fff", border: "none", borderRadius: 6, fontSize: 13, cursor: "pointer", fontWeight: 600 };
-const cancelBtnStyle: React.CSSProperties = { padding: "8px 16px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, cursor: "pointer" };
-const tableStyle: React.CSSProperties = { width: "100%", borderCollapse: "collapse", backgroundColor: "var(--bg-secondary)", borderRadius: 8, overflow: "hidden" };
-const thStyle: React.CSSProperties = { padding: "10px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "var(--text-secondary)", borderBottom: "1px solid var(--border)", textTransform: "uppercase", letterSpacing: 0.5 };
-const tdStyle: React.CSSProperties = { padding: "10px 16px", fontSize: 14, borderBottom: "1px solid var(--border)" };
-const rowStyle: React.CSSProperties = { transition: "background-color 0.1s ease" };
-const actionBtnStyle: React.CSSProperties = { padding: "4px 8px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, cursor: "pointer" };
-const deleteBtnStyle: React.CSSProperties = { padding: "4px 8px", backgroundColor: "transparent", color: "#ef4444", border: "1px solid #ef4444", borderRadius: 4, fontSize: 12, cursor: "pointer" };
-const saveBtnSmallStyle: React.CSSProperties = { padding: "4px 8px", backgroundColor: "var(--accent)", color: "#fff", border: "none", borderRadius: 4, fontSize: 12, cursor: "pointer" };
-const cancelBtnSmallStyle: React.CSSProperties = { padding: "4px 8px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, cursor: "pointer" };
-const emptyStyle: React.CSSProperties = { padding: 48, textAlign: "center", color: "var(--text-secondary)", backgroundColor: "var(--bg-secondary)", borderRadius: 8, border: "1px solid var(--border)" };
-const paginationStyle: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "center", gap: 16, marginTop: 16, fontSize: 13, color: "var(--text-secondary)" };
-const pageBtnStyle: React.CSSProperties = { padding: "6px 12px", backgroundColor: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, cursor: "pointer" };

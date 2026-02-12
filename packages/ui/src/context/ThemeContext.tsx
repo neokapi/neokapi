@@ -35,6 +35,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const apply = () => {
       const resolved = resolveTheme(theme);
       setResolvedTheme(resolved);
+      document.documentElement.classList.toggle("dark", resolved === "dark");
       document.documentElement.dataset.theme = resolved;
     };
 

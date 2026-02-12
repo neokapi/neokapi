@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useTermsApi } from "../../hooks/useTermsApi";
 import { useLocales } from "../../hooks/useLocales";
 import type { ConceptInfo, TermInfo } from "../../types/api";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Badge } from "../ui/badge";
 
 interface TermExplorerProps {
   sourceLocale: string;
@@ -167,11 +170,11 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   }, [termsApi, projectName]);
 
   const statusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      preferred: "#22c55e", approved: "#3b82f6", admitted: "#a78bfa",
-      proposed: "#fbbf24", deprecated: "#f87171", forbidden: "#ef4444",
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      preferred: "default", approved: "default", admitted: "secondary",
+      proposed: "outline", deprecated: "destructive", forbidden: "destructive",
     };
-    return <span style={{ display: "inline-block", padding: "1px 6px", borderRadius: 3, fontSize: 10, fontWeight: 600, color: "#fff", background: colors[status] || "#6b7280" }}>{status}</span>;
+    return <Badge variant={variants[status] || "secondary"} className="text-[10px] px-1.5 py-0">{status}</Badge>;
   };
 
   const addTermRow = (terms: TermInfo[], setter: (t: TermInfo[]) => void) => setter([...terms, { text: "", locale: "", status: "approved" }]);
@@ -187,139 +190,143 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
 
   return (
     <div data-testid="term-explorer">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-        <button onClick={onBack} style={backBtnStyle} data-testid="term-back-btn">&#8592; Back</button>
-        <h2 style={{ margin: 0, flex: 1 }}>Terminology</h2>
-        <span style={{ fontSize: 13, color: "var(--text-secondary)" }} data-testid="term-count-badge">{totalCount} concepts</span>
+      <div className="flex items-center gap-3 mb-6">
+        <Button variant="outline" size="sm" onClick={onBack} data-testid="term-back-btn">&#8592; Back</Button>
+        <h2 className="flex-1 text-xl font-semibold">Terminology</h2>
+        <Badge variant="secondary" data-testid="term-count-badge">{totalCount} concepts</Badge>
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        <input type="text" placeholder="Search terms..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} style={inputStyle} data-testid="term-search-input" />
-        <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} style={selectStyle} data-testid="term-source-locale-filter">
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <Input type="text" placeholder="Search terms..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} className="flex-1" data-testid="term-search-input" />
+        <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-source-locale-filter">
           <option value="">All source locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
-        <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} style={selectStyle} data-testid="term-target-locale-filter">
+        <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-target-locale-filter">
           <option value="">All target locales</option>
           {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
         </select>
-        <div style={{ flex: 1 }} />
-        <button onClick={handleImportCSV} style={toolBtnStyle} data-testid="term-import-csv-btn">Import CSV</button>
-        <button onClick={handleImportJSON} style={toolBtnStyle} data-testid="term-import-json-btn">Import JSON</button>
-        <button onClick={handleExportJSON} style={toolBtnStyle} data-testid="term-export-json-btn">Export JSON</button>
-        <button onClick={() => setShowAddForm(!showAddForm)} style={addBtnStyle} data-testid="term-add-btn">+ Add Concept</button>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" onClick={handleImportCSV} data-testid="term-import-csv-btn">Import CSV</Button>
+        <Button variant="outline" size="sm" onClick={handleImportJSON} data-testid="term-import-json-btn">Import JSON</Button>
+        <Button variant="outline" size="sm" onClick={handleExportJSON} data-testid="term-export-json-btn">Export JSON</Button>
+        <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} data-testid="term-add-btn">+ Add Concept</Button>
       </div>
 
       {showAddForm && (
-        <div style={formStyle} data-testid="term-add-form">
-          <h4 style={{ margin: "0 0 8px" }}>New Concept</h4>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <input placeholder="Domain" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} style={{ ...inputStyle, flex: 1 }} data-testid="term-add-domain" />
-            <input placeholder="Definition" value={newDefinition} onChange={(e) => setNewDefinition(e.target.value)} style={{ ...inputStyle, flex: 2 }} data-testid="term-add-definition" />
+        <div className="mb-4 p-4 bg-card border border-border rounded-lg" data-testid="term-add-form">
+          <h4 className="font-semibold mb-2">New Concept</h4>
+          <div className="flex gap-2 mb-2">
+            <Input placeholder="Domain" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} className="flex-1" data-testid="term-add-domain" />
+            <Input placeholder="Definition" value={newDefinition} onChange={(e) => setNewDefinition(e.target.value)} className="flex-[2]" data-testid="term-add-definition" />
           </div>
-          <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 4 }}>Terms:</div>
+          <div className="text-xs font-semibold mb-1">Terms:</div>
           {newTerms.map((term, idx) => (
-            <div key={idx} style={{ display: "flex", gap: 6, marginBottom: 4 }}>
-              <input placeholder="Term text" value={term.text} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "text", e.target.value)} style={{ ...inputStyle, flex: 2 }} />
-              <select value={term.locale} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "locale", e.target.value)} style={{ ...selectStyle, flex: 1 }}>
+            <div key={idx} className="flex gap-1.5 mb-1">
+              <Input placeholder="Term text" value={term.text} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "text", e.target.value)} className="flex-[2]" />
+              <select value={term.locale} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "locale", e.target.value)} className="flex-1 px-2 py-1 border border-input rounded-md bg-transparent text-foreground text-sm">
                 {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
               </select>
-              <select value={term.status} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "status", e.target.value)} style={{ ...selectStyle, flex: 1 }}>
+              <select value={term.status} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "status", e.target.value)} className="flex-1 px-2 py-1 border border-input rounded-md bg-transparent text-foreground text-sm">
                 {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
-              <button onClick={() => removeTermRow(newTerms, setNewTerms, idx)} style={delBtnStyle}>x</button>
+              <Button variant="destructive" size="sm" onClick={() => removeTermRow(newTerms, setNewTerms, idx)}>x</Button>
             </div>
           ))}
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <button onClick={() => addTermRow(newTerms, setNewTerms)} style={toolBtnStyle}>+ Term</button>
-            <div style={{ flex: 1 }} />
-            <button onClick={() => setShowAddForm(false)} style={toolBtnStyle} data-testid="term-add-cancel">Cancel</button>
-            <button onClick={handleAdd} style={addBtnStyle} data-testid="term-add-submit">Save</button>
+          <div className="flex gap-2 mt-2">
+            <Button variant="outline" size="sm" onClick={() => addTermRow(newTerms, setNewTerms)}>+ Term</Button>
+            <div className="flex-1" />
+            <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)} data-testid="term-add-cancel">Cancel</Button>
+            <Button size="sm" onClick={handleAdd} data-testid="term-add-submit">Save</Button>
           </div>
         </div>
       )}
 
-      <div style={{ border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div className="border border-border rounded-lg overflow-hidden">
+        <table className="w-full border-collapse bg-card text-[13px]">
           <thead>
-            <tr style={{ background: "var(--bg-secondary)", borderBottom: "1px solid var(--border)" }}>
-              <th style={thStyle}>Domain</th>
-              <th style={thStyle}>Terms</th>
-              <th style={thStyle}>Definition</th>
-              <th style={{ ...thStyle, width: 100 }}>Actions</th>
+            <tr>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Domain</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Terms</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Definition</th>
+              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider w-[100px]">Actions</th>
             </tr>
           </thead>
           <tbody>
             {concepts.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: 32, textAlign: "center" }}>
+                <td colSpan={4} className="p-8 text-center">
                   {totalCount === 0 ? (
                     <div data-testid="term-empty-state">
-                      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>No concepts yet</div>
-                      <div style={{ fontSize: 13, color: "var(--text-secondary)", marginBottom: 16 }}>
+                      <div className="text-[15px] font-semibold text-foreground mb-2">No concepts yet</div>
+                      <div className="text-[13px] text-muted-foreground mb-4">
                         Add terms manually or import from a CSV or JSON termbase file.
                       </div>
-                      <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-                        <button onClick={() => setShowAddForm(true)} style={addBtnStyle}>+ Add Concept</button>
-                        <button onClick={handleImportCSV} style={toolBtnStyle}>Import CSV</button>
-                        <button onClick={handleImportJSON} style={toolBtnStyle}>Import JSON</button>
+                      <div className="flex gap-2 justify-center">
+                        <Button size="sm" onClick={() => setShowAddForm(true)}>+ Add Concept</Button>
+                        <Button variant="outline" size="sm" onClick={handleImportCSV}>Import CSV</Button>
+                        <Button variant="outline" size="sm" onClick={handleImportJSON}>Import JSON</Button>
                       </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>No results match your search.</div>
+                    <div className="text-[13px] text-muted-foreground">No results match your search.</div>
                   )}
                 </td>
               </tr>
             )}
             {concepts.map((concept) => (
-              <tr key={concept.id} style={{ borderBottom: "1px solid var(--border)" }} data-testid={`term-concept-${concept.id}`}>
+              <tr key={concept.id} className="border-b border-border transition-colors hover:bg-accent/50" data-testid={`term-concept-${concept.id}`}>
                 {editingId === concept.id && editConcept ? (
                   <>
-                    <td style={tdStyle}><input value={editConcept.domain} onChange={(e) => setEditConcept({ ...editConcept, domain: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
-                    <td style={tdStyle}>
+                    <td className="px-3 py-2 align-top"><Input value={editConcept.domain} onChange={(e) => setEditConcept({ ...editConcept, domain: e.target.value })} className="w-full" /></td>
+                    <td className="px-3 py-2 align-top">
                       {editConcept.terms.map((term, idx) => (
-                        <div key={idx} style={{ display: "flex", gap: 4, marginBottom: 2 }}>
-                          <input value={term.text} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], text: e.target.value }; setEditConcept({ ...editConcept, terms }); }} style={{ ...inputStyle, flex: 2 }} />
-                          <select value={term.locale} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], locale: e.target.value }; setEditConcept({ ...editConcept, terms }); }} style={{ ...selectStyle, width: 60 }}>
+                        <div key={idx} className="flex gap-1 mb-0.5">
+                          <Input value={term.text} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], text: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="flex-[2]" />
+                          <select value={term.locale} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], locale: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[60px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
                             {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
                           </select>
-                          <select value={term.status} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], status: e.target.value }; setEditConcept({ ...editConcept, terms }); }} style={{ ...selectStyle, width: 80 }}>
+                          <select value={term.status} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], status: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[80px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
                             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         </div>
                       ))}
-                      <button onClick={() => setEditConcept({ ...editConcept, terms: [...editConcept.terms, { text: "", locale: sourceLocale, status: "approved" }] })} style={{ ...toolBtnStyle, fontSize: 11, padding: "1px 6px" }}>+ term</button>
+                      <Button variant="outline" size="sm" className="text-[11px] px-1.5 py-0 h-6" onClick={() => setEditConcept({ ...editConcept, terms: [...editConcept.terms, { text: "", locale: sourceLocale, status: "approved" }] })}>+ term</Button>
                     </td>
-                    <td style={tdStyle}><input value={editConcept.definition} onChange={(e) => setEditConcept({ ...editConcept, definition: e.target.value })} style={{ ...inputStyle, width: "100%" }} /></td>
-                    <td style={tdStyle}>
-                      <button onClick={handleSaveEdit} style={saveBtnStyle} data-testid={`term-save-btn-${concept.id}`}>Save</button>
-                      <button onClick={() => { setEditingId(null); setEditConcept(null); }} style={toolBtnStyle}>Cancel</button>
+                    <td className="px-3 py-2 align-top"><Input value={editConcept.definition} onChange={(e) => setEditConcept({ ...editConcept, definition: e.target.value })} className="w-full" /></td>
+                    <td className="px-3 py-2 align-top">
+                      <div className="flex gap-1">
+                        <Button size="sm" onClick={handleSaveEdit} data-testid={`term-save-btn-${concept.id}`}>Save</Button>
+                        <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditConcept(null); }}>Cancel</Button>
+                      </div>
                     </td>
                   </>
                 ) : (
                   <>
-                    <td style={tdStyle}><span style={{ fontSize: 11, color: "var(--text-secondary)" }}>{concept.domain || "-"}</span></td>
-                    <td style={tdStyle}>
+                    <td className="px-3 py-2 align-top"><span className="text-[11px] text-muted-foreground">{concept.domain || "-"}</span></td>
+                    <td className="px-3 py-2 align-top">
                       {concept.terms.map((term, idx) => (
-                        <div key={idx} style={{ marginBottom: 2 }}>
-                          <span style={{ fontWeight: term.status === "preferred" ? 600 : 400 }}>{term.text}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 4 }}>[{getDisplayName(term.locale)}]</span>
+                        <div key={idx} className="mb-0.5">
+                          <span className={term.status === "preferred" ? "font-semibold" : ""}>{term.text}</span>
+                          <span className="text-[11px] text-muted-foreground ml-1">[{getDisplayName(term.locale)}]</span>
                           {" "}{statusBadge(term.status)}
-                          {term.note && <span style={{ fontSize: 11, color: "var(--text-secondary)", marginLeft: 4 }}>({term.note})</span>}
+                          {term.note && <span className="text-[11px] text-muted-foreground ml-1">({term.note})</span>}
                         </div>
                       ))}
                     </td>
-                    <td style={tdStyle}><span style={{ fontSize: 12 }}>{concept.definition || "-"}</span></td>
-                    <td style={tdStyle}>
-                      <button onClick={() => handleEdit(concept)} style={toolBtnStyle} data-testid={`term-edit-btn-${concept.id}`}>Edit</button>
-                      {deleteConfirmId === concept.id ? (
-                        <span style={{ display: "inline-flex", gap: 4, marginLeft: 4 }}>
-                          <button onClick={() => handleDelete(concept.id)} style={{ ...delBtnStyle, background: "#ef4444", color: "#fff", border: "none" }} data-testid={`term-confirm-delete-${concept.id}`}>Confirm</button>
-                          <button onClick={() => setDeleteConfirmId(null)} style={toolBtnStyle}>Cancel</button>
-                        </span>
-                      ) : (
-                        <button onClick={() => setDeleteConfirmId(concept.id)} style={delBtnStyle} data-testid={`term-delete-btn-${concept.id}`}>Delete</button>
-                      )}
+                    <td className="px-3 py-2 align-top"><span className="text-xs">{concept.definition || "-"}</span></td>
+                    <td className="px-3 py-2 align-top">
+                      <div className="flex gap-1">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(concept)} data-testid={`term-edit-btn-${concept.id}`}>Edit</Button>
+                        {deleteConfirmId === concept.id ? (
+                          <span className="inline-flex gap-1 ml-1">
+                            <Button variant="destructive" size="sm" onClick={() => handleDelete(concept.id)} data-testid={`term-confirm-delete-${concept.id}`}>Confirm</Button>
+                            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                          </span>
+                        ) : (
+                          <Button variant="outline" size="sm" className="text-destructive border-destructive hover:bg-destructive/10" onClick={() => setDeleteConfirmId(concept.id)} data-testid={`term-delete-btn-${concept.id}`}>Delete</Button>
+                        )}
+                      </div>
                     </td>
                   </>
                 )}
@@ -330,23 +337,12 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       </div>
 
       {totalPages > 1 && (
-        <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 12 }}>
-          <button onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} style={toolBtnStyle}>Prev</button>
-          <span style={{ fontSize: 13, lineHeight: "28px" }}>Page {page + 1} of {totalPages}</span>
-          <button onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} style={toolBtnStyle}>Next</button>
+        <div className="flex items-center justify-center gap-4 mt-4 text-[13px] text-muted-foreground" data-testid="term-pagination">
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} data-testid="term-prev-page">Previous</Button>
+          <span data-testid="term-page-info">Page {page + 1} of {totalPages}</span>
+          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} data-testid="term-next-page">Next</Button>
         </div>
       )}
     </div>
   );
 }
-
-const backBtnStyle: React.CSSProperties = { background: "none", border: "none", color: "var(--accent)", cursor: "pointer", fontSize: 14, padding: "4px 8px" };
-const inputStyle: React.CSSProperties = { padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg-primary)", color: "var(--text-primary)" };
-const selectStyle: React.CSSProperties = { padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 13, background: "var(--bg-primary)", color: "var(--text-primary)" };
-const toolBtnStyle: React.CSSProperties = { padding: "4px 10px", border: "1px solid var(--border)", borderRadius: 4, fontSize: 12, background: "var(--bg-secondary)", color: "var(--text-primary)", cursor: "pointer" };
-const addBtnStyle: React.CSSProperties = { padding: "4px 12px", border: "none", borderRadius: 4, fontSize: 12, fontWeight: 600, background: "var(--accent)", color: "#fff", cursor: "pointer" };
-const saveBtnStyle: React.CSSProperties = { padding: "4px 10px", border: "none", borderRadius: 4, fontSize: 12, background: "#22c55e", color: "#fff", cursor: "pointer", marginRight: 4 };
-const delBtnStyle: React.CSSProperties = { padding: "4px 8px", border: "1px solid #f87171", borderRadius: 4, fontSize: 12, background: "transparent", color: "#f87171", cursor: "pointer" };
-const formStyle: React.CSSProperties = { padding: 16, border: "1px solid var(--border)", borderRadius: 6, marginBottom: 16, background: "var(--bg-secondary)" };
-const thStyle: React.CSSProperties = { textAlign: "left", padding: "8px 12px", fontSize: 11, fontWeight: 600, textTransform: "uppercase", color: "var(--text-secondary)" };
-const tdStyle: React.CSSProperties = { padding: "8px 12px", verticalAlign: "top" };

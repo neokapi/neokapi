@@ -1,5 +1,7 @@
+import { cn } from "../lib/utils";
 import type { Workspace } from "../types/api";
 import { useTheme } from "../context/ThemeContext";
+import { Separator } from "./ui/separator";
 
 export type View = "translate" | "termbase" | "memory" | "settings";
 
@@ -52,94 +54,58 @@ export function MainSidebar<V extends string = View>({
 
   return (
     <nav
+      className="bg-sidebar flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
       style={{
         width,
-        backgroundColor: "var(--bg-secondary)",
-        borderRight: collapsed && collapsedWidth === 0 ? "none" : "1px solid var(--border)",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.2s ease",
-        overflow: "hidden",
-        flexShrink: 0,
+        borderRight: collapsed && collapsedWidth === 0 ? "none" : undefined,
       }}
     >
-      {/* Top spacer (e.g. macOS traffic lights) */}
-      {topSpacer > 0 && <div style={{ height: topSpacer, flexShrink: 0 }} />}
-
-      {/* Workspace name header */}
-      {!iconsOnly && (
-        <div
-          style={{
-            padding: topSpacer > 0 ? "4px 16px 8px" : "16px 16px 8px",
-            fontWeight: 700,
-            fontSize: 15,
-            color: "var(--text-primary)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            borderBottom: "1px solid var(--border)",
-          }}
-        >
-          {workspace?.name || "No workspace"}
-        </div>
+      {/* Border only when visible */}
+      {!(collapsed && collapsedWidth === 0) && (
+        <div className="absolute inset-y-0 right-0 w-px bg-sidebar-border" style={{ display: "none" }} />
       )}
+      <div className={cn("flex flex-col h-full", !(collapsed && collapsedWidth === 0) && "border-r border-sidebar-border")}>
+        {/* Top spacer (e.g. macOS traffic lights) */}
+        {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
 
-      {/* Navigation items */}
-      <div style={{ flex: 1, padding: "8px 0" }}>
-        {navItems.map(({ id, label, icon }) => (
+        {/* Workspace name header */}
+        {!iconsOnly && (
+          <div className={cn("px-4 font-bold text-[15px] text-sidebar-foreground overflow-hidden text-ellipsis whitespace-nowrap border-b border-sidebar-border", topSpacer > 0 ? "pt-1 pb-2" : "pt-4 pb-2")}>
+            {workspace?.name || "No workspace"}
+          </div>
+        )}
+
+        {/* Navigation items */}
+        <div className="flex-1 py-2">
+          {navItems.map(({ id, label, icon }) => (
+            <button
+              key={id}
+              data-testid={`nav-${id}`}
+              onClick={() => onViewChange(id as V)}
+              className={cn(
+                "flex items-center gap-3 w-full border-none cursor-pointer text-sm text-left transition-colors",
+                iconsOnly ? "py-3 justify-center" : "px-4 py-2.5 justify-start",
+                activeView === id
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-sidebar-primary"
+                  : "bg-transparent text-muted-foreground border-l-[3px] border-l-transparent hover:bg-sidebar-accent/50",
+              )}
+            >
+              <span>{icon}</span>
+              {!iconsOnly && <span>{label}</span>}
+            </button>
+          ))}
+        </div>
+
+        {/* Footer: theme toggle + collapse */}
+        <div className={cn("px-4 py-3 border-t border-sidebar-border flex items-center", iconsOnly ? "justify-center" : "justify-between")}>
+          {!iconsOnly && <ThemeToggle />}
           <button
-            key={id}
-            data-testid={`nav-${id}`}
-            onClick={() => onViewChange(id as V)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              width: "100%",
-              padding: iconsOnly ? "12px 0" : "10px 16px",
-              justifyContent: iconsOnly ? "center" : "flex-start",
-              background: activeView === id ? "var(--bg-tertiary)" : "transparent",
-              border: "none",
-              borderLeft: activeView === id
-                ? "3px solid var(--accent)"
-                : "3px solid transparent",
-              color: activeView === id
-                ? "var(--text-primary)"
-                : "var(--text-secondary)",
-              cursor: "pointer",
-              fontSize: 14,
-              textAlign: "left",
-            }}
+            onClick={() => onCollapsedChange(!collapsed)}
+            className="bg-transparent border-none text-muted-foreground cursor-pointer text-base hover:text-foreground transition-colors"
           >
-            <span>{icon}</span>
-            {!iconsOnly && <span>{label}</span>}
+            {collapsed ? "\u{25B6}" : "\u{25C0}"}
           </button>
-        ))}
-      </div>
-
-      {/* Footer: theme toggle + collapse */}
-      <div
-        style={{
-          padding: "12px 16px",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          justifyContent: iconsOnly ? "center" : "space-between",
-          alignItems: "center",
-        }}
-      >
-        {!iconsOnly && <ThemeToggle />}
-        <button
-          onClick={() => onCollapsedChange(!collapsed)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-secondary)",
-            cursor: "pointer",
-            fontSize: 16,
-          }}
-        >
-          {collapsed ? "\u{25B6}" : "\u{25C0}"}
-        </button>
+        </div>
       </div>
     </nav>
   );
@@ -152,15 +118,7 @@ function ThemeToggle() {
       data-testid="theme-toggle"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       title={resolvedTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-      style={{
-        background: "none",
-        border: "none",
-        color: "var(--text-secondary)",
-        cursor: "pointer",
-        fontSize: 16,
-        padding: 0,
-        lineHeight: 1,
-      }}
+      className="bg-transparent border-none text-muted-foreground cursor-pointer text-base p-0 leading-none hover:text-foreground transition-colors"
     >
       {resolvedTheme === "dark" ? "\u{2600}\u{FE0F}" : "\u{1F319}"}
     </button>

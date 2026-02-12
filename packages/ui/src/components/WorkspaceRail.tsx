@@ -19,21 +19,9 @@ export function WorkspaceRail({
   onAvatarClick,
 }: WorkspaceRailProps) {
   return (
-    <div
-      style={{
-        width: 60,
-        backgroundColor: "var(--bg-rail, #1a1a2e)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        paddingTop: 12,
-        paddingBottom: 12,
-        gap: 8,
-        flexShrink: 0,
-      }}
-    >
+    <div className="w-[60px] bg-sidebar flex flex-col items-center py-3 gap-2 shrink-0">
       {/* Workspace icons */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, alignItems: "center" }}>
+      <div className="flex-1 flex flex-col gap-2 items-center">
         {workspaces.map((ws) => (
           <WorkspaceIcon
             key={ws.id}
@@ -48,19 +36,7 @@ export function WorkspaceRail({
       <button
         onClick={onCreateWorkspace}
         title="Create workspace"
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          border: "2px dashed var(--border, #444)",
-          background: "transparent",
-          color: "var(--text-secondary, #999)",
-          cursor: "pointer",
-          fontSize: 20,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        className="w-10 h-10 rounded-full border-2 border-dashed border-border bg-transparent text-muted-foreground cursor-pointer text-xl flex items-center justify-center hover:border-primary hover:text-foreground transition-colors"
       >
         +
       </button>
@@ -70,20 +46,8 @@ export function WorkspaceRail({
         <button
           onClick={onAvatarClick}
           title={user.name || user.email}
+          className="w-9 h-9 rounded-full border-none cursor-pointer bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center mt-2"
           style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            cursor: "pointer",
-            backgroundColor: "var(--accent, #4A90D9)",
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginTop: 8,
             backgroundImage: user.avatar_url ? `url(${user.avatar_url})` : undefined,
             backgroundSize: "cover",
           }}

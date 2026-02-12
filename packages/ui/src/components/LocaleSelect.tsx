@@ -41,28 +41,28 @@ export function LocaleSelect({ value, onChange, style, ...rest }: LocaleSelectPr
   }, []);
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", ...style }} data-testid={rest["data-testid"]}>
+    <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        style={triggerStyle}
+        className="flex items-center gap-2 w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground text-sm cursor-pointer text-left"
         data-testid={rest["data-testid"] ? `${rest["data-testid"]}-trigger` : undefined}
       >
         {loading ? "Loading..." : displayValue || "Select locale..."}
-        <span style={{ marginLeft: "auto", opacity: 0.5 }}>{"\u25BE"}</span>
+        <span className="ml-auto opacity-50">{"\u25BE"}</span>
       </button>
       {open && (
-        <div style={dropdownStyle} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md z-50 overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
           <input
             type="text"
             placeholder="Search locales..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={searchInputStyle}
+            className="w-full px-3 py-2 border-none border-b border-border bg-muted text-foreground text-[13px] outline-none box-border"
             autoFocus
             data-testid={rest["data-testid"] ? `${rest["data-testid"]}-search` : undefined}
           />
-          <div style={listStyle}>
+          <div className="max-h-60 overflow-y-auto">
             {filtered.map((l) => (
               <button
                 key={l.code}
@@ -73,18 +73,18 @@ export function LocaleSelect({ value, onChange, style, ...rest }: LocaleSelectPr
                   setOpen(false);
                   setSearch("");
                 }}
-                style={{
-                  ...optionStyle,
-                  backgroundColor: l.code === value ? "var(--accent)" : "transparent",
-                  color: l.code === value ? "#fff" : "var(--text-primary)",
-                }}
+                className={`block w-full px-3 py-1.5 border-none text-[13px] cursor-pointer text-left ${
+                  l.code === value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-transparent text-foreground hover:bg-accent"
+                }`}
                 data-testid={rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined}
               >
-                {l.display_name} <span style={{ opacity: 0.6, fontSize: 12 }}>({l.code})</span>
+                {l.display_name} <span className="opacity-60 text-xs">({l.code})</span>
               </button>
             ))}
             {filtered.length === 0 && (
-              <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-secondary)" }}>
+              <div className="px-3 py-2 text-xs text-muted-foreground">
                 No matching locales
               </div>
             )}
@@ -143,14 +143,14 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
   };
 
   return (
-    <div ref={wrapperRef} style={{ position: "relative", ...style }} data-testid={rest["data-testid"]}>
+    <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
       <div
-        style={chipContainerStyle}
+        className="flex flex-wrap gap-1 px-2 py-1 bg-muted border border-input rounded-md min-h-9 items-center cursor-text"
         onClick={() => setOpen(true)}
         data-testid={rest["data-testid"] ? `${rest["data-testid"]}-chips` : undefined}
       >
         {value.map((code) => (
-          <span key={code} style={chipStyle}>
+          <span key={code} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary text-primary-foreground rounded text-xs font-medium">
             {getDisplayName(code)} ({code})
             <span
               role="button"
@@ -160,7 +160,7 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
                 removeLocale(code);
               }}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); removeLocale(code); } }}
-              style={chipRemoveStyle}
+              className="cursor-pointer text-sm opacity-80 hover:opacity-100"
               data-testid={rest["data-testid"] ? `${rest["data-testid"]}-remove-${code}` : undefined}
             >
               {"\u00D7"}
@@ -173,26 +173,26 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onFocus={() => setOpen(true)}
-          style={chipInputStyle}
+          className="flex-1 min-w-[80px] border-none bg-transparent text-foreground text-[13px] outline-none py-1"
           data-testid={rest["data-testid"] ? `${rest["data-testid"]}-search` : undefined}
         />
       </div>
       {open && (
-        <div style={dropdownStyle} onMouseDown={(e) => e.preventDefault()}>
-          <div style={listStyle}>
+        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md z-50 overflow-hidden" onMouseDown={(e) => e.preventDefault()}>
+          <div className="max-h-60 overflow-y-auto">
             {available.map((l) => (
               <button
                 key={l.code}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); addLocale(l.code); }}
-                style={optionStyle}
+                className="block w-full px-3 py-1.5 border-none bg-transparent text-foreground text-[13px] cursor-pointer text-left hover:bg-accent"
                 data-testid={rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined}
               >
-                {l.display_name} <span style={{ opacity: 0.6, fontSize: 12 }}>({l.code})</span>
+                {l.display_name} <span className="opacity-60 text-xs">({l.code})</span>
               </button>
             ))}
             {available.length === 0 && (
-              <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-secondary)" }}>
+              <div className="px-3 py-2 text-xs text-muted-foreground">
                 {search ? "No matching locales" : "All locales selected"}
               </div>
             )}
@@ -202,108 +202,3 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
     </div>
   );
 }
-
-const triggerStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  width: "100%",
-  padding: "8px 12px",
-  backgroundColor: "var(--bg-tertiary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  color: "var(--text-primary)",
-  fontSize: 14,
-  cursor: "pointer",
-  textAlign: "left",
-};
-
-const dropdownStyle: React.CSSProperties = {
-  position: "absolute",
-  top: "100%",
-  left: 0,
-  right: 0,
-  marginTop: 4,
-  backgroundColor: "var(--bg-secondary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-  zIndex: 100,
-  overflow: "hidden",
-};
-
-const searchInputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 12px",
-  border: "none",
-  borderBottom: "1px solid var(--border)",
-  backgroundColor: "var(--bg-tertiary)",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const listStyle: React.CSSProperties = {
-  maxHeight: 240,
-  overflowY: "auto",
-};
-
-const optionStyle: React.CSSProperties = {
-  display: "block",
-  width: "100%",
-  padding: "6px 12px",
-  border: "none",
-  background: "transparent",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  cursor: "pointer",
-  textAlign: "left",
-};
-
-const chipContainerStyle: React.CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 4,
-  padding: "4px 8px",
-  backgroundColor: "var(--bg-tertiary)",
-  border: "1px solid var(--border)",
-  borderRadius: 6,
-  minHeight: 36,
-  alignItems: "center",
-  cursor: "text",
-};
-
-const chipStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 4,
-  padding: "2px 8px",
-  backgroundColor: "var(--accent)",
-  color: "#fff",
-  borderRadius: 4,
-  fontSize: 12,
-  fontWeight: 500,
-};
-
-const chipRemoveStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "#fff",
-  cursor: "pointer",
-  fontSize: 14,
-  padding: 0,
-  lineHeight: 1,
-  opacity: 0.8,
-};
-
-const chipInputStyle: React.CSSProperties = {
-  flex: 1,
-  minWidth: 80,
-  border: "none",
-  background: "transparent",
-  color: "var(--text-primary)",
-  fontSize: 13,
-  outline: "none",
-  padding: "4px 0",
-};
