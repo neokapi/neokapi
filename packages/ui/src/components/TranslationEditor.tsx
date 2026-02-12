@@ -9,6 +9,7 @@ import { parseCodedSegments } from "./editor/codedText";
 import { TagChipComponent } from "./editor/TagChipComponent";
 import { buildPairs, validateTags } from "./editor/tagSemantics";
 import { Button } from "./ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { cn } from "../lib/utils";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
@@ -802,16 +803,16 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             </button>
           ))}
         </div>
-        <select
-          value={targetLocale}
-          onChange={(e) => setTargetLocale(e.target.value)}
-          className="px-3 py-1.5 bg-muted border border-border rounded-md text-foreground text-sm"
-          data-testid="locale-selector"
-        >
-          {project.target_locales.map((l) => (
-            <option key={l} value={l}>{getDisplayName(l)} ({l})</option>
-          ))}
-        </select>
+        <Select value={targetLocale} onValueChange={setTargetLocale}>
+          <SelectTrigger className="w-[180px]" data-testid="locale-selector">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {project.target_locales.map((l) => (
+              <SelectItem key={l} value={l}>{getDisplayName(l)} ({l})</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Button size="sm" onClick={handleExport} disabled={loading} data-testid="export-btn">
           Export
         </Button>
@@ -881,7 +882,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       </div>
 
       {/* Progress bar */}
-      <div className="relative h-6 bg-muted rounded overflow-hidden mb-2" data-testid="progress-bar">
+      <div className="relative h-6 bg-muted rounded overflow-hidden mb-2 glass-surface" data-testid="progress-bar">
         {progressSegments}
         <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-semibold text-foreground whitespace-nowrap" data-testid="progress-text">
           {progress}% ({translatedCount}/{translatableBlocks.length} translated)
@@ -924,7 +925,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
         {/* Context Panel - TM & Terminology */}
         {showContextPanel && (
-          <div className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0" data-testid="context-panel">
+          <div className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0 glass-surface" data-testid="context-panel">
             {contextLoading && (
               <div className="text-center py-3 text-xs text-muted-foreground">
                 Loading...

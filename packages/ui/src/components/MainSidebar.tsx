@@ -54,54 +54,100 @@ export function MainSidebar<V extends string = View>({
 
   return (
     <nav
-      className="bg-sidebar/80 backdrop-blur-md flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
+      className="flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
       style={{
         width,
-        borderRight: collapsed && collapsedWidth === 0 ? "none" : undefined,
+        background: "var(--sidebar-bg)",
+        color: "var(--semantic-text)",
+        backdropFilter: "blur(var(--sidebar-backdrop-blur, 16px))",
+        WebkitBackdropFilter: "blur(var(--sidebar-backdrop-blur, 16px))",
+        borderRight: collapsed && collapsedWidth === 0 ? "none" : "1px solid var(--semantic-border)",
+        boxShadow: "var(--sidebar-glow, none)",
       }}
     >
-      {/* Border only when visible */}
-      {!(collapsed && collapsedWidth === 0) && (
-        <div className="absolute inset-y-0 right-0 w-px bg-sidebar-border" style={{ display: "none" }} />
-      )}
-      <div className={cn("flex flex-col h-full", !(collapsed && collapsedWidth === 0) && "border-r border-sidebar-border")}>
+      <div className="flex flex-col h-full">
         {/* Top spacer (e.g. macOS traffic lights) */}
         {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
 
         {/* Workspace name header */}
         {!iconsOnly && (
-          <div className={cn("px-4 font-bold text-[15px] text-sidebar-foreground overflow-hidden text-ellipsis whitespace-nowrap border-b border-sidebar-border", topSpacer > 0 ? "pt-1 pb-2" : "pt-4 pb-2")}>
+          <div
+            className={cn(
+              "px-4 font-bold text-[15px] overflow-hidden text-ellipsis whitespace-nowrap border-b",
+              topSpacer > 0 ? "pt-1 pb-2" : "pt-4 pb-2",
+            )}
+            style={{
+              color: "var(--semantic-text)",
+              borderColor: "var(--semantic-border)",
+            }}
+          >
             {workspace?.name || "No workspace"}
           </div>
         )}
 
         {/* Navigation items */}
-        <div className="flex-1 py-2">
-          {navItems.map(({ id, label, icon }) => (
-            <button
-              key={id}
-              data-testid={`nav-${id}`}
-              onClick={() => onViewChange(id as V)}
-              className={cn(
-                "flex items-center gap-3 w-full border-none cursor-pointer text-sm text-left transition-colors",
-                iconsOnly ? "py-3 justify-center" : "px-4 py-2.5 justify-start",
-                activeView === id
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground border-l-[3px] border-l-sidebar-primary"
-                  : "bg-transparent text-muted-foreground border-l-[3px] border-l-transparent hover:bg-sidebar-accent/50",
-              )}
-            >
-              <span className="shrink-0">{icon}</span>
-              {!iconsOnly && <span>{label}</span>}
-            </button>
-          ))}
+        <div className="flex-1 py-2 px-2">
+          <ul className="flex flex-col gap-1 list-none p-0 m-0">
+            {navItems.map(({ id, label, icon }) => {
+              const isActive = activeView === id;
+              return (
+                <li key={id} className="group/menu-item relative">
+                  <button
+                    data-testid={`nav-${id}`}
+                    onClick={() => onViewChange(id as V)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-md border-none cursor-pointer text-sm text-left",
+                      "transition-[background,color] duration-200 ease-linear outline-none",
+                      iconsOnly ? "py-2.5 px-2 justify-center" : "px-3 py-2 justify-start",
+                    )}
+                    style={
+                      isActive
+                        ? {
+                            background: "var(--semantic-primary)",
+                            color: "var(--semantic-text-inverse)",
+                          }
+                        : {
+                            background: "transparent",
+                            color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)",
+                          }
+                    }
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = "var(--semantic-surface-elevated)";
+                        e.currentTarget.style.color = "var(--semantic-text)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)";
+                      }
+                    }}
+                  >
+                    <span className="shrink-0">{icon}</span>
+                    {!iconsOnly && <span>{label}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
         </div>
 
         {/* Footer: theme toggle + collapse */}
-        <div className={cn("px-4 py-3 border-t border-sidebar-border flex items-center", iconsOnly ? "justify-center" : "justify-between")}>
+        <div
+          className={cn(
+            "px-4 py-3 border-t flex items-center",
+            iconsOnly ? "justify-center" : "justify-between",
+          )}
+          style={{ borderColor: "var(--semantic-border)" }}
+        >
           {!iconsOnly && <ThemeToggle />}
           <button
             onClick={() => onCollapsedChange(!collapsed)}
-            className="bg-transparent border-none text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+            className="bg-transparent border-none cursor-pointer transition-colors"
+            style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
@@ -130,7 +176,10 @@ function ThemeToggle() {
       data-testid="theme-toggle"
       onClick={() => setTheme(nextTheme[theme])}
       title={`Theme: ${themeLabels[theme]}`}
-      className="bg-transparent border-none text-muted-foreground cursor-pointer p-0 leading-none hover:text-foreground transition-colors"
+      className="bg-transparent border-none cursor-pointer p-0 leading-none transition-colors"
+      style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
     >
       {themeIcons[theme]}
     </button>

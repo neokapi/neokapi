@@ -3,7 +3,7 @@ import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, GlassCard } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { FolderOpen, ArrowRight } from "./icons";
@@ -54,7 +54,7 @@ export function ProjectDashboard({
       </div>
 
       {showCreate && (
-        <Card className="mb-6" data-testid="create-project-dialog">
+        <GlassCard intensity="subtle" className="mb-6" data-testid="create-project-dialog">
           <CardContent className="pt-6">
             <h3 className="text-base font-semibold mb-4">Create Translation Project</h3>
             <div className="flex flex-col gap-3">
@@ -97,11 +97,11 @@ export function ProjectDashboard({
               </div>
             </div>
           </CardContent>
-        </Card>
+        </GlassCard>
       )}
 
       {projects.length === 0 && !showCreate && (
-        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border" data-testid="empty-projects">
+        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border backdrop-blur-sm" data-testid="empty-projects">
           <FolderOpen className="w-12 h-12 mb-4 text-muted-foreground opacity-30" />
           <p className="text-muted-foreground">
             No projects yet. Create a new project to get started.
@@ -111,10 +111,13 @@ export function ProjectDashboard({
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
         {projects.map((p) => (
-          <Card
+          <GlassCard
             key={p.id}
+            intensity="medium"
+            hover
+            glow="violet"
             onClick={() => onOpenProject(p)}
-            className="cursor-pointer hover:border-primary/50 hover:shadow-[0_0_15px_-3px] hover:shadow-primary/20 transition-all"
+            className="cursor-pointer transition-all"
             data-testid={`project-card-${p.id}`}
           >
             <CardContent className="pt-4">
@@ -126,7 +129,7 @@ export function ProjectDashboard({
                 {(p.items?.length ?? 0)} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
               </div>
             </CardContent>
-          </Card>
+          </GlassCard>
         ))}
       </div>
     </div>

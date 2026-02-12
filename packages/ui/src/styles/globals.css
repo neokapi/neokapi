@@ -44,33 +44,33 @@
 [data-theme="glass"] {
   --background: 222 47% 11%;
   --foreground: 210 40% 98%;
-  --card: 222 84% 5%;
+  --card: 222 84% 5% / 0.6;
   --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11%;
+  --popover: 222 84% 5% / 0.6;
   --popover-foreground: 210 40% 98%;
   --primary: 271 91% 65%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17%;
+  --secondary: 217 33% 17% / 0.5;
   --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17%;
+  --muted: 217 33% 17% / 0.5;
   --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17%;
+  --accent: 217 33% 17% / 0.5;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
+  --border: 0 0% 100% / 0.12;
+  --input: 0 0% 100% / 0.12;
   --ring: 263 70% 50%;
   --success: 158 64% 52%;
   --warning: 43 96% 56%;
 
-  --sidebar-background: 222 47% 9%;
+  --sidebar-background: 222 47% 9% / 0.8;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-primary: 271 91% 65%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 217 33% 20%;
+  --sidebar-accent: 217 33% 20% / 0.5;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 17%;
+  --sidebar-border: 0 0% 100% / 0.1;
   --sidebar-ring: 263 70% 50%;
 
   --radius: 1rem;
@@ -114,33 +114,33 @@
 [data-theme="aurora"] {
   --background: 222 84% 5%;
   --foreground: 210 40% 98%;
-  --card: 222 47% 11%;
+  --card: 222 47% 11% / 0.5;
   --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11%;
+  --popover: 222 47% 11% / 0.5;
   --popover-foreground: 210 40% 98%;
   --primary: 263 70% 50%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17%;
+  --secondary: 217 33% 17% / 0.4;
   --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17%;
+  --muted: 217 33% 17% / 0.4;
   --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17%;
+  --accent: 217 33% 17% / 0.4;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
+  --border: 0 0% 100% / 0.1;
+  --input: 0 0% 100% / 0.1;
   --ring: 263 70% 50%;
   --success: 158 64% 52%;
   --warning: 43 96% 56%;
 
-  --sidebar-background: 222 84% 4%;
+  --sidebar-background: 222 84% 4% / 0.8;
   --sidebar-foreground: 210 40% 98%;
   --sidebar-primary: 263 70% 50%;
   --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 217 33% 20%;
+  --sidebar-accent: 217 33% 20% / 0.4;
   --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217 33% 17%;
+  --sidebar-border: 0 0% 100% / 0.08;
   --sidebar-ring: 263 70% 50%;
 }
 
@@ -152,4 +152,18 @@
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
+
+  /* Rich gradient backgrounds for glass/aurora — enables frosted glass effect */
+  [data-theme="glass"] body {
+    background: linear-gradient(135deg, oklch(15% 0.04 280), oklch(12% 0.06 300), oklch(15% 0.04 260));
+  }
+  [data-theme="aurora"] body {
+    background: linear-gradient(135deg, oklch(10% 0.05 280), oklch(8% 0.08 300), oklch(10% 0.05 320));
+  }
+}
+
+/* Glass surface utility for layout elements */
+.glass-surface {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }

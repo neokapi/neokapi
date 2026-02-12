@@ -23,9 +23,13 @@ function Command({ className, children, ...props }: CommandProps) {
     <CommandContext value={{ search, setSearch }}>
       <div
         className={cn(
-          "flex h-full w-full flex-col overflow-hidden rounded-md bg-popover/80 backdrop-blur-md text-popover-foreground border border-white/10",
+          "flex h-full w-full flex-col overflow-hidden rounded-md text-popover-foreground glass-surface",
           className,
         )}
+        style={{
+          background: "var(--semantic-surface-elevated, hsl(var(--popover)))",
+          border: "1px solid var(--semantic-border, hsl(var(--border)))",
+        }}
         {...props}
       >
         {children}
@@ -50,7 +54,10 @@ function CommandInput({ className, onValueChange, ...props }: CommandInputProps)
   );
 
   return (
-    <div className="flex items-center border-b border-border px-3">
+    <div
+      className="flex items-center px-3"
+      style={{ borderBottom: "1px solid var(--semantic-border, hsl(var(--border)))" }}
+    >
       <span className="mr-2 shrink-0 opacity-50">&#x1F50D;</span>
       <input
         className={cn(
@@ -99,7 +106,7 @@ function CommandItem({ className, onSelect, disabled, children, ...props }: Comm
   return (
     <div
       className={cn(
-        "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+        "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
         disabled && "pointer-events-none opacity-50",
         className,
       )}
@@ -115,7 +122,13 @@ function CommandItem({ className, onSelect, disabled, children, ...props }: Comm
 }
 
 function CommandSeparator({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("-mx-1 h-px bg-border", className)} {...props} />;
+  return (
+    <div
+      className={cn("-mx-1 h-px", className)}
+      style={{ background: "var(--semantic-border, hsl(var(--border)))" }}
+      {...props}
+    />
+  );
 }
 
 export {

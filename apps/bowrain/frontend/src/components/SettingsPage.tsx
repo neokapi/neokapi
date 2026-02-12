@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent } from "@gokapi/ui";
+import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@gokapi/ui";
 import { useFormats, useTools, useFlows, usePlugins, useProviderConfigs, useProviderApi } from "../hooks/useApi";
 import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
 
@@ -13,36 +13,24 @@ const tabs: { id: SettingsTab; label: string }[] = [
 ];
 
 export function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-
   return (
     <div className="flex flex-col flex-1">
       <h1 className="mb-4">Settings</h1>
-      <div role="tablist" className="flex border-b border-border mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            data-testid={`settings-tab-${tab.id}`}
-            onClick={() => setActiveTab(tab.id)}
-            className={cn(
-              "px-5 py-2.5 bg-transparent border-none border-b-2 text-sm cursor-pointer",
-              activeTab === tab.id
-                ? "border-b-primary text-foreground font-semibold"
-                : "border-b-transparent text-muted-foreground",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === "general" && <GeneralTab />}
-        {activeTab === "ai-providers" && <AIProvidersTab />}
-        {activeTab === "plugins" && <PluginsTab />}
-        {activeTab === "system-info" && <SystemInfoTab />}
-      </div>
+      <Tabs defaultValue="general" className="flex flex-col flex-1">
+        <TabsList className="mb-6">
+          {tabs.map((tab) => (
+            <TabsTrigger key={tab.id} value={tab.id} data-testid={`settings-tab-${tab.id}`}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <div className="flex-1 overflow-y-auto">
+          <TabsContent value="general"><GeneralTab /></TabsContent>
+          <TabsContent value="ai-providers"><AIProvidersTab /></TabsContent>
+          <TabsContent value="plugins"><PluginsTab /></TabsContent>
+          <TabsContent value="system-info"><SystemInfoTab /></TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 }
@@ -170,7 +158,7 @@ function AIProvidersTab() {
     const defaults = providerTypeDefaults[editing.provider_type] || { model: "", baseUrl: "" };
     return (
       <div data-testid="settings-ai-providers">
-        <div data-testid="provider-form" className="flex flex-col gap-4 max-w-[500px]">
+        <div data-testid="provider-form" className="flex flex-col gap-4 max-w-[500px] glass-surface bg-card rounded-lg p-4">
           <h3>{editing.id ? "Edit Provider" : "Add Provider"}</h3>
           <div className="flex flex-col gap-1">
             <Label className="text-muted-foreground">
@@ -187,16 +175,16 @@ function AIProvidersTab() {
           </div>
           <div className="flex flex-col gap-1">
             <Label className="text-muted-foreground">Type</Label>
-            <select
-              value={editing.provider_type}
-              onChange={(e) => handleTypeChange(e.target.value)}
-              className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm"
-              data-testid="provider-type"
-            >
-              <option value="anthropic">Anthropic</option>
-              <option value="openai">OpenAI</option>
-              <option value="ollama">Ollama</option>
-            </select>
+            <Select value={editing.provider_type} onValueChange={handleTypeChange}>
+              <SelectTrigger data-testid="provider-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="anthropic">Anthropic</SelectItem>
+                <SelectItem value="openai">OpenAI</SelectItem>
+                <SelectItem value="ollama">Ollama</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex flex-col gap-1">
             <Label className="text-muted-foreground">

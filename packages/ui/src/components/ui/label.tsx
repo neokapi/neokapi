@@ -9,6 +9,7 @@ const Label = React.forwardRef<HTMLLabelElement, React.LabelHTMLAttributes<HTMLL
         "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
         className,
       )}
+      style={{ color: "var(--semantic-text, inherit)" }}
       {...props}
     />
   ),
