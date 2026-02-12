@@ -69,8 +69,10 @@ export function useFlows() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Backend.ListFlows()
-      .then((r: FlowInfo[]) => setFlows(r))
+    Backend.ListFlowDefinitions()
+      .then((r: FlowDefinitionInfo[]) =>
+        setFlows((r || []).map((d) => ({ name: d.name, description: d.description || "" }))),
+      )
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);

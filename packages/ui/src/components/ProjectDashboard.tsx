@@ -65,22 +65,22 @@ export function ProjectDashboard({
               />
             </label>
             <div style={{ display: "flex", gap: 12 }}>
-              <label style={{ ...labelStyle, flex: 1 }}>
+              <div style={{ ...labelStyle, flex: 1 }}>
                 Source Language
                 <LocaleSelect
                   value={sourceLang}
                   onChange={setSourceLang}
                   data-testid="source-lang-input"
                 />
-              </label>
-              <label style={{ ...labelStyle, flex: 1 }}>
+              </div>
+              <div style={{ ...labelStyle, flex: 1 }}>
                 Target Languages
                 <MultiLocaleSelect
                   value={targetLangsList}
                   onChange={setTargetLangsList}
                   data-testid="target-langs-input"
                 />
-              </label>
+              </div>
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
               <button onClick={() => setShowCreate(false)} style={secondaryBtnStyle}>

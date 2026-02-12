@@ -52,7 +52,7 @@ export function LocaleSelect({ value, onChange, style, ...rest }: LocaleSelectPr
         <span style={{ marginLeft: "auto", opacity: 0.5 }}>{"\u25BE"}</span>
       </button>
       {open && (
-        <div style={dropdownStyle}>
+        <div style={dropdownStyle} onMouseDown={(e) => e.stopPropagation()}>
           <input
             type="text"
             placeholder="Search locales..."
@@ -67,7 +67,8 @@ export function LocaleSelect({ value, onChange, style, ...rest }: LocaleSelectPr
               <button
                 key={l.code}
                 type="button"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onChange(l.code);
                   setOpen(false);
                   setSearch("");
@@ -151,17 +152,19 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
         {value.map((code) => (
           <span key={code} style={chipStyle}>
             {getDisplayName(code)} ({code})
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={(e) => {
                 e.stopPropagation();
                 removeLocale(code);
               }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); removeLocale(code); } }}
               style={chipRemoveStyle}
               data-testid={rest["data-testid"] ? `${rest["data-testid"]}-remove-${code}` : undefined}
             >
               {"\u00D7"}
-            </button>
+            </span>
           </span>
         ))}
         <input
@@ -175,13 +178,13 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
         />
       </div>
       {open && (
-        <div style={dropdownStyle}>
+        <div style={dropdownStyle} onMouseDown={(e) => e.preventDefault()}>
           <div style={listStyle}>
             {available.map((l) => (
               <button
                 key={l.code}
                 type="button"
-                onClick={() => addLocale(l.code)}
+                onClick={(e) => { e.stopPropagation(); addLocale(l.code); }}
                 style={optionStyle}
                 data-testid={rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined}
               >
