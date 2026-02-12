@@ -125,6 +125,58 @@ Create a type embedding `tool.BaseTool` and set `HandleBlockFn` / `HandleDataFn`
 
 Tests use `github.com/stretchr/testify` (assert/require). Table-driven tests are the standard pattern. Format tests typically do roundtrip validation (read → write → compare). Test files colocate with implementation (`*_test.go`).
 
+## Demo Recordings & Screencasts
+
+Video recordings serve as documentation and are embedded on the website. **Whenever UI-related code changes, all recordings must be regenerated** as part of the verification process before committing.
+
+### Recording systems
+
+There are three independent recording pipelines:
+
+1. **Bowrain (desktop GUI)** — 13 Playwright scenarios in `apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
+2. **Web app** — 8 scenarios x 2 themes (dark + light) in `apps/web/e2e/recordings.spec.ts`. Requires a running gokapi-server with Dex OIDC.
+3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
+
+### How to regenerate
+
+```bash
+# 1. Bowrain recordings (self-contained)
+make recordings                  # runs + copies to website/static/video/bowrain/
+
+# 2. Web app recordings (needs Docker stack for real auth)
+cd e2e && docker compose up -d   # starts Dex + gokapi-server
+# Wait for healthy: curl -sf http://localhost:8080/api/v1/health
+cd apps/web && npm run e2e:recordings
+THEME=dark  bash apps/web/scripts/copy-recordings.sh
+THEME=light bash apps/web/scripts/copy-recordings.sh
+cd e2e && docker compose down -v
+
+# 3. CLI recordings (needs VHS: brew install charmbracelet/tap/vhs)
+make cli-recordings              # runs tapes + copies to website/static/video/cli/
+
+# Or generate everything at once:
+make docs-assets                 # screenshots + recordings + cli-recordings
+```
+
+### Real systems, not mocks
+
+All recordings must run against real gokapi infrastructure. Specifically:
+
+- **Authentication & identity**: Use the real Dex OIDC provider via `e2e/docker-compose.yml`. Never mock the auth flow.
+- **gokapi-server**: Use the real server binary (locally built or Docker image). Never use a mock API server.
+- **Database & storage**: Use a real database instance (the Docker stack provisions one automatically).
+- **External integrations** outside the scope of this project (e.g. third-party MT providers, external LLM APIs) may be mocked if needed for isolation.
+
+### Verification checklist for UI changes
+
+Before committing any UI-related change:
+
+1. TypeScript checks pass for all 4 projects (`packages/ui`, `apps/web`, `apps/kapi-web`, `apps/bowrain/frontend`)
+2. All unit tests pass (`cd packages/ui && npm test`)
+3. All 3 frontend production builds succeed
+4. All recordings regenerated and copied to `website/static/video/`
+5. Go build succeeds (`make build build-server`)
+
 ## Architecture Decision Records
 
 ADRs live in `docs/adr/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each ADR should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing ADR in place rather than appending a new one. Only create a new ADR when a genuinely new architectural concern is introduced.
