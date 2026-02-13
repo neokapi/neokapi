@@ -33,7 +33,9 @@ test.describe("Settings Page", () => {
 
     // Fill form
     await page.getByTestId("provider-name").fill("My Anthropic");
-    await page.getByTestId("provider-type").selectOption("anthropic");
+    // Click custom select to open dropdown, then select option
+    await page.getByTestId("provider-type").click();
+    await page.getByRole("option", { name: "Anthropic" }).click();
     await page.getByTestId("provider-api-key").fill("sk-test-key");
     await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
 
@@ -51,7 +53,9 @@ test.describe("Settings Page", () => {
     // First add a provider (Ollama doesn't require an API key)
     await page.getByTestId("add-provider-btn").click();
     await page.getByTestId("provider-name").fill("ToDelete");
-    await page.getByTestId("provider-type").selectOption("ollama");
+    // Click custom select to open dropdown, then select option
+    await page.getByTestId("provider-type").click();
+    await page.getByRole("option", { name: "Ollama" }).click();
     await page.getByTestId("provider-save-btn").click();
     await expect(page.getByText("ToDelete")).toBeVisible();
 

@@ -982,7 +982,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 200);
 
     await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByTestId("provider-type").selectOption("anthropic");
+    await page.getByRole("option", { name: "Anthropic" }).click();
     await pause(page, 300);
 
     await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
@@ -1004,7 +1004,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 200);
 
     await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByTestId("provider-type").selectOption("openai");
+    await page.getByRole("option", { name: "OpenAI" }).click();
     await pause(page, 300);
 
     await humanType(page, page.getByTestId("provider-api-key"), "sk-proj-xxxx");
@@ -1166,7 +1166,7 @@ describeOrSkip("Video Recordings", () => {
 
     // Select provider type
     await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByTestId("provider-type").selectOption("anthropic");
+    await page.getByRole("option", { name: "Anthropic" }).click();
     await pause(page, 400);
 
     // Enter API key
