@@ -62,7 +62,7 @@ for dir in "$RECORDINGS_DIR"/*/; do
       break
     fi
   done
-  [ $skip_dir -eq 1 ] && continue
+  if [ $skip_dir -eq 1 ]; then continue; fi
 
   # Strip common prefixes from Playwright test output directory names
   name=$(echo "$dir_lower" | sed -E 's/^recordings-video-recording[s]?-//')
