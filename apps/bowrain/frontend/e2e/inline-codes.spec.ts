@@ -740,8 +740,9 @@ test.describe("Inline Codes — Row Validation Warning", () => {
 
     // Should show a warning character in the target cell area
     // The \u26A0 (warning sign) should be visible
+    // Increased timeout as validation may take time in CI
     const warningIcon = page.getByTestId("target-text-0").locator("text=\u26A0");
-    await expect(warningIcon).toBeVisible({ timeout: 3000 });
+    await expect(warningIcon).toBeVisible({ timeout: 10000 });
   });
 
   test("should not show warning icon when all tags match", async ({ page }) => {

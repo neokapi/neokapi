@@ -323,7 +323,9 @@ test.describe("Screenshots", () => {
       // Add a provider to make the page look populated
       await page.getByTestId("add-provider-btn").click();
       await page.getByTestId("provider-name").fill("Anthropic Claude");
-      await page.getByTestId("provider-type").selectOption("anthropic");
+      // Click custom select to open dropdown, then select option
+      await page.getByTestId("provider-type").click();
+      await page.getByRole("option", { name: "Anthropic" }).click();
       await page.getByTestId("provider-api-key").fill("sk-ant-***");
       await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
       await page.getByTestId("provider-save-btn").click();

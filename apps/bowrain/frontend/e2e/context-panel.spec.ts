@@ -219,7 +219,9 @@ test.describe("Context Panel", () => {
     // Open context panel
     await clickTestId(page, "context-panel-toggle");
     await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
-    await page.waitForTimeout(500);
+
+    // Wait for loading state to finish
+    await expect(page.getByTestId("context-panel")).not.toContainText("Loading...", { timeout: 10000 });
 
     // Should show "no matches" messages
     await expect(page.getByTestId("context-panel")).toContainText("No TM matches");
