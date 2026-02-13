@@ -144,7 +144,7 @@ jobs:
       - name: Run Playwright tests
         working-directory: apps/bowrain/frontend
         run: npx playwright test
-        timeout-minutes: 10
+        timeout-minutes: 15
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

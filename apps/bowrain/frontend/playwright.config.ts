@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30000,
-  globalTimeout: process.env.CI ? 300000 : 0, // 5 min cap in CI
+  globalTimeout: process.env.CI ? 600000 : 0, // 10 min cap in CI (204 tests)
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "list" : "html",
   use: {
