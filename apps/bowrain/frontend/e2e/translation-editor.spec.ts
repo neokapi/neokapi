@@ -89,9 +89,11 @@ test.describe("Translation Editor", () => {
   test("should switch target locale to de", async ({ page }) => {
     await openEditorWithBlocks(page);
 
+    // Click custom select to open dropdown, then select option
     const selector = page.getByTestId("locale-selector");
-    await selector.selectOption("de");
-    await expect(selector).toHaveValue("de");
+    await selector.click();
+    await page.getByRole("option", { name: "German" }).click();
+    await expect(selector).toContainText("de");
   });
 
   test("should show toolbar buttons", async ({ page }) => {
@@ -492,7 +494,8 @@ test.describe("Translation Editor", () => {
 
     // Switch locale to de (which has no translations)
     const selector = page.getByTestId("locale-selector");
-    await selector.selectOption("de");
+    await selector.click();
+    await page.getByRole("option", { name: "German" }).click();
     await page.waitForTimeout(500);
 
     // Toggle still says "Target" (state preserved in DocumentPreview)
