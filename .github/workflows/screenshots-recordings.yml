@@ -23,9 +23,6 @@ jobs:
   bowrain-assets:
     name: Bowrain Screenshots & Recordings
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/bowrain/frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -33,22 +30,33 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/bowrain/frontend/package-lock.json
+          cache-dependency-path: |
+            packages/ui/package-lock.json
+            apps/bowrain/frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npm ci && npx tsc
+
+      - name: Install Bowrain dependencies
+        working-directory: apps/bowrain/frontend
         run: npm ci
 
       - name: Install Playwright browsers
+        working-directory: apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Generate screenshots
+        working-directory: apps/bowrain/frontend
         run: npm run screenshots
 
       - name: Generate recordings
+        working-directory: apps/bowrain/frontend
         run: npm run recordings
         timeout-minutes: 30  # Recordings are slow due to human-like typing
 
       - name: Copy recordings to static assets
+        working-directory: apps/bowrain/frontend
         run: npm run recordings:copy
 
       - name: Upload Bowrain assets
@@ -161,8 +169,8 @@ jobs:
 
       - name: Build kapi CLI
         run: |
-          cd packages/ui && npx tsc
-          cd apps/kapi-web && npm ci && npm run build
+          cd packages/ui && npm ci && npx tsc
+          cd ../apps/kapi-web && npm ci && npm run build
           cd ../.. && make build
 
       # Install VHS using the official setup
