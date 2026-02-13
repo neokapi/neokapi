@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./e2e",
   testMatch: "recordings.spec.ts",
   timeout: 60000, // Longer timeout for recordings
-  globalTimeout: process.env.CI ? 600000 : 0, // 10 min cap in CI
+  globalTimeout: process.env.CI ? 1800000 : 0, // 30 min cap in CI (39 tests with human-speed typing)
   retries: 0, // No retries for recordings - we want consistent videos
   reporter: process.env.CI ? "list" : "html",
   // Store videos in dedicated recordings output directory
