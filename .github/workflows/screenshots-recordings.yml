@@ -1,0 +1,334 @@
+name: Screenshots & Recordings
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_assets:
+        description: 'Commit generated assets back to repo'
+        required: false
+        default: 'false'
+        type: boolean
+  schedule:
+    # Nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # Needed to commit assets back to repo
+
+jobs:
+  # ── Bowrain Screenshots & Recordings (self-contained) ───────────────────────
+  bowrain-assets:
+    name: Bowrain Screenshots & Recordings
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/bowrain/frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/bowrain/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate screenshots
+        run: npm run screenshots
+
+      - name: Generate recordings
+        run: npm run recordings
+        timeout-minutes: 30  # Recordings are slow due to human-like typing
+
+      - name: Copy recordings to static assets
+        run: npm run recordings:copy
+
+      - name: Upload Bowrain assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: bowrain-assets
+          path: |
+            website/static/img/bowrain/
+            website/static/video/bowrain/
+          retention-days: 30
+
+  # ── Web App Screenshots & Recordings (needs Docker stack with Dex) ─────────
+  web-app-assets:
+    name: Web App Screenshots & Recordings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.6'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            packages/ui/package-lock.json
+            apps/web/package-lock.json
+
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npm ci && npx tsc
+
+      - name: Build web UI
+        working-directory: apps/web
+        run: npm ci && npm run build
+
+      - name: Build gokapi-server
+        run: go build -o bin/gokapi-server ./cmd/gokapi-server
+
+      - name: Start Docker stack (Dex + gokapi-server)
+        working-directory: e2e
+        run: docker compose up -d
+
+      - name: Wait for server health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/api/v1/health; then
+              echo "Server is healthy"
+              exit 0
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+          echo "Server failed to become healthy"
+          exit 1
+
+      - name: Install Playwright
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate screenshots
+        working-directory: apps/web
+        run: npm run e2e:screenshots
+
+      - name: Generate recordings
+        working-directory: apps/web
+        run: npm run e2e:recordings
+        timeout-minutes: 30
+
+      - name: Copy recordings (dark theme)
+        working-directory: apps/web
+        run: THEME=dark bash scripts/copy-recordings.sh
+
+      - name: Copy recordings (light theme)
+        working-directory: apps/web
+        run: THEME=light bash scripts/copy-recordings.sh
+
+      - name: Upload web app assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-app-assets
+          path: |
+            website/static/img/web-app/
+            website/static/video/web-app/
+          retention-days: 30
+
+      - name: Shutdown Docker stack
+        if: always()
+        working-directory: e2e
+        run: docker compose down -v
+
+  # ── CLI Recordings (VHS) ────────────────────────────────────────────────────
+  cli-recordings:
+    name: CLI Recordings (VHS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.6'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/kapi-web/package-lock.json
+
+      - name: Build kapi CLI
+        run: |
+          cd packages/ui && npx tsc
+          cd apps/kapi-web && npm ci && npm run build
+          cd ../.. && make build
+
+      # Install VHS using the official setup
+      - name: Install VHS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_Linux_x86_64.tar.gz | \
+            sudo tar -xz -C /usr/local/bin vhs
+
+      # VHS needs Xvfb for headless rendering
+      - name: Install Xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Generate CLI recordings with VHS
+        working-directory: website/tapes
+        run: |
+          export PATH="$PWD/../../bin:$PATH"
+          export KAPI_CONFIG_DIR="$(mktemp -d)"
+          mkdir -p output
+
+          # Start virtual display for VHS
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          export DISPLAY=:99
+
+          # Run VHS on all tapes
+          for tape in *.tape; do
+            if [ -f "$tape" ]; then
+              name="${tape%.tape}"
+              echo "Recording: $name"
+              vhs "$tape" || echo "Warning: $name failed"
+            fi
+          done
+
+          # Copy to docs
+          DOCS_VIDEO_DIR="../../website/static/video/cli"
+          mkdir -p "$DOCS_VIDEO_DIR"
+          cp output/*.webm "$DOCS_VIDEO_DIR/" 2>/dev/null || true
+          cp output/*.gif "$DOCS_VIDEO_DIR/" 2>/dev/null || true
+
+          rm -rf "$KAPI_CONFIG_DIR"
+
+      - name: Upload CLI assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-assets
+          path: website/static/video/cli/
+          retention-days: 30
+
+  # ── Asset Size Tracking ────────────────────────────────────────────────────
+  track-asset-sizes:
+    name: Track Asset Sizes
+    runs-on: ubuntu-latest
+    needs: [bowrain-assets, web-app-assets, cli-recordings]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets
+
+      - name: Calculate asset sizes
+        id: sizes
+        run: |
+          echo "## 📊 Documentation Asset Sizes" > size-report.md
+          echo "" >> size-report.md
+          echo "Generated: $(date -u +"%Y-%m-%d %H:%M UTC")" >> size-report.md
+          echo "" >> size-report.md
+
+          # Bowrain
+          if [ -d "downloaded-assets/bowrain-assets" ]; then
+            bowrain_size=$(du -sh downloaded-assets/bowrain-assets | cut -f1)
+            bowrain_img=$(du -sh downloaded-assets/bowrain-assets/website/static/img/bowrain 2>/dev/null | cut -f1 || echo "N/A")
+            bowrain_vid=$(du -sh downloaded-assets/bowrain-assets/website/static/video/bowrain 2>/dev/null | cut -f1 || echo "N/A")
+            echo "### Bowrain" >> size-report.md
+            echo "- Total: **$bowrain_size**" >> size-report.md
+            echo "- Screenshots: $bowrain_img" >> size-report.md
+            echo "- Recordings: $bowrain_vid" >> size-report.md
+            echo "" >> size-report.md
+          fi
+
+          # Web app
+          if [ -d "downloaded-assets/web-app-assets" ]; then
+            webapp_size=$(du -sh downloaded-assets/web-app-assets | cut -f1)
+            webapp_img=$(du -sh downloaded-assets/web-app-assets/website/static/img/web-app 2>/dev/null | cut -f1 || echo "N/A")
+            webapp_vid=$(du -sh downloaded-assets/web-app-assets/website/static/video/web-app 2>/dev/null | cut -f1 || echo "N/A")
+            echo "### Web App" >> size-report.md
+            echo "- Total: **$webapp_size**" >> size-report.md
+            echo "- Screenshots: $webapp_img" >> size-report.md
+            echo "- Recordings: $webapp_vid" >> size-report.md
+            echo "" >> size-report.md
+          fi
+
+          # CLI
+          if [ -d "downloaded-assets/cli-assets" ]; then
+            cli_size=$(du -sh downloaded-assets/cli-assets | cut -f1)
+            echo "### CLI Recordings" >> size-report.md
+            echo "- Total: **$cli_size**" >> size-report.md
+            echo "" >> size-report.md
+          fi
+
+          # Grand total
+          total_size=$(du -sh downloaded-assets | cut -f1)
+          echo "### Grand Total" >> size-report.md
+          echo "**$total_size**" >> size-report.md
+
+          cat size-report.md
+
+      - name: Upload size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-size-report
+          path: size-report.md
+          retention-days: 90
+
+  # ── Commit Assets (for releases and manual triggers) ───────────────────────
+  commit-assets:
+    name: Commit Assets to Repo
+    runs-on: ubuntu-latest
+    needs: [bowrain-assets, web-app-assets, cli-recordings]
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.commit_assets == 'true')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets
+
+      - name: Copy assets to website/static
+        run: |
+          # Bowrain
+          cp -r downloaded-assets/bowrain-assets/website/static/* website/static/ || true
+
+          # Web app
+          cp -r downloaded-assets/web-app-assets/website/static/* website/static/ || true
+
+          # CLI
+          mkdir -p website/static/video/cli
+          cp downloaded-assets/cli-assets/* website/static/video/cli/ || true
+
+      - name: Report asset sizes
+        run: |
+          echo "## Asset sizes being committed:"
+          du -sh website/static/img/bowrain || true
+          du -sh website/static/video/bowrain || true
+          du -sh website/static/img/web-app || true
+          du -sh website/static/video/web-app || true
+          du -sh website/static/video/cli || true
+          echo ""
+          echo "Total:"
+          du -sh website/static/img website/static/video
+
+      - name: Commit and push assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add website/static/img/ website/static/video/
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "docs: regenerate screenshots and recordings [skip ci]"
+            git push
+          fi

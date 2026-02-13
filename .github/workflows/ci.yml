@@ -163,3 +163,76 @@ jobs:
       - name: Run e2e tests
         run: bash e2e/run.sh
         timeout-minutes: 10
+
+  check-assets:
+    name: Validate Documentation Assets
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if UI files changed
+        id: ui_changes
+        run: |
+          # Check for changes in UI-related files
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qE '^(packages/ui/|apps/web/|apps/kapi-web/|apps/bowrain/frontend/)'; then
+            echo "ui_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "ui_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if assets were regenerated
+        if: steps.ui_changes.outputs.ui_changed == 'true'
+        run: |
+          # Check if screenshot/recording files were modified
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qE '^website/static/(img|video)/'; then
+            echo "✓ UI changed and documentation assets were regenerated"
+            exit 0
+          else
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  UI files changed but screenshots/recordings not updated"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "UI-related files were modified, but documentation assets in"
+            echo "website/static/img/ and website/static/video/ were not regenerated."
+            echo ""
+            echo "Please regenerate assets locally:"
+            echo "  make docs-assets"
+            echo ""
+            echo "Or trigger the automated workflow:"
+            echo "  Actions → Screenshots & Recordings → Run workflow"
+            echo ""
+            echo "Then commit the updated assets to this PR."
+            echo ""
+            exit 1
+          fi
+
+      - name: Check asset files exist
+        run: |
+          # Verify core asset directories exist and are not empty
+          dirs=(
+            "website/static/img/bowrain/dark"
+            "website/static/img/bowrain/light"
+            "website/static/video/bowrain/dark"
+            "website/static/video/bowrain/light"
+            "website/static/video/cli"
+          )
+
+          missing=0
+          for dir in "${dirs[@]}"; do
+            if [ ! -d "$dir" ] || [ -z "$(ls -A "$dir" 2>/dev/null)" ]; then
+              echo "⚠️  Missing or empty: $dir"
+              missing=$((missing + 1))
+            fi
+          done
+
+          if [ $missing -gt 0 ]; then
+            echo ""
+            echo "Some documentation asset directories are missing or empty."
+            echo "Run: make docs-assets"
+            exit 1
+          else
+            echo "✓ All documentation asset directories present"
+          fi

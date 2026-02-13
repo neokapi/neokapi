@@ -134,7 +134,7 @@ Generation workflow:
 2. VHS renders each tape to WebM and GIF formats
 3. `generate.sh` copies output to `website/static/video/cli/`
 
-Run: `make cli-recordings`. VHS requires a local TTY (not available in CI).
+Run: `make cli-recordings`. VHS can run in CI with Xvfb for headless rendering.
 
 ### Bowrain Demos: Playwright Video Recording
 
@@ -151,7 +151,7 @@ Demo workflows include project creation, translation editing, focus view, TM
 explorer, flow editor, and settings configuration (see [ADR-012](012-bowrain.md)
 for Bowrain architecture).
 
-Run: `make recordings`. Skipped in CI due to human-speed typing timeouts.
+Run: `make recordings`. Runs in CI with extended timeout for human-speed typing.
 
 ### Embedding in Documentation
 
@@ -200,5 +200,8 @@ backend enables reproducible demos.
 - GitHub Pages hosting has no cost and integrates with existing workflow
 - Test pyramid ensures coverage at every level with appropriate speed/cost
   tradeoffs
-- VHS demos require local TTY, limiting CI automation
+- All screenshots and recordings can be generated in CI (VHS uses Xvfb,
+  Playwright has extended timeouts)
 - Playwright demos are slower than real usage but provide consistent output
+- Asset generation is available on-demand (workflow_dispatch), on release
+  (tags), and nightly (schedule)

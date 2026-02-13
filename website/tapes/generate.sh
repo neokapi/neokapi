@@ -1,7 +1,7 @@
 #!/bin/bash
 # Generate CLI demo videos using VHS
 # Requires: vhs (brew install charmbracelet/tap/vhs)
-# Note: Must be run in a local terminal with TTY access (not SSH/CI)
+# Works in local terminals and CI (with Xvfb for headless rendering)
 
 set -e
 
@@ -59,7 +59,18 @@ fi
 # Generate all tapes
 echo ""
 echo "Generating CLI demo videos..."
-echo "(Note: Requires local terminal with TTY access)"
+echo ""
+
+# Detect if we're in CI
+if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
+  echo "Running in CI mode (headless)"
+  # CI should have already set up Xvfb and DISPLAY
+  if [ -z "$DISPLAY" ]; then
+    echo "Warning: DISPLAY not set in CI. VHS may fail."
+  fi
+else
+  echo "Running in local mode"
+fi
 echo ""
 
 failed=0
@@ -83,9 +94,9 @@ for tape in *.tape; do
 
     echo "  Recording: $name"
     if vhs "$tape" 2>&1; then
-      echo "    Done"
+      echo "    ✓ Done"
     else
-      echo "    Failed (may need local TTY)"
+      echo "    ✗ Failed"
       failed=$((failed + 1))
     fi
   fi
@@ -103,8 +114,12 @@ rm -rf "$KAPI_CONFIG_DIR"
 
 if [ $failed -gt 0 ]; then
   echo ""
-  echo "Some recordings failed. VHS requires a local terminal with TTY access."
-  echo "  Run this script directly in a terminal (not via SSH or CI)."
+  echo "Warning: $failed recording(s) failed."
+  if [ -n "$CI" ]; then
+    echo "  Check that Xvfb and DISPLAY are configured correctly in CI."
+  else
+    echo "  Check VHS installation and dependencies."
+  fi
 fi
 
 # Copy to docs

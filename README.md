@@ -1,5 +1,9 @@
 # gokapi
 
+[![CI](https://github.com/gokapi/gokapi/actions/workflows/ci.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/ci.yml)
+[![Screenshots & Recordings](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml)
+[![Docs](https://github.com/gokapi/gokapi/actions/workflows/docs.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/docs.yml)
+
 > **Experimental:** Gokapi is, like some current government administrations, an ongoing experiment and should not be used in production.
 
 An AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. Format-aware document parsing, channel-based concurrent processing, and pluggable tools for localization and translation.

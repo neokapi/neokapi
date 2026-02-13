@@ -146,6 +146,7 @@ There are three independent video recording pipelines:
 
 ### How to regenerate
 
+**Locally:**
 ```bash
 # 1. Bowrain screenshots + recordings (self-contained)
 make screenshots                 # screenshots → website/static/img/bowrain/{dark,light}/
@@ -165,6 +166,16 @@ make cli-recordings              # runs tapes + copies to website/static/video/c
 
 # Or generate everything at once:
 make docs-assets                 # screenshots + recordings + cli-recordings
+```
+
+**In CI:**
+```bash
+# Automated via GitHub Actions (.github/workflows/screenshots-recordings.yml)
+# - On-demand: workflow_dispatch (can optionally commit assets)
+# - On release: automatically triggered by version tags (commits assets)
+# - Nightly: scheduled at 2 AM UTC (uploads artifacts only)
+#
+# All three systems (Bowrain, Web app, CLI) run in parallel jobs
 ```
 
 ### Real systems, not mocks
