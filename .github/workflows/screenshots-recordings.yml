@@ -54,6 +54,8 @@ jobs:
         working-directory: apps/bowrain/frontend
         run: npm run recordings
         timeout-minutes: 30  # Recordings are slow due to human-like typing
+        env:
+          FORCE_RECORDINGS: "true"  # Override CI skip for dedicated recordings workflow
 
       - name: Copy recordings to static assets
         working-directory: apps/bowrain/frontend
@@ -165,12 +167,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: apps/kapi-web/package-lock.json
+          cache-dependency-path: |
+            packages/ui/package-lock.json
+            apps/kapi-web/package-lock.json
 
       - name: Build kapi CLI
         run: |
           cd packages/ui && npm ci && npx tsc
-          cd ../apps/kapi-web && npm ci && npm run build
+          cd ../../apps/kapi-web && npm ci && npm run build
           cd ../.. && make build
 
       # Install VHS using the official setup

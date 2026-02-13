@@ -6,7 +6,8 @@ import { injectWindowChrome } from "./window-chrome";
 
 // Skip recording tests in CI - they use human-speed typing and exceed CI timeouts
 // Run locally with: npx playwright test --config=playwright.recordings.config.ts
-const isCI = process.env.CI === "true" || process.env.CI === "1";
+// Or in CI with FORCE_RECORDINGS=true (e.g., Screenshots & Recordings workflow)
+const isCI = (process.env.CI === "true" || process.env.CI === "1") && process.env.FORCE_RECORDINGS !== "true";
 
 /** Helper: apply theme to the page. */
 async function setTheme(page: any, theme: "glass" | "light" | "aurora") {
