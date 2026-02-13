@@ -118,9 +118,6 @@ jobs:
   playwright:
     name: Playwright E2E
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/bowrain/frontend
     steps:
       - uses: actions/checkout@v4
 
@@ -128,15 +125,24 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: apps/bowrain/frontend/package-lock.json
+          cache-dependency-path: |
+            packages/ui/package-lock.json
+            apps/bowrain/frontend/package-lock.json
 
-      - name: Install dependencies
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npm ci && npx tsc
+
+      - name: Install Bowrain dependencies
+        working-directory: apps/bowrain/frontend
         run: npm ci
 
       - name: Install Playwright browsers
+        working-directory: apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
+        working-directory: apps/bowrain/frontend
         run: npx playwright test
         timeout-minutes: 10
 
