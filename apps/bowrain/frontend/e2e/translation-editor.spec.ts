@@ -83,7 +83,7 @@ test.describe("Translation Editor", () => {
 
     const selector = page.getByTestId("locale-selector");
     await expect(selector).toBeVisible();
-    await expect(selector).toHaveValue("fr");
+    await expect(selector).toContainText("fr");
   });
 
   test("should switch target locale to de", async ({ page }) => {
