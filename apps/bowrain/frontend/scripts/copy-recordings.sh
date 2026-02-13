@@ -55,14 +55,14 @@ for dir in "$RECORDINGS_DIR"/*/; do
   dir_lower=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]')
 
   # Skip directories for other themes
-  skip_dir=false
+  skip_dir=0
   for skip_theme in glass light aurora; do
     if [[ "$THEME" != "$skip_theme" && "$dir_lower" == *"-${skip_theme}-"* ]]; then
-      skip_dir=true
+      skip_dir=1
       break
     fi
   done
-  if $skip_dir; then continue; fi
+  [ $skip_dir -eq 1 ] && continue
 
   # Strip common prefixes from Playwright test output directory names
   name=$(echo "$dir_lower" | sed -E 's/^recordings-video-recording[s]?-//')
