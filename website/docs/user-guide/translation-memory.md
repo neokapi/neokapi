@@ -5,11 +5,11 @@ title: Translation Memory
 
 # Translation Memory
 
-gokapi includes **Sievepen**, a built-in content-aware translation memory (TM) system with tiered matching, fuzzy matching, and TMX import/export.
+gokapi includes **Bowrain Memory**, a built-in content-aware translation memory (TM) system with tiered matching, fuzzy matching, and TMX import/export.
 
 ## Content-Aware Matching
 
-Unlike traditional TMs that store plain strings, Sievepen works with the full content model. It stores `Fragment` objects (coded text with inline markup) and supports three matching tiers, tried in order:
+Unlike traditional TMs that store plain strings, Bowrain Memory works with the full content model. It stores `Fragment` objects (coded text with inline markup) and supports three matching tiers, tried in order:
 
 | Tier | Match Type | Description |
 |------|-----------|-------------|
@@ -28,7 +28,7 @@ Both backends implement the same `TranslationMemory` interface and support all m
 
 ## Fuzzy Matching
 
-Sievepen uses Levenshtein edit distance with a configurable threshold (default 70%). Results are sorted by score (highest first) and by match tier (generalized > structural > plain).
+Bowrain Memory uses Levenshtein edit distance with a configurable threshold (default 70%). Results are sorted by score (highest first) and by match tier (generalized > structural > plain).
 
 ## Pipeline Integration
 

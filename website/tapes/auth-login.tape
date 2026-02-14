@@ -34,7 +34,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Login connects to a deployed gokapi-server"
+Type "# Login connects to a deployed bowrain-server"
 Enter
 Sleep 500ms
 

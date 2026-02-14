@@ -112,8 +112,8 @@ jobs:
       - name: Build kapi CLI
         run: go build -o bin/kapi ./cmd/kapi
 
-      - name: Build gokapi-server
-        run: go build -o bin/gokapi-server ./cmd/gokapi-server
+      - name: Build bowrain-server
+        run: go build -o bin/bowrain-server ./cmd/bowrain-server
 
   playwright:
     name: Playwright E2E

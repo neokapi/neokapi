@@ -5,14 +5,14 @@ sidebar_position: 12
 
 # Self-Hosting
 
-Run your own gokapi-server instance using Docker. The server includes an embedded
+Run your own bowrain-server instance using Docker. The server includes an embedded
 web UI, OIDC authentication via [Dex](https://dexidp.io/), and SQLite-based
 storage that requires no external database.
 
 ## Quick Start
 
 The fastest way to get started is with Docker Compose. This sets up both
-gokapi-server and Dex (the OIDC identity provider).
+bowrain-server and Dex (the OIDC identity provider).
 
 Create a `docker-compose.yml`:
 
@@ -28,7 +28,7 @@ services:
     command: ["dex", "serve", "/etc/dex/config.yaml"]
 
   gokapi:
-    image: ghcr.io/gokapi/gokapi-server:latest
+    image: ghcr.io/gokapi/bowrain-server:latest
     ports:
       - "8080:8080"
     environment:
@@ -163,7 +163,7 @@ volumes:
 
 ### Reverse Proxy
 
-For production, put gokapi-server behind a reverse proxy (Nginx, Caddy, Traefik)
+For production, put bowrain-server behind a reverse proxy (Nginx, Caddy, Traefik)
 to handle TLS termination:
 
 ```nginx
@@ -197,12 +197,12 @@ to use the public HTTPS URL.
 Pull a specific version:
 
 ```bash
-docker pull ghcr.io/gokapi/gokapi-server:0.5.0
+docker pull ghcr.io/gokapi/bowrain-server:0.5.0
 ```
 
 ## Backup & Restore
 
-gokapi-server uses SQLite databases stored in the `/data` volume:
+bowrain-server uses SQLite databases stored in the `/data` volume:
 
 - `gokapi.db` — content store (projects, blocks, workspaces)
 - `gokapi.db.auth` — authentication store (users, tokens)

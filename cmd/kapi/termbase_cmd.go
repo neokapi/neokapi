@@ -13,12 +13,12 @@ import (
 
 var termbaseCmd = &cobra.Command{
 	Use:   "termbase",
-	Short: "Manage terminology databases",
-	Long: `Commands for creating, importing, exporting, and querying termbases.
+	Short: "Manage Bowrain Termbase",
+	Long: `Commands for creating, importing, exporting, and querying Bowrain Termbase.
 
-A termbase (terminology database) stores approved terms with their translations,
-lifecycle status, domain, and definitions. Use these commands to manage termbases
-independently or as part of a translation workflow.
+Bowrain Termbase is a concept-oriented terminology database that stores approved
+terms with their translations, lifecycle status, domain, and definitions. Use these
+commands to manage termbases independently or as part of a translation workflow.
 
 Examples:
   kapi termbase import --format csv --source-locale en --target-locale fr terms.csv

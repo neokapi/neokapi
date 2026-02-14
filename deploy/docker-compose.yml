@@ -1,4 +1,4 @@
-# Development docker-compose for gokapi with Dex OIDC provider.
+# Development docker-compose for bowrain with Dex OIDC provider.
 #
 # For production self-hosting, see:
 #   https://gokapi.dev/docs/user-guide/self-hosting
@@ -8,7 +8,7 @@
 #
 # This starts:
 #   - Dex OIDC provider on http://localhost:5556
-#   - gokapi-server on http://localhost:8080
+#   - bowrain-server on http://localhost:8080
 #
 # To test CLI auth:
 #   kapi auth login --server http://localhost:8080
@@ -23,13 +23,13 @@ services:
       - "5556:5556"
     command: ["dex", "serve", "/etc/dex/config.yaml"]
 
-  gokapi:
+  bowrain:
     # For development (builds from source):
     build:
       context: ..
       dockerfile: Dockerfile
     # For production (use pre-built image instead of build):
-    # image: ghcr.io/gokapi/gokapi-server:latest
+    # image: ghcr.io/gokapi/bowrain-server:latest
     ports:
       - "8080:8080"
     environment:
@@ -39,10 +39,10 @@ services:
       - GOKAPI_DEX_CLIENT_SECRET=gokapi-secret
       - GOKAPI_STORE=/data/gokapi.db
     volumes:
-      - gokapi-data:/data
+      - bowrain-data:/data
     depends_on:
       - dex
 
 volumes:
   dex-data:
-  gokapi-data:
+  bowrain-data:

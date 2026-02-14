@@ -1,5 +1,5 @@
-// Package server provides the REST and gRPC API server for gokapi.
-// It is imported by both cmd/gokapi-server (multi-user deployment)
+// Package server provides the REST and gRPC API server for Bowrain.
+// It is imported by both cmd/bowrain-server (multi-user deployment)
 // and cmd/kapi serve (local single-project mode).
 package server
 

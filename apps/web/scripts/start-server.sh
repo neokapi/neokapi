@@ -6,7 +6,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/e2e/docker-compose.yml"
 
-echo "Starting gokapi-server Docker stack..."
+echo "Starting bowrain-server Docker stack..."
 
 BUILD_FLAG=""
 if [[ "${1:-}" == "--build" ]]; then

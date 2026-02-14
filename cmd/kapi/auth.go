@@ -34,14 +34,14 @@ var authServerURL string
 
 var authCmd = &cobra.Command{
 	Use:   "auth",
-	Short: "Authenticate with a gokapi server",
-	Long:  "Manage authentication tokens for accessing a remote gokapi server.",
+	Short: "Authenticate with Bowrain Server",
+	Long:  "Manage authentication tokens for accessing a remote Bowrain Server.",
 }
 
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in via OAuth device flow",
-	Long:  "Start a device authorization flow to authenticate with a gokapi server.",
+	Long:  "Start a device authorization flow to authenticate with Bowrain Server.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if authServerURL == "" {
 			return fmt.Errorf("--server flag is required")
@@ -139,7 +139,7 @@ var authStatusCmd = &cobra.Command{
 }
 
 func init() {
-	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "gokapi server URL (e.g., http://localhost:8080)")
+	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "Bowrain Server URL (e.g., http://localhost:8080)")
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
 	authCmd.AddCommand(authStatusCmd)

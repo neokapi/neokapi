@@ -10,4 +10,4 @@ docker compose up -d --build --wait --wait-timeout 120
 
 echo "Verifying health..."
 curl -sf http://localhost:8080/api/v1/health > /dev/null
-echo "gokapi-server is healthy."
+echo "bowrain-server is healthy."

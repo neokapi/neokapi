@@ -5,7 +5,7 @@ sidebar_position: 9
 
 # kapi auth
 
-Authenticate the CLI against a deployed `gokapi-server` instance. This enables
+Authenticate the CLI against a deployed `bowrain-server` instance. This enables
 CLI commands to access workspace-scoped resources on a remote server.
 
 ## Commands
@@ -95,11 +95,11 @@ Tokens are stored in `~/.config/gokapi/auth.json`:
 
 ## Server Modes
 
-Authentication is only required when connecting to a `gokapi-server` running in
+Authentication is only required when connecting to a `bowrain-server` running in
 multi-user mode. When using `kapi serve` for local project editing, no
 authentication is needed — the local server runs on localhost without auth.
 
 | Mode | Auth Required | Description |
 |------|--------------|-------------|
 | `kapi serve` | No | Local project server, localhost only |
-| `gokapi-server` | Yes | Multi-user deployment with workspaces |
+| `bowrain-server` | Yes | Multi-user deployment with workspaces |

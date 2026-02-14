@@ -105,7 +105,7 @@ Prev/Next Untranslated.
 Rich metadata display alongside the translation editor, providing translators
 with the information they need without leaving the editing view:
 
-- **TM matches** -- Fuzzy and exact matches from Sievepen
+- **TM matches** -- Fuzzy and exact matches from Bowrain Memory
   ([ADR-009](./009-translation-memory.md)) with match scores, entity
   adaptations, and one-click application to the target field
 - **Terminology** -- Recognized terms highlighted inline in the source text
@@ -202,7 +202,7 @@ Bowrain uses a Slack-inspired two-panel sidebar layout for workspace navigation:
 ```
 
 In local/desktop mode, a "Personal" workspace is created automatically. When
-connected to a `gokapi-server` instance, the rail shows all workspaces the user
+connected to a `bowrain-server` instance, the rail shows all workspaces the user
 belongs to with role-based access ([ADR-015](./015-auth-and-workspaces.md)).
 
 ### Shared Component Library (`packages/ui/`)

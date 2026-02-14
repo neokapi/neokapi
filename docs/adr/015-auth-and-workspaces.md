@@ -48,7 +48,7 @@ Authentication uses [Dex](https://dexidp.io/), a federated OpenID Connect
 identity provider. Dex supports multiple upstream identity providers (GitHub,
 Google, LDAP, SAML, etc.) while presenting a single OIDC interface to gokapi.
 
-- **Server mode**: `gokapi-server` starts with Dex configuration (issuer URL,
+- **Server mode**: `bowrain-server` starts with Dex configuration (issuer URL,
   client ID, client secret). The web UI redirects to Dex for login.
 - **Local mode**: `kapi serve` runs without authentication on localhost.
 
@@ -111,7 +111,7 @@ to associate projects with workspaces.
 
 ### Server Modes
 
-| Feature | `gokapi-server` | `kapi serve` |
+| Feature | `bowrain-server` | `kapi serve` |
 |---------|-----------------|--------------|
 | Binding | 0.0.0.0 (configurable) | 127.0.0.1 |
 | Auth | OIDC via Dex + JWT | None |
@@ -125,7 +125,7 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 - `core/auth/` — Domain types (`User`, `Workspace`, `Role`, `Membership`),
   `AuthStore` interface, SQLite implementation, JWT handling, OIDC helpers,
   device flow client
-- `internal/server/` — REST/gRPC server (refactored from `cmd/gokapi-server/`),
+- `internal/server/` — REST/gRPC server (refactored from `cmd/bowrain-server/`),
   auth middleware, workspace handlers
 - `core/service/auth.go` — `AuthService` business logic
 - `cmd/kapi/auth.go` — `kapi auth login|logout|status`

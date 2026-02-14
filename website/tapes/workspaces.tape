@@ -1,5 +1,5 @@
 # VHS Tape: workspace management demo
-# Demonstrates real workspace operations against a running gokapi-server.
+# Demonstrates real workspace operations against a running bowrain-server.
 # Requires: start-server.sh to be run first (sets GOKAPI_TOKEN).
 
 Output output/workspaces.webm

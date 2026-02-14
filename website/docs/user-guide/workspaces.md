@@ -39,7 +39,7 @@ In the Bowrain desktop app and `kapi serve`, a "Personal" workspace is created
 automatically. This is your default workspace for local, single-user work. No
 server connection is needed.
 
-When you connect to a `gokapi-server`, you'll see all workspaces you've been
+When you connect to a `bowrain-server`, you'll see all workspaces you've been
 invited to alongside your personal workspace.
 
 ## Managing Workspaces
@@ -90,7 +90,7 @@ to the active workspace. Switching workspaces shows a different set of projects.
 
 ## Server Setup
 
-Workspaces require a `gokapi-server` with authentication enabled. See the
+Workspaces require a `bowrain-server` with authentication enabled. See the
 [deployment guide](/docs/developer/server) for setup instructions.
 
 For local development and testing, use the provided Docker Compose configuration:
@@ -100,5 +100,5 @@ cd deploy
 docker-compose up
 ```
 
-This starts both Dex (OIDC provider) and gokapi-server pre-configured for
+This starts both Dex (OIDC provider) and bowrain-server pre-configured for
 workspace and authentication testing.

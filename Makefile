@@ -9,7 +9,7 @@ GOVET       := $(GO) vet
 GOFMT       := gofmt
 MODULE      := github.com/gokapi/gokapi
 CLI_PKG     := $(MODULE)/cmd/kapi
-SERVER_PKG  := $(MODULE)/cmd/gokapi-server
+SERVER_PKG  := $(MODULE)/cmd/bowrain-server
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -51,9 +51,9 @@ build: kapi-web-build ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/kapi $(CLI_PKG)
 
-build-server: web-build ## Build the gokapi REST server
+build-server: web-build ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/gokapi-server $(SERVER_PKG)
+	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-server $(SERVER_PKG)
 
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
@@ -90,7 +90,7 @@ kapi-web-build: ui-deps kapi-web-deps ## Build kapi web UI for production
 	cd packages/ui && npx tsc
 	cd $(KAPI_WEB_DIR) && $(NPM) run build
 
-# ── SaaS Web UI (gokapi-server) ───────────────────────────────────────────
+# ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
 
 web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
@@ -101,9 +101,9 @@ web-build: ui-deps web-deps ## Build SaaS web UI for production
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
-DOCKER_IMAGE := ghcr.io/gokapi/gokapi-server
+DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
 
-docker-build: ## Build Docker image for gokapi-server
+docker-build: ## Build Docker image for bowrain-server
 	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
 
 docker-push: ## Push Docker image to GHCR

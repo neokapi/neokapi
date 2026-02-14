@@ -114,7 +114,7 @@ func TestUppercaseTool(t *testing.T) {
 | `search-replace` | Transform | Regex-based search and replace on block content |
 | `segmentation` | Transform | SRX-like sentence segmentation with configurable regex rules |
 | `qa-check` | Validate | Configurable quality checks: missing translations, whitespace mismatches, number mismatches |
-| `tm-leverage` | Enrich | Pre-fills translations from Sievepen translation memory with fuzzy matching |
+| `tm-leverage` | Enrich | Pre-fills translations from Bowrain Memory translation memory with fuzzy matching |
 | `term-lookup` | Enrich | Scans source text for terminology matches, attaches `TermAnnotation` entries |
 | `term-enforce` | Validate | Checks translations for correct terminology usage, reports violations |
 

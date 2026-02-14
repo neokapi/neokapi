@@ -263,7 +263,7 @@ type Store interface {
 
 Implementations could include:
 - **SQLite Store** — local persistence (like Speckle's SQLite transport)
-- **Server Store** — cloud storage via the gokapi-server REST API
+- **Server Store** — cloud storage via the bowrain-server REST API
 - **Memory Store** — for testing and temporary pipelines
 - **Git Store** — version content alongside code (natural for i18n files)
 
@@ -508,7 +508,7 @@ Putting it all together, here's what Gokapi becomes:
 - **System connectors** (CMS, design tools, repos, platforms) — like Speckle's native connectors
 - **Versioned content store** — like Speckle's transport-backed object graph
 - **Processing pipeline** (Flow executor with tools) — like Speckle Automate
-- **REST API server** (gokapi-server) — like Speckle Server
+- **REST API server** (bowrain-server) — like Speckle Server
 
 ### What Changes from Today
 1. **Connectors become first-class** alongside formats
@@ -555,7 +555,7 @@ Putting it all together, here's what Gokapi becomes:
 - Automation triggers (on-change hooks, quality gates)
 - Format families with shared base converters
 - Design tool connectors (Figma)
-- Multi-user collaboration through gokapi-server
+- Multi-user collaboration through bowrain-server
 - TMS connectors (bidirectional sync with Trados, memoQ, Phrase)
 
 ---

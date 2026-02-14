@@ -94,5 +94,5 @@ release:
 
     **Docker (server):**
     ```
-    docker pull ghcr.io/gokapi/gokapi-server:{{ .Version }}
+    docker pull ghcr.io/gokapi/bowrain-server:{{ .Version }}
     ```

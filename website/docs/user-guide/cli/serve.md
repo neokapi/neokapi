@@ -55,11 +55,11 @@ kapi serve ./website.kaz --no-open
 - **CI previews** to inspect translation output in a pipeline
 
 For full multi-user collaboration with workspaces and access control, use
-[`gokapi-server`](/docs/developer/server) instead.
+[`bowrain-server`](/docs/developer/server) instead.
 
 ## Comparison
 
-| Feature | `kapi serve` | `gokapi-server` |
+| Feature | `kapi serve` | `bowrain-server` |
 |---------|-------------|-----------------|
 | Auth required | No | Yes (OIDC via Dex) |
 | Workspaces | No (single project) | Yes (multi-workspace) |

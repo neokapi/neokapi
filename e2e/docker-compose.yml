@@ -1,4 +1,4 @@
-# E2E test stack: Dex + gokapi-server
+# E2E test stack: Dex + bowrain-server
 # Used by e2e tests and VHS tape recordings.
 #
 # Usage:
@@ -21,7 +21,7 @@ services:
       timeout: 3s
       retries: 10
 
-  gokapi:
+  bowrain:
     build:
       context: ..
       dockerfile: Dockerfile
@@ -35,7 +35,7 @@ services:
       - GOKAPI_DEX_CLIENT_SECRET=gokapi-secret
       - GOKAPI_STORE=/data/gokapi.db
     volumes:
-      - gokapi-data:/data
+      - bowrain-data:/data
     depends_on:
       dex:
         condition: service_healthy
@@ -47,4 +47,4 @@ services:
 
 volumes:
   dex-data:
-  gokapi-data:
+  bowrain-data:

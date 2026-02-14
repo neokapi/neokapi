@@ -103,24 +103,24 @@ Bowrain is a native desktop translation editor built with [Wails](https://wails.
 - Side-by-side translation editing
 - Document preview
 - AI-powered translation via Anthropic, OpenAI, and Ollama
-- Translation memory (Sievepen)
+- Translation memory (Bowrain Memory)
 
 Build: `cd apps/bowrain && wails build`
 
 ### REST Server
 
-The `gokapi-server` binary exposes the framework as an Echo v4 REST API:
+The `bowrain-server` binary exposes the framework as an Echo v4 REST API:
 
 ```bash
 make build-server
-./bin/gokapi-server
+./bin/bowrain-server
 ```
 
 ## Development
 
 ```bash
 make build              # Build kapi CLI → bin/kapi
-make build-server       # Build REST server → bin/gokapi-server
+make build-server       # Build REST server → bin/bowrain-server
 make test               # Run all tests
 make test-unit          # Unit tests only (-short flag)
 make test-race          # Tests with race detector

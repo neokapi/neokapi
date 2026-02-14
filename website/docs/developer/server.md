@@ -63,7 +63,7 @@ POST /api/v1/flow/execute      # Execute a flow
 ### Running the Server
 
 ```bash
-bin/gokapi-server --port 8080 --host 0.0.0.0
+bin/bowrain-server --port 8080 --host 0.0.0.0
 ```
 
 Environment variables: `GOKAPI_PORT`, `GOKAPI_HOST`, `GOKAPI_DATA_DIR`.
@@ -75,7 +75,7 @@ The gRPC API provides streaming access and is available on a separate port.
 ### Starting with gRPC
 
 ```bash
-bin/gokapi-server --port 8080 --grpc-port 9090
+bin/bowrain-server --port 8080 --grpc-port 9090
 ```
 
 Or via environment: `GOKAPI_GRPC_PORT=9090`.

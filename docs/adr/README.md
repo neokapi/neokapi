@@ -37,7 +37,7 @@ ADRs are organized by architectural layer rather than chronologically.
 | ADR | Title | Scope |
 |-----|-------|-------|
 | [008](008-ai-integration.md) | AI Integration | LLM providers, AI tools, worker pool, batching |
-| [009](009-translation-memory.md) | Translation Memory | Sievepen content-aware TM, tiered matching, entity adaptation |
+| [009](009-translation-memory.md) | Translation Memory | Bowrain Memory content-aware TM, tiered matching, entity adaptation |
 | [010](010-terminology.md) | Terminology and Brand Management | Concept model, pipeline tools, streams, brand voice |
 
 ## Layer 5: Automation

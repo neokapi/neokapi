@@ -9,10 +9,10 @@ This guide walks you through first login, workspace creation, and translating yo
 
 ## Prerequisites
 
-You need a running gokapi server. Choose one of:
+You need a running Bowrain Server. Choose one of:
 
 - **Local mode**: Run `kapi serve` for single-user, no-auth local development
-- **Server mode**: Deploy `gokapi-server` with Docker Compose (see [Self-Hosting](../user-guide/self-hosting.md))
+- **Server mode**: Deploy `Bowrain Server` with Docker Compose (see [Self-Hosting](../user-guide/self-hosting.md))
 
 ## Starting the Server
 

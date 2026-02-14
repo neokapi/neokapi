@@ -1,5 +1,5 @@
 /**
- * API client for seeding the real gokapi-server Docker backend.
+ * API client for seeding the real bowrain-server Docker backend.
  * Handles device auth flow, workspace/project CRUD, file upload, TM, and terminology seeding.
  */
 import * as fs from "fs";

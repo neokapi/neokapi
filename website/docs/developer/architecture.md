@@ -158,7 +158,7 @@ gokapi/
 │
 ├── cmd/
 │   ├── kapi/                   # Cobra CLI
-│   └── gokapi-server/          # Echo v4 REST API server
+│   └── bowrain-server/          # Echo v4 REST API server
 │
 ├── apps/
 │   └── bowrain/                # Wails v3 desktop app (Go + React/TypeScript)

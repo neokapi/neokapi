@@ -44,7 +44,7 @@ work with `.kaz` files and local projects.
 
 ## Connecting to a Server
 
-To access shared workspaces on a `gokapi-server`:
+To access shared workspaces on a `bowrain-server`:
 
 1. Open **Settings** in the navigation panel
 2. Enter the server URL (e.g., `https://gokapi.example.com`)

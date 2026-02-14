@@ -3,13 +3,13 @@ id: 013-cli-and-server
 sidebar_position: 13
 title: "ADR-013: Kapi CLI and Server"
 ---
-# ADR-013: Kapi CLI and gokapi-server
+# ADR-013: Kapi CLI and bowrain-server
 
 ## Context
 
 gokapi exposes its functionality through two application entry points: the
 **kapi CLI** for developers, CI/CD pipelines, and power users, and the
-**gokapi-server** for remote access, Bowrain connectivity, and API integrations.
+**bowrain-server** for remote access, Bowrain connectivity, and API integrations.
 
 The CLI command structure must reflect the connector-first architecture described
 in [ADR-005](005-connector-system.md). Top-level commands like `kapi connect`,
@@ -70,7 +70,7 @@ kapi
 │   ├── search       # Search plugin registry
 │   └── audit        # Audit plugin usage across projects
 ├── auth             # Authentication (ADR-015)
-│   ├── login        # OAuth device flow login against a gokapi-server
+│   ├── login        # OAuth device flow login against a bowrain-server
 │   ├── logout       # Remove stored token
 │   └── status       # Show current user, server URL, token expiry
 └── serve            # Start local project server (no auth)
@@ -114,11 +114,11 @@ kapi flow run ai-translate-qa --project my-website --target fr,de,ja
 ### CLI Authentication (`kapi auth`)
 
 The `kapi auth` command group enables CLI users to authenticate against a
-deployed `gokapi-server` instance using OAuth 2.0 Device Authorization Grant
+deployed `bowrain-server` instance using OAuth 2.0 Device Authorization Grant
 (RFC 8628) via Dex ([ADR-015](./015-auth-and-workspaces.md)):
 
 ```bash
-# Login to a gokapi server
+# Login to a Bowrain Server
 kapi auth login --server https://gokapi.example.com
 # → Open https://gokapi.example.com/auth/device and enter code: ABCD-1234
 # → Polling for authorization...
@@ -158,14 +158,14 @@ Behavior:
 4. Opens the browser automatically (unless `--no-open`)
 5. On exit (Ctrl+C), exports changes back to the project file
 
-This is distinct from `gokapi-server` which is the full multi-user deployment
+This is distinct from `bowrain-server` which is the full multi-user deployment
 with authentication, workspaces, and `0.0.0.0` binding.
 
-### gokapi-server
+### bowrain-server
 
-The server binary (`cmd/gokapi-server/`) provides remote access via two
+The server binary (`cmd/bowrain-server/`) provides remote access via two
 protocols. Server logic lives in `internal/server/` and is shared between
-`gokapi-server` (multi-user with auth) and `kapi serve` (local, no auth).
+`bowrain-server` (multi-user with auth) and `kapi serve` (local, no auth).
 
 **REST API** (Echo v4) serves external integrations, webhooks, and simple HTTP
 clients. In multi-user mode, routes are scoped under workspaces and protected
@@ -292,7 +292,7 @@ plugins:
 - `kapi serve` bridges the CLI and server: a single binary distribution includes
   both modes of operation.
 - Server logic lives in `internal/server/` and is imported by both
-  `cmd/gokapi-server/` (multi-user) and `cmd/kapi/serve.go` (local). The
+  `cmd/bowrain-server/` (multi-user) and `cmd/kapi/serve.go` (local). The
   `ServerConfig.LocalMode` flag controls auth requirements and binding address.
 - `kapi auth` enables CLI users to authenticate against deployed servers via
   OAuth device flow, making CI/CD integration seamless with stored tokens.

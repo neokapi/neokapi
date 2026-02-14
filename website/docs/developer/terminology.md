@@ -1,9 +1,9 @@
 ---
 sidebar_position: 6
-title: Terminology (Termbase)
+title: Bowrain Termbase
 ---
 
-# Terminology Library (Termbase)
+# Bowrain Termbase Library
 
 The termbase library (`lib/termbase/`) provides concept-oriented terminology management inspired by the TBX (TermBase eXchange) standard. It supports multi-locale terms with lifecycle statuses, domain classification, and both in-text discovery and single-term lookup.
 

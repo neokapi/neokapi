@@ -34,7 +34,7 @@ import. TBX is used for import/export; native storage uses SQLite.
 Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
-Shared SQLite infrastructure with Sievepen TM ([ADR-009](./009-translation-memory.md))
+Shared SQLite infrastructure with Bowrain Memory TM ([ADR-009](./009-translation-memory.md))
 and Content Store ([ADR-003](./003-content-store.md)) via `internal/storage/`.
 
 ### Data Model: Concept-Oriented
@@ -125,7 +125,7 @@ missing target counterparts.
 
 **`entity-annotate`** (Enrich, AI) -- Named entity annotation (people,
 organizations, products, dates, locations). Serves multiple purposes:
-TM generalization in Sievepen ([ADR-009](./009-translation-memory.md)),
+TM generalization in Bowrain Memory ([ADR-009](./009-translation-memory.md)),
 do-not-translate markers, localization hints, and terminology candidate
 discovery. Should run early in the pipeline -- before `tm-leverage`.
 
@@ -186,7 +186,7 @@ These join `AltTranslation` as first-class annotations on Blocks
 
 ## Alternatives Considered
 
-**Embed in Sievepen (TM)**: Terminology has fundamentally different data
+**Embed in Bowrain Memory (TM)**: Terminology has fundamentally different data
 requirements (concept-orientation, lifecycle, relations). Separate systems
 sharing SQLite infrastructure is the right balance.
 

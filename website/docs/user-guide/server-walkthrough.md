@@ -5,7 +5,7 @@ sidebar_position: 11
 
 # Server Walkthrough
 
-This guide walks through the gokapi-server web interface, from first login
+This guide walks through the bowrain-server web interface, from first login
 to creating your first project. For comprehensive documentation of all
 web application features, see the [Web Application](/docs/web-app/overview) section.
 

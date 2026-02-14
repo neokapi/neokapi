@@ -26,21 +26,21 @@ RUN go mod download
 # Copy source (web dist is needed for //go:embed).
 COPY . .
 COPY --from=web-builder /src/apps/web/dist apps/web/dist
-# Create placeholder for kapi-web embed (not used by gokapi-server but needed for compilation).
+# Create placeholder for kapi-web embed (not used by bowrain-server but needed for compilation).
 RUN mkdir -p apps/kapi-web/dist && echo placeholder > apps/kapi-web/dist/index.html
 
-# Build gokapi-server. Pure Go (modernc.org/sqlite), no CGO needed.
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /gokapi-server ./cmd/gokapi-server
+# Build bowrain-server. Pure Go (modernc.org/sqlite), no CGO needed.
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /bowrain-server ./cmd/bowrain-server
 
 # ── Stage 3: Runtime ────────────────────────────────────────────────────────
 FROM alpine:3.21
 RUN apk add --no-cache ca-certificates tzdata
 
-COPY --from=go-builder /gokapi-server /usr/local/bin/gokapi-server
+COPY --from=go-builder /bowrain-server /usr/local/bin/bowrain-server
 
 # Default data directory for SQLite databases.
 VOLUME /data
 ENV GOKAPI_STORE=/data/gokapi.db
 
 EXPOSE 8080
-ENTRYPOINT ["gokapi-server"]
+ENTRYPOINT ["bowrain-server"]

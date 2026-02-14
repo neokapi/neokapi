@@ -42,7 +42,7 @@ data model.
    works at every scale.
 
 4. **Single binary** — Go compiles to one static binary. The same codebase
-   produces the `kapi` CLI, the `gokapi-server` REST/gRPC server, and the
+   produces the `kapi` CLI, the `bowrain-server` REST/gRPC server, and the
    Bowrain desktop app (via Wails v3). No JVM, no Node.js runtime, no
    container required for basic usage.
 
@@ -115,7 +115,7 @@ gokapi/
   plugin/         plugin system: gRPC host, Java bridge, loader, registry
   cmd/kapi/       Cobra CLI (convert, translate, extract, merge, flow,
                   formats, tools, plugins, termbase)
-  cmd/gokapi-server/  Echo v4 REST API server + gRPC services
+  cmd/bowrain-server/  Echo v4 REST API server + gRPC services
   apps/bowrain/   Wails v3 desktop app (Go backend + React 19/TypeScript/
                   Vite frontend)
   website/        Docusaurus 3 documentation site

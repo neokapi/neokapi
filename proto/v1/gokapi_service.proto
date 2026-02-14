@@ -1,4 +1,4 @@
-// gokapi_service.proto - gRPC service definitions for the gokapi server.
+// gokapi_service.proto - gRPC service definitions for Bowrain Server.
 // Provides streaming access to projects, blocks, flows, connectors, and events.
 
 syntax = "proto3";

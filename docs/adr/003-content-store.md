@@ -142,7 +142,7 @@ translation, TM leverage, and QA tools.
 ### SQLite Backend
 
 The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO).
-This shares the `internal/storage/` infrastructure layer with the Sievepen TM
+This shares the `internal/storage/` infrastructure layer with the Bowrain Memory TM
 system ([ADR-009](./009-translation-memory.md)) and the TermBase
 ([ADR-010](./010-terminology.md)).
 

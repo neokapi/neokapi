@@ -87,8 +87,8 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/gokapi/gokapi-server:${{ steps.version.outputs.VERSION }}
-            ghcr.io/gokapi/gokapi-server:latest
+            ghcr.io/gokapi/bowrain-server:${{ steps.version.outputs.VERSION }}
+            ghcr.io/gokapi/bowrain-server:latest
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})

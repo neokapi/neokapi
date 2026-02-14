@@ -265,7 +265,7 @@ apps/web/e2e/
 **Running:**
 ```bash
 cd apps/web
-npm run e2e:screenshots   # requires Docker backend (gokapi-server)
+npm run e2e:screenshots   # requires Docker backend (bowrain-server)
 npm run e2e:recordings    # requires Docker backend
 ```
 

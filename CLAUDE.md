@@ -10,7 +10,7 @@ gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframewo
 
 ```bash
 make build              # Build kapi CLI → bin/kapi
-make build-server       # Build REST server → bin/gokapi-server
+make build-server       # Build REST server → bin/bowrain-server
 make build-all          # Build all Go binaries
 make test               # Run all tests (go test ./... -count=1)
 make test-unit          # Unit tests only (-short flag)
@@ -108,7 +108,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `lib/tools/` — utility tools (wordcount, charcount, pseudo-translation, search/replace)
 - `plugin/` — HashiCorp go-plugin + gRPC plugin system (host, server, proto definitions, Java bridge)
 - `cmd/kapi/` — Cobra CLI (convert, translate, extract, merge, flow, formats, tools, plugins)
-- `cmd/gokapi-server/` — Echo v4 REST API server
+- `cmd/bowrain-server/` — Echo v4 REST API server
 - `apps/bowrain/` — Wails v3 desktop app (Go backend + React 19/TypeScript/Vite frontend)
 - `internal/testutil/` — shared test helpers
 - `docs/` — ARCHITECTURE.md, INTERFACES.md, TESTING.md, RELEASE.md, adr/
@@ -134,14 +134,14 @@ Screenshots and video recordings serve as documentation and are embedded on the 
 Screenshots are captured via Playwright and written directly to `website/static/img/`:
 
 1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/{dark,light}/`.
-2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `apps/web/e2e/screenshots.spec.ts`. Requires a running gokapi-server with Dex OIDC. Output: `website/static/img/web-app/{dark,light}/`.
+2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Dex OIDC. Output: `website/static/img/web-app/{dark,light}/`.
 
 ### Recording systems
 
 There are three independent video recording pipelines:
 
 1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
-2. **Web app** — 8 scenarios x 2 themes (dark + light) in `apps/web/e2e/recordings.spec.ts`. Requires a running gokapi-server with Dex OIDC.
+2. **Web app** — 8 scenarios x 2 themes (dark + light) in `apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Dex OIDC.
 3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
 
 ### How to regenerate
@@ -153,7 +153,7 @@ make screenshots                 # screenshots → website/static/img/bowrain/{d
 make recordings                  # recordings → website/static/video/bowrain/{dark,light}/
 
 # 2. Web app screenshots + recordings (needs Docker stack for real auth)
-cd e2e && docker compose up -d   # starts Dex + gokapi-server
+cd e2e && docker compose up -d   # starts Dex + bowrain-server
 # Wait for healthy: curl -sf http://localhost:8080/api/v1/health
 cd apps/web && npm run e2e:screenshots
 cd apps/web && npm run e2e:recordings
@@ -183,7 +183,7 @@ make docs-assets                 # screenshots + recordings + cli-recordings
 All screenshots and recordings must run against real gokapi infrastructure. Specifically:
 
 - **Authentication & identity**: Use the real Dex OIDC provider via `e2e/docker-compose.yml`. Never mock the auth flow.
-- **gokapi-server**: Use the real server binary (locally built or Docker image). Never use a mock API server.
+- **bowrain-server**: Use the real server binary (locally built or Docker image). Never use a mock API server.
 - **Database & storage**: Use a real database instance (the Docker stack provisions one automatically).
 - **External integrations** outside the scope of this project (e.g. third-party MT providers, external LLM APIs) may be mocked if needed for isolation.
 

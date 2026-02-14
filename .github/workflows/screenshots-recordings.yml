@@ -97,10 +97,10 @@ jobs:
         working-directory: apps/web
         run: npm ci && npm run build
 
-      - name: Build gokapi-server
-        run: go build -o bin/gokapi-server ./cmd/gokapi-server
+      - name: Build bowrain-server
+        run: go build -o bin/bowrain-server ./cmd/bowrain-server
 
-      - name: Start Docker stack (Dex + gokapi-server)
+      - name: Start Docker stack (Dex + bowrain-server)
         working-directory: e2e
         run: docker compose up -d
 
