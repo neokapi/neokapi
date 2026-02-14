@@ -53,6 +53,39 @@ Always prefer `make` targets over raw `go build` / `go test` commands. The Makef
 
 ## Architecture
 
+### Kapi Project Model (.kapi/ Directories)
+
+Kapi uses a git-like project model with `.kapi/` directories ([ADR-016](docs/adr/016-kapi-project-model.md)):
+
+```
+my-app/
+├── .kapi/
+│   ├── config.yaml      # Project configuration
+│   ├── flows/           # Flow definitions (YAML)
+│   │   └── pseudo.yaml
+│   └── .state.json      # Sync state (gitignored)
+├── src/
+│   └── locales/
+│       ├── en-US.json
+│       └── fr-FR.json
+```
+
+**Key CLI commands:**
+```bash
+kapi init                    # Create .kapi/ project
+kapi status                  # Show sync state (like git status)
+kapi pull                    # Fetch from Bowrain Server → update local files
+kapi push                    # Send local files → update Bowrain Server
+kapi flow run <flow-name>    # Execute flow from .kapi/flows/
+kapi serve                   # Start local dashboard (web UI)
+```
+
+**All Kapi commands require a `.kapi/` project.** The CLI searches upward from the current directory (like git) to find the project root.
+
+**Role Separation:**
+- **Kapi** = local file tool, swiss army knife for files, CAN sync with Bowrain Server
+- **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
+
 ### Streaming Pipeline
 
 Documents flow through a channel-based concurrent pipeline:
