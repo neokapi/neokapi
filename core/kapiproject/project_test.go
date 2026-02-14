@@ -68,7 +68,9 @@ func TestFindProject(t *testing.T) {
 		// Save current directory
 		origDir, err := os.Getwd()
 		require.NoError(t, err)
-		defer os.Chdir(origDir)
+		defer func() {
+			_ = os.Chdir(origDir) // Best effort to restore
+		}()
 
 		tmpDir := t.TempDir()
 		kapiDir := filepath.Join(tmpDir, ".kapi")
