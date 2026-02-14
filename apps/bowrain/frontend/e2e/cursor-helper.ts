@@ -228,8 +228,8 @@ export async function humanClickNative(page: Page, testId: string) {
  */
 export async function humanType(page: Page, locator: Locator, text: string) {
   await moveCursorToElement(page, locator, 350);
-  await page.waitForTimeout(100);
-  await locator.click();
+  await page.waitForTimeout(500);
+  await locator.click({ timeout: 30000, force: true });
   await page.waitForTimeout(150);
   // Type with variable speed (80-150ms per char)
   await locator.pressSequentially(text, { delay: 100 });

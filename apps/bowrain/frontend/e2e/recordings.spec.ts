@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { injectMockBackend } from "./mock-backend";
-import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo } from "./cursor-helper";
+import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo, moveCursorToElement } from "./cursor-helper";
 import { setMultiLocales, setMultiLocalesHuman, expectLocaleChips } from "./locale-helper";
 import { injectWindowChrome } from "./window-chrome";
 
@@ -438,7 +438,10 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
 
     // Type search query
-    await humanType(page, page.getByTestId("tm-search-input"), "Hello");
+    const searchInput = page.getByTestId("tm-search-input");
+    await moveCursorToElement(page, searchInput, 350);
+    await pause(page, 500);
+    await searchInput.fill("Hello");
     await pause(page, 600);
 
     // Show results
