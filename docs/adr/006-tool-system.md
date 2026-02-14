@@ -60,7 +60,7 @@ can override `Process` directly.
 | `search-replace` | Transform | Regex-based search and replace in content |
 | `segmentation` | Transform | Split blocks into sentence segments using SRX-like rules |
 | `qa-check` | Validate | Check translations (missing, whitespace, numbers) |
-| `tm-leverage` | Enrich | Pre-fill translations from Bowrain Memory TM ([ADR-009](./009-translation-memory.md)) |
+| `tm-leverage` | Enrich | Pre-fill translations from Sievepen TM ([ADR-009](./009-translation-memory.md)) |
 | `term-lookup` | Enrich | Scan source text for known terms from TermBase ([ADR-010](./010-terminology.md)) |
 | `term-enforce` | Validate | Validate preferred term usage in target text ([ADR-010](./010-terminology.md)) |
 | `entity-annotate` | Enrich | Annotate named entities (people, places, dates) ([ADR-010](./010-terminology.md)) |

@@ -105,7 +105,7 @@ Prev/Next Untranslated.
 Rich metadata display alongside the translation editor, providing translators
 with the information they need without leaving the editing view:
 
-- **TM matches** -- Fuzzy and exact matches from Bowrain Memory
+- **TM matches** -- Fuzzy and exact matches from Sievepen
   ([ADR-009](./009-translation-memory.md)) with match scores, entity
   adaptations, and one-click application to the target field
 - **Terminology** -- Recognized terms highlighted inline in the source text

@@ -1,4 +1,4 @@
-// Package storage provides shared SQLite infrastructure for Bowrain Memory (TM)
+// Package storage provides shared SQLite infrastructure for Sievepen (TM)
 // and TermBase. Both systems use this layer for connection management,
 // WAL mode, and common pragmas.
 package storage

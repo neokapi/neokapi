@@ -124,7 +124,7 @@ Five built-in flow definitions are provided:
 | `ai-translate-qa`     | AI translation followed by QA validation            |
 | `pseudo-translate`    | Pseudo-translation for internationalization testing |
 | `qa-check`            | Quality assurance checks on existing translations   |
-| `tm-leverage`         | Translation memory leveraging from Bowrain Memory TM      |
+| `tm-leverage`         | Translation memory leveraging from Sievepen TM      |
 
 `FlowStore` persists user-created flow definitions as JSON files on disk.
 Flow definitions are distinguished by source:

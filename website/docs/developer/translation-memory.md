@@ -1,11 +1,11 @@
 ---
 sidebar_position: 5
-title: Bowrain Memory
+title: Sievepen
 ---
 
-# Bowrain Memory Library
+# Sievepen Library
 
-Bowrain Memory (`lib/sievepen/`) is gokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Bowrain Memory works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
+Sievepen (`lib/sievepen/`) is gokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Sievepen works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
 
 ## Architecture
 

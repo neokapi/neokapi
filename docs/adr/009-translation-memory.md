@@ -34,7 +34,7 @@ adaptation information. TM now persists within the Content Store ecosystem
 
 ### Content-Aware Storage
 
-The Bowrain Memory TM library (`lib/sievepen/`) stores Fragments -- the same content
+The Sievepen TM library (`lib/sievepen/`) stores Fragments -- the same content
 model type used throughout the pipeline ([ADR-002](./002-content-model.md)) --
 rather than plain strings. Each TM entry preserves inline Spans (markup codes)
 and entity mappings.

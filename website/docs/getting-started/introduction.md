@@ -27,7 +27,7 @@ The project draws on the conceptual model of the [Okapi Framework](https://okapi
 - **15+ formats** — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
 - **Channel-based pipeline** — Concurrent streaming with goroutines, buffered channels, and automatic backpressure
 - **Plugin system** — Crash-isolated gRPC plugins in any language, plus a Java bridge for 40+ Okapi filters
-- **Translation memory** — Built-in Bowrain Memory TM with Levenshtein fuzzy matching and TMX import/export
+- **Translation memory** — Built-in Sievepen TM with Levenshtein fuzzy matching and TMX import/export
 - **Terminology management** — Bowrain Termbase with concept-oriented TBX-inspired data model and pipeline enforcement tools
 - **Desktop, CLI, and server** — Bowrain (cross-platform GUI), `kapi` (CLI), and `bowrain-server` (REST API) all compile to standalone executables from one codebase
 - **Progressive complexity** — Day one: CLI on files. Grow into flows, content store, automation, and team collaboration. Same content model at every scale — single binary, no runtime dependencies.
