@@ -9,35 +9,101 @@ This guide walks through a complete workflow for translating website content usi
 
 ## Overview
 
-1. **CLI**: Check word count for cost estimation
-2. **Bowrain / Web UI**: Create project, translate with visual tools
-3. **CLI**: Export translated project as a KAZ archive
+1. **CLI**: Initialize a Kapi project and configure file mappings
+2. **CLI**: Run translation flows (AI, TM, QA)
+3. **Bowrain**: Open local project in visual editor for manual review
+4. **CLI**: Push to Bowrain Server for team collaboration (optional)
 
-## Step 1: Estimate and Open
+## Step 1: Initialize Project
 
-Use the CLI for estimation and to launch the web editor:
-
-<video controls width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/cli/create-project.webm" type="video/webm" />
-  Your browser does not support the video tag.
-</video>
+Create a Kapi project in your website repository:
 
 ```bash
-# Check word count for cost estimation
-kapi word-count landing-page.html
+# Initialize project with source and target locales
+cd my-website/
+kapi init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-JP
 
-# Open a project in the web editor
-kapi serve project.kaz
+# Check word count for cost estimation
+kapi word-count content/**/*.md
+
+# Configure file mappings in .kapi/config.yaml
+# Edit to map your local files to translation items
 ```
 
-## Step 2: Translate in Bowrain
+Example `.kapi/config.yaml`:
 
-Open the project in Bowrain to translate with visual context:
+```yaml
+project:
+  name: Website Translation
+  source_locale: en-US
+  target_locales:
+    - fr-FR
+    - de-DE
+    - ja-JP
+
+mappings:
+  - local: content/**/*.md
+    remote: pages/{path}
+    format: markdown
+  - local: src/locales/**/*.json
+    remote: ui/{path}
+    format: json
+```
+
+## Step 2: Run Translation Flows
+
+Execute translation workflows from the CLI:
+
+```bash
+# List available flows
+kapi flow list
+
+# Run AI translation flow
+kapi flow run ai-translate
+
+# Or create a custom flow with QA checks
+# .kapi/flows/translate-website.yaml:
+# name: translate-website
+# description: Translate website content with AI and QA
+# steps:
+#   - tool: ai-translate
+#     config:
+#       provider: anthropic
+#       model: claude-sonnet-4.5
+#   - tool: qa-check
+#   - tool: term-enforce
+
+kapi flow run translate-website
+```
+
+### Flow-Based Translation
+
+Kapi flows are composable pipelines that run on your local files:
+
+- **ai-translate**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **tm-leverage**: Pre-fill translations from translation memory
+- **qa-check**: Rule-based quality checks (whitespace, punctuation, placeholders)
+- **term-enforce**: Validate terminology compliance
+- **segmentation**: Split source text into sentences
+
+Flows automatically process all files matching your `.kapi/config.yaml` mappings.
+
+## Step 3: Review in Bowrain (Optional)
+
+For visual review and manual edits, open your project in the Bowrain desktop app or web UI:
 
 <video controls width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/bowrain/glass/end-to-end-translation-workflow.webm" type="video/webm" />
   Your browser does not support the video tag.
 </video>
+
+```bash
+# Option 1: Launch Bowrain desktop app (if installed)
+open -a Bowrain .
+
+# Option 2: Start local web server
+kapi serve
+```
 
 ### Editor Views
 
@@ -49,44 +115,57 @@ Bowrain offers multiple views for different translation tasks:
 | **Split Preview** | Context-sensitive translation with live rendering |
 | **Focus View** | Distraction-free, segment-by-segment work |
 
-### Translation Methods
-
-- **Manual**: Type translations directly in the editor
-- **AI Translation**: Use configured AI providers for machine translation
-- **TM Leverage**: Click "TM Lookup" to auto-fill translations from translation memory
-- **Context Panel**: Click "Context" to see per-block TM matches and terminology suggestions
-- **Pseudo-Translation**: Generate test translations to find UI issues
-
 ### Using Terminology
 
-1. Click **"Terminology"** in the project view to import a termbase (CSV or JSON)
-2. In the editor, the **Context panel** shows matched terms with target suggestions for each block
-3. Terms with "preferred" status should be used consistently across all translations
-4. After translating, run the **term-enforce** flow to validate terminology compliance
+1. Import a termbase (TBX, CSV, JSON) into `.kapi/termbase.tbx`
+2. Add `term-lookup` to your flow to show terminology suggestions
+3. Add `term-enforce` to validate required terms are used correctly
+4. The Context panel in Bowrain shows matched terms per block
 
-## Step 3: Export Translations
+## Step 4: Sync with Bowrain Server (Optional)
 
-After translation, export the project from the content store:
+For team collaboration, connect your project to a Bowrain Server instance:
 
 ```bash
-# Export a project as a KAZ archive
-kapi store export <project-id> acme-website.kaz --store gokapi.db
+# Connect to server
+kapi init --server https://bowrain.example.com --project abc123
+
+# Check sync status
+kapi status
+
+# Push translations to server
+kapi push -m "Translate landing page content"
+
+# Pull translations from teammates
+kapi pull
 ```
+
+The push/pull workflow is similar to git:
+
+| Git | Kapi |
+|-----|------|
+| `git status` | `kapi status` |
+| `git diff` | `kapi diff` |
+| `git pull` | `kapi pull` |
+| `git push` | `kapi push` |
+
+Kapi uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
 
 ## Tips
 
-- **Start with TM Lookup** to auto-fill translations from previous projects
-- **Import terminology** before translating to ensure consistent term usage
-- **Use the Context panel** for per-block TM and terminology guidance
-- **Start with pseudo-translation** to identify potential UI truncation issues
-- **Use split preview** when translating content that appears in specific layouts
-- **Configure AI providers** in Settings → AI Providers for machine translation
-- **Build translation memory** to maintain consistency across projects
+- **Initialize projects with `kapi init`** to set up `.kapi/` configuration
+- **Define custom flows** in `.kapi/flows/` for your specific translation workflow
+- **Use `tm-leverage` flow** to auto-fill translations from translation memory
+- **Import terminology** as `.kapi/termbase.tbx` and add `term-lookup` to your flow
+- **Run `pseudo-translate` flow** first to identify potential UI truncation issues
+- **Use pre-push hooks** to enforce quality gates before pushing to server
+- **Commit `.kapi/config.yaml`** to git, but not `.kapi/.state.json` (auto-gitignored)
+- **Check `kapi status`** before pushing to see what changed
 
 ## Related
 
-- [AI Translation](/docs/user-guide/ai-translation)
-- [Translation Memory](/docs/user-guide/translation-memory)
-- [Terminology Management](/docs/user-guide/terminology)
+- [Project Walkthrough](/docs/getting-started/project-walkthrough)
+- [kapi init](/docs/user-guide/cli/init)
+- [kapi flow](/docs/user-guide/cli/flow)
+- [kapi push](/docs/user-guide/cli/push) and [kapi pull](/docs/user-guide/cli/pull)
 - [Bowrain Walkthroughs](/docs/bowrain/walkthroughs)
-- [CLI Reference](/docs/cli/demo-videos)
