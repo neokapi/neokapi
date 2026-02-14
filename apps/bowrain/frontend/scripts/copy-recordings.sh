@@ -7,7 +7,9 @@
 #   THEME=aurora ./copy-recordings.sh   # copy to website/static/video/bowrain/aurora/
 #   ./copy-recordings.sh                # copy to website/static/video/bowrain/glass/ (default)
 
-set -euo pipefail
+set -uo pipefail
+# Temporarily disabled -e to debug CI issues
+# set -euo pipefail
 
 THEME="${THEME:-glass}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
