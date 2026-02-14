@@ -37,11 +37,11 @@ type editorProject struct {
 
 // editorItemData holds the parsed content of an item within a project.
 type editorItemData struct {
-	format     string
-	itemType   string // "file", "data", etc.
-	parts      []*model.Part
+	format      string
+	itemType    string // "file", "data", etc.
+	parts       []*model.Part
 	sourceBytes []byte
-	blockIndex *kaz.BlockIndex
+	blockIndex  *kaz.BlockIndex
 }
 
 // workspaceTMTB holds workspace-scoped TM and terminology.
@@ -56,8 +56,8 @@ type EditorStore struct {
 	projects map[string]*editorProject // key: "ws/projectID"
 	maxSize  int
 
-	wsMu        sync.RWMutex
-	workspaces  map[string]*workspaceTMTB // key: ws slug
+	wsMu       sync.RWMutex
+	workspaces map[string]*workspaceTMTB // key: ws slug
 }
 
 // NewEditorStore creates an EditorStore with the given max capacity.
@@ -177,13 +177,13 @@ func (es *EditorStore) evictLocked() {
 
 // ProjectInfoResponse is the API response for a translation project.
 type ProjectInfoResponse struct {
-	ID            string             `json:"id"`
-	Name          string             `json:"name"`
-	SourceLocale  string             `json:"source_locale"`
-	TargetLocales []string           `json:"target_locales"`
+	ID            string                `json:"id"`
+	Name          string                `json:"name"`
+	SourceLocale  string                `json:"source_locale"`
+	TargetLocales []string              `json:"target_locales"`
 	Items         []ProjectItemResponse `json:"items"`
-	CreatedAt     string             `json:"created_at"`
-	ModifiedAt    string             `json:"modified_at"`
+	CreatedAt     string                `json:"created_at"`
+	ModifiedAt    string                `json:"modified_at"`
 }
 
 // ProjectItemResponse describes an item within a project.
@@ -206,15 +206,15 @@ type SpanInfoResponse struct {
 
 // BlockInfoResponse is a serializable representation of a translatable block.
 type BlockInfoResponse struct {
-	ID           string            `json:"id"`
-	Source       string            `json:"source"`
-	SourceCoded  string            `json:"source_coded,omitempty"`
+	ID           string             `json:"id"`
+	Source       string             `json:"source"`
+	SourceCoded  string             `json:"source_coded,omitempty"`
 	SourceSpans  []SpanInfoResponse `json:"source_spans,omitempty"`
-	Targets      map[string]string `json:"targets"`
-	TargetsCoded map[string]string `json:"targets_coded,omitempty"`
-	Translatable bool              `json:"translatable"`
-	HasSpans     bool              `json:"has_spans"`
-	Properties   map[string]string `json:"properties"`
+	Targets      map[string]string  `json:"targets"`
+	TargetsCoded map[string]string  `json:"targets_coded,omitempty"`
+	Translatable bool               `json:"translatable"`
+	HasSpans     bool               `json:"has_spans"`
+	Properties   map[string]string  `json:"properties"`
 }
 
 // UpdateBlockTargetRequest holds parameters for updating a block target.
@@ -1054,13 +1054,13 @@ type TermInfoResponse struct {
 
 // ConceptInfoResponse is the API response for a concept.
 type ConceptInfoResponse struct {
-	ID         string            `json:"id"`
-	Domain     string            `json:"domain"`
-	Definition string            `json:"definition"`
+	ID         string             `json:"id"`
+	Domain     string             `json:"domain"`
+	Definition string             `json:"definition"`
 	Terms      []TermInfoResponse `json:"terms"`
-	Properties map[string]string `json:"properties,omitempty"`
-	CreatedAt  string            `json:"created_at"`
-	UpdatedAt  string            `json:"updated_at"`
+	Properties map[string]string  `json:"properties,omitempty"`
+	CreatedAt  string             `json:"created_at"`
+	UpdatedAt  string             `json:"updated_at"`
 }
 
 // TermSearchResponse holds a page of term search results.

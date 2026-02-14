@@ -32,14 +32,14 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
         test-race test-e2e lint fmt vet proto clean install cover tools help \
-        frontend-deps frontend-dev frontend-build \
+        ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         docker-build docker-push \
         screenshots recordings cli-recordings docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
 # Default target
-all: fmt vet lint test build ## Build and validate everything
+all: frontend-build kapi-web-build web-build fmt vet lint test build ## Build and validate everything
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
@@ -71,17 +71,22 @@ frontend-deps: ## Install frontend dependencies
 frontend-dev: ## Start frontend dev server
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
-frontend-build: ## Build frontend for production
+frontend-build: ui-deps frontend-deps ## Build frontend for production
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 build-ui: build-server frontend-build ## Build server + frontend
+
+# ── Shared UI Package ──────────────────────────────────────────────────────
+
+ui-deps: ## Install shared UI package dependencies
+	cd packages/ui && $(NPM) install
 
 # ── Kapi Web UI (kapi serve) ───────────────────────────────────────────────
 
 kapi-web-deps: ## Install kapi web UI dependencies
 	cd $(KAPI_WEB_DIR) && $(NPM) install
 
-kapi-web-build: ## Build kapi web UI for production
+kapi-web-build: ui-deps kapi-web-deps ## Build kapi web UI for production
 	cd packages/ui && npx tsc
 	cd $(KAPI_WEB_DIR) && $(NPM) run build
 
@@ -90,7 +95,7 @@ kapi-web-build: ## Build kapi web UI for production
 web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
-web-build: ## Build SaaS web UI for production
+web-build: ui-deps web-deps ## Build SaaS web UI for production
 	cd packages/ui && npx tsc
 	cd $(WEB_DIR) && $(NPM) run build
 
@@ -186,6 +191,7 @@ tools: ## Install development tools
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)
 	rm -rf $(COVER_DIR)
+	rm -rf packages/ui/node_modules
 	rm -rf $(FRONTEND_DIR)/dist
 	rm -rf $(FRONTEND_DIR)/node_modules
 	rm -rf $(KAPI_WEB_DIR)/dist
