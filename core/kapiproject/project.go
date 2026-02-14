@@ -185,9 +185,9 @@ type Config struct {
 
 // ProjectMeta contains project metadata.
 type ProjectMeta struct {
-	Name         string             `yaml:"name"`
-	SourceLocale model.LocaleID     `yaml:"source_locale"`
-	TargetLocales []model.LocaleID  `yaml:"target_locales,omitempty"`
+	Name          string           `yaml:"name"`
+	SourceLocale  model.LocaleID   `yaml:"source_locale"`
+	TargetLocales []model.LocaleID `yaml:"target_locales,omitempty"`
 }
 
 // ServerConfig contains Bowrain Server connection details.

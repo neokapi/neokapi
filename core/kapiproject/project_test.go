@@ -189,7 +189,6 @@ func TestInitProject(t *testing.T) {
 	})
 }
 
-
 func TestLoadState(t *testing.T) {
 	tmpDir := t.TempDir()
 	kapiDir := filepath.Join(tmpDir, ".kapi")
