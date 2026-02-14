@@ -11,6 +11,7 @@ import (
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
 	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/kapiproject"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/lib/tools"
@@ -25,10 +26,24 @@ var flowCmd = &cobra.Command{
 
 var flowRunCmd = &cobra.Command{
 	Use:   "run [flow-name]",
-	Short: "Execute a named flow",
+	Short: "Execute a flow from .kapi/flows/",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flowName := args[0]
+
+		// Try to find .kapi/ project first
+		project, err := findProject()
+		if err == nil {
+			// Project-based flow execution (new path - ADR-016)
+			return runProjectFlow(cmd, project, flowName, args)
+		}
+
+		// Fallback to legacy flow execution (backward compatibility)
+		// This path will be removed once all flows are project-based
+		fmt.Println("Warning: Running flow without .kapi/ project (legacy mode)")
+		fmt.Println("Consider running 'kapi init' to create a project")
+		fmt.Println()
+
 		inputPaths, _ := cmd.Flags().GetStringSlice("input")
 		concurrency, _ := cmd.Flags().GetInt("concurrency")
 
@@ -213,7 +228,18 @@ var flowListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available flows",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Available flows:")
+		// Try to find .kapi/ project
+		project, err := findProject()
+		if err == nil {
+			// List flows from .kapi/flows/
+			listProjectFlows(project)
+			return
+		}
+
+		// Fallback to built-in flows
+		fmt.Println("No .kapi/ project found (run 'kapi init')")
+		fmt.Println()
+		fmt.Println("Built-in flows (legacy):")
 		fmt.Println()
 		fmt.Printf("  %-25s %s\n", "FLOW", "DESCRIPTION")
 		fmt.Printf("  %-25s %s\n", "----", "-----------")
@@ -224,6 +250,47 @@ var flowListCmd = &cobra.Command{
 		fmt.Printf("  %-25s %s\n", "tm-leverage", "Pre-fill translations from translation memory")
 		fmt.Printf("  %-25s %s\n", "segmentation", "Split source text into sentence segments")
 	},
+}
+
+func listProjectFlows(project *kapiproject.Project) {
+	fmt.Printf("Project: %s\n", project.Config.Project.Name)
+	fmt.Printf("Flows directory: %s\n\n", project.FlowsDirPath())
+
+	// List YAML files in flows/ directory
+	entries, err := os.ReadDir(project.FlowsDirPath())
+	if err != nil {
+		fmt.Printf("Error reading flows directory: %v\n", err)
+		return
+	}
+
+	flowFiles := []string{}
+	for _, entry := range entries {
+		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".yaml" {
+			flowFiles = append(flowFiles, entry.Name())
+		}
+	}
+
+	if len(flowFiles) == 0 {
+		fmt.Println("No flows found. Create a flow in .kapi/flows/")
+		return
+	}
+
+	fmt.Printf("  %-25s %s\n", "FLOW", "DESCRIPTION")
+	fmt.Printf("  %-25s %s\n", "----", "-----------")
+
+	for _, filename := range flowFiles {
+		flowName := filename[:len(filename)-5] // Remove .yaml extension
+		flowPath := filepath.Join(project.FlowsDirPath(), filename)
+
+		// Try to load flow to get description
+		flowDef, err := loadFlowDefinition(flowPath)
+		if err != nil {
+			fmt.Printf("  %-25s %s\n", flowName, "(error loading)")
+			continue
+		}
+
+		fmt.Printf("  %-25s %s\n", flowName, flowDef.Description)
+	}
 }
 
 func init() {
