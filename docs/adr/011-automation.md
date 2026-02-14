@@ -7,37 +7,36 @@ title: "ADR-011: Automation and Event System"
 
 ## Context
 
-Manual localization workflows are error-prone and brittle. Content changes in a
-CMS but translations are not updated. Quality checks are forgotten. Terminology
-violations accumulate silently until they reach production. A translator finishes
-work but nobody pushes it back to the source system. These failures are not
-caused by bad tools — they are caused by the absence of reactive behavior.
+Manual localization workflows are error-prone and brittle. Content changes in a CMS but translations are not updated. Quality checks are forgotten. Terminology violations accumulate silently until they reach production. A translator finishes work but nobody pushes it back to the source system. These failures are not caused by bad tools — they are caused by the absence of reactive behavior.
 
-The key insight is that automation should be event-driven rather than
-scheduled — reacting to what actually happened rather than polling on a timer.
-Quality checks should run when content changes. Compliance rules should be
-enforced before data ships.
+The key insight is that automation should be event-driven rather than scheduled — reacting to what actually happened rather than polling on a timer. Quality checks should run when content changes. Compliance rules should be enforced before data ships.
 
-Gokapi needs the same pattern. When source content is extracted from a connector,
-translation should start automatically. When a machine translation is inserted,
-quality checks should run. When terminology changes, affected translations should
-be flagged for review. This reactive automation complements the bidirectional
-connector system ([ADR-005](./005-connector-system.md)) by adding behavior on
-top of integration — connectors move content, automation decides what to do when
-content moves.
-
-The streaming pipeline ([ADR-004](./004-processing-engine.md))
-already provides the execution substrate: flows process content through tool
-chains. Automation rules simply trigger those flows in response to events, adding
-an orchestration layer above the existing pipeline.
+**This ADR establishes the automation architecture for Bowrain Server.** Automation is a **server-side concern** — it orchestrates multi-step workflows across connectors, flows, and quality gates. This is distinct from Kapi's simpler **flow hooks** ([ADR-016](./016-kapi-project-model.md)), which run local tools before/after sync operations.
 
 ## Decision
 
-### Event Types
+### Automation Scope
 
-The platform emits events when significant state changes occur. Events are the
-atoms of automation — each one represents something that happened, not something
-that should happen.
+**Bowrain Server** provides full event-driven automation:
+- Event bus for system-wide events
+- YAML-based automation rules
+- Quality gates (blocking checks)
+- Continuous sync with connectors
+- Webhook notifications
+
+**Kapi** provides simple flow hooks:
+- Pre-push hooks (run before `kapi push`)
+- Post-pull hooks (run after `kapi pull`)
+- Defined in `.kapi/config.yaml`
+- Execute local flows (e.g., QA check, term enforce)
+
+**Clear separation:**
+- **Server automation** = orchestrate complex multi-system workflows
+- **Kapi hooks** = run local file processing before/after sync
+
+### Event Types (Server-Side)
+
+The Bowrain Server platform emits events when significant state changes occur. Events are the atoms of automation — each one represents something that happened, not something that should happen.
 
 ```go
 type Event struct {
@@ -64,7 +63,7 @@ const (
 )
 ```
 
-### Event Bus Interface
+### Event Bus Interface (Server-Side)
 
 ```go
 type EventBus interface {
@@ -76,15 +75,11 @@ type EventBus interface {
 type EventHandler func(ctx context.Context, event Event) error
 ```
 
-The local implementation uses a channel-based in-process event bus — consistent
-with gokapi's local-first design ([ADR-004](./004-processing-engine.md)).
-For distributed deployments, the bus can be backed by Redis Streams or NATS
-without changing the interface.
+The local implementation uses a channel-based in-process event bus. For distributed deployments, the bus can be backed by Redis Streams or NATS without changing the interface.
 
-### Automation Triggers
+### Automation Rules (Server-Side)
 
-YAML-based trigger rules define reactive behavior. Rules live in
-`gokapi.yaml` or `.gokapi/automations.yaml` and are scoped per project:
+YAML-based trigger rules define reactive behavior. Rules live in Bowrain Server's project configuration and are managed through the admin UI or API:
 
 ```yaml
 automations:
@@ -119,15 +114,11 @@ automations:
           skip_if: "translation-origin == 'human'"
 ```
 
-Each automation rule specifies an event trigger (`on`), optional conditions that
-filter which events match, and a sequence of actions to execute. Actions are
-primarily flow executions — the same flows that run from the CLI or Bowrain —
-but can also include notifications and webhook calls.
+Each automation rule specifies an event trigger (`on`), optional conditions that filter which events match, and a sequence of actions to execute. Actions are primarily **server-side flow executions** (not Kapi flows), but can also include notifications and webhook calls.
 
-### Quality Gates
+### Quality Gates (Server-Side)
 
-Quality gates are blocking checks that prevent content from progressing through
-a workflow. They enforce standards before translations ship.
+Quality gates are blocking checks that prevent content from progressing through a workflow. They enforce standards before translations ship.
 
 ```go
 type QualityGate struct {
@@ -146,7 +137,7 @@ const (
 )
 ```
 
-Gates are configured in YAML alongside automations:
+Gates are configured in server project settings:
 
 ```yaml
 quality_gates:
@@ -173,16 +164,13 @@ quality_gates:
 ```
 
 Example gates:
-- **terminology-compliance**: Block `push` if more than 5% of blocks use
-  forbidden terms (blocking)
+- **terminology-compliance**: Block `push` if more than 5% of blocks use forbidden terms (blocking)
 - **qa-pass-rate**: Warn if QA check fails on more than 10% of blocks (advisory)
-- **review-coverage**: Block export if fewer than 80% of blocks are reviewed
-  (blocking)
+- **review-coverage**: Block export if fewer than 80% of blocks are reviewed (blocking)
 
-### Continuous Sync
+### Continuous Sync (Server-Side)
 
-Connectors ([ADR-005](./005-connector-system.md)) can be configured for
-continuous sync — periodically pulling content and pushing translations:
+Server-side connectors ([ADR-005](./005-connector-system.md)) can be configured for continuous sync — periodically pulling content and pushing translations:
 
 ```yaml
 sync:
@@ -195,27 +183,46 @@ sync:
       on_review: true      # auto-push when all blocks reviewed
 ```
 
-Continuous sync bridges the gap between event-driven automation (reactive) and
-time-based polling (proactive). The pull side detects changes; once detected, it
-emits `content.extracted` events that feed into the automation rules above.
+Continuous sync bridges the gap between event-driven automation (reactive) and time-based polling (proactive). The pull side detects changes; once detected, it emits `content.extracted` events that feed into the automation rules above.
 
-### Loop Prevention
+**This is server-side only.** Kapi does not run continuous sync — it syncs on demand via `kapi pull/push`.
 
-Automation rules can trigger events that trigger more rules. Without safeguards,
-this creates infinite cascading. Loop prevention works through three mechanisms:
+### Kapi Flow Hooks (Client-Side)
 
-1. **Causation chain**: Each event carries a `CausationID` tracking its lineage
-   back to the originating event. If an event's lineage includes the same
-   automation rule, the duplicate trigger is suppressed.
-2. **Maximum chain depth**: A configurable depth limit (default: 5) prevents
-   unbounded cascading regardless of causation tracking.
-3. **Global pause**: Automations can be paused globally or individually for
-   debugging, bulk imports, or emergency stops.
+Kapi provides simple flow hooks in `.kapi/config.yaml` ([ADR-016](./016-kapi-project-model.md)):
 
-### Webhook Support
+```yaml
+# .kapi/config.yaml
+hooks:
+  pre-push: [qa-check, term-enforce]
+  post-pull: [update-stats]
+```
 
-External systems can receive event notifications via outbound webhooks,
-bridging gokapi's internal event bus to external services:
+**Hook execution:**
+- `kapi push` → runs `pre-push` flows → sends blocks to server
+- `kapi pull` → fetches blocks from server → runs `post-pull` flows
+
+**Differences from server automation:**
+- **No event bus** — hooks are simple command chains
+- **Local file processing** — flows run on local files, not server-side
+- **Synchronous** — hooks block the push/pull operation until complete
+- **No conditions** — hooks always run (or can be skipped with `--no-hooks`)
+
+Example use cases:
+- `pre-push`: Run QA checks, enforce terminology before sending to server
+- `post-pull`: Update local statistics, generate reports after fetching translations
+
+### Loop Prevention (Server-Side)
+
+Automation rules can trigger events that trigger more rules. Without safeguards, this creates infinite cascading. Loop prevention works through three mechanisms:
+
+1. **Causation chain**: Each event carries a `CausationID` tracking its lineage back to the originating event. If an event's lineage includes the same automation rule, the duplicate trigger is suppressed.
+2. **Maximum chain depth**: A configurable depth limit (default: 5) prevents unbounded cascading regardless of causation tracking.
+3. **Global pause**: Automations can be paused globally or individually for debugging, bulk imports, or emergency stops.
+
+### Webhook Support (Server-Side)
+
+External systems can receive event notifications via outbound webhooks, bridging Bowrain Server's internal event bus to external services:
 
 ```yaml
 webhooks:
@@ -224,40 +231,44 @@ webhooks:
     secret: ${WEBHOOK_SECRET}
 ```
 
-Webhooks use HMAC-SHA256 signing so receivers can verify authenticity. Failed
-deliveries are retried with exponential backoff (3 attempts, then logged).
+Webhooks use HMAC-SHA256 signing so receivers can verify authenticity. Failed deliveries are retried with exponential backoff (3 attempts, then logged).
 
 ## Alternatives Considered
 
-- **Cron-only scheduling**: Simple but lacks event reactivity. Content changes
-  between polling intervals go unprocessed until the next tick. Real-time
-  response to content changes is critical for continuous localization.
-- **Full workflow engine (Temporal/Cadence)**: Powerful but over-engineered for
-  localization triggers. Adds significant infrastructure. Gokapi's flows already
-  provide execution; automation only needs to decide when to run them.
-- **Plugin-based automation**: Harder to configure and audit. YAML rules are
-  readable by non-developers and can be version-controlled alongside project
-  configuration.
-- **No quality gates**: Allows bad translations to ship. Gates are essential for
-  professional workflows where terminology compliance and review coverage are
-  non-negotiable.
+- **Cron-only scheduling**: Simple but lacks event reactivity. Content changes between polling intervals go unprocessed until the next tick. Real-time response to content changes is critical for continuous localization.
+
+- **Full workflow engine (Temporal/Cadence)**: Powerful but over-engineered for localization triggers. Adds significant infrastructure. Bowrain's flows already provide execution; automation only needs to decide when to run them.
+
+- **Plugin-based automation**: Harder to configure and audit. YAML rules are readable by non-developers and can be version-controlled alongside project configuration.
+
+- **No quality gates**: Allows bad translations to ship. Gates are essential for professional workflows where terminology compliance and review coverage are non-negotiable.
+
+- **Client-side automation in Kapi**: Would require Kapi to run as a daemon, manage event subscriptions, and coordinate complex workflows. This overcomplicates Kapi's role. Kapi is a CLI tool for local file work; the server orchestrates automation.
 
 ## Consequences
 
-- Content changes trigger automatic processing, reducing manual overhead and
-  eliminating the "forgot to re-translate" failure mode
-- Quality gates enforce standards before content ships, catching terminology
-  violations and insufficient review coverage
-- YAML configuration is accessible to project managers and localization
-  engineers, not just developers
-- The event bus is an internal coordination mechanism; webhooks bridge to
-  external systems (Slack, CI/CD, monitoring)
-- Loop prevention avoids infinite automation cascades while allowing legitimate
-  multi-step chains
-- Local event bus (channel-based) works for single-machine deployments;
-  swappable to Redis Streams or NATS for distributed setups
-  ([ADR-004](./004-processing-engine.md))
-- Automation rules are project-scoped, enabling different workflows per project
-  without cross-contamination
-- Continuous sync closes the loop between connectors and automation — pull
-  changes, process automatically, push when ready
+- **Server-side automation** is full-featured — events, rules, quality gates, continuous sync, webhooks. This enables complex multi-system workflows (CMS → TM → AI → QA → push).
+
+- **Kapi hooks** are simple local tool chains — run flows before/after sync. No event bus, no complex orchestration.
+
+- Content changes trigger automatic processing on the server, reducing manual overhead and eliminating the "forgot to re-translate" failure mode.
+
+- Quality gates enforce standards before content ships, catching terminology violations and insufficient review coverage.
+
+- YAML configuration is accessible to project managers and localization engineers, not just developers.
+
+- The event bus is an internal server coordination mechanism; webhooks bridge to external systems (Slack, CI/CD, monitoring).
+
+- Loop prevention avoids infinite automation cascades while allowing legitimate multi-step chains.
+
+- Local event bus (channel-based) works for single-instance deployments; swappable to Redis Streams or NATS for distributed setups.
+
+- Automation rules are project-scoped, enabling different workflows per project without cross-contamination.
+
+- Continuous sync closes the loop between connectors and automation — pull changes, process automatically, push when ready.
+
+- **Clear separation**: Server = orchestration platform; Kapi = local file tool with basic hooks.
+
+- Kapi users can define simple pre/post sync hooks without needing to understand the server's automation system.
+
+- The automation model positions Bowrain Server as a **localization platform** that orchestrates complex workflows, while Kapi remains a focused **file processing tool**.

@@ -3,38 +3,59 @@ id: 005-connector-system
 sidebar_position: 5
 title: "ADR-005: Connector System"
 ---
-# ADR-005: Bidirectional Connector System
+# ADR-005: Connector System
 
 ## Context
 
-Traditional localization tools treat file formats as the primary integration
-mechanism. You export content from a CMS to XLIFF, translate it, and import it
-back. This workflow is brittle, manual, and disconnected from the source system.
-Changes in the CMS require re-export; translations sit in files until someone
-remembers to re-import. There is no live connection between the content source
-and the translation environment.
+Traditional localization tools treat file formats as the primary integration mechanism. You export content from a CMS to XLIFF, translate it, and import it back. This workflow is brittle, manual, and disconnected from the source system. Changes in the CMS require re-export; translations sit in files until someone remembers to re-import. There is no live connection between the content source and the translation environment.
 
-Connectors to native tools — pulling data directly into a versioned store —
-create a fundamentally better workflow than file exchange. Instead of
-exporting and importing, users connect their tools and data flows
-bidirectionally through a unified platform.
+Connectors to native tools — pulling data directly into a versioned store — create a fundamentally better workflow than file exchange. Instead of exporting and importing, users connect their tools and data flows bidirectionally through a unified platform.
 
-Gokapi applies this pattern: connectors that pull content from CMS platforms,
-design tools, code repositories, and marketing platforms directly into the
-Content Store (ADR-003), and push translations back. File formats remain
-important — Okapi's 40+ filters represent years of engineering — but they are
-one connector type (the FileConnector), not the entire integration story.
+**This ADR establishes the role separation:**
+- **Kapi** is the **file connector** — it handles local file processing and syncs files with Bowrain Server
+- **Bowrain Server** hosts **integration connectors** — CMS, design tools, code repositories, marketing platforms
 
-The connector system must unify all content sources behind a single interface so
-that the streaming pipeline (ADR-003), tools (ADR-007), and Bowrain UI
-(ADR-012) work identically regardless of where content originates.
+File formats remain important — Okapi's 40+ filters represent years of engineering. But they are **Kapi's domain**, not the entire connector story. Bowrain Server orchestrates integrations with external systems; Kapi is one such integration (the file-based one).
 
 ## Decision
 
-### Connector Interface
+### Connector Architecture
 
-Every connector implements a common interface for content operations, discovery,
-synchronization, and lifecycle management:
+The connector system has two layers:
+
+**1. Bowrain Server Connectors** — Server-side integrations with external systems:
+- **CMS Connectors** (Contentful, Strapi, WordPress)
+- **Design Connectors** (Figma, Sketch)
+- **Code Connectors** (Git repositories, i18n resource bundles)
+- **Marketing Connectors** (HubSpot, Marketo)
+
+**2. Kapi as the File Connector** — CLI tool that syncs local files with Bowrain Server:
+- Reads/writes files via FormatRegistry (15+ native formats, plugins, Okapi bridge)
+- Maps local paths to remote project items
+- Syncs with server via REST API (`pull`/`push`)
+- Runs file-based processing flows
+
+```
+┌─────────────────────────────────────────────────┐
+│          Bowrain Server (Platform)              │
+│  ┌──────────────────────────────────────────┐   │
+│  │         ContentStore (ADR-003)           │   │
+│  └──────────────────────────────────────────┘   │
+│    ▲        ▲         ▲         ▲         ▲     │
+│    │        │         │         │         │     │
+│  CMS    Design    Code     Marketing   File    │
+│  Conn.   Conn.    Conn.     Conn.     (API)    │
+└────┼────────┼─────────┼─────────┼─────────┼─────┘
+     │        │         │         │         │
+     │        │         │         │         │ REST API
+     ▼        ▼         ▼         ▼         ▼
+Contentful Figma     GitHub   HubSpot    Kapi
+   CMS      Design     Repo    Marketing  (.kapi/ projects)
+```
+
+### Connector Interface (Server-Side)
+
+Every **Bowrain Server connector** implements a common interface:
 
 ```go
 type Connector interface {
@@ -59,15 +80,13 @@ type Connector interface {
 }
 ```
 
-`Pull` returns a channel of Parts — the same streaming unit used throughout the
-pipeline (ADR-002). This means any connector's output feeds directly into tools,
-translation memory, terminology lookup, and AI processing without adaptation
-layers. `Push` consumes a Part channel to write translations back to the source
-system.
+**Key methods:**
+- **`Pull`** — Returns a channel of Parts (streaming content extraction)
+- **`Push`** — Consumes a Part channel (streaming content delivery)
+- **`List`** — Browsable discovery of content in the connected system
+- **`Sync`** — Lightweight status check (what changed, pending push)
 
-`List` enables browsable discovery of content in the connected system. `Sync`
-reports the connector's synchronization status — what has changed since the last
-pull, what translations are pending push.
+These connectors live **server-side** and write extracted content into the ContentStore ([ADR-003](./003-content-store.md)).
 
 ### Connector Categories
 
@@ -79,119 +98,122 @@ const (
     CategoryDesign    ConnectorCategory = "design"
     CategoryCode      ConnectorCategory = "code"
     CategoryMarketing ConnectorCategory = "marketing"
-    CategoryFile      ConnectorCategory = "file"
+    CategoryFile      ConnectorCategory = "file"  // Kapi's category
+    CategoryTMS       ConnectorCategory = "tms"   // External TMS integrations
 )
 ```
 
-**CMS Connectors** — Pull content from headless CMS APIs (Contentful, Strapi,
-WordPress REST API). Content items map to CMS entries and pages. Each field
-becomes a Block with display hints carrying field metadata (max length, content
-type, rich text vs. plain text). Translations push back via the same API,
-updating the localized version of each entry. CMS connectors track content
-versions to enable incremental pull — only changed entries are re-extracted.
+**Server-side connectors:**
 
-**Design Connectors** — Pull text layers from design tools (Figma API, Sketch
-files). Each text layer becomes a Block with display hints encoding visual
-context: font size, position, bounding box dimensions, and maximum width
-constraints. Translated text pushes back to create localized design variants.
-Design connectors preserve layer hierarchy as nested Layers (ADR-002), so
-translators see structure matching the original design.
+- **CMS Connectors** — Pull content from headless CMS APIs (Contentful, Strapi, WordPress REST API). Content items map to CMS entries and pages. Each field becomes a Block. Translations push back via the same API, updating the localized version of each entry.
 
-**Code Connectors** — Pull i18n resource files from Git repositories (JSON,
-YAML, Properties, PO files in a repo). Unlike the FileConnector which operates
-on individual files, code connectors understand repository structure: they
-discover resource bundles, track locale variants, and detect changes via Git
-commits. Push creates pull requests or commits with translated files, preserving
-the repository's i18n conventions.
+- **Design Connectors** — Pull text layers from design tools (Figma API, Sketch files). Each text layer becomes a Block with display hints encoding visual context: font size, position, bounding box dimensions. Translated text pushes back to create localized design variants.
 
-**Marketing Connectors** — Pull email templates, landing pages, and ad copy from
-marketing platforms (HubSpot, Marketo). Content items map to campaign assets.
-Display hints carry platform constraints (subject line length limits, preview
-text requirements). Push delivers localized variants ready for multi-language
-campaigns.
+- **Code Connectors** — Pull i18n resource files from Git repositories (JSON, YAML, Properties, PO files in a repo). Unlike Kapi (which operates on local files), code connectors understand repository structure: they discover resource bundles, track locale variants, and detect changes via Git commits. Push creates pull requests or commits with translated files.
 
-**File Connector** — The bridge to the existing format system. Wraps
-`DataFormatReader` / `DataFormatWriter` and the `FormatRegistry` behind the
-Connector interface. This is the most mature connector category, inheriting 15
-native formats plus the Okapi Java bridge (ADR-004).
+- **Marketing Connectors** — Pull email templates, landing pages, and ad copy from marketing platforms (HubSpot, Marketo). Display hints carry platform constraints (subject line length limits, preview text requirements). Push delivers localized variants ready for multi-language campaigns.
 
-### FileConnector: The Format System as a Connector
+**Kapi as the file connector:**
 
-The FileConnector wraps the existing format system (ADR-004) to present
-file-based processing through the Connector interface:
+- Kapi is **not a server-side connector**. It is a CLI tool that acts as the file connector for Bowrain Server.
+- Kapi operates on local file systems with `.kapi/` project directories ([ADR-016](./016-kapi-project-model.md))
+- `kapi pull/push` syncs local files with Bowrain Server via REST API
+- Kapi uses the FormatRegistry to read/write files (15+ native formats + plugins + Okapi bridge)
 
-```go
-type FileConnector struct {
-    registry *format.FormatRegistry
-}
+### Kapi: The File Connector
 
-func (c *FileConnector) Pull(ctx context.Context, opts PullOptions) (<-chan *model.Part, error) {
-    reader, err := c.registry.NewReader(opts.Format, opts.Config)
-    if err != nil {
-        return nil, err
-    }
-    if err := reader.Open(ctx, opts.Document); err != nil {
-        return nil, err
-    }
-    return reader.Read(ctx), nil
-}
+Kapi's role in the connector ecosystem:
 
-func (c *FileConnector) Push(ctx context.Context, parts <-chan *model.Part, opts PushOptions) error {
-    writer, err := c.registry.NewWriter(opts.Format, opts.Config)
-    if err != nil {
-        return err
-    }
-    writer.SetOutput(opts.OutputPath)
-    return writer.Write(ctx, parts)
-}
+**What Kapi does:**
+- Reads local files via FormatRegistry (HTML, JSON, XLIFF, Markdown, etc.)
+- Extracts Blocks from file content (streaming Parts → Blocks)
+- Computes content hashes (`BlockIdentity` from [ADR-002](./002-content-model.md))
+- Syncs with Bowrain Server via REST API (`/api/v1/workspaces/:ws/projects/:id/pull|push`)
+- Writes remote blocks back to local files via FormatRegistry
+- Runs file-based flows (pseudo-translate, QA, segmentation, etc.)
+
+**What Kapi doesn't do:**
+- Kapi does **not** manage server-side connectors (no `kapi connect add contentful`)
+- Kapi does **not** access the ContentStore directly (it's a REST API client)
+- Kapi does **not** run server-side automation or event-driven workflows
+
+**Architecture:**
+
+```
+.kapi/ Project Directory
+     |
+     v
+  Kapi CLI (reads config.yaml, mappings)
+     |
+     v
+  FormatRegistry (HTML, JSON, XLIFF, etc.)
+     |
+     v
+  Streaming Pipeline (Parts → Blocks)
+     |
+     v
+  REST API Client
+     |
+     v
+  Bowrain Server (/api/v1/.../pull, /api/v1/.../push)
+     |
+     v
+  ContentStore
 ```
 
-This means existing format-centric workflows (`kapi convert`, `kapi translate`)
-continue to work unchanged — they operate through the FileConnector. New
-connector-centric commands (`kapi connect`, `kapi pull`, `kapi push`) work with
-any connector type (ADR-013).
+Kapi is to Bowrain Server as **git is to GitHub** — a local tool that syncs with a remote platform.
 
-#### Three Implementation Tiers (from ADR-004)
+### Format System Integration
 
-The FileConnector inherits the format system's tiered architecture:
+Kapi inherits the **three-tier format system** from [ADR-004](./004-processing-engine.md):
 
-1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2, JSON,
-   YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX.
-2. **Plugin formats** (any language): External executables via gRPC (ADR-007).
-3. **Java bridge formats** (Okapi): JVM subprocesses with NDJSON protocol
-   (ADR-007).
+1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
+2. **Plugin formats** (any language): External executables via gRPC ([ADR-007](./007-plugin-system.md))
+3. **Java bridge formats** (Okapi): JVM subprocesses with NDJSON protocol ([ADR-007](./007-plugin-system.md))
 
-All three tiers register into the same `FormatRegistry`. The FileConnector
-unifies them behind the Connector interface, so the rest of the system does not
-distinguish between a native Go HTML reader and a Java bridge DOCX filter.
+All three tiers register into the `FormatRegistry`. Kapi uses this registry to read/write files based on `.kapi/config.yaml` mappings.
 
-#### Multi-Strategy Format Detection
-
-The FileConnector preserves the format system's detection cascade:
-
+**Format detection cascade:**
 1. **MIME type** — explicit type declaration
 2. **File extension** — `.html`, `.xliff`, `.json`, etc.
 3. **Magic bytes** — binary signatures (BOM, XML declaration)
 4. **Content sniffing** — heuristic analysis of file content
 
-The registry stores a `FormatSignature` per format with the applicable detection
-strategies.
+**Skeleton strategies:**
+- **Fragment-based** (HTML, XML, XLIFF): Interleaved skeleton of non-translatable markup + references to translatable blocks
+- **Re-parse** (Plaintext, JSON, YAML, PO): Re-open source document and replace content in place
 
-#### Skeleton Strategies
+These strategies ensure roundtrip fidelity when Kapi writes translated files back to disk.
 
-Format readers use two skeleton strategies for roundtrip fidelity:
+### Server-Side Connector Registration
 
-- **Fragment-based** (HTML, XML, XLIFF): The reader builds an interleaved
-  skeleton of `SkeletonText` (non-translatable markup) and `SkeletonRef`
-  (pointers to translatable blocks). The writer reconstructs the output by
-  walking the skeleton and inserting translated content at each reference.
+Server-side connectors register into a `ConnectorRegistry`:
 
-- **Re-parse** (Plaintext, JSON, YAML, PO): The writer re-opens the source
-  document and replaces translatable content in place, preserving all original
-  formatting. No skeleton is stored; the source document itself serves as the
-  template.
+```go
+type ConnectorRegistry struct {
+    connectors map[string]ConnectorFactory
+}
+
+type ConnectorFactory func(config map[string]any) (Connector, error)
+
+func (r *ConnectorRegistry) Register(id string, category ConnectorCategory, factory ConnectorFactory)
+func (r *ConnectorRegistry) NewConnector(id string, config map[string]any) (Connector, error)
+func (r *ConnectorRegistry) List() []ConnectorInfo
+```
+
+**Built-in connectors** register via `init()`. **Plugin connectors** register at runtime via gRPC discovery ([ADR-007](./007-plugin-system.md)).
+
+**Bowrain Server manages connectors** through its admin UI:
+- Add new connector instances (configure API keys, URLs, etc.)
+- Browse content items from each connector
+- Trigger pull/push operations
+- View sync status
+
+**Kapi does not interact with the ConnectorRegistry** — it is a file-based tool that syncs with the server via API.
 
 ### ContentItem for Discovery
+
+Server-side connectors expose browsable content:
 
 ```go
 type ContentItem struct {
@@ -206,37 +228,26 @@ type ContentItem struct {
 }
 ```
 
-`List()` returns available content items from the connected system. For a CMS
-connector, these are pages and entries. For a design connector, artboards and
-text layers. For the FileConnector, files matching supported format signatures.
+`List()` returns available content items from the connected system. For a CMS connector, these are pages and entries. For a design connector, artboards and text layers.
 
 Bowrain displays content items as a browsable tree, allowing selective pull.
-Users can choose specific pages from a CMS, specific artboards from Figma, or
-specific files from a repository (ADR-012).
 
 ### PullOptions and PushOptions
 
 ```go
 type PullOptions struct {
-    Format   string            // for FileConnector: format ID
-    Document *model.RawDocument // for FileConnector: source document
-    Items    []string          // content item IDs to pull (empty = all)
-    Locales  []model.LocaleID  // source locales to pull
-    Config   map[string]any    // connector-specific configuration
+    Items   []string          // content item IDs to pull (empty = all)
+    Locales []model.LocaleID  // source locales to pull
+    Config  map[string]any    // connector-specific configuration
 }
 
 type PushOptions struct {
-    Format     string
-    OutputPath string
-    Items      []string          // content item IDs to push (empty = all)
-    Locales    []model.LocaleID  // target locales to push
-    Config     map[string]any
+    Items   []string          // content item IDs to push (empty = all)
+    Locales []model.LocaleID  // target locales to push
+    Message string            // commit message / changelog
+    Config  map[string]any
 }
 ```
-
-The options structs accommodate both file-specific parameters (format ID, source
-document, output path) and connector-generic parameters (item selection, locale
-filtering). Connectors ignore fields that do not apply to their category.
 
 ### SyncStatus for Change Tracking
 
@@ -251,88 +262,38 @@ type SyncStatus struct {
 }
 ```
 
-`Sync()` provides a lightweight status check without performing a full pull.
-Bowrain uses this to show sync indicators in the connector management panel and
-to alert users when source content has changed.
-
-### Connector Registry
-
-```go
-type ConnectorRegistry struct {
-    connectors map[string]ConnectorFactory
-}
-
-type ConnectorFactory func(config map[string]any) (Connector, error)
-
-func (r *ConnectorRegistry) Register(id string, category ConnectorCategory, factory ConnectorFactory)
-func (r *ConnectorRegistry) NewConnector(id string, config map[string]any) (Connector, error)
-func (r *ConnectorRegistry) List() []ConnectorInfo
-```
-
-Connectors register into a `ConnectorRegistry` analogous to the format system's
-`FormatRegistry`. Built-in connectors register via `init()`. Plugin connectors
-register at runtime via gRPC discovery (ADR-007). The registry provides a
-`List()` method for Bowrain to populate the connector management UI.
-
-### Embedded Translation UI
-
-For design tools and CMS platforms, connectors can provide an embedded
-translation experience — a lightweight Bowrain panel that appears within the
-host application. This enables translators to work in context without switching
-tools.
-
-The embedded UI is a WebView rendering a subset of the Bowrain translation
-editor (ADR-012), connected to the host application's connector via a
-bidirectional message channel. When a translator edits a translation in the
-embedded panel, the change propagates through the connector to update the
-Content Store. When the source content changes in the host application, the
-embedded panel updates to reflect the new content.
-
-This approach extends the connector concept beyond data exchange to become a
-full in-context translation experience within native tools.
+`Sync()` provides a lightweight status check without performing a full pull. Bowrain uses this to show sync indicators in the connector management panel.
 
 ## Alternatives Considered
 
-- **File-only integration** (traditional Okapi approach): Export to XLIFF,
-  translate, re-import. Works for batch workflows but is manual, disconnected,
-  and provides no live sync. Changes in the source system go undetected until
-  the next export cycle.
+- **File-only integration** (traditional Okapi approach): Export to XLIFF, translate, re-import. Works for batch workflows but is manual, disconnected, and provides no live sync. Changes in the source system go undetected until the next export cycle.
 
-- **Webhook-only integration**: Reactive approach where source systems notify
-  Gokapi of changes. Handles push well but does not support browsing, selective
-  pull, or initial content discovery. Webhooks complement connectors but cannot
-  replace them.
+- **Kapi as a server-side connector framework**: Would require Kapi to run as a daemon, manage connector lifecycles, and coordinate with the server. This overcomplicates Kapi's role. Kapi is a CLI tool for files; the server orchestrates connectors.
 
-- **XLIFF as universal exchange format**: XLIFF is a format, not an integration
-  mechanism. It standardizes the file representation of translatable content but
-  says nothing about how content gets from a CMS to a translation tool and back.
-  Connectors are richer — they handle discovery, change tracking, and
-  bidirectional sync.
+- **All connectors in Kapi**: Would require Kapi to have API credentials for CMS, design tools, etc. This mixes concerns — Kapi is for local file work, not managing integrations. Connectors belong server-side where they can be shared across teams and managed centrally.
 
-- **Per-system custom integrations**: Building bespoke integrations for each CMS
-  and design tool does not scale. The Connector interface provides consistency
-  across all content sources, and the shared Part model (ADR-002) means
-  downstream tools work identically regardless of origin.
+- **XLIFF as universal exchange format**: XLIFF is a format, not an integration mechanism. It standardizes the file representation of translatable content but says nothing about how content gets from a CMS to a translation tool and back. Connectors are richer — they handle discovery, change tracking, and bidirectional sync.
 
 ## Consequences
 
-- Connectors are the primary integration mechanism, positioning Gokapi as a
-  localization platform rather than a file processing tool.
-- The FileConnector preserves all existing format support — 15 native formats
-  plus the Okapi Java bridge — as a first-class connector.
-- New connectors can be added as built-in packages or as plugins via the gRPC
-  plugin system (ADR-007).
-- Content from any connector flows into the same Content Store and streaming
-  pipeline (ADR-003), processed by the same tools (ADR-007) regardless of
-  origin.
-- The `kapi connect`, `kapi pull`, and `kapi push` commands provide
-  connector-centric workflows alongside existing format-centric commands
-  (ADR-013).
-- Bowrain shows a connector management UI with browse, select, pull, and push
-  workflows (ADR-012).
-- Format detection, skeleton strategies, and reader/writer separation are
-  preserved as FileConnector internals, invisible to the rest of the system.
-- The embedded translation concept opens the door to in-context translation
-  within native design and CMS tools, a significant differentiator.
-- The `ConnectorRegistry` parallels the `FormatRegistry`, maintaining the
-  established pattern of factory-based registration with runtime discovery.
+- **Clear role separation**: Kapi handles files, Bowrain Server handles integrations.
+
+- **Kapi is the file connector** for Bowrain Server — it reads/writes local files and syncs with the server via REST API. It does not manage server-side connectors.
+
+- Server-side connectors (CMS, design, code, marketing) live in Bowrain Server and write extracted content into the ContentStore ([ADR-003](./003-content-store.md)).
+
+- The FormatRegistry (15+ native formats, plugins, Okapi bridge) is Kapi's domain. All file processing goes through Kapi's format system.
+
+- `.kapi/` project directories ([ADR-016](./016-kapi-project-model.md)) define file mappings (local paths ↔ remote items), enabling `kapi pull/push` to sync with the server.
+
+- Connectors are the primary integration mechanism for Bowrain Server, positioning it as a localization platform rather than a file processing tool.
+
+- Content from any connector flows into the same ContentStore and streaming pipeline ([ADR-004](./004-processing-engine.md)), processed by the same tools ([ADR-006](./006-tool-system.md)) regardless of origin.
+
+- The `ConnectorRegistry` parallels the `FormatRegistry`, maintaining the established pattern of factory-based registration with runtime discovery.
+
+- Kapi does not expose connector management commands (`kapi connect add/list`) — these belong in Bowrain Server's admin UI or API.
+
+- The connector interface uses streaming Parts, the same unit used throughout the pipeline ([ADR-002](./002-content-model.md)). This means any connector's output feeds directly into tools, TM, terminology, and AI processing without adaptation layers.
+
+- Format detection, skeleton strategies, and reader/writer separation are preserved as Kapi internals, invisible to the server and other connectors.

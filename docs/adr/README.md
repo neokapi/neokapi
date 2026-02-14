@@ -16,7 +16,8 @@ ADRs are organized by architectural layer rather than chronologically.
 |-----|-------|-------|
 | [001](001-vision.md) | Vision — The Open Localization Platform | Platform identity, principles, configuration, locale handling |
 | [002](002-content-model.md) | Content Model | Part/Resource, Block identity, Fragments, Annotations, Properties |
-| [003](003-content-store.md) | Content Store and Versioning | Versioned persistence, content addressing, diffing, KAZ serialization |
+| [003](003-content-store.md) | Content Store and Versioning | Server-side versioned persistence, content addressing, KAZ snapshots |
+| [016](016-kapi-project-model.md) | Kapi Project Model | `.kapi/` directories, file mappings, sync state, flow hooks |
 
 ## Layer 2: Processing and Integration
 
@@ -51,5 +52,6 @@ ADRs are organized by architectural layer rather than chronologically.
 | ADR | Title | Scope |
 |-----|-------|-------|
 | [012](012-bowrain.md) | Bowrain Desktop App | Wails v3, connector-driven UX, translation editor |
-| [013](013-cli-and-server.md) | Kapi CLI and Server | Cobra CLI, REST/gRPC server, CI/CD patterns |
+| [013](013-cli-and-server.md) | Kapi CLI and Server | Project-based CLI, pull/push sync, REST/gRPC APIs |
 | [014](014-testing-and-docs.md) | Testing, Documentation, and Website | Test pyramid, Docusaurus, VHS/Playwright demos |
+| [015](015-auth-and-workspaces.md) | Authentication and Workspaces | OAuth/OIDC, device flow, multi-tenancy |
