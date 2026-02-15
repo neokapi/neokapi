@@ -82,13 +82,13 @@ func (m *mockSyncHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		m.pushCalls++
 		m.pushBlocks = append(m.pushBlocks, req.Blocks...)
 		m.pullCursor += int64(len(req.Blocks))
-		json.NewEncoder(w).Encode(SyncPushResponse{
+		_ = json.NewEncoder(w).Encode(SyncPushResponse{
 			Stored:    len(req.Blocks),
 			NewCursor: m.pullCursor,
 		})
 
 	case r.Method == http.MethodGet && contains(r.URL.Path, "/sync/pull"):
-		json.NewEncoder(w).Encode(SyncPullResponse{
+		_ = json.NewEncoder(w).Encode(SyncPullResponse{
 			Changes:   nil,
 			NewCursor: m.pullCursor,
 			HasMore:   false,
