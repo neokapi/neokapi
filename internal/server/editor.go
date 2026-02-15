@@ -93,18 +93,6 @@ func (ws *workspaceStores) getTB(wsSlug string) *termbase.InMemoryTermBase {
 	return w.tb
 }
 
-func (ws *workspaceStores) close() {
-	ws.mu.Lock()
-	defer ws.mu.Unlock()
-	for _, w := range ws.stores {
-		if w.tm != nil {
-			w.tm.Close()
-		}
-		if w.tb != nil {
-			w.tb.Close()
-		}
-	}
-}
 
 // ---------------------------------------------------------------------------
 // API response/request types
@@ -1089,15 +1077,6 @@ func editorInfoToSpan(si SpanInfoResponse) *model.Span {
 	}
 }
 
-func editorStripMarkers(coded string) string {
-	var buf []byte
-	for _, r := range coded {
-		if r < '\uE001' || r > '\uE003' {
-			buf = append(buf, []byte(string(r))...)
-		}
-	}
-	return string(buf)
-}
 
 func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationStatsResponse {
 	stats := &TranslationStatsResponse{}
@@ -1220,14 +1199,4 @@ func editorTermsFromInfo(terms []TermInfoResponse) []termbase.Term {
 	return result
 }
 
-func copyStringMap(m map[string]string) map[string]string {
-	if m == nil {
-		return map[string]string{}
-	}
-	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
-}
 
