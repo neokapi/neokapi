@@ -238,17 +238,8 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---
-  async openProjectDialog(): Promise<ProjectInfo | null> {
-    return Backend.OpenProjectDialog() as Promise<ProjectInfo | null>;
-  }
   async addFilesDialog(projectId: string): Promise<ProjectInfo | null> {
     return Backend.AddItemsDialog(projectId) as Promise<ProjectInfo | null>;
-  }
-  async saveProject(projectId: string): Promise<void> {
-    return Backend.SaveProject(projectId);
-  }
-  async saveProjectDialog(projectId: string): Promise<void> {
-    return Backend.SaveProjectDialog(projectId);
   }
   async openFileInOS(path: string): Promise<void> {
     return Backend.OpenFileInOS(path);
@@ -267,8 +258,5 @@ export class WailsApiAdapter implements ApiAdapter {
     targetLocale: string,
   ): Promise<string> {
     return Backend.RenderBlockHTML(projectId, itemName, blockId, targetLocale);
-  }
-  async getInitialProject(): Promise<string> {
-    return Backend.GetInitialProject();
   }
 }

@@ -28,10 +28,24 @@ type Project struct {
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
+// Item represents a file or data object within a project.
+type Item struct {
+	ProjectID  string            `json:"project_id"`
+	Name       string            `json:"name"`
+	Format     string            `json:"format"`
+	ItemType   string            `json:"item_type"`
+	SourceBytes []byte           `json:"source_bytes,omitempty"`
+	BlockIndex string            `json:"block_index"`
+	Properties map[string]string `json:"properties,omitempty"`
+	CreatedAt  time.Time         `json:"created_at"`
+	UpdatedAt  time.Time         `json:"updated_at"`
+}
+
 // StoredBlock wraps a model.Block with store metadata.
 type StoredBlock struct {
 	*model.Block
 	ProjectID   string
+	ItemName    string
 	ContentHash string
 	ContextHash string
 	StoredAt    time.Time
@@ -41,6 +55,7 @@ type StoredBlock struct {
 // BlockQuery filters blocks when listing or searching.
 type BlockQuery struct {
 	ProjectID     string
+	ItemName      string          // Filter by item name
 	IDs           []string        // Filter by block IDs
 	ContentHash   string          // Filter by content hash
 	Translatable  *bool           // Filter by translatable flag

@@ -7,14 +7,12 @@ interface ProjectDashboardProps {
   projects: ProjectInfo[];
   onCreateProject: (name: string, sourceLang: string, targetLangs: string[]) => void;
   onOpenProject: (project: ProjectInfo) => void;
-  onOpenKaz: () => void;
 }
 
 export function ProjectDashboard({
   projects,
   onCreateProject,
   onOpenProject,
-  onOpenKaz,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
@@ -36,9 +34,6 @@ export function ProjectDashboard({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <h2 style={{ margin: 0 }}>Translation Projects</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onOpenKaz} style={secondaryBtnStyle} data-testid="open-kaz-btn">
-            Open a Project
-          </button>
           <button onClick={() => setShowCreate(true)} style={btnStyle} data-testid="new-project-btn">
             New Project
           </button>
@@ -95,7 +90,7 @@ export function ProjectDashboard({
         <div style={emptyStyle} data-testid="empty-projects">
           <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>&#128194;</div>
           <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-            No projects yet. Create a new project or open a .kaz package.
+            No projects yet. Create a new project to get started.
           </p>
         </div>
       )}
@@ -114,7 +109,6 @@ export function ProjectDashboard({
             </div>
             <div style={{ fontSize: 12, color: "var(--text-secondary)" }}>
               {p.items.length} file{p.items.length !== 1 ? "s" : ""}
-              {p.path && <span> &middot; {p.path.split("/").pop()}</span>}
             </div>
           </div>
         ))}

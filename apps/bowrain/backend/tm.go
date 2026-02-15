@@ -2,6 +2,8 @@ package backend
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -35,16 +37,23 @@ type TMUpdateRequest struct {
 	TargetLocale string `json:"target_locale"`
 }
 
-// getOrCreateTM lazily initializes the project's in-memory SQLite TM.
-func getOrCreateTM(p *project) (*sievepen.SQLiteTM, error) {
-	if p.tm != nil {
-		return p.tm, nil
+// getOrCreateTM lazily initializes the app-level persistent SQLite TM.
+func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
+	if a.tm != nil {
+		return a.tm, nil
 	}
-	tm, err := sievepen.NewSQLiteTM(":memory:")
+	tmPath := a.tmPath
+	if tmPath == "" {
+		home, _ := os.UserHomeDir()
+		tmDir := filepath.Join(home, ".config", "gokapi", "tm")
+		os.MkdirAll(tmDir, 0755)
+		tmPath = filepath.Join(tmDir, "default.db")
+	}
+	tm, err := sievepen.NewSQLiteTM(tmPath)
 	if err != nil {
 		return nil, err
 	}
-	p.tm = tm
+	a.tm = tm
 	return tm, nil
 }
 
@@ -60,14 +69,9 @@ func entryToInfo(e sievepen.TMEntry) TMEntryInfo {
 	}
 }
 
-// GetTMEntries searches the project's TM with optional query and locale filters.
+// GetTMEntries searches the TM with optional query and locale filters.
 func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResult, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
@@ -84,14 +88,9 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 	}, nil
 }
 
-// GetTMCount returns the total number of entries in the project's TM.
+// GetTMCount returns the total number of entries in the TM.
 func (a *App) GetTMCount(projectID string) (int, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return 0, err
-	}
-
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return 0, fmt.Errorf("init TM: %w", err)
 	}
@@ -101,12 +100,7 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 
 // UpdateTMEntry updates an existing TM entry.
 func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
-	p, err := a.projects.get(req.ProjectID)
-	if err != nil {
-		return err
-	}
-
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return fmt.Errorf("init TM: %w", err)
 	}
@@ -127,12 +121,7 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 
 // DeleteTMEntry deletes a TM entry by ID.
 func (a *App) DeleteTMEntry(projectID, entryID string) error {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return err
-	}
-
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return fmt.Errorf("init TM: %w", err)
 	}
@@ -140,14 +129,9 @@ func (a *App) DeleteTMEntry(projectID, entryID string) error {
 	return tm.Delete(entryID)
 }
 
-// AddTMEntry adds a new entry to the project's TM.
+// AddTMEntry adds a new entry to the TM.
 func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}

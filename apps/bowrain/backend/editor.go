@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os/exec"
+	"path/filepath"
 	"runtime"
-
-	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
 	"github.com/gokapi/gokapi/core/credentials"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/lib/sievepen"
 	"github.com/gokapi/gokapi/lib/termbase"
@@ -18,89 +19,57 @@ import (
 
 // GetItemBlocks returns all blocks for an item in the project.
 func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
+	targetLocales := make([]string, len(proj.TargetLocales))
+	for i, l := range proj.TargetLocales {
+		targetLocales[i] = string(l)
 	}
 
-	// Build a lookup from block ID → model.Block for span enrichment
-	blockMap := make(map[string]*model.Block)
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		if block, ok := pt.Resource.(*model.Block); ok {
-			blockMap[block.ID] = block
-		}
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Use blockIndex if available (O(1) per block)
-	if id.blockIndex != nil {
-		var blocks []BlockInfo
-		for _, b := range id.blockIndex.Blocks {
-			bi := BlockInfo{
-				ID:           b.ID,
-				Source:       b.Source,
-				Targets:      copyTargets(b.Targets),
-				Translatable: b.Translatable,
-				HasSpans:     b.SourceHTML != b.Source,
-				Properties:   copyStringMap(b.Properties),
-			}
-			// Enrich with coded text and spans from the Part stream
-			if mb, ok := blockMap[b.ID]; ok {
-				enrichBlockInfo(&bi, mb, p.info.TargetLocales)
-			}
-			blocks = append(blocks, bi)
-		}
-		return blocks, nil
-	}
-
-	// Fallback: iterate Part stream
-	var blocks []BlockInfo
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-
-		targets := make(map[string]string)
-		for _, locale := range p.info.TargetLocales {
-			if t := block.TargetText(model.LocaleID(locale)); t != "" {
-				targets[locale] = t
-			}
-		}
-
-		props := make(map[string]string)
-		for k, v := range block.Properties {
-			props[k] = v
-		}
-
-		hasSpans := false
-		if len(block.Source) > 0 && block.Source[0].Content != nil {
-			hasSpans = block.Source[0].Content.HasSpans()
-		}
-
-		bi := BlockInfo{
-			ID:           block.ID,
-			Source:       block.SourceText(),
-			Targets:      targets,
-			Translatable: block.Translatable,
-			HasSpans:     hasSpans,
-			Properties:   props,
-		}
-		enrichBlockInfo(&bi, block, p.info.TargetLocales)
+	blocks := make([]BlockInfo, 0, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		bi := storedBlockToBlockInfo(sb, targetLocales)
 		blocks = append(blocks, bi)
 	}
-
 	return blocks, nil
+}
+
+// storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
+func storedBlockToBlockInfo(sb *store.StoredBlock, targetLocales []string) BlockInfo {
+	targets := make(map[string]string)
+	for _, locale := range targetLocales {
+		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
+			targets[locale] = t
+		}
+	}
+
+	props := make(map[string]string)
+	for k, v := range sb.Block.Properties {
+		props[k] = v
+	}
+
+	bi := BlockInfo{
+		ID:           sb.Block.ID,
+		Source:       sb.Block.SourceText(),
+		Targets:      targets,
+		Translatable: sb.Block.Translatable,
+		Properties:   props,
+	}
+
+	enrichBlockInfo(&bi, sb.Block, targetLocales)
+	return bi
 }
 
 // enrichBlockInfo populates coded text and span metadata on a BlockInfo
@@ -155,87 +124,34 @@ func spanToInfo(s *model.Span) SpanInfo {
 
 // UpdateBlockTarget updates the target text for a specific block.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
-	p, err := a.projects.get(req.ProjectID)
+	ctx := context.Background()
+	sb, err := a.store.GetBlock(ctx, req.ProjectID, req.BlockID)
 	if err != nil {
 		return err
 	}
 
-	itemName := req.ItemName
-	id, ok := p.items[itemName]
-	if !ok {
-		return fmt.Errorf("item %q not found in project", itemName)
-	}
+	sb.Block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
 
-	// Update block index if available
-	if id.blockIndex != nil {
-		if err := id.blockIndex.UpdateTarget(req.BlockID, req.TargetLocale, req.Text); err != nil {
-			return err
-		}
-	}
-
-	// Also update the Part stream for export/reconstruction
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		if block.ID == req.BlockID {
-			block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
-			p.dirty = true
-			return nil
-		}
-	}
-
-	return fmt.Errorf("block %q not found in item %q", req.BlockID, itemName)
+	return a.store.StoreBlocksForItem(ctx, req.ProjectID, sb.ItemName, []*model.Block{sb.Block})
 }
 
 // UpdateBlockTargetCoded updates the target for a block using coded text with span data.
 func (a *App) UpdateBlockTargetCoded(req UpdateBlockTargetCodedRequest) error {
-	p, err := a.projects.get(req.ProjectID)
+	ctx := context.Background()
+	sb, err := a.store.GetBlock(ctx, req.ProjectID, req.BlockID)
 	if err != nil {
 		return err
 	}
 
-	itemName := req.ItemName
-	id, ok := p.items[itemName]
-	if !ok {
-		return fmt.Errorf("item %q not found in project", itemName)
+	frag := &model.Fragment{
+		CodedText: req.CodedText,
 	}
-
-	// Update block index with plain text
-	plainText := stripMarkers(req.CodedText)
-	if id.blockIndex != nil {
-		if err := id.blockIndex.UpdateTarget(req.BlockID, req.TargetLocale, plainText); err != nil {
-			return err
-		}
+	for _, si := range req.Spans {
+		frag.Spans = append(frag.Spans, infoToSpan(si))
 	}
+	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
 
-	// Update the Part stream with full coded text + spans
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		if block.ID == req.BlockID {
-			frag := &model.Fragment{
-				CodedText: req.CodedText,
-			}
-			for _, si := range req.Spans {
-				frag.Spans = append(frag.Spans, infoToSpan(si))
-			}
-			block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
-			p.dirty = true
-			return nil
-		}
-	}
-
-	return fmt.Errorf("block %q not found in item %q", req.BlockID, itemName)
+	return a.store.StoreBlocksForItem(ctx, req.ProjectID, sb.ItemName, []*model.Block{sb.Block})
 }
 
 // stripMarkers removes Unicode span markers from coded text, returning plain text.
@@ -270,17 +186,17 @@ func infoToSpan(si SpanInfo) *model.Span {
 
 // PseudoTranslateItem pseudo-translates all blocks in an item.
 func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
+	parts := storedBlocksToParts(storedBlocks)
 
-	// Build pseudo-translate tool
 	pseudoTool := &tool.BaseTool{
 		ToolName:        "pseudo-translate",
 		ToolDescription: "Pseudo-translates blocks",
@@ -306,150 +222,133 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 		return part, nil
 	}
 
-	// Process parts through tool
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := pseudoTool.Process(ctx, in, out); err != nil {
+	outParts, err := runToolOnParts(ctx, pseudoTool, parts)
+	if err != nil {
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
-	close(out)
 
-	// Collect results back
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
+	// Store updated blocks back.
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
 	}
-	id.parts = newParts
 
-	// Sync block index from parts
-	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
-
-	stats := computeStats(id.parts, targetLocale)
-	p.dirty = true
-	return stats, nil
+	return computeStats(outParts, targetLocale), nil
 }
 
 // AITranslateItem translates all blocks using an AI provider.
 func (a *App) AITranslateItem(req AITranslateFileRequest) (*TranslationStats, error) {
-	p, err := a.projects.get(req.ProjectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, req.ProjectID)
 	if err != nil {
 		return nil, err
 	}
 
-	id, ok := p.items[req.ItemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", req.ItemName)
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: req.ProjectID,
+		ItemName:  req.ItemName,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	var prov provider.LLMProvider
+	parts := storedBlocksToParts(storedBlocks)
+
+	var prov = createProvider(req.Provider, req.APIKey, req.Model)
 	if req.ProviderConfigID != "" {
-		var err error
-		prov, err = credentials.NewProvider(a.credentials, req.ProviderConfigID)
-		if err != nil {
-			return nil, fmt.Errorf("resolve provider config: %w", err)
+		var provErr error
+		prov, provErr = credentials.NewProvider(a.credentials, req.ProviderConfigID)
+		if provErr != nil {
+			return nil, fmt.Errorf("resolve provider config: %w", provErr)
 		}
-	} else {
-		prov = createProvider(req.Provider, req.APIKey, req.Model)
 	}
+
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: model.LocaleID(p.info.SourceLocale),
+		SourceLocale: proj.SourceLocale,
 		TargetLocale: model.LocaleID(req.TargetLocale),
 	})
 
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := translateTool.Process(ctx, in, out); err != nil {
+	outParts, err := runToolOnParts(ctx, translateTool, parts)
+	if err != nil {
 		return nil, fmt.Errorf("AI translate: %w", err)
 	}
-	close(out)
 
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := a.store.StoreBlocksForItem(ctx, req.ProjectID, req.ItemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
 	}
-	id.parts = newParts
 
-	// Sync block index from parts
-	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
-
-	stats := computeStats(id.parts, req.TargetLocale)
-	p.dirty = true
-	return stats, nil
+	return computeStats(outParts, req.TargetLocale), nil
 }
 
 // TMTranslateItem leverages translation memory to translate blocks.
 func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	// Use the project's persistent TM
-	tm, err := getOrCreateTM(p)
+	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
 	}
+
+	parts := storedBlocksToParts(storedBlocks)
+
 	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
-		SourceLocale: model.LocaleID(p.info.SourceLocale),
+		SourceLocale: proj.SourceLocale,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := tmTool.Process(ctx, in, out); err != nil {
+	outParts, err := runToolOnParts(ctx, tmTool, parts)
+	if err != nil {
 		return nil, fmt.Errorf("TM translate: %w", err)
 	}
-	close(out)
 
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
 	}
-	id.parts = newParts
 
-	// Sync block index from parts
-	a.syncBlockIndexFromParts(id, p.info.SourceLocale)
-
-	stats := computeStats(id.parts, targetLocale)
-	p.dirty = true
-	return stats, nil
+	return computeStats(outParts, targetLocale), nil
 }
 
 // GetWordCount returns word and character counts for an item.
 func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	targetLocales := make([]string, len(proj.TargetLocales))
+	for i, l := range proj.TargetLocales {
+		targetLocales[i] = string(l)
 	}
 
 	result := &WordCountResult{
@@ -457,21 +356,16 @@ func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error)
 		TargetChars: make(map[string]int),
 	}
 
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
+	for _, sb := range storedBlocks {
+		if !sb.Block.Translatable {
 			continue
 		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			continue
-		}
-
-		src := block.SourceText()
+		src := sb.Block.SourceText()
 		result.SourceWords += countWords(src)
 		result.SourceChars += countChars(src)
 
-		for _, locale := range p.info.TargetLocales {
-			t := block.TargetText(model.LocaleID(locale))
+		for _, locale := range targetLocales {
+			t := sb.Block.TargetText(model.LocaleID(locale))
 			if t != "" {
 				result.TargetWords[locale] += countWords(t)
 				result.TargetChars[locale] += countChars(t)
@@ -484,17 +378,78 @@ func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error)
 
 // ExportTranslatedItem writes the translated item to disk and returns the output path.
 func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (string, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return "", err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return "", fmt.Errorf("item %q not found in project", itemName)
+	item, err := a.store.GetItem(ctx, projectID, itemName)
+	if err != nil {
+		return "", fmt.Errorf("get item: %w", err)
 	}
 
-	// Determine output path
+	if len(item.SourceBytes) == 0 {
+		return "", fmt.Errorf("item %q has no source bytes for export", itemName)
+	}
+
+	// Re-parse source bytes to get the Part stream.
+	reader, err := a.formatReg.NewReader(item.Format)
+	if err != nil {
+		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
+	}
+
+	doc := &model.RawDocument{
+		URI:          itemName,
+		SourceLocale: proj.SourceLocale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
+	}
+
+	if err := reader.Open(ctx, doc); err != nil {
+		reader.Close()
+		return "", fmt.Errorf("parse source: %w", err)
+	}
+
+	var parts []*model.Part
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			reader.Close()
+			return "", fmt.Errorf("read source: %w", result.Error)
+		}
+		parts = append(parts, result.Part)
+	}
+	reader.Close()
+
+	// Load updated blocks from ContentStore and inject targets into parts.
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return "", fmt.Errorf("get blocks: %w", err)
+	}
+
+	blockMap := make(map[string]*model.Block, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		blockMap[sb.Block.ID] = sb.Block
+	}
+
+	// Inject stored targets into the parsed parts.
+	for _, pt := range parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		if stored, ok := blockMap[block.ID]; ok {
+			block.Targets = stored.Targets
+		}
+	}
+
+	// Write output.
 	ext := fileExtension(itemName)
 	baseName := itemName
 	if ext != "" {
@@ -502,15 +457,13 @@ func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (st
 	}
 	outputPath := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
 
-	// If project has a path, put output next to it
-	if p.info.Path != "" {
-		dir := fileDir(p.info.Path)
-		outputPath = dir + "/" + outputPath
-	}
+	// Put output in temp dir.
+	dir := filepath.Join(defaultStorePath(), "..")
+	outputPath = filepath.Join(dir, outputPath)
 
-	writer, err := a.formatReg.NewWriter(id.format)
+	writer, err := a.formatReg.NewWriter(item.Format)
 	if err != nil {
-		return "", fmt.Errorf("no writer for %q: %w", id.format, err)
+		return "", fmt.Errorf("no writer for %q: %w", item.Format, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {
@@ -518,13 +471,12 @@ func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (st
 	}
 	writer.SetLocale(model.LocaleID(targetLocale))
 
-	ch := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
+	ch := make(chan *model.Part, len(parts))
+	for _, pt := range parts {
 		ch <- pt
 	}
 	close(ch)
 
-	ctx := context.Background()
 	if err := writer.Write(ctx, ch); err != nil {
 		return "", fmt.Errorf("write: %w", err)
 	}
@@ -559,49 +511,42 @@ type TMMatchInfo struct {
 
 // LookupTMForBlock looks up TM matches for a specific block.
 func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string) ([]TMMatchInfo, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
-	if p.tm == nil || p.tm.Count() == 0 {
+
+	tm, err := a.getOrCreateTM()
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
+	if tm.Count() == 0 {
 		return nil, nil
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found", itemName)
+	sb, err := a.store.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return nil, err
 	}
 
-	// Find the block
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.ID != blockID {
-			continue
-		}
-
-		opts := sievepen.DefaultLookupOptions()
-		opts.MaxResults = 5
-		matches, err := p.tm.Lookup(block, model.LocaleID(p.info.SourceLocale), model.LocaleID(targetLocale), opts)
-		if err != nil {
-			return nil, err
-		}
-
-		result := make([]TMMatchInfo, len(matches))
-		for i, m := range matches {
-			result[i] = TMMatchInfo{
-				Source:    m.Entry.SourceText(),
-				Target:    m.Entry.TargetText(),
-				Score:     m.Score,
-				MatchType: string(m.MatchType),
-			}
-		}
-		return result, nil
+	opts := sievepen.DefaultLookupOptions()
+	opts.MaxResults = 5
+	matches, err := tm.Lookup(sb.Block, proj.SourceLocale, model.LocaleID(targetLocale), opts)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, nil
+	result := make([]TMMatchInfo, len(matches))
+	for i, m := range matches {
+		result[i] = TMMatchInfo{
+			Source:    m.Entry.SourceText(),
+			Target:    m.Entry.TargetText(),
+			Score:     m.Score,
+			MatchType: string(m.MatchType),
+		}
+	}
+	return result, nil
 }
 
 // BlockTermMatch is a term match for a block, exposed to the frontend.
@@ -616,61 +561,52 @@ type BlockTermMatch struct {
 
 // LookupTermsForBlock looks up term matches in a specific block's source text.
 func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale string) ([]BlockTermMatch, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
-	if p.tb == nil {
+
+	tb := a.getOrCreateTB()
+	if tb.Count() == 0 {
 		return nil, nil
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found", itemName)
+	sb, err := a.store.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.ID != blockID {
-			continue
-		}
+	sourceText := sb.Block.SourceText()
+	if sourceText == "" {
+		return nil, nil
+	}
 
-		sourceText := block.SourceText()
-		if sourceText == "" {
-			return nil, nil
-		}
+	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
+		SourceLocale: proj.SourceLocale,
+		TargetLocale: model.LocaleID(targetLocale),
+	})
 
-		matches := p.tb.LookupAll(sourceText, termbase.LookupOptions{
-			SourceLocale: model.LocaleID(p.info.SourceLocale),
-			TargetLocale: model.LocaleID(targetLocale),
-		})
-
-		var result []BlockTermMatch
-		for _, m := range matches {
-			// Collect target terms for the requested locale
-			var targetTerms []string
-			for _, t := range m.Concept.Terms {
-				if t.Locale == model.LocaleID(targetLocale) {
-					targetTerms = append(targetTerms, t.Text)
-				}
+	var result []BlockTermMatch
+	for _, m := range matches {
+		// Collect target terms for the requested locale
+		var targetTerms []string
+		for _, t := range m.Concept.Terms {
+			if t.Locale == model.LocaleID(targetLocale) {
+				targetTerms = append(targetTerms, t.Text)
 			}
-
-			result = append(result, BlockTermMatch{
-				SourceTerm:  m.Term.Text,
-				TargetTerms: targetTerms,
-				Domain:      m.Concept.Domain,
-				Status:      string(m.Term.Status),
-				Start:       m.Position.Start,
-				End:         m.Position.End,
-			})
 		}
-		return result, nil
-	}
 
-	return nil, nil
+		result = append(result, BlockTermMatch{
+			SourceTerm:  m.Term.Text,
+			TargetTerms: targetTerms,
+			Domain:      m.Concept.Domain,
+			Status:      string(m.Term.Status),
+			Start:       m.Position.Start,
+			End:         m.Position.End,
+		})
+	}
+	return result, nil
 }
 
 // computeStats calculates translation statistics from parts.
@@ -693,31 +629,51 @@ func computeStats(parts []*model.Part, targetLocale string) *TranslationStats {
 	return stats
 }
 
-// syncBlockIndexFromParts rebuilds the block index targets from the Part stream.
-func (a *App) syncBlockIndexFromParts(id *projectItemData, sourceLocale string) {
-	if id.blockIndex == nil {
-		return
+// storedBlocksToParts wraps stored blocks as Part objects for tool processing.
+func storedBlocksToParts(storedBlocks []*store.StoredBlock) []*model.Part {
+	parts := make([]*model.Part, 0, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		parts = append(parts, &model.Part{
+			Type:     model.PartBlock,
+			Resource: sb.Block,
+		})
 	}
-	// Update targets in block index from parts
-	for _, pt := range id.parts {
+	return parts
+}
+
+// partsToBlocks extracts model.Block objects from a Part slice.
+func partsToBlocks(parts []*model.Part) []*model.Block {
+	var blocks []*model.Block
+	for _, pt := range parts {
 		if pt.Type != model.PartBlock {
 			continue
 		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		b := id.blockIndex.BlockByID(block.ID)
-		if b == nil {
-			continue
-		}
-		b.Targets = make(map[string]string)
-		for locale, segs := range block.Targets {
-			if len(segs) > 0 {
-				b.Targets[string(locale)] = block.TargetText(locale)
-			}
+		if block, ok := pt.Resource.(*model.Block); ok {
+			blocks = append(blocks, block)
 		}
 	}
+	return blocks
+}
+
+// runToolOnParts executes a tool on parts using channels.
+func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*model.Part, error) {
+	in := make(chan *model.Part, len(parts))
+	out := make(chan *model.Part, len(parts))
+	for _, pt := range parts {
+		in <- pt
+	}
+	close(in)
+
+	if err := t.Process(ctx, in, out); err != nil {
+		return nil, err
+	}
+	close(out)
+
+	var result []*model.Part
+	for pt := range out {
+		result = append(result, pt)
+	}
+	return result, nil
 }
 
 // pseudoAccent applies accent characters to ASCII text for pseudo-translation.

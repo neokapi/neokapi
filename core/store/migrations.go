@@ -90,4 +90,31 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
 		`,
 	},
+	{
+		Version:     6,
+		Description: "create items table",
+		SQL: `
+			CREATE TABLE items (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				format       TEXT NOT NULL DEFAULT '',
+				item_type    TEXT NOT NULL DEFAULT 'file',
+				source_bytes BLOB,
+				block_index  TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, name)
+			);
+			CREATE INDEX idx_items_project ON items(project_id);
+		`,
+	},
+	{
+		Version:     7,
+		Description: "add item_name column to blocks",
+		SQL: `
+			ALTER TABLE blocks ADD COLUMN item_name TEXT NOT NULL DEFAULT '';
+			CREATE INDEX idx_blocks_item ON blocks(project_id, item_name);
+		`,
+	},
 }

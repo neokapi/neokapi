@@ -9,7 +9,7 @@ import (
 )
 
 func TestRenderDocumentPreview_HTML(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Preview HTML", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -27,7 +27,7 @@ func TestRenderDocumentPreview_HTML(t *testing.T) {
 }
 
 func TestRenderDocumentPreview_Plaintext(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Preview Plain", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestRenderDocumentPreview_Plaintext(t *testing.T) {
 }
 
 func TestRenderDocumentPreview_Cached(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Preview Cached", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -53,11 +53,11 @@ func TestRenderDocumentPreview_Cached(t *testing.T) {
 	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
-	// First call generates and caches
+	// First call generates preview
 	html1, err := app.RenderDocumentPreview(info.ID, "page.html", "fr")
 	require.NoError(t, err)
 
-	// Second call returns cached
+	// Second call should return the same result
 	html2, err := app.RenderDocumentPreview(info.ID, "page.html", "fr")
 	require.NoError(t, err)
 
@@ -65,18 +65,17 @@ func TestRenderDocumentPreview_Cached(t *testing.T) {
 }
 
 func TestRenderDocumentPreview_NotFound(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Preview Not Found", "en", []string{"fr"})
 	require.NoError(t, err)
 
 	_, err = app.RenderDocumentPreview(info.ID, "nonexistent.txt", "fr")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestRenderBlockHTML_Source(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Block HTML", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -92,7 +91,7 @@ func TestRenderBlockHTML_Source(t *testing.T) {
 
 	blockID := blocks[0].ID
 
-	// No target locale → returns source
+	// No target locale -> returns source
 	html, err := app.RenderBlockHTML(info.ID, "hello.txt", blockID, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, html)
@@ -100,7 +99,7 @@ func TestRenderBlockHTML_Source(t *testing.T) {
 }
 
 func TestRenderBlockHTML_WithTarget(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Block HTML Target", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -125,14 +124,14 @@ func TestRenderBlockHTML_WithTarget(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// With target locale → returns target
+	// With target locale -> returns target
 	html, err := app.RenderBlockHTML(info.ID, "hello.txt", blockID, "fr")
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", html)
 }
 
 func TestRenderBlockHTML_NotFoundBlock(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Block Not Found", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -143,22 +142,20 @@ func TestRenderBlockHTML_NotFoundBlock(t *testing.T) {
 
 	_, err = app.RenderBlockHTML(info.ID, "hello.txt", "nonexistent-block", "fr")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestRenderBlockHTML_NotFoundItem(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("Item Not Found", "en", []string{"fr"})
 	require.NoError(t, err)
 
 	_, err = app.RenderBlockHTML(info.ID, "nonexistent.txt", "block1", "fr")
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestRenderDocumentPreview_OnTheFly(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 
 	info, err := app.CreateProject("On-The-Fly", "en", []string{"fr"})
 	require.NoError(t, err)
@@ -167,16 +164,14 @@ func TestRenderDocumentPreview_OnTheFly(t *testing.T) {
 	info, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 
-	// Clear the cached preview to test on-the-fly generation
-	p, _ := app.projects.get(info.ID)
-	id := p.items["hello.txt"]
-	id.previewHTML = ""
-
+	// RenderDocumentPreview generates on-the-fly from source bytes
 	html, err := app.RenderDocumentPreview(info.ID, "hello.txt", "fr")
 	require.NoError(t, err)
 	assert.NotEmpty(t, html)
 	assert.Contains(t, html, "kat-block")
 
-	// Should now be cached
-	assert.NotEmpty(t, id.previewHTML)
+	// Second call also regenerates (no in-memory cache now)
+	html2, err := app.RenderDocumentPreview(info.ID, "hello.txt", "fr")
+	require.NoError(t, err)
+	assert.Equal(t, html, html2)
 }

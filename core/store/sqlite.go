@@ -5,11 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/internal/storage"
 	"github.com/google/uuid"
@@ -130,10 +128,123 @@ func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
 }
 
 // ---------------------------------------------------------------------------
+// Item management
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *Item) error {
+	now := time.Now().UTC()
+	item.CreatedAt = now
+	item.UpdatedAt = now
+
+	propsJSON, err := json.Marshal(item.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal properties: %w", err)
+	}
+	if item.BlockIndex == "" {
+		item.BlockIndex = "{}"
+	}
+	if item.ItemType == "" {
+		item.ItemType = "file"
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO items (project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(project_id, name) DO UPDATE SET
+			format=excluded.format, item_type=excluded.item_type,
+			source_bytes=excluded.source_bytes, block_index=excluded.block_index,
+			properties=excluded.properties, updated_at=excluded.updated_at`,
+		projectID, item.Name, item.Format, item.ItemType, item.SourceBytes,
+		item.BlockIndex, string(propsJSON),
+		now.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("store item %q: %w", item.Name, err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetItem(ctx context.Context, projectID, itemName string) (*Item, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		 FROM items WHERE project_id=? AND name=?`, projectID, itemName)
+	return scanItem(row)
+}
+
+func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*Item, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		 FROM items WHERE project_id=? ORDER BY name`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*Item
+	for rows.Next() {
+		item, err := scanItem(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, itemName string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Delete blocks belonging to this item.
+	_, err = tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND item_name=?`, projectID, itemName)
+	if err != nil {
+		return fmt.Errorf("delete item blocks: %w", err)
+	}
+
+	// Delete the item itself.
+	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=? AND name=?`, projectID, itemName)
+	if err != nil {
+		return fmt.Errorf("delete item: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("item %q not found in project %s", itemName, projectID)
+	}
+
+	return tx.Commit()
+}
+
+func scanItem(row scanner) (*Item, error) {
+	var item Item
+	var propsJSON, createdStr, updatedStr string
+	err := row.Scan(&item.ProjectID, &item.Name, &item.Format, &item.ItemType,
+		&item.SourceBytes, &item.BlockIndex, &propsJSON, &createdStr, &updatedStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan item: %w", err)
+	}
+	item.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	item.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &item.Properties); err != nil {
+		item.Properties = map[string]string{}
+	}
+	return &item, nil
+}
+
+// ---------------------------------------------------------------------------
 // Block storage
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, "", blocks)
+}
+
+func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, itemName, blocks)
+}
+
+func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -141,11 +252,11 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO blocks (id, project_id, name, type, mime_type, translatable, content_hash, context_hash,
+		`INSERT INTO blocks (id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, id) DO UPDATE SET
-			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
+			item_name=excluded.item_name, name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
 			targets_json=excluded.targets_json, properties=excluded.properties,
@@ -195,7 +306,7 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 		}
 
 		_, err = stmt.ExecContext(ctx,
-			b.ID, projectID, b.Name, b.Type, b.MimeType, translatable,
+			b.ID, projectID, itemName, b.Name, b.Type, b.MimeType, translatable,
 			identity.ContentHash, identity.ContextHash,
 			string(sourceJSON), string(targetsJSON),
 			string(propsJSON), string(annsJSON), now, now)
@@ -220,7 +331,7 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, type, mime_type, translatable, content_hash, context_hash,
+		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
 	return scanStoredBlock(row)
@@ -230,6 +341,10 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*Store
 	where := []string{"project_id = ?"}
 	args := []any{query.ProjectID}
 
+	if query.ItemName != "" {
+		where = append(where, "item_name = ?")
+		args = append(args, query.ItemName)
+	}
 	if len(query.IDs) > 0 {
 		placeholders := make([]string, len(query.IDs))
 		for i, id := range query.IDs {
@@ -252,7 +367,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*Store
 	}
 
 	q := fmt.Sprintf(
-		`SELECT id, project_id, name, type, mime_type, translatable, content_hash, context_hash,
+		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
 		 FROM blocks WHERE %s ORDER BY id`, strings.Join(where, " AND "))
 
@@ -457,123 +572,6 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 }
 
 // ---------------------------------------------------------------------------
-// KAZ export/import
-// ---------------------------------------------------------------------------
-
-func (s *SQLiteStore) ExportKAZ(ctx context.Context, projectID string, w io.Writer) error {
-	proj, err := s.GetProject(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("get project: %w", err)
-	}
-
-	blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: projectID})
-	if err != nil {
-		return fmt.Errorf("get blocks: %w", err)
-	}
-
-	versions, err := s.ListVersions(ctx, projectID)
-	if err != nil {
-		return fmt.Errorf("list versions: %w", err)
-	}
-
-	var exportBlocks []kaz.ExportBlock
-	for _, sb := range blocks {
-		exportBlocks = append(exportBlocks, kaz.BlockToExport(sb.Block))
-	}
-
-	var exportVersions []kaz.ExportVersion
-	for _, v := range versions {
-		// Get block IDs for this version.
-		rows, err := s.db.QueryContext(ctx,
-			`SELECT block_id FROM version_blocks WHERE version_id=?`, v.ID)
-		if err != nil {
-			return fmt.Errorf("query version blocks: %w", err)
-		}
-		var blockIDs []string
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return err
-			}
-			blockIDs = append(blockIDs, id)
-		}
-		rows.Close()
-
-		exportVersions = append(exportVersions, kaz.ExportVersion{
-			ID:          v.ID,
-			Label:       v.Label,
-			Description: v.Description,
-			BlockIDs:    blockIDs,
-			CreatedAt:   v.CreatedAt.Format(time.RFC3339),
-		})
-	}
-
-	locales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
-		locales[i] = string(l)
-	}
-
-	return kaz.ExportStore(w, kaz.StoreExportOptions{
-		ProjectID:     proj.ID,
-		ProjectName:   proj.Name,
-		SourceLocale:  string(proj.SourceLocale),
-		TargetLocales: locales,
-		Blocks:        exportBlocks,
-		Versions:      exportVersions,
-	})
-}
-
-func (s *SQLiteStore) ImportKAZ(ctx context.Context, r io.Reader) (string, error) {
-	data, err := io.ReadAll(r)
-	if err != nil {
-		return "", fmt.Errorf("read KAZ data: %w", err)
-	}
-
-	pkg, err := kaz.ImportStoreFromBytes(data)
-	if err != nil {
-		return "", fmt.Errorf("parse KAZ: %w", err)
-	}
-
-	// Create project.
-	projectID := pkg.Manifest.ProjectID
-	if projectID == "" {
-		projectID = uuid.NewString()
-	}
-
-	locales := make([]model.LocaleID, len(pkg.Manifest.TargetLocales))
-	for i, l := range pkg.Manifest.TargetLocales {
-		locales[i] = model.LocaleID(l)
-	}
-
-	proj := &Project{
-		ID:            projectID,
-		Name:          pkg.Manifest.ProjectName,
-		SourceLocale:  model.LocaleID(pkg.Manifest.SourceLocale),
-		TargetLocales: locales,
-		Properties:    map[string]string{},
-		CreatedAt:     time.Now().UTC(),
-		UpdatedAt:     time.Now().UTC(),
-	}
-	if err := s.CreateProject(ctx, proj); err != nil {
-		return "", fmt.Errorf("create project: %w", err)
-	}
-
-	// Import blocks.
-	var blocks []*model.Block
-	for _, eb := range pkg.Blocks {
-		blocks = append(blocks, kaz.ExportToBlock(eb))
-	}
-	if len(blocks) > 0 {
-		if err := s.StoreBlocks(ctx, projectID, blocks); err != nil {
-			return "", fmt.Errorf("store blocks: %w", err)
-		}
-	}
-
-	return projectID, nil
-}
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -629,7 +627,7 @@ func scanStoredBlock(row scanner) (*StoredBlock, error) {
 	var sourceJSON, targetsJSON, propsJSON, annsJSON, storedStr, updatedStr string
 
 	err := row.Scan(
-		&sb.Block.ID, &sb.ProjectID, &sb.Block.Name, &sb.Block.Type,
+		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.Block.Name, &sb.Block.Type,
 		&sb.Block.MimeType, &translatable, &sb.ContentHash, &sb.ContextHash,
 		&sourceJSON, &targetsJSON, &propsJSON, &annsJSON, &storedStr, &updatedStr)
 	if err != nil {

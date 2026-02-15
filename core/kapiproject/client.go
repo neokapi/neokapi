@@ -13,18 +13,51 @@ import (
 )
 
 // BowrainClient is a REST client for the Bowrain server sync API.
+// It supports both local-mode flat routes (/api/v1/projects/:id/...)
+// and workspace-scoped routes (/api/v1/workspaces/:ws/projects/:id/...).
 type BowrainClient struct {
 	baseURL    string
 	projectID  string
+	workspace  string // workspace slug; empty for local-mode flat routes
+	authToken  string // JWT bearer token; empty for local-mode
 	httpClient *http.Client
 }
 
 // NewBowrainClient creates a new client for the given server URL and project.
+// Uses local-mode flat routes (no auth).
 func NewBowrainClient(serverURL, projectID string) *BowrainClient {
 	return &BowrainClient{
 		baseURL:    strings.TrimRight(serverURL, "/"),
 		projectID:  projectID,
 		httpClient: &http.Client{},
+	}
+}
+
+// NewWorkspaceBowrainClient creates a client that uses workspace-scoped routes with auth.
+func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string) *BowrainClient {
+	return &BowrainClient{
+		baseURL:    strings.TrimRight(serverURL, "/"),
+		projectID:  projectID,
+		workspace:  workspace,
+		authToken:  authToken,
+		httpClient: &http.Client{},
+	}
+}
+
+// projectPrefix returns the URL prefix for project-scoped endpoints.
+// In workspace mode: /api/v1/workspaces/{ws}/projects/{pid}
+// In local mode:     /api/v1/projects/{pid}
+func (c *BowrainClient) projectPrefix() string {
+	if c.workspace != "" {
+		return fmt.Sprintf("%s/api/v1/workspaces/%s/projects/%s", c.baseURL, c.workspace, c.projectID)
+	}
+	return fmt.Sprintf("%s/api/v1/projects/%s", c.baseURL, c.projectID)
+}
+
+// applyAuth adds authorization header if a token is set.
+func (c *BowrainClient) applyAuth(req *http.Request) {
+	if c.authToken != "" {
+		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	}
 }
 
@@ -70,12 +103,13 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 		return nil, fmt.Errorf("marshal push request: %w", err)
 	}
 
-	u := fmt.Sprintf("%s/api/v1/projects/%s/sync/push", c.baseURL, c.projectID)
+	u := c.projectPrefix() + "/sync/push"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	c.applyAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -97,7 +131,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 
 // Pull fetches changes from the server since the given cursor.
 func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string, limit int) (*SyncPullResponse, error) {
-	u, err := url.Parse(fmt.Sprintf("%s/api/v1/projects/%s/sync/pull", c.baseURL, c.projectID))
+	u, err := url.Parse(c.projectPrefix() + "/sync/pull")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -116,6 +150,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+	c.applyAuth(req)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

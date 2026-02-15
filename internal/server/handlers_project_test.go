@@ -16,6 +16,7 @@ func newTestServer(t *testing.T) *Server {
 	t.Helper()
 	cfg := DefaultServerConfig()
 	cfg.StorePath = ":memory:"
+	cfg.LocalMode = true
 	s := NewServer(cfg)
 	require.NotNil(t, s.Services, "services should be initialized with :memory: store")
 	return s

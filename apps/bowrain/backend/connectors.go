@@ -99,10 +99,10 @@ func (a *App) FetchContent(connectorID, projectID string) ([]ContentItemInfo, er
 	}
 
 	// Store blocks if we have a content store.
-	if a.contentStore != nil && projectID != "" {
+	if a.store != nil && projectID != "" {
 		for _, item := range items {
 			if len(item.Blocks) > 0 {
-				if err := a.contentStore.StoreBlocks(ctx, projectID, item.Blocks); err != nil {
+				if err := a.store.StoreBlocks(ctx, projectID, item.Blocks); err != nil {
 					return nil, fmt.Errorf("store blocks: %w", err)
 				}
 			}
@@ -127,12 +127,12 @@ func (a *App) PublishContent(connectorID, projectID string) error {
 	if !ok {
 		return fmt.Errorf("connector %s not found", connectorID)
 	}
-	if a.contentStore == nil {
+	if a.store == nil {
 		return fmt.Errorf("content store not initialized")
 	}
 
 	ctx := context.Background()
-	blocks, err := a.contentStore.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID})
+	blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID})
 	if err != nil {
 		return fmt.Errorf("get blocks: %w", err)
 	}
@@ -202,24 +202,21 @@ func (a *App) ListContentItems(connectorID string) ([]ContentItemInfo, error) {
 	return result, nil
 }
 
-// InitContentStore initializes the content store with the given database path.
+// InitContentStore re-initializes the content store with the given database path.
 func (a *App) InitContentStore(dbPath string) error {
-	if a.contentStore != nil {
-		a.contentStore.Close()
+	if a.store != nil {
+		a.store.Close()
 	}
 	cs, err := store.NewSQLiteStore(dbPath)
 	if err != nil {
 		return fmt.Errorf("open content store: %w", err)
 	}
-	a.contentStore = cs
+	a.store = cs
 	return nil
 }
 
 // StoreProject creates a project in the content store.
 func (a *App) StoreProject(name, sourceLocale string, targetLocales []string) (*store.Project, error) {
-	if a.contentStore == nil {
-		return nil, fmt.Errorf("content store not initialized")
-	}
 	locales := make([]model.LocaleID, len(targetLocales))
 	for i, l := range targetLocales {
 		locales[i] = model.LocaleID(l)
@@ -230,7 +227,7 @@ func (a *App) StoreProject(name, sourceLocale string, targetLocales []string) (*
 		TargetLocales: locales,
 		Properties:    map[string]string{},
 	}
-	if err := a.contentStore.CreateProject(context.Background(), p); err != nil {
+	if err := a.store.CreateProject(context.Background(), p); err != nil {
 		return nil, err
 	}
 	return p, nil
@@ -238,24 +235,15 @@ func (a *App) StoreProject(name, sourceLocale string, targetLocales []string) (*
 
 // ListStoreProjects returns all projects in the content store.
 func (a *App) ListStoreProjects() ([]*store.Project, error) {
-	if a.contentStore == nil {
-		return nil, fmt.Errorf("content store not initialized")
-	}
-	return a.contentStore.ListProjects(context.Background())
+	return a.store.ListProjects(context.Background())
 }
 
 // CreateStoreVersion creates a version snapshot in the content store.
 func (a *App) CreateStoreVersion(projectID, label, description string) (*store.Version, error) {
-	if a.contentStore == nil {
-		return nil, fmt.Errorf("content store not initialized")
-	}
-	return a.contentStore.CreateVersion(context.Background(), projectID, label, description)
+	return a.store.CreateVersion(context.Background(), projectID, label, description)
 }
 
 // ListStoreVersions lists versions for a project.
 func (a *App) ListStoreVersions(projectID string) ([]*store.Version, error) {
-	if a.contentStore == nil {
-		return nil, fmt.Errorf("content store not initialized")
-	}
-	return a.contentStore.ListVersions(context.Background(), projectID)
+	return a.store.ListVersions(context.Background(), projectID)
 }

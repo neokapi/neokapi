@@ -2,11 +2,13 @@ package backend
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/lib/termbase"
 	"github.com/google/uuid"
 )
@@ -75,13 +77,13 @@ type UpdateConceptRequest struct {
 	Terms      []TermInfo `json:"terms"`
 }
 
-// getOrCreateTB lazily initializes the project's in-memory termbase.
-func getOrCreateTB(p *project) *termbase.InMemoryTermBase {
-	if p.tb != nil {
-		return p.tb
+// getOrCreateTB lazily initializes the app-level in-memory termbase.
+func (a *App) getOrCreateTB() *termbase.InMemoryTermBase {
+	if a.tb != nil {
+		return a.tb
 	}
-	p.tb = termbase.NewInMemoryTermBase()
-	return p.tb
+	a.tb = termbase.NewInMemoryTermBase()
+	return a.tb
 }
 
 func conceptToInfo(c termbase.Concept) ConceptInfo {
@@ -125,14 +127,9 @@ func termsFromInfo(terms []TermInfo) []termbase.Term {
 	return result
 }
 
-// GetTerms searches the project's termbase.
+// GetTerms searches the termbase.
 func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResult, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
 	infos := make([]ConceptInfo, len(results))
 	for i, c := range results {
@@ -144,23 +141,14 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 	}, nil
 }
 
-// GetTermCount returns the total number of concepts in the project's termbase.
+// GetTermCount returns the total number of concepts in the termbase.
 func (a *App) GetTermCount(projectID string) (int, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return 0, err
-	}
-	return getOrCreateTB(p).Count(), nil
+	return a.getOrCreateTB().Count(), nil
 }
 
-// AddConcept adds a new concept to the project's termbase.
+// AddConcept adds a new concept to the termbase.
 func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
-	p, err := a.projects.get(req.ProjectID)
-	if err != nil {
-		return nil, err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
 		ID:         uuid.New().String(),
 		Domain:     req.Domain,
@@ -175,18 +163,12 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	// Retrieve to get normalized timestamps.
 	stored, _ := tb.GetConcept(concept.ID)
 	info := conceptToInfo(stored)
-	p.dirty = true
 	return &info, nil
 }
 
-// UpdateConcept updates an existing concept in the project's termbase.
+// UpdateConcept updates an existing concept in the termbase.
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
-	p, err := a.projects.get(req.ProjectID)
-	if err != nil {
-		return err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
 		ID:         req.ConceptID,
 		Domain:     req.Domain,
@@ -194,38 +176,18 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 		Terms:      termsFromInfo(req.Terms),
 	}
 
-	if err := tb.AddConcept(concept); err != nil {
-		return err
-	}
-
-	p.dirty = true
-	return nil
+	return tb.AddConcept(concept)
 }
 
-// DeleteConcept removes a concept from the project's termbase.
+// DeleteConcept removes a concept from the termbase.
 func (a *App) DeleteConcept(projectID, conceptID string) error {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return err
-	}
-
-	tb := getOrCreateTB(p)
-	if err := tb.DeleteConcept(conceptID); err != nil {
-		return err
-	}
-
-	p.dirty = true
-	return nil
+	tb := a.getOrCreateTB()
+	return tb.DeleteConcept(conceptID)
 }
 
 // LookupTerms looks up terms matching the given text.
 func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*TermLookupResult, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	matches := tb.LookupAll(text, termbase.LookupOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 	})
@@ -256,14 +218,9 @@ func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*
 	return &TermLookupResult{Matches: infos}, nil
 }
 
-// ImportTermsCSV imports terms from CSV content into the project's termbase.
+// ImportTermsCSV imports terms from CSV content into the termbase.
 func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain string, hasHeader bool) (int, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return 0, err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 		TargetLocale: model.LocaleID(targetLocale),
@@ -274,35 +231,23 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 		return 0, fmt.Errorf("import CSV: %w", err)
 	}
 
-	p.dirty = true
 	return count, nil
 }
 
-// ImportTermsJSON imports terms from JSON content into the project's termbase.
+// ImportTermsJSON imports terms from JSON content into the termbase.
 func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return 0, err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
 	if err != nil {
 		return 0, fmt.Errorf("import JSON: %w", err)
 	}
 
-	p.dirty = true
 	return count, nil
 }
 
-// ExportTermsJSON exports the project's termbase as JSON.
+// ExportTermsJSON exports the termbase as JSON.
 func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return "", err
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	var buf bytes.Buffer
 	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
 		return "", fmt.Errorf("export JSON: %w", err)
@@ -313,31 +258,32 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 
 // TermEnforceItem runs terminology enforcement on a project item.
 func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermEnforceResult, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	item, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found", itemName)
-	}
-
-	tb := getOrCreateTB(p)
+	tb := a.getOrCreateTB()
 	if tb.Count() == 0 {
 		return nil, nil
 	}
 
-	srcLocale := model.LocaleID(p.info.SourceLocale)
+	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	srcLocale := proj.SourceLocale
 	tgtLocale := model.LocaleID(targetLocale)
 
 	var results []TermEnforceResult
-	for _, pt := range item.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || !block.Translatable {
+	for _, sb := range storedBlocks {
+		block := sb.Block
+		if !block.Translatable {
 			continue
 		}
 		if !block.HasTarget(tgtLocale) {

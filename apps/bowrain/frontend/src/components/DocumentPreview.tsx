@@ -61,7 +61,7 @@ export function DocumentPreview({
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // Fallback: mark ready on iframe load (for .kaz files without kat-iframe-ready)
+  // Fallback: mark ready on iframe load (for previews without kat-iframe-ready)
   const handleIframeLoad = useCallback(() => {
     // Small delay to let scripts in the iframe execute
     setTimeout(() => setIframeReady(true), 50);

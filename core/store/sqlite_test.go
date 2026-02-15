@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -268,51 +267,134 @@ func TestConcurrentAccess(t *testing.T) {
 	assert.Len(t, blocks, 10)
 }
 
-func TestKAZRoundtrip(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Item CRUD
+// ---------------------------------------------------------------------------
+
+func TestItemCRUD(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	p := createTestProject(t, s)
 
-	// Store some blocks with targets.
-	b1 := model.NewBlock("b1", "Hello world")
-	b1.SetTargetText(model.LocaleFrench, "Bonjour le monde")
-	b2 := model.NewBlock("b2", "Goodbye")
-	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b1, b2}))
-
-	// Create a version.
-	_, err := s.CreateVersion(ctx, p.ID, "v1.0", "initial")
-	require.NoError(t, err)
-
-	// Export to KAZ.
-	var buf bytes.Buffer
-	require.NoError(t, s.ExportKAZ(ctx, p.ID, &buf))
-	assert.True(t, buf.Len() > 0)
-
-	// Import into a fresh store.
-	s2 := newTestStore(t)
-	importedID, err := s2.ImportKAZ(ctx, bytes.NewReader(buf.Bytes()))
-	require.NoError(t, err)
-	assert.Equal(t, p.ID, importedID)
-
-	// Verify project.
-	proj2, err := s2.GetProject(ctx, importedID)
-	require.NoError(t, err)
-	assert.Equal(t, "Test Project", proj2.Name)
-	assert.Equal(t, model.LocaleEnglish, proj2.SourceLocale)
-
-	// Verify blocks.
-	blocks, err := s2.GetBlocks(ctx, BlockQuery{ProjectID: importedID})
-	require.NoError(t, err)
-	require.Len(t, blocks, 2)
-
-	// Find b1 and check targets.
-	var found bool
-	for _, sb := range blocks {
-		if sb.Block.ID == "b1" {
-			found = true
-			assert.Equal(t, "Hello world", sb.Block.SourceText())
-			assert.Equal(t, "Bonjour le monde", sb.Block.TargetText(model.LocaleFrench))
+	t.Run("store and get", func(t *testing.T) {
+		item := &Item{
+			Name:        "messages.json",
+			Format:      "json",
+			ItemType:    "file",
+			SourceBytes: []byte(`{"hello":"world"}`),
+			Properties:  map[string]string{"encoding": "UTF-8"},
 		}
-	}
-	assert.True(t, found, "block b1 not found after import")
+		require.NoError(t, s.StoreItem(ctx, p.ID, item))
+
+		got, err := s.GetItem(ctx, p.ID, "messages.json")
+		require.NoError(t, err)
+		assert.Equal(t, "messages.json", got.Name)
+		assert.Equal(t, "json", got.Format)
+		assert.Equal(t, "file", got.ItemType)
+		assert.Equal(t, []byte(`{"hello":"world"}`), got.SourceBytes)
+		assert.Equal(t, "UTF-8", got.Properties["encoding"])
+		assert.NotZero(t, got.CreatedAt)
+	})
+
+	t.Run("upsert", func(t *testing.T) {
+		item := &Item{
+			Name:        "messages.json",
+			Format:      "json",
+			ItemType:    "file",
+			SourceBytes: []byte(`{"hello":"updated"}`),
+			Properties:  map[string]string{},
+		}
+		require.NoError(t, s.StoreItem(ctx, p.ID, item))
+
+		got, err := s.GetItem(ctx, p.ID, "messages.json")
+		require.NoError(t, err)
+		assert.Equal(t, []byte(`{"hello":"updated"}`), got.SourceBytes)
+	})
+
+	t.Run("list", func(t *testing.T) {
+		item2 := &Item{
+			Name:     "strings.xml",
+			Format:   "xml",
+			ItemType: "file",
+		}
+		require.NoError(t, s.StoreItem(ctx, p.ID, item2))
+
+		items, err := s.ListItems(ctx, p.ID)
+		require.NoError(t, err)
+		assert.Len(t, items, 2)
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		require.NoError(t, s.DeleteItem(ctx, p.ID, "strings.xml"))
+
+		items, err := s.ListItems(ctx, p.ID)
+		require.NoError(t, err)
+		assert.Len(t, items, 1)
+	})
+
+	t.Run("delete nonexistent", func(t *testing.T) {
+		err := s.DeleteItem(ctx, p.ID, "nonexistent.txt")
+		assert.Error(t, err)
+	})
+
+	t.Run("get nonexistent", func(t *testing.T) {
+		_, err := s.GetItem(ctx, p.ID, "nonexistent.txt")
+		assert.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Block-Item association
+// ---------------------------------------------------------------------------
+
+func TestBlockItemAssociation(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Store an item.
+	item := &Item{Name: "messages.json", Format: "json", ItemType: "file"}
+	require.NoError(t, s.StoreItem(ctx, p.ID, item))
+
+	// Store blocks associated with the item.
+	b1 := model.NewBlock("msg-1", "Hello")
+	b2 := model.NewBlock("msg-2", "Goodbye")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "messages.json", []*model.Block{b1, b2}))
+
+	// Store blocks without item association.
+	b3 := model.NewBlock("other-1", "Other")
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b3}))
+
+	t.Run("query by item name", func(t *testing.T) {
+		blocks, err := s.GetBlocks(ctx, BlockQuery{
+			ProjectID: p.ID,
+			ItemName:  "messages.json",
+		})
+		require.NoError(t, err)
+		assert.Len(t, blocks, 2)
+		for _, sb := range blocks {
+			assert.Equal(t, "messages.json", sb.ItemName)
+		}
+	})
+
+	t.Run("query all blocks", func(t *testing.T) {
+		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+		require.NoError(t, err)
+		assert.Len(t, blocks, 3)
+	})
+
+	t.Run("get block has item_name", func(t *testing.T) {
+		sb, err := s.GetBlock(ctx, p.ID, "msg-1")
+		require.NoError(t, err)
+		assert.Equal(t, "messages.json", sb.ItemName)
+	})
+
+	t.Run("delete item cascades blocks", func(t *testing.T) {
+		require.NoError(t, s.DeleteItem(ctx, p.ID, "messages.json"))
+
+		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+		require.NoError(t, err)
+		assert.Len(t, blocks, 1)
+		assert.Equal(t, "other-1", blocks[0].ID)
+	})
 }

@@ -3,9 +3,6 @@ package main
 import (
 	"embed"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/gokapi/gokapi/apps/bowrain/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -15,35 +12,11 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// parseProjectArg scans command-line arguments for a .kaz file path.
-// It skips flags (args starting with "-") and returns the first .kaz
-// path found, resolved to an absolute path. Returns "" if none found.
-func parseProjectArg(args []string) string {
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "-") {
-			continue
-		}
-		if strings.HasSuffix(strings.ToLower(arg), ".kaz") {
-			abs, err := filepath.Abs(arg)
-			if err != nil {
-				return arg
-			}
-			return abs
-		}
-	}
-	return ""
-}
-
 func main() {
 	// Create the backend without plugins first so the window can appear
 	// immediately. Plugin loading (which may start a JVM subprocess) is
 	// deferred to the background.
 	appService := backend.NewAppWithoutPlugins()
-
-	// Check if a .kaz project file was passed as a CLI argument.
-	if path := parseProjectArg(os.Args[1:]); path != "" {
-		appService.SetInitialProjectPath(path)
-	}
 
 	app := application.New(application.Options{
 		Name: "Bowrain",

@@ -1,34 +1,62 @@
 package backend
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// RenderDocumentPreview returns the pre-rendered HTML for an item.
-// If previewHTML is already cached, it returns that; otherwise it
-// generates preview on-the-fly.
+// RenderDocumentPreview returns pre-rendered HTML for an item.
 func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (string, error) {
-	p, err := a.projects.get(projectID)
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
 		return "", err
 	}
 
-	id, ok := p.items[itemName]
-	if !ok {
+	item, err := a.store.GetItem(ctx, projectID, itemName)
+	if err != nil {
 		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	// Return cached preview if available
-	if id.previewHTML != "" {
-		return id.previewHTML, nil
+	if len(item.SourceBytes) == 0 {
+		return "", nil
 	}
 
-	// Generate on-the-fly
-	preview := kaz.BuildPreview(id.parts, id.sourceBytes, id.format, model.LocaleID(p.info.SourceLocale))
-	id.previewHTML = preview
+	// Re-parse source bytes to generate preview
+	reader, err := a.formatReg.NewReader(item.Format)
+	if err != nil {
+		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
+	}
+
+	doc := &model.RawDocument{
+		URI:          itemName,
+		SourceLocale: proj.SourceLocale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
+	}
+
+	if err := reader.Open(ctx, doc); err != nil {
+		reader.Close()
+		return "", fmt.Errorf("parse source: %w", err)
+	}
+
+	var parts []*model.Part
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			reader.Close()
+			return "", fmt.Errorf("read source: %w", result.Error)
+		}
+		parts = append(parts, result.Part)
+	}
+	reader.Close()
+
+	preview := kaz.BuildPreview(parts, item.SourceBytes, item.Format, proj.SourceLocale)
 	return preview, nil
 }
 
@@ -36,57 +64,36 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 // If targetLocale is non-empty and a translation exists, it returns the
 // target text; otherwise it returns the source HTML.
 func (a *App) RenderBlockHTML(projectID, itemName, blockID, targetLocale string) (string, error) {
-	p, err := a.projects.get(projectID)
-	if err != nil {
-		return "", err
-	}
+	ctx := context.Background()
 
-	id, ok := p.items[itemName]
-	if !ok {
+	item, err := a.store.GetItem(ctx, projectID, itemName)
+	if err != nil {
 		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	// Look up block in block index (fast path)
-	if id.blockIndex != nil {
-		b := id.blockIndex.BlockByID(blockID)
-		if b == nil {
-			return "", fmt.Errorf("block %q not found in item %q", blockID, itemName)
-		}
-
-		// Return target translation if available
-		if targetLocale != "" {
-			if text, ok := b.Targets[targetLocale]; ok && text != "" {
-				return text, nil
-			}
-		}
-
-		// Return source HTML if available, else plain source
-		if b.SourceHTML != "" {
-			return b.SourceHTML, nil
-		}
-		return b.Source, nil
+	// Always load the live block from the store for up-to-date targets.
+	sb, err := a.store.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return "", fmt.Errorf("block %q not found in item %q", blockID, itemName)
 	}
 
-	// Fallback: search Part stream
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
+	// Return target translation if available
+	if targetLocale != "" {
+		if text := sb.Block.TargetText(model.LocaleID(targetLocale)); text != "" {
+			return text, nil
 		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.ID != blockID {
-			continue
-		}
-
-		// Return target translation if available
-		if targetLocale != "" {
-			if text := block.TargetText(model.LocaleID(targetLocale)); text != "" {
-				return text, nil
-			}
-		}
-
-		// Return source text
-		return block.SourceText(), nil
 	}
 
-	return "", fmt.Errorf("block %q not found in item %q", blockID, itemName)
+	// For source rendering, try the block index for HTML-enriched source
+	if item.BlockIndex != "" {
+		var blockIndex kaz.BlockIndex
+		if err := json.Unmarshal([]byte(item.BlockIndex), &blockIndex); err == nil {
+			b := blockIndex.BlockByID(blockID)
+			if b != nil && b.SourceHTML != "" {
+				return b.SourceHTML, nil
+			}
+		}
+	}
+
+	return sb.Block.SourceText(), nil
 }

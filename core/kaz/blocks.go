@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-// BlockIndex stores all block and structural data for one item in a .kaz package.
+// BlockIndex stores all block and structural data for one item.
 // It enables O(1) random access to blocks and reconstruction without the original source.
 type BlockIndex struct {
 	Version        string      `json:"kat_version"`

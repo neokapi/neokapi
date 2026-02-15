@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -22,14 +21,11 @@ var (
 )
 
 var serveCmd = &cobra.Command{
-	Use:   "serve [project.kaz | project-dir]",
+	Use:   "serve [project-dir]",
 	Short: "Start a local project server with web UI",
 	Long: `Start a lightweight web server for editing a single local project.
 This is similar to 'jupyter notebook' — it serves a web UI on localhost
 for the project, with no authentication required.
-
-If a .kaz file is given, it is imported into a temporary store.
-On exit, changes are exported back to the file.
 
 If no argument is given, the current directory is used.`,
 	Args: cobra.MaximumNArgs(1),
@@ -45,39 +41,24 @@ If no argument is given, the current directory is used.`,
 			return fmt.Errorf("resolve path: %w", err)
 		}
 
-		// Determine store path. For .kaz files, use a temp database next to the file.
-		storePath := filepath.Join(os.TempDir(), "gokapi-serve.db")
-		if info, err := os.Stat(absPath); err == nil && info.IsDir() {
-			storePath = filepath.Join(absPath, ".gokapi.db")
+		// Look for .kapi/ project directory.
+		kapiDir := filepath.Join(absPath, ".kapi")
+		if _, err := os.Stat(kapiDir); os.IsNotExist(err) {
+			return fmt.Errorf("no .kapi/ project found in %s (run 'kapi init' first)", absPath)
 		}
+
+		storePath := filepath.Join(kapiDir, "store.db")
 
 		cfg := server.LocalServerConfig()
 		cfg.Port = servePort
 		cfg.StorePath = storePath
+		cfg.DataDir = kapiDir
 
 		srv := server.NewServer(cfg)
 
 		// Serve embedded web UI.
 		webFS, _ := fs.Sub(kapiweb.Assets, "dist")
 		srv.WebUIFS = webFS
-
-		// If given a .kaz file, import it.
-		isKAZ := filepath.Ext(absPath) == ".kaz"
-		var projectID string
-		if isKAZ {
-			if srv.ContentStore != nil {
-				f, err := os.Open(absPath)
-				if err != nil {
-					return fmt.Errorf("open KAZ file: %w", err)
-				}
-				defer f.Close()
-				projectID, err = srv.ContentStore.ImportKAZ(cmd.Context(), f)
-				if err != nil {
-					return fmt.Errorf("import KAZ: %w", err)
-				}
-				log.Printf("Imported project %s from %s", projectID, absPath)
-			}
-		}
 
 		addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 		url := fmt.Sprintf("http://localhost:%d", cfg.Port)
@@ -96,22 +77,6 @@ If no argument is given, the current directory is used.`,
 		go func() {
 			<-sigCh
 			fmt.Println("\nShutting down...")
-
-			// If we imported a .kaz file, export changes back.
-			if isKAZ && srv.ContentStore != nil && projectID != "" {
-				log.Printf("Saving changes back to %s", absPath)
-				f, err := os.Create(absPath)
-				if err != nil {
-					log.Printf("ERROR: create export file: %v", err)
-				} else {
-					if err := srv.ContentStore.ExportKAZ(cmd.Context(), projectID, f); err != nil {
-						log.Printf("ERROR: export KAZ: %v", err)
-					} else {
-						log.Printf("Saved project to %s", absPath)
-					}
-					f.Close()
-				}
-			}
 
 			if srv.ContentStore != nil {
 				srv.ContentStore.Close()

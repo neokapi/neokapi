@@ -120,27 +120,6 @@ export function useProjectApi() {
     return Backend.ListProjects() as Promise<ProjectInfo[]>;
   }, []);
 
-  const openProject = useCallback(
-    async (path: string): Promise<ProjectInfo> => {
-      return Backend.OpenProject(path) as Promise<ProjectInfo>;
-    },
-    [],
-  );
-
-  const openProjectDialog = useCallback(
-    async (): Promise<ProjectInfo | null> => {
-      return Backend.OpenProjectDialog() as Promise<ProjectInfo | null>;
-    },
-    [],
-  );
-
-  const saveProjectDialog = useCallback(
-    async (projectID: string): Promise<void> => {
-      return Backend.SaveProjectDialog(projectID);
-    },
-    [],
-  );
-
   const closeProject = useCallback(
     async (projectID: string): Promise<void> => {
       return Backend.CloseProject(projectID);
@@ -162,20 +141,6 @@ export function useProjectApi() {
     [],
   );
 
-  const saveProject = useCallback(
-    async (projectID: string): Promise<void> => {
-      return Backend.SaveProject(projectID);
-    },
-    [],
-  );
-
-  const saveProjectAs = useCallback(
-    async (projectID: string, path: string): Promise<void> => {
-      return Backend.SaveProjectAs(projectID, path);
-    },
-    [],
-  );
-
   const addFilesDialog = useCallback(
     async (projectID: string): Promise<ProjectInfo | null> => {
       return Backend.AddFilesDialog(projectID) as Promise<ProjectInfo | null>;
@@ -186,14 +151,9 @@ export function useProjectApi() {
   return {
     createProject,
     listProjects,
-    openProject,
-    openProjectDialog,
-    saveProjectDialog,
     closeProject,
     addFiles,
     removeFile,
-    saveProject,
-    saveProjectAs,
     addFilesDialog,
   };
 }

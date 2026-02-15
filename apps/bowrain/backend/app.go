@@ -17,6 +17,8 @@ import (
 	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/core/version"
 	"github.com/gokapi/gokapi/formats"
+	"github.com/gokapi/gokapi/lib/sievepen"
+	"github.com/gokapi/gokapi/lib/termbase"
 	libtools "github.com/gokapi/gokapi/lib/tools"
 	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -28,21 +30,19 @@ type App struct {
 	app          *application.App
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
-	projects     *projectStore
+	store        store.ContentStore          // persistent SQLite
+	tm           *sievepen.SQLiteTM          // lazily initialized
+	tb           *termbase.InMemoryTermBase  // lazily initialized
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
-
-	// ContentStore and event system for platform integration.
-	contentStore store.ContentStore
 	connectorReg *connector.Registry
 	eventBus     *event.ChannelEventBus
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string
-
-	initialProjectMu   sync.Mutex
-	initialProjectPath string
+	// tmPath overrides the default TM database path (for testing).
+	tmPath string
 }
 
 // NewApp creates a new Bowrain backend with all formats and plugins registered.
@@ -58,6 +58,18 @@ func NewApp() *App {
 // registered but without loading plugins. Call LoadPlugins separately (possibly
 // in a background goroutine) to discover and register plugins.
 func NewAppWithoutPlugins() *App {
+	// Initialize persistent store.
+	storePath := defaultStorePath()
+	cs, err := store.NewSQLiteStore(storePath)
+	if err != nil {
+		log.Printf("bowrain: failed to open store at %s: %v", storePath, err)
+	}
+	return newAppWithStore(cs)
+}
+
+// newAppWithStore creates a Bowrain backend with the given ContentStore.
+// This is used by NewAppWithoutPlugins (production) and tests (in-memory store).
+func newAppWithStore(cs store.ContentStore) *App {
 	reg := registry.NewFormatRegistry()
 	formats.RegisterAll(reg)
 
@@ -70,7 +82,7 @@ func NewAppWithoutPlugins() *App {
 	return &App{
 		formatReg:    reg,
 		toolReg:      toolReg,
-		projects:     newProjectStore(),
+		store:        cs,
 		credentials:  credentials.NewStore(credentials.DefaultPath()),
 		connectorReg: connReg,
 		eventBus:     event.NewChannelEventBus(),
@@ -99,24 +111,6 @@ func (a *App) LoadPlugins() {
 // SetApplication stores the Wails v3 application reference for dialog and event access.
 func (a *App) SetApplication(app *application.App) {
 	a.app = app
-}
-
-// SetInitialProjectPath stores a .kaz project path to be opened on startup.
-// Called from main before app.Run().
-func (a *App) SetInitialProjectPath(path string) {
-	a.initialProjectMu.Lock()
-	defer a.initialProjectMu.Unlock()
-	a.initialProjectPath = path
-}
-
-// GetInitialProject returns and clears the initial project path.
-// The consume-once pattern prevents double opens in React StrictMode dev mode.
-func (a *App) GetInitialProject() string {
-	a.initialProjectMu.Lock()
-	defer a.initialProjectMu.Unlock()
-	path := a.initialProjectPath
-	a.initialProjectPath = ""
-	return path
 }
 
 // VersionInfo describes the application version.
@@ -285,14 +279,14 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
-	// Close all project TMs.
-	for _, info := range a.projects.all() {
-		if p, err := a.projects.get(info.ID); err == nil && p.tm != nil {
-			p.tm.Close()
-		}
+	if a.tm != nil {
+		a.tm.Close()
 	}
-	if a.contentStore != nil {
-		a.contentStore.Close()
+	if a.tb != nil {
+		a.tb.Close()
+	}
+	if a.store != nil {
+		a.store.Close()
 	}
 	a.pluginMu.Lock()
 	pl := a.pluginLoader
@@ -301,6 +295,17 @@ func (a *App) ServiceShutdown() error {
 		pl.Shutdown()
 	}
 	return nil
+}
+
+// defaultStorePath returns the path for the persistent SQLite store.
+func defaultStorePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = "."
+	}
+	dir := filepath.Join(home, ".config", "gokapi")
+	os.MkdirAll(dir, 0755)
+	return filepath.Join(dir, "bowrain.db")
 }
 
 // DetectFormat detects the format of a file by its extension.

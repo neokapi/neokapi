@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Header } from "./components/Header";
 import { SettingsPage } from "./components/SettingsPage";
 import {
@@ -45,20 +45,6 @@ function App() {
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
 
-  // Auto-open a project if a .kaz path was passed via CLI args.
-  useEffect(() => {
-    wailsAdapter.getInitialProject().then((path: string) => {
-      if (!path) return;
-      wailsAdapter.getProject("personal", path).then((info) => {
-        setProjects((prev) => [...prev, info]);
-        setActiveProject(info);
-        setActiveView("translate");
-      }).catch((e: unknown) => {
-        console.error("Failed to open initial project:", e);
-      });
-    });
-  }, []);
-
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {
       try {
@@ -85,17 +71,6 @@ function App() {
     },
     [],
   );
-
-  const handleOpenKaz = useCallback(async () => {
-    try {
-      const info = await wailsAdapter.openProjectDialog();
-      if (!info) return;
-      setProjects((prev) => [...prev, info]);
-      setActiveProject(info);
-    } catch (e) {
-      console.error("Open project failed:", e);
-    }
-  }, []);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
@@ -124,19 +99,6 @@ function App() {
     },
     [activeProject],
   );
-
-  const handleSaveProject = useCallback(async () => {
-    if (!activeProject) return;
-    try {
-      if ((activeProject as ProjectInfo & { path?: string }).path) {
-        await wailsAdapter.saveProject(activeProject.id);
-      } else {
-        await wailsAdapter.saveProjectDialog(activeProject.id);
-      }
-    } catch (e) {
-      console.error("Save project failed:", e);
-    }
-  }, [activeProject]);
 
   const handleOpenFile = useCallback((fileName: string) => {
     setActiveFile(fileName);
@@ -242,7 +204,6 @@ function App() {
           onOpenFile={handleOpenFile}
           onUploadFiles={handleUploadFiles}
           onRemoveFile={handleRemoveFile}
-          onSave={handleSaveProject}
           onOpenTM={handleOpenTM}
           onOpenTerms={handleOpenTerms}
         />
@@ -256,7 +217,6 @@ function App() {
             projects={projects}
             onCreateProject={handleCreateProject}
             onOpenProject={handleOpenProject}
-            onOpenKaz={handleOpenKaz}
           />
         );
       case "termbase":

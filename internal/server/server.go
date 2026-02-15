@@ -37,8 +37,8 @@ type Server struct {
 	EventBus       *event.ChannelEventBus
 	Echo           *echo.Echo
 
-	// EditorStore manages in-memory translation editor sessions.
-	EditorStore *EditorStore
+	// wsStores manages per-workspace TM and terminology stores.
+	wsStores *workspaceStores
 
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
@@ -64,7 +64,7 @@ func NewServer(cfg ServerConfig) *Server {
 		ToolRegistry:   toolReg,
 		ConnectorReg:   connReg,
 		EventBus:       event.NewChannelEventBus(),
-		EditorStore:    NewEditorStore(50),
+		wsStores:       newWorkspaceStores(cfg.DataDir),
 	}
 
 	// Initialize credential store.
@@ -123,21 +123,26 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/tools", s.HandleListTools)
 	v1.GET("/locales", s.HandleGetKnownLocales)
 
-	// Project endpoints (backward-compatible flat routes)
-	v1.POST("/projects", s.HandleCreateProject)
-	v1.GET("/projects", s.HandleListProjects)
-	v1.GET("/projects/:id", s.HandleGetProject)
-	v1.PUT("/projects/:id", s.HandleUpdateProject)
-	v1.DELETE("/projects/:id", s.HandleDeleteProject)
-	v1.POST("/projects/:id/blocks", s.HandleStoreBlocks)
-	v1.GET("/projects/:id/blocks", s.HandleGetBlocks)
-	v1.POST("/projects/:id/versions", s.HandleCreateVersion)
-	v1.GET("/projects/:id/versions", s.HandleListVersions)
+	// Local-mode flat routes (no auth required, used by kapi CLI and tests).
+	if s.Config.LocalMode {
+		v1.POST("/projects", s.HandleCreateProject)
+		v1.GET("/projects", s.HandleListProjects)
+		v1.GET("/projects/:id", s.HandleGetProject)
+		v1.PUT("/projects/:id", s.HandleUpdateProject)
+		v1.DELETE("/projects/:id", s.HandleDeleteProject)
+		v1.POST("/projects/:id/blocks", s.HandleStoreBlocks)
+		v1.GET("/projects/:id/blocks", s.HandleGetBlocks)
+		v1.POST("/projects/:id/versions", s.HandleCreateVersion)
+		v1.GET("/projects/:id/versions", s.HandleListVersions)
+		v1.POST("/projects/:id/sync/push", s.HandleSyncPush)
+		v1.GET("/projects/:id/sync/pull", s.HandleSyncPull)
+		v1.GET("/projects/:id/changes", s.HandleGetChanges)
 
-	// Sync endpoints (incremental block-level sync)
-	v1.POST("/projects/:id/sync/push", s.HandleSyncPush)
-	v1.GET("/projects/:id/sync/pull", s.HandleSyncPull)
-	v1.GET("/projects/:id/changes", s.HandleGetChanges)
+		// In local mode, workspace-scoped routes are registered without
+		// auth middleware. The frontend uses workspace slug "local".
+		wsLocal := v1.Group("/workspaces/:ws")
+		s.registerWorkspaceContentRoutes(wsLocal)
+	}
 
 	// Connector endpoints
 	v1.GET("/connectors/types", s.HandleListConnectorTypes)
@@ -148,7 +153,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.POST("/fetch", s.HandleFetch)
 	v1.POST("/publish", s.HandlePublish)
 
-	// Auth endpoints (only for multi-user mode)
+	// Multi-user mode: auth + workspace-scoped routes with middleware.
 	if !s.Config.LocalMode && s.Config.JWTSecret != "" {
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
@@ -176,7 +181,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsGroup.POST("", s.HandleCreateWorkspace)
 		wsGroup.GET("", s.HandleListWorkspaces)
 
-		// Workspace-specific routes also check membership
+		// Workspace-specific routes with auth and membership checks
 		wsSpecific := wsGroup.Group("/:ws")
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
@@ -189,58 +194,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.PUT("/members/:uid/role", s.HandleUpdateMemberRole)
 		wsSpecific.DELETE("/members/:uid", s.HandleRemoveMember)
 
-		// Workspace-scoped project routes
-		wsSpecific.GET("/projects", s.HandleListWorkspaceProjects)
-		wsSpecific.POST("/projects", s.HandleCreateWorkspaceProject)
-
-		// Editor project routes (in-memory translation projects)
-		wsSpecific.POST("/editor/projects", s.HandleCreateEditorProject)
-		wsSpecific.GET("/editor/projects", s.HandleListEditorProjects)
-		wsSpecific.GET("/editor/projects/:pid", s.HandleGetEditorProject)
-		wsSpecific.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
-
-		// File management
-		wsSpecific.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
-		wsSpecific.DELETE("/editor/projects/:pid/files/:fname", s.HandleRemoveFile)
-
-		// Block editing
-		wsSpecific.GET("/editor/projects/:pid/files/:fname/blocks", s.HandleGetFileBlocks)
-		wsSpecific.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
-		wsSpecific.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
-
-		// Translation operations
-		wsSpecific.POST("/editor/projects/:pid/files/:fname/pseudo", s.HandlePseudoTranslate)
-		wsSpecific.POST("/editor/projects/:pid/files/:fname/ai-translate", s.HandleAITranslate)
-		wsSpecific.POST("/editor/projects/:pid/files/:fname/tm-translate", s.HandleTMTranslate)
-		wsSpecific.GET("/editor/projects/:pid/files/:fname/wordcount", s.HandleGetWordCount)
-		wsSpecific.POST("/editor/projects/:pid/files/:fname/export", s.HandleExportTranslatedFile)
-
-		// Block-level TM and term lookup
-		wsSpecific.GET("/editor/projects/:pid/blocks/:bid/tm-lookup", s.HandleLookupTMForBlock)
-		wsSpecific.GET("/editor/projects/:pid/blocks/:bid/term-lookup", s.HandleLookupTermsForBlock)
-
-		// TM CRUD (workspace-scoped)
-		wsSpecific.GET("/tm", s.HandleGetTMEntries)
-		wsSpecific.GET("/tm/count", s.HandleGetTMCount)
-		wsSpecific.POST("/tm", s.HandleAddTMEntry)
-		wsSpecific.PUT("/tm/:eid", s.HandleUpdateTMEntry)
-		wsSpecific.DELETE("/tm/:eid", s.HandleDeleteTMEntry)
-
-		// Terminology CRUD (workspace-scoped)
-		wsSpecific.GET("/terms", s.HandleGetTerms)
-		wsSpecific.GET("/terms/count", s.HandleGetTermCount)
-		wsSpecific.POST("/terms", s.HandleAddConcept)
-		wsSpecific.PUT("/terms/:cid", s.HandleUpdateConcept)
-		wsSpecific.DELETE("/terms/:cid", s.HandleDeleteConcept)
-		wsSpecific.POST("/terms/import/csv", s.HandleImportTermsCSV)
-		wsSpecific.POST("/terms/import/json", s.HandleImportTermsJSON)
-		wsSpecific.GET("/terms/export/json", s.HandleExportTermsJSON)
-
-		// Provider configs (workspace-level)
-		wsSpecific.GET("/providers", s.HandleListProviderConfigs)
-		wsSpecific.POST("/providers", s.HandleSaveProviderConfig)
-		wsSpecific.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
-		wsSpecific.POST("/providers/test", s.HandleTestProviderConfig)
+		s.registerWorkspaceContentRoutes(wsSpecific)
 	}
 
 	// Web UI static file serving
@@ -253,6 +207,65 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			return c.File(filepath.Join(s.Config.WebUIDir, "index.html"))
 		})
 	}
+}
+
+// registerWorkspaceContentRoutes registers all workspace-scoped content routes
+// (editor projects, file management, block editing, translation, TM, terms, providers)
+// on the given route group. This is shared between local mode (no auth) and
+// multi-user mode (with auth middleware).
+func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
+	// Workspace-scoped project routes
+	g.GET("/projects", s.HandleListWorkspaceProjects)
+	g.POST("/projects", s.HandleCreateWorkspaceProject)
+
+	// Editor project routes
+	g.POST("/editor/projects", s.HandleCreateEditorProject)
+	g.GET("/editor/projects", s.HandleListEditorProjects)
+	g.GET("/editor/projects/:pid", s.HandleGetEditorProject)
+	g.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
+
+	// File management
+	g.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
+	g.DELETE("/editor/projects/:pid/files/:fname", s.HandleRemoveFile)
+
+	// Block editing
+	g.GET("/editor/projects/:pid/files/:fname/blocks", s.HandleGetFileBlocks)
+	g.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
+	g.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
+
+	// Translation operations
+	g.POST("/editor/projects/:pid/files/:fname/pseudo", s.HandlePseudoTranslate)
+	g.POST("/editor/projects/:pid/files/:fname/ai-translate", s.HandleAITranslate)
+	g.POST("/editor/projects/:pid/files/:fname/tm-translate", s.HandleTMTranslate)
+	g.GET("/editor/projects/:pid/files/:fname/wordcount", s.HandleGetWordCount)
+	g.POST("/editor/projects/:pid/files/:fname/export", s.HandleExportTranslatedFile)
+
+	// Block-level TM and term lookup
+	g.GET("/editor/projects/:pid/blocks/:bid/tm-lookup", s.HandleLookupTMForBlock)
+	g.GET("/editor/projects/:pid/blocks/:bid/term-lookup", s.HandleLookupTermsForBlock)
+
+	// TM CRUD (workspace-scoped)
+	g.GET("/tm", s.HandleGetTMEntries)
+	g.GET("/tm/count", s.HandleGetTMCount)
+	g.POST("/tm", s.HandleAddTMEntry)
+	g.PUT("/tm/:eid", s.HandleUpdateTMEntry)
+	g.DELETE("/tm/:eid", s.HandleDeleteTMEntry)
+
+	// Terminology CRUD (workspace-scoped)
+	g.GET("/terms", s.HandleGetTerms)
+	g.GET("/terms/count", s.HandleGetTermCount)
+	g.POST("/terms", s.HandleAddConcept)
+	g.PUT("/terms/:cid", s.HandleUpdateConcept)
+	g.DELETE("/terms/:cid", s.HandleDeleteConcept)
+	g.POST("/terms/import/csv", s.HandleImportTermsCSV)
+	g.POST("/terms/import/json", s.HandleImportTermsJSON)
+	g.GET("/terms/export/json", s.HandleExportTermsJSON)
+
+	// Provider configs (workspace-level)
+	g.GET("/providers", s.HandleListProviderConfigs)
+	g.POST("/providers", s.HandleSaveProviderConfig)
+	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
+	g.POST("/providers/test", s.HandleTestProviderConfig)
 }
 
 // Start initializes the Echo server and starts listening.

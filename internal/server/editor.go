@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -18,74 +19,64 @@ import (
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/core/store"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/lib/sievepen"
 	"github.com/gokapi/gokapi/lib/termbase"
-	"github.com/google/uuid"
 )
 
-// editorProject is the server-side in-memory state for a translation project.
-type editorProject struct {
-	info  ProjectInfoResponse
-	items map[string]*editorItemData
-	dirty bool
-	tm    *sievepen.SQLiteTM
+// ---------------------------------------------------------------------------
+// Workspace TM/TB management (persistent, file-backed)
+// ---------------------------------------------------------------------------
 
-	// accessedAt tracks last access for LRU eviction.
-	accessedAt time.Time
-}
-
-// editorItemData holds the parsed content of an item within a project.
-type editorItemData struct {
-	format      string
-	itemType    string // "file", "data", etc.
-	parts       []*model.Part
-	sourceBytes []byte
-	blockIndex  *kaz.BlockIndex
-}
-
-// workspaceTMTB holds workspace-scoped TM and terminology.
+// workspaceTMTB holds workspace-scoped TM and terminology stores.
 type workspaceTMTB struct {
 	tm *sievepen.SQLiteTM
 	tb *termbase.InMemoryTermBase
 }
 
-// EditorStore manages in-memory editor sessions keyed by workspace/project.
-type EditorStore struct {
+// workspaceStores manages per-workspace TM and terminology stores.
+type workspaceStores struct {
 	mu       sync.RWMutex
-	projects map[string]*editorProject // key: "ws/projectID"
-	maxSize  int
-
-	wsMu       sync.RWMutex
-	workspaces map[string]*workspaceTMTB // key: ws slug
+	stores   map[string]*workspaceTMTB
+	dataDir  string
 }
 
-// NewEditorStore creates an EditorStore with the given max capacity.
-func NewEditorStore(maxSize int) *EditorStore {
-	return &EditorStore{
-		projects:   make(map[string]*editorProject),
-		maxSize:    maxSize,
-		workspaces: make(map[string]*workspaceTMTB),
+func newWorkspaceStores(dataDir string) *workspaceStores {
+	return &workspaceStores{
+		stores:  make(map[string]*workspaceTMTB),
+		dataDir: dataDir,
 	}
 }
 
-func (es *EditorStore) getOrCreateWS(ws string) *workspaceTMTB {
-	es.wsMu.Lock()
-	defer es.wsMu.Unlock()
-	w, ok := es.workspaces[ws]
+func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceTMTB {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	w, ok := ws.stores[wsSlug]
 	if !ok {
 		w = &workspaceTMTB{}
-		es.workspaces[ws] = w
+		ws.stores[wsSlug] = w
 	}
 	return w
 }
 
-func (es *EditorStore) getWSOrCreateTM(ws string) (*sievepen.SQLiteTM, error) {
-	w := es.getOrCreateWS(ws)
+func (ws *workspaceStores) getTM(wsSlug string) (*sievepen.SQLiteTM, error) {
+	w := ws.getOrCreate(wsSlug)
 	if w.tm != nil {
 		return w.tm, nil
 	}
-	tm, err := sievepen.NewSQLiteTM(":memory:")
+
+	// Create file-backed TM if data dir is configured.
+	tmPath := ":memory:"
+	if ws.dataDir != "" {
+		tmDir := filepath.Join(ws.dataDir, "tm")
+		if err := os.MkdirAll(tmDir, 0755); err != nil {
+			return nil, fmt.Errorf("create TM dir: %w", err)
+		}
+		tmPath = filepath.Join(tmDir, wsSlug+".db")
+	}
+
+	tm, err := sievepen.NewSQLiteTM(tmPath)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +84,8 @@ func (es *EditorStore) getWSOrCreateTM(ws string) (*sievepen.SQLiteTM, error) {
 	return tm, nil
 }
 
-func (es *EditorStore) getWSOrCreateTB(ws string) *termbase.InMemoryTermBase {
-	w := es.getOrCreateWS(ws)
+func (ws *workspaceStores) getTB(wsSlug string) *termbase.InMemoryTermBase {
+	w := ws.getOrCreate(wsSlug)
 	if w.tb != nil {
 		return w.tb
 	}
@@ -102,78 +93,22 @@ func (es *EditorStore) getWSOrCreateTB(ws string) *termbase.InMemoryTermBase {
 	return w.tb
 }
 
-func editorKey(ws, projectID string) string {
-	return ws + "/" + projectID
-}
-
-func (es *EditorStore) get(ws, projectID string) (*editorProject, error) {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-	p, ok := es.projects[editorKey(ws, projectID)]
-	if !ok {
-		return nil, fmt.Errorf("project %q not found", projectID)
-	}
-	p.accessedAt = time.Now()
-	return p, nil
-}
-
-func (es *EditorStore) put(ws string, p *editorProject) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-	p.accessedAt = time.Now()
-	es.projects[editorKey(ws, p.info.ID)] = p
-	es.evictLocked()
-}
-
-func (es *EditorStore) remove(ws, projectID string) {
-	es.mu.Lock()
-	defer es.mu.Unlock()
-	key := editorKey(ws, projectID)
-	if p, ok := es.projects[key]; ok {
-		if p.tm != nil {
-			p.tm.Close()
+func (ws *workspaceStores) close() {
+	ws.mu.Lock()
+	defer ws.mu.Unlock()
+	for _, w := range ws.stores {
+		if w.tm != nil {
+			w.tm.Close()
 		}
-	}
-	delete(es.projects, key)
-}
-
-func (es *EditorStore) list(ws string) []ProjectInfoResponse {
-	es.mu.RLock()
-	defer es.mu.RUnlock()
-	prefix := ws + "/"
-	result := make([]ProjectInfoResponse, 0)
-	for key, p := range es.projects {
-		if strings.HasPrefix(key, prefix) {
-			result = append(result, p.info)
-		}
-	}
-	return result
-}
-
-// evictLocked evicts the least recently used project if the store exceeds maxSize.
-// Must be called with es.mu held.
-func (es *EditorStore) evictLocked() {
-	for len(es.projects) > es.maxSize {
-		var oldestKey string
-		var oldestTime time.Time
-		for key, p := range es.projects {
-			if oldestKey == "" || p.accessedAt.Before(oldestTime) {
-				oldestKey = key
-				oldestTime = p.accessedAt
-			}
-		}
-		if oldestKey != "" {
-			if p, ok := es.projects[oldestKey]; ok {
-				if p.tm != nil {
-					p.tm.Close()
-				}
-			}
-			delete(es.projects, oldestKey)
+		if w.tb != nil {
+			w.tb.Close()
 		}
 	}
 }
 
-// --- Types ---
+// ---------------------------------------------------------------------------
+// API response/request types
+// ---------------------------------------------------------------------------
 
 // ProjectInfoResponse is the API response for a translation project.
 type ProjectInfoResponse struct {
@@ -272,639 +207,7 @@ type BlockTermMatchResponse struct {
 	End         int      `json:"end"`
 }
 
-// --- Editor operations ---
-
-func (es *EditorStore) createProject(ws string, formatReg *registry.FormatRegistry, name, sourceLang string, targetLangs []string) (*ProjectInfoResponse, error) {
-	if name == "" {
-		return nil, fmt.Errorf("project name is required")
-	}
-	if sourceLang == "" {
-		return nil, fmt.Errorf("source language is required")
-	}
-	if len(targetLangs) == 0 {
-		return nil, fmt.Errorf("at least one target language is required")
-	}
-
-	now := time.Now().UTC().Format(time.RFC3339)
-	p := &editorProject{
-		info: ProjectInfoResponse{
-			ID:            uuid.New().String(),
-			Name:          name,
-			SourceLocale:  sourceLang,
-			TargetLocales: targetLangs,
-			Items:         []ProjectItemResponse{},
-			CreatedAt:     now,
-			ModifiedAt:    now,
-		},
-		items: make(map[string]*editorItemData),
-	}
-
-	es.put(ws, p)
-	return &p.info, nil
-}
-
-func (es *EditorStore) addFiles(ws, projectID string, formatReg *registry.FormatRegistry, files map[string][]byte) (*ProjectInfoResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	ctx := context.Background()
-
-	for itemName, data := range files {
-		// Detect format from extension
-		ext := filepath.Ext(itemName)
-		fmtName, err := formatReg.Detector().DetectByExtension(ext)
-		if err != nil {
-			continue // skip unsupported formats
-		}
-
-		reader, err := formatReg.NewReader(fmtName)
-		if err != nil {
-			continue
-		}
-
-		doc := &model.RawDocument{
-			URI:          itemName,
-			SourceLocale: model.LocaleID(p.info.SourceLocale),
-			Encoding:     "UTF-8",
-			Reader:       io.NopCloser(bytes.NewReader(data)),
-		}
-
-		if err := reader.Open(ctx, doc); err != nil {
-			return nil, fmt.Errorf("parse %q: %w", itemName, err)
-		}
-
-		var parts []*model.Part
-		for result := range reader.Read(ctx) {
-			if result.Error != nil {
-				reader.Close()
-				return nil, fmt.Errorf("read %q: %w", itemName, result.Error)
-			}
-			parts = append(parts, result.Part)
-		}
-		reader.Close()
-
-		blockIndex := kaz.BuildBlockIndex(parts, p.info.SourceLocale, fmtName, itemName)
-
-		blockCount := len(blockIndex.Blocks)
-		wordCount := 0
-		for _, b := range blockIndex.Blocks {
-			wordCount += editorCountWords(b.Source)
-		}
-
-		p.items[itemName] = &editorItemData{
-			format:      fmtName,
-			itemType:    "file",
-			parts:       parts,
-			sourceBytes: data,
-			blockIndex:  blockIndex,
-		}
-
-		p.info.Items = append(p.info.Items, ProjectItemResponse{
-			Name:       itemName,
-			Format:     fmtName,
-			Type:       "file",
-			Size:       int64(len(data)),
-			BlockCount: blockCount,
-			WordCount:  wordCount,
-		})
-	}
-
-	p.info.ModifiedAt = time.Now().UTC().Format(time.RFC3339)
-	p.dirty = true
-	return &p.info, nil
-}
-
-func (es *EditorStore) removeFile(ws, projectID, fileName string) (*ProjectInfoResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, ok := p.items[fileName]; !ok {
-		return nil, fmt.Errorf("file %q not found in project", fileName)
-	}
-
-	delete(p.items, fileName)
-
-	updated := make([]ProjectItemResponse, 0)
-	for _, item := range p.info.Items {
-		if item.Name != fileName {
-			updated = append(updated, item)
-		}
-	}
-	p.info.Items = updated
-	p.info.ModifiedAt = time.Now().UTC().Format(time.RFC3339)
-	p.dirty = true
-	return &p.info, nil
-}
-
-func (es *EditorStore) getBlocks(ws, projectID, itemName string) ([]BlockInfoResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	blockMap := make(map[string]*model.Block)
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		if block, ok := pt.Resource.(*model.Block); ok {
-			blockMap[block.ID] = block
-		}
-	}
-
-	if id.blockIndex != nil {
-		blocks := make([]BlockInfoResponse, 0)
-		for _, b := range id.blockIndex.Blocks {
-			bi := BlockInfoResponse{
-				ID:           b.ID,
-				Source:       b.Source,
-				Targets:      copyStringMap(b.Targets),
-				Translatable: b.Translatable,
-				HasSpans:     b.SourceHTML != b.Source,
-				Properties:   copyStringMap(b.Properties),
-			}
-			if mb, ok := blockMap[b.ID]; ok {
-				enrichBlockInfoResponse(&bi, mb, p.info.TargetLocales)
-			}
-			blocks = append(blocks, bi)
-		}
-		return blocks, nil
-	}
-
-	blocks := make([]BlockInfoResponse, 0)
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-
-		targets := make(map[string]string)
-		for _, locale := range p.info.TargetLocales {
-			if t := block.TargetText(model.LocaleID(locale)); t != "" {
-				targets[locale] = t
-			}
-		}
-
-		props := make(map[string]string)
-		for k, v := range block.Properties {
-			props[k] = v
-		}
-
-		hasSpans := false
-		if len(block.Source) > 0 && block.Source[0].Content != nil {
-			hasSpans = block.Source[0].Content.HasSpans()
-		}
-
-		bi := BlockInfoResponse{
-			ID:           block.ID,
-			Source:       block.SourceText(),
-			Targets:      targets,
-			Translatable: block.Translatable,
-			HasSpans:     hasSpans,
-			Properties:   props,
-		}
-		enrichBlockInfoResponse(&bi, block, p.info.TargetLocales)
-		blocks = append(blocks, bi)
-	}
-
-	return blocks, nil
-}
-
-func (es *EditorStore) updateBlockTarget(ws, projectID, blockID string, req UpdateBlockTargetRequest) error {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return err
-	}
-
-	// Find the item containing this block
-	for _, id := range p.items {
-		if id.blockIndex != nil {
-			if err := id.blockIndex.UpdateTarget(blockID, req.TargetLocale, req.Text); err != nil {
-				continue // block not in this item
-			}
-		}
-
-		for _, pt := range id.parts {
-			if pt.Type != model.PartBlock {
-				continue
-			}
-			block, ok := pt.Resource.(*model.Block)
-			if !ok || block.ID != blockID {
-				continue
-			}
-			block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
-			p.dirty = true
-			return nil
-		}
-	}
-
-	return fmt.Errorf("block %q not found", blockID)
-}
-
-func (es *EditorStore) updateBlockTargetCoded(ws, projectID, blockID string, req UpdateBlockTargetCodedRequest) error {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return err
-	}
-
-	plainText := editorStripMarkers(req.CodedText)
-
-	for _, id := range p.items {
-		if id.blockIndex != nil {
-			if err := id.blockIndex.UpdateTarget(blockID, req.TargetLocale, plainText); err != nil {
-				continue
-			}
-		}
-
-		for _, pt := range id.parts {
-			if pt.Type != model.PartBlock {
-				continue
-			}
-			block, ok := pt.Resource.(*model.Block)
-			if !ok || block.ID != blockID {
-				continue
-			}
-
-			frag := &model.Fragment{
-				CodedText: req.CodedText,
-			}
-			for _, si := range req.Spans {
-				frag.Spans = append(frag.Spans, editorInfoToSpan(si))
-			}
-			block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
-			p.dirty = true
-			return nil
-		}
-	}
-
-	return fmt.Errorf("block %q not found", blockID)
-}
-
-func (es *EditorStore) pseudoTranslate(ws, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	pseudoTool := &tool.BaseTool{
-		ToolName:        "pseudo-translate",
-		ToolDescription: "Pseudo-translates blocks",
-	}
-	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
-		block, ok := part.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			return part, nil
-		}
-		locale := model.LocaleID(targetLocale)
-		frag := block.FirstFragment()
-		if frag != nil && frag.HasSpans() {
-			pseudoCoded := "[" + editorPseudoAccent(frag.CodedText) + "]"
-			targetFrag := frag.Clone()
-			targetFrag.CodedText = pseudoCoded
-			block.SetTargetFragment(locale, targetFrag)
-		} else {
-			src := block.SourceText()
-			pseudo := "[" + editorPseudoAccent(src) + "]"
-			block.SetTargetText(locale, pseudo)
-		}
-		return part, nil
-	}
-
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := pseudoTool.Process(ctx, in, out); err != nil {
-		return nil, fmt.Errorf("pseudo-translate: %w", err)
-	}
-	close(out)
-
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
-	}
-	id.parts = newParts
-
-	editorSyncBlockIndex(id, p.info.SourceLocale)
-	stats := editorComputeStats(id.parts, targetLocale)
-	p.dirty = true
-	return stats, nil
-}
-
-func (es *EditorStore) aiTranslate(ws, projectID, itemName string, req TranslateRequest, credStore *credentials.Store) (*TranslationStatsResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	var prov provider.LLMProvider
-	if req.ProviderConfigID != "" && credStore != nil {
-		prov, err = credentials.NewProvider(credStore, req.ProviderConfigID)
-		if err != nil {
-			return nil, fmt.Errorf("resolve provider config: %w", err)
-		}
-	} else {
-		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
-	}
-
-	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: model.LocaleID(p.info.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-	})
-
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := translateTool.Process(ctx, in, out); err != nil {
-		return nil, fmt.Errorf("AI translate: %w", err)
-	}
-	close(out)
-
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
-	}
-	id.parts = newParts
-
-	editorSyncBlockIndex(id, p.info.SourceLocale)
-	stats := editorComputeStats(id.parts, req.TargetLocale)
-	p.dirty = true
-	return stats, nil
-}
-
-func (es *EditorStore) tmTranslate(ws, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	tm, err := editorGetOrCreateTM(p)
-	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
-	}
-
-	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
-		MinScore:     0.7,
-		MaxResults:   5,
-		SourceLocale: model.LocaleID(p.info.SourceLocale),
-		TargetLocale: model.LocaleID(targetLocale),
-	})
-
-	ctx := context.Background()
-	in := make(chan *model.Part, len(id.parts))
-	out := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		in <- pt
-	}
-	close(in)
-
-	if err := tmTool.Process(ctx, in, out); err != nil {
-		return nil, fmt.Errorf("TM translate: %w", err)
-	}
-	close(out)
-
-	var newParts []*model.Part
-	for pt := range out {
-		newParts = append(newParts, pt)
-	}
-	id.parts = newParts
-
-	editorSyncBlockIndex(id, p.info.SourceLocale)
-	stats := editorComputeStats(id.parts, targetLocale)
-	p.dirty = true
-	return stats, nil
-}
-
-func (es *EditorStore) getWordCount(ws, projectID, itemName string) (*WordCountResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	result := &WordCountResponse{
-		TargetWords: make(map[string]int),
-		TargetChars: make(map[string]int),
-	}
-
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || !block.Translatable {
-			continue
-		}
-
-		src := block.SourceText()
-		result.SourceWords += editorCountWords(src)
-		result.SourceChars += len([]rune(src))
-
-		for _, locale := range p.info.TargetLocales {
-			t := block.TargetText(model.LocaleID(locale))
-			if t != "" {
-				result.TargetWords[locale] += editorCountWords(t)
-				result.TargetChars[locale] += len([]rune(t))
-			}
-		}
-	}
-
-	return result, nil
-}
-
-func (es *EditorStore) exportTranslatedFile(ws, projectID, itemName, targetLocale string, formatReg *registry.FormatRegistry, dataDir string) (string, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return "", err
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return "", fmt.Errorf("item %q not found in project", itemName)
-	}
-
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(itemName)), ".")
-	baseName := itemName
-	if ext != "" {
-		baseName = itemName[:len(itemName)-len(ext)-1]
-	}
-	outputName := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
-
-	// Write to data dir or temp dir
-	dir := dataDir
-	if dir == "" {
-		dir = os.TempDir()
-	}
-	outputPath := filepath.Join(dir, outputName)
-
-	writer, err := formatReg.NewWriter(id.format)
-	if err != nil {
-		return "", fmt.Errorf("no writer for %q: %w", id.format, err)
-	}
-
-	if err := writer.SetOutput(outputPath); err != nil {
-		return "", fmt.Errorf("set output: %w", err)
-	}
-	writer.SetLocale(model.LocaleID(targetLocale))
-
-	ch := make(chan *model.Part, len(id.parts))
-	for _, pt := range id.parts {
-		ch <- pt
-	}
-	close(ch)
-
-	ctx := context.Background()
-	if err := writer.Write(ctx, ch); err != nil {
-		return "", fmt.Errorf("write: %w", err)
-	}
-	writer.Close()
-
-	return outputPath, nil
-}
-
-func (es *EditorStore) lookupTMForBlock(ws, projectID, itemName, blockID, targetLocale string) ([]TMMatchInfoResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-	if p.tm == nil || p.tm.Count() == 0 {
-		return nil, nil
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found", itemName)
-	}
-
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.ID != blockID {
-			continue
-		}
-
-		opts := sievepen.DefaultLookupOptions()
-		opts.MaxResults = 5
-		matches, err := p.tm.Lookup(block, model.LocaleID(p.info.SourceLocale), model.LocaleID(targetLocale), opts)
-		if err != nil {
-			return nil, err
-		}
-
-		result := make([]TMMatchInfoResponse, len(matches))
-		for i, m := range matches {
-			result[i] = TMMatchInfoResponse{
-				Source:    m.Entry.SourceText(),
-				Target:    m.Entry.TargetText(),
-				Score:     m.Score,
-				MatchType: string(m.MatchType),
-			}
-		}
-		return result, nil
-	}
-
-	return nil, nil
-}
-
-func (es *EditorStore) lookupTermsForBlock(ws, projectID, itemName, blockID, targetLocale string) ([]BlockTermMatchResponse, error) {
-	p, err := es.get(ws, projectID)
-	if err != nil {
-		return nil, err
-	}
-	tb := es.getWSOrCreateTB(ws)
-	if tb.Count() == 0 {
-		return nil, nil
-	}
-
-	id, ok := p.items[itemName]
-	if !ok {
-		return nil, fmt.Errorf("item %q not found", itemName)
-	}
-
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok || block.ID != blockID {
-			continue
-		}
-
-		sourceText := block.SourceText()
-		if sourceText == "" {
-			return nil, nil
-		}
-
-		matches := tb.LookupAll(sourceText, termbase.LookupOptions{
-			SourceLocale: model.LocaleID(p.info.SourceLocale),
-			TargetLocale: model.LocaleID(targetLocale),
-		})
-
-		result := make([]BlockTermMatchResponse, 0)
-		for _, m := range matches {
-			targetTerms := make([]string, 0)
-			for _, t := range m.Concept.Terms {
-				if t.Locale == model.LocaleID(targetLocale) {
-					targetTerms = append(targetTerms, t.Text)
-				}
-			}
-			result = append(result, BlockTermMatchResponse{
-				SourceTerm:  m.Term.Text,
-				TargetTerms: targetTerms,
-				Domain:      m.Concept.Domain,
-				Status:      string(m.Term.Status),
-				Start:       m.Position.Start,
-				End:         m.Position.End,
-			})
-		}
-		return result, nil
-	}
-
-	return nil, nil
-}
-
-// --- TM operations ---
+// --- TM types ---
 
 // TMEntryInfoResponse is the API response for a TM entry.
 type TMEntryInfoResponse struct {
@@ -938,109 +241,7 @@ type TMUpdateRequest struct {
 	TargetLocale string `json:"target_locale"`
 }
 
-func editorGetOrCreateTM(p *editorProject) (*sievepen.SQLiteTM, error) {
-	if p.tm != nil {
-		return p.tm, nil
-	}
-	tm, err := sievepen.NewSQLiteTM(":memory:")
-	if err != nil {
-		return nil, err
-	}
-	p.tm = tm
-	return tm, nil
-}
-
-func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
-	return TMEntryInfoResponse{
-		ID:           e.ID,
-		Source:       e.SourceText(),
-		Target:       e.TargetText(),
-		SourceLocale: string(e.SourceLocale),
-		TargetLocale: string(e.TargetLocale),
-		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
-	}
-}
-
-func (es *EditorStore) getTMEntries(ws, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResponse, error) {
-	tm, err := es.getWSOrCreateTM(ws)
-	if err != nil {
-		return nil, fmt.Errorf("init TM: %w", err)
-	}
-
-	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
-	infos := make([]TMEntryInfoResponse, len(entries))
-	for i, e := range entries {
-		infos[i] = editorEntryToInfo(e)
-	}
-
-	return &TMSearchResponse{
-		Entries:    infos,
-		TotalCount: total,
-	}, nil
-}
-
-func (es *EditorStore) getTMCount(ws string) (int, error) {
-	tm, err := es.getWSOrCreateTM(ws)
-	if err != nil {
-		return 0, err
-	}
-	return tm.Count(), nil
-}
-
-func (es *EditorStore) addTMEntry(ws string, req TMAddRequest) (*TMEntryInfoResponse, error) {
-	tm, err := es.getWSOrCreateTM(ws)
-	if err != nil {
-		return nil, err
-	}
-
-	now := time.Now()
-	entry := sievepen.TMEntry{
-		ID:           uuid.New().String(),
-		Source:       model.NewFragment(req.Source),
-		Target:       model.NewFragment(req.Target),
-		SourceLocale: model.LocaleID(req.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-
-	if err := tm.Add(entry); err != nil {
-		return nil, err
-	}
-
-	info := editorEntryToInfo(entry)
-	return &info, nil
-}
-
-func (es *EditorStore) updateTMEntry(ws, entryID string, req TMUpdateRequest) error {
-	tm, err := es.getWSOrCreateTM(ws)
-	if err != nil {
-		return err
-	}
-
-	entry, ok := tm.GetEntry(entryID)
-	if !ok {
-		return fmt.Errorf("TM entry %q not found", entryID)
-	}
-
-	entry.Source = model.NewFragment(req.Source)
-	entry.Target = model.NewFragment(req.Target)
-	entry.SourceLocale = model.LocaleID(req.SourceLocale)
-	entry.TargetLocale = model.LocaleID(req.TargetLocale)
-	entry.UpdatedAt = time.Now()
-
-	return tm.Add(entry)
-}
-
-func (es *EditorStore) deleteTMEntry(ws, entryID string) error {
-	tm, err := es.getWSOrCreateTM(ws)
-	if err != nil {
-		return err
-	}
-	return tm.Delete(entryID)
-}
-
-// --- Terminology operations ---
+// --- Terminology types ---
 
 // TermInfoResponse is a term in a concept.
 type TermInfoResponse struct {
@@ -1102,133 +303,7 @@ type ExportJSONRequest struct {
 	Name string `json:"name"`
 }
 
-func editorConceptToInfo(c termbase.Concept) ConceptInfoResponse {
-	terms := make([]TermInfoResponse, len(c.Terms))
-	for i, t := range c.Terms {
-		terms[i] = TermInfoResponse{
-			Text:         t.Text,
-			Locale:       string(t.Locale),
-			Status:       string(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-		}
-	}
-	return ConceptInfoResponse{
-		ID:         c.ID,
-		Domain:     c.Domain,
-		Definition: c.Definition,
-		Terms:      terms,
-		Properties: c.Properties,
-		CreatedAt:  c.CreatedAt.Format(time.RFC3339),
-		UpdatedAt:  c.UpdatedAt.Format(time.RFC3339),
-	}
-}
-
-func editorTermsFromInfo(terms []TermInfoResponse) []termbase.Term {
-	result := make([]termbase.Term, len(terms))
-	for i, t := range terms {
-		result[i] = termbase.Term{
-			Text:         t.Text,
-			Locale:       model.LocaleID(t.Locale),
-			Status:       model.TermStatus(t.Status),
-			PartOfSpeech: t.PartOfSpeech,
-			Gender:       t.Gender,
-			Note:         t.Note,
-		}
-		if result[i].Status == "" {
-			result[i].Status = model.TermApproved
-		}
-	}
-	return result
-}
-
-func (es *EditorStore) getTerms(ws, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResponse, error) {
-	tb := es.getWSOrCreateTB(ws)
-	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
-	infos := make([]ConceptInfoResponse, len(results))
-	for i, c := range results {
-		infos[i] = editorConceptToInfo(c)
-	}
-	return &TermSearchResponse{
-		Concepts:   infos,
-		TotalCount: total,
-	}, nil
-}
-
-func (es *EditorStore) getTermCount(ws string) int {
-	tb := es.getWSOrCreateTB(ws)
-	return tb.Count()
-}
-
-func (es *EditorStore) addConcept(ws string, req AddConceptRequest) (*ConceptInfoResponse, error) {
-	tb := es.getWSOrCreateTB(ws)
-	concept := termbase.Concept{
-		ID:         uuid.New().String(),
-		Domain:     req.Domain,
-		Definition: req.Definition,
-		Terms:      editorTermsFromInfo(req.Terms),
-	}
-
-	if err := tb.AddConcept(concept); err != nil {
-		return nil, err
-	}
-
-	stored, _ := tb.GetConcept(concept.ID)
-	info := editorConceptToInfo(stored)
-	return &info, nil
-}
-
-func (es *EditorStore) updateConcept(ws, conceptID string, req UpdateConceptRequest) error {
-	tb := es.getWSOrCreateTB(ws)
-	concept := termbase.Concept{
-		ID:         conceptID,
-		Domain:     req.Domain,
-		Definition: req.Definition,
-		Terms:      editorTermsFromInfo(req.Terms),
-	}
-
-	return tb.AddConcept(concept)
-}
-
-func (es *EditorStore) deleteConcept(ws, conceptID string) error {
-	tb := es.getWSOrCreateTB(ws)
-	return tb.DeleteConcept(conceptID)
-}
-
-func (es *EditorStore) importTermsCSV(ws string, req ImportCSVRequest) (int, error) {
-	tb := es.getWSOrCreateTB(ws)
-	count, err := termbase.ImportCSV(tb, strings.NewReader(req.CSVContent), termbase.CSVImportOptions{
-		SourceLocale: model.LocaleID(req.SourceLocale),
-		TargetLocale: model.LocaleID(req.TargetLocale),
-		Domain:       req.Domain,
-		HasHeader:    req.HasHeader,
-	})
-	if err != nil {
-		return 0, fmt.Errorf("import CSV: %w", err)
-	}
-	return count, nil
-}
-
-func (es *EditorStore) importTermsJSON(ws string, jsonContent string) (int, error) {
-	tb := es.getWSOrCreateTB(ws)
-	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
-	if err != nil {
-		return 0, fmt.Errorf("import JSON: %w", err)
-	}
-	return count, nil
-}
-
-func (es *EditorStore) exportTermsJSON(ws, name string) (string, error) {
-	tb := es.getWSOrCreateTB(ws)
-	var buf bytes.Buffer
-	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
-		return "", fmt.Errorf("export JSON: %w", err)
-	}
-	return buf.String(), nil
-}
-
-// --- Provider operations ---
+// --- Provider types ---
 
 // ProviderConfigResponse is the API response for a provider config (no API key).
 type ProviderConfigResponse struct {
@@ -1269,7 +344,639 @@ func (r SaveProviderConfigRequest) toCredentials() credentials.ProviderConfig {
 	}
 }
 
-// --- Helper functions ---
+// ---------------------------------------------------------------------------
+// ContentStore-backed editor operations
+// ---------------------------------------------------------------------------
+
+// editorCreateProject creates a new project in the ContentStore.
+func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, sourceLang string, targetLangs []string) (*ProjectInfoResponse, error) {
+	if name == "" {
+		return nil, fmt.Errorf("project name is required")
+	}
+	if sourceLang == "" {
+		return nil, fmt.Errorf("source language is required")
+	}
+	if len(targetLangs) == 0 {
+		return nil, fmt.Errorf("at least one target language is required")
+	}
+
+	locales := make([]model.LocaleID, len(targetLangs))
+	for i, l := range targetLangs {
+		locales[i] = model.LocaleID(l)
+	}
+
+	p := &store.Project{
+		Name:          name,
+		SourceLocale:  model.LocaleID(sourceLang),
+		TargetLocales: locales,
+		WorkspaceID:   ws,
+		Properties:    map[string]string{},
+	}
+	if err := cs.CreateProject(ctx, p); err != nil {
+		return nil, fmt.Errorf("create project: %w", err)
+	}
+
+	return projectToInfoResponse(p), nil
+}
+
+// editorAddFiles parses uploaded files, stores items and blocks in ContentStore.
+func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID string, files map[string][]byte) (*ProjectInfoResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("get project: %w", err)
+	}
+
+	for itemName, data := range files {
+		ext := filepath.Ext(itemName)
+		fmtName, err := formatReg.Detector().DetectByExtension(ext)
+		if err != nil {
+			continue
+		}
+
+		reader, err := formatReg.NewReader(fmtName)
+		if err != nil {
+			continue
+		}
+
+		doc := &model.RawDocument{
+			URI:          itemName,
+			SourceLocale: proj.SourceLocale,
+			Encoding:     "UTF-8",
+			Reader:       io.NopCloser(bytes.NewReader(data)),
+		}
+
+		if err := reader.Open(ctx, doc); err != nil {
+			return nil, fmt.Errorf("parse %q: %w", itemName, err)
+		}
+
+		var parts []*model.Part
+		for result := range reader.Read(ctx) {
+			if result.Error != nil {
+				reader.Close()
+				return nil, fmt.Errorf("read %q: %w", itemName, result.Error)
+			}
+			parts = append(parts, result.Part)
+		}
+		reader.Close()
+
+		// Build block index.
+		blockIndex := kaz.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndexJSON, _ := json.Marshal(blockIndex)
+
+		// Store item with source bytes.
+		item := &store.Item{
+			Name:        itemName,
+			Format:      fmtName,
+			ItemType:    "file",
+			SourceBytes: data,
+			BlockIndex:  string(blockIndexJSON),
+			Properties:  map[string]string{},
+		}
+		if err := cs.StoreItem(ctx, projectID, item); err != nil {
+			return nil, fmt.Errorf("store item %q: %w", itemName, err)
+		}
+
+		// Extract blocks and store them.
+		var blocks []*model.Block
+		for _, pt := range parts {
+			if pt.Type != model.PartBlock {
+				continue
+			}
+			if block, ok := pt.Resource.(*model.Block); ok {
+				blocks = append(blocks, block)
+			}
+		}
+		if len(blocks) > 0 {
+			if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
+			}
+		}
+	}
+
+	return editorBuildProjectInfo(ctx, cs, proj)
+}
+
+// editorRemoveFile removes an item and its blocks from ContentStore.
+func editorRemoveFile(ctx context.Context, cs store.ContentStore, projectID, fileName string) (*ProjectInfoResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := cs.DeleteItem(ctx, projectID, fileName); err != nil {
+		return nil, err
+	}
+
+	return editorBuildProjectInfo(ctx, cs, proj)
+}
+
+// editorGetBlocks returns blocks for a specific item, formatted for the API.
+func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, itemName string, targetLocales []string) ([]BlockInfoResponse, error) {
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	blocks := make([]BlockInfoResponse, 0, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		bi := storedBlockToInfoResponse(sb, targetLocales)
+		blocks = append(blocks, bi)
+	}
+	return blocks, nil
+}
+
+// editorUpdateBlockTarget loads a block, updates its target, and stores it back.
+func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, projectID, blockID string, req UpdateBlockTargetRequest) error {
+	sb, err := cs.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return err
+	}
+
+	sb.Block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
+
+	return cs.StoreBlocks(ctx, projectID, []*model.Block{sb.Block})
+}
+
+// editorUpdateBlockTargetCoded loads a block, updates its target with coded text, and stores it back.
+func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, projectID, blockID string, req UpdateBlockTargetCodedRequest) error {
+	sb, err := cs.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return err
+	}
+
+	frag := &model.Fragment{
+		CodedText: req.CodedText,
+	}
+	for _, si := range req.Spans {
+		frag.Spans = append(frag.Spans, editorInfoToSpan(si))
+	}
+	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
+
+	return cs.StoreBlocks(ctx, projectID, []*model.Block{sb.Block})
+}
+
+// editorPseudoTranslate pseudo-translates all blocks for an item.
+func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to parts for tool processing.
+	parts := storedBlocksToParts(storedBlocks)
+
+	pseudoTool := &tool.BaseTool{
+		ToolName:        "pseudo-translate",
+		ToolDescription: "Pseudo-translates blocks",
+	}
+	pseudoTool.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+		block, ok := part.Resource.(*model.Block)
+		if !ok || !block.Translatable {
+			return part, nil
+		}
+		locale := model.LocaleID(targetLocale)
+		frag := block.FirstFragment()
+		if frag != nil && frag.HasSpans() {
+			pseudoCoded := "[" + editorPseudoAccent(frag.CodedText) + "]"
+			targetFrag := frag.Clone()
+			targetFrag.CodedText = pseudoCoded
+			block.SetTargetFragment(locale, targetFrag)
+		} else {
+			src := block.SourceText()
+			pseudo := "[" + editorPseudoAccent(src) + "]"
+			block.SetTargetText(locale, pseudo)
+		}
+		return part, nil
+	}
+
+	outParts, err := runToolOnParts(ctx, pseudoTool, parts)
+	if err != nil {
+		return nil, fmt.Errorf("pseudo-translate: %w", err)
+	}
+
+	// Store updated blocks back.
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
+	}
+
+	return editorComputeStats(outParts, targetLocale), nil
+}
+
+// editorAITranslate translates blocks using an AI provider.
+func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, itemName string, req TranslateRequest, credStore *credentials.Store) (*TranslationStatsResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	parts := storedBlocksToParts(storedBlocks)
+
+	var prov provider.LLMProvider
+	if req.ProviderConfigID != "" && credStore != nil {
+		prov, err = credentials.NewProvider(credStore, req.ProviderConfigID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve provider config: %w", err)
+		}
+	} else {
+		prov = editorCreateProvider(req.Provider, req.APIKey, req.Model)
+	}
+
+	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
+		SourceLocale: proj.SourceLocale,
+		TargetLocale: model.LocaleID(req.TargetLocale),
+	})
+
+	outParts, err := runToolOnParts(ctx, translateTool, parts)
+	if err != nil {
+		return nil, fmt.Errorf("AI translate: %w", err)
+	}
+
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
+	}
+
+	return editorComputeStats(outParts, req.TargetLocale), nil
+}
+
+// editorTMTranslate leverages translation memory to translate blocks.
+func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	tm, err := wsStores.getTM(ws)
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
+
+	parts := storedBlocksToParts(storedBlocks)
+
+	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
+		MinScore:     0.7,
+		MaxResults:   5,
+		SourceLocale: proj.SourceLocale,
+		TargetLocale: model.LocaleID(targetLocale),
+	})
+
+	outParts, err := runToolOnParts(ctx, tmTool, parts)
+	if err != nil {
+		return nil, fmt.Errorf("TM translate: %w", err)
+	}
+
+	blocks := partsToBlocks(outParts)
+	if len(blocks) > 0 {
+		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			return nil, fmt.Errorf("store blocks: %w", err)
+		}
+	}
+
+	return editorComputeStats(outParts, targetLocale), nil
+}
+
+// editorGetWordCount computes word/char counts from stored blocks.
+func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, itemName string, targetLocales []string) (*WordCountResponse, error) {
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := &WordCountResponse{
+		TargetWords: make(map[string]int),
+		TargetChars: make(map[string]int),
+	}
+
+	for _, sb := range storedBlocks {
+		if !sb.Block.Translatable {
+			continue
+		}
+		src := sb.Block.SourceText()
+		result.SourceWords += editorCountWords(src)
+		result.SourceChars += len([]rune(src))
+
+		for _, locale := range targetLocales {
+			t := sb.Block.TargetText(model.LocaleID(locale))
+			if t != "" {
+				result.TargetWords[locale] += editorCountWords(t)
+				result.TargetChars[locale] += len([]rune(t))
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// editorExportTranslatedFile exports a translated file using source bytes + updated blocks.
+func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, itemName, targetLocale, dataDir string) (string, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return "", err
+	}
+
+	item, err := cs.GetItem(ctx, projectID, itemName)
+	if err != nil {
+		return "", fmt.Errorf("get item: %w", err)
+	}
+
+	if len(item.SourceBytes) == 0 {
+		return "", fmt.Errorf("item %q has no source bytes for export", itemName)
+	}
+
+	// Re-parse source bytes to get the Part stream.
+	reader, err := formatReg.NewReader(item.Format)
+	if err != nil {
+		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
+	}
+
+	doc := &model.RawDocument{
+		URI:          itemName,
+		SourceLocale: proj.SourceLocale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
+	}
+
+	if err := reader.Open(ctx, doc); err != nil {
+		reader.Close()
+		return "", fmt.Errorf("parse source: %w", err)
+	}
+
+	var parts []*model.Part
+	for result := range reader.Read(ctx) {
+		if result.Error != nil {
+			reader.Close()
+			return "", fmt.Errorf("read source: %w", result.Error)
+		}
+		parts = append(parts, result.Part)
+	}
+	reader.Close()
+
+	// Load updated blocks from ContentStore and inject targets into parts.
+	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+		ProjectID: projectID,
+		ItemName:  itemName,
+	})
+	if err != nil {
+		return "", fmt.Errorf("get blocks: %w", err)
+	}
+
+	blockMap := make(map[string]*model.Block, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		blockMap[sb.Block.ID] = sb.Block
+	}
+
+	// Inject stored targets into the parsed parts.
+	for _, pt := range parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok {
+			continue
+		}
+		if stored, ok := blockMap[block.ID]; ok {
+			block.Targets = stored.Targets
+		}
+	}
+
+	// Write output.
+	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(itemName)), ".")
+	baseName := itemName
+	if ext != "" {
+		baseName = itemName[:len(itemName)-len(ext)-1]
+	}
+	outputName := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
+
+	dir := dataDir
+	if dir == "" {
+		dir = os.TempDir()
+	}
+	outputPath := filepath.Join(dir, outputName)
+
+	writer, err := formatReg.NewWriter(item.Format)
+	if err != nil {
+		return "", fmt.Errorf("no writer for %q: %w", item.Format, err)
+	}
+
+	if err := writer.SetOutput(outputPath); err != nil {
+		return "", fmt.Errorf("set output: %w", err)
+	}
+	writer.SetLocale(model.LocaleID(targetLocale))
+
+	ch := make(chan *model.Part, len(parts))
+	for _, pt := range parts {
+		ch <- pt
+	}
+	close(ch)
+
+	if err := writer.Write(ctx, ch); err != nil {
+		return "", fmt.Errorf("write: %w", err)
+	}
+	writer.Close()
+
+	return outputPath, nil
+}
+
+// editorLookupTMForBlock looks up TM matches for a specific block.
+func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, blockID, targetLocale string) ([]TMMatchInfoResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	tm, err := wsStores.getTM(ws)
+	if err != nil {
+		return nil, fmt.Errorf("init TM: %w", err)
+	}
+	if tm.Count() == 0 {
+		return nil, nil
+	}
+
+	sb, err := cs.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := sievepen.DefaultLookupOptions()
+	opts.MaxResults = 5
+	matches, err := tm.Lookup(sb.Block, proj.SourceLocale, model.LocaleID(targetLocale), opts)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]TMMatchInfoResponse, len(matches))
+	for i, m := range matches {
+		result[i] = TMMatchInfoResponse{
+			Source:    m.Entry.SourceText(),
+			Target:    m.Entry.TargetText(),
+			Score:     m.Score,
+			MatchType: string(m.MatchType),
+		}
+	}
+	return result, nil
+}
+
+// editorLookupTermsForBlock looks up term matches for a block.
+func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, blockID, targetLocale string) ([]BlockTermMatchResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	tb := wsStores.getTB(ws)
+	if tb.Count() == 0 {
+		return nil, nil
+	}
+
+	sb, err := cs.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return nil, err
+	}
+
+	sourceText := sb.Block.SourceText()
+	if sourceText == "" {
+		return nil, nil
+	}
+
+	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
+		SourceLocale: proj.SourceLocale,
+		TargetLocale: model.LocaleID(targetLocale),
+	})
+
+	result := make([]BlockTermMatchResponse, 0)
+	for _, m := range matches {
+		targetTerms := make([]string, 0)
+		for _, t := range m.Concept.Terms {
+			if t.Locale == model.LocaleID(targetLocale) {
+				targetTerms = append(targetTerms, t.Text)
+			}
+		}
+		result = append(result, BlockTermMatchResponse{
+			SourceTerm:  m.Term.Text,
+			TargetTerms: targetTerms,
+			Domain:      m.Concept.Domain,
+			Status:      string(m.Term.Status),
+			Start:       m.Position.Start,
+			End:         m.Position.End,
+		})
+	}
+	return result, nil
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+// projectToInfoResponse converts a store.Project to ProjectInfoResponse.
+func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
+	locales := make([]string, len(p.TargetLocales))
+	for i, l := range p.TargetLocales {
+		locales[i] = string(l)
+	}
+	return &ProjectInfoResponse{
+		ID:            p.ID,
+		Name:          p.Name,
+		SourceLocale:  string(p.SourceLocale),
+		TargetLocales: locales,
+		Items:         []ProjectItemResponse{},
+		CreatedAt:     p.CreatedAt.Format(time.RFC3339),
+		ModifiedAt:    p.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// editorBuildProjectInfo builds a full ProjectInfoResponse from store data.
+func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project) (*ProjectInfoResponse, error) {
+	info := projectToInfoResponse(proj)
+
+	items, err := cs.ListItems(ctx, proj.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+
+	for _, item := range items {
+		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+			ProjectID: proj.ID,
+			ItemName:  item.Name,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get blocks for %q: %w", item.Name, err)
+		}
+
+		wordCount := 0
+		for _, sb := range blocks {
+			if sb.Block.Translatable {
+				wordCount += editorCountWords(sb.Block.SourceText())
+			}
+		}
+
+		info.Items = append(info.Items, ProjectItemResponse{
+			Name:       item.Name,
+			Format:     item.Format,
+			Type:       item.ItemType,
+			Size:       int64(len(item.SourceBytes)),
+			BlockCount: len(blocks),
+			WordCount:  wordCount,
+		})
+	}
+
+	return info, nil
+}
+
+// storedBlockToInfoResponse converts a StoredBlock to a BlockInfoResponse.
+func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) BlockInfoResponse {
+	targets := make(map[string]string)
+	for _, locale := range targetLocales {
+		if t := sb.Block.TargetText(model.LocaleID(locale)); t != "" {
+			targets[locale] = t
+		}
+	}
+
+	props := make(map[string]string)
+	for k, v := range sb.Block.Properties {
+		props[k] = v
+	}
+
+	bi := BlockInfoResponse{
+		ID:           sb.Block.ID,
+		Source:       sb.Block.SourceText(),
+		Targets:      targets,
+		Translatable: sb.Block.Translatable,
+		Properties:   props,
+	}
+
+	enrichBlockInfoResponse(&bi, sb.Block, targetLocales)
+	return bi
+}
 
 func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLocales []string) {
 	if len(block.Source) == 0 || block.Source[0].Content == nil {
@@ -1297,6 +1004,53 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 			bi.TargetsCoded[locale] = segs[0].Content.CodedText
 		}
 	}
+}
+
+// storedBlocksToParts wraps stored blocks as Part objects for tool processing.
+func storedBlocksToParts(storedBlocks []*store.StoredBlock) []*model.Part {
+	parts := make([]*model.Part, 0, len(storedBlocks))
+	for _, sb := range storedBlocks {
+		parts = append(parts, &model.Part{
+			Type:     model.PartBlock,
+			Resource: sb.Block,
+		})
+	}
+	return parts
+}
+
+// partsToBlocks extracts model.Block objects from a Part slice.
+func partsToBlocks(parts []*model.Part) []*model.Block {
+	var blocks []*model.Block
+	for _, pt := range parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		if block, ok := pt.Resource.(*model.Block); ok {
+			blocks = append(blocks, block)
+		}
+	}
+	return blocks
+}
+
+// runToolOnParts executes a tool on parts using channels.
+func runToolOnParts(ctx context.Context, t tool.Tool, parts []*model.Part) ([]*model.Part, error) {
+	in := make(chan *model.Part, len(parts))
+	out := make(chan *model.Part, len(parts))
+	for _, pt := range parts {
+		in <- pt
+	}
+	close(in)
+
+	if err := t.Process(ctx, in, out); err != nil {
+		return nil, err
+	}
+	close(out)
+
+	var result []*model.Part
+	for pt := range out {
+		result = append(result, pt)
+	}
+	return result, nil
 }
 
 func editorSpanToInfo(s *model.Span) SpanInfoResponse {
@@ -1364,31 +1118,6 @@ func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationSt
 	return stats
 }
 
-func editorSyncBlockIndex(id *editorItemData, sourceLocale string) {
-	if id.blockIndex == nil {
-		return
-	}
-	for _, pt := range id.parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		b := id.blockIndex.BlockByID(block.ID)
-		if b == nil {
-			continue
-		}
-		b.Targets = make(map[string]string)
-		for locale, segs := range block.Targets {
-			if len(segs) > 0 {
-				b.Targets[string(locale)] = block.TargetText(locale)
-			}
-		}
-	}
-}
-
 func editorCountWords(text string) int {
 	count := 0
 	inWord := false
@@ -1439,6 +1168,58 @@ func editorCreateProvider(provType, apiKey, modelName string) provider.LLMProvid
 	}, apiKey)
 }
 
+func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
+	return TMEntryInfoResponse{
+		ID:           e.ID,
+		Source:       e.SourceText(),
+		Target:       e.TargetText(),
+		SourceLocale: string(e.SourceLocale),
+		TargetLocale: string(e.TargetLocale),
+		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func editorConceptToInfo(c termbase.Concept) ConceptInfoResponse {
+	terms := make([]TermInfoResponse, len(c.Terms))
+	for i, t := range c.Terms {
+		terms[i] = TermInfoResponse{
+			Text:         t.Text,
+			Locale:       string(t.Locale),
+			Status:       string(t.Status),
+			PartOfSpeech: t.PartOfSpeech,
+			Gender:       t.Gender,
+			Note:         t.Note,
+		}
+	}
+	return ConceptInfoResponse{
+		ID:         c.ID,
+		Domain:     c.Domain,
+		Definition: c.Definition,
+		Terms:      terms,
+		Properties: c.Properties,
+		CreatedAt:  c.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:  c.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+func editorTermsFromInfo(terms []TermInfoResponse) []termbase.Term {
+	result := make([]termbase.Term, len(terms))
+	for i, t := range terms {
+		result[i] = termbase.Term{
+			Text:         t.Text,
+			Locale:       model.LocaleID(t.Locale),
+			Status:       model.TermStatus(t.Status),
+			PartOfSpeech: t.PartOfSpeech,
+			Gender:       t.Gender,
+			Note:         t.Note,
+		}
+		if result[i].Status == "" {
+			result[i].Status = model.TermApproved
+		}
+	}
+	return result
+}
+
 func copyStringMap(m map[string]string) map[string]string {
 	if m == nil {
 		return map[string]string{}
@@ -1449,3 +1230,4 @@ func copyStringMap(m map[string]string) map[string]string {
 	}
 	return out
 }
+

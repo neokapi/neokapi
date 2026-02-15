@@ -2,7 +2,6 @@ package event
 
 import (
 	"context"
-	"io"
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/store"
@@ -65,6 +64,22 @@ func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error
 	return nil
 }
 
+func (s *EventEmittingStore) StoreItem(ctx context.Context, projectID string, item *store.Item) error {
+	return s.inner.StoreItem(ctx, projectID, item)
+}
+
+func (s *EventEmittingStore) GetItem(ctx context.Context, projectID, itemName string) (*store.Item, error) {
+	return s.inner.GetItem(ctx, projectID, itemName)
+}
+
+func (s *EventEmittingStore) ListItems(ctx context.Context, projectID string) ([]*store.Item, error) {
+	return s.inner.ListItems(ctx, projectID)
+}
+
+func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, itemName string) error {
+	return s.inner.DeleteItem(ctx, projectID, itemName)
+}
+
 func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
 	if err := s.inner.StoreBlocks(ctx, projectID, blocks); err != nil {
 		return err
@@ -75,6 +90,21 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID string, 
 			Source:    "store",
 			ProjectID: projectID,
 			Data:      map[string]string{"block_id": b.ID},
+		})
+	}
+	return nil
+}
+
+func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
+	if err := s.inner.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		return err
+	}
+	for _, b := range blocks {
+		s.bus.Publish(Event{
+			Type:      EventBlockUpdated,
+			Source:    "store",
+			ProjectID: projectID,
+			Data:      map[string]string{"block_id": b.ID, "item_name": itemName},
 		})
 	}
 	return nil
@@ -125,14 +155,6 @@ func (s *EventEmittingStore) ListVersions(ctx context.Context, projectID string)
 
 func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.VersionDiff, error) {
 	return s.inner.Diff(ctx, from, to)
-}
-
-func (s *EventEmittingStore) ExportKAZ(ctx context.Context, projectID string, w io.Writer) error {
-	return s.inner.ExportKAZ(ctx, projectID, w)
-}
-
-func (s *EventEmittingStore) ImportKAZ(ctx context.Context, r io.Reader) (string, error) {
-	return s.inner.ImportKAZ(ctx, r)
 }
 
 func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*store.ChangeSet, error) {

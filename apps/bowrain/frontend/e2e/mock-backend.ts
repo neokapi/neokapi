@@ -143,7 +143,6 @@ export async function injectMockBackend(page: Page) {
       GetKnownLocales: 3316047929,
       GetLocaleDisplayName: 804882882,
       GetFlowDefinition: 2095856838,
-      GetInitialProject: 4269707510,
       GetProject: 1329939084,
       GetTMCount: 1658982651,
       GetTMEntries: 2865323100,
@@ -164,17 +163,12 @@ export async function injectMockBackend(page: Page) {
       LookupTerms: 1594665302,
       LookupTermsForBlock: 2436021002,
       OpenFileInOS: 2953479918,
-      OpenProject: 3349152314,
-      OpenProjectDialog: 3415023882,
       PluginDir: 2089167097,
       PseudoTranslateFile: 2296272289,
       RemoveFile: 1600906915,
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
       SaveFlowDefinition: 2719448633,
-      SaveProject: 179173205,
-      SaveProjectAs: 3259052957,
-      SaveProjectDialog: 2824494121,
       SaveProviderConfig: 755781535,
       SetApplication: 1182474139,
       TMTranslateFile: 49623414,
@@ -279,7 +273,6 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.ListPlugins] = () => [];
     mock[IDS.PluginDir] = () => "~/.kapi/plugins";
     mock[IDS.SetApplication] = () => {};
-    mock[IDS.GetInitialProject] = () => "";
 
     // Locale handlers
     const knownLocales = [
@@ -578,12 +571,6 @@ export async function injectMockBackend(page: Page) {
     };
 
     mock[IDS.OpenFileInOS] = () => {};
-    mock[IDS.SaveProject] = () => {};
-
-    mock[IDS.SaveProjectAs] = (projectID: string, path: string) => {
-      const p = projects[projectID];
-      if (p) p.path = path;
-    };
 
     mock[IDS.RenderDocumentPreview] = (_projectID: string, itemName: string, _targetLocale: string) => {
       return `<!DOCTYPE html><html><head><style>
@@ -963,45 +950,6 @@ export async function injectMockBackend(page: Page) {
         }
       }
       return results;
-    };
-
-    mock[IDS.OpenProject] = (path: string) => {
-      const id = `project-${++projectCounter}`;
-      const info = {
-        id,
-        name: path.split("/").pop()?.replace(".kaz", "") || "Imported",
-        source_locale: "en",
-        target_locales: ["fr"],
-        path,
-        items: [],
-        created_at: new Date().toISOString(),
-        modified_at: new Date().toISOString(),
-      };
-      projects[id] = info;
-      projectFiles[id] = {};
-      return info;
-    };
-
-    mock[IDS.OpenProjectDialog] = () => {
-      const id = `project-${++projectCounter}`;
-      const info = {
-        id,
-        name: "test-project",
-        source_locale: "en",
-        target_locales: ["fr"],
-        path: "/mock/test-project.kaz",
-        items: [],
-        created_at: new Date().toISOString(),
-        modified_at: new Date().toISOString(),
-      };
-      projects[id] = info;
-      projectFiles[id] = {};
-      return info;
-    };
-
-    mock[IDS.SaveProjectDialog] = (projectID: string) => {
-      const p = projects[projectID];
-      if (p) p.path = `/mock/${p.name}.kaz`;
     };
 
     mock[IDS.AddFilesDialog] = (projectID: string) => {

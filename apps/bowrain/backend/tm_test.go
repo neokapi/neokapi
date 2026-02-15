@@ -8,7 +8,7 @@ import (
 )
 
 func TestAddTMEntry(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -22,7 +22,7 @@ func TestAddTMEntry(t *testing.T) {
 }
 
 func TestGetTMCount(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -39,7 +39,7 @@ func TestGetTMCount(t *testing.T) {
 }
 
 func TestGetTMEntries(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr", "de"})
 	require.NoError(t, err)
 
@@ -75,7 +75,7 @@ func TestGetTMEntries(t *testing.T) {
 }
 
 func TestUpdateTMEntry(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -100,7 +100,7 @@ func TestUpdateTMEntry(t *testing.T) {
 }
 
 func TestUpdateTMEntry_NotFound(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -117,7 +117,7 @@ func TestUpdateTMEntry_NotFound(t *testing.T) {
 }
 
 func TestDeleteTMEntry(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -133,7 +133,7 @@ func TestDeleteTMEntry(t *testing.T) {
 }
 
 func TestDeleteTMEntry_NotFound(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -148,14 +148,14 @@ func TestTMTranslateItem_UsesProjectTM(t *testing.T) {
 	_, err := app.AddTMEntry(info.ID, "Hello, world!", "Bonjour le monde!", "en", "fr")
 	require.NoError(t, err)
 
-	// Now run TM translate — the project's TM should be used
+	// Now run TM translate -- the project's TM should be used
 	stats, err := app.TMTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TotalBlocks, 0)
 }
 
 func TestCloseProject_ClosesTM(t *testing.T) {
-	app := NewApp()
+	app := newTestApp(t)
 	info, err := app.CreateProject("TM Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
@@ -168,6 +168,6 @@ func TestCloseProject_ClosesTM(t *testing.T) {
 	require.NoError(t, err)
 
 	// Project should no longer exist
-	_, err = app.GetTMCount(info.ID)
+	_, err = app.GetProject(info.ID)
 	assert.Error(t, err)
 }
