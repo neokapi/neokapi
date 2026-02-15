@@ -11,6 +11,9 @@ export { Badge, type BadgeProps } from "./components/ui/badge";
 export { Separator } from "./components/ui/separator";
 export { Tabs, TabsList, TabsTrigger, TabsContent, TabsGlass } from "./components/ui/tabs";
 export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./components/ui/select";
+export { Switch, type SwitchProps } from "./components/ui/switch";
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
+export type { CollapsibleProps, CollapsibleTriggerProps, CollapsibleContentProps } from "./components/ui/collapsible";
 
 // Icons (Lucide)
 export * from "./components/icons";
@@ -82,3 +85,16 @@ export type {
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
 } from "./types/api";
 export type { View, NavItem } from "./components/MainSidebar";
+
+// Filter config editor
+export { FilterConfigEditor } from "./components/filter";
+export type {
+  FilterSchema,
+  FilterMeta,
+  ParameterGroup,
+  PropertySchema,
+  WidgetType,
+  ShowIfCondition,
+  CodeFinderRulesValue,
+  FilterParamsValue,
+} from "./components/filter";
