@@ -27,12 +27,13 @@ func (r *Response) IsOK() bool {
 
 // OpenParams are sent with the "open" command.
 type OpenParams struct {
-	FilterClass   string `json:"filter_class"`
-	URI           string `json:"uri"`
-	SourceLocale  string `json:"source_locale"`
-	Encoding      string `json:"encoding"`
-	ContentBase64 string `json:"content_base64"`
-	MimeType      string `json:"mime_type"`
+	FilterClass   string                 `json:"filter_class"`
+	URI           string                 `json:"uri"`
+	SourceLocale  string                 `json:"source_locale"`
+	Encoding      string                 `json:"encoding"`
+	ContentBase64 string                 `json:"content_base64"`
+	MimeType      string                 `json:"mime_type"`
+	FilterParams  map[string]interface{} `json:"filter_params,omitempty"`
 }
 
 // InfoParams are sent with the "info" command.
@@ -42,11 +43,12 @@ type InfoParams struct {
 
 // WriteParams are sent with the "write" command.
 type WriteParams struct {
-	FilterClass           string      `json:"filter_class"`
-	Parts                 interface{} `json:"parts"`
-	Locale                string      `json:"locale"`
-	Encoding              string      `json:"encoding"`
-	OriginalContentBase64 string      `json:"original_content_base64"`
+	FilterClass           string                 `json:"filter_class"`
+	Parts                 interface{}            `json:"parts"`
+	Locale                string                 `json:"locale"`
+	Encoding              string                 `json:"encoding"`
+	OriginalContentBase64 string                 `json:"original_content_base64"`
+	FilterParams          map[string]interface{} `json:"filter_params,omitempty"`
 }
 
 // --- Response data types ---
