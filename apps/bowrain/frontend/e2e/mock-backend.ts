@@ -55,6 +55,12 @@ export class CancellablePromise extends Promise {
   cancel() {}
 }
 
+export const Browser = {
+  OpenURL(url) {
+    console.log('[mock] Browser.OpenURL:', url);
+  }
+};
+
 export const Events = {
   On(eventName, callback) {
     // Store listeners so tests can emit events if needed
@@ -129,11 +135,12 @@ export async function injectMockBackend(page: Page) {
       AITranslateItem: 2725002960,
       AddConcept: 3793362128,
       AddItems: 1333276848,
-      AddItemsDialog: 1543891488,
       AddTMEntry: 4152216329,
+      CancelLogin: 2779862064,
       CheckPluginUpdates: 4061886530,
       CloseProject: 3497243272,
       ConfigureConnector: 623426718,
+      ConnectToServer: 3376247435,
       CreateProject: 2219834270,
       CreateStoreVersion: 3924427090,
       DeleteConcept: 3900518770,
@@ -141,16 +148,19 @@ export async function injectMockBackend(page: Page) {
       DeleteProviderConfig: 2103858573,
       DeleteTMEntry: 1886996955,
       DetectFormat: 3882758361,
+      Disconnect: 1153711123,
       ExportTermsJSON: 166152904,
       ExportTranslatedItem: 227674686,
+      FetchContent: 948929260,
+      GetConnectionState: 3895233544,
+      GetConnectorStatus: 2734390172,
       GetCurrentWorkspace: 3228582525,
       GetFlowDefinition: 2095856838,
-      GetInitialProject: 4269707510,
       GetItemBlocks: 2825501758,
       GetKnownLocales: 3316047929,
       GetLocaleDisplayName: 804882882,
       GetProject: 1329939084,
-      GetSyncStatus: 3997902314,
+      GetServerWorkspaces: 1356633606,
       GetTMCount: 1658982651,
       GetTMEntries: 2865323100,
       GetTermCount: 433951236,
@@ -176,18 +186,18 @@ export async function injectMockBackend(page: Page) {
       ListTools: 2273599896,
       ListWorkspaces: 3212201675,
       LoadPlugins: 3302678495,
+      Logout: 1298226851,
       LookupTMForBlock: 2472708440,
       LookupTerms: 1594665302,
       LookupTermsForBlock: 2436021002,
       OpenFileInOS: 2953479918,
-      OpenProject: 3349152314,
-      OpenProjectDialog: 3415023882,
       PluginDir: 2089167097,
+      PollLogin: 3205924797,
       PseudoTranslateItem: 2488163560,
-      PullContent: 1394392007,
-      PushContent: 879389618,
+      PublishContent: 965587317,
       RemoveConnector: 3005427920,
       RemoveItem: 938648902,
+      ReviewBlock: 3550018030,
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
       SaveFlowDefinition: 2719448633,
@@ -195,16 +205,21 @@ export async function injectMockBackend(page: Page) {
       SearchPlugins: 219729007,
       SearchPluginsByMimeType: 2104841290,
       SearchPluginsByType: 3673978410,
+      SelectWorkspace: 2048218230,
       SetApplication: 1182474139,
-      SetInitialProjectPath: 3437708865,
+      StartLogin: 3005652700,
+      StartWatching: 4056045666,
+      StopWatching: 2502756712,
       StoreProject: 3310579751,
       TMTranslateItem: 1452459471,
       TermEnforceItem: 2381680068,
       TestProviderConfig: 2576607394,
+      TryAutoConnect: 3511479517,
       UpdateBlockTarget: 1528557592,
       UpdateBlockTargetCoded: 1612164251,
       UpdateConcept: 1418320064,
       UpdatePlugin: 2070488879,
+      UpdatePresence: 924246729,
       UpdateTMEntry: 1441483449,
     };
 
@@ -315,8 +330,7 @@ export async function injectMockBackend(page: Page) {
       name: "Personal",
       type: "local",
     });
-    mock[IDS.GetInitialProject] = () => "";
-    mock[IDS.GetSyncStatus] = () => null;
+    mock[IDS.GetConnectorStatus] = () => null;
     mock[IDS.GetVersion] = () => ({
       version: "0.0.0-mock",
       commit: "mock",
@@ -334,32 +348,12 @@ export async function injectMockBackend(page: Page) {
       { id: "personal", name: "Personal", type: "local" },
     ];
     mock[IDS.LoadPlugins] = () => {};
-    mock[IDS.OpenProject] = (path: string) => {
-      const id = `project-${++projectCounter}`;
-      const name = path.split("/").pop() || "Untitled";
-      const now = new Date().toISOString();
-      const info = {
-        id,
-        name,
-        source_locale: "en",
-        target_locales: [],
-        path,
-        items: [],
-        created_at: now,
-        modified_at: now,
-      };
-      projects[id] = info;
-      projectFiles[id] = {};
-      return info;
-    };
-    mock[IDS.OpenProjectDialog] = () => null;
-    mock[IDS.PullContent] = () => [];
-    mock[IDS.PushContent] = () => {};
+    mock[IDS.FetchContent] = () => [];
+    mock[IDS.PublishContent] = () => {};
     mock[IDS.RemoveConnector] = () => {};
     mock[IDS.SearchPlugins] = () => [];
     mock[IDS.SearchPluginsByMimeType] = () => [];
     mock[IDS.SearchPluginsByType] = () => [];
-    mock[IDS.SetInitialProjectPath] = () => {};
     mock[IDS.StoreProject] = () => null;
     mock[IDS.UpdatePlugin] = () => null;
 
@@ -1041,9 +1035,90 @@ export async function injectMockBackend(page: Page) {
       return results;
     };
 
-    mock[IDS.AddItemsDialog] = (projectID: string) => {
-      return mock[IDS.AddItems](projectID, ["/mock/dialog-file.txt"]);
+    // --- Connection mock handlers ---
+
+    // Connection state: "disconnected" by default
+    let connectionState = "disconnected";
+    let serverURL = "";
+    let userName = "";
+    let workspace = "";
+
+    mock[IDS.GetConnectionState] = () => ({
+      state: connectionState,
+      server_url: serverURL,
+      user_name: userName,
+      workspace: workspace,
+    });
+
+    mock[IDS.TryAutoConnect] = () => {
+      // No stored auth in mock — stays disconnected.
     };
+
+    mock[IDS.ConnectToServer] = (url: string) => {
+      if (connectionState === "connected") {
+        // Already authenticated (e.g. after PollLogin) — return success.
+        serverURL = url;
+        return { state: "connected", server_url: url, user_name: userName, workspace };
+      }
+      throw new Error("not authenticated: please log in first");
+    };
+
+    mock[IDS.StartLogin] = (url: string) => {
+      serverURL = url;
+      return {
+        device_code: "MOCK-DEVICE-CODE",
+        user_code: "ABCD-1234",
+        verification_uri: "http://localhost:8080/device",
+        expires_in: 600,
+        interval: 5,
+      };
+    };
+
+    mock[IDS.PollLogin] = (_deviceCode: string, _interval: number) => {
+      // Simulate immediate auth success.
+      connectionState = "connected";
+      userName = "Test User";
+      return true;
+    };
+
+    mock[IDS.CancelLogin] = () => {};
+
+    mock[IDS.GetServerWorkspaces] = () => [
+      { id: "ws-1", slug: "acme-corp", name: "Acme Corp", description: "Main workspace", role: "editor" },
+      { id: "ws-2", slug: "personal", name: "Personal", description: "Personal workspace", role: "owner" },
+    ];
+
+    mock[IDS.SelectWorkspace] = (slug: string) => {
+      workspace = slug;
+    };
+
+    mock[IDS.Disconnect] = () => {
+      connectionState = "disconnected";
+      serverURL = "";
+      userName = "";
+      workspace = "";
+    };
+
+    mock[IDS.Logout] = () => {
+      connectionState = "disconnected";
+      serverURL = "";
+      userName = "";
+      workspace = "";
+    };
+
+    mock[IDS.ReviewBlock] = (_projectID: string, itemName: string, blockID: string, targetLocale: string, reviewed: boolean) => {
+      const files = projectFiles[_projectID];
+      if (!files || !files[itemName]) return;
+      const block = files[itemName].find((b: any) => b.id === blockID);
+      if (block) {
+        if (!block.properties) block.properties = {};
+        block.properties["translation-status"] = reviewed ? "reviewed" : "translated";
+      }
+    };
+
+    mock[IDS.StartWatching] = () => {};
+    mock[IDS.StopWatching] = () => {};
+    mock[IDS.UpdatePresence] = () => {};
 
     // Install on window for Call.ByID to find
     (window as any).__wailsMock = mock;
@@ -1060,4 +1135,26 @@ export async function injectMockBackend(page: Page) {
     // Expose IDs so tests can monkey-patch __wailsMock by name lookup
     (window as any).__wailsIDs = IDS;
   });
+}
+
+/**
+ * Clicks "Work Offline" on the ServerConnect screen to bypass the
+ * connection flow and reach the main app. Call after page.goto("/").
+ */
+export async function skipConnectionScreen(page: Page) {
+  const offlineBtn = page.getByText("Work Offline");
+  await offlineBtn.waitFor({ state: "visible", timeout: 5000 });
+  await offlineBtn.click();
+  // Wait for the main sidebar to appear, indicating the app is ready.
+  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 5000 });
+}
+
+/**
+ * Convenience: injects mock backend, navigates to the app, and skips
+ * the connection screen so existing tests reach the main app directly.
+ */
+export async function setupLocalApp(page: Page) {
+  await injectMockBackend(page);
+  await page.goto("/");
+  await skipConnectionScreen(page);
 }

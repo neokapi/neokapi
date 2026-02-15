@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /** Helper: click by test ID using native DOM click. */
@@ -13,8 +13,7 @@ function clickTestId(page: any, testId: string) {
  * Sets up a project with TM entries covering all blocks, adds a file, and opens the editor.
  */
 async function openEditorWithTM(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Create project
   await page.getByTestId("new-project-btn").click();

@@ -1,13 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
  * Helper: creates a project with a file and opens the editor.
  */
 async function openEditorWithBlocks(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Create project
   await page.getByTestId("new-project-btn").click();

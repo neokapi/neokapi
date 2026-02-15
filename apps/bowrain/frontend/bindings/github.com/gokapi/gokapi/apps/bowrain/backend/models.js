@@ -464,6 +464,82 @@ export class ConceptInfo {
 }
 
 /**
+ * ConnectionInfo is the connection status exposed to the frontend.
+ */
+export class ConnectionInfo {
+    /**
+     * Creates a new ConnectionInfo instance.
+     * @param {Partial<ConnectionInfo>} [$$source = {}] - The source object to create the ConnectionInfo.
+     */
+    constructor($$source = {}) {
+        if (!("state" in $$source)) {
+            /**
+             * @member
+             * @type {ConnectionState}
+             */
+            this["state"] = ConnectionState.$zero;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["server_url"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["user_name"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["user_email"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["workspace"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new ConnectionInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {ConnectionInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new ConnectionInfo(/** @type {Partial<ConnectionInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * ConnectionState represents the connection state of the desktop client.
+ * @readonly
+ * @enum {string}
+ */
+export const ConnectionState = {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero: "",
+
+    StateDisconnected: "disconnected",
+    StateConnecting: "connecting",
+    StateConnected: "connected",
+    StateOffline: "offline",
+};
+
+/**
  * ConnectorInfo describes a connector for the frontend.
  */
 export class ConnectorInfo {
@@ -516,7 +592,7 @@ export class ConnectorInfo {
 }
 
 /**
- * ContentItemInfo describes a content item pulled from a connector.
+ * ContentItemInfo describes a content item fetched from a connector.
  */
 export class ContentItemInfo {
     /**
@@ -564,6 +640,51 @@ export class ContentItemInfo {
     static createFrom($$source = {}) {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new ContentItemInfo(/** @type {Partial<ContentItemInfo>} */($$parsedSource));
+    }
+}
+
+/**
+ * DeviceAuthInfo is returned when starting a login flow.
+ */
+export class DeviceAuthInfo {
+    /**
+     * Creates a new DeviceAuthInfo instance.
+     * @param {Partial<DeviceAuthInfo>} [$$source = {}] - The source object to create the DeviceAuthInfo.
+     */
+    constructor($$source = {}) {
+        if (!("user_code" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["user_code"] = "";
+        }
+        if (!("verification_uri" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["verification_uri"] = "";
+        }
+        if (!("expires_in" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["expires_in"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new DeviceAuthInfo instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {DeviceAuthInfo}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new DeviceAuthInfo(/** @type {Partial<DeviceAuthInfo>} */($$parsedSource));
     }
 }
 

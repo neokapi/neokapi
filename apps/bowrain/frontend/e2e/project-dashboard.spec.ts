@@ -1,10 +1,9 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectLocale, selectMultiLocales, setMultiLocales, expectLocaleChips } from "./locale-helper";
 
 test.beforeEach(async ({ page }) => {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 });
 
 test("should display empty state on first load", async ({ page }) => {

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 // Unicode markers matching the Go model
@@ -12,8 +12,7 @@ const M_PLACEHOLDER = "\uE003";
  * blocks that have inline spans, and navigates to the editor.
  */
 async function openEditorWithInlineBlocks(page: Page) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Create project
   await page.getByTestId("new-project-btn").click();

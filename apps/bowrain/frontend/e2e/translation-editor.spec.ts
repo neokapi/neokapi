@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /**
@@ -11,8 +11,7 @@ import { selectMultiLocales } from "./locale-helper";
  * the clicked element is removed from the DOM during React re-render.
  */
 async function openEditorWithBlocks(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Step 1: Create project via UI
   await page.getByTestId("new-project-btn").click();

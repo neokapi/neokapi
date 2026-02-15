@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo, moveCursorToElement } from "./cursor-helper";
 import { setMultiLocales, setMultiLocalesHuman, expectLocaleChips } from "./locale-helper";
 import { injectWindowChrome } from "./window-chrome";
@@ -22,8 +22,7 @@ async function setTheme(page: any, theme: "glass" | "light" | "aurora") {
 
 /** Setup helper - injects mock backend, cursor, and window chrome */
 async function setupRecording(page: any, title: string = "Bowrain", theme: "glass" | "light" | "aurora" = "glass") {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
   await setTheme(page, theme);
   await injectCursor(page);
   await injectWindowChrome(page, title);

@@ -38,7 +38,7 @@ export function AITranslateItem(req) {
 }
 
 /**
- * AddConcept adds a new concept to the project's termbase.
+ * AddConcept adds a new concept to the termbase.
  * @param {$models.AddConceptRequest} req
  * @returns {$CancellablePromise<$models.ConceptInfo | null>}
  */
@@ -61,18 +61,7 @@ export function AddItems(projectID, filePaths) {
 }
 
 /**
- * AddItemsDialog shows a native file dialog and adds the selected files to the project.
- * @param {string} projectID
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function AddItemsDialog(projectID) {
-    return $Call.ByID(1543891488, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
- * AddTMEntry adds a new entry to the project's TM.
+ * AddTMEntry adds a new entry to the TM.
  * @param {string} projectID
  * @param {string} source
  * @param {string} target
@@ -84,6 +73,14 @@ export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale
     return $Call.ByID(4152216329, projectID, source, target, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType7($result);
     }));
+}
+
+/**
+ * CancelLogin cancels any active device auth flow.
+ * @returns {$CancellablePromise<void>}
+ */
+export function CancelLogin() {
+    return $Call.ByID(2779862064);
 }
 
 /**
@@ -118,6 +115,17 @@ export function ConfigureConnector(connectorType, config) {
 }
 
 /**
+ * ConnectToServer establishes a gRPC connection to the given server URL.
+ * The URL should be the HTTP base URL (e.g. "http://localhost:8080").
+ * gRPC port is discovered from the server health endpoint.
+ * @param {string} serverURL
+ * @returns {$CancellablePromise<void>}
+ */
+export function ConnectToServer(serverURL) {
+    return $Call.ByID(3376247435, serverURL);
+}
+
+/**
  * CreateProject creates a new translation project.
  * @param {string} name
  * @param {string} sourceLang
@@ -144,7 +152,7 @@ export function CreateStoreVersion(projectID, label, description) {
 }
 
 /**
- * DeleteConcept removes a concept from the project's termbase.
+ * DeleteConcept removes a concept from the termbase.
  * @param {string} projectID
  * @param {string} conceptID
  * @returns {$CancellablePromise<void>}
@@ -191,7 +199,15 @@ export function DetectFormat(filePath) {
 }
 
 /**
- * ExportTermsJSON exports the project's termbase as JSON.
+ * Disconnect closes the server connection.
+ * @returns {$CancellablePromise<void>}
+ */
+export function Disconnect() {
+    return $Call.ByID(1153711123);
+}
+
+/**
+ * ExportTermsJSON exports the termbase as JSON.
  * @param {string} projectID
  * @param {string} name
  * @returns {$CancellablePromise<string>}
@@ -212,13 +228,45 @@ export function ExportTranslatedItem(projectID, itemName, targetLocale) {
 }
 
 /**
- * GetCurrentWorkspace returns the active workspace. In desktop mode,
- * this is always the "Personal" workspace.
+ * FetchContent fetches content from a connector into the content store.
+ * @param {string} connectorID
+ * @param {string} projectID
+ * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
+ */
+export function FetchContent(connectorID, projectID) {
+    return $Call.ByID(948929260, connectorID, projectID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType15($result);
+    }));
+}
+
+/**
+ * GetConnectionState returns the current connection info.
+ * @returns {$CancellablePromise<$models.ConnectionInfo>}
+ */
+export function GetConnectionState() {
+    return $Call.ByID(3895233544).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType16($result);
+    }));
+}
+
+/**
+ * GetConnectorStatus returns the sync status of a connector.
+ * @param {string} connectorID
+ * @returns {$CancellablePromise<$models.SyncStatusInfo | null>}
+ */
+export function GetConnectorStatus(connectorID) {
+    return $Call.ByID(2734390172, connectorID).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType18($result);
+    }));
+}
+
+/**
+ * GetCurrentWorkspace returns the active workspace.
  * @returns {$CancellablePromise<$models.WorkspaceInfo>}
  */
 export function GetCurrentWorkspace() {
     return $Call.ByID(3228582525).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType14($result);
+        return $$createType19($result);
     }));
 }
 
@@ -229,17 +277,8 @@ export function GetCurrentWorkspace() {
  */
 export function GetFlowDefinition(id) {
     return $Call.ByID(2095856838, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType16($result);
+        return $$createType21($result);
     }));
-}
-
-/**
- * GetInitialProject returns and clears the initial project path.
- * The consume-once pattern prevents double opens in React StrictMode dev mode.
- * @returns {$CancellablePromise<string>}
- */
-export function GetInitialProject() {
-    return $Call.ByID(4269707510);
 }
 
 /**
@@ -250,7 +289,7 @@ export function GetInitialProject() {
  */
 export function GetItemBlocks(projectID, itemName) {
     return $Call.ByID(2825501758, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType23($result);
     }));
 }
 
@@ -260,7 +299,7 @@ export function GetItemBlocks(projectID, itemName) {
  */
 export function GetKnownLocales() {
     return $Call.ByID(3316047929).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType20($result);
+        return $$createType25($result);
     }));
 }
 
@@ -285,18 +324,17 @@ export function GetProject(projectID) {
 }
 
 /**
- * GetSyncStatus returns the sync status of a connector.
- * @param {string} connectorID
- * @returns {$CancellablePromise<$models.SyncStatusInfo | null>}
+ * GetServerWorkspaces returns workspaces from the connected server.
+ * @returns {$CancellablePromise<$models.WorkspaceInfo[]>}
  */
-export function GetSyncStatus(connectorID) {
-    return $Call.ByID(3997902314, connectorID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType22($result);
+export function GetServerWorkspaces() {
+    return $Call.ByID(1356633606).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType26($result);
     }));
 }
 
 /**
- * GetTMCount returns the total number of entries in the project's TM.
+ * GetTMCount returns the total number of entries in the TM.
  * @param {string} projectID
  * @returns {$CancellablePromise<number>}
  */
@@ -305,7 +343,7 @@ export function GetTMCount(projectID) {
 }
 
 /**
- * GetTMEntries searches the project's TM with optional query and locale filters.
+ * GetTMEntries searches the TM with optional query and locale filters.
  * @param {string} projectID
  * @param {string} query
  * @param {string} sourceLocale
@@ -316,12 +354,12 @@ export function GetTMCount(projectID) {
  */
 export function GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(2865323100, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType24($result);
+        return $$createType28($result);
     }));
 }
 
 /**
- * GetTermCount returns the total number of concepts in the project's termbase.
+ * GetTermCount returns the total number of concepts in the termbase.
  * @param {string} projectID
  * @returns {$CancellablePromise<number>}
  */
@@ -330,7 +368,7 @@ export function GetTermCount(projectID) {
 }
 
 /**
- * GetTerms searches the project's termbase.
+ * GetTerms searches the termbase.
  * @param {string} projectID
  * @param {string} query
  * @param {string} sourceLocale
@@ -341,7 +379,7 @@ export function GetTermCount(projectID) {
  */
 export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, limit) {
     return $Call.ByID(2057317714, projectID, query, sourceLocale, targetLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType26($result);
+        return $$createType30($result);
     }));
 }
 
@@ -351,7 +389,7 @@ export function GetTerms(projectID, query, sourceLocale, targetLocale, offset, l
  */
 export function GetVersion() {
     return $Call.ByID(2634198737).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType27($result);
+        return $$createType31($result);
     }));
 }
 
@@ -363,12 +401,12 @@ export function GetVersion() {
  */
 export function GetWordCount(projectID, itemName) {
     return $Call.ByID(2276123042, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType29($result);
+        return $$createType33($result);
     }));
 }
 
 /**
- * ImportTermsCSV imports terms from CSV content into the project's termbase.
+ * ImportTermsCSV imports terms from CSV content into the termbase.
  * @param {string} projectID
  * @param {string} csvContent
  * @param {string} sourceLocale
@@ -382,7 +420,7 @@ export function ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale
 }
 
 /**
- * ImportTermsJSON imports terms from JSON content into the project's termbase.
+ * ImportTermsJSON imports terms from JSON content into the termbase.
  * @param {string} projectID
  * @param {string} jsonContent
  * @returns {$CancellablePromise<number>}
@@ -392,7 +430,7 @@ export function ImportTermsJSON(projectID, jsonContent) {
 }
 
 /**
- * InitContentStore initializes the content store with the given database path.
+ * InitContentStore re-initializes the content store with the given database path.
  * @param {string} dbPath
  * @returns {$CancellablePromise<void>}
  */
@@ -407,7 +445,7 @@ export function InitContentStore(dbPath) {
  */
 export function InstallPlugin(name) {
     return $Call.ByID(3779799163, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType35($result);
     }));
 }
 
@@ -417,7 +455,7 @@ export function InstallPlugin(name) {
  */
 export function ListAvailablePlugins() {
     return $Call.ByID(1924078444).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType37($result);
     }));
 }
 
@@ -427,7 +465,7 @@ export function ListAvailablePlugins() {
  */
 export function ListConnectorTypes() {
     return $Call.ByID(2405972949).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType34($result);
+        return $$createType38($result);
     }));
 }
 
@@ -437,7 +475,7 @@ export function ListConnectorTypes() {
  */
 export function ListConnectors() {
     return $Call.ByID(252507085).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType35($result);
+        return $$createType39($result);
     }));
 }
 
@@ -448,7 +486,7 @@ export function ListConnectors() {
  */
 export function ListContentItems(connectorID) {
     return $Call.ByID(3747764474, connectorID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
+        return $$createType15($result);
     }));
 }
 
@@ -458,7 +496,7 @@ export function ListContentItems(connectorID) {
  */
 export function ListFlowDefinitions() {
     return $Call.ByID(3738265581).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType38($result);
+        return $$createType40($result);
     }));
 }
 
@@ -468,7 +506,7 @@ export function ListFlowDefinitions() {
  */
 export function ListFormats() {
     return $Call.ByID(1658666415).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType40($result);
+        return $$createType42($result);
     }));
 }
 
@@ -478,7 +516,7 @@ export function ListFormats() {
  */
 export function ListPlugins() {
     return $Call.ByID(1851753111).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType42($result);
+        return $$createType44($result);
     }));
 }
 
@@ -489,7 +527,7 @@ export function ListPlugins() {
  */
 export function ListProjectFiles(projectID) {
     return $Call.ByID(3993987349, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType44($result);
+        return $$createType46($result);
     }));
 }
 
@@ -499,7 +537,7 @@ export function ListProjectFiles(projectID) {
  */
 export function ListProjects() {
     return $Call.ByID(1552139139).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType45($result);
+        return $$createType47($result);
     }));
 }
 
@@ -509,7 +547,7 @@ export function ListProjects() {
  */
 export function ListProviderConfigs() {
     return $Call.ByID(1091807543).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType47($result);
+        return $$createType49($result);
     }));
 }
 
@@ -519,7 +557,7 @@ export function ListProviderConfigs() {
  */
 export function ListStoreProjects() {
     return $Call.ByID(3166171152).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType50($result);
+        return $$createType52($result);
     }));
 }
 
@@ -530,7 +568,7 @@ export function ListStoreProjects() {
  */
 export function ListStoreVersions(projectID) {
     return $Call.ByID(3506910791, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType51($result);
+        return $$createType53($result);
     }));
 }
 
@@ -540,18 +578,19 @@ export function ListStoreVersions(projectID) {
  */
 export function ListTools() {
     return $Call.ByID(2273599896).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType53($result);
+        return $$createType55($result);
     }));
 }
 
 /**
  * ListWorkspaces returns the workspaces available to the current user.
- * In desktop mode, this returns a single "Personal" workspace.
+ * When connected to a server, returns server workspaces; otherwise returns
+ * a single "Personal" local workspace.
  * @returns {$CancellablePromise<$models.WorkspaceInfo[]>}
  */
 export function ListWorkspaces() {
     return $Call.ByID(3212201675).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType54($result);
+        return $$createType26($result);
     }));
 }
 
@@ -566,6 +605,14 @@ export function LoadPlugins() {
 }
 
 /**
+ * Logout removes stored auth and disconnects.
+ * @returns {$CancellablePromise<void>}
+ */
+export function Logout() {
+    return $Call.ByID(1298226851);
+}
+
+/**
  * LookupTMForBlock looks up TM matches for a specific block.
  * @param {string} projectID
  * @param {string} itemName
@@ -575,7 +622,7 @@ export function LoadPlugins() {
  */
 export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
     return $Call.ByID(2472708440, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType56($result);
+        return $$createType57($result);
     }));
 }
 
@@ -589,7 +636,7 @@ export function LookupTMForBlock(projectID, itemName, blockID, targetLocale) {
  */
 export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
     return $Call.ByID(1594665302, projectID, text, sourceLocale, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType58($result);
+        return $$createType59($result);
     }));
 }
 
@@ -603,7 +650,7 @@ export function LookupTerms(projectID, text, sourceLocale, targetLocale) {
  */
 export function LookupTermsForBlock(projectID, itemName, blockID, targetLocale) {
     return $Call.ByID(2436021002, projectID, itemName, blockID, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType60($result);
+        return $$createType61($result);
     }));
 }
 
@@ -617,32 +664,21 @@ export function OpenFileInOS(filePath) {
 }
 
 /**
- * OpenProject opens a .kaz package and loads it into memory.
- * @param {string} path
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function OpenProject(path) {
-    return $Call.ByID(3349152314, path).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
- * OpenProjectDialog shows a native file dialog and opens the selected .kaz project.
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function OpenProjectDialog() {
-    return $Call.ByID(3415023882).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
  * PluginDir returns the configured plugin directory path.
  * @returns {$CancellablePromise<string>}
  */
 export function PluginDir() {
     return $Call.ByID(2089167097);
+}
+
+/**
+ * PollLogin polls for the device auth token. Returns true when authorized.
+ * @param {string} deviceCode
+ * @param {number} interval
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function PollLogin(deviceCode, interval) {
+    return $Call.ByID(3205924797, deviceCode, interval);
 }
 
 /**
@@ -659,25 +695,13 @@ export function PseudoTranslateItem(projectID, itemName, targetLocale) {
 }
 
 /**
- * PullContent pulls content from a connector into the content store.
- * @param {string} connectorID
- * @param {string} projectID
- * @returns {$CancellablePromise<$models.ContentItemInfo[]>}
- */
-export function PullContent(connectorID, projectID) {
-    return $Call.ByID(1394392007, connectorID, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType37($result);
-    }));
-}
-
-/**
- * PushContent pushes content from the store to a connector.
+ * PublishContent publishes content from the store to a connector.
  * @param {string} connectorID
  * @param {string} projectID
  * @returns {$CancellablePromise<void>}
  */
-export function PushContent(connectorID, projectID) {
-    return $Call.ByID(879389618, connectorID, projectID);
+export function PublishContent(connectorID, projectID) {
+    return $Call.ByID(965587317, connectorID, projectID);
 }
 
 /**
@@ -716,9 +740,7 @@ export function RenderBlockHTML(projectID, itemName, blockID, targetLocale) {
 }
 
 /**
- * RenderDocumentPreview returns the pre-rendered HTML for an item.
- * If previewHTML is already cached, it returns that; otherwise it
- * generates preview on-the-fly.
+ * RenderDocumentPreview returns pre-rendered HTML for an item.
  * @param {string} projectID
  * @param {string} itemName
  * @param {string} targetLocale
@@ -729,42 +751,27 @@ export function RenderDocumentPreview(projectID, itemName, targetLocale) {
 }
 
 /**
+ * ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
+ * @param {string} projectID
+ * @param {string} itemName
+ * @param {string} blockID
+ * @param {string} targetLocale
+ * @param {boolean} reviewed
+ * @returns {$CancellablePromise<void>}
+ */
+export function ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed) {
+    return $Call.ByID(3550018030, projectID, itemName, blockID, targetLocale, reviewed);
+}
+
+/**
  * SaveFlowDefinition saves a user flow definition.
  * @param {$models.FlowDefinitionInfo} info
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
 export function SaveFlowDefinition(info) {
     return $Call.ByID(2719448633, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType16($result);
+        return $$createType21($result);
     }));
-}
-
-/**
- * SaveProject saves the project to its current path.
- * @param {string} projectID
- * @returns {$CancellablePromise<void>}
- */
-export function SaveProject(projectID) {
-    return $Call.ByID(179173205, projectID);
-}
-
-/**
- * SaveProjectAs saves the project as a .kaz package to the given path.
- * @param {string} projectID
- * @param {string} path
- * @returns {$CancellablePromise<void>}
- */
-export function SaveProjectAs(projectID, path) {
-    return $Call.ByID(3259052957, projectID, path);
-}
-
-/**
- * SaveProjectDialog shows a native save dialog and saves the project.
- * @param {string} projectID
- * @returns {$CancellablePromise<void>}
- */
-export function SaveProjectDialog(projectID) {
-    return $Call.ByID(2824494121, projectID);
 }
 
 /**
@@ -775,7 +782,7 @@ export function SaveProjectDialog(projectID) {
  */
 export function SaveProviderConfig(req) {
     return $Call.ByID(755781535, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType61($result);
+        return $$createType62($result);
     }));
 }
 
@@ -786,7 +793,7 @@ export function SaveProviderConfig(req) {
  */
 export function SearchPlugins(query) {
     return $Call.ByID(219729007, query).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType37($result);
     }));
 }
 
@@ -797,7 +804,7 @@ export function SearchPlugins(query) {
  */
 export function SearchPluginsByMimeType(mimeType) {
     return $Call.ByID(2104841290, mimeType).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType37($result);
     }));
 }
 
@@ -808,8 +815,17 @@ export function SearchPluginsByMimeType(mimeType) {
  */
 export function SearchPluginsByType(capType) {
     return $Call.ByID(3673978410, capType).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType33($result);
+        return $$createType37($result);
     }));
+}
+
+/**
+ * SelectWorkspace sets the active workspace for all subsequent operations.
+ * @param {string} slug
+ * @returns {$CancellablePromise<void>}
+ */
+export function SelectWorkspace(slug) {
+    return $Call.ByID(2048218230, slug);
 }
 
 /**
@@ -822,13 +838,32 @@ export function SetApplication(app) {
 }
 
 /**
- * SetInitialProjectPath stores a .kaz project path to be opened on startup.
- * Called from main before app.Run().
- * @param {string} path
+ * StartLogin begins a device authorization flow against the server.
+ * @param {string} serverURL
+ * @returns {$CancellablePromise<$models.DeviceAuthInfo | null>}
+ */
+export function StartLogin(serverURL) {
+    return $Call.ByID(3005652700, serverURL).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType64($result);
+    }));
+}
+
+/**
+ * StartWatching opens a WatchProject stream for the given project.
+ * Call StopWatching to close the stream when navigating away.
+ * @param {string} projectID
  * @returns {$CancellablePromise<void>}
  */
-export function SetInitialProjectPath(path) {
-    return $Call.ByID(3437708865, path);
+export function StartWatching(projectID) {
+    return $Call.ByID(4056045666, projectID);
+}
+
+/**
+ * StopWatching closes the active project watcher.
+ * @returns {$CancellablePromise<void>}
+ */
+export function StopWatching() {
+    return $Call.ByID(2502756712);
 }
 
 /**
@@ -840,7 +875,7 @@ export function SetInitialProjectPath(path) {
  */
 export function StoreProject(name, sourceLocale, targetLocales) {
     return $Call.ByID(3310579751, name, sourceLocale, targetLocales).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType49($result);
+        return $$createType51($result);
     }));
 }
 
@@ -866,7 +901,7 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(2381680068, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType63($result);
+        return $$createType66($result);
     }));
 }
 
@@ -877,6 +912,14 @@ export function TermEnforceItem(projectID, itemName, targetLocale) {
  */
 export function TestProviderConfig(req) {
     return $Call.ByID(2576607394, req);
+}
+
+/**
+ * TryAutoConnect attempts to reconnect using stored auth on startup.
+ * @returns {$CancellablePromise<void>}
+ */
+export function TryAutoConnect() {
+    return $Call.ByID(3511479517);
 }
 
 /**
@@ -898,7 +941,7 @@ export function UpdateBlockTargetCoded(req) {
 }
 
 /**
- * UpdateConcept updates an existing concept in the project's termbase.
+ * UpdateConcept updates an existing concept in the termbase.
  * @param {$models.UpdateConceptRequest} req
  * @returns {$CancellablePromise<void>}
  */
@@ -913,8 +956,19 @@ export function UpdateConcept(req) {
  */
 export function UpdatePlugin(name) {
     return $Call.ByID(2070488879, name).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType31($result);
+        return $$createType35($result);
     }));
+}
+
+/**
+ * UpdatePresence reports the user's current position to the server.
+ * @param {string} projectID
+ * @param {string} itemName
+ * @param {string} blockID
+ * @returns {$CancellablePromise<void>}
+ */
+export function UpdatePresence(projectID, itemName, blockID) {
+    return $Call.ByID(924246729, projectID, itemName, blockID);
 }
 
 /**
@@ -941,53 +995,56 @@ const $$createType10 = $models.ConnectorInfo.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
 const $$createType12 = store$0.Version.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
-const $$createType14 = $models.WorkspaceInfo.createFrom;
-const $$createType15 = $models.FlowDefinitionInfo.createFrom;
-const $$createType16 = $Create.Nullable($$createType15);
-const $$createType17 = $models.BlockInfo.createFrom;
-const $$createType18 = $Create.Array($$createType17);
-const $$createType19 = locale$0.LocaleInfo.createFrom;
-const $$createType20 = $Create.Array($$createType19);
-const $$createType21 = $models.SyncStatusInfo.createFrom;
-const $$createType22 = $Create.Nullable($$createType21);
-const $$createType23 = $models.TMSearchResult.createFrom;
-const $$createType24 = $Create.Nullable($$createType23);
-const $$createType25 = $models.TermSearchResult.createFrom;
-const $$createType26 = $Create.Nullable($$createType25);
-const $$createType27 = $models.VersionInfo.createFrom;
-const $$createType28 = $models.WordCountResult.createFrom;
-const $$createType29 = $Create.Nullable($$createType28);
-const $$createType30 = $models.PluginInstallResult.createFrom;
-const $$createType31 = $Create.Nullable($$createType30);
-const $$createType32 = $models.PluginSearchResult.createFrom;
-const $$createType33 = $Create.Array($$createType32);
-const $$createType34 = $Create.Array($Create.Any);
-const $$createType35 = $Create.Array($$createType10);
-const $$createType36 = $models.ContentItemInfo.createFrom;
+const $$createType14 = $models.ContentItemInfo.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $models.ConnectionInfo.createFrom;
+const $$createType17 = $models.SyncStatusInfo.createFrom;
+const $$createType18 = $Create.Nullable($$createType17);
+const $$createType19 = $models.WorkspaceInfo.createFrom;
+const $$createType20 = $models.FlowDefinitionInfo.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = $models.BlockInfo.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = locale$0.LocaleInfo.createFrom;
+const $$createType25 = $Create.Array($$createType24);
+const $$createType26 = $Create.Array($$createType19);
+const $$createType27 = $models.TMSearchResult.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = $models.TermSearchResult.createFrom;
+const $$createType30 = $Create.Nullable($$createType29);
+const $$createType31 = $models.VersionInfo.createFrom;
+const $$createType32 = $models.WordCountResult.createFrom;
+const $$createType33 = $Create.Nullable($$createType32);
+const $$createType34 = $models.PluginInstallResult.createFrom;
+const $$createType35 = $Create.Nullable($$createType34);
+const $$createType36 = $models.PluginSearchResult.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = $Create.Array($$createType15);
-const $$createType39 = $models.FormatInfo.createFrom;
-const $$createType40 = $Create.Array($$createType39);
-const $$createType41 = $models.PluginInfo.createFrom;
+const $$createType38 = $Create.Array($Create.Any);
+const $$createType39 = $Create.Array($$createType10);
+const $$createType40 = $Create.Array($$createType20);
+const $$createType41 = $models.FormatInfo.createFrom;
 const $$createType42 = $Create.Array($$createType41);
-const $$createType43 = $models.ProjectItem.createFrom;
+const $$createType43 = $models.PluginInfo.createFrom;
 const $$createType44 = $Create.Array($$createType43);
-const $$createType45 = $Create.Array($$createType4);
-const $$createType46 = $models.ProviderConfigInfo.createFrom;
-const $$createType47 = $Create.Array($$createType46);
-const $$createType48 = store$0.Project.createFrom;
-const $$createType49 = $Create.Nullable($$createType48);
-const $$createType50 = $Create.Array($$createType49);
-const $$createType51 = $Create.Array($$createType13);
-const $$createType52 = $models.ToolInfo.createFrom;
-const $$createType53 = $Create.Array($$createType52);
-const $$createType54 = $Create.Array($$createType14);
-const $$createType55 = $models.TMMatchInfo.createFrom;
-const $$createType56 = $Create.Array($$createType55);
-const $$createType57 = $models.TermLookupResult.createFrom;
-const $$createType58 = $Create.Nullable($$createType57);
-const $$createType59 = $models.BlockTermMatch.createFrom;
-const $$createType60 = $Create.Array($$createType59);
-const $$createType61 = $Create.Nullable($$createType46);
-const $$createType62 = $models.TermEnforceResult.createFrom;
-const $$createType63 = $Create.Array($$createType62);
+const $$createType45 = $models.ProjectItem.createFrom;
+const $$createType46 = $Create.Array($$createType45);
+const $$createType47 = $Create.Array($$createType4);
+const $$createType48 = $models.ProviderConfigInfo.createFrom;
+const $$createType49 = $Create.Array($$createType48);
+const $$createType50 = store$0.Project.createFrom;
+const $$createType51 = $Create.Nullable($$createType50);
+const $$createType52 = $Create.Array($$createType51);
+const $$createType53 = $Create.Array($$createType13);
+const $$createType54 = $models.ToolInfo.createFrom;
+const $$createType55 = $Create.Array($$createType54);
+const $$createType56 = $models.TMMatchInfo.createFrom;
+const $$createType57 = $Create.Array($$createType56);
+const $$createType58 = $models.TermLookupResult.createFrom;
+const $$createType59 = $Create.Nullable($$createType58);
+const $$createType60 = $models.BlockTermMatch.createFrom;
+const $$createType61 = $Create.Array($$createType60);
+const $$createType62 = $Create.Nullable($$createType48);
+const $$createType63 = $models.DeviceAuthInfo.createFrom;
+const $$createType64 = $Create.Nullable($$createType63);
+const $$createType65 = $models.TermEnforceResult.createFrom;
+const $$createType66 = $Create.Array($$createType65);

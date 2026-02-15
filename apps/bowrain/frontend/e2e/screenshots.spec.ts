@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -43,8 +43,7 @@ async function setInput(page: any, testId: string, value: string) {
  * Creates three sample projects so the dashboard looks populated.
  */
 async function seedDashboard(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Create three projects with different languages
   const projectDefs = [
@@ -80,8 +79,7 @@ async function seedDashboard(page: any) {
  * Creates a project with four files and navigates to the project view.
  */
 async function openProjectView(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
@@ -117,8 +115,7 @@ async function openProjectView(page: any) {
  * Creates a project with a file and opens the translation editor.
  */
 async function openEditor(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
@@ -223,8 +220,7 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture TM explorer [${theme}]`, async ({ page }) => {
-      await injectMockBackend(page);
-      await page.goto("/");
+      await setupLocalApp(page);
 
       // Create project
       await page.getByTestId("new-project-btn").click();
@@ -267,8 +263,7 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture flow editor [${theme}]`, async ({ page }) => {
-      await injectMockBackend(page);
-      await page.goto("/");
+      await setupLocalApp(page);
       await setTheme(page, theme);
 
       // Navigate to Flows view
@@ -308,8 +303,7 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture settings [${theme}]`, async ({ page }) => {
-      await injectMockBackend(page);
-      await page.goto("/");
+      await setupLocalApp(page);
       await setTheme(page, theme);
 
       // Navigate to Settings

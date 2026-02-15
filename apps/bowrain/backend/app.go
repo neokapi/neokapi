@@ -97,6 +97,7 @@ func newAppWithStore(cs store.ContentStore) *App {
 		credentials:  credentials.NewStore(credentials.DefaultPath()),
 		connectorReg: connReg,
 		eventBus:     event.NewChannelEventBus(),
+		connState:    StateDisconnected,
 	}
 }
 

@@ -361,10 +361,10 @@ func parseServerURL(serverURL string) (*parsedURL, error) {
 	scheme := "http"
 	rest := serverURL
 
-	if len(rest) > 8 && rest[:8] == "https://" {
+	if len(rest) >= 8 && rest[:8] == "https://" {
 		scheme = "https"
 		rest = rest[8:]
-	} else if len(rest) > 7 && rest[:7] == "http://" {
+	} else if len(rest) >= 7 && rest[:7] == "http://" {
 		rest = rest[7:]
 	}
 

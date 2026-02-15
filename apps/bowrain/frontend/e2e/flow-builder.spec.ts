@@ -1,9 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 
 test.beforeEach(async ({ page }) => {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
   // Navigate to the Flows view
   await page.getByText("Flows").click();
 });

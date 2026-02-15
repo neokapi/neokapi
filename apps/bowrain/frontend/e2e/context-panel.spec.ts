@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend } from "./mock-backend";
+import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
 /** Helper: set value on an input natively. */
@@ -25,8 +25,7 @@ function clickTestId(page: any, testId: string) {
  * Sets up a project with TM entries and terminology, adds a file, and opens the editor.
  */
 async function openEditorWithTMAndTerms(page: any) {
-  await injectMockBackend(page);
-  await page.goto("/");
+  await setupLocalApp(page);
 
   // Create project
   await page.getByTestId("new-project-btn").click();
@@ -189,8 +188,7 @@ test.describe("Context Panel", () => {
   test("should show empty state when no matches", async ({ page }, testInfo) => {
     // Skip in CI - mock backend doesn't resolve loading state properly
     test.skip(!!process.env.CI, "Flaky in CI - mock backend issue");
-    await injectMockBackend(page);
-    await page.goto("/");
+    await setupLocalApp(page);
 
     // Create project WITHOUT TM or terms
     await page.getByTestId("new-project-btn").click();
