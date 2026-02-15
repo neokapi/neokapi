@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/core/auth"
 	"github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/connector"
 	"github.com/gokapi/gokapi/core/credentials"
@@ -38,6 +39,16 @@ type App struct {
 	credentials  *credentials.Store
 	connectorReg *connector.Registry
 	eventBus     *event.ChannelEventBus
+
+	// Server connection (online mode).
+	mu               sync.RWMutex
+	remote           *ServerClient           // nil when disconnected
+	connState        ConnectionState         // current connection state
+	serverURL        string                  // e.g. "http://localhost:8080"
+	activeWS         string                  // selected workspace slug
+	authInfo         *storedDesktopAuth      // cached auth info
+	deviceFlowClient *auth.DeviceFlowClient  // active login flow
+	watcher          *ProjectWatcher         // active WatchProject stream
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string
@@ -279,6 +290,11 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Stop project watcher and close server connection.
+	a.StopWatching()
+	if a.remote != nil {
+		a.remote.Close()
+	}
 	if a.tm != nil {
 		a.tm.Close()
 	}

@@ -1,5 +1,8 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Header } from "./components/Header";
+import { ServerConnect } from "./components/ServerConnect";
+import { WorkspaceSelector } from "./components/WorkspaceSelector";
+import type { WorkspaceOption } from "./components/WorkspaceSelector";
 import { SettingsPage } from "./components/SettingsPage";
 import {
   ApiProvider,
@@ -18,12 +21,13 @@ import {
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DocumentPreview } from "./components/DocumentPreview";
-import { useHealth } from "./hooks/useApi";
+import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
-import { Shuffle, Link } from "lucide-react";
+import { Shuffle, Link, Loader2 } from "lucide-react";
 
 type AppView = View | "flows" | "connectors";
+type AppMode = "loading" | "connecting" | "workspace-select" | "ready";
 
 const desktopNavItems: NavItem[] = [
   { id: "flows", label: "Flows", icon: <Shuffle className="w-4 h-4" /> },
@@ -34,9 +38,16 @@ const wailsAdapter = new WailsApiAdapter();
 const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" as const };
 
 function App() {
+  const connection = useConnection();
+
+  // Connection flow state
+  const [mode, setMode] = useState<AppMode>("loading");
+  const [workspace, setWorkspace] = useState(localWorkspace);
+  const [isServerMode, setIsServerMode] = useState(false);
+
+  // App state
   const [activeView, setActiveView] = useState<AppView>("translate");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { connected } = useHealth();
 
   // Project state
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -44,6 +55,73 @@ function App() {
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
+
+  // --- Connection flow ---
+
+  // Initial check: auto-reconnect from stored auth
+  useEffect(() => {
+    connection.refresh().then((ci) => {
+      if (ci.state === "connected" && ci.workspace) {
+        // Auto-reconnected with workspace already selected
+        connection.getServerWorkspaces().then((wsList) => {
+          const ws = wsList.find((w) => w.slug === ci.workspace);
+          if (ws) {
+            setWorkspace({ ...ws, logo_url: "", role: ws.role as "owner" });
+          } else {
+            setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", role: "owner" });
+          }
+          setIsServerMode(true);
+          setMode("ready");
+        }).catch(() => {
+          setIsServerMode(true);
+          setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", role: "owner" });
+          setMode("ready");
+        });
+      } else if (ci.state === "connected") {
+        setIsServerMode(true);
+        setMode("workspace-select");
+      } else {
+        setMode("connecting");
+      }
+    }).catch(() => {
+      setMode("connecting");
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleServerConnect = useCallback(async (serverURL: string) => {
+    const ci = await connection.connect(serverURL);
+    if (ci.state === "connected") {
+      setIsServerMode(true);
+      setMode("workspace-select");
+    }
+    return ci;
+  }, [connection]);
+
+  const handleSelectWorkspace = useCallback(async (ws: WorkspaceOption) => {
+    await connection.selectWorkspace(ws.slug);
+    setWorkspace({ ...ws, logo_url: "", role: ws.role as "owner" });
+    setIsServerMode(true);
+    setMode("ready");
+  }, [connection]);
+
+  const handleSkipConnect = useCallback(() => {
+    setIsServerMode(false);
+    setWorkspace(localWorkspace);
+    setMode("ready");
+  }, []);
+
+  const handleDisconnect = useCallback(async () => {
+    await connection.disconnect();
+    setIsServerMode(false);
+    setWorkspace(localWorkspace);
+    setActiveProject(null);
+    setActiveFile(null);
+    setProjects([]);
+    setMode("connecting");
+  }, [connection]);
+
+  // --- Project callbacks ---
 
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {
@@ -162,6 +240,70 @@ function App() {
     );
   }, []);
 
+  // --- Pre-app screens ---
+
+  if (mode === "loading") {
+    return (
+      <ThemeProvider>
+        <div className="flex items-center justify-center h-screen bg-background">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  if (mode === "connecting") {
+    return (
+      <ThemeProvider>
+        <div className="h-screen bg-background flex flex-col">
+          <div
+            className="h-10 shrink-0"
+            style={{
+              // @ts-expect-error non-standard CSS property for Wails
+              "--wails-draggable": "drag",
+            }}
+          />
+          <ServerConnect
+            info={connection.info}
+            onConnect={handleServerConnect}
+            onStartLogin={connection.startLogin}
+            onPollLogin={connection.pollLogin}
+            onCancelLogin={connection.cancelLogin}
+            onSkip={handleSkipConnect}
+          />
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  if (mode === "workspace-select") {
+    return (
+      <ThemeProvider>
+        <div className="h-screen bg-background flex flex-col">
+          <div
+            className="h-10 shrink-0"
+            style={{
+              // @ts-expect-error non-standard CSS property for Wails
+              "--wails-draggable": "drag",
+            }}
+          />
+          <WorkspaceSelector
+            userName={connection.info.user_name}
+            onSelect={handleSelectWorkspace}
+            onBack={() => {
+              connection.disconnect();
+              setIsServerMode(false);
+              setMode("connecting");
+            }}
+            getWorkspaces={connection.getServerWorkspaces}
+          />
+        </div>
+      </ThemeProvider>
+    );
+  }
+
+  // --- Main app (mode === "ready") ---
+
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
@@ -202,8 +344,8 @@ function App() {
           project={activeProject}
           onBack={handleBackToProjects}
           onOpenFile={handleOpenFile}
-          onUploadFiles={handleUploadFiles}
-          onRemoveFile={handleRemoveFile}
+          onUploadFiles={isServerMode ? () => {} : handleUploadFiles}
+          onRemoveFile={isServerMode ? () => {} : handleRemoveFile}
           onOpenTM={handleOpenTM}
           onOpenTerms={handleOpenTerms}
         />
@@ -215,7 +357,7 @@ function App() {
         return (
           <ProjectDashboard
             projects={projects}
-            onCreateProject={handleCreateProject}
+            onCreateProject={isServerMode ? () => {} : handleCreateProject}
             onOpenProject={handleOpenProject}
           />
         );
@@ -238,10 +380,10 @@ function App() {
   return (
     <ThemeProvider>
       <ApiProvider adapter={wailsAdapter}>
-        <WorkspaceProvider initialWorkspace={localWorkspace}>
+        <WorkspaceProvider initialWorkspace={workspace}>
           <div className="flex h-screen overflow-hidden">
             <MainSidebar
-              workspace={localWorkspace}
+              workspace={workspace}
               activeView={activeView}
               onViewChange={handleViewChange}
               collapsed={sidebarCollapsed}
@@ -251,7 +393,12 @@ function App() {
               collapsedWidth={60}
             />
             <div className="flex-1 flex flex-col min-h-0">
-              <Header connected={connected} sidebarCollapsed={sidebarCollapsed} />
+              <Header
+                sidebarCollapsed={sidebarCollapsed}
+                serverConnected={isServerMode}
+                userName={connection.info.user_name}
+                onDisconnect={isServerMode ? handleDisconnect : undefined}
+              />
               <main
                 className={cn(
                   "flex-1 p-6 flex flex-col min-h-0",

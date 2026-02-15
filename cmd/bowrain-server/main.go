@@ -81,8 +81,19 @@ func main() {
 			if err != nil {
 				log.Fatalf("gRPC listen failed: %v", err)
 			}
-			grpcSrv := grpc.NewServer()
+
+			// Build gRPC server options with auth interceptors when JWT is configured.
+			var opts []grpc.ServerOption
+			if cfg.JWTSecret != "" {
+				opts = append(opts,
+					grpc.UnaryInterceptor(server.GRPCAuthUnaryInterceptor(cfg.JWTSecret)),
+					grpc.StreamInterceptor(server.GRPCAuthStreamInterceptor(cfg.JWTSecret)),
+				)
+			}
+
+			grpcSrv := grpc.NewServer(opts...)
 			pb.RegisterGokapiServiceServer(grpcSrv, server.NewGRPCServer(srv))
+			pb.RegisterEditorServiceServer(grpcSrv, server.NewEditorGRPCServer(srv))
 			log.Printf("Starting gRPC server on %s", grpcAddr)
 			if err := grpcSrv.Serve(lis); err != nil {
 				log.Fatalf("gRPC server failed: %v", err)

@@ -1,9 +1,13 @@
+import { LogOut } from "lucide-react";
+
 interface HeaderProps {
-  connected: boolean;
   sidebarCollapsed: boolean;
+  serverConnected: boolean;
+  userName?: string;
+  onDisconnect?: () => void;
 }
 
-export function Header({ connected, sidebarCollapsed }: HeaderProps) {
+export function Header({ sidebarCollapsed, serverConnected, userName, onDisconnect }: HeaderProps) {
   return (
     <header
       className="h-12 bg-card border-b border-border flex items-center justify-between"
@@ -18,12 +22,28 @@ export function Header({ connected, sidebarCollapsed }: HeaderProps) {
         Localization Workbench
       </span>
       <div className="flex items-center gap-3">
+        {serverConnected && userName && (
+          <span className="text-xs text-muted-foreground">{userName}</span>
+        )}
         <span
-          className={`w-2 h-2 rounded-full inline-block ${connected ? "bg-green-500" : "bg-destructive"}`}
+          className={`w-2 h-2 rounded-full inline-block ${serverConnected ? "bg-green-500" : "bg-muted-foreground/40"}`}
         />
         <span className="text-xs text-muted-foreground">
-          {connected ? "Connected" : "Disconnected"}
+          {serverConnected ? "Connected" : "Local"}
         </span>
+        {serverConnected && onDisconnect && (
+          <button
+            onClick={onDisconnect}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            title="Disconnect from server"
+            style={{
+              // @ts-expect-error prevent drag on interactive element
+              "--wails-draggable": "no-drag",
+            }}
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </header>
   );

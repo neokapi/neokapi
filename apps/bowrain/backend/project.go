@@ -140,6 +140,12 @@ func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*Pro
 
 // GetProject returns the current project info.
 func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetProject(ws, projectID)
+	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -150,6 +156,16 @@ func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
 
 // ListProjects returns all open projects.
 func (a *App) ListProjects() []ProjectInfo {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		projects, err := a.remote.ListProjects(ws)
+		if err == nil {
+			return projects
+		}
+		// Fall through to local on error.
+	}
 	ctx := context.Background()
 	projects, err := a.store.ListProjects(ctx)
 	if err != nil {

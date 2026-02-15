@@ -17,8 +17,9 @@ VERSION_PKG := $(MODULE)/core/version
 LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 BIN_DIR     := bin
 COVER_DIR   := coverage
-PROTO_DIR   := plugin/proto/v1
-PROTO_FILES := $(wildcard $(PROTO_DIR)/*.proto)
+PROTO_DIR        := plugin/proto/v1
+PROTO_FILES      := $(wildcard $(PROTO_DIR)/*.proto)
+SERVER_PROTO_DIR := proto/v1
 FRONTEND_DIR := apps/bowrain/frontend
 KAPI_WEB_DIR := apps/kapi-web
 WEB_DIR      := apps/web
@@ -178,6 +179,9 @@ endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(PROTO_DIR)/*.proto
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		$(SERVER_PROTO_DIR)/*.proto
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 

@@ -19,6 +19,16 @@ import (
 
 // GetItemBlocks returns all blocks for an item in the project.
 func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetBlocks(ws, projectID, itemName)
+	}
+	return a.getItemBlocksLocal(projectID, itemName)
+}
+
+func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error) {
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -124,6 +134,12 @@ func spanToInfo(s *model.Span) SpanInfo {
 
 // UpdateBlockTarget updates the target text for a specific block.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.UpdateBlockTarget(ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Text, nil)
+	}
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, req.ProjectID, req.BlockID)
 	if err != nil {
@@ -152,6 +168,31 @@ func (a *App) UpdateBlockTargetCoded(req UpdateBlockTargetCodedRequest) error {
 	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
 
 	return a.store.StoreBlocksForItem(ctx, req.ProjectID, sb.ItemName, []*model.Block{sb.Block})
+}
+
+// ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
+func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, reviewed bool) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.ReviewBlock(ws, projectID, itemName, blockID, targetLocale, reviewed)
+	}
+	// Local mode: set the translation-status property.
+	ctx := context.Background()
+	sb, err := a.store.GetBlock(ctx, projectID, blockID)
+	if err != nil {
+		return err
+	}
+	if sb.Block.Properties == nil {
+		sb.Block.Properties = make(map[string]string)
+	}
+	if reviewed {
+		sb.Block.Properties["translation-status"] = "reviewed"
+	} else {
+		sb.Block.Properties["translation-status"] = "translated"
+	}
+	return a.store.StoreBlocksForItem(ctx, projectID, sb.ItemName, []*model.Block{sb.Block})
 }
 
 // stripMarkers removes Unicode span markers from coded text, returning plain text.
@@ -511,6 +552,12 @@ type TMMatchInfo struct {
 
 // LookupTMForBlock looks up TM matches for a specific block.
 func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string) ([]TMMatchInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.LookupTMForBlock(ws, projectID, blockID, targetLocale)
+	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {
@@ -561,6 +608,12 @@ type BlockTermMatch struct {
 
 // LookupTermsForBlock looks up term matches in a specific block's source text.
 func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale string) ([]BlockTermMatch, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.LookupTermsForBlock(ws, projectID, blockID, targetLocale)
+	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
 	if err != nil {

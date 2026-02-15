@@ -129,6 +129,12 @@ func termsFromInfo(terms []TermInfo) []termbase.Term {
 
 // GetTerms searches the termbase.
 func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TermSearchResult, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetTerms(ws, query, sourceLocale, targetLocale, offset, limit)
+	}
 	tb := a.getOrCreateTB()
 	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
 	infos := make([]ConceptInfo, len(results))
@@ -143,11 +149,23 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 
 // GetTermCount returns the total number of concepts in the termbase.
 func (a *App) GetTermCount(projectID string) (int, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetTermCount(ws)
+	}
 	return a.getOrCreateTB().Count(), nil
 }
 
 // AddConcept adds a new concept to the termbase.
 func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.AddConcept(ws, req.Domain, req.Definition, req.Terms)
+	}
 	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
 		ID:         uuid.New().String(),
@@ -168,6 +186,12 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 
 // UpdateConcept updates an existing concept in the termbase.
 func (a *App) UpdateConcept(req UpdateConceptRequest) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.UpdateConcept(ws, req.ConceptID, req.Domain, req.Definition, req.Terms)
+	}
 	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
 		ID:         req.ConceptID,
@@ -181,6 +205,12 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 
 // DeleteConcept removes a concept from the termbase.
 func (a *App) DeleteConcept(projectID, conceptID string) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.DeleteConcept(ws, conceptID)
+	}
 	tb := a.getOrCreateTB()
 	return tb.DeleteConcept(conceptID)
 }
@@ -220,6 +250,12 @@ func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*
 
 // ImportTermsCSV imports terms from CSV content into the termbase.
 func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain string, hasHeader bool) (int, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.ImportTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader)
+	}
 	tb := a.getOrCreateTB()
 	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
@@ -236,6 +272,12 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 
 // ImportTermsJSON imports terms from JSON content into the termbase.
 func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.ImportTermsJSON(ws, jsonContent)
+	}
 	tb := a.getOrCreateTB()
 	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
 	if err != nil {
@@ -247,6 +289,12 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 
 // ExportTermsJSON exports the termbase as JSON.
 func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.ExportTermsJSON(ws, name)
+	}
 	tb := a.getOrCreateTB()
 	var buf bytes.Buffer
 	if err := termbase.ExportJSON(tb, &buf, name); err != nil {

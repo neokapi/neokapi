@@ -106,6 +106,107 @@ export function useHealth() {
   return { connected, refresh };
 }
 
+// Connection state types
+export interface ConnectionInfo {
+  state: "disconnected" | "connecting" | "connected" | "offline";
+  server_url?: string;
+  user_name?: string;
+  user_email?: string;
+  workspace?: string;
+}
+
+export interface DeviceAuthInfo {
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+}
+
+export function useConnection() {
+  const [info, setInfo] = useState<ConnectionInfo>({ state: "disconnected" });
+
+  const refresh = useCallback(async () => {
+    const ci = await Backend.GetConnectionState() as ConnectionInfo;
+    setInfo(ci);
+    return ci;
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const connect = useCallback(async (serverURL: string) => {
+    await Backend.ConnectToServer(serverURL);
+    return refresh();
+  }, [refresh]);
+
+  const startLogin = useCallback(async (serverURL: string): Promise<DeviceAuthInfo> => {
+    return Backend.StartLogin(serverURL) as Promise<DeviceAuthInfo>;
+  }, []);
+
+  const pollLogin = useCallback(async (deviceCode: string, interval: number): Promise<boolean> => {
+    return Backend.PollLogin(deviceCode, interval) as Promise<boolean>;
+  }, []);
+
+  const cancelLogin = useCallback(async () => {
+    await Backend.CancelLogin();
+  }, []);
+
+  const logout = useCallback(async () => {
+    await Backend.Logout();
+    setInfo({ state: "disconnected" });
+  }, []);
+
+  const disconnect = useCallback(async () => {
+    await Backend.Disconnect();
+    setInfo({ state: "disconnected" });
+  }, []);
+
+  const selectWorkspace = useCallback(async (slug: string) => {
+    await Backend.SelectWorkspace(slug);
+    return refresh();
+  }, [refresh]);
+
+  const getServerWorkspaces = useCallback(async () => {
+    return Backend.GetServerWorkspaces() as Promise<Array<{
+      id: string; slug: string; name: string; description: string; role: string;
+    }>>;
+  }, []);
+
+  const startWatching = useCallback(async (projectID: string) => {
+    await Backend.StartWatching(projectID);
+  }, []);
+
+  const stopWatching = useCallback(async () => {
+    await Backend.StopWatching();
+  }, []);
+
+  const updatePresence = useCallback(async (projectID: string, itemName: string, blockID: string) => {
+    await Backend.UpdatePresence(projectID, itemName, blockID);
+  }, []);
+
+  const reviewBlock = useCallback(
+    async (projectID: string, itemName: string, blockID: string, targetLocale: string, reviewed: boolean): Promise<void> => {
+      return Backend.ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed);
+    },
+    [],
+  );
+
+  return {
+    info,
+    refresh,
+    connect,
+    startLogin,
+    pollLogin,
+    cancelLogin,
+    logout,
+    disconnect,
+    selectWorkspace,
+    getServerWorkspaces,
+    startWatching,
+    stopWatching,
+    updatePresence,
+    reviewBlock,
+  };
+}
+
 // Project API hooks
 
 export function useProjectApi() {

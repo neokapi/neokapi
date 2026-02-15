@@ -71,6 +71,12 @@ func entryToInfo(e sievepen.TMEntry) TMEntryInfo {
 
 // GetTMEntries searches the TM with optional query and locale filters.
 func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, offset, limit int) (*TMSearchResult, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetTMEntries(ws, query, sourceLocale, targetLocale, offset, limit)
+	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)
@@ -90,6 +96,12 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 
 // GetTMCount returns the total number of entries in the TM.
 func (a *App) GetTMCount(projectID string) (int, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.GetTMCount(ws)
+	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return 0, fmt.Errorf("init TM: %w", err)
@@ -100,6 +112,12 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 
 // UpdateTMEntry updates an existing TM entry.
 func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.UpdateTMEntry(ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return fmt.Errorf("init TM: %w", err)
@@ -121,6 +139,12 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 
 // DeleteTMEntry deletes a TM entry by ID.
 func (a *App) DeleteTMEntry(projectID, entryID string) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.DeleteTMEntry(ws, entryID)
+	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return fmt.Errorf("init TM: %w", err)
@@ -131,6 +155,12 @@ func (a *App) DeleteTMEntry(projectID, entryID string) error {
 
 // AddTMEntry adds a new entry to the TM.
 func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale string) (*TMEntryInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		return a.remote.AddTMEntry(ws, source, target, sourceLocale, targetLocale)
+	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
 		return nil, fmt.Errorf("init TM: %w", err)

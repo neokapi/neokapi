@@ -102,7 +102,7 @@ func (c *DeviceFlowClient) PollForToken(ctx context.Context, deviceCode string, 
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			token, pending, err := c.tryToken(ctx, deviceCode)
+			token, pending, err := c.TryToken(ctx, deviceCode)
 			if err != nil {
 				return nil, err
 			}
@@ -113,7 +113,9 @@ func (c *DeviceFlowClient) PollForToken(ctx context.Context, deviceCode string, 
 	}
 }
 
-func (c *DeviceFlowClient) tryToken(ctx context.Context, deviceCode string) (*TokenResponse, bool, error) {
+// TryToken makes a single token poll attempt. Returns (token, pending, err).
+// If pending is true, the caller should retry after the interval.
+func (c *DeviceFlowClient) TryToken(ctx context.Context, deviceCode string) (*TokenResponse, bool, error) {
 	data := url.Values{
 		"client_id":   {c.ClientID},
 		"device_code": {deviceCode},
