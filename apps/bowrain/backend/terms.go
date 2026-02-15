@@ -133,7 +133,12 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetTerms(ws, query, sourceLocale, targetLocale, offset, limit)
+		result, err := a.remote.GetTerms(ws, query, sourceLocale, targetLocale, offset, limit)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return result, nil
+		}
 	}
 	tb := a.getOrCreateTB()
 	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
@@ -153,7 +158,12 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetTermCount(ws)
+		count, err := a.remote.GetTermCount(ws)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return count, nil
+		}
 	}
 	return a.getOrCreateTB().Count(), nil
 }
@@ -164,7 +174,15 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.AddConcept(ws, req.Domain, req.Definition, req.Terms)
+		info, err := a.remote.AddConcept(ws, req.Domain, req.Definition, req.Terms)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("add_concept", req)
+		} else {
+			return info, nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("add_concept", req)
 	}
 	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
@@ -190,7 +208,15 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.UpdateConcept(ws, req.ConceptID, req.Domain, req.Definition, req.Terms)
+		err := a.remote.UpdateConcept(ws, req.ConceptID, req.Domain, req.Definition, req.Terms)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("update_concept", req)
+		} else {
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("update_concept", req)
 	}
 	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
@@ -209,7 +235,15 @@ func (a *App) DeleteConcept(projectID, conceptID string) error {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.DeleteConcept(ws, conceptID)
+		err := a.remote.DeleteConcept(ws, conceptID)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
+		} else {
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
 	}
 	tb := a.getOrCreateTB()
 	return tb.DeleteConcept(conceptID)
@@ -254,7 +288,12 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.ImportTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader)
+		count, err := a.remote.ImportTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return count, nil
+		}
 	}
 	tb := a.getOrCreateTB()
 	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
@@ -276,7 +315,12 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.ImportTermsJSON(ws, jsonContent)
+		count, err := a.remote.ImportTermsJSON(ws, jsonContent)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return count, nil
+		}
 	}
 	tb := a.getOrCreateTB()
 	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
@@ -293,7 +337,12 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.ExportTermsJSON(ws, name)
+		result, err := a.remote.ExportTermsJSON(ws, name)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return result, nil
+		}
 	}
 	tb := a.getOrCreateTB()
 	var buf bytes.Buffer

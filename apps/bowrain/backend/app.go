@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"context"
 	"log"
 	"os"
 	"path/filepath"
@@ -49,11 +50,15 @@ type App struct {
 	authInfo         *storedDesktopAuth      // cached auth info
 	deviceFlowClient *auth.DeviceFlowClient  // active login flow
 	watcher          *ProjectWatcher         // active WatchProject stream
+	offlineQueue     *OfflineQueue           // pending mutations when offline
+	reconnectCancel  context.CancelFunc      // stops the reconnection goroutine
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string
 	// tmPath overrides the default TM database path (for testing).
 	tmPath string
+	// queuePath overrides the default offline queue database path (for testing).
+	queuePath string
 }
 
 // NewApp creates a new Bowrain backend with all formats and plugins registered.
@@ -90,7 +95,7 @@ func newAppWithStore(cs store.ContentStore) *App {
 	connReg := connector.NewRegistry()
 	connector.RegisterAll(connReg, reg)
 
-	return &App{
+	a := &App{
 		formatReg:    reg,
 		toolReg:      toolReg,
 		store:        cs,
@@ -99,6 +104,16 @@ func newAppWithStore(cs store.ContentStore) *App {
 		eventBus:     event.NewChannelEventBus(),
 		connState:    StateDisconnected,
 	}
+
+	// Initialize the offline queue for queuing mutations when disconnected.
+	queuePath := defaultQueuePath()
+	if q, err := NewOfflineQueue(queuePath); err != nil {
+		log.Printf("bowrain: failed to open offline queue at %s: %v", queuePath, err)
+	} else {
+		a.offlineQueue = q
+	}
+
+	return a
 }
 
 // LoadPlugins discovers and loads plugins from the configured plugin directory.
@@ -291,10 +306,15 @@ func (a *App) PluginDir() string {
 
 // ServiceShutdown is called by Wails v3 when the application exits.
 func (a *App) ServiceShutdown() error {
+	// Stop reconnection goroutine.
+	a.stopReconnect()
 	// Stop project watcher and close server connection.
 	a.StopWatching()
 	if a.remote != nil {
 		a.remote.Close()
+	}
+	if a.offlineQueue != nil {
+		a.offlineQueue.Close()
 	}
 	if a.tm != nil {
 		a.tm.Close()
@@ -312,6 +332,17 @@ func (a *App) ServiceShutdown() error {
 		pl.Shutdown()
 	}
 	return nil
+}
+
+// stopReconnect cancels the reconnection goroutine if running.
+func (a *App) stopReconnect() {
+	a.mu.Lock()
+	cancel := a.reconnectCancel
+	a.reconnectCancel = nil
+	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 }
 
 // defaultStorePath returns the path for the persistent SQLite store.

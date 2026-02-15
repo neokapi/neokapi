@@ -75,7 +75,13 @@ func (a *App) GetTMEntries(projectID, query, sourceLocale, targetLocale string, 
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetTMEntries(ws, query, sourceLocale, targetLocale, offset, limit)
+		result, err := a.remote.GetTMEntries(ws, query, sourceLocale, targetLocale, offset, limit)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local TM.
+		} else {
+			return result, nil
+		}
 	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
@@ -100,7 +106,12 @@ func (a *App) GetTMCount(projectID string) (int, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetTMCount(ws)
+		count, err := a.remote.GetTMCount(ws)
+		if err != nil {
+			a.goOffline()
+		} else {
+			return count, nil
+		}
 	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
@@ -116,7 +127,15 @@ func (a *App) UpdateTMEntry(req TMUpdateRequest) error {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.UpdateTMEntry(ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		err := a.remote.UpdateTMEntry(ws, req.EntryID, req.Source, req.Target, req.SourceLocale, req.TargetLocale)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("update_tm_entry", req)
+		} else {
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("update_tm_entry", req)
 	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
@@ -143,7 +162,15 @@ func (a *App) DeleteTMEntry(projectID, entryID string) error {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.DeleteTMEntry(ws, entryID)
+		err := a.remote.DeleteTMEntry(ws, entryID)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("delete_tm_entry", deleteTMPayload{EntryID: entryID})
+		} else {
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("delete_tm_entry", deleteTMPayload{EntryID: entryID})
 	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {
@@ -159,7 +186,20 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.AddTMEntry(ws, source, target, sourceLocale, targetLocale)
+		info, err := a.remote.AddTMEntry(ws, source, target, sourceLocale, targetLocale)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("add_tm_entry", addTMPayload{
+				Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale,
+			})
+			// Fall through to local.
+		} else {
+			return info, nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("add_tm_entry", addTMPayload{
+			Source: source, Target: target, SourceLocale: sourceLocale, TargetLocale: targetLocale,
+		})
 	}
 	tm, err := a.getOrCreateTM()
 	if err != nil {

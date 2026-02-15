@@ -3,8 +3,10 @@ package backend
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -12,6 +14,8 @@ import (
 
 	"github.com/gokapi/gokapi/core/auth"
 )
+
+var errNotConnected = errors.New("not connected to server")
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
@@ -79,6 +83,33 @@ func (a *App) isConnected() bool {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.connState == StateConnected && a.remote != nil
+}
+
+// isOffline returns true when the app has lost its server connection
+// and is operating from the local cache with changes queued.
+func (a *App) isOffline() bool {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.connState == StateOffline
+}
+
+// enqueue adds a mutation to the offline queue. Silently logs on failure.
+func (a *App) enqueue(operation string, payload any) {
+	if a.offlineQueue == nil {
+		return
+	}
+	if err := a.offlineQueue.Enqueue(operation, payload); err != nil {
+		log.Printf("bowrain: failed to enqueue %s: %v", operation, err)
+	}
+}
+
+// GetPendingChangesCount returns the number of queued offline changes.
+// Exposed to the frontend so it can show a pending sync indicator.
+func (a *App) GetPendingChangesCount() int {
+	if a.offlineQueue == nil {
+		return 0
+	}
+	return a.offlineQueue.PendingCount()
 }
 
 // ConnectToServer establishes a gRPC connection to the given server URL.
@@ -226,6 +257,7 @@ func (a *App) Logout() {
 
 // Disconnect closes the server connection.
 func (a *App) Disconnect() {
+	a.stopReconnect()
 	a.StopWatching()
 
 	a.mu.Lock()

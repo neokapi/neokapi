@@ -144,7 +144,13 @@ func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetProject(ws, projectID)
+		info, err := a.remote.GetProject(ws, projectID)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local.
+		} else {
+			return info, nil
+		}
 	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)

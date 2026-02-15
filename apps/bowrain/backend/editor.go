@@ -18,12 +18,22 @@ import (
 )
 
 // GetItemBlocks returns all blocks for an item in the project.
+// When connected, blocks are fetched from the server and cached locally.
+// On connection failure, falls back to the local cache.
 func (a *App) GetItemBlocks(projectID, itemName string) ([]BlockInfo, error) {
 	if a.isConnected() {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.GetBlocks(ws, projectID, itemName)
+		blocks, err := a.remote.GetBlocks(ws, projectID, itemName)
+		if err != nil {
+			// Connection failed — fall back to offline mode.
+			a.goOffline()
+			return a.getItemBlocksLocal(projectID, itemName)
+		}
+		// Cache the blocks locally for offline access.
+		a.cacheBlocks(projectID, itemName, blocks)
+		return blocks, nil
 	}
 	return a.getItemBlocksLocal(projectID, itemName)
 }
@@ -54,6 +64,73 @@ func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error
 		blocks = append(blocks, bi)
 	}
 	return blocks, nil
+}
+
+// cacheBlocks stores server-fetched blocks in the local ContentStore for offline access.
+func (a *App) cacheBlocks(projectID, itemName string, blocks []BlockInfo) {
+	ctx := context.Background()
+
+	// Ensure the project exists locally for caching.
+	_, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		// Project not cached yet — create a minimal placeholder.
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		_ = a.store.CreateProject(ctx, &store.Project{
+			ID:          projectID,
+			Name:        projectID, // minimal; real name comes from GetProject
+			WorkspaceID: ws,
+		})
+	}
+
+	// Convert BlockInfos back to model.Blocks for storage.
+	var modelBlocks []*model.Block
+	for _, bi := range blocks {
+		b := blockInfoToBlock(bi)
+		modelBlocks = append(modelBlocks, b)
+	}
+
+	if len(modelBlocks) > 0 {
+		_ = a.store.StoreBlocksForItem(ctx, projectID, itemName, modelBlocks)
+	}
+}
+
+// blockInfoToBlock converts a BlockInfo (from server) to a model.Block for local storage.
+func blockInfoToBlock(bi BlockInfo) *model.Block {
+	b := &model.Block{
+		ID:           bi.ID,
+		Translatable: bi.Translatable,
+		Properties:   bi.Properties,
+	}
+
+	// Set source.
+	if bi.HasSpans && bi.SourceCoded != "" {
+		frag := &model.Fragment{CodedText: bi.SourceCoded}
+		for _, si := range bi.SourceSpans {
+			frag.Spans = append(frag.Spans, infoToSpan(si))
+		}
+		b.Source = []*model.Segment{{Content: frag}}
+	} else if bi.Source != "" {
+		b.Source = []*model.Segment{{Content: model.NewFragment(bi.Source)}}
+	}
+
+	// Set targets.
+	if len(bi.Targets) > 0 {
+		b.Targets = make(map[model.LocaleID][]*model.Segment)
+		for locale, text := range bi.Targets {
+			lid := model.LocaleID(locale)
+			if bi.TargetsCoded != nil {
+				if coded, ok := bi.TargetsCoded[locale]; ok && coded != "" {
+					b.Targets[lid] = []*model.Segment{{Content: &model.Fragment{CodedText: coded}}}
+					continue
+				}
+			}
+			b.Targets[lid] = []*model.Segment{{Content: model.NewFragment(text)}}
+		}
+	}
+
+	return b
 }
 
 // storedBlockToBlockInfo converts a StoredBlock to a BlockInfo.
@@ -133,26 +210,64 @@ func spanToInfo(s *model.Span) SpanInfo {
 }
 
 // UpdateBlockTarget updates the target text for a specific block.
+// When connected, sends to server. On failure, queues for later replay and updates local cache.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 	if a.isConnected() {
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.UpdateBlockTarget(ws, req.ProjectID, req.ItemName, req.BlockID, req.TargetLocale, req.Text, nil)
+		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, req.Text, "", nil)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("update_block_target", req)
+			// Fall through to update local cache.
+		} else {
+			// Update local cache on success.
+			a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("update_block_target", req)
 	}
+
+	// Update local store (both offline and local modes).
+	return a.updateBlockTargetLocal(req.ProjectID, req.BlockID, req.TargetLocale, req.Text)
+}
+
+func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text string) error {
 	ctx := context.Background()
-	sb, err := a.store.GetBlock(ctx, req.ProjectID, req.BlockID)
+	sb, err := a.store.GetBlock(ctx, projectID, blockID)
 	if err != nil {
 		return err
 	}
-
-	sb.Block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
-
-	return a.store.StoreBlocksForItem(ctx, req.ProjectID, sb.ItemName, []*model.Block{sb.Block})
+	sb.Block.SetTargetText(model.LocaleID(targetLocale), text)
+	return a.store.StoreBlocksForItem(ctx, projectID, sb.ItemName, []*model.Block{sb.Block})
 }
 
 // UpdateBlockTargetCoded updates the target for a block using coded text with span data.
 func (a *App) UpdateBlockTargetCoded(req UpdateBlockTargetCodedRequest) error {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		spans := make([]SpanInfo, len(req.Spans))
+		copy(spans, req.Spans)
+		err := a.remote.UpdateBlockTarget(ws, req.ProjectID, req.BlockID, req.TargetLocale, "", req.CodedText, spans)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("update_block_target_coded", req)
+		} else {
+			a.updateBlockTargetCodedLocal(req)
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("update_block_target_coded", req)
+	}
+
+	return a.updateBlockTargetCodedLocal(req)
+}
+
+func (a *App) updateBlockTargetCodedLocal(req UpdateBlockTargetCodedRequest) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, req.ProjectID, req.BlockID)
 	if err != nil {
@@ -176,9 +291,28 @@ func (a *App) ReviewBlock(projectID, itemName, blockID, targetLocale string, rev
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.ReviewBlock(ws, projectID, itemName, blockID, targetLocale, reviewed)
+		err := a.remote.ReviewBlock(ws, projectID, itemName, blockID, targetLocale, reviewed)
+		if err != nil {
+			a.goOffline()
+			a.enqueue("review_block", reviewBlockPayload{
+				ProjectID: projectID, ItemName: itemName, BlockID: blockID,
+				TargetLocale: targetLocale, Reviewed: reviewed,
+			})
+		} else {
+			a.reviewBlockLocal(projectID, blockID, reviewed)
+			return nil
+		}
+	} else if a.isOffline() {
+		a.enqueue("review_block", reviewBlockPayload{
+			ProjectID: projectID, ItemName: itemName, BlockID: blockID,
+			TargetLocale: targetLocale, Reviewed: reviewed,
+		})
 	}
-	// Local mode: set the translation-status property.
+
+	return a.reviewBlockLocal(projectID, blockID, reviewed)
+}
+
+func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 	ctx := context.Background()
 	sb, err := a.store.GetBlock(ctx, projectID, blockID)
 	if err != nil {
@@ -556,7 +690,13 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.LookupTMForBlock(ws, projectID, blockID, targetLocale)
+		matches, err := a.remote.LookupTMForBlock(ws, projectID, blockID, targetLocale)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local TM lookup.
+		} else {
+			return matches, nil
+		}
 	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
@@ -612,7 +752,13 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 		a.mu.RLock()
 		ws := a.activeWS
 		a.mu.RUnlock()
-		return a.remote.LookupTermsForBlock(ws, projectID, blockID, targetLocale)
+		matches, err := a.remote.LookupTermsForBlock(ws, projectID, blockID, targetLocale)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local term lookup.
+		} else {
+			return matches, nil
+		}
 	}
 	ctx := context.Background()
 	proj, err := a.store.GetProject(ctx, projectID)
