@@ -30,13 +30,13 @@ async function openEditorWithTM(page: any) {
     const pid = projects[0]?.id;
     if (!pid) return;
 
-    // These match the AddFiles-generated block sources exactly
+    // These match the AddItems-generated block sources exactly
     backend.AddTMEntry(pid, "Hello from page.html", "Bonjour depuis page.html", "en", "fr");
     backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
     backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
     // Add file
-    await backend.AddFiles(pid, ["/content/page.html"]);
+    await backend.AddItems(pid, ["/content/page.html"]);
   });
 
   // Navigate away and back to refresh
@@ -103,8 +103,8 @@ test.describe("TM Leverage", () => {
     await page.evaluate(() => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
-      const origTM = backend[IDS.TMTranslateFile];
-      backend[IDS.TMTranslateFile] = (projectID: string, fileName: string, targetLocale: string) => {
+      const origTM = backend[IDS.TMTranslateItem];
+      backend[IDS.TMTranslateItem] = (projectID: string, fileName: string, targetLocale: string) => {
         // Only translate 2 of 3 blocks
         const result = origTM(projectID, fileName, targetLocale);
         return result;

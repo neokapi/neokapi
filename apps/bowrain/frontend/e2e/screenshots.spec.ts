@@ -66,7 +66,7 @@ async function seedDashboard(page: any) {
       const projects = await backend.ListProjects();
       const p = projects[projects.length - 1];
       if (p) {
-        await backend.AddFiles(p.id, ["/src/index.html", "/src/app.json"]);
+        await backend.AddItems(p.id, ["/src/index.html", "/src/app.json"]);
       }
     });
 
@@ -95,7 +95,7 @@ async function openProjectView(page: any) {
     const projects = await backend.ListProjects();
     const p = projects[0];
     if (p) {
-      await backend.AddFiles(p.id, [
+      await backend.AddItems(p.id, [
         "/src/index.html",
         "/src/strings.json",
         "/content/about.md",
@@ -130,7 +130,7 @@ async function openEditor(page: any) {
     const backend = (window as any).__wailsMockByName;
     const projects = await backend.ListProjects();
     if (projects.length > 0) {
-      await backend.AddFiles(projects[0].id, ["/src/index.html"]);
+      await backend.AddItems(projects[0].id, ["/src/index.html"]);
     }
   });
 

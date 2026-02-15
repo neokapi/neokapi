@@ -68,7 +68,7 @@ async function openEditorWithTMAndTerms(page: any) {
     });
 
     // Add file
-    await backend.AddFiles(pid, ["/content/index.html"]);
+    await backend.AddItems(pid, ["/content/index.html"]);
   });
 
   // Navigate away and back to refresh
@@ -203,7 +203,7 @@ test.describe("Context Panel", () => {
     await page.evaluate(async () => {
       const backend = (window as any).__wailsMockByName;
       const projects = await backend.ListProjects();
-      if (projects[0]) await backend.AddFiles(projects[0].id, ["/test.html"]);
+      if (projects[0]) await backend.AddItems(projects[0].id, ["/test.html"]);
     });
 
     // Navigate to editor

@@ -28,7 +28,7 @@ async function openEditorWithBlocks(page: any) {
     const backend = (window as any).__wailsMockByName;
     const projects = await backend.ListProjects();
     if (projects.length > 0) {
-      await backend.AddFiles(projects[0].id, ["/test/hello.txt"]);
+      await backend.AddItems(projects[0].id, ["/test/hello.txt"]);
     }
   });
 

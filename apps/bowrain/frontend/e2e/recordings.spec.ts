@@ -96,7 +96,7 @@ describeOrSkip("Video Recordings", () => {
       const backend = (window as any).__wailsMockByName;
       const projects = await backend.ListProjects();
       if (projects[0]) {
-        await backend.AddFiles(projects[0].id, [
+        await backend.AddItems(projects[0].id, [
           "/src/index.html",
           "/src/strings.json",
           "/content/about.md",
@@ -168,12 +168,12 @@ describeOrSkip("Video Recordings", () => {
       if (!(window as any).__projectFiles[projectId]) (window as any).__projectFiles[projectId] = {};
       (window as any).__projectFiles[projectId]["about-us.html"] = blocks;
 
-      // Patch GetFileBlocks
-      const origGetFileBlocks = backend[IDS.GetFileBlocks];
-      backend[IDS.GetFileBlocks] = (pid: string, fileName: string) => {
+      // Patch GetItemBlocks
+      const origGetItemBlocks = backend[IDS.GetItemBlocks];
+      backend[IDS.GetItemBlocks] = (pid: string, fileName: string) => {
         const customBlocks = (window as any).__projectFiles?.[pid]?.[fileName];
         if (customBlocks) return customBlocks.map((b: any) => ({ ...b, targets: { ...b.targets } }));
-        return origGetFileBlocks(pid, fileName);
+        return origGetItemBlocks(pid, fileName);
       };
 
       // Patch UpdateBlockTarget
@@ -340,7 +340,7 @@ describeOrSkip("Video Recordings", () => {
       const backend = (window as any).__wailsMockByName;
       const projects = await backend.ListProjects();
       if (projects[0]) {
-        await backend.AddFiles(projects[0].id, ["/content/homepage.html"]);
+        await backend.AddItems(projects[0].id, ["/content/homepage.html"]);
       }
     });
 
@@ -529,7 +529,7 @@ describeOrSkip("Video Recordings", () => {
       const backend = (window as any).__wailsMockByName;
       const projects = await backend.ListProjects();
       if (projects[0]) {
-        await backend.AddFiles(projects[0].id, ["/landing-page.html"]);
+        await backend.AddItems(projects[0].id, ["/landing-page.html"]);
       }
     });
 
@@ -623,7 +623,7 @@ describeOrSkip("Video Recordings", () => {
       backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
       backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
-      await backend.AddFiles(pid, ["/content/landing.html"]);
+      await backend.AddItems(pid, ["/content/landing.html"]);
     });
 
     // Refresh to show file
@@ -843,7 +843,7 @@ describeOrSkip("Video Recordings", () => {
         ],
       });
 
-      await backend.AddFiles(pid, ["/src/app.html"]);
+      await backend.AddItems(pid, ["/src/app.html"]);
     });
 
     // Refresh to show file
@@ -1051,7 +1051,7 @@ describeOrSkip("Video Recordings", () => {
       const backend = (window as any).__wailsMockByName;
       const projects = await backend.ListProjects();
       if (projects[0]) {
-        await backend.AddFiles(projects[0].id, [
+        await backend.AddItems(projects[0].id, [
           "/src/index.html",
           "/src/strings.json",
           "/content/about.md",
@@ -1092,7 +1092,7 @@ describeOrSkip("Video Recordings", () => {
       const projects = await backend.ListProjects();
       const p = projects[projects.length - 1];
       if (p) {
-        await backend.AddFiles(p.id, ["/app/strings.json", "/app/config.yaml"]);
+        await backend.AddItems(p.id, ["/app/strings.json", "/app/config.yaml"]);
       }
     });
 

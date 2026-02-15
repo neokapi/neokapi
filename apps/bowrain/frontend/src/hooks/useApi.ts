@@ -129,21 +129,21 @@ export function useProjectApi() {
 
   const addFiles = useCallback(
     async (projectID: string, filePaths: string[]): Promise<ProjectInfo> => {
-      return Backend.AddFiles(projectID, filePaths) as Promise<ProjectInfo>;
+      return Backend.AddItems(projectID, filePaths) as Promise<ProjectInfo>;
     },
     [],
   );
 
   const removeFile = useCallback(
     async (projectID: string, fileName: string): Promise<ProjectInfo> => {
-      return Backend.RemoveFile(projectID, fileName) as Promise<ProjectInfo>;
+      return Backend.RemoveItem(projectID, fileName) as Promise<ProjectInfo>;
     },
     [],
   );
 
   const addFilesDialog = useCallback(
     async (projectID: string): Promise<ProjectInfo | null> => {
-      return Backend.AddFilesDialog(projectID) as Promise<ProjectInfo | null>;
+      return Backend.AddItemsDialog(projectID) as Promise<ProjectInfo | null>;
     },
     [],
   );
@@ -161,7 +161,7 @@ export function useProjectApi() {
 export function useEditorApi() {
   const getFileBlocks = useCallback(
     async (projectID: string, fileName: string): Promise<BlockInfo[]> => {
-      return Backend.GetFileBlocks(projectID, fileName) as Promise<BlockInfo[]>;
+      return Backend.GetItemBlocks(projectID, fileName) as Promise<BlockInfo[]>;
     },
     [],
   );
@@ -182,21 +182,21 @@ export function useEditorApi() {
 
   const pseudoTranslateFile = useCallback(
     async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
-      return Backend.PseudoTranslateFile(projectID, fileName, targetLocale) as Promise<TranslationStats>;
+      return Backend.PseudoTranslateItem(projectID, fileName, targetLocale) as Promise<TranslationStats>;
     },
     [],
   );
 
   const aiTranslateFile = useCallback(
     async (req: AITranslateFileRequest): Promise<TranslationStats> => {
-      return Backend.AITranslateFile(req) as Promise<TranslationStats>;
+      return Backend.AITranslateItem(req) as Promise<TranslationStats>;
     },
     [],
   );
 
   const tmTranslateFile = useCallback(
     async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
-      return Backend.TMTranslateFile(projectID, fileName, targetLocale) as Promise<TranslationStats>;
+      return Backend.TMTranslateItem(projectID, fileName, targetLocale) as Promise<TranslationStats>;
     },
     [],
   );
@@ -210,7 +210,7 @@ export function useEditorApi() {
 
   const exportTranslatedFile = useCallback(
     async (projectID: string, fileName: string, targetLocale: string): Promise<string> => {
-      return Backend.ExportTranslatedFile(projectID, fileName, targetLocale);
+      return Backend.ExportTranslatedItem(projectID, fileName, targetLocale);
     },
     [],
   );

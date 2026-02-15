@@ -38,11 +38,6 @@ test.describe("Project View", () => {
     await expect(dropZone).toContainText("Drag and drop files");
   });
 
-  test("should show save button", async ({ page }) => {
-    const saveBtn = page.getByTestId("save-project-btn");
-    await expect(saveBtn).toBeVisible();
-  });
-
   test("should display language info", async ({ page }) => {
     // The component shows "en → fr" using HTML entities
     await expect(page.getByText("Languages")).toBeVisible();

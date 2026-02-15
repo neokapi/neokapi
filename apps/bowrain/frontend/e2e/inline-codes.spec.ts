@@ -22,7 +22,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-  // Add a file via the mock backend, then monkey-patch GetFileBlocks to return
+  // Add a file via the mock backend, then monkey-patch GetItemBlocks to return
   // span-bearing blocks for welcome.html
   await page.evaluate(
     ({ mo, mc, mp }) => {
@@ -33,7 +33,7 @@ async function openEditorWithInlineBlocks(page: Page) {
       // Add the file entry to the project
       const projects = backend.ListProjects();
       const pid = projects[0].id;
-      backend.AddFiles(pid, ["/test/welcome.html"]);
+      backend.AddItems(pid, ["/test/welcome.html"]);
 
       // State for tracking target updates on welcome.html blocks
       const welcomeTargets: Record<string, Record<string, string>> = {};
@@ -41,9 +41,9 @@ async function openEditorWithInlineBlocks(page: Page) {
       (window as any).__welcomeTargets = welcomeTargets;
       (window as any).__welcomeTargetsCoded = welcomeTargetsCoded;
 
-      // Monkey-patch GetFileBlocks to return span-bearing blocks for welcome.html
-      const origGetFileBlocks = mock[IDS.GetFileBlocks];
-      mock[IDS.GetFileBlocks] = (projectID: string, fileName: string) => {
+      // Monkey-patch GetItemBlocks to return span-bearing blocks for welcome.html
+      const origGetItemBlocks = mock[IDS.GetItemBlocks];
+      mock[IDS.GetItemBlocks] = (projectID: string, fileName: string) => {
         if (fileName === "welcome.html") {
           return [
             {
@@ -115,7 +115,7 @@ async function openEditorWithInlineBlocks(page: Page) {
             },
           ];
         }
-        return origGetFileBlocks(projectID, fileName);
+        return origGetItemBlocks(projectID, fileName);
       };
 
       // Monkey-patch UpdateBlockTarget for welcome.html blocks
