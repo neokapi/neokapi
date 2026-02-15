@@ -34,6 +34,11 @@ type ContentStore interface {
 	ExportKAZ(ctx context.Context, projectID string, w io.Writer) error
 	ImportKAZ(ctx context.Context, r io.Reader) (string, error) // Returns project ID
 
+	// Change log (incremental sync)
+	GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*ChangeSet, error)
+	LatestCursor(ctx context.Context, projectID string) (int64, error)
+	CompactChangeLog(ctx context.Context, projectID string, retainDays int) (int64, error)
+
 	// Lifecycle
 	Close() error
 }

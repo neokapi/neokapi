@@ -156,8 +156,8 @@ func (g *GRPCServer) PullContent(ctx context.Context, req *pb.PullContentRequest
 	if g.srv.Services == nil {
 		return nil, status.Error(codes.Unavailable, "content store not configured")
 	}
-	opts := connector.PullOptions{}
-	items, err := g.srv.Services.Connector.Pull(ctx, req.ConnectorId, req.ProjectId, opts)
+	opts := connector.FetchOptions{}
+	items, err := g.srv.Services.Connector.Fetch(ctx, req.ConnectorId, req.ProjectId, opts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "pull content: %v", err)
 	}
@@ -179,8 +179,8 @@ func (g *GRPCServer) PushContent(ctx context.Context, req *pb.PushContentRequest
 		return nil, status.Errorf(codes.Internal, "count blocks: %v", err)
 	}
 
-	opts := connector.PushOptions{}
-	if err := g.srv.Services.Connector.Push(ctx, req.ConnectorId, req.ProjectId, opts); err != nil {
+	opts := connector.PublishOptions{}
+	if err := g.srv.Services.Connector.Publish(ctx, req.ConnectorId, req.ProjectId, opts); err != nil {
 		return nil, status.Errorf(codes.Internal, "push content: %v", err)
 	}
 	return &pb.PushContentResponse{PushedCount: int32(len(blocks))}, nil

@@ -61,9 +61,9 @@ func (c *FileConnector) Configure(config map[string]string) error {
 
 func (c *FileConnector) Close() error { return nil }
 
-// Pull reads files from the filesystem, parses them with format readers,
+// Fetch reads files from the filesystem, parses them with format readers,
 // and returns ContentItems containing the extracted blocks.
-func (c *FileConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+func (c *FileConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
 	paths := opts.Paths
 	if len(paths) == 0 {
 		// Discover all files if no specific paths given.
@@ -78,9 +78,9 @@ func (c *FileConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentI
 
 	var result []*ContentItem
 	for _, p := range paths {
-		item, err := c.pullFile(ctx, filepath.Join(c.basePath, p))
+		item, err := c.fetchFile(ctx, filepath.Join(c.basePath, p))
 		if err != nil {
-			return nil, fmt.Errorf("pull %s: %w", p, err)
+			return nil, fmt.Errorf("fetch %s: %w", p, err)
 		}
 		if item != nil {
 			result = append(result, item)
@@ -89,7 +89,7 @@ func (c *FileConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentI
 	return result, nil
 }
 
-func (c *FileConnector) pullFile(ctx context.Context, path string) (*ContentItem, error) {
+func (c *FileConnector) fetchFile(ctx context.Context, path string) (*ContentItem, error) {
 	ext := filepath.Ext(path)
 	detector := c.formatRegistry.Detector()
 	formatName, err := detector.DetectByExtension(ext)
@@ -148,17 +148,17 @@ func (c *FileConnector) pullFile(ctx context.Context, path string) (*ContentItem
 	}, nil
 }
 
-// Push writes translated content items back to the filesystem.
-func (c *FileConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+// Publish writes translated content items back to the filesystem.
+func (c *FileConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
 	for _, item := range items {
-		if err := c.pushFile(ctx, item, opts); err != nil {
-			return fmt.Errorf("push %s: %w", item.Path, err)
+		if err := c.publishFile(ctx, item, opts); err != nil {
+			return fmt.Errorf("publish %s: %w", item.Path, err)
 		}
 	}
 	return nil
 }
 
-func (c *FileConnector) pushFile(ctx context.Context, item *ContentItem, opts PushOptions) error {
+func (c *FileConnector) publishFile(ctx context.Context, item *ContentItem, opts PublishOptions) error {
 	path := filepath.Join(c.basePath, item.Path)
 
 	writer, err := c.formatRegistry.NewWriter(item.Format)
@@ -212,8 +212,8 @@ func (c *FileConnector) List(ctx context.Context) ([]*ContentItem, error) {
 	return items, nil
 }
 
-// Sync returns the current sync status.
-func (c *FileConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+// Status returns the current sync status.
+func (c *FileConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err

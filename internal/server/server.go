@@ -112,6 +112,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		},
 	}))
 	e.Use(middleware.Recover())
+	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORS())
 
 	// API v1 routes
@@ -133,14 +134,19 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.POST("/projects/:id/versions", s.HandleCreateVersion)
 	v1.GET("/projects/:id/versions", s.HandleListVersions)
 
+	// Sync endpoints (incremental block-level sync)
+	v1.POST("/projects/:id/sync/push", s.HandleSyncPush)
+	v1.GET("/projects/:id/sync/pull", s.HandleSyncPull)
+	v1.GET("/projects/:id/changes", s.HandleGetChanges)
+
 	// Connector endpoints
 	v1.GET("/connectors/types", s.HandleListConnectorTypes)
 	v1.GET("/connectors", s.HandleListActiveConnectors)
 	v1.POST("/connectors", s.HandleAddConnector)
 	v1.DELETE("/connectors/:id", s.HandleRemoveConnector)
-	v1.GET("/connectors/:id/status", s.HandleSyncStatus)
-	v1.POST("/pull", s.HandlePull)
-	v1.POST("/push", s.HandlePush)
+	v1.GET("/connectors/:id/status", s.HandleConnectorStatus)
+	v1.POST("/fetch", s.HandleFetch)
+	v1.POST("/publish", s.HandlePublish)
 
 	// Auth endpoints (only for multi-user mode)
 	if !s.Config.LocalMode && s.Config.JWTSecret != "" {

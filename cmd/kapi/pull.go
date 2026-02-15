@@ -1,80 +1,73 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
+	"github.com/gokapi/gokapi/core/connector"
 	"github.com/gokapi/gokapi/core/kapiproject"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/spf13/cobra"
 )
 
 var (
-	pullForce  bool
-	pullDryRun bool
+	pullLocales []string
+	pullForce   bool
+	pullDryRun  bool
 )
 
 var pullCmd = &cobra.Command{
-	Use:   "pull [paths...]",
+	Use:   "pull",
 	Short: "Pull changes from Bowrain Server",
 	Long: `Fetch changes from Bowrain Server and update local files.
 
 Only changed blocks are transferred (incremental sync using content hashing).
 Runs post-pull hooks if configured in .kapi/config.yaml.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	RunE: runPull,
+}
 
-		// Find project
-		project, err := kapiproject.FindProject("")
-		if err != nil {
-			return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
-		}
+func runPull(cmd *cobra.Command, args []string) error {
+	proj, err := kapiproject.FindProject("")
+	if err != nil {
+		return err
+	}
 
-		// Check server configuration
-		if project.Config.Server == nil {
-			return fmt.Errorf("no server configured (run 'kapi init --server <URL> --project <ID>')")
-		}
+	conn, err := kapiproject.NewSourceConnector(proj, formatReg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 
-		// Load state
-		state, err := project.LoadState(ctx)
-		if err != nil {
-			return fmt.Errorf("load state: %w", err)
-		}
+	locales := make([]model.LocaleID, len(pullLocales))
+	for i, l := range pullLocales {
+		locales[i] = model.LocaleID(l)
+	}
 
-		fmt.Printf("Pulling from: %s\n", project.Config.Server.URL)
-		fmt.Printf("Project: %s\n", project.Config.Server.ProjectID)
+	result, err := conn.Pull(cmd.Context(), connector.PullOptions{
+		Locales: locales,
+		Force:   pullForce,
+		DryRun:  pullDryRun,
+	})
+	if err != nil {
+		return err
+	}
 
-		if pullDryRun {
-			fmt.Println("\n[DRY RUN] No files will be modified")
-		}
-
-		// TODO: Implement full pull logic:
-		// 1. Verify auth token
-		// 2. Call POST /api/v1/workspaces/:ws/projects/:id/pull
-		//    - Send local state (hashes, timestamps)
-		//    - Receive only changed blocks
-		// 3. Check for conflicts (both local and remote changed)
-		// 4. Write blocks to local files via FormatRegistry
-		// 5. Run post-pull hooks (if configured)
-		// 6. Update .state.json
-
-		fmt.Println("\nPull implementation: Not yet implemented")
-		fmt.Println()
-		fmt.Println("Full implementation requires:")
-		fmt.Println("  - Server API endpoints (/api/v1/.../pull)")
-		fmt.Println("  - Content hash computation")
-		fmt.Println("  - FormatRegistry integration for writing files")
-		fmt.Println("  - Hook execution framework")
-		fmt.Println()
-		fmt.Println("Current state loaded from:", project.KapiDir)
-		fmt.Printf("Tracked files: %d\n", len(state.Files))
-
+	if pullDryRun {
+		fmt.Printf("Would pull %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
 		return nil
-	},
+	}
+
+	if result.BlocksPulled == 0 {
+		fmt.Println("Already up to date.")
+		return nil
+	}
+
+	fmt.Printf("Pulled %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
+	return nil
 }
 
 func init() {
+	pullCmd.Flags().StringSliceVar(&pullLocales, "locale", nil, "Target locales to pull (e.g. fr-FR,de-DE)")
 	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Overwrite local changes")
-	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would be pulled")
-
+	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Report what would be pulled without writing")
 	rootCmd.AddCommand(pullCmd)
 }

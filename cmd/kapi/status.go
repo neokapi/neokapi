@@ -1,10 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"os"
-	"time"
+	"path/filepath"
 
 	"github.com/gokapi/gokapi/core/kapiproject"
 	"github.com/spf13/cobra"
@@ -17,73 +15,57 @@ var statusCmd = &cobra.Command{
 and conflicts between local and remote versions.
 
 Similar to 'git status' but for localization files.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
+	RunE: runStatus,
+}
 
-		// Find project
-		project, err := kapiproject.FindProject("")
-		if err != nil {
-			return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
-		}
+func runStatus(cmd *cobra.Command, args []string) error {
+	proj, err := kapiproject.FindProject("")
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Project root: %s\n", proj.Root)
+	fmt.Printf("Config:       %s\n", filepath.Join(proj.KapiDir, "config.yaml"))
 
-		// Load state
-		state, err := project.LoadState(ctx)
-		if err != nil {
-			return fmt.Errorf("load state: %w", err)
-		}
-
-		// Display sync status
-		fmt.Printf("Project: %s\n", project.Config.Project.Name)
-		fmt.Printf("Root: %s\n\n", project.Root)
-
-		if !state.LastPull.IsZero() {
-			fmt.Printf("Last pull: %s\n", state.LastPull.Format(time.RFC3339))
-		} else {
-			fmt.Println("Last pull: never")
-		}
-
-		if !state.LastPush.IsZero() {
-			fmt.Printf("Last push: %s\n", state.LastPush.Format(time.RFC3339))
-		} else {
-			fmt.Println("Last push: never")
-		}
-
-		fmt.Println()
-
-		// Check for modified local files
-		modifiedFiles := []string{}
-		for path, fileState := range state.Files {
-			fullPath := project.ResolvePath(path)
-			if st, err := os.Stat(fullPath); err == nil {
-				// File exists, check if modified
-				if st.ModTime().After(fileState.Modified) {
-					modifiedFiles = append(modifiedFiles, path)
-				}
-			}
-		}
-
-		if len(modifiedFiles) > 0 {
-			fmt.Println("Modified local files:")
-			for _, path := range modifiedFiles {
-				fmt.Printf("  M %s\n", path)
-			}
-		} else {
-			fmt.Println("No local changes")
-		}
-
-		// Server status (if configured)
-		if project.Config.Server != nil {
-			fmt.Printf("\nRemote: %s\n", project.Config.Server.URL)
-			fmt.Printf("Project ID: %s\n", project.Config.Server.ProjectID)
-			fmt.Println("\nRemote changes: (not yet implemented)")
-			fmt.Println("Run 'kapi pull --dry-run' to see remote changes")
-		} else {
-			fmt.Println("\nNo server configured")
-			fmt.Println("Run 'kapi init --server <URL> --project <ID>' to connect")
-		}
-
+	conn, err := kapiproject.NewSourceConnector(proj, formatReg)
+	if err != nil {
+		// No server configured — show local info only.
+		fmt.Println("\nSync status requires a Bowrain server connection.")
+		fmt.Printf("  Configure server in %s\n", filepath.Join(proj.KapiDir, "config.yaml"))
 		return nil
-	},
+	}
+	defer conn.Close()
+
+	status, err := conn.Status(cmd.Context())
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\nLocal blocks: %d\n", status.ItemCount)
+
+	if status.PendingPush > 0 {
+		fmt.Printf("Pending push: %d blocks changed locally\n", status.PendingPush)
+	}
+	if status.PendingPull > 0 {
+		fmt.Printf("Pending pull: %d remote changes available\n", status.PendingPull)
+	} else if status.PendingPull < 0 {
+		fmt.Println("Pending pull: remote changes available (count unknown)")
+	}
+	if status.PendingPush == 0 && status.PendingPull == 0 {
+		fmt.Println("Up to date.")
+	}
+
+	if !status.LastSync.IsZero() {
+		fmt.Printf("Last sync:    %s\n", status.LastSync.Format("2006-01-02 15:04:05 UTC"))
+	}
+
+	if len(status.Errors) > 0 {
+		fmt.Println("\nErrors:")
+		for _, e := range status.Errors {
+			fmt.Printf("  - %s\n", e)
+		}
+	}
+
+	return nil
 }
 
 func init() {

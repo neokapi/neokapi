@@ -155,9 +155,23 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 	}
 	defer stmt.Close()
 
+	// Prepare change log statement for detecting add vs modify.
+	hashStmt, err := tx.PrepareContext(ctx,
+		`SELECT content_hash FROM blocks WHERE project_id = ? AND id = ?`)
+	if err != nil {
+		return fmt.Errorf("prepare hash lookup: %w", err)
+	}
+	defer hashStmt.Close()
+
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, b := range blocks {
 		identity := model.ComputeIdentity(b)
+
+		// Check existing hash for change log.
+		var existingHash string
+		err := hashStmt.QueryRowContext(ctx, projectID, b.ID).Scan(&existingHash)
+		isNew := err == sql.ErrNoRows
+
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", b.ID, err)
@@ -187,6 +201,17 @@ func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks 
 			string(propsJSON), string(annsJSON), now, now)
 		if err != nil {
 			return fmt.Errorf("store block %s: %w", b.ID, err)
+		}
+
+		// Append to change log.
+		if isNew {
+			if err := logChange(ctx, tx, projectID, b.ID, "source_added", "", identity.ContentHash); err != nil {
+				return fmt.Errorf("log change for block %s: %w", b.ID, err)
+			}
+		} else if existingHash != identity.ContentHash {
+			if err := logChange(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
+				return fmt.Errorf("log change for block %s: %w", b.ID, err)
+			}
 		}
 	}
 
@@ -256,7 +281,13 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*Store
 }
 
 func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string) error {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
 	if err != nil {
 		return fmt.Errorf("delete block: %w", err)
 	}
@@ -264,7 +295,12 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string
 	if n == 0 {
 		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
-	return nil
+
+	if err := logChange(ctx, tx, projectID, blockID, "source_removed", "", ""); err != nil {
+		return fmt.Errorf("log change for deleted block %s: %w", blockID, err)
+	}
+
+	return tx.Commit()
 }
 
 // ---------------------------------------------------------------------------

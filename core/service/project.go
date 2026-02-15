@@ -71,3 +71,18 @@ func (s *ProjectService) ListVersions(ctx context.Context, projectID string) ([]
 func (s *ProjectService) Diff(ctx context.Context, from, to string) (*store.VersionDiff, error) {
 	return s.store.Diff(ctx, from, to)
 }
+
+// GetChanges returns change log entries since the given cursor.
+func (s *ProjectService) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*store.ChangeSet, error) {
+	return s.store.GetChanges(ctx, projectID, sinceCursor, locale, limit)
+}
+
+// LatestCursor returns the most recent change log sequence number for a project.
+func (s *ProjectService) LatestCursor(ctx context.Context, projectID string) (int64, error) {
+	return s.store.LatestCursor(ctx, projectID)
+}
+
+// DeleteBlock deletes a block from a project.
+func (s *ProjectService) DeleteBlock(ctx context.Context, projectID, blockID string) error {
+	return s.store.DeleteBlock(ctx, projectID, blockID)
+}

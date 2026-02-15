@@ -9,11 +9,11 @@ import (
 	"github.com/gokapi/gokapi/core/store"
 )
 
-// ConnectorService manages connectors and orchestrates pull/push operations.
+// ConnectorService manages connectors and orchestrates fetch/publish operations.
 type ConnectorService struct {
 	store        store.ContentStore
 	connectorReg *connector.Registry
-	active       map[string]connector.Connector // connectorID → instance
+	active       map[string]connector.IntegrationConnector // connectorID -> instance
 }
 
 // NewConnectorService creates a new ConnectorService.
@@ -21,7 +21,7 @@ func NewConnectorService(s store.ContentStore, reg *connector.Registry) *Connect
 	return &ConnectorService{
 		store:        s,
 		connectorReg: reg,
-		active:       make(map[string]connector.Connector),
+		active:       make(map[string]connector.IntegrationConnector),
 	}
 }
 
@@ -31,7 +31,7 @@ func (s *ConnectorService) ListConnectorTypes() []connector.ConnectorInfo {
 }
 
 // AddConnector creates and registers an active connector instance.
-func (s *ConnectorService) AddConnector(name string, config map[string]string) (connector.Connector, error) {
+func (s *ConnectorService) AddConnector(name string, config map[string]string) (connector.IntegrationConnector, error) {
 	c, err := s.connectorReg.NewConnector(name, config)
 	if err != nil {
 		return nil, fmt.Errorf("create connector %s: %w", name, err)
@@ -41,7 +41,7 @@ func (s *ConnectorService) AddConnector(name string, config map[string]string) (
 }
 
 // GetConnector returns an active connector by ID.
-func (s *ConnectorService) GetConnector(id string) (connector.Connector, error) {
+func (s *ConnectorService) GetConnector(id string) (connector.IntegrationConnector, error) {
 	c, ok := s.active[id]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", id)
@@ -60,27 +60,27 @@ func (s *ConnectorService) RemoveConnector(id string) error {
 }
 
 // ListActive returns all active connector instances.
-func (s *ConnectorService) ListActive() []connector.Connector {
-	result := make([]connector.Connector, 0, len(s.active))
+func (s *ConnectorService) ListActive() []connector.IntegrationConnector {
+	result := make([]connector.IntegrationConnector, 0, len(s.active))
 	for _, c := range s.active {
 		result = append(result, c)
 	}
 	return result
 }
 
-// Pull retrieves content from a connector and stores it in the project.
-func (s *ConnectorService) Pull(ctx context.Context, connectorID, projectID string, opts connector.PullOptions) ([]*connector.ContentItem, error) {
+// Fetch retrieves content from a connector and stores it in the project.
+func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	c, ok := s.active[connectorID]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", connectorID)
 	}
 
-	items, err := c.Pull(ctx, opts)
+	items, err := c.Fetch(ctx, opts)
 	if err != nil {
-		return nil, fmt.Errorf("pull from %s: %w", connectorID, err)
+		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
-	// Store pulled blocks in the content store.
+	// Store fetched blocks in the content store.
 	for _, item := range items {
 		if len(item.Blocks) > 0 {
 			if err := s.store.StoreBlocks(ctx, projectID, item.Blocks); err != nil {
@@ -92,8 +92,8 @@ func (s *ConnectorService) Pull(ctx context.Context, connectorID, projectID stri
 	return items, nil
 }
 
-// Push sends content from the store to a connector.
-func (s *ConnectorService) Push(ctx context.Context, connectorID, projectID string, opts connector.PushOptions) error {
+// Publish sends content from the store to a connector.
+func (s *ConnectorService) Publish(ctx context.Context, connectorID, projectID string, opts connector.PublishOptions) error {
 	c, ok := s.active[connectorID]
 	if !ok {
 		return fmt.Errorf("connector %s not found", connectorID)
@@ -105,7 +105,7 @@ func (s *ConnectorService) Push(ctx context.Context, connectorID, projectID stri
 		return fmt.Errorf("get blocks: %w", err)
 	}
 
-	// Group blocks into a single content item for pushing.
+	// Group blocks into a single content item for publishing.
 	modelBlocks := make([]*model.Block, len(blocks))
 	for i, sb := range blocks {
 		modelBlocks[i] = sb.Block
@@ -116,14 +116,14 @@ func (s *ConnectorService) Push(ctx context.Context, connectorID, projectID stri
 		Blocks: modelBlocks,
 	}}
 
-	return c.Push(ctx, items, opts)
+	return c.Publish(ctx, items, opts)
 }
 
-// SyncStatus returns the sync status for a connector.
-func (s *ConnectorService) SyncStatus(ctx context.Context, connectorID string) (*connector.SyncStatus, error) {
+// ConnectorStatus returns the sync status for a connector.
+func (s *ConnectorService) ConnectorStatus(ctx context.Context, connectorID string) (*connector.SyncStatus, error) {
 	c, ok := s.active[connectorID]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", connectorID)
 	}
-	return c.Sync(ctx)
+	return c.Status(ctx)
 }

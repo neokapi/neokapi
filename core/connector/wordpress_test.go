@@ -51,7 +51,7 @@ func setupWordPressServer(t *testing.T) *httptest.Server {
 	return httptest.NewServer(mux)
 }
 
-func TestWordPressPull(t *testing.T) {
+func TestWordPressFetch(t *testing.T) {
 	srv := setupWordPressServer(t)
 	defer srv.Close()
 
@@ -61,7 +61,7 @@ func TestWordPressPull(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, CategoryCMS, c.Category())
 
-	items, err := c.Pull(context.Background(), PullOptions{})
+	items, err := c.Fetch(context.Background(), FetchOptions{})
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 
@@ -70,7 +70,7 @@ func TestWordPressPull(t *testing.T) {
 	assert.Equal(t, "posts/hello-world", items[0].Path)
 }
 
-func TestWordPressPush(t *testing.T) {
+func TestWordPressPublish(t *testing.T) {
 	srv := setupWordPressServer(t)
 	defer srv.Close()
 
@@ -79,14 +79,14 @@ func TestWordPressPush(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	items, err := c.Pull(context.Background(), PullOptions{})
+	items, err := c.Fetch(context.Background(), FetchOptions{})
 	require.NoError(t, err)
 
-	err = c.Push(context.Background(), items[:1], PushOptions{})
+	err = c.Publish(context.Background(), items[:1], PublishOptions{})
 	require.NoError(t, err)
 }
 
-func TestWordPressSync(t *testing.T) {
+func TestWordPressStatus(t *testing.T) {
 	srv := setupWordPressServer(t)
 	defer srv.Close()
 
@@ -95,7 +95,7 @@ func TestWordPressSync(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	status, err := c.Sync(context.Background())
+	status, err := c.Status(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 2, status.ItemCount)
 }

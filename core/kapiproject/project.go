@@ -1,7 +1,6 @@
 package kapiproject
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,9 +14,6 @@ const (
 
 	// ConfigFile is the project configuration file.
 	ConfigFile = "config.yaml"
-
-	// StateFile is the sync state file (gitignored).
-	StateFile = ".state.json"
 
 	// FlowsDir is the flows directory.
 	FlowsDir = "flows"
@@ -33,9 +29,6 @@ type Project struct {
 
 	// Config is the loaded project configuration.
 	Config *Config
-
-	// State is the sync state (loaded lazily).
-	state *State
 }
 
 // FindProject searches for a .kapi/ directory starting from the current directory
@@ -110,9 +103,9 @@ func InitProject(root string, cfg *Config) (*Project, error) {
 		return nil, fmt.Errorf("save config: %w", err)
 	}
 
-	// Create .gitignore entry for .state.json
+	// Create .gitignore entry for sync cache
 	gitignorePath := filepath.Join(kapiDir, ".gitignore")
-	gitignoreContent := "# Kapi sync state (local only)\n.state.json\n"
+	gitignoreContent := "# Kapi sync cache (local only)\n.sync-cache\n"
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		return nil, fmt.Errorf("create .gitignore: %w", err)
 	}
@@ -122,30 +115,6 @@ func InitProject(root string, cfg *Config) (*Project, error) {
 		KapiDir: kapiDir,
 		Config:  cfg,
 	}, nil
-}
-
-// LoadState loads the sync state (lazy-loaded).
-func (p *Project) LoadState(ctx context.Context) (*State, error) {
-	if p.state != nil {
-		return p.state, nil
-	}
-
-	state, err := LoadState(p.KapiDir)
-	if err != nil {
-		return nil, err
-	}
-
-	p.state = state
-	return state, nil
-}
-
-// SaveState saves the sync state.
-func (p *Project) SaveState(ctx context.Context, state *State) error {
-	if err := SaveState(p.KapiDir, state); err != nil {
-		return err
-	}
-	p.state = state
-	return nil
 }
 
 // ResolvePath resolves a local path relative to the project root.
@@ -197,7 +166,7 @@ type ServerConfig struct {
 	// Auth token comes from kapi auth login (stored separately)
 }
 
-// Mapping defines a local ↔ remote file mapping.
+// Mapping defines a local - remote file mapping.
 type Mapping struct {
 	Local  string `yaml:"local"`  // Glob pattern
 	Remote string `yaml:"remote"` // Template with {path}, {filename}, {basename}

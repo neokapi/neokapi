@@ -20,16 +20,16 @@ type testConnector struct {
 func (c *testConnector) ID() string                   { return c.id }
 func (c *testConnector) Name() string                 { return "test" }
 func (c *testConnector) Category() connector.Category { return connector.CategoryFile }
-func (c *testConnector) Pull(_ context.Context, _ connector.PullOptions) ([]*connector.ContentItem, error) {
+func (c *testConnector) Fetch(_ context.Context, _ connector.FetchOptions) ([]*connector.ContentItem, error) {
 	return c.items, nil
 }
-func (c *testConnector) Push(_ context.Context, _ []*connector.ContentItem, _ connector.PushOptions) error {
+func (c *testConnector) Publish(_ context.Context, _ []*connector.ContentItem, _ connector.PublishOptions) error {
 	return nil
 }
 func (c *testConnector) List(_ context.Context) ([]*connector.ContentItem, error) {
 	return c.items, nil
 }
-func (c *testConnector) Sync(_ context.Context) (*connector.SyncStatus, error) {
+func (c *testConnector) Status(_ context.Context) (*connector.SyncStatus, error) {
 	return &connector.SyncStatus{ConnectorID: c.id, ItemCount: len(c.items)}, nil
 }
 func (c *testConnector) Configure(_ map[string]string) error { return nil }
@@ -38,7 +38,7 @@ func (c *testConnector) Close() error                        { return nil }
 func TestConnectorServiceAddRemove(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.Connector, error) {
+	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{id: "test-1"}, nil
 	})
 
@@ -59,7 +59,7 @@ func TestConnectorServiceAddRemove(t *testing.T) {
 	assert.Len(t, svc.ListActive(), 0)
 }
 
-func TestConnectorServicePull(t *testing.T) {
+func TestConnectorServiceFetch(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
@@ -68,7 +68,7 @@ func TestConnectorServicePull(t *testing.T) {
 	require.NoError(t, s.CreateProject(ctx, p))
 
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.Connector, error) {
+	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{
 			id: "test-1",
 			items: []*connector.ContentItem{{
@@ -82,7 +82,7 @@ func TestConnectorServicePull(t *testing.T) {
 	_, err := svc.AddConnector("test", nil)
 	require.NoError(t, err)
 
-	items, err := svc.Pull(ctx, "test-1", p.ID, connector.PullOptions{})
+	items, err := svc.Fetch(ctx, "test-1", p.ID, connector.FetchOptions{})
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
 
@@ -93,10 +93,10 @@ func TestConnectorServicePull(t *testing.T) {
 	assert.Equal(t, "Hello from connector", blocks[0].SourceText())
 }
 
-func TestConnectorServiceSyncStatus(t *testing.T) {
+func TestConnectorServiceStatus(t *testing.T) {
 	s := newTestStore(t)
 	reg := connector.NewRegistry()
-	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.Connector, error) {
+	reg.Register("test", connector.CategoryFile, func(config map[string]string) (connector.IntegrationConnector, error) {
 		return &testConnector{
 			id:    "test-1",
 			items: []*connector.ContentItem{{ID: "a"}, {ID: "b"}},
@@ -106,7 +106,7 @@ func TestConnectorServiceSyncStatus(t *testing.T) {
 	svc := NewConnectorService(s, reg)
 	_, _ = svc.AddConnector("test", nil)
 
-	status, err := svc.SyncStatus(context.Background(), "test-1")
+	status, err := svc.ConnectorStatus(context.Background(), "test-1")
 	require.NoError(t, err)
 	assert.Equal(t, 2, status.ItemCount)
 }

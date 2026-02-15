@@ -11,7 +11,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// FigmaConnector integrates with the Figma API to pull/push text content.
+// FigmaConnector integrates with the Figma API to fetch text content.
 type FigmaConnector struct {
 	id       string
 	connName string
@@ -82,7 +82,7 @@ func (c *FigmaConnector) Configure(config map[string]string) error {
 
 func (c *FigmaConnector) Close() error { return nil }
 
-func (c *FigmaConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+func (c *FigmaConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
 	file, err := c.fetchFile(ctx)
 	if err != nil {
 		return nil, err
@@ -101,17 +101,17 @@ func (c *FigmaConnector) Pull(ctx context.Context, opts PullOptions) ([]*Content
 	}}, nil
 }
 
-func (c *FigmaConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+func (c *FigmaConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
 	// Figma API doesn't support direct text updates in the general API.
 	// This would require the Figma Plugin API or Variables API.
-	return fmt.Errorf("figma push not yet supported via REST API")
+	return fmt.Errorf("figma publish not yet supported via REST API")
 }
 
 func (c *FigmaConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Pull(ctx, PullOptions{})
+	return c.Fetch(ctx, FetchOptions{})
 }
 
-func (c *FigmaConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+func (c *FigmaConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err

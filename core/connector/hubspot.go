@@ -70,7 +70,7 @@ func (c *HubSpotConnector) Configure(config map[string]string) error {
 
 func (c *HubSpotConnector) Close() error { return nil }
 
-func (c *HubSpotConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+func (c *HubSpotConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
 	pages, err := c.fetchPages(ctx)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (c *HubSpotConnector) Pull(ctx context.Context, opts PullOptions) ([]*Conte
 	return items, nil
 }
 
-func (c *HubSpotConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+func (c *HubSpotConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
 	for _, item := range items {
 		pageID := item.ID
 		if pageID == "" {
@@ -154,10 +154,10 @@ func (c *HubSpotConnector) Push(ctx context.Context, items []*ContentItem, opts 
 }
 
 func (c *HubSpotConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Pull(ctx, PullOptions{})
+	return c.Fetch(ctx, FetchOptions{})
 }
 
-func (c *HubSpotConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+func (c *HubSpotConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err

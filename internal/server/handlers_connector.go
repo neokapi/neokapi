@@ -13,15 +13,15 @@ type ConnectorAddRequest struct {
 	Config map[string]string `json:"config"`
 }
 
-// PullRequest is the request for pulling content.
-type PullRequest struct {
+// FetchRequest is the request for fetching content from a connector.
+type FetchRequest struct {
 	ConnectorID string   `json:"connector_id"`
 	ProjectID   string   `json:"project_id"`
 	Paths       []string `json:"paths,omitempty"`
 }
 
-// PushRequest is the request for pushing content.
-type PushRequest struct {
+// PublishRequest is the request for publishing content to a connector.
+type PublishRequest struct {
 	ConnectorID string `json:"connector_id"`
 	ProjectID   string `json:"project_id"`
 	Message     string `json:"message,omitempty"`
@@ -87,37 +87,37 @@ func (s *Server) HandleRemoveConnector(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *Server) HandlePull(c echo.Context) error {
+func (s *Server) HandleFetch(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	var req PullRequest
+	var req FetchRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	items, err := s.Services.Connector.Pull(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.PullOptions{
+	items, err := s.Services.Connector.Fetch(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.FetchOptions{
 		Paths: req.Paths,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, map[string]int{"items_pulled": len(items)})
+	return c.JSON(http.StatusOK, map[string]int{"items_fetched": len(items)})
 }
 
-func (s *Server) HandlePush(c echo.Context) error {
+func (s *Server) HandlePublish(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	var req PushRequest
+	var req PublishRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	err := s.Services.Connector.Push(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.PushOptions{
+	err := s.Services.Connector.Publish(c.Request().Context(), req.ConnectorID, req.ProjectID, connector.PublishOptions{
 		Message: req.Message,
 	})
 	if err != nil {
@@ -127,11 +127,11 @@ func (s *Server) HandlePush(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func (s *Server) HandleSyncStatus(c echo.Context) error {
+func (s *Server) HandleConnectorStatus(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
-	status, err := s.Services.Connector.SyncStatus(c.Request().Context(), c.Param("id"))
+	status, err := s.Services.Connector.ConnectorStatus(c.Request().Context(), c.Param("id"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}

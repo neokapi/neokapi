@@ -47,14 +47,14 @@ func TestFileConnectorList(t *testing.T) {
 	assert.Equal(t, "html", items[0].Format)
 }
 
-func TestFileConnectorPull(t *testing.T) {
+func TestFileConnectorFetch(t *testing.T) {
 	dir := t.TempDir()
 	err := os.WriteFile(filepath.Join(dir, "test.html"),
 		[]byte("<html><head><title>Test</title></head><body><p>Hello world</p></body></html>"), 0644)
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Pull(context.Background(), PullOptions{
+	items, err := c.Fetch(context.Background(), FetchOptions{
 		Paths: []string{"test.html"},
 	})
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestFileConnectorPull(t *testing.T) {
 	assert.Greater(t, len(items[0].Blocks), 0, "should have extracted blocks")
 }
 
-func TestFileConnectorPullAll(t *testing.T) {
+func TestFileConnectorFetchAll(t *testing.T) {
 	dir := t.TempDir()
 	err := os.WriteFile(filepath.Join(dir, "a.html"),
 		[]byte("<html><body><p>File A</p></body></html>"), 0644)
@@ -73,19 +73,19 @@ func TestFileConnectorPullAll(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Pull(context.Background(), PullOptions{})
+	items, err := c.Fetch(context.Background(), FetchOptions{})
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 }
 
-func TestFileConnectorSync(t *testing.T) {
+func TestFileConnectorStatus(t *testing.T) {
 	dir := t.TempDir()
 	err := os.WriteFile(filepath.Join(dir, "test.html"),
 		[]byte("<html><body><p>Hello</p></body></html>"), 0644)
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	status, err := c.Sync(context.Background())
+	status, err := c.Status(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "test-file", status.ConnectorID)
 	assert.Equal(t, 1, status.ItemCount)

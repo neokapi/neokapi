@@ -73,4 +73,21 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_projects_workspace ON projects(workspace_id);
 		`,
 	},
+	{
+		Version:     5,
+		Description: "create change_log table for incremental sync",
+		SQL: `
+			CREATE TABLE change_log (
+				seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+				project_id   TEXT NOT NULL,
+				block_id     TEXT NOT NULL,
+				change_type  TEXT NOT NULL,
+				locale       TEXT,
+				content_hash TEXT,
+				logged_at    TEXT NOT NULL
+			);
+			CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
+			CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
+		`,
+	},
 }

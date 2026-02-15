@@ -99,7 +99,7 @@ export function ConnectorPanel() {
       setContentItems([]);
     }
     try {
-      const status = await Backend.GetSyncStatus(id);
+      const status = await Backend.GetConnectorStatus(id);
       setSyncStatus(status);
     } catch {
       setSyncStatus(null);

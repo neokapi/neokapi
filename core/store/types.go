@@ -8,6 +8,14 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
+const (
+	// MaxBlocksPerRequest limits the number of blocks in a single sync push request.
+	MaxBlocksPerRequest = 1000
+
+	// DefaultBlockLimit is the default limit for block queries.
+	DefaultBlockLimit = 10000
+)
+
 // Project represents a localization project in the store.
 type Project struct {
 	ID            string            `json:"id"`
@@ -74,4 +82,25 @@ type BlockChange struct {
 	ChangeType ChangeType
 	OldHash    string // Empty for added blocks
 	NewHash    string // Empty for removed blocks
+}
+
+// ---------------------------------------------------------------------------
+// Change Log (incremental sync)
+// ---------------------------------------------------------------------------
+
+// ChangeEntry represents a single entry in the append-only change log.
+type ChangeEntry struct {
+	Seq         int64     `json:"seq"`
+	BlockID     string    `json:"block_id"`
+	ChangeType  string    `json:"change_type"` // source_added, source_modified, source_removed, target_added, target_modified
+	Locale      string    `json:"locale,omitempty"` // Empty for source changes
+	ContentHash string    `json:"content_hash,omitempty"`
+	LoggedAt    time.Time `json:"logged_at"`
+}
+
+// ChangeSet is the result of a GetChanges query.
+type ChangeSet struct {
+	Changes   []ChangeEntry `json:"changes"`
+	NewCursor int64         `json:"new_cursor"` // Latest seq in this batch
+	HasMore   bool          `json:"has_more"`   // True if more changes exist beyond this batch
 }

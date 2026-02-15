@@ -5,8 +5,8 @@ import (
 	"sync"
 )
 
-// Factory creates a new Connector instance with the given configuration.
-type Factory func(config map[string]string) (Connector, error)
+// Factory creates a new IntegrationConnector instance with the given configuration.
+type Factory func(config map[string]string) (IntegrationConnector, error)
 
 // ConnectorInfo describes a registered connector type.
 type ConnectorInfo struct {
@@ -38,7 +38,7 @@ func (r *Registry) Register(name string, category Category, factory Factory) {
 }
 
 // NewConnector creates a new connector instance from the registry.
-func (r *Registry) NewConnector(name string, config map[string]string) (Connector, error) {
+func (r *Registry) NewConnector(name string, config map[string]string) (IntegrationConnector, error) {
 	r.mu.RLock()
 	factory, ok := r.factories[name]
 	r.mu.RUnlock()

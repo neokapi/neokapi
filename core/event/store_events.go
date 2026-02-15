@@ -135,6 +135,18 @@ func (s *EventEmittingStore) ImportKAZ(ctx context.Context, r io.Reader) (string
 	return s.inner.ImportKAZ(ctx, r)
 }
 
+func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*store.ChangeSet, error) {
+	return s.inner.GetChanges(ctx, projectID, sinceCursor, locale, limit)
+}
+
+func (s *EventEmittingStore) LatestCursor(ctx context.Context, projectID string) (int64, error) {
+	return s.inner.LatestCursor(ctx, projectID)
+}
+
+func (s *EventEmittingStore) CompactChangeLog(ctx context.Context, projectID string, retainDays int) (int64, error) {
+	return s.inner.CompactChangeLog(ctx, projectID, retainDays)
+}
+
 func (s *EventEmittingStore) Close() error {
 	return s.inner.Close()
 }

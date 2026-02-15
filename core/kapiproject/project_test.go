@@ -1,11 +1,9 @@
 package kapiproject
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/stretchr/testify/assert"
@@ -170,7 +168,7 @@ func TestInitProject(t *testing.T) {
 		// Verify .gitignore content (inside .kapi directory)
 		gitignoreContent, err := os.ReadFile(filepath.Join(tmpDir, ".kapi", ".gitignore"))
 		require.NoError(t, err)
-		assert.Contains(t, string(gitignoreContent), ".state.json")
+		assert.Contains(t, string(gitignoreContent), ".sync-cache")
 	})
 
 	t.Run("initialize fails if .kapi already exists", func(t *testing.T) {
@@ -188,54 +186,6 @@ func TestInitProject(t *testing.T) {
 		_, err := InitProject(tmpDir, cfg)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "already exists")
-	})
-}
-
-func TestLoadState(t *testing.T) {
-	tmpDir := t.TempDir()
-	kapiDir := filepath.Join(tmpDir, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
-
-	cfg := &Config{
-		Project: ProjectMeta{
-			Name:         "Test",
-			SourceLocale: "en",
-		},
-	}
-	require.NoError(t, SaveConfig(kapiDir, cfg))
-
-	project, err := FindProject(tmpDir)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	t.Run("load creates new state if not exists", func(t *testing.T) {
-		state, err := project.LoadState(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, state)
-		assert.NotNil(t, state.Files)
-		assert.NotNil(t, state.RemoteItems)
-	})
-
-	t.Run("load existing state", func(t *testing.T) {
-		// Create state file
-		modTime, _ := time.Parse(time.RFC3339, "2026-01-01T00:00:00Z")
-		state := &State{
-			Files: map[string]*FileState{
-				"test.txt": {
-					ContentHash: "abc123",
-					Modified:    modTime,
-				},
-			},
-		}
-		require.NoError(t, project.SaveState(ctx, state))
-
-		// Load it back
-		loaded, err := project.LoadState(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, loaded)
-		assert.Len(t, loaded.Files, 1)
-		assert.Equal(t, "abc123", loaded.Files["test.txt"].ContentHash)
 	})
 }
 

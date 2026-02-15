@@ -45,7 +45,7 @@ func TestConnectorLifecycle(t *testing.T) {
 	assert.Len(t, active, 0)
 
 	// Cleanup: reset global state for other tests.
-	activeConnectors = map[string]connector.Connector{}
+	activeConnectors = map[string]connector.IntegrationConnector{}
 }
 
 func TestInitContentStore(t *testing.T) {

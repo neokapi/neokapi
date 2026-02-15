@@ -75,7 +75,7 @@ func (c *WordPressConnector) Configure(config map[string]string) error {
 
 func (c *WordPressConnector) Close() error { return nil }
 
-func (c *WordPressConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+func (c *WordPressConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
 	posts, err := c.fetchPosts(ctx)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func (c *WordPressConnector) Pull(ctx context.Context, opts PullOptions) ([]*Con
 	return items, nil
 }
 
-func (c *WordPressConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+func (c *WordPressConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
 	for _, item := range items {
 		wpID := item.Metadata["wp_id"]
 		if wpID == "" {
@@ -149,10 +149,10 @@ func (c *WordPressConnector) Push(ctx context.Context, items []*ContentItem, opt
 }
 
 func (c *WordPressConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Pull(ctx, PullOptions{})
+	return c.Fetch(ctx, FetchOptions{})
 }
 
-func (c *WordPressConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+func (c *WordPressConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err

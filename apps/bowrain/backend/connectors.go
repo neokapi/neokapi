@@ -17,7 +17,7 @@ type ConnectorInfo struct {
 	Category string `json:"category"`
 }
 
-// ContentItemInfo describes a content item pulled from a connector.
+// ContentItemInfo describes a content item fetched from a connector.
 type ContentItemInfo struct {
 	ID         string `json:"id"`
 	Path       string `json:"path"`
@@ -34,7 +34,7 @@ type SyncStatusInfo struct {
 }
 
 // activeConnectors holds instantiated connectors by ID.
-var activeConnectors = map[string]connector.Connector{}
+var activeConnectors = map[string]connector.IntegrationConnector{}
 
 // ListConnectorTypes returns all available connector type names.
 func (a *App) ListConnectorTypes() []string {
@@ -85,17 +85,17 @@ func (a *App) RemoveConnector(connectorID string) error {
 	return c.Close()
 }
 
-// PullContent pulls content from a connector into the content store.
-func (a *App) PullContent(connectorID, projectID string) ([]ContentItemInfo, error) {
+// FetchContent fetches content from a connector into the content store.
+func (a *App) FetchContent(connectorID, projectID string) ([]ContentItemInfo, error) {
 	c, ok := activeConnectors[connectorID]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", connectorID)
 	}
 
 	ctx := context.Background()
-	items, err := c.Pull(ctx, connector.PullOptions{})
+	items, err := c.Fetch(ctx, connector.FetchOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("pull from %s: %w", connectorID, err)
+		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
 	// Store blocks if we have a content store.
@@ -121,8 +121,8 @@ func (a *App) PullContent(connectorID, projectID string) ([]ContentItemInfo, err
 	return result, nil
 }
 
-// PushContent pushes content from the store to a connector.
-func (a *App) PushContent(connectorID, projectID string) error {
+// PublishContent publishes content from the store to a connector.
+func (a *App) PublishContent(connectorID, projectID string) error {
 	c, ok := activeConnectors[connectorID]
 	if !ok {
 		return fmt.Errorf("connector %s not found", connectorID)
@@ -147,20 +147,20 @@ func (a *App) PushContent(connectorID, projectID string) error {
 		Blocks: modelBlocks,
 	}}
 
-	return c.Push(ctx, items, connector.PushOptions{})
+	return c.Publish(ctx, items, connector.PublishOptions{})
 }
 
-// GetSyncStatus returns the sync status of a connector.
-func (a *App) GetSyncStatus(connectorID string) (*SyncStatusInfo, error) {
+// GetConnectorStatus returns the sync status of a connector.
+func (a *App) GetConnectorStatus(connectorID string) (*SyncStatusInfo, error) {
 	c, ok := activeConnectors[connectorID]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", connectorID)
 	}
 
 	ctx := context.Background()
-	status, err := c.Sync(ctx)
+	status, err := c.Status(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("sync status: %w", err)
+		return nil, fmt.Errorf("connector status: %w", err)
 	}
 
 	statusStr := "synced"

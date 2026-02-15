@@ -19,24 +19,26 @@ type mockConnector struct {
 func (m *mockConnector) ID() string         { return m.id }
 func (m *mockConnector) Name() string       { return m.name }
 func (m *mockConnector) Category() Category { return m.category }
-func (m *mockConnector) Pull(_ context.Context, _ PullOptions) ([]*ContentItem, error) {
+func (m *mockConnector) Fetch(_ context.Context, _ FetchOptions) ([]*ContentItem, error) {
 	return []*ContentItem{{ID: "item1", Name: "test"}}, nil
 }
-func (m *mockConnector) Push(_ context.Context, _ []*ContentItem, _ PushOptions) error { return nil }
-func (m *mockConnector) List(_ context.Context) ([]*ContentItem, error)                { return nil, nil }
-func (m *mockConnector) Sync(_ context.Context) (*SyncStatus, error) {
+func (m *mockConnector) Publish(_ context.Context, _ []*ContentItem, _ PublishOptions) error {
+	return nil
+}
+func (m *mockConnector) List(_ context.Context) ([]*ContentItem, error) { return nil, nil }
+func (m *mockConnector) Status(_ context.Context) (*SyncStatus, error) {
 	return &SyncStatus{ConnectorID: m.id}, nil
 }
 func (m *mockConnector) Configure(_ map[string]string) error { return nil }
 func (m *mockConnector) Close() error                        { return nil }
 
-// Ensure mockConnector satisfies the Connector interface at compile time.
-var _ Connector = (*mockConnector)(nil)
+// Ensure mockConnector satisfies the IntegrationConnector interface at compile time.
+var _ IntegrationConnector = (*mockConnector)(nil)
 
 func TestRegistry(t *testing.T) {
 	r := NewRegistry()
 
-	factory := func(config map[string]string) (Connector, error) {
+	factory := func(config map[string]string) (IntegrationConnector, error) {
 		return &mockConnector{
 			id:       config["id"],
 			name:     "mock",

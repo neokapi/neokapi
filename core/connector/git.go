@@ -12,7 +12,7 @@ import (
 	"github.com/gokapi/gokapi/core/registry"
 )
 
-// GitConnector pulls and pushes localization content from Git repositories.
+// GitConnector fetches and publishes localization content from Git repositories.
 // It clones/pulls repos, discovers resource files via glob patterns,
 // and uses a FileConnector internally for reading/writing.
 type GitConnector struct {
@@ -110,7 +110,7 @@ func (c *GitConnector) ensureFileConnector() error {
 	return nil
 }
 
-func (c *GitConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentItem, error) {
+func (c *GitConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
 	if err := c.ensureRepo(ctx); err != nil {
 		return nil, err
 	}
@@ -129,15 +129,15 @@ func (c *GitConnector) Pull(ctx context.Context, opts PullOptions) ([]*ContentIt
 		}
 	}
 
-	return c.fileConnector.Pull(ctx, opts)
+	return c.fileConnector.Fetch(ctx, opts)
 }
 
-func (c *GitConnector) Push(ctx context.Context, items []*ContentItem, opts PushOptions) error {
+func (c *GitConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
 	if err := c.ensureFileConnector(); err != nil {
 		return err
 	}
 
-	if err := c.fileConnector.Push(ctx, items, opts); err != nil {
+	if err := c.fileConnector.Publish(ctx, items, opts); err != nil {
 		return err
 	}
 
@@ -194,7 +194,7 @@ func (c *GitConnector) List(ctx context.Context) ([]*ContentItem, error) {
 	return filtered, nil
 }
 
-func (c *GitConnector) Sync(ctx context.Context) (*SyncStatus, error) {
+func (c *GitConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	// Pure Go SQLite driver — no CGo dependencies.
 	_ "modernc.org/sqlite"
@@ -30,6 +31,11 @@ func Open(dbPath string) (*DB, error) {
 	// connection so all queries share the same in-memory state.
 	if dbPath == ":memory:" || strings.Contains(dbPath, "mode=memory") {
 		db.SetMaxOpenConns(1)
+	} else {
+		// Connection pool for file-backed databases.
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 
 	if err := applyPragmas(db); err != nil {

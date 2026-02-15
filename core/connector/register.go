@@ -6,23 +6,23 @@ import "github.com/gokapi/gokapi/core/registry"
 // The FileConnector and GitConnector require a FormatRegistry for format
 // detection and parsing.
 func RegisterAll(r *Registry, formatReg *registry.FormatRegistry) {
-	r.Register("file", CategoryFile, func(config map[string]string) (Connector, error) {
+	r.Register("file", CategoryFile, func(config map[string]string) (IntegrationConnector, error) {
 		return NewFileConnector(formatReg, config)
 	})
 
-	r.Register("git", CategoryCode, func(config map[string]string) (Connector, error) {
+	r.Register("git", CategoryCode, func(config map[string]string) (IntegrationConnector, error) {
 		return NewGitConnector(formatReg, config)
 	})
 
-	r.Register("wordpress", CategoryCMS, func(config map[string]string) (Connector, error) {
+	r.Register("wordpress", CategoryCMS, func(config map[string]string) (IntegrationConnector, error) {
 		return NewWordPressConnector(config)
 	})
 
-	r.Register("figma", CategoryDesign, func(config map[string]string) (Connector, error) {
+	r.Register("figma", CategoryDesign, func(config map[string]string) (IntegrationConnector, error) {
 		return NewFigmaConnector(config)
 	})
 
-	r.Register("hubspot", CategoryMarketing, func(config map[string]string) (Connector, error) {
+	r.Register("hubspot", CategoryMarketing, func(config map[string]string) (IntegrationConnector, error) {
 		return NewHubSpotConnector(config)
 	})
 }

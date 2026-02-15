@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/gokapi/gokapi/core/kapiproject"
@@ -15,18 +14,10 @@ var diffCmd = &cobra.Command{
 
 Shows which blocks have changed locally or remotely since the last sync.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := context.Background()
-
 		// Find project
 		project, err := kapiproject.FindProject("")
 		if err != nil {
 			return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
-		}
-
-		// Load state
-		_, err = project.LoadState(ctx)
-		if err != nil {
-			return fmt.Errorf("load state: %w", err)
 		}
 
 		fmt.Printf("Project: %s\n\n", project.Config.Project.Name)
