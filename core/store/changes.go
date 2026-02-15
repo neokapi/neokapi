@@ -94,7 +94,7 @@ func (s *SQLiteStore) CompactChangeLog(ctx context.Context, projectID string, re
 
 	result, err := s.db.ExecContext(ctx, `
 		DELETE FROM change_log
-		WHERE project_id = ? AND logged_at < ?
+		WHERE project_id = ? AND logged_at <= ?
 		  AND seq NOT IN (
 			SELECT MAX(seq) FROM change_log
 			WHERE project_id = ?

@@ -126,57 +126,88 @@ export async function injectMockBackend(page: Page) {
 
     // Call IDs from the generated bindings (app.js)
     const IDS = {
-      AITranslateFile: 112372233,
+      AITranslateItem: 2725002960,
       AddConcept: 3793362128,
-      AddFiles: 253527467,
-      AddFilesDialog: 2566359367,
+      AddItems: 1333276848,
+      AddItemsDialog: 1543891488,
       AddTMEntry: 4152216329,
+      CheckPluginUpdates: 4061886530,
       CloseProject: 3497243272,
+      ConfigureConnector: 623426718,
       CreateProject: 2219834270,
+      CreateStoreVersion: 3924427090,
       DeleteConcept: 3900518770,
       DeleteFlowDefinition: 488503031,
       DeleteProviderConfig: 2103858573,
       DeleteTMEntry: 1886996955,
+      DetectFormat: 3882758361,
       ExportTermsJSON: 166152904,
-      ExportTranslatedFile: 2327530811,
-      GetFileBlocks: 711926175,
+      ExportTranslatedItem: 227674686,
+      GetCurrentWorkspace: 3228582525,
+      GetFlowDefinition: 2095856838,
+      GetInitialProject: 4269707510,
+      GetItemBlocks: 2825501758,
       GetKnownLocales: 3316047929,
       GetLocaleDisplayName: 804882882,
-      GetFlowDefinition: 2095856838,
       GetProject: 1329939084,
+      GetSyncStatus: 3997902314,
       GetTMCount: 1658982651,
       GetTMEntries: 2865323100,
       GetTermCount: 433951236,
       GetTerms: 2057317714,
+      GetVersion: 2634198737,
       GetWordCount: 2276123042,
       ImportTermsCSV: 4189664393,
       ImportTermsJSON: 498422205,
+      InitContentStore: 3381103485,
+      InstallPlugin: 3779799163,
+      ListAvailablePlugins: 1924078444,
+      ListConnectorTypes: 2405972949,
+      ListConnectors: 252507085,
+      ListContentItems: 3747764474,
       ListFlowDefinitions: 3738265581,
-      ListFlows: 2730811374,
       ListFormats: 1658666415,
       ListPlugins: 1851753111,
       ListProjectFiles: 3993987349,
       ListProjects: 1552139139,
       ListProviderConfigs: 1091807543,
+      ListStoreProjects: 3166171152,
+      ListStoreVersions: 3506910791,
       ListTools: 2273599896,
+      ListWorkspaces: 3212201675,
+      LoadPlugins: 3302678495,
       LookupTMForBlock: 2472708440,
       LookupTerms: 1594665302,
       LookupTermsForBlock: 2436021002,
       OpenFileInOS: 2953479918,
+      OpenProject: 3349152314,
+      OpenProjectDialog: 3415023882,
       PluginDir: 2089167097,
-      PseudoTranslateFile: 2296272289,
-      RemoveFile: 1600906915,
+      PseudoTranslateItem: 2488163560,
+      PullContent: 1394392007,
+      PushContent: 879389618,
+      RemoveConnector: 3005427920,
+      RemoveItem: 938648902,
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
       SaveFlowDefinition: 2719448633,
+      SaveProject: 179173205,
+      SaveProjectAs: 3259052957,
+      SaveProjectDialog: 2824494121,
       SaveProviderConfig: 755781535,
+      SearchPlugins: 219729007,
+      SearchPluginsByMimeType: 2104841290,
+      SearchPluginsByType: 3673978410,
       SetApplication: 1182474139,
-      TMTranslateFile: 49623414,
+      SetInitialProjectPath: 3437708865,
+      StoreProject: 3310579751,
+      TMTranslateItem: 1452459471,
       TermEnforceItem: 2381680068,
       TestProviderConfig: 2576607394,
       UpdateBlockTarget: 1528557592,
       UpdateBlockTargetCoded: 1612164251,
       UpdateConcept: 1418320064,
+      UpdatePlugin: 2070488879,
       UpdateTMEntry: 1441483449,
     };
 
@@ -202,11 +233,6 @@ export async function injectMockBackend(page: Page) {
       { name: "ai-translate", description: "Translate content using AI" },
       { name: "pseudo-translate", description: "Generate pseudo-translations" },
       { name: "word-count", description: "Count words" },
-    ];
-
-    mock[IDS.ListFlows] = () => [
-      { name: "ai-translate", description: "AI translation flow" },
-      { name: "pseudo-translate", description: "Pseudo-translation flow" },
     ];
 
     // --- Flow definition storage ---
@@ -273,6 +299,75 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.ListPlugins] = () => [];
     mock[IDS.PluginDir] = () => "~/.kapi/plugins";
     mock[IDS.SetApplication] = () => {};
+
+    // --- New stub handlers for methods added since last update ---
+    mock[IDS.CheckPluginUpdates] = () => [];
+    mock[IDS.ConfigureConnector] = () => null;
+    mock[IDS.CreateStoreVersion] = () => null;
+    mock[IDS.DetectFormat] = (filePath: string) => {
+      const ext = filePath.split(".").pop() || "";
+      const formatMap: Record<string, string> = {
+        html: "html", htm: "html", json: "json", txt: "plaintext",
+        xml: "xml", yaml: "yaml", yml: "yaml", po: "po",
+        properties: "properties", md: "markdown",
+      };
+      return formatMap[ext] || "plaintext";
+    };
+    mock[IDS.GetCurrentWorkspace] = () => ({
+      id: "personal",
+      name: "Personal",
+      type: "local",
+    });
+    mock[IDS.GetInitialProject] = () => "";
+    mock[IDS.GetSyncStatus] = () => null;
+    mock[IDS.GetVersion] = () => ({
+      version: "0.0.0-mock",
+      commit: "mock",
+      date: new Date().toISOString(),
+    });
+    mock[IDS.InitContentStore] = () => {};
+    mock[IDS.InstallPlugin] = () => null;
+    mock[IDS.ListAvailablePlugins] = () => [];
+    mock[IDS.ListConnectorTypes] = () => [];
+    mock[IDS.ListConnectors] = () => [];
+    mock[IDS.ListContentItems] = () => [];
+    mock[IDS.ListStoreProjects] = () => [];
+    mock[IDS.ListStoreVersions] = () => [];
+    mock[IDS.ListWorkspaces] = () => [
+      { id: "personal", name: "Personal", type: "local" },
+    ];
+    mock[IDS.LoadPlugins] = () => {};
+    mock[IDS.OpenProject] = (path: string) => {
+      const id = `project-${++projectCounter}`;
+      const name = path.split("/").pop()?.replace(/\.kaz$/, "") || "Untitled";
+      const now = new Date().toISOString();
+      const info = {
+        id,
+        name,
+        source_locale: "en",
+        target_locales: [],
+        path,
+        items: [],
+        created_at: now,
+        modified_at: now,
+      };
+      projects[id] = info;
+      projectFiles[id] = {};
+      return info;
+    };
+    mock[IDS.OpenProjectDialog] = () => null;
+    mock[IDS.PullContent] = () => [];
+    mock[IDS.PushContent] = () => {};
+    mock[IDS.RemoveConnector] = () => {};
+    mock[IDS.SaveProject] = () => {};
+    mock[IDS.SaveProjectAs] = () => {};
+    mock[IDS.SaveProjectDialog] = () => {};
+    mock[IDS.SearchPlugins] = () => [];
+    mock[IDS.SearchPluginsByMimeType] = () => [];
+    mock[IDS.SearchPluginsByType] = () => [];
+    mock[IDS.SetInitialProjectPath] = () => {};
+    mock[IDS.StoreProject] = () => null;
+    mock[IDS.UpdatePlugin] = () => null;
 
     // Locale handlers
     const knownLocales = [
@@ -367,7 +462,7 @@ export async function injectMockBackend(page: Page) {
       delete projectFiles[projectID];
     };
 
-    mock[IDS.AddFiles] = (projectID: string, filePaths: string[]) => {
+    mock[IDS.AddItems] = (projectID: string, filePaths: string[]) => {
       const p = projects[projectID];
       if (!p) throw new Error(`Project ${projectID} not found`);
 
@@ -428,11 +523,11 @@ export async function injectMockBackend(page: Page) {
       return { ...p };
     };
 
-    mock[IDS.RemoveFile] = (projectID: string, fileName: string) => {
+    mock[IDS.RemoveItem] = (projectID: string, itemName: string) => {
       const p = projects[projectID];
       if (!p) throw new Error(`Project ${projectID} not found`);
-      p.items = p.items.filter((f: any) => f.name !== fileName);
-      if (projectFiles[projectID]) delete projectFiles[projectID][fileName];
+      p.items = p.items.filter((f: any) => f.name !== itemName);
+      if (projectFiles[projectID]) delete projectFiles[projectID][itemName];
       p.modified_at = new Date().toISOString();
       return { ...p };
     };
@@ -443,10 +538,10 @@ export async function injectMockBackend(page: Page) {
       return p.items;
     };
 
-    mock[IDS.GetFileBlocks] = (projectID: string, fileName: string) => {
+    mock[IDS.GetItemBlocks] = (projectID: string, itemName: string) => {
       const files = projectFiles[projectID];
-      if (!files || !files[fileName]) return [];
-      return files[fileName].map((b: any) => ({
+      if (!files || !files[itemName]) return [];
+      return files[itemName].map((b: any) => ({
         ...b,
         targets: { ...b.targets },
         targets_coded: b.targets_coded ? { ...b.targets_coded } : undefined,
@@ -477,10 +572,10 @@ export async function injectMockBackend(page: Page) {
       }
     };
 
-    mock[IDS.PseudoTranslateFile] = (projectID: string, fileName: string, targetLocale: string) => {
+    mock[IDS.PseudoTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
       const files = projectFiles[projectID];
-      if (!files || !files[fileName]) throw new Error("File not found");
-      const blocks = files[fileName];
+      if (!files || !files[itemName]) throw new Error("Item not found");
+      const blocks = files[itemName];
       let translated = 0;
       let wordCount = 0;
       for (const b of blocks) {
@@ -496,10 +591,10 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.AITranslateFile] = (req: any) => {
+    mock[IDS.AITranslateItem] = (req: any) => {
       const itemName = req.item_name || req.file_name;
       const files = projectFiles[req.project_id];
-      if (!files || !files[itemName]) throw new Error("File not found");
+      if (!files || !files[itemName]) throw new Error("Item not found");
       const blocks = files[itemName];
       let translated = 0;
       let wordCount = 0;
@@ -516,10 +611,10 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.TMTranslateFile] = (projectID: string, fileName: string, targetLocale: string) => {
+    mock[IDS.TMTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {
       const files = projectFiles[projectID];
-      if (!files || !files[fileName]) throw new Error("File not found");
-      const blocks = files[fileName];
+      if (!files || !files[itemName]) throw new Error("Item not found");
+      const blocks = files[itemName];
       const entries = Object.values(tmStore);
       let translated = 0;
       let wordCount = 0;
@@ -542,10 +637,10 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.GetWordCount] = (projectID: string, fileName: string) => {
+    mock[IDS.GetWordCount] = (projectID: string, itemName: string) => {
       const files = projectFiles[projectID];
-      if (!files || !files[fileName]) return { source_words: 0, source_chars: 0, target_words: {}, target_chars: {} };
-      const blocks = files[fileName];
+      if (!files || !files[itemName]) return { source_words: 0, source_chars: 0, target_words: {}, target_chars: {} };
+      const blocks = files[itemName];
       let sourceWords = 0;
       let sourceChars = 0;
       const targetWords: Record<string, number> = {};
@@ -564,9 +659,9 @@ export async function injectMockBackend(page: Page) {
       return { source_words: sourceWords, source_chars: sourceChars, target_words: targetWords, target_chars: targetChars };
     };
 
-    mock[IDS.ExportTranslatedFile] = (_projectID: string, fileName: string, targetLocale: string) => {
-      const baseName = fileName.replace(/\.[^.]+$/, "");
-      const ext = fileName.split(".").pop();
+    mock[IDS.ExportTranslatedItem] = (_projectID: string, itemName: string, targetLocale: string) => {
+      const baseName = itemName.replace(/\.[^.]+$/, "");
+      const ext = itemName.split(".").pop();
       return `/tmp/${baseName}_${targetLocale}.${ext}`;
     };
 
@@ -952,8 +1047,8 @@ export async function injectMockBackend(page: Page) {
       return results;
     };
 
-    mock[IDS.AddFilesDialog] = (projectID: string) => {
-      return mock[IDS.AddFiles](projectID, ["/mock/dialog-file.txt"]);
+    mock[IDS.AddItemsDialog] = (projectID: string) => {
+      return mock[IDS.AddItems](projectID, ["/mock/dialog-file.txt"]);
     };
 
     // Install on window for Call.ByID to find
