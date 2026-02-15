@@ -7,7 +7,7 @@ sidebar_position: 11
 
 This guide walks through the bowrain-server web interface, from first login
 to creating your first project. For comprehensive documentation of all
-web application features, see the [Web Application](/docs/web-app/overview) section.
+web application features, see the [Web Application](/docs/bowrain-web/overview) section.
 
 ## Starting the Server
 
@@ -79,7 +79,7 @@ translation. Key features:
 - **Progress tracking** — color-coded status bar showing translation progress
 - **File export** — download translated files in their original format
 
-For full details, see [Translation Editor](/docs/web-app/translation-editor).
+For full details, see [Translation Editor](/docs/bowrain-web/translation-editor).
 
 ## Translation Memory & Terminology
 
@@ -90,8 +90,8 @@ Access workspace-scoped linguistic resources from the sidebar:
 
 Both resources are available per-block in the editor's context panel for in-context suggestions.
 
-For details, see [Translation Memory](/docs/web-app/translation-memory) and
-[Terminology](/docs/web-app/terminology).
+For details, see [Translation Memory](/docs/bowrain-web/translation-memory) and
+[Terminology](/docs/bowrain-web/terminology).
 
 ## Inviting Team Members
 
@@ -134,8 +134,8 @@ curl -s -H "Authorization: Bearer $(cat ~/.config/gokapi/auth.json | jq -r .acce
 
 ## What's Next
 
-- [Web Application](/docs/web-app/overview) — full feature documentation with screenshots
-- [Web App Walkthroughs](/docs/web-app/walkthroughs) — step-by-step translation workflows
+- [Web Application](/docs/bowrain-web/overview) — full feature documentation with screenshots
+- [Web App Walkthroughs](/docs/bowrain-web/walkthroughs) — step-by-step translation workflows
 - [Self-Hosting](./self-hosting.md) — production deployment with TLS and backups
 - [Workspaces](./workspaces.md) — workspace concepts and API reference
 - [Automation](./automation.md) — CI/CD integration

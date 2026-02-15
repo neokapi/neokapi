@@ -161,9 +161,9 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`kapi status`](/docs/user-guide/cli/status) — Show which files changed (summary)
-- [`kapi pull`](/docs/user-guide/cli/pull) — Fetch remote changes
-- [`kapi push`](/docs/user-guide/cli/push) — Send local changes
+- [`kapi status`](/docs/kapi-cli/commands/status) — Show which files changed (summary)
+- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch remote changes
+- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes
 
 ## When to Use
 

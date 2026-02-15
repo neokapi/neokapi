@@ -89,4 +89,4 @@ kapi --help
 - **Full walkthrough**: See [Project Walkthrough](/docs/getting-started/project-walkthrough)
 - **Connect to server**: `kapi init --server <URL> --project <ID>`
 - **Explore flows**: `kapi flow list`
-- **CLI reference**: [User Guide](/docs/user-guide/cli/init)
+- **CLI reference**: [User Guide](/docs/kapi-cli/commands/init)

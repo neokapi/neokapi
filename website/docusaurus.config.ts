@@ -93,7 +93,7 @@ const config: Config = {
             },
             {
               label: 'User Guide',
-              to: '/docs/user-guide/formats',
+              to: '/docs/kapi-cli/overview',
             },
             {
               label: 'Developer Guide',

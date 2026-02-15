@@ -299,10 +299,10 @@ Think of it as **git for localization content**:
 
 Now that you have a Kapi project:
 
-- **Explore flows**: [`kapi flow list`](/docs/user-guide/cli/flow)
-- **Manage terminology**: [`kapi termbase`](/docs/user-guide/cli/termbase)
-- **Serve locally**: [`kapi serve`](/docs/user-guide/cli/serve)
-- **Understand sync**: [Push](/docs/user-guide/cli/push) and [Pull](/docs/user-guide/cli/pull)
-- **Read ADRs**: [Architecture decisions](/docs/developer/adr)
+- **Explore flows**: [`kapi flow list`](/docs/kapi-cli/commands/flow)
+- **Manage terminology**: [Terminology features](/docs/features/terminology)
+- **Serve locally**: [`kapi serve`](/docs/kapi-cli/commands/serve)
+- **Understand sync**: [Push](/docs/kapi-cli/commands/push) and [Pull](/docs/kapi-cli/commands/pull)
+- **Read ADRs**: [Architecture decisions](/docs/adr/001-vision)
 
 For team deployments, see [Bowrain Server](/docs/developer/server).

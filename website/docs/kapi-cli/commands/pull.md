@@ -142,9 +142,9 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`kapi push`](/docs/user-guide/cli/push) — Send local changes to server
-- [`kapi status`](/docs/user-guide/cli/status) — Show sync state
-- [`kapi diff`](/docs/user-guide/cli/diff) — Show detailed changes
+- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes to server
+- [`kapi status`](/docs/kapi-cli/commands/status) — Show sync state
+- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

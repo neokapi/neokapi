@@ -9,7 +9,7 @@ gokapi is an open localization platform built in Go. Bidirectional connectors
 sync content from live systems into a versioned store, composable tools process
 content through a concurrent pipeline, and automation drives the workflow. For
 the reasoning behind each major design choice, see the
-[Architecture Decision Records](/docs/adr/index).
+[Architecture Decision Records](/docs/adr/001-vision).
 
 ## Platform Architecture
 

@@ -78,7 +78,7 @@ In a server-connected workspace, navigate to **Settings** to manage members:
 - **Change roles** (owner, admin, member, viewer)
 - **Remove members** from the workspace
 
-See [Workspaces](/docs/user-guide/workspaces) in the User Guide for details
+See [Workspaces](/docs/bowrain-server/workspaces) in the User Guide for details
 on roles and permissions.
 
 ## Workspace-Scoped Resources

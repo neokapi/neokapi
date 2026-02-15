@@ -192,9 +192,9 @@ If no token is found, you'll be prompted to authenticate.
 
 ## Related Commands
 
-- [`kapi pull`](/docs/user-guide/cli/pull) — Fetch changes from server
-- [`kapi status`](/docs/user-guide/cli/status) — Show what will be pushed
-- [`kapi diff`](/docs/user-guide/cli/diff) — Show detailed changes
+- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch changes from server
+- [`kapi status`](/docs/kapi-cli/commands/status) — Show what will be pushed
+- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

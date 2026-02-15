@@ -92,9 +92,9 @@ This file is updated by `kapi pull` and `kapi push`.
 
 ## Related Commands
 
-- [`kapi diff`](/docs/user-guide/cli/diff) — Show detailed line-by-line changes
-- [`kapi pull`](/docs/user-guide/cli/pull) — Fetch changes from server
-- [`kapi push`](/docs/user-guide/cli/push) — Send local changes to server
+- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed line-by-line changes
+- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch changes from server
+- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes to server
 
 ## When to Use
 

@@ -39,7 +39,7 @@ With the Okapi Java bridge plugin installed, these additional formats are availa
 - PDF (text extraction)
 - And many more
 
-See [Plugins](/docs/user-guide/cli/plugins) for installation instructions.
+See [Plugins](/docs/kapi-cli/commands/plugins) for installation instructions.
 
 ## Format Detection
 

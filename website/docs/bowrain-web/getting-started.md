@@ -12,7 +12,7 @@ This guide walks you through first login, workspace creation, and translating yo
 You need a running Bowrain Server. Choose one of:
 
 - **Local mode**: Run `kapi serve` for single-user, no-auth local development
-- **Server mode**: Deploy `Bowrain Server` with Docker Compose (see [Self-Hosting](../user-guide/self-hosting.md))
+- **Server mode**: Deploy `Bowrain Server` with Docker Compose (see [Self-Hosting](../bowrain-server/self-hosting.md))
 
 ## Starting the Server
 
@@ -71,7 +71,7 @@ The project opens in the project view.
 2. The server auto-detects the file format (HTML, XML, JSON, YAML, PO, Markdown, XLIFF, and more)
 3. Files appear in the file list with format icon, block count, and word count
 
-Supported formats include all formats registered in the gokapi format registry. See [Formats](../user-guide/formats.md) for the complete list.
+Supported formats include all formats registered in the gokapi format registry. See [Formats](../features/formats.md) for the complete list.
 
 ## Opening the Editor
 

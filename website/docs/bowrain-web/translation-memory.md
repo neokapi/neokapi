@@ -95,4 +95,4 @@ Each match receives a **score** (0-100%) based on Levenshtein distance similarit
 - **Yellow** (70-99%) — fuzzy match
 - Lower scores appear with reduced emphasis
 
-For more on the TM algorithm, see [Translation Memory](../user-guide/translation-memory.md) in the User Guide.
+For more on the TM algorithm, see [Translation Memory](../features/translation-memory.md) in the User Guide.

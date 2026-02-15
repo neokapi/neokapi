@@ -141,4 +141,4 @@ The terminology system is concept-oriented, inspired by the TBX (TermBase eXchan
 - Terms have **metadata**: lifecycle status, domain, and notes
 - Concepts are scoped to the workspace and shared across all projects
 
-For more on the terminology system architecture, see [Terminology](../user-guide/terminology.md) in the User Guide.
+For more on the terminology system architecture, see [Terminology](../features/terminology.md) in the User Guide.
