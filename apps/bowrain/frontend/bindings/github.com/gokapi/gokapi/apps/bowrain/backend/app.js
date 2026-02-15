@@ -27,17 +27,6 @@ import * as application$0 from "../../../../../wailsapp/wails/v3/pkg/application
 import * as $models from "./models.js";
 
 /**
- * AITranslateFile is an alias for AITranslateItem for backward compatibility.
- * @param {$models.AITranslateFileRequest} req
- * @returns {$CancellablePromise<$models.TranslationStats | null>}
- */
-export function AITranslateFile(req) {
-    return $Call.ByID(112372233, req).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
  * AITranslateItem translates all blocks using an AI provider.
  * @param {$models.AITranslateFileRequest} req
  * @returns {$CancellablePromise<$models.TranslationStats | null>}
@@ -60,29 +49,6 @@ export function AddConcept(req) {
 }
 
 /**
- * AddFiles is an alias for AddItems for backward compatibility.
- * @param {string} projectID
- * @param {string[]} filePaths
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function AddFiles(projectID, filePaths) {
-    return $Call.ByID(253527467, projectID, filePaths).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
- * AddFilesDialog shows a native file dialog and adds the selected files to the project.
- * @param {string} projectID
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function AddFilesDialog(projectID) {
-    return $Call.ByID(2566359367, projectID).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
-}
-
-/**
  * AddItems imports items into a project, auto-detecting format and extracting blocks.
  * @param {string} projectID
  * @param {string[]} filePaths
@@ -90,6 +56,17 @@ export function AddFilesDialog(projectID) {
  */
 export function AddItems(projectID, filePaths) {
     return $Call.ByID(1333276848, projectID, filePaths).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType5($result);
+    }));
+}
+
+/**
+ * AddItemsDialog shows a native file dialog and adds the selected files to the project.
+ * @param {string} projectID
+ * @returns {$CancellablePromise<$models.ProjectInfo | null>}
+ */
+export function AddItemsDialog(projectID) {
+    return $Call.ByID(1543891488, projectID).then(/** @type {($result: any) => any} */(($result) => {
         return $$createType5($result);
     }));
 }
@@ -224,17 +201,6 @@ export function ExportTermsJSON(projectID, name) {
 }
 
 /**
- * ExportTranslatedFile is an alias for ExportTranslatedItem for backward compatibility.
- * @param {string} projectID
- * @param {string} fileName
- * @param {string} targetLocale
- * @returns {$CancellablePromise<string>}
- */
-export function ExportTranslatedFile(projectID, fileName, targetLocale) {
-    return $Call.ByID(2327530811, projectID, fileName, targetLocale);
-}
-
-/**
  * ExportTranslatedItem writes the translated item to disk and returns the output path.
  * @param {string} projectID
  * @param {string} itemName
@@ -257,25 +223,13 @@ export function GetCurrentWorkspace() {
 }
 
 /**
- * GetFileBlocks is an alias for GetItemBlocks for backward compatibility.
- * @param {string} projectID
- * @param {string} fileName
- * @returns {$CancellablePromise<$models.BlockInfo[]>}
- */
-export function GetFileBlocks(projectID, fileName) {
-    return $Call.ByID(711926175, projectID, fileName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType16($result);
-    }));
-}
-
-/**
  * GetFlowDefinition returns a specific flow definition by ID.
  * @param {string} id
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}
  */
 export function GetFlowDefinition(id) {
     return $Call.ByID(2095856838, id).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType16($result);
     }));
 }
 
@@ -296,7 +250,7 @@ export function GetInitialProject() {
  */
 export function GetItemBlocks(projectID, itemName) {
     return $Call.ByID(2825501758, projectID, itemName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType16($result);
+        return $$createType18($result);
     }));
 }
 
@@ -692,19 +646,6 @@ export function PluginDir() {
 }
 
 /**
- * PseudoTranslateFile is an alias for PseudoTranslateItem for backward compatibility.
- * @param {string} projectID
- * @param {string} fileName
- * @param {string} targetLocale
- * @returns {$CancellablePromise<$models.TranslationStats | null>}
- */
-export function PseudoTranslateFile(projectID, fileName, targetLocale) {
-    return $Call.ByID(2296272289, projectID, fileName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
  * PseudoTranslateItem pseudo-translates all blocks in an item.
  * @param {string} projectID
  * @param {string} itemName
@@ -746,18 +687,6 @@ export function PushContent(connectorID, projectID) {
  */
 export function RemoveConnector(connectorID) {
     return $Call.ByID(3005427920, connectorID);
-}
-
-/**
- * RemoveFile is an alias for RemoveItem for backward compatibility.
- * @param {string} projectID
- * @param {string} fileName
- * @returns {$CancellablePromise<$models.ProjectInfo | null>}
- */
-export function RemoveFile(projectID, fileName) {
-    return $Call.ByID(1600906915, projectID, fileName).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType5($result);
-    }));
 }
 
 /**
@@ -806,7 +735,7 @@ export function RenderDocumentPreview(projectID, itemName, targetLocale) {
  */
 export function SaveFlowDefinition(info) {
     return $Call.ByID(2719448633, info).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType18($result);
+        return $$createType16($result);
     }));
 }
 
@@ -916,19 +845,6 @@ export function StoreProject(name, sourceLocale, targetLocales) {
 }
 
 /**
- * TMTranslateFile is an alias for TMTranslateItem for backward compatibility.
- * @param {string} projectID
- * @param {string} fileName
- * @param {string} targetLocale
- * @returns {$CancellablePromise<$models.TranslationStats | null>}
- */
-export function TMTranslateFile(projectID, fileName, targetLocale) {
-    return $Call.ByID(49623414, projectID, fileName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
-    }));
-}
-
-/**
  * TMTranslateItem leverages translation memory to translate blocks.
  * @param {string} projectID
  * @param {string} itemName
@@ -1026,10 +942,10 @@ const $$createType11 = $Create.Nullable($$createType10);
 const $$createType12 = store$0.Version.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
 const $$createType14 = $models.WorkspaceInfo.createFrom;
-const $$createType15 = $models.BlockInfo.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $models.FlowDefinitionInfo.createFrom;
-const $$createType18 = $Create.Nullable($$createType17);
+const $$createType15 = $models.FlowDefinitionInfo.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = $models.BlockInfo.createFrom;
+const $$createType18 = $Create.Array($$createType17);
 const $$createType19 = locale$0.LocaleInfo.createFrom;
 const $$createType20 = $Create.Array($$createType19);
 const $$createType21 = $models.SyncStatusInfo.createFrom;
@@ -1049,7 +965,7 @@ const $$createType34 = $Create.Array($Create.Any);
 const $$createType35 = $Create.Array($$createType10);
 const $$createType36 = $models.ContentItemInfo.createFrom;
 const $$createType37 = $Create.Array($$createType36);
-const $$createType38 = $Create.Array($$createType17);
+const $$createType38 = $Create.Array($$createType15);
 const $$createType39 = $models.FormatInfo.createFrom;
 const $$createType40 = $Create.Array($$createType39);
 const $$createType41 = $models.PluginInfo.createFrom;
