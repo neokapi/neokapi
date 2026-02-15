@@ -17,7 +17,7 @@ func TestSaveAndOpenKaz(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 	require.Len(t, info.Items, 1)
 
@@ -53,7 +53,7 @@ func TestKazManifest(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	_, err = app.AddFiles(info.ID, []string{testFile})
+	_, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
 	tmpDir := t.TempDir()
@@ -84,7 +84,7 @@ func TestKazWithMultipleFiles(t *testing.T) {
 
 	txtFile := filepath.Join("testdata", "hello.txt")
 	htmlFile := filepath.Join("testdata", "page.html")
-	_, err = app.AddFiles(info.ID, []string{txtFile, htmlFile})
+	_, err = app.AddItems(info.ID, []string{txtFile, htmlFile})
 	require.NoError(t, err)
 
 	tmpDir := t.TempDir()
@@ -114,15 +114,15 @@ func TestKazWithTranslations(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
 	// Pseudo-translate
-	_, err = app.PseudoTranslateFile(info.ID, "hello.txt", "fr")
+	_, err = app.PseudoTranslateItem(info.ID, "hello.txt", "fr")
 	require.NoError(t, err)
 
 	// Verify blocks have translations
-	blocks, err := app.GetFileBlocks(info.ID, "hello.txt")
+	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
 
 	hasTranslated := false
@@ -147,7 +147,7 @@ func TestKazWithTranslations(t *testing.T) {
 	assert.Len(t, info2.Items, 1)
 
 	// Verify translations survived the roundtrip
-	blocks2, err := app2.GetFileBlocks(info2.ID, "hello.txt")
+	blocks2, err := app2.GetItemBlocks(info2.ID, "hello.txt")
 	require.NoError(t, err)
 
 	hasTranslated2 := false
@@ -167,7 +167,7 @@ func TestKazPreviewHTML(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlFile := filepath.Join("testdata", "page.html")
-	_, err = app.AddFiles(info.ID, []string{htmlFile})
+	_, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
 	// Check that previewHTML is populated
@@ -185,7 +185,7 @@ func TestKazBlockIndex(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	_, err = app.AddFiles(info.ID, []string{testFile})
+	_, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
 	// Check that blockIndex is populated
@@ -203,7 +203,7 @@ func TestKazReconstructWithoutSource(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
 	// Save
@@ -219,7 +219,7 @@ func TestKazReconstructWithoutSource(t *testing.T) {
 	info2, err := app2.OpenProject(kazPath)
 	require.NoError(t, err)
 
-	blocks, err := app2.GetFileBlocks(info2.ID, "hello.txt")
+	blocks, err := app2.GetItemBlocks(info2.ID, "hello.txt")
 	require.NoError(t, err)
 	assert.Greater(t, len(blocks), 0)
 }

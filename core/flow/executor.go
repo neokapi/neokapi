@@ -90,7 +90,6 @@ func NewFlowExecutor(opts ...ExecutorOption) *DefaultFlowExecutor {
 }
 
 // SetChannelSize configures the buffer size for inter-tool channels.
-// Kept for backward compatibility.
 func (e *DefaultFlowExecutor) SetChannelSize(size int) {
 	if size > 0 {
 		e.config.ChannelSize = size

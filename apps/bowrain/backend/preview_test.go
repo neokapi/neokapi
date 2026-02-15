@@ -15,7 +15,7 @@ func TestRenderDocumentPreview_HTML(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlFile := filepath.Join("testdata", "page.html")
-	info, err = app.AddFiles(info.ID, []string{htmlFile})
+	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 	require.Len(t, info.Items, 1)
 
@@ -33,7 +33,7 @@ func TestRenderDocumentPreview_Plaintext(t *testing.T) {
 	require.NoError(t, err)
 
 	txtFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{txtFile})
+	info, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 	require.Len(t, info.Items, 1)
 
@@ -50,7 +50,7 @@ func TestRenderDocumentPreview_Cached(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlFile := filepath.Join("testdata", "page.html")
-	info, err = app.AddFiles(info.ID, []string{htmlFile})
+	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
 	// First call generates and caches
@@ -82,11 +82,11 @@ func TestRenderBlockHTML_Source(t *testing.T) {
 	require.NoError(t, err)
 
 	txtFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{txtFile})
+	info, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 
 	// Get blocks to find a block ID
-	blocks, err := app.GetFileBlocks(info.ID, "hello.txt")
+	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
 	require.Greater(t, len(blocks), 0)
 
@@ -106,10 +106,10 @@ func TestRenderBlockHTML_WithTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	txtFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{txtFile})
+	info, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 
-	blocks, err := app.GetFileBlocks(info.ID, "hello.txt")
+	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
 	require.Greater(t, len(blocks), 0)
 
@@ -138,7 +138,7 @@ func TestRenderBlockHTML_NotFoundBlock(t *testing.T) {
 	require.NoError(t, err)
 
 	txtFile := filepath.Join("testdata", "hello.txt")
-	_, err = app.AddFiles(info.ID, []string{txtFile})
+	_, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 
 	_, err = app.RenderBlockHTML(info.ID, "hello.txt", "nonexistent-block", "fr")
@@ -164,7 +164,7 @@ func TestRenderDocumentPreview_OnTheFly(t *testing.T) {
 	require.NoError(t, err)
 
 	txtFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{txtFile})
+	info, err = app.AddItems(info.ID, []string{txtFile})
 	require.NoError(t, err)
 
 	// Clear the cached preview to test on-the-fly generation

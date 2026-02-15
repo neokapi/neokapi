@@ -73,15 +73,15 @@ export class WailsApiAdapter implements ApiAdapter {
   async uploadFiles(_ws: string, projectId: string, files: File[]): Promise<ProjectInfo> {
     // In Wails v3, File objects from DnD have a .path property
     const paths = files.map(f => (f as unknown as { path?: string }).path || f.name);
-    return Backend.AddFiles(projectId, paths) as Promise<ProjectInfo>;
+    return Backend.AddItems(projectId, paths) as Promise<ProjectInfo>;
   }
   async removeFile(_ws: string, projectId: string, fileName: string): Promise<ProjectInfo> {
-    return Backend.RemoveFile(projectId, fileName) as Promise<ProjectInfo>;
+    return Backend.RemoveItem(projectId, fileName) as Promise<ProjectInfo>;
   }
 
   // --- Editor ---
   async getFileBlocks(_ws: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
-    return Backend.GetFileBlocks(projectId, fileName) as Promise<BlockInfo[]>;
+    return Backend.GetItemBlocks(projectId, fileName) as Promise<BlockInfo[]>;
   }
   async updateBlockTarget(_ws: string, req: UpdateBlockRequest): Promise<void> {
     return Backend.UpdateBlockTarget(req);
@@ -95,10 +95,10 @@ export class WailsApiAdapter implements ApiAdapter {
     fileName: string,
     targetLocale: string,
   ): Promise<TranslationStats> {
-    return Backend.PseudoTranslateFile(projectId, fileName, targetLocale) as Promise<TranslationStats>;
+    return Backend.PseudoTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
   }
   async aiTranslateFile(_ws: string, req: AITranslateFileRequest): Promise<TranslationStats> {
-    return Backend.AITranslateFile(req) as Promise<TranslationStats>;
+    return Backend.AITranslateItem(req) as Promise<TranslationStats>;
   }
   async tmTranslateFile(
     _ws: string,
@@ -106,7 +106,7 @@ export class WailsApiAdapter implements ApiAdapter {
     fileName: string,
     targetLocale: string,
   ): Promise<TranslationStats> {
-    return Backend.TMTranslateFile(projectId, fileName, targetLocale) as Promise<TranslationStats>;
+    return Backend.TMTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
   }
   async getWordCount(_ws: string, projectId: string, fileName: string): Promise<WordCountResult> {
     return Backend.GetWordCount(projectId, fileName) as Promise<WordCountResult>;
@@ -118,7 +118,7 @@ export class WailsApiAdapter implements ApiAdapter {
     targetLocale: string,
   ): Promise<Blob> {
     // Desktop: export to file system and open in OS
-    const path = await Backend.ExportTranslatedFile(projectId, fileName, targetLocale);
+    const path = await Backend.ExportTranslatedItem(projectId, fileName, targetLocale);
     await Backend.OpenFileInOS(path);
     return new Blob(); // Dummy blob; actual file was saved to disk
   }
@@ -242,7 +242,7 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.OpenProjectDialog() as Promise<ProjectInfo | null>;
   }
   async addFilesDialog(projectId: string): Promise<ProjectInfo | null> {
-    return Backend.AddFilesDialog(projectId) as Promise<ProjectInfo | null>;
+    return Backend.AddItemsDialog(projectId) as Promise<ProjectInfo | null>;
   }
   async saveProject(projectId: string): Promise<void> {
     return Backend.SaveProject(projectId);

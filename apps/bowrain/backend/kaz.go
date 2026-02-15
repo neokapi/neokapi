@@ -145,8 +145,8 @@ func (a *App) SaveProjectDialog(projectID string) error {
 	return a.SaveProjectAs(projectID, path)
 }
 
-// AddFilesDialog shows a native file dialog and adds the selected files to the project.
-func (a *App) AddFilesDialog(projectID string) (*ProjectInfo, error) {
+// AddItemsDialog shows a native file dialog and adds the selected files to the project.
+func (a *App) AddItemsDialog(projectID string) (*ProjectInfo, error) {
 	paths, err := a.app.Dialog.OpenFile().
 		SetTitle("Add Files to Project").
 		PromptForMultipleSelection()
@@ -156,7 +156,7 @@ func (a *App) AddFilesDialog(projectID string) (*ProjectInfo, error) {
 	if len(paths) == 0 {
 		return nil, nil // user cancelled
 	}
-	return a.AddFiles(projectID, paths)
+	return a.AddItems(projectID, paths)
 }
 
 // OpenProject opens a .kaz package and loads it into memory.

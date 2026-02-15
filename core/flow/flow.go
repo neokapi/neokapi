@@ -12,7 +12,7 @@ type ToolFactory func() (tool.Tool, error)
 // Flow represents a configured sequence of Tools that Parts stream through.
 type Flow struct {
 	Name          string
-	Tools         []tool.Tool   // for single-doc / sequential (backward compat)
+	Tools         []tool.Tool   // for single-doc / sequential execution
 	ToolFactories []ToolFactory // for parallel: creates fresh tool chain per document
 }
 

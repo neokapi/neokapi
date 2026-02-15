@@ -17,7 +17,7 @@ func setupProjectWithFile(t *testing.T) (*App, *ProjectInfo, string) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 	require.Len(t, info.Items, 1)
 
@@ -27,7 +27,7 @@ func setupProjectWithFile(t *testing.T) (*App, *ProjectInfo, string) {
 func TestUpdateBlockTarget(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
-	blocks, err := app.GetFileBlocks(info.ID, itemName)
+	blocks, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
 	require.Greater(t, len(blocks), 0)
 
@@ -42,7 +42,7 @@ func TestUpdateBlockTarget(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the update
-	updated, err := app.GetFileBlocks(info.ID, itemName)
+	updated, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour le monde", updated[0].Targets["fr"])
 }
@@ -64,7 +64,7 @@ func TestUpdateBlockTarget_NotFound(t *testing.T) {
 func TestPseudoTranslateFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
-	stats, err := app.PseudoTranslateFile(info.ID, itemName, "fr")
+	stats, err := app.PseudoTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
 	assert.Greater(t, stats.TotalBlocks, 0)
@@ -72,7 +72,7 @@ func TestPseudoTranslateFile(t *testing.T) {
 	assert.Greater(t, stats.WordCount, 0)
 
 	// Verify blocks have pseudo-translated targets
-	blocks, err := app.GetFileBlocks(info.ID, itemName)
+	blocks, err := app.GetItemBlocks(info.ID, itemName)
 	require.NoError(t, err)
 
 	for _, b := range blocks {
@@ -91,11 +91,11 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlFile := filepath.Join("testdata", "inline.html")
-	info, err = app.AddFiles(info.ID, []string{htmlFile})
+	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
 	// Verify we have blocks with spans before pseudo-translating
-	blocksBefore, err := app.GetFileBlocks(info.ID, "inline.html")
+	blocksBefore, err := app.GetItemBlocks(info.ID, "inline.html")
 	require.NoError(t, err)
 	var spanBlock *BlockInfo
 	for i := range blocksBefore {
@@ -108,12 +108,12 @@ func TestPseudoTranslateFile_PreservesSpans(t *testing.T) {
 	require.NotEmpty(t, spanBlock.SourceSpans, "block should have source spans")
 
 	// Pseudo-translate
-	stats, err := app.PseudoTranslateFile(info.ID, "inline.html", "fr")
+	stats, err := app.PseudoTranslateItem(info.ID, "inline.html", "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TranslatedBlocks, 0)
 
 	// Verify blocks after pseudo-translation
-	blocksAfter, err := app.GetFileBlocks(info.ID, "inline.html")
+	blocksAfter, err := app.GetItemBlocks(info.ID, "inline.html")
 	require.NoError(t, err)
 
 	for _, b := range blocksAfter {
@@ -148,7 +148,7 @@ func TestPseudoTranslateFile_FileNotFound(t *testing.T) {
 	info, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	_, err = app.PseudoTranslateFile(info.ID, "nonexistent.txt", "fr")
+	_, err = app.PseudoTranslateItem(info.ID, "nonexistent.txt", "fr")
 	assert.Error(t, err)
 }
 
@@ -165,7 +165,7 @@ func TestGetWordCount(t *testing.T) {
 	assert.Equal(t, 0, wc.TargetWords["fr"])
 
 	// Now pseudo-translate and check again
-	_, err = app.PseudoTranslateFile(info.ID, itemName, "fr")
+	_, err = app.PseudoTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
 	wc, err = app.GetWordCount(info.ID, itemName)
@@ -188,7 +188,7 @@ func TestExportTranslatedFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
 	// Pseudo-translate first
-	_, err := app.PseudoTranslateFile(info.ID, itemName, "fr")
+	_, err := app.PseudoTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 
 	// Set project path so export has a location
@@ -196,7 +196,7 @@ func TestExportTranslatedFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	p.info.Path = filepath.Join(tmpDir, "test.kaz")
 
-	outputPath, err := app.ExportTranslatedFile(info.ID, itemName, "fr")
+	outputPath, err := app.ExportTranslatedItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Contains(t, outputPath, "_fr")
 	assert.Contains(t, outputPath, ".txt")
@@ -217,7 +217,7 @@ func TestExportTranslatedFile_FileNotFound(t *testing.T) {
 	info, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	_, err = app.ExportTranslatedFile(info.ID, "nonexistent.txt", "fr")
+	_, err = app.ExportTranslatedItem(info.ID, "nonexistent.txt", "fr")
 	assert.Error(t, err)
 }
 
@@ -248,10 +248,10 @@ func TestHTMLFileBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	htmlFile := filepath.Join("testdata", "page.html")
-	info, err = app.AddFiles(info.ID, []string{htmlFile})
+	info, err = app.AddItems(info.ID, []string{htmlFile})
 	require.NoError(t, err)
 
-	blocks, err := app.GetFileBlocks(info.ID, "page.html")
+	blocks, err := app.GetItemBlocks(info.ID, "page.html")
 	require.NoError(t, err)
 	assert.Greater(t, len(blocks), 0)
 
@@ -267,7 +267,7 @@ func TestAITranslateFile_MockProvider(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
 	// Use mock provider (default when provider is empty/unknown)
-	stats, err := app.AITranslateFile(AITranslateFileRequest{
+	stats, err := app.AITranslateItem(AITranslateFileRequest{
 		ProjectID:    info.ID,
 		ItemName:     itemName,
 		TargetLocale: "fr",
@@ -281,7 +281,7 @@ func TestTMTranslateFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
 	// TM is empty so no matches expected, but should not error
-	stats, err := app.TMTranslateFile(info.ID, itemName, "fr")
+	stats, err := app.TMTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TotalBlocks, 0)
 	assert.Equal(t, 0, stats.TranslatedBlocks) // Empty TM = no matches

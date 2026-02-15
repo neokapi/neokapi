@@ -332,11 +332,6 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 	return &p.info, nil
 }
 
-// AddFiles is an alias for AddItems for backward compatibility.
-func (a *App) AddFiles(projectID string, filePaths []string) (*ProjectInfo, error) {
-	return a.AddItems(projectID, filePaths)
-}
-
 // RemoveItem removes an item from the project.
 func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
 	p, err := a.projects.get(projectID)
@@ -362,11 +357,6 @@ func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
 	p.dirty = true
 
 	return &p.info, nil
-}
-
-// RemoveFile is an alias for RemoveItem for backward compatibility.
-func (a *App) RemoveFile(projectID, fileName string) (*ProjectInfo, error) {
-	return a.RemoveItem(projectID, fileName)
 }
 
 // ListProjectFiles returns the items in a project.

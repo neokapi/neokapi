@@ -118,8 +118,6 @@ Initialize a Kapi project when you want to:
 - **Map local files** to remote translation items
 - **Run hooks** for quality checks and terminology enforcement
 
-Without a Kapi project, only legacy `kapi flow run` commands work (with deprecation warnings).
-
 ## Next Steps
 
 After initialization:

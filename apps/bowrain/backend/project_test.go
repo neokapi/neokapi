@@ -93,7 +93,7 @@ func TestAddFiles(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
 	assert.Len(t, info.Items, 1)
@@ -112,7 +112,7 @@ func TestAddFiles_Multiple(t *testing.T) {
 	txtFile := filepath.Join("testdata", "hello.txt")
 	htmlFile := filepath.Join("testdata", "page.html")
 
-	info, err = app.AddFiles(info.ID, []string{txtFile, htmlFile})
+	info, err = app.AddItems(info.ID, []string{txtFile, htmlFile})
 	require.NoError(t, err)
 
 	assert.Len(t, info.Items, 2)
@@ -139,7 +139,7 @@ func TestAddFiles_UnsupportedFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should not error, just skip unsupported file
-	info, err = app.AddFiles(info.ID, []string{tmpFile})
+	info, err = app.AddItems(info.ID, []string{tmpFile})
 	require.NoError(t, err)
 	assert.Empty(t, info.Items)
 }
@@ -147,7 +147,7 @@ func TestAddFiles_UnsupportedFormat(t *testing.T) {
 func TestAddFiles_ProjectNotFound(t *testing.T) {
 	app := NewApp()
 
-	_, err := app.AddFiles("nonexistent", []string{"test.txt"})
+	_, err := app.AddItems("nonexistent", []string{"test.txt"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -159,11 +159,11 @@ func TestRemoveFile(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 	assert.Len(t, info.Items, 1)
 
-	info, err = app.RemoveFile(info.ID, "hello.txt")
+	info, err = app.RemoveItem(info.ID, "hello.txt")
 	require.NoError(t, err)
 	assert.Empty(t, info.Items)
 }
@@ -174,7 +174,7 @@ func TestRemoveFile_NotFound(t *testing.T) {
 	info, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	_, err = app.RemoveFile(info.ID, "nonexistent.txt")
+	_, err = app.RemoveItem(info.ID, "nonexistent.txt")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -186,10 +186,10 @@ func TestGetFileBlocks(t *testing.T) {
 	require.NoError(t, err)
 
 	testFile := filepath.Join("testdata", "hello.txt")
-	info, err = app.AddFiles(info.ID, []string{testFile})
+	info, err = app.AddItems(info.ID, []string{testFile})
 	require.NoError(t, err)
 
-	blocks, err := app.GetFileBlocks(info.ID, "hello.txt")
+	blocks, err := app.GetItemBlocks(info.ID, "hello.txt")
 	require.NoError(t, err)
 	assert.Greater(t, len(blocks), 0)
 
@@ -206,7 +206,7 @@ func TestGetFileBlocks_FileNotFound(t *testing.T) {
 	info, err := app.CreateProject("Test", "en", []string{"fr"})
 	require.NoError(t, err)
 
-	_, err = app.GetFileBlocks(info.ID, "nonexistent.txt")
+	_, err = app.GetItemBlocks(info.ID, "nonexistent.txt")
 	assert.Error(t, err)
 }
 

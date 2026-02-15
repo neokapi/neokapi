@@ -149,7 +149,7 @@ func TestTMTranslateItem_UsesProjectTM(t *testing.T) {
 	require.NoError(t, err)
 
 	// Now run TM translate — the project's TM should be used
-	stats, err := app.TMTranslateFile(info.ID, itemName, "fr")
+	stats, err := app.TMTranslateItem(info.ID, itemName, "fr")
 	require.NoError(t, err)
 	assert.Greater(t, stats.TotalBlocks, 0)
 }

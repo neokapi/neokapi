@@ -34,15 +34,11 @@ var flowRunCmd = &cobra.Command{
 		// Try to find .kapi/ project first
 		project, err := findProject()
 		if err == nil {
-			// Project-based flow execution (new path - ADR-016)
+			// Project-based flow execution (ADR-016)
 			return runProjectFlow(cmd, project, flowName, args)
 		}
 
-		// Fallback to legacy flow execution (backward compatibility)
-		// This path will be removed once all flows are project-based
-		fmt.Println("Warning: Running flow without .kapi/ project (legacy mode)")
-		fmt.Println("Consider running 'kapi init' to create a project")
-		fmt.Println()
+		// Built-in flow execution without a project
 
 		inputPaths, _ := cmd.Flags().GetStringSlice("input")
 		concurrency, _ := cmd.Flags().GetInt("concurrency")
@@ -70,7 +66,7 @@ var flowRunCmd = &cobra.Command{
 	},
 }
 
-// runSingleFile processes a single input file through the flow (backward-compat path).
+// runSingleFile processes a single input file through the flow.
 func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {
 	fmtName := formatFlag
 	if fmtName == "" {
@@ -236,10 +232,8 @@ var flowListCmd = &cobra.Command{
 			return
 		}
 
-		// Fallback to built-in flows
-		fmt.Println("No .kapi/ project found (run 'kapi init')")
-		fmt.Println()
-		fmt.Println("Built-in flows (legacy):")
+		// List built-in flows
+		fmt.Println("Built-in flows:")
 		fmt.Println()
 		fmt.Printf("  %-25s %s\n", "FLOW", "DESCRIPTION")
 		fmt.Printf("  %-25s %s\n", "----", "-----------")

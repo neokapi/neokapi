@@ -153,11 +153,6 @@ func spanToInfo(s *model.Span) SpanInfo {
 	}
 }
 
-// GetFileBlocks is an alias for GetItemBlocks for backward compatibility.
-func (a *App) GetFileBlocks(projectID, fileName string) ([]BlockInfo, error) {
-	return a.GetItemBlocks(projectID, fileName)
-}
-
 // UpdateBlockTarget updates the target text for a specific block.
 func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 	p, err := a.projects.get(req.ProjectID)
@@ -165,7 +160,6 @@ func (a *App) UpdateBlockTarget(req UpdateBlockRequest) error {
 		return err
 	}
 
-	// Resolve item name (support both ItemName and legacy FileName field)
 	itemName := req.ItemName
 	id, ok := p.items[itemName]
 	if !ok {
@@ -341,11 +335,6 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 	return stats, nil
 }
 
-// PseudoTranslateFile is an alias for PseudoTranslateItem for backward compatibility.
-func (a *App) PseudoTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
-	return a.PseudoTranslateItem(projectID, fileName, targetLocale)
-}
-
 // AITranslateItem translates all blocks using an AI provider.
 func (a *App) AITranslateItem(req AITranslateFileRequest) (*TranslationStats, error) {
 	p, err := a.projects.get(req.ProjectID)
@@ -400,11 +389,6 @@ func (a *App) AITranslateItem(req AITranslateFileRequest) (*TranslationStats, er
 	return stats, nil
 }
 
-// AITranslateFile is an alias for AITranslateItem for backward compatibility.
-func (a *App) AITranslateFile(req AITranslateFileRequest) (*TranslationStats, error) {
-	return a.AITranslateItem(req)
-}
-
 // TMTranslateItem leverages translation memory to translate blocks.
 func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*TranslationStats, error) {
 	p, err := a.projects.get(projectID)
@@ -454,11 +438,6 @@ func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*Transl
 	stats := computeStats(id.parts, targetLocale)
 	p.dirty = true
 	return stats, nil
-}
-
-// TMTranslateFile is an alias for TMTranslateItem for backward compatibility.
-func (a *App) TMTranslateFile(projectID, fileName, targetLocale string) (*TranslationStats, error) {
-	return a.TMTranslateItem(projectID, fileName, targetLocale)
 }
 
 // GetWordCount returns word and character counts for an item.
@@ -552,11 +531,6 @@ func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (st
 	writer.Close()
 
 	return outputPath, nil
-}
-
-// ExportTranslatedFile is an alias for ExportTranslatedItem for backward compatibility.
-func (a *App) ExportTranslatedFile(projectID, fileName, targetLocale string) (string, error) {
-	return a.ExportTranslatedItem(projectID, fileName, targetLocale)
 }
 
 // OpenFileInOS opens a file using the OS default application.

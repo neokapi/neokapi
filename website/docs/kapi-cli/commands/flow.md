@@ -19,9 +19,9 @@ kapi flow list
 
 The `flow run` command executes a named processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
-**Project-based flows** (recommended): If a `.kapi/` project exists, flows are loaded from `.kapi/flows/*.yaml` files.
+**Project-based flows**: If a `.kapi/` project exists, flows are loaded from `.kapi/flows/*.yaml` files.
 
-**Legacy flows** (deprecated): Without a project, built-in flows run with a deprecation warning.
+**Built-in flows**: Without a project, built-in flows can still be executed.
 
 Use `flow list` to see available flows.
 
@@ -63,17 +63,6 @@ kapi flow list
 | `--source-lang` | | Source language, BCP 47 (default: en) |
 | `--target-lang` | | Target language, BCP 47 (required) |
 
-## Built-in Flows
-
-| Flow | Description |
-|------|-------------|
-| `ai-translate` | Translate content using AI/LLM |
-| `ai-translate-qa` | Translate then quality check using AI/LLM |
-| `pseudo-translate` | Generate pseudo-translations for testing |
-| `qa-check` | Run rule-based quality checks on translations |
-| `tm-leverage` | Pre-fill translations from translation memory |
-| `segmentation` | Split source text into sentence segments |
-
 ## Project-Based Flows
 
 If you've initialized a Kapi project with `kapi init`, create custom flows in `.kapi/flows/`:
@@ -111,15 +100,24 @@ kapi flow run translate-review
 Project flows automatically use file mappings and locales from `.kapi/config.yaml`.
 No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
 
-## Legacy Flows (Deprecated)
+## Built-in Flows
 
-Without a `.kapi/` project, built-in flows still work but show a deprecation warning:
+Without a `.kapi/` project, you can still use built-in flows with explicit flags:
 
 ```bash
 kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
-**Warning**: This mode is deprecated. Run `kapi init` to create a project.
+Available built-in flows:
+
+| Flow | Description |
+|------|-------------|
+| `ai-translate` | Translate content using AI/LLM |
+| `ai-translate-qa` | Translate then quality check using AI/LLM |
+| `pseudo-translate` | Generate pseudo-translations for testing |
+| `qa-check` | Run rule-based quality checks on translations |
+| `tm-leverage` | Pre-fill translations from translation memory |
+| `segmentation` | Split source text into sentence segments |
 
 ## Listing Available Tools
 

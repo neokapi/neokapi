@@ -491,7 +491,7 @@ func TestParallelExecutionContextCancellation(t *testing.T) {
 	_ = err
 }
 
-func TestSingleItemBackwardCompat(t *testing.T) {
+func TestSingleItemDirectTools(t *testing.T) {
 	// With a single item, Execute should use f.Tools directly (no factory needed).
 	var count atomic.Int64
 
@@ -508,7 +508,7 @@ func TestSingleItemBackwardCompat(t *testing.T) {
 	err := executor.Execute(context.Background(), f, items)
 	require.NoError(t, err)
 	// processItemCollect closes input immediately, so no blocks are processed.
-	// Key test: no panic, no deadlock, backward compat path used.
+	// Key test: no panic, no deadlock, direct tools path used.
 }
 
 func TestExecutorOptions(t *testing.T) {
