@@ -159,7 +159,7 @@ Kapi uses content-addressed blocks for efficient incremental sync — only chang
 - **Import terminology** as `.kapi/termbase.tbx` and add `term-lookup` to your flow
 - **Run `pseudo-translate` flow** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `.kapi/config.yaml`** to git, but not `.kapi/.state.json` (auto-gitignored)
+- **Commit `.kapi/config.yaml`** to git, but not `.kapi/.sync-cache` (auto-gitignored)
 - **Check `kapi status`** before pushing to see what changed
 
 ## Related

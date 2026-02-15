@@ -15,7 +15,7 @@ my-app/
 │   ├── config.yaml       # Project configuration
 │   ├── flows/            # Custom flow definitions
 │   │   └── my-flow.yaml
-│   ├── .state.json       # Sync state (gitignored)
+│   ├── .sync-cache       # Sync cache (gitignored)
 │   ├── .server-token     # Auth token (gitignored)
 │   └── .gitignore        # Auto-generated
 ├── src/
@@ -24,7 +24,7 @@ my-app/
 │       │   └── messages.json
 │       └── fr/
 │           └── messages.json
-└── .gitignore            # Add .kapi/.state.json
+└── .gitignore            # Add .kapi/.sync-cache
 ```
 
 ## config.yaml
@@ -71,9 +71,9 @@ Mappings define how local files correspond to remote translation items.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `{path}` | Full relative path without extension | `en/messages` |
-| `{filename}` | Filename with extension | `messages.json` |
-| `{basename}` | Filename without extension | `messages` |
+| `\{path\}` | Full relative path without extension | `en/messages` |
+| `\{filename\}` | Filename with extension | `messages.json` |
+| `\{basename\}` | Filename without extension | `messages` |
 
 ### Examples
 
@@ -120,7 +120,7 @@ Files to commit:
 ### Do NOT commit
 
 Files that should NOT be committed (auto-gitignored):
-- `.kapi/.state.json` — local sync state
+- `.kapi/.sync-cache` — local sync cache (block hashes + cursor)
 - `.kapi/.server-token` — authentication token
 
 `kapi init` automatically creates `.kapi/.gitignore` with these entries.
@@ -138,7 +138,7 @@ This creates:
 1. `.kapi/` directory
 2. `.kapi/config.yaml` with specified settings
 3. `.kapi/flows/` for custom flows
-4. `.kapi/.gitignore` to exclude state files
+4. `.kapi/.gitignore` to exclude cache and token files
 
 ## Server Connection (Optional)
 
@@ -151,8 +151,9 @@ kapi init --server https://bowrain.example.com --project abc123
 This updates `.kapi/config.yaml` with server details. You can then:
 
 ```bash
-kapi pull   # Fetch translations from server
-kapi push   # Upload local changes to server
+kapi push    # Upload local source blocks to server
+kapi pull    # Fetch translated blocks from server
+kapi status  # Show sync state (pending push/pull)
 ```
 
 ## Next Steps

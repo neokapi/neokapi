@@ -23,7 +23,7 @@ Kapi is to Bowrain Server as **git is to GitHub** — a local-first tool that:
 `.kapi/` directories (like `.git/`) contain:
 - **config.yaml** — project settings, file mappings, locales
 - **flows/** — custom YAML flow definitions
-- **.state.json** — sync state (gitignored, local only)
+- **.sync-cache** — sync cache (gitignored, local only)
 
 ### Translation Flows
 

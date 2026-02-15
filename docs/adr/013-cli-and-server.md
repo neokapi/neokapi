@@ -98,7 +98,7 @@ kapi init --server https://bowrain.example.com --project my-app-l10n
    - Fetch project metadata from server
    - Populate `server.url` and `server.project_id`
 4. Create `.kapi/flows/` directory with example flows
-5. Create `.gitignore` entry for `.kapi/.state.json`
+5. Create `.gitignore` entry for `.kapi/.sync-cache`
 
 #### **`kapi status` — Show Sync State**
 
@@ -114,12 +114,12 @@ kapi status
 ```
 
 **Algorithm:**
-1. Read `.kapi/.state.json` (last sync state)
+1. Read `.kapi/.sync-cache` (last sync cache)
 2. Scan local files (compute content hashes)
-3. Compare with `.state.json` → identify local changes
+3. Compare with `.sync-cache` → identify local changes
 4. If server configured:
    - Call `GET /api/v1/workspaces/:ws/projects/:id/sync-state`
-   - Compare with `.state.json` → identify remote changes
+   - Compare with `.sync-cache` → identify remote changes
 5. Detect conflicts (both local and remote changed)
 
 #### **`kapi diff` — Show Changes**
@@ -155,7 +155,7 @@ kapi pull --dry-run                 # Show what would be pulled
    - Response: only changed blocks
 4. Write blocks to local files via FormatRegistry
 5. Run `post-pull` hooks (if configured)
-6. Update `.kapi/.state.json`
+6. Update `.kapi/.sync-cache`
 
 **Conflict handling:**
 - By default, pull fails if local files have uncommitted changes
@@ -181,12 +181,12 @@ kapi push --no-hooks                 # Skip pre-push hooks
    - If any hook fails, abort push
 3. Read local files via FormatRegistry
 4. Compute block hashes
-5. Compare with `.kapi/.state.json` → identify changed blocks
+5. Compare with `.kapi/.sync-cache` → identify changed blocks
 6. Verify auth token
 7. Call `POST /api/v1/workspaces/:ws/projects/:id/push`
    - Request body: changed blocks + item mappings + message
    - Server may reject if quality gates fail
-8. Update `.kapi/.state.json`
+8. Update `.kapi/.sync-cache`
 
 #### **`kapi flow` — Run Flows**
 
@@ -384,7 +384,7 @@ The CLI is designed for non-interactive use in CI/CD pipelines:
 
 - **Store-based CLI** (`kapi store`): Mixes server concerns into the CLI. The ContentStore is a server-side persistence layer; Kapi should only interact via API.
 
-- **Global config** (no project directories): Makes collaboration harder. The `.kapi/` directory model enables team workflows (check config into git, .state.json gitignored) and git-like mental model.
+- **Global config** (no project directories): Makes collaboration harder. The `.kapi/` directory model enables team workflows (check config into git, .sync-cache gitignored) and git-like mental model.
 
 ## Consequences
 

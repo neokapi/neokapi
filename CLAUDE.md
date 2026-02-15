@@ -63,7 +63,7 @@ my-app/
 │   ├── config.yaml      # Project configuration
 │   ├── flows/           # Flow definitions (YAML)
 │   │   └── pseudo.yaml
-│   └── .state.json      # Sync state (gitignored)
+│   └── .sync-cache      # Sync cache (gitignored)
 ├── src/
 │   └── locales/
 │       ├── en-US.json

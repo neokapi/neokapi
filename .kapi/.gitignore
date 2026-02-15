@@ -1,2 +1,2 @@
-# Kapi sync state (local only)
-.state.json
+# Kapi sync cache (local only)
+.sync-cache

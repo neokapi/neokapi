@@ -26,169 +26,71 @@ kapi push src/locales/en/
 # Show what would be pushed without uploading
 kapi push --dry-run
 
-# Push with a commit message
-kapi push -m "Add new welcome messages"
-
-# Bypass quality gates (use with caution!)
+# Force re-push all blocks (ignoring sync cache)
 kapi push --force
 
-# Skip pre-push hooks
-kapi push --no-hooks
-
 # Example output:
-# Pushing to: https://bowrain.example.com
-# Project: abc123
-#
-# Running pre-push hooks: [qa-check, term-enforce]
-# ✓ qa-check: 0 issues found
-# ✓ term-enforce: 2 terminology violations (blocking)
-#
-# Error: Quality gates failed
-# - Block 'error_message': missing required term "username" (use "nom d'utilisateur" in French)
-#
-# Fix issues or use --force to bypass
+# Pushed 47 blocks (scanned 12 files)
+#   (sent in 1 batches)
 ```
 
 ## Options
 
-| Flag | Short | Description | Default |
-|------|-------|-------------|---------|
-| `--force` | | Bypass quality gates | `false` |
-| `--dry-run` | | Show what would be pushed | `false` |
-| `--message` | `-m` | Commit message for this push | `""` |
-| `--no-hooks` | | Skip pre-push hooks | `false` |
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--force` | Push all blocks, ignoring sync cache | `false` |
+| `--dry-run` | Show what would be pushed without sending | `false` |
 
 ## What Happens
 
-1. **Read local files** via FormatRegistry
-2. **Compute block hashes** using `BlockIdentity`
-3. **Compare with `.kapi/.state.json`** to identify changed blocks
-4. **Run pre-push hooks** if configured (unless `--no-hooks`)
-   - Hooks may **block push** if quality gates fail
-   - Use `--force` to bypass (not recommended)
-5. **Verify auth** token (`.kapi/.server-token` or environment variable)
-6. **Call server API** `POST /api/v1/workspaces/:ws/projects/:id/push`
-   - Send changed blocks + item mappings + message
-   - Server may **reject** if quality gates fail
-7. **Update `.kapi/.state.json`** with new sync state
+1. **Read local files** via FormatRegistry (using `.kapi/config.yaml` mappings)
+2. **Extract blocks** from each file (streaming Parts → Blocks)
+3. **Compute block hashes** using `BlockIdentity` (SHA-256)
+4. **Compare with `.kapi/.sync-cache`** to identify changed blocks
+5. **Send changed blocks** to server via `POST /api/v1/projects/:id/sync/push`
+   - Batched at 1000 blocks per request
+   - Server enforces batch limits and body size (50MB)
+6. **Update `.kapi/.sync-cache`** with new hashes and sync cursor
 
 ## Content Hashing
 
 Kapi uses content-addressed blocks for efficient sync:
 
 ```
-block_hash = sha256(block_id + source_text + context)
+content_hash = sha256(normalized_source_text)
 ```
 
-Only blocks with changed hashes are transferred. Large projects sync in seconds.
+Only blocks with changed hashes are transferred. A project with 10,000 blocks
+where 5 changed will only transfer those 5 blocks.
 
-## Pre-Push Hooks
+## Sync Cache
 
-Hooks run before uploading to catch quality issues early. Configure in `.kapi/config.yaml`:
+Push state is tracked in `.kapi/.sync-cache` (auto-gitignored):
 
-```yaml
-hooks:
-  pre-push:
-    - qa-check         # Rule-based quality checks
-    - term-enforce     # Validate required terminology
+```json
+{
+  "server_url": "https://bowrain.example.com",
+  "project_id": "abc123",
+  "sync_cursor": 4821,
+  "last_sync": "2026-02-15T10:30:00Z",
+  "files": {
+    "_blocks": {
+      "blocks": {
+        "greeting": "a1b2c3d4...",
+        "farewell": "e5f6a7b8..."
+      }
+    }
+  }
+}
 ```
 
-Hooks are tool chains that process content before push:
-
-- **qa-check**: Detects common errors (whitespace, punctuation, placeholders)
-- **term-enforce**: Ensures required terms are used correctly
-- Custom tools: Any tool in the registry can be a hook
-
-### Hook Failure
-
-If hooks find **blocking issues**, the push is aborted:
-
-```
-Running pre-push hooks: [qa-check, term-enforce]
-✓ qa-check: 0 issues found
-✗ term-enforce: 2 violations (blocking)
-
-Block 'login_button':
-  Missing required term "sign in" (found "log in")
-
-Block 'password_field':
-  Incorrect translation of "password" → use "mot de passe" not "code secret"
-
-Push aborted. Fix issues or use --force to bypass.
-```
-
-Use `--force` to push anyway (bypasses local hooks but **not** server-side gates).
-
-## Quality Gates
-
-The server may also enforce quality gates:
-
-- **Terminology compliance**
-- **Translation memory fuzzy match threshold**
-- **Custom validation rules**
-
-These **cannot** be bypassed with `--force`. Contact your workspace admin to adjust gate settings.
-
-## Commit Messages
-
-Use `-m` to document why changes were made:
-
-```bash
-kapi push -m "Translate new error messages for v2.0 release"
-```
-
-Messages appear in the server's change history for the project. Required by some workspace policies.
-
-## File Mappings
-
-`.kapi/config.yaml` defines how local files map to server items:
-
-```yaml
-mappings:
-  - local: src/locales/**/*.json
-    remote: ui/strings/{path}
-    format: json
-```
-
-Templates expand during push:
-
-| Local File | Remote Item |
-|------------|-------------|
-| `src/locales/en/buttons.json` | `ui/strings/en/buttons` |
-| `src/locales/fr/buttons.json` | `ui/strings/fr/buttons` |
-
-This allows flexible file organization while maintaining clean server structure.
-
-## Implementation Status
-
-:::warning Work in Progress
-
-`kapi push` is currently a **placeholder**. Full implementation requires:
-
-- Server API endpoint: `POST /api/v1/workspaces/:ws/projects/:id/push`
-- Block hash computation
-- FormatRegistry integration for reading files
-- Hook execution framework
-
-Current behavior: prints a message indicating the feature is not yet implemented.
-
-:::
+The sync cache can be safely deleted — it will be regenerated on the next push
+(which will re-scan and re-push all blocks). The server is the source of truth.
 
 ## Exit Codes
 
-- `0` — Success (changes pushed)
-- `1` — Quality gates failed (fix issues or use `--force`)
-- `2` — Error (auth failed, server rejected, network error, etc.)
-
-## Authentication
-
-`kapi push` requires a valid server auth token:
-
-1. **Environment variable**: `KAPI_SERVER_TOKEN`
-2. **Token file**: `.kapi/.server-token` (auto-gitignored)
-3. **Interactive login**: `kapi auth login` (stores token in file)
-
-If no token is found, you'll be prompted to authenticate.
+- `0` — Success (changes pushed or already up to date)
+- `1` — Error (server rejected, network error, etc.)
 
 ## Related Commands
 
@@ -210,7 +112,5 @@ Think of it as `git push` for localization content.
 ## Best Practices
 
 1. **Run `kapi status`** before pushing to see what changed
-2. **Use commit messages** (`-m`) to document your changes
-3. **Let hooks run** — don't use `--no-hooks` without good reason
-4. **Pull first** if working with a team to avoid conflicts
-5. **Use `--dry-run`** when unsure about what will be uploaded
+2. **Pull first** if working with a team to avoid conflicts
+3. **Use `--dry-run`** when unsure about what will be uploaded

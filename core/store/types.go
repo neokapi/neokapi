@@ -92,7 +92,7 @@ type BlockChange struct {
 type ChangeEntry struct {
 	Seq         int64     `json:"seq"`
 	BlockID     string    `json:"block_id"`
-	ChangeType  string    `json:"change_type"` // source_added, source_modified, source_removed, target_added, target_modified
+	ChangeType  string    `json:"change_type"`      // source_added, source_modified, source_removed, target_added, target_modified
 	Locale      string    `json:"locale,omitempty"` // Empty for source changes
 	ContentHash string    `json:"content_hash,omitempty"`
 	LoggedAt    time.Time `json:"logged_at"`

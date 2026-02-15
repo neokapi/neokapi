@@ -53,40 +53,72 @@ Contentful Figma     GitHub   HubSpot    Kapi
    CMS      Design     Repo    Marketing  (.kapi/ projects)
 ```
 
-### Connector Interface (Server-Side)
+### Connector Interfaces
 
-Every **Bowrain Server connector** implements a common interface:
+The connector system uses **two distinct interfaces** reflecting the fundamental difference between server-side integrations and client-side source connectors:
+
+#### IntegrationConnector (Server-Side)
+
+Server-side connectors that Bowrain reaches **into** external systems. Uses Fetch/Publish terminology (from Bowrain's perspective):
 
 ```go
-type Connector interface {
-    // Identity
-    ID() string
-    Name() string
-    Category() ConnectorCategory
+type IntegrationConnector interface {
+    ConnectorBase
 
-    // Content operations
-    Pull(ctx context.Context, opts PullOptions) (<-chan *model.Part, error)
-    Push(ctx context.Context, parts <-chan *model.Part, opts PushOptions) error
+    // Fetch retrieves source content FROM the external system INTO Bowrain.
+    Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error)
 
-    // Discovery
-    List(ctx context.Context, opts ListOptions) ([]ContentItem, error)
-
-    // Status
-    Sync(ctx context.Context) (*SyncStatus, error)
-
-    // Lifecycle
-    Configure(config map[string]any) error
-    Close() error
+    // Publish sends translated content FROM Bowrain TO the external system.
+    Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error
 }
 ```
 
 **Key methods:**
-- **`Pull`** — Returns a channel of Parts (streaming content extraction)
-- **`Push`** — Consumes a Part channel (streaming content delivery)
-- **`List`** — Browsable discovery of content in the connected system
-- **`Sync`** — Lightweight status check (what changed, pending push)
+- **`Fetch`** — Retrieves content from an external system (CMS posts, design text layers, etc.)
+- **`Publish`** — Sends translated content back to the external system
 
 These connectors live **server-side** and write extracted content into the ContentStore ([ADR-003](./003-content-store.md)).
+
+#### SourceConnector (Client-Side)
+
+Client-side connectors that **push to** and **pull from** Bowrain. Uses Push/Pull terminology (from the source system's perspective):
+
+```go
+type SourceConnector interface {
+    ConnectorBase
+
+    // Push sends source content FROM the source system TO Bowrain.
+    Push(ctx context.Context, opts PushOptions) (*PushResult, error)
+
+    // Pull retrieves translated content FROM Bowrain TO the source system.
+    Pull(ctx context.Context, opts PullOptions) (*PullResult, error)
+}
+```
+
+**Key methods:**
+- **`Push`** — Reads local files, extracts blocks, sends changed blocks to Bowrain
+- **`Pull`** — Fetches target blocks for requested locales from Bowrain
+
+The primary implementation is `KapiSourceConnector` — the file connector that syncs `.kapi/` projects with Bowrain Server via REST API.
+
+#### ConnectorBase (Shared)
+
+Both interfaces share common identity and lifecycle methods:
+
+```go
+type ConnectorBase interface {
+    ID() string
+    Name() string
+    Category() Category
+    Status(ctx context.Context) (*SyncStatus, error)
+    Configure(config map[string]string) error
+    Close() error
+}
+```
+
+#### Why Two Interfaces?
+
+The terminology split resolves a persistent ambiguity: when a user says "push" in the kapi CLI, they mean "send my content to the server." But if the server's WordPress connector says "push," it means "send translations to WordPress." These are fundamentally different operations with different data flows, performance characteristics, and error modes. Separate interfaces with distinct terminology prevent confusion.
 
 ### Connector Categories
 

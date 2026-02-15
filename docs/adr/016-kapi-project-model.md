@@ -27,7 +27,7 @@ my-app/
 │   │   ├── extract.yaml
 │   │   ├── pseudo.yaml
 │   │   └── qa.yaml
-│   └── .state.json      # Sync state (gitignored)
+│   └── .sync-cache      # Sync cache (gitignored)
 ├── src/
 │   └── locales/
 │       ├── en-US.json
@@ -41,7 +41,7 @@ The `.kapi/` directory is created by `kapi init` and contains:
 
 1. **`config.yaml`** — Project metadata, server connection, file mappings, and hooks
 2. **`flows/`** — YAML definitions of file processing flows
-3. **`.state.json`** — Sync state tracking (content hashes, timestamps) — gitignored
+3. **`.sync-cache`** — Sync cache tracking last known server state (block hashes, sync cursor) — gitignored
 
 ### `config.yaml` Schema
 
@@ -123,39 +123,40 @@ remote template: ui/strings/{path}
 → remote: ui/strings/auth/login
 ```
 
-### Sync State (`.state.json`)
+### Sync Cache (`.sync-cache`)
 
-The `.state.json` file tracks sync state between local files and Bowrain Server:
+The `.sync-cache` file is a lightweight JSON cache of the last known server state. It enables incremental sync without re-reading all files or re-querying the server on every operation.
 
 ```json
 {
-  "last_pull": "2026-02-15T10:30:00Z",
-  "last_push": "2026-02-15T09:00:00Z",
+  "server_url": "https://bowrain.example.com",
+  "project_id": "abc123",
+  "sync_cursor": 4821,
+  "last_sync": "2026-02-15T10:30:00Z",
   "files": {
-    "src/locales/en-US.json": {
-      "content_hash": "abc123...",
-      "modified": "2026-02-15T09:00:00Z",
-      "remote_hash": "abc123...",
-      "remote_modified": "2026-02-14T16:00:00Z"
-    }
-  },
-  "remote_items": {
-    "ui/strings/auth/login": {
-      "content_hash": "def456...",
-      "modified": "2026-02-15T10:00:00Z",
-      "local_path": "src/locales/auth/login.json"
+    "_blocks": {
+      "mtime": "0001-01-01T00:00:00Z",
+      "size": 0,
+      "blocks": {
+        "greeting": "a1b2c3d4...",
+        "farewell": "e5f6a7b8..."
+      }
     }
   }
 }
 ```
 
-**Purpose:**
-- Detect local changes (compare file mtime + hash vs `.state.json`)
-- Detect remote changes (compare server hashes vs `.state.json`)
-- Enable `kapi status` (show modified/new/deleted files)
-- Support incremental sync (only transfer changed content)
+**Key fields:**
+- **`sync_cursor`** — Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
+- **`last_sync`** — Timestamp of the last successful push or pull.
+- **`files._blocks`** — Map of block ID → content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
 
-**This file is gitignored** — it contains local state, not project configuration.
+**Design principles:**
+- **Cache, not state**: The sync cache can be deleted and regenerated. Deleting it forces a full re-scan on the next push (expensive but correct). The server is the source of truth.
+- **Block-level granularity**: Tracks individual block hashes, not file-level hashes. When one string changes in a 100-string file, only that block is pushed.
+- **Gitignored**: Contains local-only data. Each developer's cache tracks their own sync position.
+
+**This file is gitignored** — it contains local cache data, not project configuration.
 
 ### Flow Definitions
 
@@ -222,7 +223,7 @@ kapi init --server https://bowrain.example.com --project my-app-l10n
    - Fetch project metadata from server
    - Populate `server.url` and `server.project_id`
 4. Create `.kapi/flows/` directory with example flows
-5. Create `.gitignore` entry for `.kapi/.state.json`
+5. Create `.gitignore` entry for `.kapi/.sync-cache`
 
 **Example generated `config.yaml`:**
 ```yaml
@@ -283,53 +284,68 @@ Kapi uses the same content-addressable hashing system as the ContentStore ([ADR-
 1. **Read local file** via FormatRegistry
 2. **Extract blocks** (streaming Parts → Blocks)
 3. **Compute `BlockIdentity`** hash (from [ADR-002](./002-content-model.md))
-4. **Compare hashes** with `.state.json`
-5. **Sync only changed blocks**
+4. **Compare hashes** with `.sync-cache`
+5. **Sync only changed blocks** (batched at 1000 blocks per request)
 
 This is identical to how the ContentStore works — Kapi and Bowrain Server share the same hashing algorithm, enabling efficient delta sync without transferring unchanged content.
 
-**3-way sync algorithm:**
+**Push algorithm (cursor-based):**
 
 ```
-Base (last sync):  .state.json
-Local (current):   file mtime + content hash
-Remote (server):   GET /api/v1/projects/:id/sync-state
-
-Changes:
-- Local modified + remote unchanged → push candidate
-- Remote modified + local unchanged → pull candidate
-- Both modified → conflict (requires resolution)
+1. Scan local files → extract blocks → compute hashes
+2. Diff block hashes against .sync-cache → identify changed blocks
+3. Send changed blocks to server: POST /projects/:id/sync/push (batched)
+4. Server appends to change log, returns new cursor
+5. Update .sync-cache with new hashes + cursor
 ```
+
+**Pull algorithm (cursor-based):**
+
+```
+1. Read sync_cursor from .sync-cache
+2. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr-FR
+3. Server returns only changes since cursor (O(changes), not O(total))
+4. Update .sync-cache with new cursor
+```
+
+The append-only change log with sync cursors follows the industry-standard pattern used by Contentful (sync tokens), CouchDB (sequence IDs), and Firebase (timestamp-based feeds).
 
 ### Server API Integration
 
 When `server.url` is configured, Kapi uses the Bowrain Server REST API ([ADR-013](./013-cli-and-server.md)):
 
-**Pull workflow:**
+**Sync API endpoints:**
 ```
-1. GET /api/v1/workspaces/:ws/projects/:id/sync-state
-   → Returns: map of remote item ID → content hash
-
-2. Compare with .state.json → identify changed items
-
-3. GET /api/v1/workspaces/:ws/projects/:id/blocks?items=<ids>
-   → Returns: only changed blocks
-
-4. Write blocks to local files via FormatRegistry
-
-5. Update .state.json with new hashes
+POST /api/v1/projects/:id/sync/push   # Push source blocks to server
+GET  /api/v1/projects/:id/sync/pull   # Pull changes since cursor
+GET  /api/v1/projects/:id/changes     # Raw change log query
 ```
 
 **Push workflow:**
 ```
-1. Read local files via FormatRegistry
-2. Compute block hashes
-3. Compare with .state.json → identify changed blocks
+1. Read local files via FormatRegistry → extract blocks
+2. Compute block hashes (BlockIdentity SHA-256)
+3. Compare with .sync-cache → identify changed blocks
 4. Run pre-push hooks (if configured)
-5. POST /api/v1/workspaces/:ws/projects/:id/push
-   → Request body: changed blocks + item mappings
-6. Update .state.json
+5. POST /api/v1/projects/:id/sync/push
+   → Request body: { blocks: [{id, text, name, type}] }
+   → Response: { stored: N, new_cursor: X }
+   → Batched at 1000 blocks per request (MaxBlocksPerRequest)
+6. Update .sync-cache with new hashes + cursor
 ```
+
+**Pull workflow:**
+```
+1. Read sync_cursor from .sync-cache
+2. GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR,de-DE
+   → Response: { changes: [...], new_cursor: Y, has_more: bool }
+   → Paginated: follow has_more until all changes consumed
+3. Update .sync-cache with new cursor
+```
+
+**Server-side change log:**
+
+The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup — the server never needs to diff entire version snapshots.
 
 Authentication uses the token from `kapi auth login` stored at `~/.config/gokapi/auth.json` ([ADR-015](./015-auth-and-workspaces.md)).
 
@@ -353,7 +369,7 @@ Authentication uses the token from `kapi auth login` stored at `~/.config/gokapi
 
 - `.kapi/config.yaml` is the single source of truth for project configuration. Checked into git, enabling team collaboration.
 
-- `.kapi/.state.json` tracks sync state locally. Gitignored, analogous to `.git/index`.
+- `.kapi/.sync-cache` tracks the last known server state locally (block hashes + sync cursor). Gitignored, regenerable from the server.
 
 - File mappings connect local paths to remote items, enabling bidirectional sync with Bowrain Server.
 

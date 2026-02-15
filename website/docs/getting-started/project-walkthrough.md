@@ -24,7 +24,7 @@ my-app/
 ├── .kapi/
 │   ├── config.yaml       # Project settings
 │   ├── flows/            # Custom workflow definitions
-│   ├── .state.json       # Sync state (gitignored)
+│   ├── .sync-cache       # Sync cache (gitignored)
 │   └── .gitignore        # Auto-generated
 └── src/
     └── locales/
@@ -242,7 +242,7 @@ git commit -m "Add Kapi project configuration"
 ```
 
 **Do NOT commit:**
-- `.kapi/.state.json` — auto-gitignored (local sync state)
+- `.kapi/.sync-cache` — auto-gitignored (local sync cache)
 - `.kapi/.server-token` — auto-gitignored (auth credentials)
 
 `kapi init` creates a `.gitignore` automatically.

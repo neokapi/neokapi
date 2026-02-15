@@ -35,7 +35,7 @@ kapi init --source en-US --targets fr-FR,de-DE,ja-JP
 1. Creates `.kapi/` directory in the current folder
 2. Generates `config.yaml` with project settings
 3. Creates `flows/` subdirectory for YAML flow definitions
-4. Adds `.kapi/.state.json` to `.gitignore` (sync state is local)
+4. Adds `.kapi/.sync-cache` to `.gitignore` (sync cache is local)
 5. Optionally configures connection to a Bowrain Server instance
 
 After initialization, the directory becomes a Kapi project. You can run `kapi status`,
@@ -104,7 +104,7 @@ kapi status  # Finds .kapi/ at ../../.kapi/
 - `.kapi/flows/*.yaml` — flow definitions
 
 **Do NOT commit:**
-- `.kapi/.state.json` — sync state (auto-gitignored)
+- `.kapi/.sync-cache` — sync cache (auto-gitignored)
 - `.kapi/.server-token` — auth token (auto-gitignored)
 
 `kapi init` automatically adds these to `.gitignore`.

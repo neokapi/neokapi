@@ -15,11 +15,11 @@ import (
 // KapiSourceConnector implements connector.SourceConnector for local kapi projects.
 // It communicates with a Bowrain server via REST API.
 type KapiSourceConnector struct {
-	project    *Project
-	client     *BowrainClient
-	formatReg  *registry.FormatRegistry
-	cache      *SyncCache
-	maxBatch   int // Max blocks per push request
+	project   *Project
+	client    *BowrainClient
+	formatReg *registry.FormatRegistry
+	cache     *SyncCache
+	maxBatch  int // Max blocks per push request
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.

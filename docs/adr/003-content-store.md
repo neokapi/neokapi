@@ -259,7 +259,7 @@ Source System (CMS, Design Tool, Code Repo)
 
 - **Directory-based projects** (no database): Harder to query and version. The ContentStore provides SQL queryability, atomic transactions, and content-addressed deduplication. File-based projects are Kapi's domain ([ADR-016](./016-kapi-project-model.md)), not the server's.
 
-- **Shared store between Kapi and server**: Kapi operates on local files, not a local ContentStore. Introducing a local database for Kapi would add unnecessary complexity. The `.kapi/.state.json` file provides lightweight sync state tracking without requiring SQLite.
+- **Shared store between Kapi and server**: Kapi operates on local files, not a local ContentStore. Introducing a local database for Kapi would add unnecessary complexity. The `.kapi/.sync-cache` file provides lightweight sync tracking (block hashes + cursor) without requiring SQLite.
 
 ## Consequences
 
