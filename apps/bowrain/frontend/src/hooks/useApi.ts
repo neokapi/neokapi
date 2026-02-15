@@ -189,6 +189,10 @@ export function useConnection() {
     [],
   );
 
+  const getPendingChangesCount = useCallback(async (): Promise<number> => {
+    return Backend.GetPendingChangesCount() as Promise<number>;
+  }, []);
+
   return {
     info,
     refresh,
@@ -204,6 +208,7 @@ export function useConnection() {
     stopWatching,
     updatePresence,
     reviewBlock,
+    getPendingChangesCount,
   };
 }
 

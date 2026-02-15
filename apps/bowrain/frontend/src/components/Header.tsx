@@ -1,13 +1,31 @@
-import { LogOut } from "lucide-react";
+import { LogOut, WifiOff } from "lucide-react";
+
+type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
-  serverConnected: boolean;
+  connectionState: ConnectionState;
   userName?: string;
+  pendingChanges?: number;
   onDisconnect?: () => void;
 }
 
-export function Header({ sidebarCollapsed, serverConnected, userName, onDisconnect }: HeaderProps) {
+export function Header({ sidebarCollapsed, connectionState, userName, pendingChanges, onDisconnect }: HeaderProps) {
+  const isConnected = connectionState === "connected";
+  const isOffline = connectionState === "offline";
+
+  const dotColor = isConnected
+    ? "bg-green-500"
+    : isOffline
+      ? "bg-amber-500"
+      : "bg-muted-foreground/40";
+
+  const stateLabel = isConnected
+    ? "Connected"
+    : isOffline
+      ? "Offline"
+      : "Local";
+
   return (
     <header
       className="h-12 bg-card border-b border-border flex items-center justify-between"
@@ -22,16 +40,24 @@ export function Header({ sidebarCollapsed, serverConnected, userName, onDisconne
         Localization Workbench
       </span>
       <div className="flex items-center gap-3">
-        {serverConnected && userName && (
+        {(isConnected || isOffline) && userName && (
           <span className="text-xs text-muted-foreground">{userName}</span>
         )}
+        {isOffline && (
+          <span className="flex items-center gap-1 text-xs text-amber-500">
+            <WifiOff className="w-3 h-3" />
+            {pendingChanges != null && pendingChanges > 0 && (
+              <span>{pendingChanges} pending</span>
+            )}
+          </span>
+        )}
         <span
-          className={`w-2 h-2 rounded-full inline-block ${serverConnected ? "bg-green-500" : "bg-muted-foreground/40"}`}
+          className={`w-2 h-2 rounded-full inline-block ${dotColor}`}
         />
         <span className="text-xs text-muted-foreground">
-          {serverConnected ? "Connected" : "Local"}
+          {stateLabel}
         </span>
-        {serverConnected && onDisconnect && (
+        {(isConnected || isOffline) && onDisconnect && (
           <button
             onClick={onDisconnect}
             className="text-muted-foreground hover:text-foreground transition-colors p-1"

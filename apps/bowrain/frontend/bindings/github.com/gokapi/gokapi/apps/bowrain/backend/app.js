@@ -283,6 +283,8 @@ export function GetFlowDefinition(id) {
 
 /**
  * GetItemBlocks returns all blocks for an item in the project.
+ * When connected, blocks are fetched from the server and cached locally.
+ * On connection failure, falls back to the local cache.
  * @param {string} projectID
  * @param {string} itemName
  * @returns {$CancellablePromise<$models.BlockInfo[]>}
@@ -310,6 +312,15 @@ export function GetKnownLocales() {
  */
 export function GetLocaleDisplayName(code) {
     return $Call.ByID(804882882, code);
+}
+
+/**
+ * GetPendingChangesCount returns the number of queued offline changes.
+ * Exposed to the frontend so it can show a pending sync indicator.
+ * @returns {$CancellablePromise<number>}
+ */
+export function GetPendingChangesCount() {
+    return $Call.ByID(2065414586);
 }
 
 /**
@@ -924,6 +935,7 @@ export function TryAutoConnect() {
 
 /**
  * UpdateBlockTarget updates the target text for a specific block.
+ * When connected, sends to server. On failure, queues for later replay and updates local cache.
  * @param {$models.UpdateBlockRequest} req
  * @returns {$CancellablePromise<void>}
  */

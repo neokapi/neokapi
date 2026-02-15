@@ -25,6 +25,10 @@ import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
 import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
 import { Shuffle, Link, Loader2 } from "lucide-react";
+import { Events } from "@wailsio/runtime";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore – generated .js bindings outside the TS project root
+import * as Backend from "../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
 
 type AppView = View | "flows" | "connectors";
 type AppMode = "loading" | "connecting" | "workspace-select" | "ready";
@@ -55,6 +59,24 @@ function App() {
   const [activeFile, setActiveFile] = useState<string | null>(null);
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState(0);
+
+  // Listen for connection state changes from the backend (e.g. going offline).
+  useEffect(() => {
+    const cancel = Events.On("connection-state-changed", (event: { data: unknown }) => {
+      const info = event.data as { state: string };
+      connection.refresh();
+      if (info?.state === "offline") {
+        Backend.GetPendingChangesCount?.()
+          .then((n: number) => setPendingChanges(n))
+          .catch(() => {});
+      } else if (info?.state === "connected") {
+        setPendingChanges(0);
+      }
+    });
+    return () => { cancel?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- Connection flow ---
 
@@ -395,8 +417,9 @@ function App() {
             <div className="flex-1 flex flex-col min-h-0">
               <Header
                 sidebarCollapsed={sidebarCollapsed}
-                serverConnected={isServerMode}
+                connectionState={isServerMode ? connection.info.state : "disconnected"}
                 userName={connection.info.user_name}
+                pendingChanges={pendingChanges}
                 onDisconnect={isServerMode ? handleDisconnect : undefined}
               />
               <main

@@ -153,6 +153,7 @@ export async function injectMockBackend(page: Page) {
       ExportTranslatedItem: 227674686,
       FetchContent: 948929260,
       GetConnectionState: 3895233544,
+      GetPendingChangesCount: 2065414586,
       GetConnectorStatus: 2734390172,
       GetCurrentWorkspace: 3228582525,
       GetFlowDefinition: 2095856838,
@@ -1105,6 +1106,8 @@ export async function injectMockBackend(page: Page) {
       userName = "";
       workspace = "";
     };
+
+    mock[IDS.GetPendingChangesCount] = () => 0;
 
     mock[IDS.ReviewBlock] = (_projectID: string, itemName: string, blockID: string, targetLocale: string, reviewed: boolean) => {
       const files = projectFiles[_projectID];
