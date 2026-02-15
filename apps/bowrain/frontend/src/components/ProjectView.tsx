@@ -10,7 +10,6 @@ interface ProjectViewProps {
   onAddFiles: (filePaths: string[]) => void;
   onAddFilesDialog: () => void;
   onRemoveFile: (fileName: string) => void;
-  onSave: () => void;
   onOpenTM: () => void;
   onOpenTerms: () => void;
 }
@@ -22,7 +21,6 @@ export function ProjectView({
   onAddFiles,
   onAddFilesDialog,
   onRemoveFile,
-  onSave,
   onOpenTM,
   onOpenTerms,
 }: ProjectViewProps) {
@@ -72,9 +70,6 @@ export function ProjectView({
         </button>
         <button onClick={onOpenTM} style={tmBtnStyle} data-testid="open-tm-btn">
           Translation Memory
-        </button>
-        <button onClick={onSave} style={saveBtnStyle} data-testid="save-project-btn">
-          Save
         </button>
       </div>
 
@@ -191,17 +186,6 @@ const tmBtnStyle: React.CSSProperties = {
   backgroundColor: "var(--bg-tertiary)",
   color: "var(--text-primary)",
   border: "1px solid var(--border)",
-  borderRadius: 6,
-  fontSize: 13,
-  cursor: "pointer",
-  fontWeight: 600,
-};
-
-const saveBtnStyle: React.CSSProperties = {
-  padding: "8px 16px",
-  backgroundColor: "var(--accent)",
-  color: "#fff",
-  border: "none",
   borderRadius: 6,
   fontSize: 13,
   cursor: "pointer",

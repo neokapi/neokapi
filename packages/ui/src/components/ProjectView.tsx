@@ -18,7 +18,6 @@ interface ProjectViewProps {
   onRemoveFile: (fileName: string) => void;
   onOpenTM?: () => void;
   onOpenTerms?: () => void;
-  onSave?: () => void;
 }
 
 export function ProjectView({
@@ -29,7 +28,6 @@ export function ProjectView({
   onRemoveFile,
   onOpenTM,
   onOpenTerms,
-  onSave,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -88,11 +86,6 @@ export function ProjectView({
         {onOpenTM && (
           <Button variant="outline" onClick={onOpenTM} data-testid="open-tm-btn">
             Translation Memory
-          </Button>
-        )}
-        {onSave && (
-          <Button onClick={onSave} data-testid="save-project-btn">
-            Save
           </Button>
         )}
       </div>

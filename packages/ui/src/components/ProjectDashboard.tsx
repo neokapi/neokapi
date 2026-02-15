@@ -12,15 +12,12 @@ interface ProjectDashboardProps {
   projects: ProjectInfo[];
   onCreateProject: (name: string, sourceLang: string, targetLangs: string[]) => void;
   onOpenProject: (project: ProjectInfo) => void;
-  /** Optional handler for "Open a Project" button (e.g. file dialog in desktop apps). */
-  onOpenKaz?: () => void;
 }
 
 export function ProjectDashboard({
   projects,
   onCreateProject,
   onOpenProject,
-  onOpenKaz,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
@@ -42,11 +39,6 @@ export function ProjectDashboard({
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Translation Projects</h2>
         <div className="flex gap-2">
-          {onOpenKaz && (
-            <Button variant="outline" onClick={onOpenKaz} data-testid="open-kaz-btn">
-              Open a Project
-            </Button>
-          )}
           <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
             New Project
           </Button>

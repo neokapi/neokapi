@@ -191,9 +191,6 @@ export async function injectMockBackend(page: Page) {
       RenderBlockHTML: 3630764479,
       RenderDocumentPreview: 3649056848,
       SaveFlowDefinition: 2719448633,
-      SaveProject: 179173205,
-      SaveProjectAs: 3259052957,
-      SaveProjectDialog: 2824494121,
       SaveProviderConfig: 755781535,
       SearchPlugins: 219729007,
       SearchPluginsByMimeType: 2104841290,
@@ -339,7 +336,7 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.LoadPlugins] = () => {};
     mock[IDS.OpenProject] = (path: string) => {
       const id = `project-${++projectCounter}`;
-      const name = path.split("/").pop()?.replace(/\.kaz$/, "") || "Untitled";
+      const name = path.split("/").pop() || "Untitled";
       const now = new Date().toISOString();
       const info = {
         id,
@@ -359,9 +356,6 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.PullContent] = () => [];
     mock[IDS.PushContent] = () => {};
     mock[IDS.RemoveConnector] = () => {};
-    mock[IDS.SaveProject] = () => {};
-    mock[IDS.SaveProjectAs] = () => {};
-    mock[IDS.SaveProjectDialog] = () => {};
     mock[IDS.SearchPlugins] = () => [];
     mock[IDS.SearchPluginsByMimeType] = () => [];
     mock[IDS.SearchPluginsByType] = () => [];
