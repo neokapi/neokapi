@@ -226,12 +226,95 @@ Install/update plugins from the plugin registry
 connectors with version information. One-click updates when new versions are
 available.
 
+### Server Connection and Collaborative Mode
+
+Bowrain operates in two modes: **local** (standalone, no server) and
+**connected** (collaborative, via a `bowrain-server` instance). The Go backend
+acts as a smart proxy — when connected, it forwards operations to the server via
+gRPC; when offline or local, it uses the local SQLite ContentStore directly. The
+frontend only talks to the Go backend via Wails IPC and is unaware of the
+communication layer.
+
+```
+Desktop Frontend ──Wails IPC──► Desktop Go Backend ──gRPC──► Bowrain Server
+```
+
+**Connection flow:**
+
+1. **Server URL** — Translator enters the bowrain-server URL. The backend
+   discovers the gRPC port via `GET /api/v1/grpc-info`
+2. **Device Auth** — OAuth Device Flow (RFC 8628): backend requests a device
+   code, displays a user code + verification URL, polls for authorization
+3. **Workspace Selection** — After auth, the translator picks a workspace from
+   the server
+4. **Project Dashboard** — Lists server projects (read-only — project creation
+   happens on the server). "New Project" is hidden in connected mode
+
+**Connection states:** `disconnected` → `connecting` → `connected` ↔ `offline`.
+The header displays the current state with visual indicators: green "Connected"
+badge with user name, yellow "Offline" badge with pending changes count, or
+grey "Local" when working standalone.
+
+**Auth persistence:** Credentials are stored at
+`~/.config/gokapi/desktop-auth.json` and auto-loaded on startup for seamless
+reconnection.
+
+**gRPC Client (`ServerClient`):** Wraps the generated `EditorServiceClient`
+with typed Go methods for all editor operations — projects, blocks, TM,
+terminology, review, and presence. Uses `grpc.WithPerRPCCredentials` for
+automatic JWT injection.
+
+### Real-Time Collaboration
+
+When connected, the `ProjectWatcher` opens a server-side gRPC stream
+(`WatchProject`) that delivers real-time events:
+
+- **Block changes** — `BlockChangeEvent` with block IDs, item name, change
+  type ("created", "updated", "deleted"), and the name of the user who made the
+  change. The frontend receives these as `blocks-changed` Wails events and
+  re-fetches affected blocks
+- **Presence** — `PresenceChangeEvent` indicating which users are viewing or
+  editing which items and blocks. Displayed as user avatars in the project
+  header and colored indicators next to blocks being edited by others
+
+The watcher auto-reconnects on network errors with exponential backoff. It
+starts when a project is opened in connected mode and stops on project
+navigation or disconnect.
+
+**Presence reporting:** The frontend calls `UpdatePresence(itemName, blockID)`
+when the translator navigates between items or starts editing a block. This
+is forwarded to the server, which broadcasts the update to all watchers of the
+same project.
+
+### Offline Layer
+
+When the gRPC connection drops, the app transitions to `offline` state and
+continues working against the local cache:
+
+- **Local cache** — On project open, blocks are fetched from the server and
+  stored locally. Reads always serve from the local ContentStore (fast). Writes
+  go to the server first; on success, the local cache updates
+- **Offline queue** — On write failure (network error), mutations are queued in
+  a SQLite-backed `OfflineQueue` at `~/.config/gokapi/offline-queue.db`.
+  Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`,
+  `delete_tm_entry`, `add_concept`, `delete_concept`
+- **Reconnection** — A background goroutine (`reconnectLoop`) pings the server
+  with exponential backoff (2s → 30s cap, 10% jitter). On successful
+  reconnect, pending changes replay in FIFO order, and the `WatchProject`
+  stream resumes
+- **Frontend indicators** — The header shows "Offline" with a count of pending
+  changes (e.g., "3 pending"). When reconnected, the count clears and the
+  status returns to "Connected"
+
+The offline queue persists across app restarts — changes are never lost even if
+the app is closed while offline. Failed replays increment an attempt counter
+and record the error for debugging.
+
 ### Project Format
 
-The Bowrain app uses the `.kaz` archive format
-([ADR-003](./003-content-store.md)) as its native project format. KAZ archives
-embed content, TM snapshots, and terminology snapshots for offline work.
-Projects can be opened from the CLI via `bowrain project.kaz`.
+Projects on the local ContentStore use SQLite
+([ADR-003](./003-content-store.md)). When connected to a server, the local
+store acts as a read cache. In fully local mode, it is the source of truth.
 
 ## Alternatives Considered
 
@@ -256,6 +339,13 @@ Projects can be opened from the CLI via `bowrain project.kaz`.
   repositories, and local files ([ADR-005](./005-connector-system.md))
 - Embedded translation concept enables in-context translation within native
   design and CMS tools, a significant differentiator
+- Collaborative mode via gRPC gives real-time multi-user editing with presence
+  awareness. The smart proxy pattern (local cache + offline queue) ensures the
+  translator can always work, regardless of network state
+- Device auth flow provides a secure, clipboard-friendly login experience
+  without requiring the desktop app to open a browser-based redirect
+- Offline-first architecture: SQLite-backed queue guarantees zero data loss
+  during network outages with automatic FIFO replay on reconnection
 - Hot reload in development via `wails3 dev`
 - Playwright E2E tests validate UI workflows in CI
 - Locale selectors show friendly names via the `core/locale` package

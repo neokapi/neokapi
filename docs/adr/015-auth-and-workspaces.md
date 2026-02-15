@@ -63,15 +63,30 @@ After OIDC authentication, the server issues a JWT (HMAC-SHA256 signed) containi
 API requests include the JWT in the `Authorization: Bearer <token>` header.
 The `AuthMiddleware` validates tokens and sets user context.
 
-### OAuth Device Flow for CLI
+### OAuth Device Flow for CLI and Desktop
 
-The CLI authenticates using RFC 8628 (Device Authorization Grant):
+Both the CLI and Bowrain Desktop authenticate using RFC 8628 (Device
+Authorization Grant), which works well for environments without a browser
+redirect (terminal, native desktop webview):
+
+**CLI flow:**
 
 1. `kapi auth login --server <url>` calls the device auth endpoint
 2. Server returns a user code and verification URL
 3. User opens the URL in a browser and enters the code
 4. CLI polls the token endpoint until the user authorizes
 5. Token is stored at `~/.config/gokapi/auth.json`
+
+**Desktop flow:**
+
+1. Translator enters the bowrain-server URL and clicks "Connect"
+2. Backend calls the device auth endpoint via REST
+3. UI displays the user code and a "Open in Browser" button (uses Wails
+   `BrowserOpenURL` to launch the verification URL)
+4. Backend polls the token endpoint; UI shows a spinner
+5. On authorization, the JWT is used to establish a gRPC connection
+6. Token and user info are stored at `~/.config/gokapi/desktop-auth.json`
+   for auto-reconnect on next launch
 
 ### Database Schema
 
@@ -137,5 +152,8 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
   that adds `workspace_id` with a default empty string for backward compatibility.
 - The web UI and Bowrain desktop share components via `packages/ui/` to avoid
   divergence between the two frontends.
+- Device auth flow is shared between CLI and desktop — same REST endpoints,
+  same user experience (enter code in browser). Desktop stores credentials
+  separately (`desktop-auth.json`) to allow independent sessions.
 - Dex is a deployment dependency for multi-user mode but not required for local
   use or desktop operation.
