@@ -258,6 +258,70 @@ export async function seedConcepts(
   return concepts.length;
 }
 
+// --- Invitations ---
+
+export async function createInvite(
+  token: string,
+  wsSlug: string,
+  role: string,
+  email?: string,
+  maxUses?: number,
+  ttlDays?: number,
+): Promise<Invite> {
+  const body: Record<string, unknown> = { role };
+  if (email) body.email = email;
+  if (maxUses !== undefined) body.max_uses = maxUses;
+  if (ttlDays !== undefined) body.ttl_days = ttlDays;
+  return apiPost(`/workspaces/${wsSlug}/invites`, token, body);
+}
+
+export async function listInvites(
+  token: string,
+  wsSlug: string,
+): Promise<Invite[]> {
+  return apiGet(`/workspaces/${wsSlug}/invites`, token);
+}
+
+export async function acceptInvite(
+  token: string,
+  code: string,
+): Promise<void> {
+  await apiPost(`/join/${code}`, token);
+}
+
+interface Invite {
+  id: string;
+  code: string;
+  email: string;
+  role: string;
+  max_uses: number;
+  use_count: number;
+  expires_at: string;
+}
+
+// --- Anonymous Projects & Claim ---
+
+export async function createAnonymousProject(
+  name: string,
+  sourceLocale: string,
+  targetLocales: string[],
+): Promise<{ id: string; claim_token: string }> {
+  const resp = await fetch(`${API}/projects/anonymous`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, source_locale: sourceLocale, target_locales: targetLocales }),
+  });
+  if (!resp.ok) throw new Error(`Create anonymous project failed: ${resp.status} ${await resp.text()}`);
+  return resp.json();
+}
+
+export async function claimProject(
+  token: string,
+  claimToken: string,
+): Promise<{ project_id: string; workspace_slug: string }> {
+  return apiPost("/projects/claim", token, { claim_token: claimToken });
+}
+
 // --- Full Seed ---
 
 export interface SeedResult {

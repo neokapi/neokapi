@@ -1,6 +1,7 @@
 # VHS Tape: workspace management demo
 # Demonstrates real workspace operations against a running bowrain-server.
 # Requires: start-server.sh to be run first (sets BOWRAIN_TOKEN).
+# Note: A personal workspace is auto-created on first login.
 
 Output output/workspaces.webm
 Output output/workspaces.gif
@@ -27,7 +28,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# List your workspaces"
+Type "# List your workspaces (personal workspace is auto-created on first login)"
 Enter
 Sleep 500ms
 

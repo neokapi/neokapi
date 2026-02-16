@@ -1,5 +1,5 @@
 # VHS Tape: End-to-end project workflow
-# Shows word count and pseudo-translation of source files
+# Shows project init, word count and pseudo-translation of source files
 
 Output output/create-project.webm
 Output output/create-project.gif
@@ -14,6 +14,16 @@ Type "# End-to-end project workflow with kapi"
 Enter
 Sleep 500ms
 
+Type "# Initialize a project to establish context"
+Enter
+Sleep 300ms
+
+Type "kapi init --name 'Landing Page' --source en --targets fr"
+Enter
+Sleep 2s
+
+Type ""
+Enter
 Type "# First, let's look at our source content"
 Enter
 Sleep 300ms

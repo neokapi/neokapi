@@ -7,6 +7,7 @@ import {
   deleteAllEditorProjects,
   seedTMEntries,
   seedConcepts,
+  createInvite,
   waitForServer,
 } from "./helpers/api-client";
 import {
@@ -71,24 +72,24 @@ test.describe("Web App Recordings", () => {
 
       await pause(page, 2000);
 
-      // Click SSO button — redirects to Dex identity provider
+      // Click SSO button — redirects to Keycloak identity provider
       const ssoBtn = page.getByText("Sign in with SSO");
       await humanClick(page, ssoBtn);
 
-      // Wait for Dex login page (password form shown directly)
-      await page.waitForURL("**/dex/**", { timeout: 10000 });
+      // Wait for Keycloak login page
+      await page.waitForURL("**/realms/bowrain/**", { timeout: 10000 });
       await pause(page, 1500);
 
-      // Fill in credentials on Dex login form
-      await page.locator("#login").fill("admin@example.com");
+      // Fill in credentials on Keycloak login form
+      await page.locator("#username").fill("admin@example.com");
       await pause(page, 500);
       await page.locator("#password").fill("password");
       await pause(page, 500);
 
-      // Submit login — Dex redirects back to gokapi with auth code
-      await page.locator("#submit-login").click();
+      // Submit login — Keycloak redirects back to Bowrain with auth code
+      await page.locator("#kc-login").click();
 
-      // Wait for redirect back to gokapi app
+      // Wait for redirect back to Bowrain app
       await page.waitForURL("**/localhost:8080/**", { timeout: 15000 });
       await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
       await setTheme(page, theme);
@@ -410,6 +411,62 @@ test.describe("Web App Recordings", () => {
       await moveCursorTo(page, 400, 350, 500);
       await pause(page, 1000);
       await moveCursorTo(page, 400, 400, 500);
+      await pause(page, 2000);
+    });
+
+    // ── Invite workflow ───────────────────────────────────────────────────
+
+    test(`record invite-workflow [${theme}]`, async ({ page }) => {
+      test.skip(isCI, "Recording tests are skipped in CI");
+
+      await setupRecording(page, theme);
+      await pause(page, 1000);
+
+      // Navigate to Settings
+      await humanClick(page, page.getByTestId("nav-settings"));
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+      await pause(page, 1500);
+
+      // Scroll to Invitations section
+      const inviteSection = page.getByTestId("invite-manager");
+      if (await inviteSection.isVisible()) {
+        await inviteSection.scrollIntoViewIfNeeded();
+        await pause(page, 1000);
+      }
+
+      // Fill in email for new invite
+      const emailInput = page.getByTestId("invite-email-input");
+      if (await emailInput.isVisible()) {
+        await humanType(page, emailInput, "translator@example.com");
+        await pause(page, 800);
+      }
+
+      // Select role
+      const roleSelect = page.getByTestId("invite-role-select");
+      if (await roleSelect.isVisible()) {
+        await humanClick(page, roleSelect);
+        await pause(page, 500);
+        // Select "Member" role
+        const memberOption = page.getByText("Member", { exact: true }).first();
+        await humanClick(page, memberOption);
+        await pause(page, 500);
+      }
+
+      // Submit the invite
+      const submitBtn = page.getByTestId("invite-submit-btn");
+      if (await submitBtn.isVisible()) {
+        await humanClick(page, submitBtn);
+        await pause(page, 2000);
+      }
+
+      // Copy the invite link
+      const copyBtn = page.getByTestId("invite-copy-link-btn").first();
+      if (await copyBtn.isVisible()) {
+        await humanClick(page, copyBtn);
+        await pause(page, 1500);
+      }
+
+      // Show the invite list
       await pause(page, 2000);
     });
   }

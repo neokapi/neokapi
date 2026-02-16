@@ -10,7 +10,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# CLI Authentication for gokapi"
+Type "# CLI Authentication"
 Enter
 Sleep 500ms
 
@@ -49,13 +49,25 @@ Sleep 500ms
 Type "# After login, 'auth status' shows your session info"
 Enter
 Sleep 500ms
-Type "# → Server:  https://gokapi.example.com"
+Type "# → Server:  https://bowrain.example.com"
 Enter
 Type "# → User:    Jane Translator (jane@example.com)"
 Enter
 Type "# → Expiry:  2026-02-11T14:30:00Z"
 Enter
 Sleep 2s
+
+Type ""
+Enter
+Sleep 500ms
+
+Type "# Claim an anonymous local project into your server workspace"
+Enter
+Sleep 500ms
+
+Type "kapi auth claim --help"
+Enter
+Sleep 3s
 
 Type ""
 Enter

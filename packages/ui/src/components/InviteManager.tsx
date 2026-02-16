@@ -76,7 +76,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   if (!canManage) return null;
 
   return (
-    <div className="mt-6">
+    <div className="mt-6" data-testid="invite-manager">
       <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
         <UserPlus className="h-4 w-4" />
         Invitations
@@ -91,13 +91,14 @@ export function InviteManager({ workspace }: InviteManagerProps) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="colleague@example.com"
             className="mt-1"
+            data-testid="invite-email-input"
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
           />
         </div>
         <div className="w-[120px]">
           <Label className="text-xs text-muted-foreground">Role</Label>
           <Select value={role} onValueChange={setRole}>
-            <SelectTrigger className="mt-1">
+            <SelectTrigger className="mt-1" data-testid="invite-role-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -107,7 +108,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
             </SelectContent>
           </Select>
         </div>
-        <Button onClick={handleCreate} disabled={creating || !email.trim()} size="sm">
+        <Button onClick={handleCreate} disabled={creating || !email.trim()} size="sm" data-testid="invite-submit-btn">
           {creating ? "Sending..." : "Invite"}
         </Button>
       </div>
@@ -120,7 +121,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
       ) : invites.length === 0 ? (
         <div className="text-xs text-muted-foreground">No pending invitations</div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2" data-testid="invite-list">
           {invites.map((inv) => {
             const expired = isExpired(inv);
             const usedUp = isUsedUp(inv);
@@ -158,6 +159,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                   className="h-7 w-7 p-0"
                   onClick={() => handleCopyLink(inv.code)}
                   title="Copy invite link"
+                  data-testid="invite-copy-link-btn"
                 >
                   {copied === inv.code ? (
                     <span className="text-xs text-green-500">OK</span>
@@ -171,6 +173,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                   onClick={() => handleDelete(inv.id)}
                   title="Revoke invite"
+                  data-testid="invite-revoke-btn"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </Button>

@@ -5,14 +5,14 @@ title: Getting Started
 
 # Getting Started
 
-This guide walks you through first login, workspace creation, and translating your first file in the gokapi web application.
+This guide walks you through first login, workspace creation, and translating your first file in the Bowrain web application.
 
 ## Prerequisites
 
 You need a running Bowrain Server. Choose one of:
 
 - **Local mode**: Run `kapi serve` for single-user, no-auth local development
-- **Server mode**: Deploy `Bowrain Server` with Docker Compose (see [Self-Hosting](../bowrain-server/self-hosting.md))
+- **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](../bowrain-server/installation.md))
 
 ## Starting the Server
 
@@ -34,17 +34,23 @@ Open `http://localhost:8080` (or your configured domain) in your browser.
 
 ## Logging In (Server Mode)
 
-The web UI redirects you to your configured identity provider (Dex) for authentication. Depending on your Dex configuration, you will see options like:
+The web UI redirects you to your configured identity provider (e.g. Keycloak) for authentication. Depending on your provider configuration, you will see options like:
 
-- **GitHub** — sign in with your GitHub account
-- **Google** — sign in with your Google workspace account
-- **LDAP** — sign in with your corporate credentials
+- **Username & password** — sign in with your account
+- **Self-registration** — create a new account (if enabled in your identity provider)
+- **Social login** — GitHub, Google, LDAP, or other configured identity providers
 
-After authenticating, you are redirected back to the gokapi web UI with an active session.
+After authenticating, you are redirected back to the Bowrain web UI with an active session.
 
-## Creating a Workspace
+## Personal Workspace
 
-After your first login in server mode, create a workspace to organize your translation projects:
+After your first login in server mode, a **personal workspace** is automatically created for you. This workspace is named after your display name and is ready to use immediately — no manual workspace creation needed.
+
+In local mode, a workspace named "Local" is created automatically.
+
+## Creating a Team Workspace
+
+To collaborate with others, create an additional workspace:
 
 1. Click the **+** button in the workspace rail (left edge of the screen)
 2. Enter a **Name** (e.g., "My Team") — the slug is auto-generated
@@ -52,8 +58,6 @@ After your first login in server mode, create a workspace to organize your trans
 4. Click **Create**
 
 You are automatically added as the workspace **owner** and switched to the new workspace.
-
-In local mode, a workspace named "Local" is created automatically.
 
 ## Creating a Project
 

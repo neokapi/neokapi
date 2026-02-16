@@ -9,6 +9,7 @@ import {
   deleteAllEditorProjects,
   seedTMEntries,
   seedConcepts,
+  createInvite,
   waitForServer,
 } from "./helpers/api-client";
 
@@ -174,6 +175,27 @@ test.describe("Web App Screenshots", () => {
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "settings.png") });
+    });
+
+    test(`capture invite-management [${theme}]`, async ({ page }) => {
+      const dir = path.join(SCREENSHOT_BASE, theme);
+
+      // Seed an invite so the invite list is populated
+      await createInvite(token, wsSlug, "member", "translator@example.com", 1, 7);
+
+      await page.goto(`/?token=${token}`);
+      await page.waitForTimeout(1000);
+
+      await page.getByTestId("nav-settings").click();
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+
+      // Wait for invite list to load
+      const inviteManager = page.getByTestId("invite-manager");
+      await expect(inviteManager).toBeVisible({ timeout: 5000 });
+      await page.waitForTimeout(500);
+
+      await setTheme(page, theme);
+      await page.screenshot({ path: path.join(dir, "invite-management.png") });
     });
   }
 });

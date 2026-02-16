@@ -5,7 +5,7 @@ title: Installation
 
 # Installing Bowrain Server
 
-Deploy Bowrain Server using Docker, Kubernetes, or as a native binary.
+Deploy Bowrain Server using Docker, Docker Compose, or as a native binary. Bowrain Server uses **SQLite** for storage and any **OIDC provider** (e.g. Keycloak) for authentication.
 
 ## Docker (Recommended)
 
@@ -15,51 +15,65 @@ Deploy Bowrain Server using Docker, Kubernetes, or as a native binary.
 docker run -d \
   --name bowrain-server \
   -p 8080:8080 \
-  -e DATABASE_URL=postgres://user:pass@localhost/bowrain \
-  -e OIDC_ISSUER=https://dex.example.com \
-  -e OIDC_CLIENT_ID=bowrain \
-  -e OIDC_CLIENT_SECRET=secret \
+  -v bowrain-data:/data \
+  -e BOWRAIN_STORE=/data/bowrain.db \
+  -e BOWRAIN_JWT_SECRET=change-me-in-production \
+  -e BOWRAIN_OIDC_ISSUER_URL=https://keycloak.example.com/realms/bowrain \
+  -e BOWRAIN_OIDC_CLIENT_ID=bowrain \
+  -e BOWRAIN_OIDC_CLIENT_SECRET=your-client-secret \
   ghcr.io/gokapi/bowrain-server:latest
 ```
 
 ### Docker Compose
 
-`docker-compose.yml`:
+This is the recommended setup for self-hosting. It runs Keycloak (identity provider), Mailpit (email for development), and Bowrain Server together:
 
 ```yaml
-version: '3.8'
-
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    command: start-dev --import-realm
+    environment:
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./keycloak/realm.json:/opt/keycloak/data/import/realm.json
+    ports:
+      - "8180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\n\r\n' >&3 && cat <&3 | grep -q '200'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+
   bowrain:
     image: ghcr.io/gokapi/bowrain-server:latest
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://bowrain:password@db:5432/bowrain
-      OIDC_ISSUER: https://dex.example.com
-      OIDC_CLIENT_ID: bowrain
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+      - BOWRAIN_JWT_SECRET=change-me-in-production
+      - BOWRAIN_OIDC_ISSUER_URL=http://keycloak:8080/realms/bowrain
+      - BOWRAIN_OIDC_PUBLIC_URL=http://localhost:8180/realms/bowrain
+      - BOWRAIN_OIDC_CLIENT_ID=bowrain
+      - BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret
+      - BOWRAIN_STORE=/data/bowrain.db
+      - BOWRAIN_SMTP_HOST=mailpit:1025
+      - BOWRAIN_SMTP_FROM=noreply@bowrain.cloud
+    volumes:
+      - bowrain-data:/data
     depends_on:
-      - db
-
-  db:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: bowrain
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: bowrain
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  dex:
-    image: dexidp/dex:v2.37.0
-    ports:
-      - "5556:5556"
-    volumes:
-      - ./dex-config.yaml:/etc/dex/config.yaml
+      keycloak:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  bowrain-data:
 ```
 
 Start the stack:
@@ -68,77 +82,11 @@ Start the stack:
 docker compose up -d
 ```
 
-## Kubernetes
+Open `http://localhost:8080` in your browser. The Keycloak admin console is available at `http://localhost:8180` (admin / admin). Mailpit's web UI is at `http://localhost:8025`.
 
-### Helm Chart
-
-Add the Gokapi Helm repository:
-
-```bash
-helm repo add gokapi https://gokapi.github.io/helm-charts
-helm repo update
-```
-
-Install Bowrain Server:
-
-```bash
-helm install bowrain gokapi/bowrain-server \
-  --set database.url=postgres://... \
-  --set oidc.issuer=https://dex.example.com \
-  --set oidc.clientId=bowrain \
-  --set oidc.clientSecret=... \
-  --set ingress.enabled=true \
-  --set ingress.host=bowrain.example.com
-```
-
-### Custom Values
-
-`values.yaml`:
-
-```yaml
-replicaCount: 3
-
-image:
-  repository: ghcr.io/gokapi/bowrain-server
-  tag: latest
-
-database:
-  url: postgres://bowrain:password@postgres:5432/bowrain
-
-oidc:
-  issuer: https://dex.example.com
-  clientId: bowrain
-  clientSecret: secret
-  redirectUrl: https://bowrain.example.com/auth/callback
-
-ingress:
-  enabled: true
-  className: nginx
-  host: bowrain.example.com
-  tls:
-    enabled: true
-    secretName: bowrain-tls
-
-resources:
-  requests:
-    memory: "512Mi"
-    cpu: "500m"
-  limits:
-    memory: "2Gi"
-    cpu: "2000m"
-
-autoscaling:
-  enabled: true
-  minReplicas: 2
-  maxReplicas: 10
-  targetCPUUtilizationPercentage: 80
-```
-
-Install with custom values:
-
-```bash
-helm install bowrain gokapi/bowrain-server -f values.yaml
-```
+:::tip OIDC Public URL
+When Keycloak runs in Docker, it has a different internal hostname (`keycloak:8080`) than the browser-facing URL (`localhost:8180`). Set `BOWRAIN_OIDC_PUBLIC_URL` to the browser-facing URL and `BOWRAIN_OIDC_ISSUER_URL` to the internal URL.
+:::
 
 ## Native Binary
 
@@ -158,6 +106,17 @@ tar xzf bowrain-server-darwin-arm64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
 ```
 
+### Run
+
+```bash
+bowrain-server \
+  --store /var/lib/bowrain/bowrain.db \
+  --jwt-secret change-me-in-production \
+  --oidc-issuer-url https://keycloak.example.com/realms/bowrain \
+  --oidc-client-id bowrain \
+  --oidc-client-secret your-client-secret
+```
+
 ### systemd Service
 
 `/etc/systemd/system/bowrain-server.service`:
@@ -165,17 +124,18 @@ sudo mv bowrain-server /usr/local/bin/
 ```ini
 [Unit]
 Description=Bowrain Server
-After=network.target postgresql.service
+After=network.target
 
 [Service]
 Type=simple
 User=bowrain
 Group=bowrain
 ExecStart=/usr/local/bin/bowrain-server \
-  --database postgres://bowrain:password@localhost/bowrain \
-  --oidc-issuer https://dex.example.com \
+  --store /var/lib/bowrain/bowrain.db \
+  --jwt-secret ${BOWRAIN_JWT_SECRET} \
+  --oidc-issuer-url https://keycloak.example.com/realms/bowrain \
   --oidc-client-id bowrain \
-  --oidc-client-secret ${OIDC_CLIENT_SECRET} \
+  --oidc-client-secret ${BOWRAIN_OIDC_CLIENT_SECRET} \
   --port 8080
 Restart=on-failure
 RestartSec=5s
@@ -193,91 +153,33 @@ sudo systemctl start bowrain-server
 sudo systemctl status bowrain-server
 ```
 
-## Database Setup
-
-Bowrain Server requires PostgreSQL 14+.
-
-### Create Database
-
-```sql
-CREATE DATABASE bowrain;
-CREATE USER bowrain WITH PASSWORD 'password';
-GRANT ALL PRIVILEGES ON DATABASE bowrain TO bowrain;
-```
-
-### Migrations
-
-Migrations run automatically on startup. To run manually:
-
-```bash
-bowrain-server migrate --database postgres://...
-```
-
 ## OIDC Provider Setup
 
-Bowrain Server requires an OIDC provider for authentication. We recommend [Dex](https://dexidp.io/).
+Bowrain Server requires an OIDC provider for authentication. We recommend [Keycloak](https://www.keycloak.org/).
 
-### Dex Configuration
+### Keycloak Realm Configuration
 
-`dex-config.yaml`:
+1. Create a new realm (e.g. `bowrain`)
+2. Create a client:
+   - **Client ID**: `bowrain`
+   - **Client Protocol**: `openid-connect`
+   - **Access Type**: `confidential`
+   - **Valid Redirect URIs**: `https://bowrain.example.com/*`
+3. Copy the client secret from the **Credentials** tab
+4. Enable **User Registration** if you want self-service sign-up
 
-```yaml
-issuer: https://dex.example.com
+For local development, the Docker Compose setup above imports a pre-configured realm automatically.
 
-storage:
-  type: postgres
-  config:
-    host: localhost
-    port: 5432
-    database: dex
-    user: dex
-    password: password
-    ssl:
-      mode: disable
-
-web:
-  http: 0.0.0.0:5556
-
-staticClients:
-  - id: bowrain
-    redirectURIs:
-      - 'https://bowrain.example.com/auth/callback'
-    name: 'Bowrain Server'
-    secret: your-client-secret
-
-connectors:
-  - type: oidc
-    id: google
-    name: Google
-    config:
-      issuer: https://accounts.google.com
-      clientID: your-google-client-id
-      clientSecret: your-google-client-secret
-      redirectURI: https://dex.example.com/callback
-```
-
-## Health Checks
+## Health Check
 
 Verify the server is running:
 
 ```bash
-curl http://localhost:8080/health
-```
-
-Expected response:
-
-```json
-{
-  "status": "ok",
-  "version": "1.0.0",
-  "database": "connected",
-  "oidc": "configured"
-}
+curl http://localhost:8080/api/v1/health
 ```
 
 ## Next Steps
 
-- [Configuration](/docs/bowrain-server/configuration)
-- [Workspaces](/docs/bowrain-server/workspaces)
-- [Connectors](/docs/bowrain-server/connectors)
-- [Self-Hosting](/docs/bowrain-server/self-hosting)
+- [Configuration](/docs/bowrain-server/configuration) — all environment variables and CLI flags
+- [Server Walkthrough](/docs/bowrain-server/server-walkthrough) — first login, workspaces, invitations
+- [Self-Hosting](/docs/bowrain-server/self-hosting) — production deployment with TLS and backups

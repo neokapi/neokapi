@@ -14,6 +14,13 @@ Create a new Kapi project in your application directory:
 
 ```bash
 cd my-app/
+kapi init
+```
+
+The interactive wizard guides you through setup. Choose **Quick start** for a
+local-only project, or use flags to skip the wizard:
+
+```bash
 kapi init --name "My App Localization" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
@@ -159,26 +166,44 @@ Modified local files:
   M src/locales/fr/buttons.json
 
 No server configured
-Run 'kapi init --server <URL> --project <ID>' to connect
+Run 'kapi auth login' to connect to a server
 ```
 
 ## Step 6: Connect to Bowrain Server (Optional)
 
-If you're collaborating with a team, connect to a Bowrain Server instance:
+If you're collaborating with a team, connect your project to a Bowrain Server.
+
+### Option A: Sign In and Claim
+
+If you already initialized a local project and want to move it to a server:
 
 ```bash
-kapi init --server https://bowrain.example.com --project abc123
+# Authenticate with the server
+kapi auth login --server https://bowrain.example.com
+
+# Claim your local project into your personal workspace
+kapi auth claim
 ```
 
-This updates `.kapi/config.yaml`:
+The claim transfers your anonymous local project into your personal workspace
+on the server, preserving all files and translations. Your `.kapi/config.yaml`
+is updated with the server connection details.
 
-```yaml
-server:
-  url: https://bowrain.example.com
-  project_id: abc123
+### Option B: Interactive Init
+
+Re-run `kapi init` and choose **Sign in** to create a new server-connected
+project from scratch:
+
+```bash
+kapi init
+# → Choose "Sign in"
+# → Authenticate via browser (device flow)
+# → Select workspace and configure project
 ```
 
-Now you can sync with the server:
+### After Connecting
+
+Once connected, you can sync with the server:
 
 ```bash
 # Push local translations to server
@@ -265,7 +290,7 @@ All commands work from anywhere within the project tree.
 
 If you don't need team collaboration:
 
-1. `kapi init` — initialize project
+1. `kapi init` — initialize project (Quick start or Local only)
 2. Define flows in `.kapi/flows/`
 3. `kapi flow run <flow>` — process files
 4. Commit results to git
@@ -276,18 +301,19 @@ No server required. Perfect for individual translators or small teams using git 
 
 For team collaboration with Bowrain Server:
 
-1. `kapi init --server <URL> --project <ID>` — connect to server
-2. `kapi pull` — fetch latest translations
-3. Edit files locally or run flows
-4. `kapi diff` — review changes
-5. `kapi push -m "message"` — upload to server
-6. Repeat
+1. `kapi auth login --server <URL>` — authenticate with the server
+2. `kapi auth claim` — claim your local project into a workspace, or re-run `kapi init` with "Sign in"
+3. `kapi pull` — fetch latest translations
+4. Edit files locally or run flows
+5. `kapi diff` — review changes
+6. `kapi push -m "message"` — upload to server
+7. Repeat
 
 Think of it as **git for localization content**:
 
 | Git | Kapi |
 |-----|------|
-| `git clone` | `kapi init --server` |
+| `git clone` | `kapi init` (Sign in) |
 | `git status` | `kapi status` |
 | `git diff` | `kapi diff` |
 | `git pull` | `kapi pull` |

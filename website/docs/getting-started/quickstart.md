@@ -12,6 +12,18 @@ Get started with Kapi in 5 minutes.
 Create a `.kapi/` project directory (like `.git` for localization):
 
 ```bash
+kapi init
+```
+
+The interactive wizard offers three paths:
+
+1. **Quick start** — create an anonymous local project (no server needed)
+2. **Sign in** — authenticate with a Bowrain Server and create a server-connected project
+3. **Local only** — create a local project with full control over settings
+
+You can also skip the wizard with flags:
+
+```bash
 kapi init --name "My Project" --source en-US --targets fr-FR,de-DE
 ```
 
@@ -87,6 +99,6 @@ kapi --help
 ## Next Steps
 
 - **Full walkthrough**: See [Project Walkthrough](/docs/getting-started/project-walkthrough)
-- **Connect to server**: `kapi init --server <URL> --project <ID>`
+- **Connect to server**: Use interactive `kapi init` and choose "Sign in", or run `kapi auth login --server <URL>` followed by `kapi auth claim`
 - **Explore flows**: `kapi flow list`
 - **CLI reference**: [User Guide](/docs/kapi-cli/commands/init)
