@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/spf13/cobra"
@@ -27,18 +28,36 @@ Examples:
   kapi formats                     List all formats
   kapi formats --mime text/html    Find formats handling text/html
   kapi formats --ext .docx         Find formats handling .docx files`,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		infos := formatReg.FormatInfos()
 
 		if fmtMime != "" || fmtExt != "" {
 			infos = filterFormats(infos, fmtMime, fmtExt)
 			if len(infos) == 0 {
+				if output.GetFormat(cmd) == output.FormatJSON {
+					return output.Print(cmd, output.FormatsListOutput{})
+				}
 				fmt.Println("No formats found matching the given criteria.")
-				return
+				return nil
 			}
 		}
 
-		printFormatsTable(infos)
+		out := output.FormatsListOutput{
+			Formats: make([]output.FormatInfo, len(infos)),
+			Total:   len(infos),
+		}
+		for i, info := range infos {
+			out.Formats[i] = output.FormatInfo{
+				Name:        info.Name,
+				DisplayName: info.DisplayName,
+				HasReader:   info.HasReader,
+				HasWriter:   info.HasWriter,
+				Source:      info.Source,
+				Extensions:  info.Extensions,
+				MimeTypes:   info.MimeTypes,
+			}
+		}
+		return output.Print(cmd, out)
 	},
 }
 
@@ -56,40 +75,6 @@ func filterFormats(infos []registry.FormatInfo, mime, ext string) []registry.For
 		result = append(result, info)
 	}
 	return result
-}
-
-func printFormatsTable(infos []registry.FormatInfo) {
-	fmt.Println("Available formats:")
-	fmt.Println()
-	fmt.Printf("  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
-		"FORMAT", "DISPLAY NAME", "READ", "WRITE", "SOURCE", "EXTENSIONS", "MIME TYPES")
-	fmt.Printf("  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
-		"------", "------------", "----", "-----", "------", "----------", "----------")
-	for _, info := range infos {
-		read := "-"
-		write := "-"
-		if info.HasReader {
-			read = "yes"
-		}
-		if info.HasWriter {
-			write = "yes"
-		}
-		displayName := info.DisplayName
-		if len(displayName) > 20 {
-			displayName = displayName[:17] + "..."
-		}
-		exts := strings.Join(info.Extensions, ", ")
-		if len(exts) > 18 {
-			exts = exts[:15] + "..."
-		}
-		mimes := strings.Join(info.MimeTypes, ", ")
-		if len(mimes) > 40 {
-			mimes = mimes[:37] + "..."
-		}
-		fmt.Printf("  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
-			info.Name, displayName, read, write, info.Source, exts, mimes)
-	}
-	fmt.Printf("\nTotal: %d format(s)\n", len(infos))
 }
 
 func containsLower(slice []string, val string) bool {

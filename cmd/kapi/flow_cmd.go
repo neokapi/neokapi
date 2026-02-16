@@ -10,6 +10,7 @@ import (
 
 	"github.com/gokapi/gokapi/ai/provider"
 	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/kapiproject"
 	"github.com/gokapi/gokapi/core/model"
@@ -223,68 +224,66 @@ func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, in
 var flowListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available flows",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Try to find .kapi/ project
 		project, err := findProject()
 		if err == nil {
 			// List flows from .kapi/flows/
-			listProjectFlows(project)
-			return
+			return listProjectFlows(cmd, project)
 		}
 
 		// List built-in flows
-		fmt.Println("Built-in flows:")
-		fmt.Println()
-		fmt.Printf("  %-25s %s\n", "FLOW", "DESCRIPTION")
-		fmt.Printf("  %-25s %s\n", "----", "-----------")
-		fmt.Printf("  %-25s %s\n", "ai-translate", "Translate content using AI/LLM")
-		fmt.Printf("  %-25s %s\n", "ai-translate-qa", "Translate + quality check using AI/LLM")
-		fmt.Printf("  %-25s %s\n", "pseudo-translate", "Generate pseudo-translations for testing")
-		fmt.Printf("  %-25s %s\n", "qa-check", "Run rule-based quality checks on translations")
-		fmt.Printf("  %-25s %s\n", "tm-leverage", "Pre-fill translations from translation memory")
-		fmt.Printf("  %-25s %s\n", "segmentation", "Split source text into sentence segments")
+		builtinFlows := []output.FlowInfo{
+			{Name: "ai-translate", Description: "Translate content using AI/LLM"},
+			{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
+			{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
+			{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
+			{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
+			{Name: "segmentation", Description: "Split source text into sentence segments"},
+		}
+
+		out := output.FlowsListOutput{
+			Flows: builtinFlows,
+			Total: len(builtinFlows),
+		}
+		return output.Print(cmd, out)
 	},
 }
 
-func listProjectFlows(project *kapiproject.Project) {
-	fmt.Printf("Project: %s\n", project.Config.Project.Name)
-	fmt.Printf("Flows directory: %s\n\n", project.FlowsDirPath())
-
+func listProjectFlows(cmd *cobra.Command, project *kapiproject.Project) error {
 	// List YAML files in flows/ directory
 	entries, err := os.ReadDir(project.FlowsDirPath())
 	if err != nil {
-		fmt.Printf("Error reading flows directory: %v\n", err)
-		return
+		return fmt.Errorf("reading flows directory: %w", err)
 	}
 
-	flowFiles := []string{}
+	var flows []output.FlowInfo
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".yaml" {
-			flowFiles = append(flowFiles, entry.Name())
+			flowName := entry.Name()[:len(entry.Name())-5] // Remove .yaml extension
+			flowPath := filepath.Join(project.FlowsDirPath(), entry.Name())
+
+			flowInfo := output.FlowInfo{
+				Name: flowName,
+				Path: flowPath,
+			}
+
+			// Try to load flow to get description
+			flowDef, err := loadFlowDefinition(flowPath)
+			if err == nil {
+				flowInfo.Description = flowDef.Description
+				flowInfo.Steps = len(flowDef.Steps)
+			}
+
+			flows = append(flows, flowInfo)
 		}
 	}
 
-	if len(flowFiles) == 0 {
-		fmt.Println("No flows found. Create a flow in .kapi/flows/")
-		return
+	out := output.FlowsListOutput{
+		Flows: flows,
+		Total: len(flows),
 	}
-
-	fmt.Printf("  %-25s %s\n", "FLOW", "DESCRIPTION")
-	fmt.Printf("  %-25s %s\n", "----", "-----------")
-
-	for _, filename := range flowFiles {
-		flowName := filename[:len(filename)-5] // Remove .yaml extension
-		flowPath := filepath.Join(project.FlowsDirPath(), filename)
-
-		// Try to load flow to get description
-		flowDef, err := loadFlowDefinition(flowPath)
-		if err != nil {
-			fmt.Printf("  %-25s %s\n", flowName, "(error loading)")
-			continue
-		}
-
-		fmt.Printf("  %-25s %s\n", flowName, flowDef.Description)
-	}
+	return output.Print(cmd, out)
 }
 
 func init() {

@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"path/filepath"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/kapiproject"
 	"github.com/spf13/cobra"
 )
@@ -23,15 +23,18 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Project root: %s\n", proj.Root)
-	fmt.Printf("Config:       %s\n", filepath.Join(proj.KapiDir, "config.yaml"))
+
+	out := output.StatusOutput{
+		Project: output.ProjectInfo{
+			Root:      proj.Root,
+			ConfigDir: filepath.Join(proj.KapiDir, "config.yaml"),
+		},
+	}
 
 	conn, err := kapiproject.NewSourceConnector(proj, formatReg)
 	if err != nil {
 		// No server configured — show local info only.
-		fmt.Println("\nSync status requires a Bowrain server connection.")
-		fmt.Printf("  Configure server in %s\n", filepath.Join(proj.KapiDir, "config.yaml"))
-		return nil
+		return output.Print(cmd, out)
 	}
 	defer conn.Close()
 
@@ -40,32 +43,18 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Printf("\nLocal blocks: %d\n", status.ItemCount)
-
-	if status.PendingPush > 0 {
-		fmt.Printf("Pending push: %d blocks changed locally\n", status.PendingPush)
-	}
-	if status.PendingPull > 0 {
-		fmt.Printf("Pending pull: %d remote changes available\n", status.PendingPull)
-	} else if status.PendingPull < 0 {
-		fmt.Println("Pending pull: remote changes available (count unknown)")
-	}
-	if status.PendingPush == 0 && status.PendingPull == 0 {
-		fmt.Println("Up to date.")
-	}
-
+	out.Project.Server = proj.Config.Server.URL
+	out.Project.ProjectID = proj.Config.Server.ProjectID
+	out.ItemCount = status.ItemCount
+	out.PendingPush = status.PendingPush
+	out.PendingPull = status.PendingPull
+	out.UpToDate = status.PendingPush == 0 && status.PendingPull == 0
 	if !status.LastSync.IsZero() {
-		fmt.Printf("Last sync:    %s\n", status.LastSync.Format("2006-01-02 15:04:05 UTC"))
+		out.LastSync = &status.LastSync
 	}
+	out.Errors = status.Errors
 
-	if len(status.Errors) > 0 {
-		fmt.Println("\nErrors:")
-		for _, e := range status.Errors {
-			fmt.Printf("  - %s\n", e)
-		}
-	}
-
-	return nil
+	return output.Print(cmd, out)
 }
 
 func init() {
