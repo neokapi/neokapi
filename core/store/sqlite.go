@@ -255,8 +255,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 		`INSERT INTO blocks (id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(project_id, id) DO UPDATE SET
-			item_name=excluded.item_name, name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
+		 ON CONFLICT(project_id, item_name, id) DO UPDATE SET
+			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
 			targets_json=excluded.targets_json, properties=excluded.properties,
@@ -268,7 +268,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 
 	// Prepare change log statement for detecting add vs modify.
 	hashStmt, err := tx.PrepareContext(ctx,
-		`SELECT content_hash FROM blocks WHERE project_id = ? AND id = ?`)
+		`SELECT content_hash FROM blocks WHERE project_id = ? AND item_name = ? AND id = ?`)
 	if err != nil {
 		return fmt.Errorf("prepare hash lookup: %w", err)
 	}
@@ -280,7 +280,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 
 		// Check existing hash for change log.
 		var existingHash string
-		err := hashStmt.QueryRowContext(ctx, projectID, b.ID).Scan(&existingHash)
+		err := hashStmt.QueryRowContext(ctx, projectID, itemName, b.ID).Scan(&existingHash)
 		isNew := err == sql.ErrNoRows
 
 		sourceJSON, err := json.Marshal(b.Source)
@@ -330,11 +330,34 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 }
 
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*StoredBlock, error) {
-	row := s.db.QueryRowContext(ctx,
+	// Query all blocks matching the ID - there may be duplicates across items.
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
 		 FROM blocks WHERE project_id=? AND id=?`, projectID, blockID)
-	return scanStoredBlock(row)
+	if err != nil {
+		return nil, fmt.Errorf("query block: %w", err)
+	}
+	defer rows.Close()
+
+	var result *StoredBlock
+	for rows.Next() {
+		sb, err := scanStoredBlockRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		if result != nil {
+			return nil, fmt.Errorf("block ID %s is ambiguous - found in multiple items", blockID)
+		}
+		result = sb
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
+	}
+	return result, nil
 }
 
 func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error) {
