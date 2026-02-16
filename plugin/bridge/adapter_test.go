@@ -295,6 +295,169 @@ func TestBridgeFormatWriterSetOutput(t *testing.T) {
 	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", writer.filterClass)
 }
 
+func TestBridgeFormatReaderSetFilterParams(t *testing.T) {
+	b, _, _ := mockBridgeForAdapter(t)
+	pool := mockPoolForAdapter(b)
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+
+	params := map[string]interface{}{
+		"extractStandalone": true,
+		"extractAllPairs":   false,
+		"codeFinderRules": map[string]interface{}{
+			"rules": []map[string]string{
+				{"pattern": "<[^>]+>"},
+			},
+			"sample": "test <b>text</b>",
+		},
+	}
+	reader.SetFilterParams(params)
+
+	assert.NotNil(t, reader.filterParams)
+	assert.Equal(t, true, reader.filterParams["extractStandalone"])
+	assert.Equal(t, false, reader.filterParams["extractAllPairs"])
+}
+
+func TestBridgeFormatWriterSetFilterParams(t *testing.T) {
+	b, _, _ := mockBridgeForAdapter(t)
+	pool := mockPoolForAdapter(b)
+	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+
+	params := map[string]interface{}{
+		"extractStandalone": true,
+		"maxDepth":          10,
+	}
+	writer.SetFilterParams(params)
+
+	assert.NotNil(t, writer.filterParams)
+	assert.Equal(t, true, writer.filterParams["extractStandalone"])
+	assert.Equal(t, 10, writer.filterParams["maxDepth"])
+}
+
+func TestBridgeFormatReaderOpenWithFilterParams(t *testing.T) {
+	b, stdinR, stdoutW := mockBridgeForAdapter(t)
+	pool := mockPoolForAdapter(b)
+	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+
+	// Set filter params before Open
+	params := map[string]interface{}{
+		"extractStandalone": true,
+	}
+	reader.SetFilterParams(params)
+
+	jsonContent := []byte(`{"key": "value"}`)
+	doc := &model.RawDocument{
+		URI:          "test.json",
+		SourceLocale: "en",
+		Encoding:     "UTF-8",
+		MimeType:     "application/json",
+		Reader:       io.NopCloser(bytes.NewReader(jsonContent)),
+	}
+
+	// Open in background
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var openErr error
+	go func() {
+		defer wg.Done()
+		openErr = reader.Open(context.Background(), doc)
+	}()
+
+	// Verify the open command includes filter_params
+	cmd := readCommandAdapter(t, stdinR)
+	assert.Equal(t, "open", cmd.Command)
+
+	// Check that filter_params is in the params
+	// cmd.Params is interface{}, need to marshal/unmarshal to get typed struct
+	paramsJSON, err := json.Marshal(cmd.Params)
+	require.NoError(t, err)
+	var openParams OpenParams
+	err = json.Unmarshal(paramsJSON, &openParams)
+	require.NoError(t, err)
+	assert.NotNil(t, openParams.FilterParams)
+	assert.Equal(t, true, openParams.FilterParams["extractStandalone"])
+
+	respondJSONAdapter(t, stdoutW, Response{Status: "ok"})
+	wg.Wait()
+	require.NoError(t, openErr)
+}
+
+func TestBridgeFormatWriterWriteWithFilterParams(t *testing.T) {
+	b, stdinR, stdoutW := mockBridgeForAdapter(t)
+	pool := mockPoolForAdapter(b)
+	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+
+	// Set filter params before Write
+	params := map[string]interface{}{
+		"extractStandalone": false,
+	}
+	writer.SetFilterParams(params)
+
+	originalContent := []byte(`{"key": "value"}`)
+	writer.SetOriginalContent(originalContent)
+	writer.SetLocale("fr")
+	writer.SetEncoding("UTF-8")
+
+	var outputBuf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&outputBuf))
+
+	// Create a parts channel
+	partsCh := make(chan *model.Part, 3)
+	partsCh <- &model.Part{
+		Type:     model.PartLayerStart,
+		Resource: &model.Layer{ID: "doc1"},
+	}
+	partsCh <- &model.Part{
+		Type: model.PartBlock,
+		Resource: &model.Block{
+			ID:           "tu1",
+			Translatable: true,
+			Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment("value")}},
+			Targets: map[model.LocaleID][]*model.Segment{
+				"fr": {{ID: "s1", Content: model.NewFragment("valeur")}},
+			},
+		},
+	}
+	partsCh <- &model.Part{
+		Type:     model.PartLayerEnd,
+		Resource: &model.Layer{ID: "doc1"},
+	}
+	close(partsCh)
+
+	// Write in background
+	var wg sync.WaitGroup
+	wg.Add(1)
+	var writeErr error
+	go func() {
+		defer wg.Done()
+		writeErr = writer.Write(context.Background(), partsCh)
+	}()
+
+	// Read the write command
+	cmd := readCommandAdapter(t, stdinR)
+	assert.Equal(t, "write", cmd.Command)
+
+	// Verify filter_params is in the params
+	// cmd.Params is interface{}, need to marshal/unmarshal to get typed struct
+	paramsJSON, err := json.Marshal(cmd.Params)
+	require.NoError(t, err)
+	var writeParams WriteParams
+	err = json.Unmarshal(paramsJSON, &writeParams)
+	require.NoError(t, err)
+	assert.NotNil(t, writeParams.FilterParams)
+	assert.Equal(t, false, writeParams.FilterParams["extractStandalone"])
+
+	// Respond
+	translatedJSON := `{"key": "valeur"}`
+	wd, _ := json.Marshal(WriteData{
+		OutputBase64: base64.StdEncoding.EncodeToString([]byte(translatedJSON)),
+	})
+	respondJSONAdapter(t, stdoutW, Response{Status: "ok", Data: wd})
+
+	wg.Wait()
+	require.NoError(t, writeErr)
+	assert.Equal(t, translatedJSON, outputBuf.String())
+}
+
 func TestBridgeFormatReaderReadContextCancel(t *testing.T) {
 	b, stdinR, stdoutW := mockBridgeForAdapter(t)
 	pool := mockPoolForAdapter(b)

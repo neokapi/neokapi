@@ -48,19 +48,21 @@ type managedBridge struct {
 
 // PluginLoader discovers and loads plugins from a directory.
 type PluginLoader struct {
-	dir     string
-	manager *host.PluginManager
-	pool    *bridge.BridgePool // single shared pool for all bridge plugins
-	bridges []*managedBridge
-	plugins []PluginInfo
-	logger  *log.Logger
+	dir      string
+	manager  *host.PluginManager
+	pool     *bridge.BridgePool // single shared pool for all bridge plugins
+	bridges  []*managedBridge
+	plugins  []PluginInfo
+	schemas  *SchemaRegistry // filter parameter schemas
+	logger   *log.Logger
 }
 
 // NewPluginLoader creates a new PluginLoader for the given directory.
 func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 	return &PluginLoader{
-		dir:    dir,
-		logger: logger,
+		dir:     dir,
+		schemas: NewSchemaRegistry(),
+		logger:  logger,
 	}
 }
 
@@ -232,6 +234,15 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 		CommandTimeout: parsed.ResolvedCommandTimeout,
 	}
 
+	// Load schemas from the schemas/ subdirectory (NO Java needed).
+	schemasDir := filepath.Join(versionDir, "schemas")
+	if err := l.schemas.LoadFromDirectory(schemasDir); err != nil {
+		l.logf("loading schemas from %s: %v", schemasDir, err)
+		// Continue - schemas are optional
+	} else if l.schemas.Count() > 0 {
+		l.logf("loaded %d filter schemas from %s", l.schemas.Count(), schemasDir)
+	}
+
 	// Lazily create the shared pool on first bridge load.
 	if l.pool == nil {
 		l.pool = bridge.NewBridgePool(runtime.NumCPU(), l.logger)
@@ -302,6 +313,11 @@ func (l *PluginLoader) Plugins() []PluginInfo {
 // Dir returns the plugin directory path.
 func (l *PluginLoader) Dir() string {
 	return l.dir
+}
+
+// Schemas returns the schema registry for filter parameters.
+func (l *PluginLoader) Schemas() *SchemaRegistry {
+	return l.schemas
 }
 
 // Shutdown stops all plugin processes.

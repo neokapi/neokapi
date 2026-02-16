@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/plugin/loader"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -59,4 +60,65 @@ func TestContainsLower(t *testing.T) {
 	assert.True(t, containsLower([]string{"TEXT/HTML"}, "text/html"))
 	assert.False(t, containsLower([]string{"text/html"}, "application/json"))
 	assert.False(t, containsLower(nil, "text/html"))
+}
+
+func TestPrintParameter_Boolean(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:        "boolean",
+		Description: "Enable extraction",
+		Default:     true,
+	}
+	// Just verify it doesn't panic
+	printParameter("extractAll", prop)
+}
+
+func TestPrintParameter_String(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:        "string",
+		Description: "Pattern to match",
+		Default:     ".*",
+	}
+	printParameter("pattern", prop)
+}
+
+func TestPrintParameter_Integer(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:        "integer",
+		Description: "Max depth",
+		Default:     float64(10), // JSON numbers come as float64
+	}
+	printParameter("maxDepth", prop)
+}
+
+func TestPrintParameter_ObjectWithOkapiFormat(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:        "object",
+		Description: "Inline code detection",
+		OkapiFormat: "inlineCodeFinder",
+	}
+	printParameter("codeFinderRules", prop)
+}
+
+func TestPrintParameter_DeprecatedParam(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:       "boolean",
+		Deprecated: true,
+	}
+	printParameter("oldOption", prop)
+}
+
+func TestPrintParameter_EmptyDefault(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:    "string",
+		Default: "",
+	}
+	printParameter("emptyStr", prop)
+}
+
+func TestPrintParameter_NilDefault(t *testing.T) {
+	prop := loader.PropertySchema{
+		Type:    "string",
+		Default: nil,
+	}
+	printParameter("noDefault", prop)
 }

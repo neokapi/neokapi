@@ -19,12 +19,13 @@ import (
 // access to the stateful JVM filter for the entire lifecycle.
 type BridgeFormatReader struct {
 	format.BaseFormatReader
-	pool        *BridgePool
-	cfg         BridgeConfig
-	bridge      *JavaBridge // acquired from pool during Open
-	filterClass string
-	info        *InfoData
-	content     []byte // raw document content for base64 encoding
+	pool         *BridgePool
+	cfg          BridgeConfig
+	bridge       *JavaBridge // acquired from pool during Open
+	filterClass  string
+	filterParams map[string]interface{} // optional filter parameters
+	info         *InfoData
+	content      []byte // raw document content for base64 encoding
 }
 
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
@@ -37,6 +38,12 @@ func NewBridgeFormatReader(pool *BridgePool, cfg BridgeConfig, filterClass strin
 		cfg:         cfg,
 		filterClass: filterClass,
 	}
+}
+
+// SetFilterParams sets optional filter-specific parameters.
+// These are passed to the Java bridge when opening the filter.
+func (r *BridgeFormatReader) SetFilterParams(params map[string]interface{}) {
+	r.filterParams = params
 }
 
 // Signature returns the format detection signature from the Java filter.
@@ -81,6 +88,7 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		Encoding:      doc.Encoding,
 		ContentBase64: base64.StdEncoding.EncodeToString(content),
 		MimeType:      doc.MimeType,
+		FilterParams:  r.filterParams,
 	}); err != nil {
 		r.pool.Release(b)
 		r.bridge = nil
@@ -161,7 +169,8 @@ type BridgeFormatWriter struct {
 	pool            *BridgePool
 	cfg             BridgeConfig
 	filterClass     string
-	originalContent []byte // original document needed by Okapi for skeleton
+	filterParams    map[string]interface{} // optional filter parameters
+	originalContent []byte                 // original document needed by Okapi for skeleton
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
@@ -174,6 +183,12 @@ func NewBridgeFormatWriter(pool *BridgePool, cfg BridgeConfig, filterClass strin
 		cfg:         cfg,
 		filterClass: filterClass,
 	}
+}
+
+// SetFilterParams sets optional filter-specific parameters.
+// These are passed to the Java bridge when writing.
+func (w *BridgeFormatWriter) SetFilterParams(params map[string]interface{}) {
+	w.filterParams = params
 }
 
 // SetOriginalContent sets the original document content, which Okapi needs
@@ -214,6 +229,7 @@ send:
 		Locale:                string(w.Locale),
 		Encoding:              w.Encoding,
 		OriginalContentBase64: base64.StdEncoding.EncodeToString(w.originalContent),
+		FilterParams:          w.filterParams,
 	})
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)
