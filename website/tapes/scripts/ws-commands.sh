@@ -4,7 +4,7 @@
 # the API calls here and invoke them by function name.
 
 BASE="http://localhost:8080/api/v1"
-AUTH="Authorization: Bearer $GOKAPI_TOKEN"
+AUTH="Authorization: Bearer $BOWRAIN_TOKEN"
 
 ws_list() {
   curl -s -H "$AUTH" "$BASE/workspaces" | jq

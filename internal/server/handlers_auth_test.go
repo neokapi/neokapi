@@ -102,8 +102,8 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	deviceCodes.Unlock()
 
 	require.NotNil(t, entry)
-	assert.Equal(t, "user@gokapi.local", entry.UserEmail)
-	assert.Equal(t, "gokapi User", entry.UserName)
+	assert.Equal(t, "user@bowrain.local", entry.UserEmail)
+	assert.Equal(t, "Bowrain User", entry.UserName)
 
 	// Clean up.
 	deviceCodes.Lock()

@@ -138,5 +138,5 @@ func TestDefaultPath(t *testing.T) {
 	p := DefaultPath()
 	assert.Contains(t, p, "providers.json")
 	assert.Contains(t, p, ".config")
-	assert.Contains(t, p, "gokapi")
+	assert.Contains(t, p, "bowrain")
 }

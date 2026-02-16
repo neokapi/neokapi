@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,10 +13,11 @@ import (
 
 	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/auth"
+	"github.com/gokapi/gokapi/core/kapiproject"
 	"github.com/spf13/cobra"
 )
 
-// StoredAuth is the auth token persisted at ~/.config/gokapi/auth.json.
+// StoredAuth is the auth token persisted at ~/.config/kapi/auth.json.
 type StoredAuth struct {
 	ServerURL    string     `json:"server_url"`
 	AccessToken  string     `json:"access_token"`
@@ -54,7 +56,7 @@ var authLoginCmd = &cobra.Command{
 		client := &auth.DeviceFlowClient{
 			DeviceAuthURL: authServerURL + "/api/v1/auth/device/start",
 			TokenURL:      authServerURL + "/api/v1/auth/device/poll",
-			ClientID:      "gokapi-cli",
+			ClientID:      "kapi-cli",
 		}
 
 		fmt.Println("Starting device authorization flow...")
@@ -144,11 +146,84 @@ var authStatusCmd = &cobra.Command{
 	},
 }
 
+var authClaimCmd = &cobra.Command{
+	Use:   "claim [claim-token]",
+	Short: "Claim an anonymous project into your workspace",
+	Long: `Claim an anonymous project by providing a claim token.
+
+If no token argument is given, reads the claim_token from .kapi/config.yaml.
+Requires authentication (run: kapi auth login first).`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		stored, err := loadAuth()
+		if err != nil {
+			return fmt.Errorf("not authenticated — run: kapi auth login --server <URL>")
+		}
+
+		var claimToken string
+		if len(args) > 0 {
+			claimToken = args[0]
+		} else {
+			// Try to read from .kapi/config.yaml.
+			project, err := kapiproject.FindProject("")
+			if err != nil {
+				return fmt.Errorf("no claim token provided and no .kapi/ project found")
+			}
+			if project.Config.Server == nil || project.Config.Server.ClaimToken == "" {
+				return fmt.Errorf("no claim_token in .kapi/config.yaml — provide token as argument")
+			}
+			claimToken = project.Config.Server.ClaimToken
+		}
+
+		// Call server to claim.
+		body, _ := json.Marshal(map[string]string{"claim_token": claimToken})
+		req, err := http.NewRequest(http.MethodPost, stored.ServerURL+"/api/v1/projects/claim", bytes.NewReader(body))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer "+stored.AccessToken)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("claim request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			respBody, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("claim failed (HTTP %d): %s", resp.StatusCode, respBody)
+		}
+
+		var result struct {
+			ProjectID     string `json:"project_id"`
+			WorkspaceSlug string `json:"workspace_slug"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+			return fmt.Errorf("decode claim response: %w", err)
+		}
+
+		// Update .kapi/config.yaml: remove claim_token, update project_id.
+		project, err := kapiproject.FindProject("")
+		if err == nil && project.Config.Server != nil {
+			project.Config.Server.ClaimToken = ""
+			project.Config.Server.ProjectID = result.ProjectID
+			if saveErr := kapiproject.SaveConfig(project.KapiDir, project.Config); saveErr != nil {
+				fmt.Printf("Warning: could not update .kapi/config.yaml: %v\n", saveErr)
+			}
+		}
+
+		fmt.Printf("Project claimed into workspace %q\n", result.WorkspaceSlug)
+		fmt.Printf("Project ID: %s\n", result.ProjectID)
+		return nil
+	},
+}
+
 func init() {
 	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "Bowrain Server URL (e.g., http://localhost:8080)")
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
 	authCmd.AddCommand(authStatusCmd)
+	authCmd.AddCommand(authClaimCmd)
 	rootCmd.AddCommand(authCmd)
 }
 
@@ -160,7 +235,7 @@ func authFilePath() string {
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "gokapi", "auth.json")
+	return filepath.Join(configDir, "kapi", "auth.json")
 }
 
 func saveAuth(a StoredAuth) error {

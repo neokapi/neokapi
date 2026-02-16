@@ -14,7 +14,7 @@ func TestAuthFilePathDefault(t *testing.T) {
 
 	path := authFilePath()
 	assert.Contains(t, path, "auth.json")
-	assert.Contains(t, path, "gokapi")
+	assert.Contains(t, path, "kapi")
 }
 
 func TestAuthFilePathWithConfigDir(t *testing.T) {

@@ -127,10 +127,10 @@ Configuration uses [Viper](https://github.com/spf13/viper) for layered
 merging with the following precedence (highest to lowest):
 
 1. **CLI flags** (via Cobra) — one-off overrides
-2. **Environment variables** (`GOKAPI_*` prefix) — CI/CD and Docker
-3. **Project config** (`./gokapi.yaml`) — team-shared, committed to repo
-4. **User config** (`~/.config/gokapi/gokapi.yaml`) — personal defaults
-5. **System config** (`/etc/gokapi/gokapi.yaml`) — organization defaults
+2. **Environment variables** (`KAPI_*` prefix) — CI/CD and Docker
+3. **Project config** (`./kapi.yaml`) — team-shared, committed to repo
+4. **User config** (`~/.config/kapi/kapi.yaml`) — personal defaults
+5. **System config** (`/etc/kapi/kapi.yaml`) — organization defaults
 6. **Code defaults** — sensible zero-config behavior
 
 ```yaml
@@ -160,7 +160,7 @@ connectors:
 The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical
 subcommands (`kapi convert`, `kapi flow run`, `kapi plugins install`,
 `kapi termbase import`). Viper's automatic env binding means
-`GOKAPI_TOOLS_AI_TRANSLATION_MODEL` overrides the nested YAML path
+`BOWRAIN_TOOLS_AI_TRANSLATION_MODEL` overrides the nested YAML path
 `tools.ai-translation.model`.
 
 ### Locale Handling

@@ -57,6 +57,10 @@ function createMockAdapter(): ApiAdapter {
     getKnownLocales: vi.fn(),
     listFormats: vi.fn(),
     listTools: vi.fn(),
+    listInvites: vi.fn(),
+    createInvite: vi.fn(),
+    deleteInvite: vi.fn(),
+    acceptInvite: vi.fn(),
   } as ApiAdapter;
 }
 

@@ -246,7 +246,7 @@ kapi serve --no-open         # Don't auto-open browser
 
 ### Authentication
 
-The `kapi auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via Dex ([ADR-015](./015-auth-and-workspaces.md)):
+The `kapi auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via OIDC ([ADR-015](./015-auth-and-workspaces.md)):
 
 ```bash
 # Login to Bowrain Server
@@ -266,7 +266,7 @@ kapi auth logout
 # → Logged out from https://bowrain.example.com
 ```
 
-The token is stored at `~/.config/gokapi/auth.json` and automatically attached to API requests made by `kapi pull`, `kapi push`, etc.
+The token is stored at `~/.config/kapi/auth.json` and automatically attached to API requests made by `kapi pull`, `kapi push`, etc.
 
 ### Bowrain Server
 

@@ -15,7 +15,7 @@ export default defineConfig({
   reporter: [["list"]],
   outputDir: "./recordings-output",
   use: {
-    baseURL: process.env.GOKAPI_URL || "http://localhost:8080",
+    baseURL: process.env.BOWRAIN_URL || "http://localhost:8080",
     viewport: { width: 1280, height: 800 },
     video: {
       mode: "on",

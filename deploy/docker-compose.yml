@@ -1,4 +1,4 @@
-# Development docker-compose for bowrain with Dex OIDC provider.
+# Development docker-compose for bowrain with Keycloak OIDC provider.
 #
 # For production self-hosting, see:
 #   https://gokapi.dev/docs/user-guide/self-hosting
@@ -7,21 +7,31 @@
 #   cd deploy && docker-compose up
 #
 # This starts:
-#   - Dex OIDC provider on http://localhost:5556
+#   - Keycloak OIDC provider on http://localhost:8180
+#   - Mailpit (dev SMTP) on http://localhost:8025
 #   - bowrain-server on http://localhost:8080
 #
 # To test CLI auth:
 #   kapi auth login --server http://localhost:8080
 
 services:
-  dex:
-    image: dexidp/dex:latest
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    command: start-dev --import-realm
+    environment:
+      KC_HEALTH_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
-      - ./dex/config.yaml:/etc/dex/config.yaml
-      - dex-data:/var/dex
+      - ../e2e/keycloak/realm.json:/opt/keycloak/data/import/realm.json
     ports:
-      - "5556:5556"
-    command: ["dex", "serve", "/etc/dex/config.yaml"]
+      - "8180:8080"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
 
   bowrain:
     # For development (builds from source):
@@ -33,16 +43,18 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - GOKAPI_JWT_SECRET=dev-secret-change-in-production
-      - GOKAPI_DEX_ISSUER_URL=http://dex:5556/dex
-      - GOKAPI_DEX_CLIENT_ID=gokapi
-      - GOKAPI_DEX_CLIENT_SECRET=gokapi-secret
-      - GOKAPI_STORE=/data/gokapi.db
+      - BOWRAIN_JWT_SECRET=dev-secret-change-in-production
+      - BOWRAIN_OIDC_ISSUER_URL=http://keycloak:8080/realms/bowrain
+      - BOWRAIN_OIDC_PUBLIC_URL=http://localhost:8180/realms/bowrain
+      - BOWRAIN_OIDC_CLIENT_ID=bowrain
+      - BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret
+      - BOWRAIN_STORE=/data/bowrain.db
+      - BOWRAIN_SMTP_HOST=mailpit:1025
+      - BOWRAIN_SMTP_FROM=noreply@bowrain.cloud
     volumes:
       - bowrain-data:/data
     depends_on:
-      - dex
+      - keycloak
 
 volumes:
-  dex-data:
   bowrain-data:

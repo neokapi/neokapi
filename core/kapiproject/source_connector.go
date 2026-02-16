@@ -36,9 +36,17 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 
 	cache := LoadSyncCache(project.KapiDir)
 
+	var client *BowrainClient
+	srv := project.Config.Server
+	if srv.ClaimToken != "" {
+		client = NewClaimTokenClient(srv.URL, srv.ProjectID, srv.ClaimToken)
+	} else {
+		client = NewBowrainClient(srv.URL, srv.ProjectID)
+	}
+
 	return &KapiSourceConnector{
 		project:   project,
-		client:    NewBowrainClient(project.Config.Server.URL, project.Config.Server.ProjectID),
+		client:    client,
 		formatReg: formatReg,
 		cache:     cache,
 		maxBatch:  1000,

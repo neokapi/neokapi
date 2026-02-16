@@ -32,4 +32,9 @@ export {
   Lock,
   Sparkles,
   Palette,
+  Trash2,
+  Copy,
+  Mail,
+  UserPlus,
+  Clock,
 } from "lucide-react";

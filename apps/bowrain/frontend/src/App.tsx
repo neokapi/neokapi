@@ -23,7 +23,7 @@ import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DocumentPreview } from "./components/DocumentPreview";
 import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
-import type { ProjectInfo, BlockInfo } from "@gokapi/ui";
+import type { ProjectInfo, BlockInfo, Workspace } from "@gokapi/ui";
 import { Shuffle, Link, Loader2 } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -39,14 +39,14 @@ const desktopNavItems: NavItem[] = [
 ];
 
 const wailsAdapter = new WailsApiAdapter();
-const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" as const };
+const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" as const };
 
 function App() {
   const connection = useConnection();
 
   // Connection flow state
   const [mode, setMode] = useState<AppMode>("loading");
-  const [workspace, setWorkspace] = useState(localWorkspace);
+  const [workspace, setWorkspace] = useState<Workspace>(localWorkspace);
   const [isServerMode, setIsServerMode] = useState(false);
 
   // App state
@@ -88,15 +88,15 @@ function App() {
         connection.getServerWorkspaces().then((wsList) => {
           const ws = wsList.find((w) => w.slug === ci.workspace);
           if (ws) {
-            setWorkspace({ ...ws, logo_url: "", role: ws.role as "owner" });
+            setWorkspace({ ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" });
           } else {
-            setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", role: "owner" });
+            setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", type: "team" as const, role: "owner" });
           }
           setIsServerMode(true);
           setMode("ready");
         }).catch(() => {
           setIsServerMode(true);
-          setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", role: "owner" });
+          setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", type: "team" as const, role: "owner" });
           setMode("ready");
         });
       } else if (ci.state === "connected") {
@@ -122,7 +122,7 @@ function App() {
 
   const handleSelectWorkspace = useCallback(async (ws: WorkspaceOption) => {
     await connection.selectWorkspace(ws.slug);
-    setWorkspace({ ...ws, logo_url: "", role: ws.role as "owner" });
+    setWorkspace({ ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" });
     setIsServerMode(true);
     setMode("ready");
   }, [connection]);

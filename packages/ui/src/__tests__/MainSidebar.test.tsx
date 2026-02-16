@@ -4,7 +4,7 @@ import { ThemeProvider } from "../context/ThemeContext";
 import { MainSidebar } from "../components/MainSidebar";
 import type { Workspace } from "../types/api";
 
-const acme: Workspace = { id: "1", name: "Acme Inc", slug: "acme", description: "", logo_url: "", role: "owner" };
+const acme: Workspace = { id: "1", name: "Acme Inc", slug: "acme", description: "", logo_url: "", type: "team", role: "owner" };
 
 function renderSidebar(props: Partial<Parameters<typeof MainSidebar>[0]> = {}) {
   const defaults = {

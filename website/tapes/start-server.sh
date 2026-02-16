@@ -1,6 +1,6 @@
 #!/bin/bash
 # Start the e2e Docker Compose stack for VHS tape recordings.
-# Seeds a test user and exports GOKAPI_TOKEN for use in tapes.
+# Seeds a test user and exports BOWRAIN_TOKEN for use in tapes.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -31,24 +31,24 @@ curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin Use
 TOKEN_RESP=$(curl -sf -X POST -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
   http://localhost:8080/api/v1/auth/device/poll)
 
-GOKAPI_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 
-if [ -z "$GOKAPI_TOKEN" ]; then
+if [ -z "$BOWRAIN_TOKEN" ]; then
   echo "Failed to obtain token."
   exit 1
 fi
 
 # Create a default workspace for demos.
 curl -sf -X POST \
-  -H "Authorization: Bearer $GOKAPI_TOKEN" \
+  -H "Authorization: Bearer $BOWRAIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"Personal","slug":"personal"}' \
   http://localhost:8080/api/v1/workspaces > /dev/null 2>&1 || true
 
 echo ""
 echo "Server ready. Token obtained."
-echo "Export with: export GOKAPI_TOKEN=$GOKAPI_TOKEN"
+echo "Export with: export BOWRAIN_TOKEN=$BOWRAIN_TOKEN"
 
 # Write token to a temp file for other scripts to source.
 TOKEN_FILE="$SCRIPT_DIR/.server-token"
-echo "export GOKAPI_TOKEN=$GOKAPI_TOKEN" > "$TOKEN_FILE"
+echo "export BOWRAIN_TOKEN=$BOWRAIN_TOKEN" > "$TOKEN_FILE"

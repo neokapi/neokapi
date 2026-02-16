@@ -7,6 +7,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  Invite, AcceptInviteResponse,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -31,13 +32,13 @@ export class WailsApiAdapter implements ApiAdapter {
 
   // --- Workspaces (single workspace in desktop) ---
   async listWorkspaces(): Promise<Workspace[]> {
-    return [{ id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" }];
+    return [{ id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" }];
   }
   async createWorkspace(): Promise<Workspace> {
     throw new Error("Workspaces not supported in desktop mode");
   }
   async getWorkspace(): Promise<Workspace> {
-    return { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", role: "owner" };
+    return { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" };
   }
   async updateWorkspace(): Promise<Workspace> {
     throw new Error("Workspaces not supported in desktop mode");
@@ -51,6 +52,12 @@ export class WailsApiAdapter implements ApiAdapter {
   async addMember(): Promise<void> { throw new Error("Not supported"); }
   async updateMemberRole(): Promise<void> { throw new Error("Not supported"); }
   async removeMember(): Promise<void> { throw new Error("Not supported"); }
+
+  // --- Invites (not applicable in desktop) ---
+  async listInvites(): Promise<Invite[]> { return []; }
+  async createInvite(): Promise<Invite> { throw new Error("Not supported in desktop mode"); }
+  async deleteInvite(): Promise<void> { throw new Error("Not supported in desktop mode"); }
+  async acceptInvite(): Promise<AcceptInviteResponse> { throw new Error("Not supported in desktop mode"); }
 
   // --- Projects ---
   async listProjects(): Promise<ProjectInfo[]> {

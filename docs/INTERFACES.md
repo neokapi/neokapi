@@ -795,16 +795,16 @@ type AppConfig struct {
     v *viper.Viper
 }
 
-// NewAppConfig creates a config reader that searches for gokapi.yaml
+// NewAppConfig creates a config reader that searches for kapi.yaml
 // in standard locations.
 func NewAppConfig() *AppConfig {
     v := viper.New()
-    v.SetConfigName("gokapi")
+    v.SetConfigName("kapi")
     v.SetConfigType("yaml")
     v.AddConfigPath(".")
-    v.AddConfigPath("$HOME/.config/gokapi")
-    v.AddConfigPath("/etc/gokapi")
-    v.SetEnvPrefix("GOKAPI")
+    v.AddConfigPath("$HOME/.config/kapi")
+    v.AddConfigPath("/etc/kapi")
+    v.SetEnvPrefix("KAPI")
     v.AutomaticEnv()
     return &AppConfig{v: v}
 }
@@ -813,7 +813,7 @@ func (c *AppConfig) Load() error {
     return c.v.ReadInConfig()
 }
 
-// Example gokapi.yaml:
+// Example kapi.yaml:
 //
 // formats:
 //   html:
@@ -930,7 +930,7 @@ import (
 var Handshake = plugin.HandshakeConfig{
     ProtocolVersion:  1,
     MagicCookieKey:   "GOKAPI_PLUGIN",
-    MagicCookieValue: "gokapi",
+    MagicCookieValue: "gokapi-v1",
 }
 
 // PluginMap defines the plugin types gokapi supports.

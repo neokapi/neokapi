@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strings"
 
@@ -18,6 +20,56 @@ func AuthMiddleware(jwtSecret string) echo.MiddlewareFunc {
 				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization header"})
 			}
 
+			token := strings.TrimPrefix(header, "Bearer ")
+			if token == header {
+				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header format"})
+			}
+
+			claims, err := auth.ValidateToken(token, jwtSecret)
+			if err != nil {
+				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+			}
+
+			c.Set("user_id", claims.Subject)
+			c.Set("email", claims.Email)
+			c.Set("name", claims.Name)
+			return next(c)
+		}
+	}
+}
+
+// ClaimOrAuthMiddleware accepts either a JWT (Bearer) or a ClaimToken for sync routes.
+// With a ClaimToken, access is restricted to only the matching project.
+func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			header := c.Request().Header.Get("Authorization")
+			if header == "" {
+				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization header"})
+			}
+
+			// Try ClaimToken first.
+			if strings.HasPrefix(header, "ClaimToken ") {
+				token := strings.TrimPrefix(header, "ClaimToken ")
+				hash := sha256.Sum256([]byte(token))
+				tokenHash := hex.EncodeToString(hash[:])
+
+				unclaimed, err := authStore.GetUnclaimedByToken(c.Request().Context(), tokenHash)
+				if err != nil {
+					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid claim token"})
+				}
+
+				// Restrict to matching project.
+				projectID := c.Param("id")
+				if projectID != "" && projectID != unclaimed.ProjectID {
+					return c.JSON(http.StatusForbidden, ErrorResponse{Error: "claim token does not match project"})
+				}
+
+				c.Set("claim_project_id", unclaimed.ProjectID)
+				return next(c)
+			}
+
+			// Fall back to JWT.
 			token := strings.TrimPrefix(header, "Bearer ")
 			if token == header {
 				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header format"})

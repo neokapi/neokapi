@@ -136,30 +136,30 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 }
 
 // oidcContext returns a context configured for OIDC operations. When
-// DexPublicURL differs from DexIssuerURL (typical in Docker), it sets up
+// OIDCPublicURL differs from OIDCIssuerURL (typical in Docker), it sets up
 // InsecureIssuerURLContext so the provider accepts the issuer mismatch,
 // and injects a custom HTTP client that rewrites public-URL requests to
 // the internal Docker hostname.
 func (s *Server) oidcContext(ctx context.Context) context.Context {
-	publicURL := s.Config.DexPublicURL
-	if publicURL == "" || publicURL == s.Config.DexIssuerURL {
+	publicURL := s.Config.OIDCPublicURL
+	if publicURL == "" || publicURL == s.Config.OIDCIssuerURL {
 		return ctx
 	}
 	ctx = oidc.InsecureIssuerURLContext(ctx, publicURL)
 	transport := &urlRewriteTransport{
 		base: http.DefaultTransport,
 		from: publicURL,
-		to:   s.Config.DexIssuerURL,
+		to:   s.Config.OIDCIssuerURL,
 	}
 	return context.WithValue(ctx, oauth2.HTTPClient, &http.Client{Transport: transport})
 }
 
 // urlRewriteTransport rewrites request URLs so OIDC HTTP requests
-// (discovery, JWKS) go to the Docker-internal Dex hostname.
+// (discovery, JWKS) go to the Docker-internal OIDC hostname.
 type urlRewriteTransport struct {
 	base http.RoundTripper
-	from string // public URL prefix (e.g. "http://localhost:5556/dex")
-	to   string // internal URL prefix (e.g. "http://dex:5556/dex")
+	from string // public URL prefix (e.g. "http://localhost:8180/realms/bowrain")
+	to   string // internal URL prefix (e.g. "http://keycloak:8080/realms/bowrain")
 }
 
 func (t *urlRewriteTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -178,35 +178,44 @@ func (t *urlRewriteTransport) RoundTrip(req *http.Request) (*http.Response, erro
 }
 
 // HandleAuthLogin initiates the OIDC authorization code flow by redirecting
-// the browser to the Dex authorization URL. After the user authenticates
-// with Dex, they are redirected back to /api/v1/auth/callback with a code.
+// the browser to the OIDC authorization URL. After the user authenticates,
+// they are redirected back to /api/v1/auth/callback with a code.
 func (s *Server) HandleAuthLogin(c echo.Context) error {
-	if s.Config.DexIssuerURL == "" || s.Config.DexClientID == "" {
+	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
 	}
 
-	publicURL := s.Config.DexPublicURL
-	if publicURL == "" {
-		publicURL = s.Config.DexIssuerURL
+	// Discover the authorization endpoint from the OIDC provider.
+	oidcCtx := s.oidcContext(c.Request().Context())
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+	endpoint := provider.Endpoint()
+
+	// If a public URL is configured (Docker), rewrite the discovered auth
+	// endpoint to use the public URL so the browser can reach it.
+	authURL := endpoint.AuthURL
+	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
+		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
 	}
 
 	redirectURI := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
 	state := randomHex(16)
 
 	params := url.Values{
-		"client_id":     {s.Config.DexClientID},
+		"client_id":     {s.Config.OIDCClientID},
 		"redirect_uri":  {redirectURI},
 		"response_type": {"code"},
 		"scope":         {"openid profile email"},
 		"state":         {state},
 	}
 
-	authURL := publicURL + "/auth?" + params.Encode()
-	return c.Redirect(http.StatusFound, authURL)
+	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
 }
 
-// HandleAuthCallback handles the OIDC redirect callback from Dex.
-// After the user authenticates with Dex, they are redirected here.
+// HandleAuthCallback handles the OIDC redirect callback.
+// After the user authenticates with the OIDC provider, they are redirected here.
 // For the device flow, this also verifies the user_code and authorizes the pending device.
 func (s *Server) HandleAuthCallback(c echo.Context) error {
 	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
@@ -232,14 +241,14 @@ func (s *Server) HandleAuthCallback(c echo.Context) error {
 
 	// Show device verification form
 	return c.HTML(http.StatusOK, `<!DOCTYPE html>
-<html><head><title>gokapi - Authorize Device</title>
+<html><head><title>Bowrain - Authorize Device</title>
 <style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e}
 .card{background:#16213e;padding:40px;border-radius:12px;text-align:center;color:#e0e0e0;max-width:400px}
 h1{color:#58a6ff;margin-bottom:8px}input{padding:12px;font-size:18px;border:2px solid #333;border-radius:8px;
 background:#0f3460;color:#fff;text-align:center;letter-spacing:4px;width:200px;margin:16px 0}
 button{padding:12px 32px;font-size:16px;background:#58a6ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600}
 button:hover{background:#79b8ff}</style></head>
-<body><div class="card"><h1>gokapi</h1><p>Enter the code shown in your terminal:</p>
+<body><div class="card"><h1>Bowrain</h1><p>Enter the code shown in your terminal:</p>
 <form method="POST" action="/api/v1/auth/device/verify"><input name="user_code" placeholder="xxxx-xxxx" required autofocus>
 <br><button type="submit">Authorize</button></form></div></body></html>`)
 }
@@ -264,8 +273,8 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 <h1>Invalid or expired code</h1><p>Please check the code and try again.</p></body></html>`)
 	}
 
-	// For now, authorize with a default user (in production, this would come from the Dex OIDC session).
-	// When Dex is configured, the user would already be authenticated via the OIDC session cookie.
+	// For now, authorize with a default user (in production, this would come from the OIDC session).
+	// When an OIDC provider is configured, the user would already be authenticated via the session cookie.
 	// Check both query params and form values to support programmatic e2e testing.
 	email := c.QueryParam("email")
 	if email == "" {
@@ -276,10 +285,10 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 		name = c.FormValue("name")
 	}
 	if email == "" {
-		email = "user@gokapi.local"
+		email = "user@bowrain.local"
 	}
 	if name == "" {
-		name = "gokapi User"
+		name = "Bowrain User"
 	}
 
 	deviceCodes.Lock()
@@ -293,30 +302,31 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 <h1 style="color:#58a6ff">Device authorized!</h1><p>You can close this window and return to your terminal.</p></body></html>`)
 }
 
-// handleOIDCCodeExchange performs the OAuth2 authorization code exchange with Dex.
-// It constructs the OAuth2 config manually (without OIDC discovery) to avoid
-// issuer URL mismatches in Docker environments where the internal and public
-// Dex URLs differ.
+// handleOIDCCodeExchange performs the OAuth2 authorization code exchange.
+// It uses OIDC discovery to resolve the token endpoint, making it compatible
+// with any OIDC provider (Keycloak, Dex, etc.).
 func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 	ctx := c.Request().Context()
 
-	if s.Config.DexIssuerURL == "" || s.Config.DexClientID == "" {
+	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
 	}
 
 	redirectURL := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
 
-	// Build OAuth2 config with well-known Dex endpoints derived from the
-	// internal issuer URL (reachable from the server inside Docker).
-	oauth2Cfg := &oauth2.Config{
-		ClientID:     s.Config.DexClientID,
-		ClientSecret: s.Config.DexClientSecret,
+	// Use oidcContext to handle Docker URL mismatches (InsecureIssuerURL +
+	// HTTP client that rewrites public→internal URLs for JWKS fetching).
+	oidcCtx := s.oidcContext(ctx)
+
+	// Discover endpoints from the OIDC provider.
+	oauth2Cfg, err := auth.NewOAuth2Config(oidcCtx, auth.OIDCConfig{
+		IssuerURL:    s.Config.OIDCIssuerURL,
+		ClientID:     s.Config.OIDCClientID,
+		ClientSecret: s.Config.OIDCClientSecret,
 		RedirectURL:  redirectURL,
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  s.Config.DexIssuerURL + "/auth",
-			TokenURL: s.Config.DexIssuerURL + "/token",
-		},
-		Scopes: []string{oidc.ScopeOpenID, "profile", "email"},
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
 	oauth2Token, err := oauth2Cfg.Exchange(ctx, code)
@@ -330,11 +340,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "no id_token in response"})
 	}
 
-	// Use oidcContext to handle Docker URL mismatches (InsecureIssuerURL +
-	// HTTP client that rewrites public→internal URLs for JWKS fetching).
-	oidcCtx := s.oidcContext(ctx)
-
-	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.DexIssuerURL, s.Config.DexClientID)
+	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create verifier: " + err.Error()})
 	}

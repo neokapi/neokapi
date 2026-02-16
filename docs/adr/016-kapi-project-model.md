@@ -347,13 +347,13 @@ GET  /api/v1/projects/:id/changes     # Raw change log query
 
 The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup — the server never needs to diff entire version snapshots.
 
-Authentication uses the token from `kapi auth login` stored at `~/.config/gokapi/auth.json` ([ADR-015](./015-auth-and-workspaces.md)).
+Authentication uses the token from `kapi auth login` stored at `~/.config/kapi/auth.json` ([ADR-015](./015-auth-and-workspaces.md)).
 
 ## Alternatives Considered
 
 - **Global config file** (`~/.kapi/config.yaml`): Does not support multiple projects with different settings. Modern dev tools use per-project directories (`.git`, `.terraform`) for good reason.
 
-- **Single `gokapi.yaml` file** (like `package.json`): Works for simple cases but becomes cluttered when adding flow definitions, mappings, and hooks. Separate `flows/` directory keeps configuration organized.
+- **Single `kapi.yaml` file** (like `package.json`): Works for simple cases but becomes cluttered when adding flow definitions, mappings, and hooks. Separate `flows/` directory keeps configuration organized.
 
 - **KAZ files as the project format**: KAZ archives ([ADR-003](./003-content-store.md)) are server-side snapshots, not working directories. They lack version control integration, live editing, and incremental sync. `.kapi/` directories integrate naturally with git.
 

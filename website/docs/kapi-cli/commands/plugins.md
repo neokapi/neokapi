@@ -66,7 +66,7 @@ Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi form
 
 ## Version Pinning
 
-Pin a specific plugin version in `gokapi.yaml`:
+Pin a specific plugin version in `kapi.yaml`:
 
 ```yaml
 plugins:

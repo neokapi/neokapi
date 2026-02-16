@@ -176,7 +176,7 @@ test.describe("Web App Recordings", () => {
 
       // Clean up
       try {
-        await fetch(`${process.env.GOKAPI_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -223,7 +223,7 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       try {
-        await fetch(`${process.env.GOKAPI_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -264,7 +264,7 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(`${process.env.GOKAPI_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -385,7 +385,7 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(`${process.env.GOKAPI_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
         });

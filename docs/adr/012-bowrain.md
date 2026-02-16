@@ -256,7 +256,7 @@ badge with user name, yellow "Offline" badge with pending changes count, or
 grey "Local" when working standalone.
 
 **Auth persistence:** Credentials are stored at
-`~/.config/gokapi/desktop-auth.json` and auto-loaded on startup for seamless
+`~/.config/bowrain/desktop-auth.json` and auto-loaded on startup for seamless
 reconnection.
 
 **gRPC Client (`ServerClient`):** Wraps the generated `EditorServiceClient`
@@ -295,7 +295,7 @@ continues working against the local cache:
   stored locally. Reads always serve from the local ContentStore (fast). Writes
   go to the server first; on success, the local cache updates
 - **Offline queue** — On write failure (network error), mutations are queued in
-  a SQLite-backed `OfflineQueue` at `~/.config/gokapi/offline-queue.db`.
+  a SQLite-backed `OfflineQueue` at `~/.config/bowrain/offline-queue.db`.
   Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`,
   `delete_tm_entry`, `add_concept`, `delete_concept`
 - **Reconnection** — A background goroutine (`reconnectLoop`) pings the server

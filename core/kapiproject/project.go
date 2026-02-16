@@ -161,8 +161,9 @@ type ProjectMeta struct {
 
 // ServerConfig contains Bowrain Server connection details.
 type ServerConfig struct {
-	URL       string `yaml:"url"`
-	ProjectID string `yaml:"project_id"`
+	URL        string `yaml:"url"`
+	ProjectID  string `yaml:"project_id"`
+	ClaimToken string `yaml:"claim_token,omitempty"`
 	// Auth token comes from kapi auth login (stored separately)
 }
 

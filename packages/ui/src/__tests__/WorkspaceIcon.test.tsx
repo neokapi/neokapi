@@ -4,7 +4,7 @@ import { WorkspaceIcon } from "../components/WorkspaceIcon";
 import type { Workspace } from "../types/api";
 
 function ws(overrides: Partial<Workspace> = {}): Workspace {
-  return { id: "1", name: "Acme", slug: "acme", description: "", logo_url: "", role: "owner", ...overrides };
+  return { id: "1", name: "Acme", slug: "acme", description: "", logo_url: "", type: "team", role: "owner", ...overrides };
 }
 
 describe("WorkspaceIcon", () => {

@@ -43,6 +43,10 @@ type Server struct {
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
 
+	// EmailSender sends transactional emails (invitations, etc.).
+	// Nil if SMTP is not configured.
+	EmailSender EmailSenderI
+
 	// WebUIFS is an optional embedded filesystem for serving the web UI.
 	// When set, it takes precedence over Config.WebUIDir.
 	WebUIFS fs.FS
@@ -69,6 +73,11 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Initialize credential store.
 	s.CredentialStore = credentials.NewStore(credentials.DefaultPath())
+
+	// Initialize email sender if SMTP is configured.
+	if cfg.SMTPHost != "" && cfg.SMTPFrom != "" {
+		s.EmailSender = &SMTPSender{Host: cfg.SMTPHost, From: cfg.SMTPFrom}
+	}
 
 	// Initialize content store if a store path is configured.
 	if cfg.StorePath != "" {
@@ -155,6 +164,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Multi-user mode: auth + workspace-scoped routes with middleware.
 	if !s.Config.LocalMode && s.Config.JWTSecret != "" {
+		// Anonymous project creation (no auth required).
+		v1.POST("/projects/anonymous", s.HandleCreateAnonymousProject)
+
 		// Public auth routes (no token required)
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart)
@@ -175,6 +187,20 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.GET("/me", s.HandleAuthMe)
 		authProtected.POST("/logout", s.HandleAuthLogout)
 
+		// Authenticated routes (JWT required, no workspace scope).
+		jwtProtected := v1.Group("")
+		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret))
+		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
+		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
+
+		// Sync routes: accept either JWT or ClaimToken.
+		if s.AuthStore != nil {
+			syncGroup := v1.Group("/projects/:id/sync")
+			syncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+			syncGroup.POST("/push", s.HandleSyncPush)
+			syncGroup.GET("/pull", s.HandleSyncPull)
+		}
+
 		// Workspace endpoints (require auth + workspace membership)
 		wsGroup := v1.Group("/workspaces")
 		wsGroup.Use(AuthMiddleware(s.Config.JWTSecret))
@@ -193,6 +219,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.POST("/members", s.HandleAddMember)
 		wsSpecific.PUT("/members/:uid/role", s.HandleUpdateMemberRole)
 		wsSpecific.DELETE("/members/:uid", s.HandleRemoveMember)
+
+		// Invite routes (workspace-scoped, admin/owner only).
+		wsSpecific.POST("/invites", s.HandleCreateInvite)
+		wsSpecific.GET("/invites", s.HandleListInvites)
+		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
 	}

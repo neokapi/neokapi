@@ -46,7 +46,7 @@ type DeviceAuthInfo struct {
 	interval   int
 }
 
-// storedDesktopAuth is the auth token persisted at ~/.config/gokapi/auth.json.
+// storedDesktopAuth is the auth token persisted at ~/.config/bowrain/auth.json.
 // Matches the CLI's StoredAuth format so both tools share the same token.
 type storedDesktopAuth struct {
 	ServerURL    string           `json:"server_url"`
@@ -170,7 +170,7 @@ func (a *App) StartLogin(serverURL string) (*DeviceAuthInfo, error) {
 	client := &auth.DeviceFlowClient{
 		DeviceAuthURL: serverURL + "/api/v1/auth/device/start",
 		TokenURL:      serverURL + "/api/v1/auth/device/poll",
-		ClientID:      "gokapi-desktop",
+		ClientID:      "bowrain-desktop",
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -288,7 +288,7 @@ func (a *App) SelectWorkspace(slug string) error {
 	return nil
 }
 
-// --- Auth persistence (shared with CLI at ~/.config/gokapi/auth.json) ---
+// --- Auth persistence (~/.config/bowrain/auth.json) ---
 
 func desktopAuthFilePath() string {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
@@ -298,7 +298,7 @@ func desktopAuthFilePath() string {
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "gokapi", "auth.json")
+	return filepath.Join(configDir, "bowrain", "auth.json")
 }
 
 func saveDesktopAuth(a *storedDesktopAuth) error {

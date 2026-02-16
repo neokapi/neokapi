@@ -165,7 +165,7 @@ scoped by plugin type and name. This integrates with the Viper-based layered
 configuration system ([ADR-001](./001-vision.md)):
 
 ```yaml
-# gokapi.yaml
+# kapi.yaml
 formats:
   docx:
     extract_comments: true
@@ -183,7 +183,7 @@ providers:
 ```
 
 The host reads plugin configuration from the Viper config tree and passes it to
-the plugin via the `Open` or `Configure` RPC. Plugins never read `gokapi.yaml`
+the plugin via the `Open` or `Configure` RPC. Plugins never read `kapi.yaml`
 directly.
 
 On the CLI, plugin parameters become namespaced flags to avoid collisions:

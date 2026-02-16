@@ -20,6 +20,7 @@ type BowrainClient struct {
 	projectID  string
 	workspace  string // workspace slug; empty for local-mode flat routes
 	authToken  string // JWT bearer token; empty for local-mode
+	claimToken string // ClaimToken for anonymous projects
 	httpClient *http.Client
 }
 
@@ -44,6 +45,16 @@ func NewWorkspaceBowrainClient(serverURL, workspace, projectID, authToken string
 	}
 }
 
+// NewClaimTokenClient creates a client that uses claim token auth for anonymous projects.
+func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient {
+	return &BowrainClient{
+		baseURL:    strings.TrimRight(serverURL, "/"),
+		projectID:  projectID,
+		claimToken: claimToken,
+		httpClient: &http.Client{},
+	}
+}
+
 // projectPrefix returns the URL prefix for project-scoped endpoints.
 // In workspace mode: /api/v1/workspaces/{ws}/projects/{pid}
 // In local mode:     /api/v1/projects/{pid}
@@ -58,6 +69,8 @@ func (c *BowrainClient) projectPrefix() string {
 func (c *BowrainClient) applyAuth(req *http.Request) {
 	if c.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.authToken)
+	} else if c.claimToken != "" {
+		req.Header.Set("Authorization", "ClaimToken "+c.claimToken)
 	}
 }
 

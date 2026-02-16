@@ -45,7 +45,7 @@ func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
 	tmPath := a.tmPath
 	if tmPath == "" {
 		home, _ := os.UserHomeDir()
-		tmDir := filepath.Join(home, ".config", "gokapi", "tm")
+		tmDir := filepath.Join(home, ".config", "bowrain", "tm")
 		os.MkdirAll(tmDir, 0755)
 		tmPath = filepath.Join(tmDir, "default.db")
 	}

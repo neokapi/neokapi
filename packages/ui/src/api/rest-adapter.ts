@@ -7,6 +7,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  Invite, AcceptInviteResponse,
 } from "../types/api";
 
 /**
@@ -126,6 +127,29 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/members/${userId}`, {
       method: "DELETE",
     });
+  }
+
+  // ── Invites ──────────────────────────────────────────────────────────────
+
+  async listInvites(workspaceSlug: string): Promise<Invite[]> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites`);
+  }
+
+  async createInvite(workspaceSlug: string, email: string, role: string, maxUses: number): Promise<Invite> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites`, {
+      method: "POST",
+      body: JSON.stringify({ email, role, max_uses: maxUses }),
+    });
+  }
+
+  async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites/${inviteId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async acceptInvite(code: string): Promise<AcceptInviteResponse> {
+    return this.fetchJSON(`/api/v1/join/${code}`, { method: "POST" });
   }
 
   // ── Projects ─────────────────────────────────────────────────────────────

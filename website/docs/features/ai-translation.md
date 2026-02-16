@@ -17,7 +17,7 @@ gokapi provides first-class LLM integration for translation, quality assurance, 
 
 ## Setup
 
-Configure your AI provider in `gokapi.yaml`:
+Configure your AI provider in `kapi.yaml`:
 
 ```yaml
 tools:
@@ -30,8 +30,8 @@ tools:
 Or use environment variables:
 
 ```bash
-export GOKAPI_TOOLS_AI_TRANSLATION_PROVIDER=anthropic
-export GOKAPI_TOOLS_AI_TRANSLATION_MODEL=claude-sonnet-4-20250514
+export BOWRAIN_TOOLS_AI_TRANSLATION_PROVIDER=anthropic
+export BOWRAIN_TOOLS_AI_TRANSLATION_MODEL=claude-sonnet-4-20250514
 export ANTHROPIC_API_KEY=sk-...
 ```
 

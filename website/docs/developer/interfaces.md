@@ -344,8 +344,8 @@ type AppConfig struct {
 }
 
 func NewAppConfig() *AppConfig {
-    // Searches for gokapi.yaml in ., ~/.config/gokapi, /etc/gokapi
-    // Env prefix: GOKAPI_
+    // Searches for kapi.yaml in ., ~/.config/kapi, /etc/kapi
+    // Env prefix: KAPI_
 }
 ```
 

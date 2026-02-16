@@ -29,6 +29,7 @@ export { ProjectView } from "./components/ProjectView";
 export { TranslationEditor } from "./components/TranslationEditor";
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
+export { InviteManager } from "./components/InviteManager";
 
 // Editor components
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
@@ -83,6 +84,7 @@ export type {
   BlockTermMatch, TermEnforceResult,
   LocaleInfo, FormatInfo, ToolInfo,
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
+  Invite, AcceptInviteResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/MainSidebar";
 

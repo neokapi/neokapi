@@ -1,6 +1,6 @@
 # VHS Tape: workspace management demo
 # Demonstrates real workspace operations against a running bowrain-server.
-# Requires: start-server.sh to be run first (sets GOKAPI_TOKEN).
+# Requires: start-server.sh to be run first (sets BOWRAIN_TOKEN).
 
 Output output/workspaces.webm
 Output output/workspaces.gif
@@ -11,7 +11,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# Workspace management via the gokapi API"
+Type "# Workspace management via the Bowrain API"
 Enter
 Sleep 500ms
 

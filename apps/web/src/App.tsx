@@ -19,12 +19,14 @@ import {
   type ProjectInfo,
   type ConfigResponse,
   ThemeProvider,
+  InviteManager,
   cn,
   Button,
   Input,
   Label,
 } from "@gokapi/ui";
 import { LoginPage } from "./auth/LoginPage";
+import { JoinPage } from "./auth/JoinPage";
 
 const api = new RestApiAdapter();
 
@@ -208,6 +210,9 @@ function SettingsView({ workspace }: { workspace: Workspace | null }) {
         <SettingsField label="Description" value={workspace.description || "No description"} />
         <SettingsField label="Your Role" value={workspace.role} />
       </div>
+      <div className="max-w-[480px]">
+        <InviteManager workspace={workspace} />
+      </div>
     </div>
   );
 }
@@ -359,14 +364,21 @@ function AppContent() {
   const [serverMode, setServerMode] = useState<"local" | "server" | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
+  const [joinCode, setJoinCode] = useState<string | null>(null);
 
   // Check for token in URL (OIDC redirect callback sets /?token=...&user=...)
+  // Also detect /join/:code route for invite acceptance.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token");
     if (token) {
       api.setToken(token);
-      window.history.replaceState({}, "", "/");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+
+    const joinMatch = window.location.pathname.match(/^\/join\/([^/]+)$/);
+    if (joinMatch) {
+      setJoinCode(joinMatch[1]);
     }
   }, []);
 
@@ -379,8 +391,8 @@ function AppContent() {
 
         if (config.mode === "local") {
           setUser({ id: "local", email: "", name: "Local User", avatar_url: "" });
-          setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", role: "owner" }]);
-          setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", role: "owner" });
+          setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" }]);
+          setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" });
         } else {
           const currentUser = await api.getCurrentUser();
           if (currentUser) {
@@ -425,6 +437,19 @@ function AppContent() {
       <div className="flex items-center justify-center h-screen bg-background text-muted-foreground">
         Loading...
       </div>
+    );
+  }
+
+  // Join route: show join page for invite acceptance
+  if (joinCode) {
+    return (
+      <JoinPage
+        code={joinCode}
+        onJoined={() => {
+          setJoinCode(null);
+          window.history.replaceState({}, "", "/");
+        }}
+      />
     );
   }
 

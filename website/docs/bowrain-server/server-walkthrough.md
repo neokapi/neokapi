@@ -23,8 +23,8 @@ For local single-user mode, use `kapi serve` instead — no Docker or authentica
 
 ## Logging In
 
-The web UI redirects you to your configured identity provider (Dex) for
-authentication. Depending on your Dex configuration, you will see options
+The web UI redirects you to your configured OIDC identity provider for
+authentication. Depending on your provider configuration, you will see options
 like:
 
 - **GitHub** — sign in with your GitHub account
@@ -128,7 +128,7 @@ After login, CLI commands automatically authenticate with the server:
 
 ```bash
 # List workspaces
-curl -s -H "Authorization: Bearer $(cat ~/.config/gokapi/auth.json | jq -r .access_token)" \
+curl -s -H "Authorization: Bearer $(cat ~/.config/kapi/auth.json | jq -r .access_token)" \
   http://localhost:8080/api/v1/workspaces | jq
 ```
 

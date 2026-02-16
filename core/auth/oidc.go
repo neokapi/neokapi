@@ -8,7 +8,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// OIDCConfig holds settings for connecting to a Dex (or any OIDC) identity provider.
+// OIDCConfig holds settings for connecting to an OIDC identity provider.
 type OIDCConfig struct {
 	IssuerURL    string
 	ClientID     string

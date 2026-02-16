@@ -14,7 +14,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    baseURL: process.env.GOKAPI_URL || "http://localhost:8080",
+    baseURL: process.env.BOWRAIN_URL || "http://localhost:8080",
     screenshot: "off",
     trace: "off",
     ...devices["Desktop Chrome"],

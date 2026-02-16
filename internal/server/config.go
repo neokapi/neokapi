@@ -19,11 +19,15 @@ type ServerConfig struct {
 	StorePath string
 
 	// Auth
-	JWTSecret       string
-	DexIssuerURL    string
-	DexClientID     string
-	DexClientSecret string
-	DexPublicURL    string // browser-facing Dex URL; defaults to DexIssuerURL
+	JWTSecret        string
+	OIDCIssuerURL    string
+	OIDCClientID     string
+	OIDCClientSecret string
+	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
+
+	// Email
+	SMTPHost string // SMTP server host:port
+	SMTPFrom string // sender email address
 
 	// WebUIDir is the path to built web UI static files.
 	// If set, the server serves static files for the web UI.

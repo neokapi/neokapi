@@ -166,7 +166,7 @@ func defaultQueuePath() string {
 	if err != nil {
 		home = "."
 	}
-	dir := filepath.Join(home, ".config", "gokapi")
+	dir := filepath.Join(home, ".config", "bowrain")
 	os.MkdirAll(dir, 0755)
 	return filepath.Join(dir, "offline-queue.db")
 }

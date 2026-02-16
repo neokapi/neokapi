@@ -11,7 +11,7 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
-const keyringService = "gokapi"
+const keyringService = "bowrain"
 
 // ProviderConfig holds saved AI provider configuration.
 // API keys are NOT stored here; they go in the OS keychain.
@@ -44,13 +44,13 @@ func NewStore(filePath string) *Store {
 	return s
 }
 
-// DefaultPath returns the default config file path (~/.config/gokapi/providers.json).
+// DefaultPath returns the default config file path (~/.config/bowrain/providers.json).
 func DefaultPath() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = "."
 	}
-	return filepath.Join(home, ".config", "gokapi", "providers.json")
+	return filepath.Join(home, ".config", "bowrain", "providers.json")
 }
 
 // List returns all stored provider configs.

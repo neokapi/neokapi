@@ -12,23 +12,23 @@ type AppConfig struct {
 	v *viper.Viper
 }
 
-// NewAppConfig creates a config reader that searches for gokapi.yaml
+// NewAppConfig creates a config reader that searches for kapi.yaml
 // in standard locations.
 func NewAppConfig() *AppConfig {
 	v := viper.New()
-	v.SetConfigName("gokapi")
+	v.SetConfigName("kapi")
 	v.SetConfigType("yaml")
 	v.AddConfigPath(".")
-	v.AddConfigPath("$HOME/.config/gokapi")
-	v.AddConfigPath("/etc/gokapi")
-	v.SetEnvPrefix("GOKAPI")
+	v.AddConfigPath("$HOME/.config/kapi")
+	v.AddConfigPath("/etc/kapi")
+	v.SetEnvPrefix("KAPI")
 	v.AutomaticEnv()
 
 	// Set defaults
 	v.SetDefault("flow.channelBuffer", 64)
 	pluginDir := "./plugins"
-	if home, err := os.UserHomeDir(); err == nil {
-		pluginDir = filepath.Join(home, ".kapi", "plugins")
+	if configDir, err := os.UserConfigDir(); err == nil {
+		pluginDir = filepath.Join(configDir, "gokapi", "plugins")
 	}
 	v.SetDefault("plugins.directory", pluginDir)
 	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")

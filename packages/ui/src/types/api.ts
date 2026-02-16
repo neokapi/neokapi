@@ -13,6 +13,7 @@ export interface Workspace {
   slug: string;
   description: string;
   logo_url: string;
+  type: "personal" | "team";
   role: string; // current user's role in the workspace
 }
 
@@ -22,6 +23,28 @@ export interface Membership {
   workspace_id: string;
   role: "owner" | "admin" | "member" | "viewer";
   user: User;
+}
+
+/** Workspace invite */
+export interface Invite {
+  id: string;
+  workspace_id: string;
+  code: string;
+  email: string;
+  role: "owner" | "admin" | "member" | "viewer";
+  max_uses: number;
+  use_count: number;
+  created_by: string;
+  expires_at: string;
+  created_at: string;
+}
+
+/** Accept invite response */
+export interface AcceptInviteResponse {
+  workspace_id: string;
+  workspace_slug: string;
+  workspace_name: string;
+  role: string;
 }
 
 /** Project info */

@@ -119,6 +119,9 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
+	if w.Type == auth.WorkspaceTypePersonal {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "cannot delete personal workspace"})
+	}
 	if err := s.AuthStore.DeleteWorkspace(c.Request().Context(), w.ID); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

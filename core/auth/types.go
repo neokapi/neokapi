@@ -13,15 +13,24 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// WorkspaceType distinguishes personal from team workspaces.
+type WorkspaceType string
+
+const (
+	WorkspaceTypePersonal WorkspaceType = "personal"
+	WorkspaceTypeTeam     WorkspaceType = "team"
+)
+
 // Workspace is the top-level organizational unit containing projects, members, and resources.
 type Workspace struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	Description string    `json:"description"`
-	LogoURL     string    `json:"logo_url"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string        `json:"id"`
+	Name        string        `json:"name"`
+	Slug        string        `json:"slug"`
+	Description string        `json:"description"`
+	LogoURL     string        `json:"logo_url"`
+	Type        WorkspaceType `json:"type"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
 }
 
 // Role defines a member's permission level within a workspace.
@@ -48,4 +57,29 @@ type Membership struct {
 	WorkspaceID string    `json:"workspace_id"`
 	Role        Role      `json:"role"`
 	JoinedAt    time.Time `json:"joined_at"`
+}
+
+// UnclaimedProject represents an anonymous project awaiting user claim.
+type UnclaimedProject struct {
+	ProjectID     string    `json:"project_id"`
+	ClaimToken    string    `json:"-"` // hashed token stored in DB
+	Name          string    `json:"name"`
+	SourceLocale  string    `json:"source_locale"`
+	TargetLocales string    `json:"target_locales"` // comma-separated
+	CreatedAt     time.Time `json:"created_at"`
+	ExpiresAt     time.Time `json:"expires_at"`
+}
+
+// Invite represents a workspace invitation.
+type Invite struct {
+	ID          string    `json:"id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Code        string    `json:"code"`
+	Email       string    `json:"email,omitempty"`
+	Role        Role      `json:"role"`
+	MaxUses     int       `json:"max_uses"`
+	UseCount    int       `json:"use_count"`
+	CreatedBy   string    `json:"created_by"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }

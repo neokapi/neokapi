@@ -6,6 +6,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  Invite, AcceptInviteResponse,
 } from "../types/api";
 
 /**
@@ -31,6 +32,12 @@ export interface ApiAdapter {
   addMember(workspaceSlug: string, userId: string, role: string): Promise<void>;
   updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void>;
   removeMember(workspaceSlug: string, userId: string): Promise<void>;
+
+  // Invites
+  listInvites(workspaceSlug: string): Promise<Invite[]>;
+  createInvite(workspaceSlug: string, email: string, role: string, maxUses: number): Promise<Invite>;
+  deleteInvite(workspaceSlug: string, inviteId: string): Promise<void>;
+  acceptInvite(code: string): Promise<AcceptInviteResponse>;
 
   // Projects (workspace-scoped)
   listProjects(workspaceSlug: string): Promise<ProjectInfo[]>;

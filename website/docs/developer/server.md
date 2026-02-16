@@ -66,7 +66,7 @@ POST /api/v1/flow/execute      # Execute a flow
 bin/bowrain-server --port 8080 --host 0.0.0.0
 ```
 
-Environment variables: `GOKAPI_PORT`, `GOKAPI_HOST`, `GOKAPI_DATA_DIR`.
+Environment variables: `BOWRAIN_PORT`, `BOWRAIN_HOST`, `BOWRAIN_DATA_DIR`.
 
 ## gRPC API
 
@@ -78,7 +78,7 @@ The gRPC API provides streaming access and is available on a separate port.
 bin/bowrain-server --port 8080 --grpc-port 9090
 ```
 
-Or via environment: `GOKAPI_GRPC_PORT=9090`.
+Or via environment: `BOWRAIN_GRPC_PORT=9090`.
 
 ### Service Definition
 

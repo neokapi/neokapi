@@ -42,14 +42,15 @@ avatar URL. Roles within a workspace are hierarchical:
 | member  | Create/edit content, run flows |
 | viewer  | Read-only access |
 
-### Authentication: Dex OIDC
+### Authentication: OIDC
 
-Authentication uses [Dex](https://dexidp.io/), a federated OpenID Connect
-identity provider. Dex supports multiple upstream identity providers (GitHub,
+Authentication uses a federated OpenID Connect identity provider such as
+[Keycloak](https://www.keycloak.org/) or [Dex](https://dexidp.io/).
+OIDC providers support multiple upstream identity sources (GitHub,
 Google, LDAP, SAML, etc.) while presenting a single OIDC interface to gokapi.
 
-- **Server mode**: `bowrain-server` starts with Dex configuration (issuer URL,
-  client ID, client secret). The web UI redirects to Dex for login.
+- **Server mode**: `bowrain-server` starts with OIDC configuration (issuer URL,
+  client ID, client secret). The web UI redirects to the OIDC provider for login.
 - **Local mode**: `kapi serve` runs without authentication on localhost.
 
 ### JWT Token-based API Auth
@@ -75,7 +76,7 @@ redirect (terminal, native desktop webview):
 2. Server returns a user code and verification URL
 3. User opens the URL in a browser and enters the code
 4. CLI polls the token endpoint until the user authorizes
-5. Token is stored at `~/.config/gokapi/auth.json`
+5. Token is stored at `~/.config/kapi/auth.json`
 
 **Desktop flow:**
 
@@ -85,7 +86,7 @@ redirect (terminal, native desktop webview):
    `BrowserOpenURL` to launch the verification URL)
 4. Backend polls the token endpoint; UI shows a spinner
 5. On authorization, the JWT is used to establish a gRPC connection
-6. Token and user info are stored at `~/.config/gokapi/desktop-auth.json`
+6. Token and user info are stored at `~/.config/bowrain/desktop-auth.json`
    for auto-reconnect on next launch
 
 ### Database Schema
@@ -129,7 +130,7 @@ to associate projects with workspaces.
 | Feature | `bowrain-server` | `kapi serve` |
 |---------|-----------------|--------------|
 | Binding | 0.0.0.0 (configurable) | 127.0.0.1 |
-| Auth | OIDC via Dex + JWT | None |
+| Auth | OIDC + JWT | None |
 | Workspaces | Multi-workspace, multi-user | Single implicit workspace |
 | Use case | Production deployment | Local editing (like `jupyter notebook`) |
 
@@ -155,5 +156,5 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 - Device auth flow is shared between CLI and desktop — same REST endpoints,
   same user experience (enter code in browser). Desktop stores credentials
   separately (`desktop-auth.json`) to allow independent sessions.
-- Dex is a deployment dependency for multi-user mode but not required for local
-  use or desktop operation.
+- An OIDC provider (e.g., Keycloak, Dex) is a deployment dependency for multi-user
+  mode but not required for local use or desktop operation.

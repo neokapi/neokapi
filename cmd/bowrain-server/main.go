@@ -25,46 +25,52 @@ func main() {
 	flag.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "Directory for temporary files")
 	flag.StringVar(&cfg.StorePath, "store", cfg.StorePath, "Path to SQLite content store database")
 	flag.StringVar(&cfg.JWTSecret, "jwt-secret", cfg.JWTSecret, "JWT signing secret")
-	flag.StringVar(&cfg.DexIssuerURL, "dex-issuer-url", cfg.DexIssuerURL, "Dex OIDC issuer URL")
-	flag.StringVar(&cfg.DexClientID, "dex-client-id", cfg.DexClientID, "Dex OAuth client ID")
-	flag.StringVar(&cfg.DexClientSecret, "dex-client-secret", cfg.DexClientSecret, "Dex OAuth client secret")
+	flag.StringVar(&cfg.OIDCIssuerURL, "oidc-issuer-url", cfg.OIDCIssuerURL, "OIDC issuer URL")
+	flag.StringVar(&cfg.OIDCClientID, "oidc-client-id", cfg.OIDCClientID, "OIDC OAuth client ID")
+	flag.StringVar(&cfg.OIDCClientSecret, "oidc-client-secret", cfg.OIDCClientSecret, "OIDC OAuth client secret")
 	flag.StringVar(&cfg.WebUIDir, "web-ui-dir", cfg.WebUIDir, "Path to built web UI static files")
 	flag.Parse()
 
 	// Allow environment variable overrides.
-	if envPort := os.Getenv("GOKAPI_PORT"); envPort != "" {
+	if envPort := os.Getenv("BOWRAIN_PORT"); envPort != "" {
 		if p, err := strconv.Atoi(envPort); err == nil {
 			cfg.Port = p
 		}
 	}
-	if envHost := os.Getenv("GOKAPI_HOST"); envHost != "" {
+	if envHost := os.Getenv("BOWRAIN_HOST"); envHost != "" {
 		cfg.Host = envHost
 	}
-	if envDataDir := os.Getenv("GOKAPI_DATA_DIR"); envDataDir != "" {
+	if envDataDir := os.Getenv("BOWRAIN_DATA_DIR"); envDataDir != "" {
 		cfg.DataDir = envDataDir
 	}
-	if envStore := os.Getenv("GOKAPI_STORE"); envStore != "" {
+	if envStore := os.Getenv("BOWRAIN_STORE"); envStore != "" {
 		cfg.StorePath = envStore
 	}
-	if envGRPC := os.Getenv("GOKAPI_GRPC_PORT"); envGRPC != "" {
+	if envGRPC := os.Getenv("BOWRAIN_GRPC_PORT"); envGRPC != "" {
 		if p, err := strconv.Atoi(envGRPC); err == nil {
 			grpcPort = p
 		}
 	}
-	if envJWT := os.Getenv("GOKAPI_JWT_SECRET"); envJWT != "" {
+	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
 	}
-	if envIssuer := os.Getenv("GOKAPI_DEX_ISSUER_URL"); envIssuer != "" {
-		cfg.DexIssuerURL = envIssuer
+	if envIssuer := os.Getenv("BOWRAIN_OIDC_ISSUER_URL"); envIssuer != "" {
+		cfg.OIDCIssuerURL = envIssuer
 	}
-	if envClientID := os.Getenv("GOKAPI_DEX_CLIENT_ID"); envClientID != "" {
-		cfg.DexClientID = envClientID
+	if envClientID := os.Getenv("BOWRAIN_OIDC_CLIENT_ID"); envClientID != "" {
+		cfg.OIDCClientID = envClientID
 	}
-	if envSecret := os.Getenv("GOKAPI_DEX_CLIENT_SECRET"); envSecret != "" {
-		cfg.DexClientSecret = envSecret
+	if envSecret := os.Getenv("BOWRAIN_OIDC_CLIENT_SECRET"); envSecret != "" {
+		cfg.OIDCClientSecret = envSecret
 	}
-	if envPublic := os.Getenv("GOKAPI_DEX_PUBLIC_URL"); envPublic != "" {
-		cfg.DexPublicURL = envPublic
+	if envPublic := os.Getenv("BOWRAIN_OIDC_PUBLIC_URL"); envPublic != "" {
+		cfg.OIDCPublicURL = envPublic
+	}
+	if envSMTPHost := os.Getenv("BOWRAIN_SMTP_HOST"); envSMTPHost != "" {
+		cfg.SMTPHost = envSMTPHost
+	}
+	if envSMTPFrom := os.Getenv("BOWRAIN_SMTP_FROM"); envSMTPFrom != "" {
+		cfg.SMTPFrom = envSMTPFrom
 	}
 
 	srv := server.NewServer(cfg)
@@ -102,7 +108,7 @@ func main() {
 	}
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	log.Printf("Starting gokapi REST server on %s", addr)
+	log.Printf("Starting Bowrain server on %s", addr)
 	if err := srv.Start(addr); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}

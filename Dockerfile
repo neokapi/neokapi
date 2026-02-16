@@ -40,7 +40,7 @@ COPY --from=go-builder /bowrain-server /usr/local/bin/bowrain-server
 
 # Default data directory for SQLite databases.
 VOLUME /data
-ENV GOKAPI_STORE=/data/gokapi.db
+ENV BOWRAIN_STORE=/data/bowrain.db
 
 EXPOSE 8080
 ENTRYPOINT ["bowrain-server"]

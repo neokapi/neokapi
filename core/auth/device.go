@@ -31,7 +31,7 @@ type TokenResponse struct {
 
 // DeviceFlowClient handles the OAuth 2.0 device authorization grant (RFC 8628).
 type DeviceFlowClient struct {
-	// DeviceAuthURL is the device authorization endpoint (e.g. Dex's /device/code).
+	// DeviceAuthURL is the device authorization endpoint (RFC 8628).
 	DeviceAuthURL string
 	// TokenURL is the token endpoint.
 	TokenURL string

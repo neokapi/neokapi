@@ -372,8 +372,8 @@ function AppContent() {
 
         if (config.mode === "local") {
           setUser({ id: "local", email: "", name: "Local User", avatar_url: "" });
-          setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", role: "owner" }]);
-          setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", role: "owner" });
+          setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" }]);
+          setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" });
         } else {
           const currentUser = await api.getCurrentUser();
           if (currentUser) {
