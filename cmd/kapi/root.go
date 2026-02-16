@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/formats"
@@ -85,4 +86,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&targetLang, "target-lang", "", "target language (BCP 47)")
 	rootCmd.PersistentFlags().StringVar(&pluginDir, "plugin-dir", "",
 		"plugin directory (default: $HOME/.kapi/plugins, env: KAPI_PLUGIN_DIR)")
+
+	// Output format flags (--json, --text, --output-format)
+	output.AddPersistentFlags(rootCmd)
 }

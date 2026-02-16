@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/auth"
 	"github.com/spf13/cobra"
 )
@@ -119,22 +120,27 @@ var authStatusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			fmt.Println("Not logged in.")
-			return nil
+			out := output.AuthStatusOutput{LoggedIn: false}
+			return output.Print(cmd, out)
 		}
 
-		fmt.Printf("Server:  %s\n", stored.ServerURL)
-		if stored.User.Email != "" {
-			fmt.Printf("User:    %s (%s)\n", stored.User.Name, stored.User.Email)
+		var expiry *time.Time
+		if !stored.Expiry.IsZero() {
+			expiry = &stored.Expiry
 		}
-		if stored.Expiry.IsZero() {
-			fmt.Println("Expiry:  unknown")
-		} else if time.Now().After(stored.Expiry) {
-			fmt.Printf("Expiry:  %s (EXPIRED)\n", stored.Expiry.Format(time.RFC3339))
-		} else {
-			fmt.Printf("Expiry:  %s\n", stored.Expiry.Format(time.RFC3339))
+
+		out := output.AuthStatusOutput{
+			LoggedIn:  true,
+			Server:    stored.ServerURL,
+			User:      stored.User.Email,
+			UserID:    stored.User.ID,
+			ExpiresAt: expiry,
 		}
-		return nil
+		if stored.User.Name != "" && stored.User.Name != stored.User.Email {
+			out.User = stored.User.Name + " (" + stored.User.Email + ")"
+		}
+
+		return output.Print(cmd, out)
 	},
 }
 

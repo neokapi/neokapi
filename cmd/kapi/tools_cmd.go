@@ -1,25 +1,26 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/spf13/cobra"
 )
 
 var toolsCmd = &cobra.Command{
 	Use:   "tools",
 	Short: "List available tools",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Available tools:")
-		fmt.Println()
-		fmt.Printf("  %-25s %-12s %s\n", "TOOL", "ALIAS", "DESCRIPTION")
-		fmt.Printf("  %-25s %-12s %s\n", "----", "-----", "-----------")
+	RunE: func(cmd *cobra.Command, args []string) error {
+		var tools []output.ToolInfo
 
 		// Tools exposed as top-level commands.
 		for _, def := range builtinToolCommands {
-			aliases := strings.Join(def.Aliases, ", ")
-			fmt.Printf("  %-25s %-12s %s\n", def.Use, aliases, def.Short)
+			tools = append(tools, output.ToolInfo{
+				Name:        def.Use,
+				DisplayName: strings.Join(def.Aliases, ", "),
+				Description: def.Short,
+				Source:      "builtin",
+			})
 		}
 
 		// Other tools available only via `flow run`.
@@ -35,11 +36,18 @@ var toolsCmd = &cobra.Command{
 		}
 
 		for _, t := range otherTools {
-			fmt.Printf("  %-25s %-12s %s\n", t.name, "", t.desc)
+			tools = append(tools, output.ToolInfo{
+				Name:        t.name,
+				Description: t.desc,
+				Source:      "builtin",
+			})
 		}
 
-		total := len(builtinToolCommands) + len(otherTools)
-		fmt.Printf("\nTotal: %d tool(s)\n", total)
+		out := output.ToolsListOutput{
+			Tools: tools,
+			Total: len(tools),
+		}
+		return output.Print(cmd, out)
 	},
 }
 

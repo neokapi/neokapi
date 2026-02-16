@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/version"
 	"github.com/spf13/cobra"
 )
@@ -10,8 +9,13 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version information",
-	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("kapi %s (commit: %s, built: %s)\n", version.Version, version.Commit, version.BuildDate)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		out := output.VersionOutput{
+			Version:   version.Version,
+			Commit:    version.Commit,
+			BuildDate: version.BuildDate,
+		}
+		return output.Print(cmd, out)
 	},
 }
 

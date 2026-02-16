@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gokapi/gokapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/plugin/registry"
 	"github.com/spf13/cobra"
@@ -22,13 +23,13 @@ var pluginsListCmd = &cobra.Command{
 	Short: "List installed plugins",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if availableFlag {
-			return listAvailablePlugins()
+			return listAvailablePlugins(cmd)
 		}
-		return listInstalledPlugins()
+		return listInstalledPlugins(cmd)
 	},
 }
 
-func listInstalledPlugins() error {
+func listInstalledPlugins(cmd *cobra.Command) error {
 	plugins := pluginLoader.Plugins()
 
 	cfg := config.NewAppConfig()
@@ -37,6 +38,13 @@ func listInstalledPlugins() error {
 	installed, _ := reg.ListInstalled()
 
 	if len(plugins) == 0 && len(installed) == 0 {
+		out := output.PluginsListOutput{
+			Plugins: []output.PluginInfo{},
+			Total:   0,
+		}
+		if output.GetFormat(cmd) == output.FormatJSON {
+			return output.Print(cmd, out)
+		}
 		fmt.Printf("No plugins installed.\n")
 		fmt.Printf("Plugin directory: %s\n", pluginLoader.Dir())
 		fmt.Println()
@@ -69,6 +77,33 @@ func listInstalledPlugins() error {
 
 	sort.Strings(nameOrder)
 
+	// Build output
+	var pluginInfos []output.PluginInfo
+	for _, name := range nameOrder {
+		versions := byName[name]
+		sort.Slice(versions, func(i, j int) bool {
+			return registry.CompareSemver(versions[i], versions[j]) > 0
+		})
+		for _, v := range versions {
+			pluginInfos = append(pluginInfos, output.PluginInfo{
+				Name:    name,
+				Version: v,
+				Status:  "installed",
+				Path:    pluginLoader.Dir(),
+			})
+		}
+	}
+
+	out := output.PluginsListOutput{
+		Plugins: pluginInfos,
+		Total:   len(pluginInfos),
+	}
+
+	if output.GetFormat(cmd) == output.FormatJSON {
+		return output.Print(cmd, out)
+	}
+
+	// Text output: original column format
 	var items []string
 	for _, name := range nameOrder {
 		versions := byName[name]
@@ -88,7 +123,7 @@ func listInstalledPlugins() error {
 	return nil
 }
 
-func listAvailablePlugins() error {
+func listAvailablePlugins(cmd *cobra.Command) error {
 	cfg := config.NewAppConfig()
 	_ = cfg.Load()
 	reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
@@ -99,6 +134,9 @@ func listAvailablePlugins() error {
 	}
 
 	if len(groups) == 0 {
+		if output.GetFormat(cmd) == output.FormatJSON {
+			return output.Print(cmd, output.PluginsListOutput{})
+		}
 		fmt.Println("No plugins available in the registry.")
 		return nil
 	}
@@ -110,7 +148,32 @@ func listAvailablePlugins() error {
 		installedSet[iv.Name+"/"+iv.Version] = true
 	}
 
-	// Build display items: bare name for latest, name@version for others.
+	// Build output
+	var pluginInfos []output.PluginInfo
+	for _, g := range groups {
+		for _, v := range g.Versions {
+			status := "available"
+			if installedSet[g.Name+"/"+v.Version] {
+				status = "installed"
+			}
+			pluginInfos = append(pluginInfos, output.PluginInfo{
+				Name:    g.Name,
+				Version: v.Version,
+				Status:  status,
+			})
+		}
+	}
+
+	out := output.PluginsListOutput{
+		Plugins: pluginInfos,
+		Total:   len(pluginInfos),
+	}
+
+	if output.GetFormat(cmd) == output.FormatJSON {
+		return output.Print(cmd, out)
+	}
+
+	// Text output: original column format
 	var items []string
 	for _, g := range groups {
 		label := g.Name
