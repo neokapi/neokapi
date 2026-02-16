@@ -124,7 +124,7 @@ func PrintError(cmd *cobra.Command, err error, code string) {
 	format := GetFormat(cmd)
 	if format == FormatJSON {
 		e := Error{Error: err.Error(), Code: code}
-		printJSON(os.Stderr, e)
+		_ = printJSON(os.Stderr, e)
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}

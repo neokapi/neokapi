@@ -34,13 +34,13 @@ func TestGetFormat(t *testing.T) {
 			cmd := &cobra.Command{}
 			AddFlags(cmd)
 			if tt.jsonFlag {
-				cmd.Flags().Set("json", "true")
+				_ = cmd.Flags().Set("json", "true")
 			}
 			if tt.textFlag {
-				cmd.Flags().Set("text", "true")
+				_ = cmd.Flags().Set("text", "true")
 			}
 			if tt.format != "" {
-				cmd.Flags().Set("output-format", tt.format)
+				_ = cmd.Flags().Set("output-format", tt.format)
 			}
 
 			got := GetFormat(cmd)
