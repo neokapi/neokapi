@@ -39,10 +39,6 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
-      - name: Install Bowrain dependencies
-        working-directory: bowrain/apps/bowrain/frontend
-        run: npm ci
-
       - name: Install Playwright browsers
         working-directory: bowrain/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
