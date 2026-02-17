@@ -4,10 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -241,25 +239,6 @@ steps:
 	return nil
 }
 
-func toLocaleIDs(ss []string) []model.LocaleID {
-	ids := make([]model.LocaleID, len(ss))
-	for i, s := range ss {
-		ids[i] = model.LocaleID(s)
-	}
-	return ids
-}
-
-func parseLocaleList(s string) []string {
-	parts := strings.Split(s, ",")
-	var locales []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			locales = append(locales, p)
-		}
-	}
-	return locales
-}
 
 func init() {
 	initCmd.Flags().StringVar(&initServerURL, "server", "", "Bowrain Server URL (e.g., https://bowrain.example.com)")

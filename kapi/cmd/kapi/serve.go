@@ -50,7 +50,7 @@ the current directory is used.`,
 		mux := http.NewServeMux()
 		mux.HandleFunc("GET /api/project", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"name":           proj.Config.Project.Name,
 				"root":           proj.Root,
 				"source_locale":  proj.Config.Project.SourceLocale,
@@ -68,7 +68,7 @@ the current directory is used.`,
 					flows = append(flows, e.Name())
 				}
 			}
-			json.NewEncoder(w).Encode(map[string]any{"flows": flows})
+			_ = json.NewEncoder(w).Encode(map[string]any{"flows": flows})
 		})
 		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
