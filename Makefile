@@ -1,6 +1,13 @@
 # gokapi Makefile
 # ================
 
+# Suppress macOS linker warnings for CGO (Wails WebView)
+ifeq ($(shell uname -s),Darwin)
+export MACOSX_DEPLOYMENT_TARGET := 10.15
+export CGO_CFLAGS := -mmacosx-version-min=10.15
+export CGO_LDFLAGS := -mmacosx-version-min=10.15
+endif
+
 # Variables
 GO          := go
 GOTEST      := $(GO) test
