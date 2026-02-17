@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/registry"
+	"github.com/gokapi/gokapi/core/registry"
 )
 
 // GitConnector fetches and publishes localization content from Git repositories.

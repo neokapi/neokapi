@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/labstack/echo/v4"
 )

@@ -7,9 +7,9 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/tool"
+	"github.com/gokapi/gokapi/core/tool"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

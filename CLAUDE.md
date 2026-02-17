@@ -6,12 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation.
 
-The repository is a **multi-module monorepo** with two Go modules:
+The repository is a **multi-module monorepo** with four Go modules:
 
-- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system. Zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC).
-- **Platform** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform built on the framework: CLI, REST server, desktop app, connectors, authentication, persistent storage.
+- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system. All framework Go packages live under `core/`. Zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC).
+- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types, interfaces, and client code used by both kapi and bowrain: project model, auth types, connector interfaces, REST client, configuration. No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
+- **Kapi** (`github.com/gokapi/gokapi/kapi`) — the CLI tool for local file processing and Bowrain Server sync. Depends on framework + platform. No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
+- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite storage. Depends on framework + platform.
 
-A `go.work` file at the root coordinates the two modules for local development.
+A `go.work` file at the root coordinates the four modules for local development. Kapi and bowrain have no dependency on each other.
 
 ## Build & Test Commands
 
@@ -19,22 +21,24 @@ A `go.work` file at the root coordinates the two modules for local development.
 make build              # Build kapi CLI → bin/kapi
 make build-server       # Build REST server → bin/bowrain-server
 make build-all          # Build all Go binaries
-make test               # Run all tests (both modules)
+make test               # Run all tests (all four modules)
 make test-framework     # Run framework tests only
-make test-platform      # Run platform tests only
+make test-platform      # Run platform module tests only
+make test-kapi          # Run kapi CLI tests only
+make test-bowrain       # Run bowrain tests only
 make test-unit          # Unit tests only (-short flag)
 make test-race          # Tests with race detector
 make test-verbose       # Verbose test output
 make cover              # Coverage report → coverage/coverage.html
 make fmt                # Format Go source (gofmt -w -s)
-make vet                # Run go vet (both modules)
-make lint               # Run golangci-lint (both modules)
+make vet                # Run go vet (all four modules)
+make lint               # Run golangci-lint (all four modules)
 make check              # fmt + vet + lint
-make deps               # Download and tidy Go modules (both)
+make deps               # Download and tidy Go modules (all four)
 make proto              # Generate gRPC code from protobuf definitions
 ```
 
-Run a single test: `go test ./flow/ -run TestExecutorCancellation -v`
+Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
 **Web UI (embedded in kapi serve):**
 ```bash
@@ -60,11 +64,15 @@ cd website && npm run build          # Production build → website/build/
 
 Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make build` requires `make web-build` first for the embedded web UI) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
 
-For the two-module structure:
+For the four-module structure:
 - Framework packages build from the root: `go build ./...`
-- Platform packages build from bowrain/: `cd bowrain && go build ./...`
-- With `go.work`, both resolve cross-module imports automatically
-- `GOWORK=off go build ./...` verifies framework module isolation (no platform imports)
+- Platform packages: `cd platform && go build ./...`
+- Kapi CLI: `cd kapi && go build ./...`
+- Bowrain packages: `cd bowrain && go build ./...`
+- With `go.work`, all four modules resolve cross-module imports automatically
+- `GOWORK=off go build ./...` verifies framework module isolation
+- `GOWORK=off bash -c "cd platform && go build ./..."` verifies platform isolation
+- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no bowrain/sqlite/wails deps)
 
 ## Architecture
 
@@ -72,54 +80,70 @@ For the two-module structure:
 
 ```
 gokapi/
-├── go.work                # Workspace: use . and ./bowrain
+├── go.work                # Workspace: use . ./platform ./kapi ./bowrain
 ├── go.mod                 # module github.com/gokapi/gokapi (framework)
 │
 │   ── Framework Module ──────────────────
-├── model/                 # Content model (Part, Block, Fragment, Span, Layer)
-├── format/                # DataFormatReader/Writer interfaces
-├── tool/                  # Tool interface
-├── flow/                  # FlowExecutor, pipeline orchestration
-├── registry/              # Format and tool registries
-├── encoding/              # Character encoding detection/conversion
-├── locale/                # BCP-47 locale utilities
-├── kaz/                   # KAZ archive format (ZIP-based)
-├── version/               # Version info (set via ldflags)
-├── formats/               # 14 built-in format implementations
-├── ai/                    # LLM providers + AI tools
-├── mt/                    # MT providers + MT tools
-├── sievepen/              # Translation memory (interface + in-memory + matching)
-├── termbase/              # Terminology (interface + in-memory + import)
-├── tools/                 # Built-in utility tools
-├── plugin/                # go-plugin + gRPC plugin system + Java bridge
-├── testutil/              # Shared test helpers
+├── core/
+│   ├── model/             # Content model (Part, Block, Fragment, Span, Layer)
+│   ├── format/            # DataFormatReader/Writer interfaces
+│   ├── tool/              # Tool interface
+│   ├── flow/              # FlowExecutor, pipeline orchestration
+│   ├── registry/          # Format and tool registries
+│   ├── encoding/          # Character encoding detection/conversion
+│   ├── locale/            # BCP-47 locale utilities
+│   ├── kaz/               # KAZ archive format (ZIP-based)
+│   ├── version/           # Version info (set via ldflags)
+│   ├── formats/           # 15 built-in format implementations
+│   ├── ai/                # LLM providers + AI tools
+│   ├── mt/                # MT providers + MT tools
+│   ├── sievepen/          # Translation memory (interface + in-memory + matching)
+│   ├── termbase/          # Terminology (interface + in-memory + import)
+│   ├── tools/             # Built-in utility tools
+│   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
+│   └── testutil/          # Shared test helpers
 ├── examples/              # Plugin examples
 │
 │   ── Platform Module ───────────────────
+├── platform/
+│   ├── go.mod             # module github.com/gokapi/gokapi/platform
+│   ├── project/           # .kapi/ project model (types, config, sync cache)
+│   ├── auth/              # Auth types, JWT, device flow client
+│   ├── connector/         # Connector interfaces + base types
+│   ├── client/            # REST client for bowrain API
+│   ├── config/            # Viper-based app configuration (~/.config/kapi/)
+│   ├── store/             # ContentStore interface + domain types
+│   ├── event/             # Event types + bus interface
+│   └── credentials/       # Provider credential management
+│
+│   ── Kapi Module ───────────────────────
+├── kapi/
+│   ├── go.mod             # module github.com/gokapi/gokapi/kapi
+│   └── cmd/kapi/          # Cobra CLI commands + output formatting
+│
+│   ── Bowrain Module ────────────────────
 ├── bowrain/
 │   ├── go.mod             # module github.com/gokapi/gokapi/bowrain
-│   ├── config/            # Viper-based app configuration
-│   ├── store/             # ContentStore interface + SQLite implementation
-│   ├── auth/              # OIDC, JWT, device flow authentication
-│   ├── connector/         # File, Git, WordPress, Figma, HubSpot connectors
-│   ├── project/           # .kapi/ project model
-│   ├── event/             # Event bus, webhooks, automation
-│   ├── service/           # Auth, project, connector, flow services
-│   ├── credentials/       # Credential storage
+│   ├── auth/              # OIDC, AuthStore, SQLite auth (server-specific)
+│   ├── connector/         # Concrete connector implementations (File, Git, etc.)
+│   ├── store/             # SQLite ContentStore implementation
 │   ├── storage/           # SQLite migration utilities
 │   ├── server/            # HTTP/gRPC server handlers
-│   ├── proto/v1/          # gRPC protobuf definitions
+│   ├── service/           # Auth, project, connector, flow services
+│   ├── event/             # Event bus implementation + automation
+│   ├── credentials/       # Keyring-backed credentials
 │   ├── sievepen/          # SQLite TM implementation
 │   ├── termbase/          # SQLite TermBase implementation
-│   ├── cmd/
-│   │   ├── kapi/          # Cobra CLI
-│   │   └── bowrain-server/# Echo v4 REST API server
-│   ├── apps/
-│   │   ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
-│   │   ├── web/           # SaaS web UI
-│   │   └── kapi-web/      # kapi serve web UI
-│   └── packages/
-│       └── ui/            # Shared React component library
+│   ├── proto/v1/          # gRPC protobuf definitions
+│   ├── cmd/bowrain-server/ # Echo v4 REST API server
+│   └── apps/
+│       ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
+│       ├── web/           # SaaS web UI
+│       └── kapi-web/      # kapi serve web UI
+│
+│   ── Shared Frontend ───────────────────
+├── packages/
+│   └── ui/                # Shared React component library
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # ADRs, architecture docs
@@ -174,7 +198,7 @@ RawDocument → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataForma
 
 Each tool runs in its own goroutine. Buffered channels (default 64) provide backpressure. `errgroup.Group` coordinates error handling. Context cancellation propagates to all stages.
 
-### Content Model (model/)
+### Content Model (core/model/)
 
 The Part is the fundamental streaming unit, carrying a PartType discriminator and a Resource:
 
@@ -209,7 +233,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 
 ## Implementing a New Format
 
-Create a package under `formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `formats/register.go` via `init()`.
+Create a package under `core/formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `core/formats/register.go` via `init()`.
 
 ## Implementing a New Tool
 
@@ -285,8 +309,8 @@ All screenshots and recordings must run against real gokapi infrastructure. Spec
 
 Before committing any UI-related change:
 
-1. TypeScript checks pass for all 4 projects (`bowrain/packages/ui`, `bowrain/apps/web`, `bowrain/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
-2. All unit tests pass (`cd bowrain/packages/ui && npm test`)
+1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `bowrain/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
+2. All unit tests pass (`cd packages/ui && npm test`)
 3. All 3 frontend production builds succeed
 4. All screenshots regenerated to `website/static/img/`
 5. All recordings regenerated and copied to `website/static/video/`

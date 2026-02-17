@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	fw "github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/model"
+	fw "github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/storage"
 )
 

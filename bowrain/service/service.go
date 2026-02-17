@@ -4,7 +4,7 @@ package service
 
 import (
 	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/registry"
+	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/bowrain/store"
 )
 

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // WordPressConnector integrates with WordPress sites via the REST API.

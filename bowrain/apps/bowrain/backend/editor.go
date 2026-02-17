@@ -8,13 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"github.com/gokapi/gokapi/ai/tools"
+	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/tool"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/termbase"
+	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/termbase"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.

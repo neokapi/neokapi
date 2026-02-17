@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gokapi/gokapi/model"
-	"github.com/gokapi/gokapi/registry"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/registry"
 )
 
 // FileConnector reads and writes localization content from the filesystem

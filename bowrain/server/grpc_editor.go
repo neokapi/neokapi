@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/termbase"
+	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/termbase"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"

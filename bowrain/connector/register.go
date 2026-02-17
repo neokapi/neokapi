@@ -1,6 +1,6 @@
 package connector
 
-import "github.com/gokapi/gokapi/registry"
+import "github.com/gokapi/gokapi/core/registry"
 
 // RegisterAll registers all built-in connectors with the given registry.
 // The FileConnector and GitConnector require a FormatRegistry for format

@@ -1,6 +1,5 @@
 # Build artifacts
 bin/
-/kapi
 /bowrain-server
 coverage/
 
@@ -22,8 +21,8 @@ gokapi-plugin-*
 *.exe
 
 # Java bridge build artifacts
-plugin/bridge/java/target/
-plugin/bridge/java/dependency-reduced-pom.xml
+core/plugin/bridge/java/target/
+core/plugin/bridge/java/dependency-reduced-pom.xml
 
 # Frontend
 node_modules/

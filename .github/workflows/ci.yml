@@ -22,16 +22,16 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/web/package-lock.json
             bowrain/apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Run UI unit tests
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm test
 
       - name: Build SaaS web UI
@@ -45,7 +45,9 @@ jobs:
       - name: Download modules
         run: |
           go mod download && go mod verify
-          cd bowrain && go mod download && go mod verify
+          cd platform && go mod download && go mod verify
+          cd ../kapi && go mod download && go mod verify
+          cd ../bowrain && go mod download && go mod verify
 
       - name: Create Bowrain frontend placeholder
         run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
@@ -54,12 +56,20 @@ jobs:
         run: go test -race -coverprofile=framework.out -covermode=atomic ./...
 
       - name: Run platform tests
-        run: cd bowrain && go test -race -coverprofile=platform.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
+        run: cd platform && go test -race -coverprofile=platform.out -covermode=atomic ./...
+
+      - name: Run kapi tests
+        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic ./...
+
+      - name: Run bowrain tests
+        run: cd bowrain && go test -race -coverprofile=bowrain.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
 
       - name: Merge coverage
         run: |
           cat framework.out > coverage.out
-          tail -n +2 bowrain/platform.out >> coverage.out
+          tail -n +2 platform/platform.out >> coverage.out
+          tail -n +2 kapi/kapi.out >> coverage.out
+          tail -n +2 bowrain/bowrain.out >> coverage.out
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -95,6 +105,22 @@ jobs:
         with:
           install-mode: binary
           version: latest
+          working-directory: platform
+          args: --timeout=5m ./...
+
+      - name: Lint kapi
+        uses: golangci/golangci-lint-action@v7
+        with:
+          install-mode: binary
+          version: latest
+          working-directory: kapi
+          args: --timeout=5m ./...
+
+      - name: Lint bowrain
+        uses: golangci/golangci-lint-action@v7
+        with:
+          install-mode: binary
+          version: latest
           working-directory: bowrain
           args: --timeout=5m ./...
 
@@ -114,12 +140,12 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/web/package-lock.json
             bowrain/apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Build SaaS web UI
@@ -131,13 +157,23 @@ jobs:
         run: npm ci && npm run build
 
       - name: Build kapi CLI
-        run: cd bowrain && go build -o ../bin/kapi ./cmd/kapi
+        run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
 
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Verify framework module isolation
         run: GOWORK=off go build ./...
+
+      - name: Verify platform module isolation
+        run: GOWORK=off bash -c "cd platform && go build ./..."
+
+      - name: Verify kapi module isolation
+        run: GOWORK=off bash -c "cd kapi && go build ./..."
+
+      - name: Verify kapi has no heavy deps
+        run: |
+          cd kapi && GOWORK=off go list -m all | grep -iE 'sqlite|wails|echo|oidc|keyring' && exit 1 || true
 
   playwright:
     name: Playwright E2E
@@ -150,11 +186,11 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/bowrain/frontend/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Install Bowrain dependencies
@@ -207,7 +243,7 @@ jobs:
         id: ui_changes
         run: |
           # Check for changes in UI-related files
-          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qE '^(bowrain/packages/ui/|bowrain/apps/web/|bowrain/apps/kapi-web/|bowrain/apps/bowrain/frontend/)'; then
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qE '^(packages/ui/|bowrain/apps/web/|bowrain/apps/kapi-web/|bowrain/apps/bowrain/frontend/)'; then
             echo "ui_changed=true" >> $GITHUB_OUTPUT
           else
             echo "ui_changed=false" >> $GITHUB_OUTPUT

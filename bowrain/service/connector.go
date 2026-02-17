@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
 )
 

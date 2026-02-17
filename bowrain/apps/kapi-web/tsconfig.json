@@ -9,12 +9,12 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "paths": {
-      "@gokapi/ui": ["../../packages/ui/src"],
-      "@gokapi/ui/*": ["../../packages/ui/src/*"]
+      "@gokapi/ui": ["../../../packages/ui/src"],
+      "@gokapi/ui/*": ["../../../packages/ui/src/*"]
     }
   },
   "include": ["src"],
   "references": [
-    { "path": "../../packages/ui" }
+    { "path": "../../../packages/ui" }
   ]
 }

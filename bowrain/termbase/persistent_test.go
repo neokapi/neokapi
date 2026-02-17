@@ -3,8 +3,8 @@ package termbase_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/model"
-	"github.com/gokapi/gokapi/termbase"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/termbase"
 
 	sqltb "github.com/gokapi/gokapi/bowrain/termbase"
 

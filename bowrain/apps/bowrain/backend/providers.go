@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/bowrain/credentials"
 )
 

@@ -1,0 +1,220 @@
+package html_test
+
+import (
+	"bytes"
+	"context"
+	"testing"
+
+	"github.com/gokapi/gokapi/core/model"
+	htmlfmt "github.com/gokapi/gokapi/core/formats/html"
+	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestReadSimpleHTML(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello world</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	require.GreaterOrEqual(t, len(blocks), 1)
+	assert.Equal(t, "Hello world", blocks[0].SourceText())
+}
+
+func TestReadMultipleBlocks(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><h1>Title</h1><p>Paragraph</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.GreaterOrEqual(t, len(blocks), 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Title")
+	assert.Contains(t, texts, "Paragraph")
+}
+
+func TestReadInlineSpans(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Click <b>here</b> for info</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.GreaterOrEqual(t, len(blocks), 1)
+
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.Equal(t, "Click here for info", frag.Text())
+	assert.True(t, frag.HasSpans())
+	require.Len(t, frag.Spans, 2)
+	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
+	assert.Equal(t, "<b>", frag.Spans[0].Data)
+	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
+	assert.Equal(t, "</b>", frag.Spans[1].Data)
+}
+
+func TestReadLinkSpan(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Visit <a href="http://example.com">our site</a></p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.GreaterOrEqual(t, len(blocks), 1)
+
+	frag := blocks[0].FirstFragment()
+	assert.Equal(t, "Visit our site", frag.Text())
+	assert.True(t, frag.HasSpans())
+
+	// Should have opening <a> and closing </a>
+	var openingSpan, closingSpan *model.Span
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening && s.Type == "a" {
+			openingSpan = s
+		}
+		if s.SpanType == model.SpanClosing && s.Type == "a" {
+			closingSpan = s
+		}
+	}
+	require.NotNil(t, openingSpan)
+	require.NotNil(t, closingSpan)
+	assert.Contains(t, openingSpan.Data, "href")
+}
+
+func TestReadPlaceholderSpan(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Line one<br/>Line two</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.GreaterOrEqual(t, len(blocks), 1)
+
+	frag := blocks[0].FirstFragment()
+	assert.Equal(t, "Line oneLine two", frag.Text())
+	assert.True(t, frag.HasSpans())
+
+	// br should be a placeholder span
+	found := false
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanPlaceholder && s.Type == "br" {
+			found = true
+		}
+	}
+	assert.True(t, found, "expected <br/> to be a placeholder span")
+}
+
+func TestReadScriptNonTranslatable(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello</p><script>var x = 1;</script><p>World</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	texts := testutil.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Hello")
+	assert.Contains(t, texts, "World")
+	// Script content should NOT be in blocks
+	for _, text := range texts {
+		assert.NotContains(t, text, "var x")
+	}
+}
+
+func TestReadLayerStartEnd(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Test</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+
+	require.GreaterOrEqual(t, len(parts), 2)
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+	layer := parts[0].Resource.(*model.Layer)
+	assert.Equal(t, "html", layer.Format)
+}
+
+func TestReadTitle(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><head><title>Page Title</title></head><body><p>Content</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	texts := testutil.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Page Title")
+	assert.Contains(t, texts, "Content")
+}
+
+func TestReaderSignature(t *testing.T) {
+	reader := htmlfmt.NewReader()
+	sig := reader.Signature()
+	assert.Contains(t, sig.MIMETypes, "text/html")
+	assert.Contains(t, sig.Extensions, ".html")
+	assert.Contains(t, sig.Extensions, ".htm")
+}
+
+func TestWriteBlockWithSkeleton(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`<html><body><p>Hello world</p></body></html>`, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set French targets
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+		}
+	}
+
+	// Write
+	var buf bytes.Buffer
+	writer := htmlfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleFrench)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Bonjour le monde")
+	assert.NotContains(t, output, "Hello world")
+}
+
+func TestReadNilDocument(t *testing.T) {
+	ctx := context.Background()
+	reader := htmlfmt.NewReader()
+	err := reader.Open(ctx, nil)
+	assert.Error(t, err)
+}
+
+func TestReaderMetadata(t *testing.T) {
+	reader := htmlfmt.NewReader()
+	assert.Equal(t, "html", reader.Name())
+	assert.Equal(t, "HTML", reader.DisplayName())
+}

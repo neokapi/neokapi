@@ -7,8 +7,8 @@ import (
 	"time"
 
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
-	"github.com/gokapi/gokapi/model"
-	"github.com/gokapi/gokapi/sievepen"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/google/uuid"
 )
 

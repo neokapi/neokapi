@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gokapi/gokapi/kaz"
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // RenderDocumentPreview returns pre-rendered HTML for an item.

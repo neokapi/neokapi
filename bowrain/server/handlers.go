@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/gokapi/gokapi/version"
+	"github.com/gokapi/gokapi/core/version"
 	"github.com/labstack/echo/v4"
 )
 

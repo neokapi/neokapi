@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

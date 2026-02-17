@@ -1,0 +1,542 @@
+package json_test
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"os"
+	"testing"
+
+	"github.com/gokapi/gokapi/core/model"
+	jsonfmt "github.com/gokapi/gokapi/core/formats/json"
+	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestReadSimpleJSON(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"title": "Hello World", "description": "A simple test"}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Hello World")
+	assert.Contains(t, texts, "A simple test")
+}
+
+func TestReadNestedJSON(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"nested": {"key": "Nested value", "deep": {"inner": "Deep value"}}}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Nested value")
+	assert.Contains(t, texts, "Deep value")
+
+	// Verify key paths
+	names := make(map[string]string)
+	for _, b := range blocks {
+		names[b.Name] = b.SourceText()
+	}
+	assert.Equal(t, "Nested value", names["nested.key"])
+	assert.Equal(t, "Deep value", names["nested.deep.inner"])
+}
+
+func TestReadArrayStrings(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"items": ["First", "Second", "Third"]}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 3)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "First")
+	assert.Contains(t, texts, "Second")
+	assert.Contains(t, texts, "Third")
+
+	// Verify key paths include array indices
+	names := make(map[string]string)
+	for _, b := range blocks {
+		names[b.Name] = b.SourceText()
+	}
+	assert.Equal(t, "First", names["items[0]"])
+	assert.Equal(t, "Second", names["items[1]"])
+	assert.Equal(t, "Third", names["items[2]"])
+}
+
+func TestReadNonStringValues(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"name": "Test", "count": 42, "active": true, "value": null}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	// Only "name" should be a block (string value)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Test", blocks[0].SourceText())
+	assert.Equal(t, "name", blocks[0].Name)
+
+	// Count data parts (non-string values)
+	dataCount := 0
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			dataCount++
+		}
+	}
+	assert.Equal(t, 3, dataCount, "should have 3 Data parts for number, boolean, and null")
+}
+
+func TestReadEmptyJSON(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`{}`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	assert.Empty(t, blocks)
+}
+
+func TestReadLayerStartEnd(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "value"}`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+
+	require.GreaterOrEqual(t, len(parts), 3)
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+	layer := parts[0].Resource.(*model.Layer)
+	assert.Equal(t, "json", layer.Format)
+	assert.Equal(t, "application/json", layer.MimeType)
+}
+
+func TestReaderSignature(t *testing.T) {
+	reader := jsonfmt.NewReader()
+	sig := reader.Signature()
+	assert.Contains(t, sig.MIMETypes, "application/json")
+	assert.Contains(t, sig.Extensions, ".json")
+}
+
+func TestReaderMetadata(t *testing.T) {
+	reader := jsonfmt.NewReader()
+	assert.Equal(t, "json", reader.Name())
+	assert.Equal(t, "JSON", reader.DisplayName())
+}
+
+func TestReadNilDocument(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, nil)
+	assert.Error(t, err)
+}
+
+func TestReadInvalidJSON(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	// Read channel directly; expect an error result
+	ch := reader.Read(ctx)
+	var foundError bool
+	for result := range ch {
+		if result.Error != nil {
+			foundError = true
+		}
+	}
+	assert.True(t, foundError, "expected an error for invalid JSON input")
+}
+
+func TestReadInvalidJSONError(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	ch := reader.Read(ctx)
+	var foundError bool
+	for result := range ch {
+		if result.Error != nil {
+			foundError = true
+			break
+		}
+	}
+	assert.True(t, foundError, "expected an error for invalid JSON")
+}
+
+func TestReadFromFile(t *testing.T) {
+	ctx := context.Background()
+
+	f, err := os.Open("testdata/simple.json")
+	require.NoError(t, err)
+
+	reader := jsonfmt.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	// simple.json has: title, description, nested.key, items[0], items[1], items[2]
+	require.Len(t, blocks, 6)
+
+	names := make(map[string]string)
+	for _, b := range blocks {
+		names[b.Name] = b.SourceText()
+	}
+
+	assert.Equal(t, "Hello World", names["title"])
+	assert.Equal(t, "A simple test", names["description"])
+	assert.Equal(t, "Nested value", names["nested.key"])
+	assert.Equal(t, "First", names["items[0]"])
+	assert.Equal(t, "Second", names["items[1]"])
+	assert.Equal(t, "Third", names["items[2]"])
+}
+
+func TestRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	input := `{"title": "Hello World", "description": "A simple test"}`
+
+	// Read
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Write (source language roundtrip)
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Parse both to compare structure (key order may differ)
+	var expected, actual map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(input), &expected))
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &actual))
+
+	assert.Equal(t, expected["title"], actual["title"])
+	assert.Equal(t, expected["description"], actual["description"])
+}
+
+func TestRoundTripWithTranslation(t *testing.T) {
+	ctx := context.Background()
+	input := `{"greeting": "Hello", "farewell": "Goodbye"}`
+
+	// Read
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set French targets
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			switch block.SourceText() {
+			case "Hello":
+				block.SetTargetText(model.LocaleFrench, "Bonjour")
+			case "Goodbye":
+				block.SetTargetText(model.LocaleFrench, "Au revoir")
+			}
+		}
+	}
+
+	// Write with French locale
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleFrench)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+
+	assert.Equal(t, "Bonjour", result["greeting"])
+	assert.Equal(t, "Au revoir", result["farewell"])
+}
+
+func TestRoundTripNested(t *testing.T) {
+	ctx := context.Background()
+	input := `{"parent": {"child": "Original"}}`
+
+	// Read
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set target
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			block.SetTargetText(model.LocaleGerman, "Uebersetzt")
+		}
+	}
+
+	// Write with German locale
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleGerman)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+
+	parent, ok := result["parent"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "Uebersetzt", parent["child"])
+}
+
+func TestRoundTripArray(t *testing.T) {
+	ctx := context.Background()
+	input := `{"items": ["Apple", "Banana", "Cherry"]}`
+
+	// Read
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set Spanish targets
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			switch block.SourceText() {
+			case "Apple":
+				block.SetTargetText(model.LocaleSpanish, "Manzana")
+			case "Banana":
+				block.SetTargetText(model.LocaleSpanish, "Platano")
+			case "Cherry":
+				block.SetTargetText(model.LocaleSpanish, "Cereza")
+			}
+		}
+	}
+
+	// Write with Spanish locale
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleSpanish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+
+	items, ok := result["items"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, items, 3)
+	assert.Equal(t, "Manzana", items[0])
+	assert.Equal(t, "Platano", items[1])
+	assert.Equal(t, "Cereza", items[2])
+}
+
+func TestRoundTripFileSimple(t *testing.T) {
+	original, err := os.ReadFile("testdata/simple.json")
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	// Read
+	f, err := os.Open("testdata/simple.json")
+	require.NoError(t, err)
+	reader := jsonfmt.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Write (source roundtrip - no translation)
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Compare JSON structure (not exact string, since key order may vary)
+	var expected, actual interface{}
+	require.NoError(t, json.Unmarshal(original, &expected))
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &actual))
+	assert.Equal(t, expected, actual)
+}
+
+func TestReadUnicodeJSON(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"greeting": "Hello \u4e16\u754c", "japanese": "\u3053\u3093\u306b\u3061\u306f"}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Hello \u4e16\u754c")
+	assert.Contains(t, texts, "\u3053\u3093\u306b\u3061\u306f")
+}
+
+func TestReadEmptyStringValue(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"empty": "", "notempty": "value"}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	// Empty strings are still strings; they should be extracted as blocks
+	require.Len(t, blocks, 2)
+	names := make(map[string]string)
+	for _, b := range blocks {
+		names[b.Name] = b.SourceText()
+	}
+	assert.Equal(t, "", names["empty"])
+	assert.Equal(t, "value", names["notempty"])
+}
+
+func TestReadMixedArray(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"mixed": ["text", 42, true, "more text"]}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+
+	// Only string elements should be blocks
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "text")
+	assert.Contains(t, texts, "more text")
+}
+
+func TestConfigDefaults(t *testing.T) {
+	cfg := &jsonfmt.Config{}
+	cfg.Reset()
+	assert.True(t, cfg.ExtractArrayStrings)
+	assert.Equal(t, "json", cfg.FormatName())
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestRoundTripSourceOnly(t *testing.T) {
+	ctx := context.Background()
+	input := `{"msg": "Hello"}`
+
+	// Read
+	reader := jsonfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Write without setting locale (should use source text)
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	var result map[string]interface{}
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
+	assert.Equal(t, "Hello", result["msg"])
+}
+
+func TestBlocksAreTranslatable(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"key": "value"}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.True(t, blocks[0].Translatable)
+}
+
+func TestReadDeeplyNested(t *testing.T) {
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	input := `{"a": {"b": {"c": {"d": "deep"}}}}`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "deep", blocks[0].SourceText())
+	assert.Equal(t, "a.b.c.d", blocks[0].Name)
+}

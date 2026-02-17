@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/storage"
 	"github.com/google/uuid"
 )

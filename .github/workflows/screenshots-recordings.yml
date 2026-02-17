@@ -31,11 +31,11 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/bowrain/frontend/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Install Bowrain dependencies
@@ -86,11 +86,11 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Build web UI
@@ -168,13 +168,13 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/kapi-web/package-lock.json
 
       - name: Build kapi CLI
         run: |
-          cd bowrain/packages/ui && npm ci && npx tsc
-          cd ../../apps/kapi-web && npm ci && npm run build
+          cd packages/ui && npm ci && npx tsc
+          cd ../../bowrain/apps/kapi-web && npm ci && npm run build
           cd ../../.. && make build
 
       # Install VHS using the official setup

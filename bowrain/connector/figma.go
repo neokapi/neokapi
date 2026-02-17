@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // FigmaConnector integrates with the Figma API to fetch text content.

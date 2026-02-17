@@ -27,16 +27,16 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            bowrain/packages/ui/package-lock.json
+            packages/ui/package-lock.json
             bowrain/apps/web/package-lock.json
             bowrain/apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Run UI unit tests
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm test
 
       - name: Build SaaS web UI
@@ -50,10 +50,23 @@ jobs:
       - name: Create Bowrain frontend placeholder
         run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
 
+      - name: Download modules
+        run: |
+          go mod download && go mod verify
+          cd platform && go mod download && go mod verify
+          cd ../kapi && go mod download && go mod verify
+          cd ../bowrain && go mod download && go mod verify
+
       - name: Run framework tests
         run: go test ./...
 
       - name: Run platform tests
+        run: cd platform && go test ./...
+
+      - name: Run kapi tests
+        run: cd kapi && go test ./...
+
+      - name: Run bowrain tests
         run: cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
 
       - name: Run GoReleaser
@@ -126,7 +139,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Build shared UI package
-        working-directory: bowrain/packages/ui
+        working-directory: packages/ui
         run: npm ci && npx tsc
 
       - name: Install frontend dependencies

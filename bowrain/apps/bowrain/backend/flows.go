@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gokapi/gokapi/flow"
+	"github.com/gokapi/gokapi/core/flow"
 )
 
 // FlowDefinitionInfo is the frontend-facing flow definition type.

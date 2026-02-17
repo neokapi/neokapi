@@ -8,17 +8,19 @@ GOBUILD     := $(GO) build
 GOVET       := $(GO) vet
 GOFMT       := gofmt
 MODULE      := github.com/gokapi/gokapi
-PLATFORM    := github.com/gokapi/gokapi/bowrain
-CLI_PKG     := $(PLATFORM)/cmd/kapi
-SERVER_PKG  := $(PLATFORM)/cmd/bowrain-server
+PLATFORM    := github.com/gokapi/gokapi/platform
+KAPI_MOD    := github.com/gokapi/gokapi/kapi
+BOWRAIN     := github.com/gokapi/gokapi/bowrain
+CLI_PKG     := $(KAPI_MOD)/cmd/kapi
+SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-VERSION_PKG := $(MODULE)/version
+VERSION_PKG := $(MODULE)/core/version
 LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 BIN_DIR     := bin
 COVER_DIR   := coverage
-PROTO_DIR        := plugin/proto/v1
+PROTO_DIR        := core/plugin/proto/v1
 PROTO_FILES      := $(wildcard $(PROTO_DIR)/*.proto)
 SERVER_PROTO_DIR := bowrain/proto/v1
 FRONTEND_DIR := bowrain/apps/bowrain/frontend
@@ -33,7 +35,7 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
-        test-race test-e2e test-framework test-platform lint fmt vet proto clean install cover tools help \
+        test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         docker-build docker-push \
@@ -49,9 +51,9 @@ help: ## Show this help
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
-build: kapi-web-build ## Build the kapi CLI
+build: ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
-	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/kapi ./cmd/kapi
+	cd kapi && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/kapi ./cmd/kapi
 
 build-server: web-build ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
@@ -63,7 +65,7 @@ build-bowrain: frontend-build ## Build the Bowrain desktop app
 build-all: build build-server ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
-	cd bowrain && $(GO) install $(LDFLAGS) ./cmd/kapi
+	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -81,7 +83,7 @@ build-ui: build-server frontend-build ## Build server + frontend
 # ── Shared UI Package ──────────────────────────────────────────────────────
 
 ui-deps: ## Install shared UI package dependencies
-	cd bowrain/packages/ui && $(NPM) install
+	cd packages/ui && $(NPM) install
 
 # ── Kapi Web UI (kapi serve) ───────────────────────────────────────────────
 
@@ -89,7 +91,7 @@ kapi-web-deps: ## Install kapi web UI dependencies
 	cd $(KAPI_WEB_DIR) && $(NPM) install
 
 kapi-web-build: ui-deps kapi-web-deps ## Build kapi web UI for production
-	cd bowrain/packages/ui && npx tsc
+	cd packages/ui && npx tsc
 	cd $(KAPI_WEB_DIR) && $(NPM) run build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
@@ -98,7 +100,7 @@ web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
 web-build: ui-deps web-deps ## Build SaaS web UI for production
-	cd bowrain/packages/ui && npx tsc
+	cd packages/ui && npx tsc
 	cd $(WEB_DIR) && $(NPM) run build
 
 # ── Docker ──────────────────────────────────────────────────────────────────
@@ -127,22 +129,34 @@ docs-assets: screenshots recordings cli-recordings ## Generate all documentation
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
-test: ## Run all tests (both modules)
+test: ## Run all tests (all four modules)
 	$(GOTEST) ./... -count=1
+	cd platform && $(GOTEST) ./... -count=1
+	cd kapi && $(GOTEST) ./... -count=1
 	cd bowrain && $(GOTEST) ./... -count=1
 
 test-unit: ## Run unit tests only (exclude integration)
 	$(GOTEST) ./... -count=1 -short
+	cd platform && $(GOTEST) ./... -count=1 -short
+	cd kapi && $(GOTEST) ./... -count=1 -short
 	cd bowrain && $(GOTEST) ./... -count=1 -short
 
 test-race: ## Run tests with race detector
 	$(GOTEST) ./... -count=1 -race
+	cd platform && $(GOTEST) ./... -count=1 -race
+	cd kapi && $(GOTEST) ./... -count=1 -race
 	cd bowrain && $(GOTEST) ./... -count=1 -race
 
 test-framework: ## Run framework tests only
 	$(GOTEST) ./... -count=1
 
-test-platform: ## Run platform tests only
+test-platform: ## Run platform module tests only
+	cd platform && $(GOTEST) ./... -count=1
+
+test-kapi: ## Run kapi CLI tests only
+	cd kapi && $(GOTEST) ./... -count=1
+
+test-bowrain: ## Run bowrain tests only
 	cd bowrain && $(GOTEST) ./... -count=1
 
 test-integration: ## Run integration tests
@@ -154,14 +168,20 @@ test-e2e: ## Run end-to-end tests against Docker stack
 
 test-verbose: ## Run tests with verbose output
 	$(GOTEST) ./... -count=1 -v
+	cd platform && $(GOTEST) ./... -count=1 -v
+	cd kapi && $(GOTEST) ./... -count=1 -v
 	cd bowrain && $(GOTEST) ./... -count=1 -v
 
 cover: ## Run tests with coverage
 	@mkdir -p $(COVER_DIR)
 	$(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/framework.out -covermode=atomic
-	cd bowrain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/platform.out -covermode=atomic
+	cd platform && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/platform.out -covermode=atomic
+	cd kapi && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/kapi.out -covermode=atomic
+	cd bowrain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/bowrain.out -covermode=atomic
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/platform.out >> $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/kapi.out >> $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/bowrain.out >> $(COVER_DIR)/coverage.out
 	$(GO) tool cover -html=$(COVER_DIR)/coverage.out -o $(COVER_DIR)/coverage.html
 	@echo "Coverage report: $(COVER_DIR)/coverage.html"
 
@@ -172,11 +192,15 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet
 	$(GOVET) ./...
+	cd platform && $(GOVET) ./...
+	cd kapi && $(GOVET) ./...
 	cd bowrain && $(GOVET) ./...
 
 lint: ## Run golangci-lint
 ifdef GOLANGCI_LINT
 	$(GOLANGCI_LINT) run ./...
+	cd platform && $(GOLANGCI_LINT) run ./...
+	cd kapi && $(GOLANGCI_LINT) run ./...
 	cd bowrain && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -212,7 +236,7 @@ tools: ## Install development tools
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)
 	rm -rf $(COVER_DIR)
-	rm -rf bowrain/packages/ui/node_modules
+	rm -rf packages/ui/node_modules
 	rm -rf $(FRONTEND_DIR)/dist
 	rm -rf $(FRONTEND_DIR)/node_modules
 	rm -rf $(KAPI_WEB_DIR)/dist
@@ -225,11 +249,17 @@ clean: ## Remove build artifacts
 
 deps: ## Download and tidy dependencies
 	$(GO) mod download && $(GO) mod tidy
+	cd platform && $(GO) mod download && $(GO) mod tidy
+	cd kapi && $(GO) mod download && $(GO) mod tidy
 	cd bowrain && $(GO) mod download && $(GO) mod tidy
 
 deps-update: ## Update all dependencies
 	$(GO) get -u ./...
 	$(GO) mod tidy
+	cd platform && $(GO) get -u ./...
+	cd platform && $(GO) mod tidy
+	cd kapi && $(GO) get -u ./...
+	cd kapi && $(GO) mod tidy
 	cd bowrain && $(GO) get -u ./...
 	cd bowrain && $(GO) mod tidy
 
