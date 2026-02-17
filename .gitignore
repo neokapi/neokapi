@@ -1,6 +1,6 @@
 # Build artifacts
 bin/
-/bowrain-server
+bowrain-server
 coverage/
 
 # IDE
