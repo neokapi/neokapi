@@ -116,6 +116,12 @@ jobs:
           working-directory: kapi
           args: --timeout=5m ./...
 
+      - name: Install Linux dependencies for Wails
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Create Bowrain frontend placeholder
+        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+
       - name: Lint bowrain
         uses: golangci/golangci-lint-action@v7
         with:
