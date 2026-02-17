@@ -418,6 +418,7 @@ test.describe("Web App Recordings", () => {
 
     test(`record invite-workflow [${theme}]`, async ({ page }) => {
       test.skip(isCI, "Recording tests are skipped in CI");
+      test.setTimeout(180_000); // invite workflow needs extra time for human-speed interactions
 
       await setupRecording(page, theme);
       await pause(page, 1000);
@@ -429,35 +430,19 @@ test.describe("Web App Recordings", () => {
 
       // Scroll to Invitations section
       const inviteSection = page.getByTestId("invite-manager");
-      if (await inviteSection.isVisible()) {
-        await inviteSection.scrollIntoViewIfNeeded();
-        await pause(page, 1000);
-      }
+      await expect(inviteSection).toBeVisible({ timeout: 5000 });
+      await inviteSection.scrollIntoViewIfNeeded();
+      await pause(page, 1000);
 
-      // Fill in email for new invite
+      // Fill in email for new invite (role defaults to "Member")
       const emailInput = page.getByTestId("invite-email-input");
-      if (await emailInput.isVisible()) {
-        await humanType(page, emailInput, "translator@example.com");
-        await pause(page, 800);
-      }
-
-      // Select role
-      const roleSelect = page.getByTestId("invite-role-select");
-      if (await roleSelect.isVisible()) {
-        await humanClick(page, roleSelect);
-        await pause(page, 500);
-        // Select "Member" role
-        const memberOption = page.getByText("Member", { exact: true }).first();
-        await humanClick(page, memberOption);
-        await pause(page, 500);
-      }
+      await humanType(page, emailInput, "translator@example.com");
+      await pause(page, 800);
 
       // Submit the invite
       const submitBtn = page.getByTestId("invite-submit-btn");
-      if (await submitBtn.isVisible()) {
-        await humanClick(page, submitBtn);
-        await pause(page, 2000);
-      }
+      await humanClick(page, submitBtn);
+      await pause(page, 2000);
 
       // Copy the invite link
       const copyBtn = page.getByTestId("invite-copy-link-btn").first();
