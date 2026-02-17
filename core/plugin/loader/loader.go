@@ -17,10 +17,10 @@ import (
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/plugin/bridge"
 	"github.com/gokapi/gokapi/core/plugin/host"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/gokapi/gokapi/core/registry"
 )
 
 // OriginalContentSetter is implemented by writers that need the original
@@ -48,13 +48,13 @@ type managedBridge struct {
 
 // PluginLoader discovers and loads plugins from a directory.
 type PluginLoader struct {
-	dir      string
-	manager  *host.PluginManager
-	pool     *bridge.BridgePool // single shared pool for all bridge plugins
-	bridges  []*managedBridge
-	plugins  []PluginInfo
-	schemas  *SchemaRegistry // filter parameter schemas
-	logger   *log.Logger
+	dir     string
+	manager *host.PluginManager
+	pool    *bridge.BridgePool // single shared pool for all bridge plugins
+	bridges []*managedBridge
+	plugins []PluginInfo
+	schemas *SchemaRegistry // filter parameter schemas
+	logger  *log.Logger
 }
 
 // NewPluginLoader creates a new PluginLoader for the given directory.
@@ -332,7 +332,7 @@ func (l *PluginLoader) Shutdown() {
 	l.bridges = nil
 }
 
-func (l *PluginLoader) logf(format string, args ...interface{}) {
+func (l *PluginLoader) logf(format string, args ...any) {
 	if l.logger != nil {
 		l.logger.Printf(format, args...)
 	}

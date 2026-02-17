@@ -66,7 +66,7 @@ func (r FormatRef) IsVersioned() bool {
 func CompareSemver(a, b string) int {
 	ap := parseSemverParts(a)
 	bp := parseSemverParts(b)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if ap[i] < bp[i] {
 			return -1
 		}
@@ -96,7 +96,7 @@ func LatestVersion(versions []string) string {
 func parseSemverParts(s string) [3]int {
 	var parts [3]int
 	fields := strings.SplitN(s, ".", 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if i < len(fields) {
 			n, err := strconv.Atoi(fields[i])
 			if err != nil {

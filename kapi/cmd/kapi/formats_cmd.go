@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/spf13/cobra"
 )
 
@@ -108,21 +108,21 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		filterID := args[0]
-		
+
 		// Try to find format info
 		info := formatReg.FormatInfo(filterID)
-		
+
 		// Try to find schema
 		var schema *loader.FilterSchema
 		if pluginLoader != nil {
 			schema, _ = pluginLoader.Schemas().GetSchema(filterID)
 		}
-		
+
 		if info == nil && schema == nil {
 			fmt.Fprintf(os.Stderr, "Format not found: %s\n", filterID)
 			os.Exit(1)
 		}
-		
+
 		// Print header
 		title := filterID
 		if schema != nil && schema.Title != "" {
@@ -133,7 +133,7 @@ Examples:
 		fmt.Printf("%s\n", title)
 		fmt.Println(strings.Repeat("=", len(title)))
 		fmt.Println()
-		
+
 		// Print schema metadata if available
 		if schema != nil {
 			fmt.Printf("Filter ID:      %s\n", schema.FilterMeta.ID)
@@ -146,7 +146,7 @@ Examples:
 				fmt.Printf("MIME Types:     %s\n", strings.Join(schema.FilterMeta.MimeTypes, ", "))
 			}
 			fmt.Println()
-			
+
 			// Print parameters grouped by category
 			if len(schema.Groups) > 0 {
 				for _, group := range schema.Groups {
@@ -155,7 +155,7 @@ Examples:
 					if group.Description != "" {
 						fmt.Printf("  %s\n\n", group.Description)
 					}
-					
+
 					for _, fieldName := range group.Fields {
 						prop, ok := schema.Properties[fieldName]
 						if !ok {
@@ -165,7 +165,7 @@ Examples:
 					}
 					fmt.Println()
 				}
-				
+
 				// Print ungrouped parameters
 				groupedFields := make(map[string]bool)
 				for _, group := range schema.Groups {
@@ -173,14 +173,14 @@ Examples:
 						groupedFields[field] = true
 					}
 				}
-				
+
 				var ungrouped []string
 				for name := range schema.Properties {
 					if !groupedFields[name] {
 						ungrouped = append(ungrouped, name)
 					}
 				}
-				
+
 				if len(ungrouped) > 0 {
 					fmt.Println("Other Parameters")
 					fmt.Println("----------------")
@@ -225,7 +225,7 @@ func printParameter(name string, prop loader.PropertySchema) {
 	if prop.OkapiFormat != "" {
 		typeStr = prop.OkapiFormat
 	}
-	
+
 	defaultStr := ""
 	if prop.Default != nil {
 		switch v := prop.Default.(type) {
@@ -243,7 +243,7 @@ func printParameter(name string, prop loader.PropertySchema) {
 			}
 		}
 	}
-	
+
 	fmt.Printf("  %-24s %-10s%s\n", name, typeStr, defaultStr)
 	if prop.Description != "" {
 		// Word-wrap description at 60 chars
@@ -270,27 +270,27 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		filterID := args[0]
-		
+
 		if pluginLoader == nil {
 			fmt.Fprintf(os.Stderr, "No plugins loaded - schema not available\n")
 			os.Exit(1)
 		}
-		
+
 		rawJSON, ok := pluginLoader.Schemas().GetSchemaJSON(filterID)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "Schema not found for format: %s\n", filterID)
 			fmt.Fprintf(os.Stderr, "Use 'kapi formats' to list available formats.\n")
 			os.Exit(1)
 		}
-		
+
 		// Pretty-print the JSON
-		var prettyJSON map[string]interface{}
+		var prettyJSON map[string]any
 		if err := json.Unmarshal(rawJSON, &prettyJSON); err != nil {
 			// Fall back to raw output
 			fmt.Println(string(rawJSON))
 			return
 		}
-		
+
 		output, err := json.MarshalIndent(prettyJSON, "", "  ")
 		if err != nil {
 			fmt.Println(string(rawJSON))

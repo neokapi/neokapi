@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.
@@ -35,20 +36,21 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 func (p *OpenAIProvider) Name() string { return "openai" }
 
 func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	prompt := fmt.Sprintf(
+	var prompt strings.Builder
+	prompt.WriteString(fmt.Sprintf(
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
 		req.SourceLocale, req.TargetLocale, req.Source,
-	)
+	))
 
 	if len(req.Glossary) > 0 {
-		prompt += "\n\nGlossary:\n"
+		prompt.WriteString("\n\nGlossary:\n")
 		for term, translation := range req.Glossary {
-			prompt += fmt.Sprintf("- %s → %s\n", term, translation)
+			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
 		}
 	}
 
 	resp, err := p.Chat(ctx, []Message{
-		{Role: "user", Content: prompt},
+		{Role: "user", Content: prompt.String()},
 	})
 	if err != nil {
 		return nil, err

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -42,7 +44,7 @@ func (s *WordCountSummary) FormatTable(w io.Writer) {
 	for loc := range localeSet {
 		locales = append(locales, loc)
 	}
-	sort.Slice(locales, func(i, j int) bool { return locales[i] < locales[j] })
+	slices.Sort(locales)
 
 	// Determine column widths.
 	fileWidth := len("FILE")
@@ -182,17 +184,13 @@ func (wc *WordCountCollector) Result() (flow.CollectorResult, error) {
 	docs := make(map[string]DocumentWordCount, len(wc.perDocument))
 	for k, v := range wc.perDocument {
 		tw := make(map[model.LocaleID]int, len(v.TargetWords))
-		for loc, n := range v.TargetWords {
-			tw[loc] = n
-		}
+		maps.Copy(tw, v.TargetWords)
 		v.TargetWords = tw
 		docs[k] = v
 	}
 
 	totalTarget := make(map[model.LocaleID]int, len(wc.totalTarget))
-	for loc, n := range wc.totalTarget {
-		totalTarget[loc] = n
-	}
+	maps.Copy(totalTarget, wc.totalTarget)
 
 	return flow.CollectorResult{
 		Name: "word-count",

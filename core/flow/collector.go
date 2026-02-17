@@ -18,5 +18,5 @@ type Collector interface {
 // CollectorResult holds the output of a Collector.
 type CollectorResult struct {
 	Name string
-	Data interface{}
+	Data any
 }

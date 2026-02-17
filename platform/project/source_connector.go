@@ -153,10 +153,7 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 	var lastCursor int64
 
 	for i := 0; i < len(changed); i += c.maxBatch {
-		end := i + c.maxBatch
-		if end > len(changed) {
-			end = len(changed)
-		}
+		end := min(i+c.maxBatch, len(changed))
 		batch := changed[i:end]
 
 		inputs := make([]apiclient.BlockInput, len(batch))

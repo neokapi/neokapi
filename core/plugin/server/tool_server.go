@@ -6,8 +6,8 @@ import (
 	"net/rpc"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/gokapi/gokapi/core/tool"
 	goplugin "github.com/hashicorp/go-plugin"
 )
 
@@ -69,11 +69,11 @@ type ToolServerPlugin struct {
 }
 
 // Server returns the RPC server for this plugin.
-func (p *ToolServerPlugin) Server(broker *goplugin.MuxBroker) (interface{}, error) {
+func (p *ToolServerPlugin) Server(broker *goplugin.MuxBroker) (any, error) {
 	return &ToolRPCServer{Impl: p.Impl}, nil
 }
 
 // Client is not used on the server side.
-func (p *ToolServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *ToolServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
 	return nil, fmt.Errorf("ToolServerPlugin.Client should not be called on server side")
 }

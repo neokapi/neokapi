@@ -61,7 +61,6 @@ var builtinToolCommands = []toolCommandDef{
 
 func init() {
 	for _, def := range builtinToolCommands {
-		def := def // capture
 		cmd := &cobra.Command{
 			Use:     def.Use + " [files...]",
 			Aliases: def.Aliases,

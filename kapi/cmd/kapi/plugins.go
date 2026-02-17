@@ -5,9 +5,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/config"
-	"github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/spf13/cobra"
 )
 
@@ -213,10 +213,7 @@ func formatColumns(items []string) string {
 	}
 
 	colWidth := maxWidth + 2
-	cols := termWidth / colWidth
-	if cols < 1 {
-		cols = 1
-	}
+	cols := max(termWidth/colWidth, 1)
 
 	var sb strings.Builder
 	for i, item := range items {

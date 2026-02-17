@@ -24,11 +24,11 @@ func TestCommandMarshal(t *testing.T) {
 	data, err := json.Marshal(cmd)
 	require.NoError(t, err)
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(data, &parsed))
 	assert.Equal(t, "open", parsed["command"])
 
-	params := parsed["params"].(map[string]interface{})
+	params := parsed["params"].(map[string]any)
 	assert.Equal(t, "net.sf.okapi.filters.openxml.OpenXMLFilter", params["filter_class"])
 	assert.Equal(t, "test.docx", params["uri"])
 	assert.Equal(t, "en", params["source_locale"])
@@ -40,7 +40,7 @@ func TestCommandMarshalNoParams(t *testing.T) {
 	data, err := json.Marshal(cmd)
 	require.NoError(t, err)
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(data, &parsed))
 	assert.Equal(t, "shutdown", parsed["command"])
 	_, hasParams := parsed["params"]
@@ -114,7 +114,7 @@ func TestOpenParamsRoundTrip(t *testing.T) {
 func TestWriteParamsRoundTrip(t *testing.T) {
 	original := WriteParams{
 		FilterClass:           "net.sf.okapi.filters.html.HtmlFilter",
-		Parts:                 []map[string]interface{}{{"part_type": 0}},
+		Parts:                 []map[string]any{{"part_type": 0}},
 		Locale:                "fr-FR",
 		Encoding:              "UTF-8",
 		OriginalContentBase64: "PGh0bWw+PC9odG1sPg==",
@@ -123,7 +123,7 @@ func TestWriteParamsRoundTrip(t *testing.T) {
 	data, err := json.Marshal(original)
 	require.NoError(t, err)
 
-	var parsed map[string]interface{}
+	var parsed map[string]any
 	require.NoError(t, json.Unmarshal(data, &parsed))
 	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", parsed["filter_class"])
 	assert.Equal(t, "fr-FR", parsed["locale"])

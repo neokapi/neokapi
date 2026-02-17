@@ -82,12 +82,12 @@ type FormatReaderServerPlugin struct {
 }
 
 // Server returns the RPC server for this plugin.
-func (p *FormatReaderServerPlugin) Server(broker *goplugin.MuxBroker) (interface{}, error) {
+func (p *FormatReaderServerPlugin) Server(broker *goplugin.MuxBroker) (any, error) {
 	return &FormatReaderRPCServer{Impl: p.Impl}, nil
 }
 
 // Client is not used on the server side.
-func (p *FormatReaderServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *FormatReaderServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
 	return nil, fmt.Errorf("FormatReaderServerPlugin.Client should not be called on server side")
 }
 
@@ -147,11 +147,11 @@ type FormatWriterServerPlugin struct {
 }
 
 // Server returns the RPC server for this plugin.
-func (p *FormatWriterServerPlugin) Server(broker *goplugin.MuxBroker) (interface{}, error) {
+func (p *FormatWriterServerPlugin) Server(broker *goplugin.MuxBroker) (any, error) {
 	return &FormatWriterRPCServer{Impl: p.Impl}, nil
 }
 
 // Client is not used on the server side.
-func (p *FormatWriterServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *FormatWriterServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
 	return nil, fmt.Errorf("FormatWriterServerPlugin.Client should not be called on server side")
 }

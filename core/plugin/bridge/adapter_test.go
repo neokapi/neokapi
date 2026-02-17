@@ -300,10 +300,10 @@ func TestBridgeFormatReaderSetFilterParams(t *testing.T) {
 	pool := mockPoolForAdapter(b)
 	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
 
-	params := map[string]interface{}{
+	params := map[string]any{
 		"extractStandalone": true,
 		"extractAllPairs":   false,
-		"codeFinderRules": map[string]interface{}{
+		"codeFinderRules": map[string]any{
 			"rules": []map[string]string{
 				{"pattern": "<[^>]+>"},
 			},
@@ -322,7 +322,7 @@ func TestBridgeFormatWriterSetFilterParams(t *testing.T) {
 	pool := mockPoolForAdapter(b)
 	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
 
-	params := map[string]interface{}{
+	params := map[string]any{
 		"extractStandalone": true,
 		"maxDepth":          10,
 	}
@@ -339,7 +339,7 @@ func TestBridgeFormatReaderOpenWithFilterParams(t *testing.T) {
 	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
 
 	// Set filter params before Open
-	params := map[string]interface{}{
+	params := map[string]any{
 		"extractStandalone": true,
 	}
 	reader.SetFilterParams(params)
@@ -387,7 +387,7 @@ func TestBridgeFormatWriterWriteWithFilterParams(t *testing.T) {
 	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
 
 	// Set filter params before Write
-	params := map[string]interface{}{
+	params := map[string]any{
 		"extractStandalone": false,
 	}
 	writer.SetFilterParams(params)

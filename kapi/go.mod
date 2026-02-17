@@ -1,6 +1,6 @@
 module github.com/gokapi/gokapi/kapi
 
-go 1.25.6
+go 1.26.0
 
 require (
 	github.com/charmbracelet/huh v0.8.0

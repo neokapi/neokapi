@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/core/mt/provider"
 	mttools "github.com/gokapi/gokapi/core/mt/tools"
+	"github.com/gokapi/gokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,9 +59,9 @@ func TestGoogleProvider(t *testing.T) {
 		assert.Equal(t, "en", reqBody.Source)
 		assert.Equal(t, "fr", reqBody.Target)
 
-		resp := map[string]interface{}{
-			"data": map[string]interface{}{
-				"translations": []map[string]interface{}{
+		resp := map[string]any{
+			"data": map[string]any{
+				"translations": []map[string]any{
 					{"translatedText": "Bonjour le monde"},
 				},
 			},
@@ -122,8 +122,8 @@ func TestDeepLProvider(t *testing.T) {
 		assert.Equal(t, "EN", r.FormValue("source_lang"))
 		assert.Equal(t, "more", r.FormValue("formality"))
 
-		resp := map[string]interface{}{
-			"translations": []map[string]interface{}{
+		resp := map[string]any{
+			"translations": []map[string]any{
 				{
 					"detected_source_language": "EN",
 					"text":                     "Bonjour le monde",
@@ -190,9 +190,9 @@ func TestMicrosoftProvider(t *testing.T) {
 		require.Len(t, reqBody, 1)
 		assert.Equal(t, "Hello world", reqBody[0].Text)
 
-		resp := []map[string]interface{}{
+		resp := []map[string]any{
 			{
-				"translations": []map[string]interface{}{
+				"translations": []map[string]any{
 					{"text": "Bonjour le monde", "to": "fr"},
 				},
 			},
@@ -246,8 +246,8 @@ func TestMyMemoryProvider(t *testing.T) {
 		assert.Equal(t, "en|fr", r.URL.Query().Get("langpair"))
 		assert.Equal(t, "test@example.com", r.URL.Query().Get("de"))
 
-		resp := map[string]interface{}{
-			"responseData": map[string]interface{}{
+		resp := map[string]any{
+			"responseData": map[string]any{
 				"translatedText": "Bonjour le monde",
 				"match":          0.95,
 			},
@@ -311,9 +311,9 @@ func TestModernMTProvider(t *testing.T) {
 		assert.Equal(t, "en", reqBody.Source)
 		assert.Equal(t, "fr", reqBody.Target)
 
-		resp := map[string]interface{}{
+		resp := map[string]any{
 			"status": 200,
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"translation": "Bonjour le monde",
 			},
 		}

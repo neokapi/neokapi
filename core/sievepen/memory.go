@@ -295,10 +295,7 @@ func (tm *InMemoryTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	if offset >= total {
 		return nil, total
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	return matched[offset:end], total
 }
 

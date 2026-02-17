@@ -18,10 +18,10 @@ type FlowExecutor interface {
 
 // ExecutorConfig holds configuration for the DefaultFlowExecutor.
 type ExecutorConfig struct {
-	MaxConcurrency int                // 0 = runtime.NumCPU(); 1 = sequential
-	ChannelSize    int                // default 64
-	FailFast       bool               // default true; cancel remaining on first error
-	Collectors []Collector // aggregators fed after each document completes
+	MaxConcurrency int         // 0 = runtime.NumCPU(); 1 = sequential
+	ChannelSize    int         // default 64
+	FailFast       bool        // default true; cancel remaining on first error
+	Collectors     []Collector // aggregators fed after each document completes
 }
 
 // ExecutorOption is a functional option for configuring a DefaultFlowExecutor.
@@ -58,8 +58,6 @@ func WithCollectors(c ...Collector) ExecutorOption {
 		cfg.Collectors = append(cfg.Collectors, c...)
 	}
 }
-
-
 
 // DefaultFlowExecutor runs tools concurrently using goroutines and channels.
 type DefaultFlowExecutor struct {
@@ -115,7 +113,6 @@ func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*Flo
 	sem := make(chan struct{}, maxConc)
 
 	for _, item := range items {
-		item := item
 		if e.config.FailFast {
 			// Check context before acquiring semaphore to fail fast.
 			select {
@@ -162,7 +159,6 @@ func (e *DefaultFlowExecutor) processItemCollect(ctx context.Context, f *Flow, i
 
 	// Launch a goroutine for each tool
 	for i, t := range tools {
-		i, t := i, t
 		in := channels[i]
 		out := channels[i+1]
 
@@ -250,7 +246,6 @@ func (e *DefaultFlowExecutor) ExecuteWithChannels(ctx context.Context, f *Flow) 
 	}
 
 	for i, t := range f.Tools {
-		i, t := i, t
 		inCh := channels[i]
 		outCh := channels[i+1]
 

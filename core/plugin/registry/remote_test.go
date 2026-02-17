@@ -45,7 +45,7 @@ func checksum(data []byte) string {
 }
 
 // serveJSON writes v as JSON to the response writer (test helper).
-func serveJSON(t *testing.T, w http.ResponseWriter, v interface{}) {
+func serveJSON(t *testing.T, w http.ResponseWriter, v any) {
 	t.Helper()
 	if err := json.NewEncoder(w).Encode(v); err != nil {
 		t.Fatalf("encoding JSON response: %v", err)

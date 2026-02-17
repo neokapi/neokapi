@@ -86,8 +86,8 @@ func (w *Writer) reconstruct(originalJSON []byte, blocks map[string]*model.Block
 
 // buildTree reconstructs a JSON value tree from the collected blocks.
 // Block names encode the key path (e.g., "nested.key", "items[0]").
-func (w *Writer) buildTree(blocks map[string]*model.Block) interface{} {
-	root := make(map[string]interface{})
+func (w *Writer) buildTree(blocks map[string]*model.Block) any {
+	root := make(map[string]any)
 
 	for name, block := range blocks {
 		text := w.blockText(block)
@@ -105,9 +105,9 @@ func (w *Writer) buildTree(blocks map[string]*model.Block) interface{} {
 // setPath sets a value at the given dotted/bracketed path in the tree.
 // For example, "nested.key" sets root["nested"]["key"] = value.
 // "items[0]" sets root["items"][0] = value.
-func (w *Writer) setPath(root map[string]interface{}, path string, value interface{}) {
+func (w *Writer) setPath(root map[string]any, path string, value any) {
 	parts := w.parsePath(path)
-	current := interface{}(root)
+	current := any(root)
 
 	for i, part := range parts {
 		isLast := i == len(parts)-1
@@ -127,7 +127,7 @@ func (w *Writer) setPath(root map[string]interface{}, path string, value interfa
 					*arr = append(*arr, nil)
 				}
 				if (*arr)[idx] == nil {
-					(*arr)[idx] = make(map[string]interface{})
+					(*arr)[idx] = make(map[string]any)
 				}
 				current = (*arr)[idx]
 				if i > 0 {
@@ -136,7 +136,7 @@ func (w *Writer) setPath(root map[string]interface{}, path string, value interfa
 			}
 		} else {
 			// Object key access
-			obj, ok := current.(map[string]interface{})
+			obj, ok := current.(map[string]any)
 			if !ok {
 				return
 			}
@@ -147,14 +147,14 @@ func (w *Writer) setPath(root map[string]interface{}, path string, value interfa
 				if _, isIdx := w.parseIndex(next); isIdx {
 					// Next is array index; ensure we have an array
 					if _, exists := obj[part]; !exists {
-						arr := make([]interface{}, 0)
+						arr := make([]any, 0)
 						obj[part] = &arr
 					}
 					current = obj[part]
 				} else {
 					// Next is object key; ensure we have a map
 					if _, exists := obj[part]; !exists {
-						obj[part] = make(map[string]interface{})
+						obj[part] = make(map[string]any)
 					}
 					current = obj[part]
 				}
@@ -164,8 +164,8 @@ func (w *Writer) setPath(root map[string]interface{}, path string, value interfa
 }
 
 // setInParent updates the parent container to reference the given array.
-func (w *Writer) setInParent(root map[string]interface{}, pathParts []string, arr *[]interface{}) {
-	current := interface{}(root)
+func (w *Writer) setInParent(root map[string]any, pathParts []string, arr *[]any) {
+	current := any(root)
 	for i, part := range pathParts {
 		isLast := i == len(pathParts)-1
 		if idx, isIndex := w.parseIndex(part); isIndex {
@@ -175,7 +175,7 @@ func (w *Writer) setInParent(root map[string]interface{}, pathParts []string, ar
 				_ = idx
 			}
 		} else {
-			obj, ok := current.(map[string]interface{})
+			obj, ok := current.(map[string]any)
 			if !ok {
 				return
 			}
@@ -189,18 +189,18 @@ func (w *Writer) setInParent(root map[string]interface{}, pathParts []string, ar
 }
 
 // ensureArray gets or creates an array pointer from the current value.
-func (w *Writer) ensureArray(current interface{}) *[]interface{} {
+func (w *Writer) ensureArray(current any) *[]any {
 	switch v := current.(type) {
-	case *[]interface{}:
+	case *[]any:
 		return v
 	default:
-		arr := make([]interface{}, 0)
+		arr := make([]any, 0)
 		return &arr
 	}
 }
 
 // setArrayIndex sets a value at the given index in an array, growing it if needed.
-func (w *Writer) setArrayIndex(arr *[]interface{}, idx int, value interface{}) {
+func (w *Writer) setArrayIndex(arr *[]any, idx int, value any) {
 	for len(*arr) <= idx {
 		*arr = append(*arr, nil)
 	}
@@ -260,7 +260,7 @@ func (w *Writer) parseIndex(part string) (int, bool) {
 
 // tryConvertToArray checks if a map represents an array (all keys are indices)
 // and converts it to a slice if so.
-func (w *Writer) tryConvertToArray(m map[string]interface{}) ([]interface{}, bool) {
+func (w *Writer) tryConvertToArray(m map[string]any) ([]any, bool) {
 	// This is a helper; at the root level we always expect an object
 	return nil, false
 }

@@ -169,7 +169,7 @@ func TestBridgeWrite(t *testing.T) {
 		defer wg.Done()
 		writeData, writeErr = b.Write(WriteParams{
 			FilterClass:           "net.sf.okapi.filters.html.HtmlFilter",
-			Parts:                 []map[string]interface{}{{"part_type": 0}},
+			Parts:                 []map[string]any{{"part_type": 0}},
 			Locale:                "fr",
 			Encoding:              "UTF-8",
 			OriginalContentBase64: "PGh0bWw+PC9odG1sPg==",

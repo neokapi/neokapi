@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -175,12 +176,7 @@ func (r *Reader) isTranslatable(colIdx int) bool {
 	if len(r.cfg.TranslatableColumns) == 0 {
 		return true // all columns translatable by default
 	}
-	for _, c := range r.cfg.TranslatableColumns {
-		if c == colIdx {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.cfg.TranslatableColumns, colIdx)
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

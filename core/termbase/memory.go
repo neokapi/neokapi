@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -248,10 +249,7 @@ func (tb *InMemoryTermBase) Search(query, sourceLocale, targetLocale string, off
 	if offset >= total {
 		return nil, total
 	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
+	end := min(offset+limit, total)
 	return matched[offset:end], total
 }
 
@@ -316,12 +314,7 @@ func MatchesStatus(status model.TermStatus, filter []model.TermStatus) bool {
 	if len(filter) == 0 {
 		return true
 	}
-	for _, f := range filter {
-		if status == f {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(filter, status)
 }
 
 func matchesTerm(text, term string, caseSensitive bool) bool {

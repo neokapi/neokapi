@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -184,21 +185,11 @@ func (r *Reader) isTranslatableElement(stack []string) bool {
 		return false
 	}
 	current := stack[len(stack)-1]
-	for _, elem := range r.cfg.TranslatableElements {
-		if elem == current {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.cfg.TranslatableElements, current)
 }
 
 func (r *Reader) isTranslatableAttr(name string) bool {
-	for _, attr := range r.cfg.TranslatableAttributes {
-		if attr == name {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.cfg.TranslatableAttributes, name)
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

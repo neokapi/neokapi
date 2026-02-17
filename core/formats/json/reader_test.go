@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
 	jsonfmt "github.com/gokapi/gokapi/core/formats/json"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -247,7 +247,7 @@ func TestRoundTrip(t *testing.T) {
 	writer.Close()
 
 	// Parse both to compare structure (key order may differ)
-	var expected, actual map[string]interface{}
+	var expected, actual map[string]any
 	require.NoError(t, json.Unmarshal([]byte(input), &expected))
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &actual))
 
@@ -292,7 +292,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
 
 	assert.Equal(t, "Bonjour", result["greeting"])
@@ -331,10 +331,10 @@ func TestRoundTripNested(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
 
-	parent, ok := result["parent"].(map[string]interface{})
+	parent, ok := result["parent"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "Uebersetzt", parent["child"])
 }
@@ -378,10 +378,10 @@ func TestRoundTripArray(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
 
-	items, ok := result["items"].([]interface{})
+	items, ok := result["items"].([]any)
 	require.True(t, ok)
 	require.Len(t, items, 3)
 	assert.Equal(t, "Manzana", items[0])
@@ -417,7 +417,7 @@ func TestRoundTripFileSimple(t *testing.T) {
 	writer.Close()
 
 	// Compare JSON structure (not exact string, since key order may vary)
-	var expected, actual interface{}
+	var expected, actual any
 	require.NoError(t, json.Unmarshal(original, &expected))
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &actual))
 	assert.Equal(t, expected, actual)
@@ -507,7 +507,7 @@ func TestRoundTripSourceOnly(t *testing.T) {
 	require.NoError(t, err)
 	writer.Close()
 
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &result))
 	assert.Equal(t, "Hello", result["msg"])
 }

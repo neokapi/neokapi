@@ -85,7 +85,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	var root interface{}
+	var root any
 	if err := json.Unmarshal(content, &root); err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("json: parsing: %w", err)}
 		return
@@ -101,11 +101,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 // walkValue recursively walks a JSON value and emits Parts.
 // The path parameter tracks the key path for naming Blocks (e.g., "root.nested.key").
-func (r *Reader) walkValue(ctx context.Context, ch chan<- model.PartResult, value interface{}, path string, blockCounter, dataCounter *int) {
+func (r *Reader) walkValue(ctx context.Context, ch chan<- model.PartResult, value any, path string, blockCounter, dataCounter *int) {
 	switch v := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		r.walkObject(ctx, ch, v, path, blockCounter, dataCounter)
-	case []interface{}:
+	case []any:
 		r.walkArray(ctx, ch, v, path, blockCounter, dataCounter)
 	case string:
 		*blockCounter++
@@ -128,7 +128,7 @@ func (r *Reader) walkValue(ctx context.Context, ch chan<- model.PartResult, valu
 // the key iteration order is non-deterministic. For reproducible ordering,
 // we sort keys. However, the writer uses a re-parse approach, so key order
 // in the output is determined by the original document, not the parts stream.
-func (r *Reader) walkObject(ctx context.Context, ch chan<- model.PartResult, obj map[string]interface{}, path string, blockCounter, dataCounter *int) {
+func (r *Reader) walkObject(ctx context.Context, ch chan<- model.PartResult, obj map[string]any, path string, blockCounter, dataCounter *int) {
 	// Use sorted keys for deterministic part ordering.
 	keys := sortedKeys(obj)
 	for _, key := range keys {
@@ -141,7 +141,7 @@ func (r *Reader) walkObject(ctx context.Context, ch chan<- model.PartResult, obj
 }
 
 // walkArray iterates over the elements of a JSON array.
-func (r *Reader) walkArray(ctx context.Context, ch chan<- model.PartResult, arr []interface{}, path string, blockCounter, dataCounter *int) {
+func (r *Reader) walkArray(ctx context.Context, ch chan<- model.PartResult, arr []any, path string, blockCounter, dataCounter *int) {
 	for i, elem := range arr {
 		childPath := path + "[" + strconv.Itoa(i) + "]"
 		switch elem.(type) {
@@ -180,7 +180,7 @@ func (r *Reader) Close() error {
 }
 
 // sortedKeys returns the keys of a map in sorted order.
-func sortedKeys(m map[string]interface{}) []string {
+func sortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

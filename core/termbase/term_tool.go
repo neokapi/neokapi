@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -305,10 +306,5 @@ func isAcceptableStatus(status model.TermStatus, accepted []model.TermStatus) bo
 	if len(accepted) == 0 {
 		return true
 	}
-	for _, a := range accepted {
-		if status == a {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(accepted, status)
 }

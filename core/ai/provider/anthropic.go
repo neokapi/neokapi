@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 // AnthropicProvider implements LLMProvider for Anthropic Claude API.
@@ -35,20 +36,21 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 func (p *AnthropicProvider) Name() string { return "anthropic" }
 
 func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	prompt := fmt.Sprintf(
+	var prompt strings.Builder
+	prompt.WriteString(fmt.Sprintf(
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
 		req.SourceLocale, req.TargetLocale, req.Source,
-	)
+	))
 
 	if len(req.Glossary) > 0 {
-		prompt += "\n\nGlossary:\n"
+		prompt.WriteString("\n\nGlossary:\n")
 		for term, translation := range req.Glossary {
-			prompt += fmt.Sprintf("- %s → %s\n", term, translation)
+			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
 		}
 	}
 
 	resp, err := p.Chat(ctx, []Message{
-		{Role: "user", Content: prompt},
+		{Role: "user", Content: prompt.String()},
 	})
 	if err != nil {
 		return nil, err
@@ -107,15 +109,15 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 		return nil, fmt.Errorf("anthropic: unmarshal response: %w", err)
 	}
 
-	content := ""
+	var content strings.Builder
 	for _, block := range apiResp.Content {
 		if block.Type == "text" {
-			content += block.Text
+			content.WriteString(block.Text)
 		}
 	}
 
 	return &ChatResponse{
-		Content: content,
+		Content: content.String(),
 		Model:   apiResp.Model,
 	}, nil
 }

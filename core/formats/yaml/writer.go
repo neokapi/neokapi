@@ -50,7 +50,7 @@ func (w *Writer) flush() error {
 	}
 
 	// Build a map structure from blocks
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	for name, block := range w.blocks {
 		text := block.SourceText()
 		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {

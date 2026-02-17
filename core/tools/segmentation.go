@@ -121,11 +121,9 @@ func segmentText(text string, rules []compiledRule) []string {
 		if rule.before != nil {
 			locs := rule.before.FindAllStringIndex(text, -1)
 			for _, loc := range locs {
-				breakPos := loc[1] // end of the match = break point
-
-				if breakPos >= len(text) {
-					breakPos = len(text)
-				}
+				breakPos := min(
+					// end of the match = break point
+					loc[1], len(text))
 
 				// If there is an after-break pattern, check it.
 				if rule.after != nil {

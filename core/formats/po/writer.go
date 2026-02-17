@@ -98,7 +98,7 @@ func (w *Writer) writeData(part *model.Part) error {
 		comment := data.Properties["comment"]
 		// Write entry gap before the comment (which is metadata for the next block)
 		w.writeEntryGap()
-		for _, line := range strings.Split(comment, "\n") {
+		for line := range strings.SplitSeq(comment, "\n") {
 			if _, err := fmt.Fprintf(w.Output, "# %s\n", line); err != nil {
 				return err
 			}
@@ -115,7 +115,7 @@ func (w *Writer) writeData(part *model.Part) error {
 			w.writeEntryGap()
 			w.pendingBlock = true
 		}
-		for _, line := range strings.Split(ref, "\n") {
+		for line := range strings.SplitSeq(ref, "\n") {
 			if _, err := fmt.Fprintf(w.Output, "#: %s\n", line); err != nil {
 				return err
 			}

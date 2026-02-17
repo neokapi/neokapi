@@ -2,6 +2,7 @@ package kaz
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -164,9 +165,7 @@ func copyProps(m map[string]string) map[string]string {
 		return map[string]string{}
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	return out
 }
 

@@ -106,7 +106,7 @@ func (f *Fragment) EntityValues() map[string]string {
 	runes := []rune(f.CodedText)
 	spanIdx := 0
 
-	for i := 0; i < len(runes); i++ {
+	for i := range runes {
 		if isMarker(runes[i]) && spanIdx < len(f.Spans) {
 			span := f.Spans[spanIdx]
 			if isEntitySpan(span) && span.SpanType == SpanPlaceholder {

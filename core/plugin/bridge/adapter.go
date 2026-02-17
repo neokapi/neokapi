@@ -23,7 +23,7 @@ type BridgeFormatReader struct {
 	cfg          BridgeConfig
 	bridge       *JavaBridge // acquired from pool during Open
 	filterClass  string
-	filterParams map[string]interface{} // optional filter parameters
+	filterParams map[string]any // optional filter parameters
 	info         *InfoData
 	content      []byte // raw document content for base64 encoding
 }
@@ -42,7 +42,7 @@ func NewBridgeFormatReader(pool *BridgePool, cfg BridgeConfig, filterClass strin
 
 // SetFilterParams sets optional filter-specific parameters.
 // These are passed to the Java bridge when opening the filter.
-func (r *BridgeFormatReader) SetFilterParams(params map[string]interface{}) {
+func (r *BridgeFormatReader) SetFilterParams(params map[string]any) {
 	r.filterParams = params
 }
 
@@ -169,8 +169,8 @@ type BridgeFormatWriter struct {
 	pool            *BridgePool
 	cfg             BridgeConfig
 	filterClass     string
-	filterParams    map[string]interface{} // optional filter parameters
-	originalContent []byte                 // original document needed by Okapi for skeleton
+	filterParams    map[string]any // optional filter parameters
+	originalContent []byte         // original document needed by Okapi for skeleton
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
@@ -187,7 +187,7 @@ func NewBridgeFormatWriter(pool *BridgePool, cfg BridgeConfig, filterClass strin
 
 // SetFilterParams sets optional filter-specific parameters.
 // These are passed to the Java bridge when writing.
-func (w *BridgeFormatWriter) SetFilterParams(params map[string]interface{}) {
+func (w *BridgeFormatWriter) SetFilterParams(params map[string]any) {
 	w.filterParams = params
 }
 

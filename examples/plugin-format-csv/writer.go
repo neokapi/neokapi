@@ -108,10 +108,7 @@ func (w *CSVWriter) flush() error {
 	}
 
 	// Determine the number of columns.
-	numCols := w.maxCol
-	if len(w.headers) > numCols {
-		numCols = len(w.headers)
-	}
+	numCols := max(len(w.headers), w.maxCol)
 
 	// Collect and sort row numbers.
 	var rows []int

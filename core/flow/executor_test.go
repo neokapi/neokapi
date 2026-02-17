@@ -62,7 +62,7 @@ func TestFlowExecutorWithThreeMockTools(t *testing.T) {
 	// Feed 100 parts
 	numParts := 100
 	go func() {
-		for i := 0; i < numParts; i++ {
+		for i := range numParts {
 			in <- &model.Part{
 				Type:     model.PartBlock,
 				Resource: model.NewBlock(fmt.Sprintf("tu%d", i), fmt.Sprintf("Text %d", i)),
@@ -99,7 +99,7 @@ func TestFlowExecutorPreservesOrder(t *testing.T) {
 
 	numParts := 50
 	go func() {
-		for i := 0; i < numParts; i++ {
+		for i := range numParts {
 			in <- &model.Part{
 				Type:     model.PartBlock,
 				Resource: model.NewBlock(fmt.Sprintf("tu%d", i), fmt.Sprintf("Text %d", i)),
@@ -364,7 +364,7 @@ func TestParallelExecutionMultipleDocuments(t *testing.T) {
 
 	numDocs := 10
 	items := make([]*flow.FlowItem, numDocs)
-	for i := 0; i < numDocs; i++ {
+	for i := range numDocs {
 		items[i] = &flow.FlowItem{
 			Input: &model.RawDocument{URI: fmt.Sprintf("doc%d.html", i)},
 		}

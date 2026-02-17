@@ -111,10 +111,7 @@ func (w *Writer) flush() error {
 	}
 
 	// Calculate dimensions
-	numCols := w.maxCol + 1
-	if len(w.headers) > numCols {
-		numCols = len(w.headers)
-	}
+	numCols := max(len(w.headers), w.maxCol+1)
 
 	// Write data rows
 	for rowNum := 1; rowNum <= w.maxRow; rowNum++ {

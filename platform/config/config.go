@@ -68,7 +68,7 @@ func (c *AppConfig) GetBool(key string) bool {
 }
 
 // Set sets a config value.
-func (c *AppConfig) Set(key string, value interface{}) {
+func (c *AppConfig) Set(key string, value any) {
 	c.v.Set(key, value)
 }
 

@@ -13,8 +13,8 @@ import (
 
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/tool"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
@@ -127,7 +127,6 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	sem := make(chan struct{}, concurrency)
 
 	for _, file := range files {
-		file := file
 		sem <- struct{}{}
 		g.Go(func() error {
 			defer func() { <-sem }()
@@ -365,12 +364,9 @@ func commonDirPrefix(files []string) string {
 func commonPath(a, b string) string {
 	aParts := strings.Split(filepath.ToSlash(a), "/")
 	bParts := strings.Split(filepath.ToSlash(b), "/")
-	n := len(aParts)
-	if len(bParts) < n {
-		n = len(bParts)
-	}
+	n := min(len(bParts), len(aParts))
 	var common []string
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if aParts[i] != bParts[i] {
 			break
 		}

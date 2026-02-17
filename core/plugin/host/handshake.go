@@ -30,12 +30,12 @@ const ToolPluginName = "tool"
 type FormatReaderPlugin struct{}
 
 // Server returns nil because the host side never serves.
-func (p *FormatReaderPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *FormatReaderPlugin) Server(*plugin.MuxBroker) (any, error) {
 	return nil, nil
 }
 
 // Client returns the RPC client for the format reader plugin.
-func (p *FormatReaderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *FormatReaderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (any, error) {
 	return &FormatReaderRPCClient{client: c}, nil
 }
 
@@ -43,12 +43,12 @@ func (p *FormatReaderPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interfa
 type FormatWriterPlugin struct{}
 
 // Server returns nil because the host side never serves.
-func (p *FormatWriterPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *FormatWriterPlugin) Server(*plugin.MuxBroker) (any, error) {
 	return nil, nil
 }
 
 // Client returns the RPC client for the format writer plugin.
-func (p *FormatWriterPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *FormatWriterPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (any, error) {
 	return &FormatWriterRPCClient{client: c}, nil
 }
 
@@ -56,12 +56,12 @@ func (p *FormatWriterPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interfa
 type ToolPlugin struct{}
 
 // Server returns nil because the host side never serves.
-func (p *ToolPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
+func (p *ToolPlugin) Server(*plugin.MuxBroker) (any, error) {
 	return nil, nil
 }
 
 // Client returns the RPC client for the tool plugin.
-func (p *ToolPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+func (p *ToolPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (any, error) {
 	return &ToolRPCClient{client: c}, nil
 }
 

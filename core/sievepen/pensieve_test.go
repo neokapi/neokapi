@@ -481,7 +481,7 @@ func TestInMemoryTM_MaxResults(t *testing.T) {
 	tm := sievepen.NewInMemoryTM()
 
 	// Add many similar entries.
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		require.NoError(t, tm.Add(sievepen.TMEntry{
 			ID:           strings.Replace("e-NN", "NN", strings.Repeat("x", i+1), 1),
 			Source:       model.NewFragment("Hello"),

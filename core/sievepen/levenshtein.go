@@ -56,10 +56,7 @@ func LevenshteinRatio(a, b string) float64 {
 
 	runesA := []rune(a)
 	runesB := []rune(b)
-	maxLen := len(runesA)
-	if len(runesB) > maxLen {
-		maxLen = len(runesB)
-	}
+	maxLen := max(len(runesB), len(runesA))
 
 	if maxLen == 0 {
 		return 1.0
