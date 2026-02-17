@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 )
 
 // DefaultGoogleBaseURL is the default Google Translate API endpoint.

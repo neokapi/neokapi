@@ -17,8 +17,8 @@ package mytool
 import (
     "context"
     "strings"
-    "github.com/gokapi/gokapi/core/model"
-    "github.com/gokapi/gokapi/core/tool"
+    "github.com/gokapi/gokapi/model"
+    "github.com/gokapi/gokapi/tool"
 )
 
 type UppercaseTool struct {
@@ -104,7 +104,7 @@ func TestUppercaseTool(t *testing.T) {
 
 ## Built-in Tools
 
-### Utility Tools (`lib/tools/`)
+### Utility Tools (`tools/`)
 
 | Tool | Category | Description |
 |------|----------|-------------|
@@ -123,7 +123,7 @@ func TestUppercaseTool(t *testing.T) {
 All built-in tools can be registered at once:
 
 ```go
-import "github.com/gokapi/gokapi/lib/tools"
+import "github.com/gokapi/gokapi/tools"
 
 toolReg := registry.NewToolRegistry()
 tools.RegisterTools(toolReg)

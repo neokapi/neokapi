@@ -16,7 +16,7 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 ### Steps
 
 1. **Launch Bowrain** and click "Open Project"
-2. **Select** `website-translation.kaz` from `apps/bowrain/samples/`
+2. **Select** `website-translation.kaz` from `bowrain/apps/bowrain/samples/`
 3. **Review the project**: You'll see `index.html` with its block count — some blocks already have French translations, German is mostly empty
 4. **Click** on `index.html` to open the translation editor
 5. **Notice** the progress bar: some blocks are translated (blue), some are not started (gray)

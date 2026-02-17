@@ -2,7 +2,6 @@
 bin/
 /kapi
 /bowrain-server
-/bowrain
 coverage/
 
 # IDE
@@ -34,12 +33,12 @@ dist/
 # Wails
 **/build/bin/
 **/build/darwin/
-!apps/bowrain/build/darwin/
+!bowrain/apps/bowrain/build/darwin/
 **/build/appicon.png
-!apps/bowrain/build/appicon.png
+!bowrain/apps/bowrain/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/bindings/
-!apps/bowrain/frontend/bindings/
+!bowrain/apps/bowrain/frontend/bindings/
 **/frontend/package.json.md5
 **/.task/
 
@@ -50,7 +49,7 @@ playwright-report/
 # Docusaurus
 website/build/
 website/.docusaurus/
-apps/bowrain/frontend/recordings-output/
+bowrain/apps/bowrain/frontend/recordings-output/
 website/tapes/output/
 website/tapes/out/
 website/tapes/*.kaz

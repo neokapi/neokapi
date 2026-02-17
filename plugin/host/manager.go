@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/registry"
 	"github.com/hashicorp/go-plugin"
 )
 

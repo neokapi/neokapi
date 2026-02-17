@@ -1,8 +1,8 @@
 package formats
 
 import (
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/registry"
 	csvfmt "github.com/gokapi/gokapi/formats/csv"
 	"github.com/gokapi/gokapi/formats/html"
 	"github.com/gokapi/gokapi/formats/json"

@@ -5,7 +5,7 @@ title: Bowrain Termbase
 
 # Bowrain Termbase Library
 
-The termbase library (`lib/termbase/`) provides concept-oriented terminology management inspired by the TBX (TermBase eXchange) standard. It supports multi-locale terms with lifecycle statuses, domain classification, and both in-text discovery and single-term lookup.
+The termbase library (`termbase/`) provides concept-oriented terminology management inspired by the TBX (TermBase eXchange) standard. It supports multi-locale terms with lifecycle statuses, domain classification, and both in-text discovery and single-term lookup.
 
 ## Architecture
 
@@ -201,8 +201,8 @@ package main
 
 import (
     "fmt"
-    "github.com/gokapi/gokapi/core/model"
-    "github.com/gokapi/gokapi/lib/termbase"
+    "github.com/gokapi/gokapi/model"
+    "github.com/gokapi/gokapi/termbase"
 )
 
 func main() {

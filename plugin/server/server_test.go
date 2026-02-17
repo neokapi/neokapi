@@ -3,8 +3,8 @@ package server_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/tool"
 	"github.com/gokapi/gokapi/plugin/server"
 	"github.com/gokapi/gokapi/plugin/shared"
 	"github.com/stretchr/testify/assert"

@@ -75,7 +75,7 @@ Use Bowrain Desktop/Web when you:
 brew install gokapi/tap/kapi
 
 # Go install
-go install github.com/gokapi/gokapi/cmd/kapi@latest
+go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
 
 # Download binary
 # Visit https://github.com/gokapi/gokapi/releases

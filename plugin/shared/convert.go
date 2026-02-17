@@ -1,7 +1,7 @@
 package shared
 
 import (
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 )
 
 // SpanToDTO converts a model.Span to a SpanDTO.

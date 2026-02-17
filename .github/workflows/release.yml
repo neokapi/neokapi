@@ -27,28 +27,31 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            packages/ui/package-lock.json
-            apps/web/package-lock.json
-            apps/kapi-web/package-lock.json
+            bowrain/packages/ui/package-lock.json
+            bowrain/apps/web/package-lock.json
+            bowrain/apps/kapi-web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm ci && npx tsc
 
       - name: Run UI unit tests
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm test
 
       - name: Build SaaS web UI
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: npm ci && npm run build
 
       - name: Build kapi web UI
-        working-directory: apps/kapi-web
+        working-directory: bowrain/apps/kapi-web
         run: npm ci && npm run build
 
-      - name: Run tests
-        run: go test ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
+      - name: Run framework tests
+        run: go test ./...
+
+      - name: Run platform tests
+        run: cd bowrain && go test ./...
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -120,21 +123,21 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm ci && npx tsc
 
       - name: Install frontend dependencies
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm install
 
       - name: Build Bowrain
         if: runner.os != 'macOS'
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: wails3 build
 
       - name: Package Bowrain (macOS universal)
         if: runner.os == 'macOS'
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: wails3 task darwin:package:universal
 
       - name: Extract version
@@ -145,7 +148,7 @@ jobs:
       # macOS: Install CLI launcher into .app bundle and create DMG
       - name: Install CLI launcher
         if: runner.os == 'macOS'
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: |
           mkdir -p bin/Bowrain.app/Contents/Resources/bin
           cp resources/bowrain-launcher.sh bin/Bowrain.app/Contents/Resources/bin/bowrain
@@ -153,12 +156,12 @@ jobs:
 
       - name: Re-sign after adding launcher
         if: runner.os == 'macOS'
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: codesign --force --deep --sign - bin/Bowrain.app
 
       - name: Create DMG
         if: runner.os == 'macOS'
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: |
           mkdir -p dmg
           cp -R bin/Bowrain.app dmg/
@@ -181,7 +184,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
+          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -194,7 +197,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz" \
-            -C apps/bowrain/bin Bowrain
+            -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'

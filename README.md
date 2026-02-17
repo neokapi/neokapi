@@ -49,7 +49,7 @@ Pre-built binaries for Linux, macOS, and Windows are available on the [Releases]
 **From source:**
 
 ```bash
-go install github.com/gokapi/gokapi/cmd/kapi@latest
+go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
 ```
 
 ## Quick Start
@@ -105,7 +105,7 @@ Bowrain is a native desktop translation editor built with [Wails](https://wails.
 - AI-powered translation via Anthropic, OpenAI, and Ollama
 - Translation memory (Sievepen)
 
-Build: `cd apps/bowrain && wails build`
+Build: `cd bowrain/apps/bowrain && wails build`
 
 ### REST Server
 
@@ -134,14 +134,14 @@ make check              # fmt + vet + lint
 Run a single test:
 
 ```bash
-go test ./core/flow/ -run TestExecutorCancellation -v
+go test ./flow/ -run TestExecutorCancellation -v
 ```
 
 Bowrain development:
 
 ```bash
-cd apps/bowrain && wails dev          # Dev mode with hot reload
-cd apps/bowrain/frontend && npm run test:e2e   # Playwright E2E tests
+cd bowrain/apps/bowrain && wails dev          # Dev mode with hot reload
+cd bowrain/apps/bowrain/frontend && npm run test:e2e   # Playwright E2E tests
 ```
 
 ## Plugin System

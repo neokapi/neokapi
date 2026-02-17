@@ -34,7 +34,7 @@ adaptation information. TM now persists within the Content Store ecosystem
 
 ### Content-Aware Storage
 
-The Sievepen TM library (`lib/sievepen/`) stores Fragments -- the same content
+The Sievepen TM library (`sievepen/`) stores Fragments -- the same content
 model type used throughout the pipeline ([ADR-002](./002-content-model.md)) --
 rather than plain strings. Each TM entry preserves inline Spans (markup codes)
 and entity mappings.
@@ -126,7 +126,7 @@ Spans for the structural key. No separate pre-processing step is needed.
 1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch
    processing.
 2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are
-   pre-computed and indexed. Uses the shared `internal/storage/` infrastructure
+   pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
    layer with TermBase ([ADR-010](./010-terminology.md)) and Content Store
    ([ADR-003](./003-content-store.md)). Pure Go with no CGo dependencies.
 

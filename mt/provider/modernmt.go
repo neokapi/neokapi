@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 )
 
 // DefaultModernMTBaseURL is the default ModernMT API endpoint.

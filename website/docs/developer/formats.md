@@ -28,8 +28,8 @@ package myformat
 
 import (
     "context"
-    "github.com/gokapi/gokapi/core/format"
-    "github.com/gokapi/gokapi/core/model"
+    "github.com/gokapi/gokapi/format"
+    "github.com/gokapi/gokapi/model"
 )
 
 type Reader struct {

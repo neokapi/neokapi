@@ -138,20 +138,19 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 
 ### Package Structure
 
-- `core/auth/` — Domain types (`User`, `Workspace`, `Role`, `Membership`),
+- `bowrain/auth/` — Domain types (`User`, `Workspace`, `Role`, `Membership`),
   `AuthStore` interface, SQLite implementation, JWT handling, OIDC helpers,
   device flow client
-- `internal/server/` — REST/gRPC server (refactored from `cmd/bowrain-server/`),
-  auth middleware, workspace handlers
-- `core/service/auth.go` — `AuthService` business logic
-- `cmd/kapi/auth.go` — `kapi auth login|logout|status`
-- `cmd/kapi/serve.go` — `kapi serve` local project server
+- `bowrain/server/` — REST/gRPC server, auth middleware, workspace handlers
+- `bowrain/service/auth.go` — `AuthService` business logic
+- `bowrain/cmd/kapi/auth.go` — `kapi auth login|logout|status`
+- `bowrain/cmd/kapi/serve.go` — `kapi serve` local project server
 
 ## Consequences
 
 - All projects are now workspace-scoped. Existing databases receive a migration
   that adds `workspace_id` with a default empty string for backward compatibility.
-- The web UI and Bowrain desktop share components via `packages/ui/` to avoid
+- The web UI and Bowrain desktop share components via `bowrain/packages/ui/` to avoid
   divergence between the two frontends.
 - Device auth flow is shared between CLI and desktop — same REST endpoints,
   same user experience (enter code in browser). Desktop stores credentials

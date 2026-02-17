@@ -35,13 +35,13 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm ci && npx tsc
 
       - name: Install frontend dependencies
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm install
 
       - name: Build Bowrain
-        working-directory: apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: wails3 build

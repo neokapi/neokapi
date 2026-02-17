@@ -31,34 +31,34 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            packages/ui/package-lock.json
-            apps/bowrain/frontend/package-lock.json
+            bowrain/packages/ui/package-lock.json
+            bowrain/apps/bowrain/frontend/package-lock.json
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm ci && npx tsc
 
       - name: Install Bowrain dependencies
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm ci
 
       - name: Install Playwright browsers
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Generate screenshots
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm run screenshots
 
       - name: Generate recordings
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm run recordings
         timeout-minutes: 30  # Recordings are slow due to human-like typing
         env:
           FORCE_RECORDINGS: "true"  # Override CI skip for dedicated recordings workflow
 
       - name: Copy recordings to static assets
-        working-directory: apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: npm run recordings:copy
 
       - name: Upload Bowrain assets
@@ -86,19 +86,19 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            packages/ui/package-lock.json
-            apps/web/package-lock.json
+            bowrain/packages/ui/package-lock.json
+            bowrain/apps/web/package-lock.json
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: bowrain/packages/ui
         run: npm ci && npx tsc
 
       - name: Build web UI
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: npm ci && npm run build
 
       - name: Build bowrain-server
-        run: go build -o bin/bowrain-server ./cmd/bowrain-server
+        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Start Docker stack (Dex + bowrain-server)
         working-directory: e2e
@@ -118,24 +118,24 @@ jobs:
           exit 1
 
       - name: Install Playwright
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: npx playwright install --with-deps chromium
 
       - name: Generate screenshots
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: npm run e2e:screenshots
 
       - name: Generate recordings
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: npm run e2e:recordings
         timeout-minutes: 30
 
       - name: Copy recordings (dark theme)
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: THEME=dark bash scripts/copy-recordings.sh
 
       - name: Copy recordings (light theme)
-        working-directory: apps/web
+        working-directory: bowrain/apps/web
         run: THEME=light bash scripts/copy-recordings.sh
 
       - name: Upload web app assets
@@ -168,14 +168,14 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: |
-            packages/ui/package-lock.json
-            apps/kapi-web/package-lock.json
+            bowrain/packages/ui/package-lock.json
+            bowrain/apps/kapi-web/package-lock.json
 
       - name: Build kapi CLI
         run: |
-          cd packages/ui && npm ci && npx tsc
+          cd bowrain/packages/ui && npm ci && npx tsc
           cd ../../apps/kapi-web && npm ci && npm run build
-          cd ../.. && make build
+          cd ../../.. && make build
 
       # Install VHS using the official setup
       - name: Install VHS

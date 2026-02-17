@@ -1,0 +1,420 @@
+package backend
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+	"unicode"
+
+	"github.com/gokapi/gokapi/kaz"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/bowrain/store"
+)
+
+// ProjectInfo describes a translation project exposed to the frontend.
+type ProjectInfo struct {
+	ID            string        `json:"id"`
+	Name          string        `json:"name"`
+	SourceLocale  string        `json:"source_locale"`
+	TargetLocales []string      `json:"target_locales"`
+	Path          string        `json:"path"`
+	Items         []ProjectItem `json:"items"`
+	CreatedAt     string        `json:"created_at"`
+	ModifiedAt    string        `json:"modified_at"`
+}
+
+// ProjectItem describes an item within a project.
+type ProjectItem struct {
+	Name       string `json:"name"`
+	Format     string `json:"format"`
+	Type       string `json:"type"` // "file", "data", etc.
+	Size       int64  `json:"size"`
+	BlockCount int    `json:"block_count"`
+	WordCount  int    `json:"word_count"`
+}
+
+// SpanInfo describes an inline span element for the frontend.
+type SpanInfo struct {
+	SpanType string `json:"span_type"` // "opening", "closing", "placeholder"
+	Type     string `json:"type"`      // "bold", "link", "break", etc.
+	ID       string `json:"id"`
+	Data     string `json:"data"` // original markup: "<b>", "</b>", "<br/>"
+}
+
+// BlockInfo is a serializable representation of a translatable block.
+type BlockInfo struct {
+	ID           string            `json:"id"`
+	Source       string            `json:"source"`
+	SourceCoded  string            `json:"source_coded,omitempty"`
+	SourceSpans  []SpanInfo        `json:"source_spans,omitempty"`
+	Targets      map[string]string `json:"targets"`
+	TargetsCoded map[string]string `json:"targets_coded,omitempty"`
+	Translatable bool              `json:"translatable"`
+	HasSpans     bool              `json:"has_spans"`
+	Properties   map[string]string `json:"properties"`
+}
+
+// UpdateBlockRequest holds parameters for updating a block target.
+type UpdateBlockRequest struct {
+	ProjectID    string `json:"project_id"`
+	ItemName     string `json:"item_name"`
+	BlockID      string `json:"block_id"`
+	TargetLocale string `json:"target_locale"`
+	Text         string `json:"text"`
+}
+
+// UpdateBlockTargetCodedRequest holds parameters for updating a block target with coded text and spans.
+type UpdateBlockTargetCodedRequest struct {
+	ProjectID    string     `json:"project_id"`
+	ItemName     string     `json:"item_name"`
+	BlockID      string     `json:"block_id"`
+	TargetLocale string     `json:"target_locale"`
+	CodedText    string     `json:"coded_text"`
+	Spans        []SpanInfo `json:"spans"`
+}
+
+// AITranslateFileRequest holds parameters for AI-translating an item.
+type AITranslateFileRequest struct {
+	ProjectID        string `json:"project_id"`
+	ItemName         string `json:"item_name"`
+	TargetLocale     string `json:"target_locale"`
+	Provider         string `json:"provider"`
+	APIKey           string `json:"api_key"`
+	Model            string `json:"model"`
+	ProviderConfigID string `json:"provider_config_id,omitempty"`
+}
+
+// TranslationStats holds statistics about a translation operation.
+type TranslationStats struct {
+	TotalBlocks      int `json:"total_blocks"`
+	TranslatedBlocks int `json:"translated_blocks"`
+	WordCount        int `json:"word_count"`
+}
+
+// WordCountResult holds word and character counts.
+type WordCountResult struct {
+	SourceWords int            `json:"source_words"`
+	SourceChars int            `json:"source_chars"`
+	TargetWords map[string]int `json:"target_words"`
+	TargetChars map[string]int `json:"target_chars"`
+}
+
+// CreateProject creates a new translation project.
+func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*ProjectInfo, error) {
+	if name == "" {
+		return nil, fmt.Errorf("project name is required")
+	}
+	if sourceLang == "" {
+		return nil, fmt.Errorf("source language is required")
+	}
+	if len(targetLangs) == 0 {
+		return nil, fmt.Errorf("at least one target language is required")
+	}
+
+	locales := make([]model.LocaleID, len(targetLangs))
+	for i, l := range targetLangs {
+		locales[i] = model.LocaleID(l)
+	}
+
+	p := &store.Project{
+		Name:          name,
+		SourceLocale:  model.LocaleID(sourceLang),
+		TargetLocales: locales,
+		Properties:    map[string]string{},
+	}
+
+	ctx := context.Background()
+	if err := a.store.CreateProject(ctx, p); err != nil {
+		return nil, fmt.Errorf("create project: %w", err)
+	}
+
+	info := projectToInfo(p)
+	return &info, nil
+}
+
+// GetProject returns the current project info.
+func (a *App) GetProject(projectID string) (*ProjectInfo, error) {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		info, err := a.remote.GetProject(ws, projectID)
+		if err != nil {
+			a.goOffline()
+			// Fall through to local.
+		} else {
+			return info, nil
+		}
+	}
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return buildProjectInfo(ctx, a.store, proj)
+}
+
+// ListProjects returns all open projects.
+func (a *App) ListProjects() []ProjectInfo {
+	if a.isConnected() {
+		a.mu.RLock()
+		ws := a.activeWS
+		a.mu.RUnlock()
+		projects, err := a.remote.ListProjects(ws)
+		if err == nil {
+			return projects
+		}
+		// Fall through to local on error.
+	}
+	ctx := context.Background()
+	projects, err := a.store.ListProjects(ctx)
+	if err != nil {
+		return []ProjectInfo{}
+	}
+	result := make([]ProjectInfo, len(projects))
+	for i, p := range projects {
+		result[i] = projectToInfo(p)
+	}
+	return result
+}
+
+// CloseProject closes a project and releases its resources.
+func (a *App) CloseProject(projectID string) error {
+	ctx := context.Background()
+	return a.store.DeleteProject(ctx, projectID)
+}
+
+// AddItems imports items into a project, auto-detecting format and extracting blocks.
+func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, error) {
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, filePath := range filePaths {
+		info, err := os.Stat(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("stat %q: %w", filePath, err)
+		}
+		if info.IsDir() {
+			continue
+		}
+
+		itemName := filepath.Base(filePath)
+
+		// Detect format
+		fmtName, err := a.DetectFormat(filePath)
+		if err != nil {
+			continue // skip unsupported formats
+		}
+
+		// Read file bytes
+		data, err := os.ReadFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("read %q: %w", filePath, err)
+		}
+
+		// Parse with format reader
+		reader, err := a.formatReg.NewReader(fmtName)
+		if err != nil {
+			continue
+		}
+
+		doc := &model.RawDocument{
+			URI:          filePath,
+			SourceLocale: proj.SourceLocale,
+			Encoding:     "UTF-8",
+			Reader:       io.NopCloser(bytes.NewReader(data)),
+		}
+
+		if err := reader.Open(ctx, doc); err != nil {
+			reader.Close()
+			return nil, fmt.Errorf("parse %q: %w", filePath, err)
+		}
+
+		var parts []*model.Part
+		for result := range reader.Read(ctx) {
+			if result.Error != nil {
+				reader.Close()
+				return nil, fmt.Errorf("read %q: %w", filePath, result.Error)
+			}
+			parts = append(parts, result.Part)
+		}
+		reader.Close()
+
+		// Build block index.
+		blockIndex := kaz.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndexJSON, _ := json.Marshal(blockIndex)
+
+		// Store item with source bytes.
+		item := &store.Item{
+			Name:        itemName,
+			Format:      fmtName,
+			ItemType:    "file",
+			SourceBytes: data,
+			BlockIndex:  string(blockIndexJSON),
+			Properties:  map[string]string{},
+		}
+		if err := a.store.StoreItem(ctx, projectID, item); err != nil {
+			return nil, fmt.Errorf("store item %q: %w", itemName, err)
+		}
+
+		// Extract blocks and store them.
+		var blocks []*model.Block
+		for _, pt := range parts {
+			if pt.Type != model.PartBlock {
+				continue
+			}
+			if block, ok := pt.Resource.(*model.Block); ok {
+				blocks = append(blocks, block)
+			}
+		}
+		if len(blocks) > 0 {
+			if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
+			}
+		}
+	}
+
+	return buildProjectInfo(ctx, a.store, proj)
+}
+
+// RemoveItem removes an item from the project.
+func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
+	ctx := context.Background()
+	proj, err := a.store.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.store.DeleteItem(ctx, projectID, itemName); err != nil {
+		return nil, err
+	}
+
+	return buildProjectInfo(ctx, a.store, proj)
+}
+
+// ListProjectFiles returns the items in a project.
+func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
+	ctx := context.Background()
+	items, err := a.store.ListItems(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ProjectItem, 0, len(items))
+	for _, item := range items {
+		blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
+			ProjectID: projectID,
+			ItemName:  item.Name,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		wordCount := 0
+		for _, sb := range blocks {
+			if sb.Block.Translatable {
+				wordCount += countWords(sb.Block.SourceText())
+			}
+		}
+
+		result = append(result, ProjectItem{
+			Name:       item.Name,
+			Format:     item.Format,
+			Type:       item.ItemType,
+			Size:       int64(len(item.SourceBytes)),
+			BlockCount: len(blocks),
+			WordCount:  wordCount,
+		})
+	}
+	return result, nil
+}
+
+// projectToInfo converts a store.Project to a ProjectInfo (without items).
+func projectToInfo(p *store.Project) ProjectInfo {
+	locales := make([]string, len(p.TargetLocales))
+	for i, l := range p.TargetLocales {
+		locales[i] = string(l)
+	}
+	return ProjectInfo{
+		ID:            p.ID,
+		Name:          p.Name,
+		SourceLocale:  string(p.SourceLocale),
+		TargetLocales: locales,
+		Items:         []ProjectItem{},
+		CreatedAt:     p.CreatedAt.Format(time.RFC3339),
+		ModifiedAt:    p.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
+// buildProjectInfo builds a full ProjectInfo with items from store data.
+func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project) (*ProjectInfo, error) {
+	info := projectToInfo(proj)
+
+	items, err := cs.ListItems(ctx, proj.ID)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+
+	for _, item := range items {
+		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+			ProjectID: proj.ID,
+			ItemName:  item.Name,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("get blocks for %q: %w", item.Name, err)
+		}
+
+		wordCount := 0
+		for _, sb := range blocks {
+			if sb.Block.Translatable {
+				wordCount += countWords(sb.Block.SourceText())
+			}
+		}
+
+		info.Items = append(info.Items, ProjectItem{
+			Name:       item.Name,
+			Format:     item.Format,
+			Type:       item.ItemType,
+			Size:       int64(len(item.SourceBytes)),
+			BlockCount: len(blocks),
+			WordCount:  wordCount,
+		})
+	}
+
+	return &info, nil
+}
+
+// countWords counts words in text by splitting on whitespace.
+func countWords(text string) int {
+	count := 0
+	inWord := false
+	for _, r := range text {
+		if unicode.IsSpace(r) {
+			inWord = false
+		} else if !inWord {
+			inWord = true
+			count++
+		}
+	}
+	return count
+}
+
+// countChars counts Unicode runes in text.
+func countChars(text string) int {
+	return len([]rune(text))
+}
+
+// fileExtension returns the file extension without dot, lowercased.
+func fileExtension(path string) string {
+	ext := filepath.Ext(path)
+	return strings.TrimPrefix(strings.ToLower(ext), ".")
+}

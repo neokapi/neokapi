@@ -205,9 +205,9 @@ In local/desktop mode, a "Personal" workspace is created automatically. When
 connected to a `bowrain-server` instance, the rail shows all workspaces the user
 belongs to with role-based access ([ADR-015](./015-auth-and-workspaces.md)).
 
-### Shared Component Library (`packages/ui/`)
+### Shared Component Library (`bowrain/packages/ui/`)
 
-Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse
+Core UI components are extracted to `bowrain/packages/ui/` (`@gokapi/ui`) for reuse
 across Bowrain (desktop) and the web app. The library includes:
 
 - **Layout**: `WorkspaceRail`, `MainSidebar`, `AccountMenu`, `WorkspaceIcon`
@@ -348,5 +348,5 @@ store acts as a read cache. In fully local mode, it is the source of truth.
   during network outages with automatic FIFO replay on reconnection
 - Hot reload in development via `wails3 dev`
 - Playwright E2E tests validate UI workflows in CI
-- Locale selectors show friendly names via the `core/locale` package
+- Locale selectors show friendly names via the `locale` package
   ([ADR-001](./001-vision.md))

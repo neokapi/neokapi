@@ -3,9 +3,9 @@ package host
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/registry"
 	"github.com/gokapi/gokapi/plugin/shared"
 	"github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/assert"

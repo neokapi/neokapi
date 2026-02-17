@@ -270,7 +270,7 @@ The token is stored at `~/.config/kapi/auth.json` and automatically attached to 
 
 ### Bowrain Server
 
-The server binary (`cmd/bowrain-server/`) provides remote access via two protocols. Server logic lives in `internal/server/` and supports two deployment modes:
+The server binary (`bowrain/cmd/bowrain-server/`) provides remote access via two protocols. Server logic lives in `bowrain/server/` and supports two deployment modes:
 
 **Deployment modes:**
 1. **Multi-user mode** (bowrain-server) — Full authentication, workspaces, binds to `0.0.0.0`

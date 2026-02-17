@@ -33,7 +33,7 @@ Download the latest release from [GitHub Releases](https://github.com/gokapi/gok
 
 ### Quick Start with Sample Projects
 
-Bowrain ships with ready-to-use sample projects in `apps/bowrain/samples/`:
+Bowrain ships with ready-to-use sample projects in `bowrain/apps/bowrain/samples/`:
 
 1. Open `website-translation.kaz` — a half-translated website with TM entries and terminology
 2. Click on `index.html` to open the translation editor

@@ -35,7 +35,7 @@ Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
 Shared SQLite infrastructure with Sievepen TM ([ADR-009](./009-translation-memory.md))
-and Content Store ([ADR-003](./003-content-store.md)) via `internal/storage/`.
+and Content Store ([ADR-003](./003-content-store.md)) via `bowrain/storage/`.
 
 ### Data Model: Concept-Oriented
 
@@ -98,7 +98,7 @@ type TermBase interface {
 ```
 
 Backends: In-memory (CLI batch) and SQLite (persistent). Both use the shared
-`internal/storage` layer from [ADR-003](./003-content-store.md).
+`bowrain/storage` layer from [ADR-003](./003-content-store.md).
 
 ### Term Lookup: Tiered Matching
 

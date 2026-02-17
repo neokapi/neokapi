@@ -64,20 +64,28 @@ its own goroutine. Buffered channels provide backpressure. See
 
 ## Package Layout
 
+The project is a **multi-module monorepo** with two Go modules coordinated by
+`go.work`: the **framework** (`github.com/gokapi/gokapi`) provides the
+localization engine, and the **platform** (`github.com/gokapi/gokapi/bowrain`)
+builds the full-stack application on top.
+
 ```
-gokapi/
-├── core/                       # Model types, interfaces, registries
-│   ├── model/                  # Part, Block, Layer, Fragment, Span, Data, Media
-│   ├── format/                 # DataFormatReader/Writer interfaces, detection
-│   ├── tool/                   # Tool interface, BaseTool dispatch
-│   ├── flow/                   # FlowExecutor, FlowBuilder, FlowDefinition, FlowStore
-│   ├── registry/               # FormatRegistry, ToolRegistry
-│   ├── config/                 # Viper-based AppConfig
-│   ├── encoding/               # Text encoding utilities
-│   └── kaz/                    # KAZ archive format
+gokapi/                              ── Framework Module ──
+├── go.mod                           # module github.com/gokapi/gokapi
+├── go.work                          # workspace: use . and ./bowrain
 │
-├── formats/                    # 15 built-in format implementations
-│   ├── html/                   # Each has reader.go, writer.go, config.go
+├── model/                           # Part, Block, Layer, Fragment, Span, Data, Media
+├── format/                          # DataFormatReader/Writer interfaces, detection
+├── tool/                            # Tool interface, BaseTool dispatch
+├── flow/                            # FlowExecutor, FlowBuilder, FlowDefinition
+├── registry/                        # FormatRegistry, ToolRegistry
+├── encoding/                        # Text encoding utilities
+├── locale/                          # BCP-47 locale handling
+├── kaz/                             # KAZ archive format
+├── version/                         # Build version info
+│
+├── formats/                         # 15 built-in format implementations
+│   ├── html/                        # Each has reader.go, writer.go, config.go
 │   ├── xml/
 │   ├── xliff/
 │   ├── xliff2/
@@ -91,38 +99,59 @@ gokapi/
 │   ├── srt/
 │   ├── vtt/
 │   ├── tmx/
-│   └── register.go            # init() registration
+│   └── register.go                  # init() registration
 │
-├── ai/                         # AI/LLM integration
-│   ├── provider/               # LLMProvider: Anthropic, OpenAI, Ollama
-│   ├── tools/                  # AI translate, QA, terminology, review
-│   └── prompt/                 # Prompt templates
+├── ai/                              # AI/LLM integration
+│   ├── provider/                    # LLMProvider: Anthropic, OpenAI, Ollama
+│   ├── tools/                       # AI translate, QA, terminology, review
+│   └── prompt/                      # Prompt templates
 │
-├── connectors/                 # External translation services
-│                               # DeepL, Google, Microsoft, MyMemory, ModernMT
+├── mt/                              # Machine translation
+│   ├── provider/                    # DeepL, Google, Microsoft, ModernMT, MyMemory
+│   └── tools/                       # MT translate tool
 │
-├── lib/
-│   ├── sievepen/               # Translation memory (in-memory + SQLite)
-│   └── tools/                  # Utility tools (wordcount, pseudo-translate, segmentation, qa-check, tm-leverage, etc.)
+├── sievepen/                        # Translation memory (interface + in-memory)
+├── termbase/                        # Terminology management (interface + in-memory)
+├── tools/                           # Utility tools (wordcount, pseudo, segmentation, etc.)
 │
-├── plugin/
-│   ├── host/                   # PluginManager, gRPC clients
-│   ├── server/                 # gRPC server helpers (plugin side)
-│   ├── bridge/                 # Java bridge: protocol, pool, format adapters
-│   ├── loader/                 # Plugin discovery and loading
-│   ├── registry/               # Multi-version plugin registry
-│   ├── shared/                 # DTO types shared between host and bridge
-│   └── proto/                  # Protobuf service definitions
+├── plugin/                          # Plugin system
+│   ├── host/                        # PluginManager, gRPC clients
+│   ├── server/                      # gRPC server helpers (plugin side)
+│   ├── bridge/                      # Java bridge: protocol, pool, format adapters
+│   ├── loader/                      # Plugin discovery and loading
+│   ├── registry/                    # Multi-version plugin registry
+│   ├── shared/                      # DTO types shared between host and bridge
+│   └── proto/                       # Protobuf service definitions
 │
-├── cmd/
-│   ├── kapi/                   # Cobra CLI
-│   └── bowrain-server/          # Echo v4 REST API server
+├── testutil/                        # Shared test helpers
 │
-├── apps/
-│   └── bowrain/                # Wails v3 desktop app (Go + React/TypeScript)
+├── bowrain/                         ── Platform Module ──
+│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain
+│   ├── config/                      # Viper-based AppConfig
+│   ├── store/                       # ContentStore + SQLite implementation
+│   ├── auth/                        # OIDC, JWT, device flow authentication
+│   ├── connector/                   # System connectors (CMS, file, git)
+│   ├── project/                     # .kapi/ project model
+│   ├── event/                       # Event bus, webhooks, automation
+│   ├── service/                     # Auth, project, connector, flow services
+│   ├── credentials/                 # Credential management
+│   ├── server/                      # HTTP/gRPC server handlers
+│   ├── storage/                     # SQLite migration utilities
+│   ├── sievepen/                    # SQLite TM implementation
+│   ├── termbase/                    # SQLite TermBase implementation
+│   ├── proto/v1/                    # gRPC protobuf definitions
+│   ├── cmd/
+│   │   ├── kapi/                    # Cobra CLI
+│   │   └── bowrain-server/          # Echo v4 REST API server
+│   ├── apps/
+│   │   ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
+│   │   ├── web/                     # SaaS web UI
+│   │   └── kapi-web/               # kapi serve web UI
+│   └── packages/
+│       └── ui/                      # Shared React component library (@gokapi/ui)
 │
-├── internal/testutil/          # Shared test helpers
-└── docs/                       # Documentation and ADRs
+├── docs/                            # Documentation and ADRs
+└── website/                         # Docusaurus 3 documentation site
 ```
 
 ## Content Model
@@ -291,7 +320,7 @@ type LLMProvider interface {
 | Homebrew formula | kapi CLI | `brew install gokapi/tap/kapi` |
 | Homebrew Cask | Bowrain GUI (macOS) | `brew install --cask gokapi/tap/bowrain` |
 | GitHub Releases | All platforms | Direct download |
-| Go install | Go developers | `go install github.com/gokapi/gokapi/cmd/kapi@latest` |
+| Go install | Go developers | `go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (GoReleaser on tag push). See

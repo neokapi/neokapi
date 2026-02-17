@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/tool"
 	"github.com/gokapi/gokapi/mt/provider"
 	mttools "github.com/gokapi/gokapi/mt/tools"
 	"github.com/stretchr/testify/assert"

@@ -72,7 +72,7 @@ Coming soon: Chocolatey, Scoop packages.
 If you have Go 1.23+ installed:
 
 ```bash
-go install github.com/gokapi/gokapi/cmd/kapi@latest
+go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
 ```
 
 Make sure `~/go/bin` is in your `PATH`:

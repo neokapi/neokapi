@@ -96,29 +96,58 @@ goroutine.
 
 ### Package Layout
 
+The project is a multi-module monorepo with two Go modules coordinated by
+`go.work`: the **framework** (`github.com/gokapi/gokapi`) provides the
+localization engine, and the **platform** (`github.com/gokapi/gokapi/bowrain`)
+builds the full-stack application on top.
+
 ```
-gokapi/
-  core/           model types, format/tool/flow interfaces, registry,
-                  config, encoding, locale, store
+gokapi/                    ── Framework Module ──
+  model/          content model types (Part, Block, Layer, Fragment, Span)
+  format/         DataFormatReader/Writer interfaces, detection
+  tool/           Tool interface, BaseTool dispatch
+  flow/           FlowExecutor, FlowBuilder, FlowDefinition
+  registry/       FormatRegistry, ToolRegistry
+  encoding/       text encoding utilities
+  locale/         BCP-47 locale handling
+  kaz/            KAZ archive format
+  version/        build version info
   formats/        built-in format implementations (15 formats: html, xml,
                   xliff, xliff2, json, yaml, po, properties, plaintext,
                   markdown, csv, srt, vtt, tmx, etc.)
   ai/             LLM provider interface (Anthropic, OpenAI, Ollama) and
                   AI-powered tools (translate, QA, terminology, review)
-  connectors/     bidirectional system connectors (CMS, design, code,
-                  marketing, file, translation service)
-  lib/sievepen/   translation memory with Levenshtein fuzzy matching,
-                  TMX import/export
-  lib/termbase/   concept-oriented terminology management, TBX-inspired
-  lib/tools/      utility tools (wordcount, charcount, pseudo-translation,
+  mt/             MT provider interface (DeepL, Google, Microsoft,
+                  ModernMT, MyMemory) and MT translate tool
+  sievepen/       translation memory interface + in-memory impl,
+                  Levenshtein fuzzy matching, TMX import/export
+  termbase/       concept-oriented terminology interface + in-memory impl
+  tools/          utility tools (wordcount, charcount, pseudo-translation,
                   search/replace, term lookup, term enforce)
   plugin/         plugin system: gRPC host, Java bridge, loader, registry
-  cmd/kapi/       Cobra CLI (convert, translate, extract, merge, flow,
-                  formats, tools, plugins, termbase)
+  testutil/       shared test helpers
+
+bowrain/                   ── Platform Module ──
+  config/         Viper-based app configuration
+  store/          ContentStore + SQLite implementation
+  auth/           OIDC, JWT, device flow authentication
+  connector/      bidirectional system connectors (CMS, file, git)
+  project/        .kapi/ project model
+  event/          event bus, webhooks, automation
+  service/        auth, project, connector, flow services
+  credentials/    credential management
+  server/         HTTP/gRPC server handlers
+  storage/        SQLite migration utilities
+  sievepen/       SQLite TM implementation
+  termbase/       SQLite TermBase implementation
+  cmd/kapi/       Cobra CLI
   cmd/bowrain-server/  Echo v4 REST API server + gRPC services
-  apps/bowrain/   Wails v3 desktop app (Go backend + React 19/TypeScript/
-                  Vite frontend)
-  website/        Docusaurus 3 documentation site
+  apps/bowrain/   Wails v3 desktop app (Go + React 19/TypeScript/Vite)
+  apps/web/       SaaS web UI
+  apps/kapi-web/  kapi serve web UI
+  packages/ui/    shared React component library (@gokapi/ui)
+
+website/          Docusaurus 3 documentation site
 ```
 
 ### Configuration
@@ -166,7 +195,7 @@ subcommands (`kapi convert`, `kapi flow run`, `kapi plugins install`,
 ### Locale Handling
 
 `model.LocaleID` is a `string` typedef holding BCP-47 tags in canonical
-form (e.g., `en`, `fr`, `pt-BR`). The `core/locale` package provides
+form (e.g., `en`, `fr`, `pt-BR`). The `locale` package provides
 validation, normalization, and display name resolution:
 
 ```go

@@ -206,7 +206,7 @@ simultaneously, giving plugin authors time to migrate.
 
 | Tier | Source | Trust | Installation |
 |------|--------|-------|-------------|
-| **Built-in** | `formats/`, `lib/tools/` | Full | Ships with binary |
+| **Built-in** | `formats/`, `tools/` | Full | Ships with binary |
 | **Official** | gokapi org registry | High | `kapi plugins install` |
 | **Community** | Third-party registry | Medium | `kapi plugins install --source <url>` |
 | **Local** | User-built | User's risk | Copy to plugin directory |

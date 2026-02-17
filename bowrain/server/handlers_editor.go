@@ -1,0 +1,812 @@
+package server
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/gokapi/gokapi/ai/provider"
+	"github.com/gokapi/gokapi/locale"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/sievepen"
+	"github.com/gokapi/gokapi/termbase"
+	"github.com/google/uuid"
+	"github.com/labstack/echo/v4"
+)
+
+// HandleCreateEditorProject creates a new translation project in the ContentStore.
+func (s *Server) HandleCreateEditorProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	var req struct {
+		Name          string   `json:"name"`
+		SourceLocale  string   `json:"source_locale"`
+		TargetLocales []string `json:"target_locales"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, ws, req.Name, req.SourceLocale, req.TargetLocales)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, info)
+}
+
+// HandleGetEditorProject returns an editor project.
+func (s *Server) HandleGetEditorProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	ctx := c.Request().Context()
+
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, info)
+}
+
+// HandleListEditorProjects lists all editor projects for a workspace.
+func (s *Server) HandleListEditorProjects(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	ctx := c.Request().Context()
+
+	projects, err := s.ContentStore.ListProjects(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Filter by workspace.
+	var result []*ProjectInfoResponse
+	for _, p := range projects {
+		if p.WorkspaceID == ws {
+			result = append(result, projectToInfoResponse(p))
+		}
+	}
+	if result == nil {
+		result = []*ProjectInfoResponse{}
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+// HandleDeleteEditorProject deletes a project from the ContentStore.
+func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	if err := s.ContentStore.DeleteProject(c.Request().Context(), pid); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleUploadFiles uploads files to a project via multipart form.
+func (s *Server) HandleUploadFiles(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+
+	form, err := c.MultipartForm()
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "multipart form required"})
+	}
+
+	files := make(map[string][]byte)
+	for _, fh := range form.File["files"] {
+		f, err := fh.Open()
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("open %q: %s", fh.Filename, err)})
+		}
+		data, err := io.ReadAll(f)
+		f.Close()
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("read %q: %s", fh.Filename, err)})
+		}
+		files[fh.Filename] = data
+	}
+
+	if len(files) == 0 {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})
+	}
+
+	info, err := editorAddFiles(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, files)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, info)
+}
+
+// HandleRemoveFile removes a file from a project.
+func (s *Server) HandleRemoveFile(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+
+	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, fname)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, info)
+}
+
+// HandleGetFileBlocks returns all blocks for a file in a project.
+func (s *Server) HandleGetFileBlocks(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+	ctx := c.Request().Context()
+
+	// Get project to know target locales.
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	targetLocales := make([]string, len(proj.TargetLocales))
+	for i, l := range proj.TargetLocales {
+		targetLocales[i] = string(l)
+	}
+
+	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, fname, targetLocales)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, blocks)
+}
+
+// HandleUpdateBlockTarget updates the target text for a block.
+func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	bid := c.Param("bid")
+
+	var req UpdateBlockTargetRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, bid, req); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleUpdateBlockTargetCoded updates a block target with coded text and spans.
+func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	bid := c.Param("bid")
+
+	var req UpdateBlockTargetCodedRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := editorUpdateBlockTargetCoded(c.Request().Context(), s.ContentStore, pid, bid, req); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandlePseudoTranslate pseudo-translates all blocks in a file.
+func (s *Server) HandlePseudoTranslate(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+
+	var req struct {
+		TargetLocale string `json:"target_locale"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, fname, req.TargetLocale)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, stats)
+}
+
+// HandleAITranslate translates all blocks using an AI provider.
+func (s *Server) HandleAITranslate(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+
+	var req TranslateRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, fname, req, s.CredentialStore)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, stats)
+}
+
+// HandleTMTranslate leverages translation memory to translate blocks.
+func (s *Server) HandleTMTranslate(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+
+	var req struct {
+		TargetLocale string `json:"target_locale"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	stats, err := editorTMTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, fname, req.TargetLocale)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, stats)
+}
+
+// HandleGetWordCount returns word and character counts for a file.
+func (s *Server) HandleGetWordCount(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+	ctx := c.Request().Context()
+
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	targetLocales := make([]string, len(proj.TargetLocales))
+	for i, l := range proj.TargetLocales {
+		targetLocales[i] = string(l)
+	}
+
+	result, err := editorGetWordCount(ctx, s.ContentStore, pid, fname, targetLocales)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, result)
+}
+
+// HandleExportTranslatedFile exports a translated file.
+func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	fname := c.Param("fname")
+
+	var req struct {
+		TargetLocale string `json:"target_locale"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	outputPath, err := editorExportTranslatedFile(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, fname, req.TargetLocale, s.Config.DataDir)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	defer os.Remove(outputPath)
+
+	return c.File(outputPath)
+}
+
+// HandleLookupTMForBlock looks up TM matches for a specific block.
+func (s *Server) HandleLookupTMForBlock(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	pid := c.Param("pid")
+	bid := c.Param("bid")
+	targetLocale := c.QueryParam("target_locale")
+
+	matches, err := editorLookupTMForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, bid, targetLocale)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	if matches == nil {
+		matches = []TMMatchInfoResponse{}
+	}
+	return c.JSON(http.StatusOK, matches)
+}
+
+// HandleLookupTermsForBlock looks up term matches for a specific block.
+func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	pid := c.Param("pid")
+	bid := c.Param("bid")
+	targetLocale := c.QueryParam("target_locale")
+
+	matches, err := editorLookupTermsForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, bid, targetLocale)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	if matches == nil {
+		matches = []BlockTermMatchResponse{}
+	}
+	return c.JSON(http.StatusOK, matches)
+}
+
+// HandleGetTMEntries searches TM entries.
+func (s *Server) HandleGetTMEntries(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	query := c.QueryParam("q")
+	sourceLocale := c.QueryParam("source_locale")
+	targetLocale := c.QueryParam("target_locale")
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 {
+		limit = 50
+	}
+
+	tm, err := s.wsStores.getTM(ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+	infos := make([]TMEntryInfoResponse, len(entries))
+	for i, e := range entries {
+		infos[i] = editorEntryToInfo(e)
+	}
+
+	return c.JSON(http.StatusOK, TMSearchResponse{Entries: infos, TotalCount: total})
+}
+
+// HandleGetTMCount returns the TM entry count.
+func (s *Server) HandleGetTMCount(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+
+	tm, err := s.wsStores.getTM(ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"count": tm.Count()})
+}
+
+// HandleAddTMEntry adds a new TM entry.
+func (s *Server) HandleAddTMEntry(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+
+	var req TMAddRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tm, err := s.wsStores.getTM(ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	entry := sievepen.TMEntry{
+		ID:           uuid.New().String(),
+		Source:       &model.Fragment{CodedText: req.Source},
+		Target:       &model.Fragment{CodedText: req.Target},
+		SourceLocale: model.LocaleID(req.SourceLocale),
+		TargetLocale: model.LocaleID(req.TargetLocale),
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	if err := tm.Add(entry); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, editorEntryToInfo(entry))
+}
+
+// HandleUpdateTMEntry updates an existing TM entry.
+func (s *Server) HandleUpdateTMEntry(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	eid := c.Param("eid")
+
+	var req TMUpdateRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tm, err := s.wsStores.getTM(ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	existing, ok := tm.GetEntry(eid)
+	if !ok {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("TM entry %q not found", eid)})
+	}
+
+	// Delete old and add updated.
+	if err := tm.Delete(eid); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	existing.Source = &model.Fragment{CodedText: req.Source}
+	existing.Target = &model.Fragment{CodedText: req.Target}
+	existing.SourceLocale = model.LocaleID(req.SourceLocale)
+	existing.TargetLocale = model.LocaleID(req.TargetLocale)
+	existing.UpdatedAt = time.Now()
+
+	if err := tm.Add(existing); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleDeleteTMEntry deletes a TM entry.
+func (s *Server) HandleDeleteTMEntry(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	eid := c.Param("eid")
+
+	tm, err := s.wsStores.getTM(ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := tm.Delete(eid); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleGetTerms searches terminology concepts.
+func (s *Server) HandleGetTerms(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	query := c.QueryParam("q")
+	sourceLocale := c.QueryParam("source_locale")
+	targetLocale := c.QueryParam("target_locale")
+	offset, _ := strconv.Atoi(c.QueryParam("offset"))
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 {
+		limit = 50
+	}
+
+	tb := s.wsStores.getTB(ws)
+	concepts, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
+
+	infos := make([]ConceptInfoResponse, len(concepts))
+	for i, c := range concepts {
+		infos[i] = editorConceptToInfo(c)
+	}
+
+	return c.JSON(http.StatusOK, TermSearchResponse{Concepts: infos, TotalCount: total})
+}
+
+// HandleGetTermCount returns the concept count.
+func (s *Server) HandleGetTermCount(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	tb := s.wsStores.getTB(ws)
+
+	return c.JSON(http.StatusOK, map[string]int{"count": tb.Count()})
+}
+
+// HandleAddConcept adds a new terminology concept.
+func (s *Server) HandleAddConcept(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+
+	var req AddConceptRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tb := s.wsStores.getTB(ws)
+	concept := termbase.Concept{
+		ID:         uuid.New().String(),
+		Domain:     req.Domain,
+		Definition: req.Definition,
+		Terms:      editorTermsFromInfo(req.Terms),
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if err := tb.AddConcept(concept); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, editorConceptToInfo(concept))
+}
+
+// HandleUpdateConcept updates a terminology concept.
+func (s *Server) HandleUpdateConcept(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	cid := c.Param("cid")
+
+	var req UpdateConceptRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tb := s.wsStores.getTB(ws)
+
+	existing, ok := tb.GetConcept(cid)
+	if !ok {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("concept %q not found", cid)})
+	}
+
+	existing.Domain = req.Domain
+	existing.Definition = req.Definition
+	existing.Terms = editorTermsFromInfo(req.Terms)
+	existing.UpdatedAt = time.Now()
+
+	if err := tb.AddConcept(existing); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleDeleteConcept deletes a terminology concept.
+func (s *Server) HandleDeleteConcept(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	cid := c.Param("cid")
+
+	tb := s.wsStores.getTB(ws)
+	if err := tb.DeleteConcept(cid); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleImportTermsCSV imports terms from CSV.
+func (s *Server) HandleImportTermsCSV(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+
+	var req ImportCSVRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tb := s.wsStores.getTB(ws)
+	count, err := termbase.ImportCSV(tb, strings.NewReader(req.CSVContent), termbase.CSVImportOptions{
+		HasHeader:    req.HasHeader,
+		SourceLocale: model.LocaleID(req.SourceLocale),
+		TargetLocale: model.LocaleID(req.TargetLocale),
+		Domain:       req.Domain,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+}
+
+// HandleImportTermsJSON imports terms from JSON.
+func (s *Server) HandleImportTermsJSON(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+
+	var req ImportJSONRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	tb := s.wsStores.getTB(ws)
+	count, err := termbase.ImportJSON(tb, strings.NewReader(req.JSONContent))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]int{"imported": count})
+}
+
+// HandleExportTermsJSON exports terms as JSON.
+func (s *Server) HandleExportTermsJSON(c echo.Context) error {
+	if s.wsStores == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	ws := c.Param("ws")
+	name := c.QueryParam("name")
+
+	tb := s.wsStores.getTB(ws)
+	var buf strings.Builder
+	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSONBlob(http.StatusOK, []byte(buf.String()))
+}
+
+// HandleListProviderConfigs lists all saved AI provider configurations.
+func (s *Server) HandleListProviderConfigs(c echo.Context) error {
+	if s.CredentialStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	}
+
+	configs := s.CredentialStore.List()
+	out := make([]ProviderConfigResponse, len(configs))
+	for i, cfg := range configs {
+		out[i] = toProviderConfigResponse(cfg)
+	}
+
+	return c.JSON(http.StatusOK, out)
+}
+
+// HandleSaveProviderConfig creates or updates a provider configuration.
+func (s *Server) HandleSaveProviderConfig(c echo.Context) error {
+	if s.CredentialStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	}
+
+	var req SaveProviderConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	saved := s.CredentialStore.Upsert(req.toCredentials())
+
+	if req.APIKey != "" {
+		if err := s.CredentialStore.SetAPIKey(saved.ID, req.APIKey); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: fmt.Sprintf("save API key: %s", err)})
+		}
+	}
+
+	result := toProviderConfigResponse(saved)
+	return c.JSON(http.StatusCreated, result)
+}
+
+// HandleDeleteProviderConfig removes a provider configuration.
+func (s *Server) HandleDeleteProviderConfig(c echo.Context) error {
+	if s.CredentialStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	}
+
+	id := c.Param("id")
+	if err := s.CredentialStore.Remove(id); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	_ = s.CredentialStore.DeleteAPIKey(id) // best-effort
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleTestProviderConfig tests a provider configuration.
+func (s *Server) HandleTestProviderConfig(c echo.Context) error {
+	if s.CredentialStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credentials not configured"})
+	}
+
+	var req SaveProviderConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	cfg := req.toCredentials()
+	prov := editorCreateProvider(cfg.ProviderType, req.APIKey, cfg.Model)
+	defer prov.Close()
+
+	if _, err := prov.Chat(c.Request().Context(), []provider.Message{
+		{Role: "user", Content: "Hello, respond with OK."},
+	}); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("connection test failed: %s", err)})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleGetKnownLocales returns a curated list of BCP-47 locales.
+func (s *Server) HandleGetKnownLocales(c echo.Context) error {
+	locales := locale.WellKnownLocales()
+	return c.JSON(http.StatusOK, locales)
+}

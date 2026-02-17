@@ -5,8 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/model"
 )
 
 // Writer implements DataFormatWriter for XLIFF 2.0 files.

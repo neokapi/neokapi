@@ -25,20 +25,22 @@
 
 ## Test Structure
 
+The project has two Go modules. Framework tests run from the root, platform
+tests run from `bowrain/`. Both are exercised by `make test`.
+
 ```
-gokapi/
-├── core/
-│   ├── model/
-│   │   ├── block_test.go           # Block creation, source/target segment management
-│   │   ├── layer_test.go           # Layer nesting, embedded content, format association
-│   │   ├── fragment_test.go        # Fragment span encoding/decoding
-│   │   ├── span_test.go            # Span type handling
-│   │   └── skeleton_test.go        # Skeleton reconstruction (both strategies)
-│   ├── flow/
-│   │   ├── executor_test.go        # Flow execution, goroutine wiring, error propagation
-│   │   └── builder_test.go         # FlowBuilder API
-│   └── tool/
-│       └── base_test.go            # BaseTool dispatch, pass-through behavior
+gokapi/                              ── Framework Module Tests ──
+├── model/
+│   ├── block_test.go                # Block creation, source/target segment management
+│   ├── layer_test.go                # Layer nesting, embedded content, format association
+│   ├── fragment_test.go             # Fragment span encoding/decoding
+│   ├── span_test.go                 # Span type handling
+│   └── skeleton_test.go             # Skeleton reconstruction (both strategies)
+├── flow/
+│   ├── executor_test.go             # Flow execution, goroutine wiring, error propagation
+│   └── builder_test.go              # FlowBuilder API
+├── tool/
+│   └── base_test.go                 # BaseTool dispatch, pass-through behavior
 │
 ├── formats/
 │   ├── plaintext/
@@ -71,18 +73,18 @@ gokapi/
 │
 ├── ai/
 │   ├── tools/
-│   │   ├── translate_test.go       # Uses mock provider
-│   │   └── qualitycheck_test.go    # Uses mock provider
+│   │   ├── translate_test.go        # Uses mock provider
+│   │   └── qualitycheck_test.go     # Uses mock provider
 │   └── provider/
-│       ├── mock.go                 # Mock LLM provider for testing
-│       └── anthropic_test.go       # Integration test (requires API key)
+│       ├── mock.go                  # Mock LLM provider for testing
+│       └── anthropic_test.go        # Integration test (requires API key)
 │
 ├── plugin/
 │   ├── host/
-│   │   └── manager_test.go         # Plugin discovery, lifecycle
-│   └── integration_test.go         # End-to-end plugin roundtrip
+│   │   └── manager_test.go          # Plugin discovery, lifecycle
+│   └── integration_test.go          # End-to-end plugin roundtrip
 │
-├── testdata/                        # Shared test data files
+├── testdata/                         # Shared test data files
 │   ├── html/
 │   ├── xml/
 │   ├── xliff/
@@ -90,14 +92,20 @@ gokapi/
 │   ├── yaml/
 │   ├── po/
 │   ├── properties/
-│   └── docx/                        # For Java bridge tests
+│   └── docx/                         # For Java bridge tests
 │
-└── internal/
-    └── testutil/
-        ├── helpers.go               # Common test helpers
-        ├── mock_tool.go             # Mock Tool implementation
-        ├── mock_reader.go           # Mock DataFormatReader
-        └── assert_parts.go          # Custom Part assertion helpers
+├── testutil/                         # Shared test helpers (exported)
+│   ├── helpers.go                    # Common test helpers
+│   ├── mock_tool.go                  # Mock Tool implementation
+│   ├── mock_reader.go                # Mock DataFormatReader
+│   └── assert_parts.go              # Custom Part assertion helpers
+│
+└── bowrain/                          ── Platform Module Tests ──
+    ├── store/                        # ContentStore + SQLite tests
+    ├── auth/                         # OIDC, JWT, device flow tests
+    ├── connector/                    # Connector integration tests
+    ├── server/                       # HTTP/gRPC handler tests
+    └── ...                           # Each platform package has *_test.go
 ```
 
 ---
@@ -115,20 +123,20 @@ The frontend spans three apps and a shared UI library. Testing is split into two
 
 Unit tests are the primary fast feedback loop for developers. They run in-memory with no browser or backend. E2E tests verify integration across the full stack and produce visual artifacts for documentation.
 
-### Unit Tests (`packages/ui`)
+### Unit Tests (`bowrain/packages/ui`)
 
-All shared UI components, contexts, hooks, and utilities live in `packages/ui`. Unit tests are colocated in `packages/ui/src/__tests__/`.
+All shared UI components, contexts, hooks, and utilities live in `bowrain/packages/ui`. Unit tests are colocated in `bowrain/packages/ui/src/__tests__/`.
 
 **Stack:** Vitest 4 + React Testing Library + jsdom
 
 **Running:**
 ```bash
-cd packages/ui
+cd bowrain/packages/ui
 npm test            # single run
 npm run test:watch  # watch mode
 ```
 
-**Configuration:** `packages/ui/vitest.config.ts`
+**Configuration:** `bowrain/packages/ui/vitest.config.ts`
 ```typescript
 export default defineConfig({
   test: {
@@ -179,7 +187,7 @@ src/__tests__/useLocales.test.tsx       — API fetch, loading state, display na
 #### What NOT to Unit Test
 
 - **TranslationEditor** and **TargetCellEditor** — These integrate Lexical (rich text editor) which requires significant DOM infrastructure. Covered by E2E tests instead.
-- **App shells** (`apps/web/src/App.tsx`, etc.) — Thin wrappers that compose providers and route views. E2E tests cover the assembled behavior.
+- **App shells** (`bowrain/apps/web/src/App.tsx`, etc.) — Thin wrappers that compose providers and route views. E2E tests cover the assembled behavior.
 - **Semantic/status colors** — Hardcoded palette values in `tagSemantics.ts` and `WorkspaceIcon.tsx` are intentionally stable across themes. Visual correctness is verified by E2E screenshots.
 
 #### Unit Test Patterns
@@ -227,7 +235,7 @@ Each app has its own Playwright setup for integration-level testing against a ru
 #### Bowrain Desktop (13 spec files)
 
 ```
-apps/bowrain/frontend/e2e/
+bowrain/apps/bowrain/frontend/e2e/
 ├── context-panel.spec.ts       — TM/term context panel in editor
 ├── flow-builder.spec.ts        — Visual flow builder
 ├── inline-codes.spec.ts        — Inline tag editing with coded text
@@ -245,17 +253,17 @@ apps/bowrain/frontend/e2e/
 
 **Running:**
 ```bash
-cd apps/bowrain/frontend
+cd bowrain/apps/bowrain/frontend
 npx playwright test                    # all specs
 npx playwright test e2e/settings.spec.ts  # single spec
 ```
 
 **Configuration:** `playwright.config.ts` — uses Vite dev server with mock API routes. Tests seed data via `page.route()` interception, requiring no backend.
 
-#### Web App (`apps/web`)
+#### Web App (`bowrain/apps/web`)
 
 ```
-apps/web/e2e/
+bowrain/apps/web/e2e/
 ├── screenshots.spec.ts   — Dual-theme screenshots (dark + light)
 ├── recordings.spec.ts    — Dual-theme screencast recordings
 └── helpers/
@@ -264,24 +272,24 @@ apps/web/e2e/
 
 **Running:**
 ```bash
-cd apps/web
+cd bowrain/apps/web
 npm run e2e:screenshots   # requires Docker backend (bowrain-server)
 npm run e2e:recordings    # requires Docker backend
 ```
 
 **Configuration:** `playwright.config.ts` — connects to a real backend at `http://localhost:8080`. Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
-#### kapi-web (`apps/kapi-web`)
+#### kapi-web (`bowrain/apps/kapi-web`)
 
 ```
-apps/kapi-web/e2e/
+bowrain/apps/kapi-web/e2e/
 ├── screenshots.spec.ts   — Screenshots with mock API
 └── mock-api.ts           — In-memory API mock via page.route()
 ```
 
 **Running:**
 ```bash
-cd apps/kapi-web
+cd bowrain/apps/kapi-web
 npx playwright test
 ```
 
@@ -298,11 +306,11 @@ npx playwright test
          │                      │
          │  Unit (Vitest + RTL) │  Components, hooks, contexts, utilities
          │  126 tests in        │  No browser, no backend, ~2 seconds
-         │  packages/ui         │
+         │  bowrain/packages/ui  │
          └──────────────────────┘
 ```
 
-The unit tests in `packages/ui` are designed to be the **primary fast feedback loop**. They validate all shared component logic that the three apps consume. The E2E tests then verify the assembled apps work end-to-end, including Lexical editor interactions, API flows, and visual theme correctness.
+The unit tests in `bowrain/packages/ui` are designed to be the **primary fast feedback loop**. They validate all shared component logic that the three apps consume. The E2E tests then verify the assembled apps work end-to-end, including Lexical editor interactions, API flows, and visual theme correctness.
 
 ### Running All Frontend Tests
 
@@ -311,13 +319,13 @@ The unit tests in `packages/ui` are designed to be the **primary fast feedback l
 cd packages/ui && npm test
 
 # E2E — Bowrain (mock API, no backend)
-cd apps/bowrain/frontend && npx playwright test
+cd bowrain/apps/bowrain/frontend && npx playwright test
 
 # E2E — kapi-web (mock API, no backend)
-cd apps/kapi-web && npx playwright test
+cd bowrain/apps/kapi-web && npx playwright test
 
 # E2E — web (requires Docker backend)
-cd apps/web && npm run e2e:screenshots
+cd bowrain/apps/web && npm run e2e:screenshots
 ```
 
 ---
@@ -732,11 +740,24 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Lint
+      - name: Lint framework
         uses: golangci/golangci-lint-action@v4
 
-      - name: Unit Tests
-        run: go test ./... -race -coverprofile=coverage.out
+      - name: Lint platform
+        uses: golangci/golangci-lint-action@v4
+        with:
+          working-directory: bowrain
+
+      - name: Framework tests
+        run: go test ./... -race -coverprofile=framework.out
+
+      - name: Platform tests
+        run: cd bowrain && go test ./... -race -coverprofile=platform.out
+
+      - name: Merge coverage
+        run: |
+          cat framework.out > coverage.out
+          tail -n +2 bowrain/platform.out >> coverage.out
 
       - name: Upload Coverage
         uses: codecov/codecov-action@v4
@@ -755,8 +776,11 @@ jobs:
       - name: Build Java Bridge
         run: cd plugin/bridge/java && mvn package -q
 
-      - name: Integration Tests
+      - name: Framework integration tests
         run: go test ./... -tags=integration -race
+
+      - name: Platform integration tests
+        run: cd bowrain && go test ./... -tags=integration -race
 
   build:
     runs-on: ubuntu-latest
@@ -773,14 +797,14 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
+          cd bowrain && go build -o kapi-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kapi
 ```
 
 ### Test Tags
 
 | Tag | Purpose | Command |
 |---|---|---|
-| (none) | Unit tests only | `go test ./...` |
-| `integration` | + plugin and format integration | `go test ./... -tags=integration` |
-| `java` | + Java bridge tests | `go test ./... -tags="integration java"` |
-| `ai` | + real AI provider tests | `go test ./... -tags="integration ai"` |
+| (none) | Unit tests only | `go test ./...` and `cd bowrain && go test ./...` |
+| `integration` | + plugin and format integration | `go test ./... -tags=integration` (both modules) |
+| `java` | + Java bridge tests | `go test ./... -tags="integration java"` (both modules) |
+| `ai` | + real AI provider tests | `go test ./... -tags="integration ai"` (both modules) |

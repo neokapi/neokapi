@@ -16,8 +16,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/registry"
 	"github.com/gokapi/gokapi/plugin/bridge"
 	"github.com/gokapi/gokapi/plugin/host"
 	pluginreg "github.com/gokapi/gokapi/plugin/registry"

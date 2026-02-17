@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/ai/prompt"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 	"github.com/gokapi/gokapi/formats/properties"
-	"github.com/gokapi/gokapi/internal/testutil"
+	"github.com/gokapi/gokapi/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

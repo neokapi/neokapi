@@ -57,7 +57,7 @@ type ContentStore interface {
 
 ## SQLite Backend
 
-The default implementation uses SQLite via the shared `internal/storage` layer with WAL mode for concurrent access:
+The default implementation uses SQLite via the shared `bowrain/storage` layer with WAL mode for concurrent access:
 
 ```go
 store, err := store.NewSQLiteStore("project.db")

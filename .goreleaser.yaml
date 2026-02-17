@@ -4,14 +4,17 @@ project_name: kapi
 
 before:
   hooks:
-    # Create placeholder so apps/bowrain/main.go's //go:embed all:frontend/dist succeeds
+    # Create placeholder so bowrain/apps/bowrain/main.go's //go:embed all:frontend/dist succeeds
     # without a real frontend build (bowrain is built separately in the release workflow).
-    - mkdir -p apps/bowrain/frontend/dist && touch apps/bowrain/frontend/dist/placeholder
+    - mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
     - go mod tidy
-    - go test ./ai/... ./cmd/... ./mt/... ./core/... ./examples/... ./formats/... ./internal/... ./lib/... ./plugin/...
+    - cd bowrain && go mod tidy
+    - go test ./...
+    - cd bowrain && go test ./...
 
 builds:
   - id: kapi
+    dir: bowrain
     main: ./cmd/kapi
     binary: kapi
     env:
@@ -28,9 +31,9 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X github.com/gokapi/gokapi/cmd/kapi.version={{.Version}}
-      - -X github.com/gokapi/gokapi/cmd/kapi.commit={{.Commit}}
-      - -X github.com/gokapi/gokapi/cmd/kapi.buildDate={{.Date}}
+      - -X github.com/gokapi/gokapi/bowrain/cmd/kapi.version={{.Version}}
+      - -X github.com/gokapi/gokapi/bowrain/cmd/kapi.commit={{.Commit}}
+      - -X github.com/gokapi/gokapi/bowrain/cmd/kapi.buildDate={{.Date}}
 
 archives:
   - id: kapi

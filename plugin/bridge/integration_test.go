@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

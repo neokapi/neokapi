@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/ai/provider"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/tool"
 )
 
 // AIReviewTool reviews translations with explanations using an LLM.

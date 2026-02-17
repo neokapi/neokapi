@@ -44,7 +44,7 @@ kapi status -o json                   # Short flag form
 
 ### Implementation
 
-**Shared output package** (`cmd/kapi/output.go`):
+**Shared output package** (`bowrain/cmd/kapi/output.go`):
 
 ```go
 // OutputFormat represents the CLI output format

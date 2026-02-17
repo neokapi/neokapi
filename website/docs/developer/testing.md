@@ -18,15 +18,14 @@ title: Testing
 
 ```
 gokapi/
-├── core/
-│   ├── model/
-│   │   ├── block_test.go           # Block creation, segment management
-│   │   ├── layer_test.go           # Layer nesting, embedded content
-│   │   ├── fragment_test.go        # Fragment span encoding/decoding
-│   │   └── skeleton_test.go        # Skeleton reconstruction
-│   ├── flow/
-│   │   ├── executor_test.go        # Flow execution, error propagation
-│   │   └── builder_test.go         # FlowBuilder API
+├── model/
+│   ├── block_test.go               # Block creation, segment management
+│   ├── layer_test.go               # Layer nesting, embedded content
+│   ├── fragment_test.go            # Fragment span encoding/decoding
+│   └── skeleton_test.go            # Skeleton reconstruction
+├── flow/
+│   ├── executor_test.go            # Flow execution, error propagation
+│   └── builder_test.go             # FlowBuilder API
 │   └── tool/
 │       └── base_test.go            # BaseTool dispatch, pass-through
 │
@@ -141,7 +140,7 @@ make cover              # Coverage report
 Single test:
 
 ```bash
-go test ./core/flow/ -run TestExecutorCancellation -v
+go test ./flow/ -run TestExecutorCancellation -v
 ```
 
 ## Test Tags

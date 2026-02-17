@@ -24,7 +24,7 @@ brew install --cask gokapi/tap/bowrain
 If you have Go installed:
 
 ```bash
-go install github.com/gokapi/gokapi/cmd/kapi@latest
+go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
 ```
 
 ## Binary Downloads
@@ -52,6 +52,6 @@ make build-all   # Build all binaries
 For the Bowrain desktop app:
 
 ```bash
-cd apps/bowrain
+cd bowrain/apps/bowrain
 wails3 build
 ```

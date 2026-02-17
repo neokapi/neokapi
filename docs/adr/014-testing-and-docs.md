@@ -46,7 +46,7 @@ tests are the standard pattern. Format tests do roundtrip validation (read,
 write, compare). Test files colocate with implementation (`*_test.go`).
 
 Run: `make test` (all), `make test-unit` (short), `make test-race` (race
-detector). Single test: `go test ./core/flow/ -run TestName -v`.
+detector). Single test: `go test ./flow/ -run TestName -v`.
 
 **Integration tests** validate format roundtrips, pipeline end-to-end flows,
 connector integration, and store operations. They run as part of the full test

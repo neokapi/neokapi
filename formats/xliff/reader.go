@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/format"
+	"github.com/gokapi/gokapi/model"
 )
 
 // XLIFF 1.2 XML structures

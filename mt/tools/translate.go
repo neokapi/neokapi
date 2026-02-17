@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/tool"
 	"github.com/gokapi/gokapi/mt/provider"
 )
 

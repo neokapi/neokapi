@@ -63,7 +63,7 @@ tools:
 
 ## Design Decision: Separate TM and Termbase
 
-TM and terminology are **separate systems** in gokapi. While they share the same SQLite infrastructure (`internal/storage/`), they have fundamentally different data shapes:
+TM and terminology are **separate systems** in gokapi. While they share the same SQLite infrastructure (`bowrain/storage/`), they have fundamentally different data shapes:
 
 - **TM entries** are segment pairs (source fragment → target fragment) with inline markup preservation
 - **Termbase concepts** are multi-term, multi-locale knowledge units with lifecycle statuses

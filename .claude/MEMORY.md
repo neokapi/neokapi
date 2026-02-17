@@ -28,7 +28,7 @@
 - Progressive complexity: CSV glossary → concept-oriented termbase → streams → brand governance
 - Concept-oriented data model (TBX-inspired) with `Concept` containing `Term` entries per locale
 - TermBase interface mirrors Sievepen pattern (in-memory + SQLite backends)
-- Shared SQLite infra layer in `internal/storage/` used by both TermBase and Sievepen
+- Shared SQLite infra layer in `bowrain/storage/` used by both TermBase and Sievepen
 - Six pipeline tools: term-lookup, term-enforce, term-extract (AI), entity-annotate (AI), redact, unredact
 - entity-annotate feeds both TM generalization (ADR-010) and terminology management
 - redact/unredact are privacy-only tools, orthogonal to TM generalization

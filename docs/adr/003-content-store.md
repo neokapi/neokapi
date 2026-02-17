@@ -108,7 +108,7 @@ The `Diff` operation compares two versions by their block hash sets. Blocks with
 
 ### SQLite Backend
 
-The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO). This shares the `internal/storage/` infrastructure layer with the Sievepen TM system ([ADR-009](./009-translation-memory.md)) and the TermBase ([ADR-010](./010-terminology.md)).
+The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO). This shares the `bowrain/storage/` infrastructure layer with the Sievepen TM system ([ADR-009](./009-translation-memory.md)) and the TermBase ([ADR-010](./010-terminology.md)).
 
 Schema:
 

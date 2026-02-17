@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/gokapi/gokapi/ai/provider"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/model"
+	"github.com/gokapi/gokapi/tool"
 )
 
 // AITerminologyTool extracts terminology from Blocks using an LLM.

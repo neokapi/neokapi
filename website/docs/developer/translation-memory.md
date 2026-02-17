@@ -5,7 +5,7 @@ title: Sievepen
 
 # Sievepen Library
 
-Sievepen (`lib/sievepen/`) is gokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Sievepen works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
+Sievepen (`sievepen/`) is gokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Sievepen works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
 
 ## Architecture
 
@@ -148,8 +148,8 @@ package main
 
 import (
     "fmt"
-    "github.com/gokapi/gokapi/core/model"
-    "github.com/gokapi/gokapi/lib/sievepen"
+    "github.com/gokapi/gokapi/model"
+    "github.com/gokapi/gokapi/sievepen"
 )
 
 func main() {
@@ -195,7 +195,7 @@ The `EntityAdaptations` field on `TMMatch` lists each substitution with its posi
 
 ## Integration Points
 
-- **Pipeline tool**: `lib/tools/TMLeverageTool` uses `Lookup` to pre-fill translations
+- **Pipeline tool**: `tools/TMLeverageTool` uses `Lookup` to pre-fill translations
 - **Bowrain editor**: `LookupTMForBlock` in the backend uses `Lookup` for per-block matches in the Context panel
 - **Bowrain TM Explorer**: Uses `SearchEntries` for paginated browsing
 - **KAZ persistence**: TM entries are serialized as JSON in `tm/entries.json` within the `.kaz` archive

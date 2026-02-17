@@ -113,4 +113,4 @@ Bowrain ships with sample `.kaz` projects for immediate testing:
 | `software-ui.kaz` | Task manager UI strings (JSON) | New, with 27-entry TM | Start with existing TM, translate remaining strings |
 | `marketing-content.kaz` | Marketing landing page (HTML) | Fully translated (en→fr,de,es) | Review and export workflows |
 
-Sample files are located in `apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.
+Sample files are located in `bowrain/apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.
