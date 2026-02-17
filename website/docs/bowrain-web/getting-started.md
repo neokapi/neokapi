@@ -34,7 +34,7 @@ Open `http://localhost:8080` (or your configured domain) in your browser.
 
 ## Logging In (Server Mode)
 
-The web UI redirects you to your configured identity provider (e.g. Keycloak) for authentication. Depending on your provider configuration, you will see options like:
+The web UI redirects you to your configured identity provider for authentication. Depending on your provider configuration, you will see options like:
 
 - **Username & password** — sign in with your account
 - **Self-registration** — create a new account (if enabled in your identity provider)

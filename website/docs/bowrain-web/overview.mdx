@@ -13,7 +13,7 @@ The gokapi web application is a browser-based translation workbench that provide
 
 ### Login
 
-Server mode authenticates through your configured identity provider (Dex). Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
+Server mode authenticates through your identity provider. Depending on configuration, sign-in options include GitHub, Google, LDAP, or other OIDC-compatible providers.
 
 <ThemedImage
   alt="Login page with identity provider options"
@@ -141,7 +141,7 @@ View workspace information including name, slug, description, and your role.
 - **Machine translation** via DeepL, Google, Microsoft, ModernMT, or MyMemory
 - **Pseudo-translation** for layout testing and QA
 - **Multi-workspace** environments with role-based access control
-- **OIDC authentication** through Dex (GitHub, Google, LDAP, etc.)
+- **Single sign-on (SSO)** via GitHub, Google, LDAP, and other identity providers
 - **Format-agnostic** editing supporting HTML, XML, JSON, YAML, PO, Properties, Markdown, CSV, XLIFF, SRT, VTT, and more
 - **File export** in original format with translations applied
 - **Drag-and-drop** file upload with format auto-detection
@@ -150,7 +150,7 @@ View workspace information including name, slug, description, and your role.
 
 | Mode | Command | Auth | Workspaces | Use Case |
 |------|---------|------|------------|----------|
-| **Server** | `bowrain-server` | OIDC via Dex | Multiple, multi-user | Team/SaaS deployments |
+| **Server** | `bowrain-server` | SSO | Multiple, multi-user | Team/SaaS deployments |
 | **Local** | `kapi serve` | None (single user) | Single, auto-created | Local development, personal use |
 
 In **local mode**, authentication is bypassed and a single workspace is created automatically. The workspace rail is hidden, giving you a streamlined single-workspace experience.

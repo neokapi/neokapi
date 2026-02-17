@@ -65,14 +65,15 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'docs',
+          sidebarId: 'userGuide',
           position: 'left',
           label: 'User Guide',
         },
         {
-          to: '/docs/developer/architecture',
-          label: 'Developer',
+          type: 'docSidebar',
+          sidebarId: 'developer',
           position: 'left',
+          label: 'For Developers',
         },
         {
           href: 'https://github.com/gokapi/gokapi',
@@ -96,7 +97,7 @@ const config: Config = {
               to: '/docs/kapi-cli/overview',
             },
             {
-              label: 'Developer Guide',
+              label: 'For Developers',
               to: '/docs/developer/architecture',
             },
           ],

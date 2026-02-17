@@ -1,7 +1,7 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
-  docs: [
+  userGuide: [
     {
       type: 'category',
       label: 'Getting Started',
@@ -55,6 +55,22 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Bowrain',
+      items: [
+        'bowrain-web/overview',
+        'bowrain-web/getting-started',
+        'bowrain-web/translation-editor',
+        'bowrain-web/translation-memory',
+        'bowrain-web/terminology',
+        'bowrain-server/workspaces',
+        'bowrain-server/connectors',
+        'bowrain-server/automation',
+        'bowrain-web/walkthroughs',
+        'bowrain-web/demo-videos',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Bowrain Desktop',
       items: [
         'bowrain-desktop/overview',
@@ -68,32 +84,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Bowrain Web',
-      items: [
-        'bowrain-web/overview',
-        'bowrain-web/getting-started',
-        'bowrain-web/translation-editor',
-        'bowrain-web/translation-memory',
-        'bowrain-web/terminology',
-        'bowrain-web/walkthroughs',
-        'bowrain-web/demo-videos',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Bowrain Server',
-      items: [
-        'bowrain-server/overview',
-        'bowrain-server/installation',
-        'bowrain-server/configuration',
-        'bowrain-server/workspaces',
-        'bowrain-server/connectors',
-        'bowrain-server/automation',
-        'bowrain-server/self-hosting',
-      ],
-    },
-    {
-      type: 'category',
       label: 'Features',
       items: [
         'features/formats',
@@ -101,11 +91,14 @@ const sidebars: SidebarsConfig = {
         'features/terminology',
         'features/ai-translation',
         'features/mt-services',
+        'features/qa-checks',
       ],
     },
+  ],
+  developer: [
     {
       type: 'category',
-      label: 'Developer Guide',
+      label: 'Framework',
       items: [
         'developer/architecture',
         'developer/interfaces',
@@ -114,12 +107,27 @@ const sidebars: SidebarsConfig = {
         'developer/translation-memory',
         'developer/terminology',
         'developer/content-store',
-        'developer/connectors',
-        'developer/events',
-        'developer/server',
         'developer/plugins',
         'developer/java-bridge',
         'developer/testing',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Bowrain',
+      items: [
+        'developer/server',
+        'developer/connectors',
+        'developer/events',
+        {
+          type: 'category',
+          label: 'Self-Hosting',
+          items: [
+            'bowrain-server/self-hosting',
+            'bowrain-server/installation',
+            'bowrain-server/configuration',
+          ],
+        },
         'developer/release',
       ],
     },

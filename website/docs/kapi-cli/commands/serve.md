@@ -61,7 +61,7 @@ For full multi-user collaboration with workspaces and access control, use
 
 | Feature | `kapi serve` | `bowrain-server` |
 |---------|-------------|-----------------|
-| Auth required | No | Yes (OIDC via Dex) |
+| Auth required | No | Yes (SSO) |
 | Workspaces | No (single project) | Yes (multi-workspace) |
 | Binding | localhost only | 0.0.0.0 (configurable) |
 | Use case | Local editing | Team deployment |
