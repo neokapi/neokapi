@@ -21,8 +21,11 @@ permissions:
 jobs:
   # ── Bowrain Screenshots & Recordings (self-contained) ───────────────────────
   bowrain-assets:
-    name: Bowrain Screenshots & Recordings
+    name: Bowrain Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        theme: [glass, light, aurora]
     steps:
       - uses: actions/checkout@v4
 
@@ -45,32 +48,35 @@ jobs:
 
       - name: Generate screenshots
         working-directory: bowrain/apps/bowrain/frontend
-        run: npm run screenshots
+        run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
 
       - name: Generate recordings
         working-directory: bowrain/apps/bowrain/frontend
-        run: npm run recordings
+        run: npx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30  # Recordings are slow due to human-like typing
         env:
           FORCE_RECORDINGS: "true"  # Override CI skip for dedicated recordings workflow
 
       - name: Copy recordings to static assets
         working-directory: bowrain/apps/bowrain/frontend
-        run: npm run recordings:copy
+        run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload Bowrain assets
         uses: actions/upload-artifact@v4
         with:
-          name: bowrain-assets
+          name: bowrain-assets-${{ matrix.theme }}
           path: |
-            website/static/img/bowrain/
-            website/static/video/bowrain/
+            website/static/img/bowrain/${{ matrix.theme }}/
+            website/static/video/bowrain/${{ matrix.theme }}/
           retention-days: 30
 
   # ── Web App Screenshots & Recordings (needs Docker stack with Dex) ─────────
   web-app-assets:
-    name: Web App Screenshots & Recordings
+    name: Web App Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        theme: [glass, light, aurora]
     steps:
       - uses: actions/checkout@v4
 
@@ -121,29 +127,26 @@ jobs:
 
       - name: Generate screenshots
         working-directory: bowrain/apps/web
-        run: npm run e2e:screenshots
+        run: npx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
 
       - name: Generate recordings
         working-directory: bowrain/apps/web
-        run: npm run e2e:recordings
+        run: npx playwright test --config playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
 
-      - name: Copy recordings (all themes)
+      - name: Copy recordings to static assets
         working-directory: bowrain/apps/web
-        run: |
-          THEME=glass  bash scripts/copy-recordings.sh
-          THEME=light  bash scripts/copy-recordings.sh
-          THEME=aurora bash scripts/copy-recordings.sh
+        run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload web app assets
         uses: actions/upload-artifact@v4
         with:
-          name: web-app-assets
+          name: web-app-assets-${{ matrix.theme }}
           path: |
-            website/static/img/web-app/
-            website/static/video/web-app/
+            website/static/img/web-app/${{ matrix.theme }}/
+            website/static/video/web-app/${{ matrix.theme }}/
           retention-days: 30
 
       - name: Shutdown Docker stack
@@ -233,10 +236,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all assets
+      - name: Download Bowrain assets
         uses: actions/download-artifact@v4
         with:
-          path: downloaded-assets
+          path: downloaded-assets/bowrain
+          pattern: bowrain-assets-*
+          merge-multiple: true
+
+      - name: Download Web App assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets/web-app
+          pattern: web-app-assets-*
+          merge-multiple: true
+
+      - name: Download CLI assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets/cli
+          name: cli-assets
 
       - name: Calculate asset sizes
         id: sizes
@@ -247,10 +265,10 @@ jobs:
           echo "" >> size-report.md
 
           # Bowrain
-          if [ -d "downloaded-assets/bowrain-assets" ]; then
-            bowrain_size=$(du -sh downloaded-assets/bowrain-assets | cut -f1)
-            bowrain_img=$(du -sh downloaded-assets/bowrain-assets/website/static/img/bowrain 2>/dev/null | cut -f1 || echo "N/A")
-            bowrain_vid=$(du -sh downloaded-assets/bowrain-assets/website/static/video/bowrain 2>/dev/null | cut -f1 || echo "N/A")
+          if [ -d "downloaded-assets/bowrain" ]; then
+            bowrain_size=$(du -sh downloaded-assets/bowrain | cut -f1)
+            bowrain_img=$(du -sh downloaded-assets/bowrain/img/bowrain 2>/dev/null | cut -f1 || echo "N/A")
+            bowrain_vid=$(du -sh downloaded-assets/bowrain/video/bowrain 2>/dev/null | cut -f1 || echo "N/A")
             echo "### Bowrain" >> size-report.md
             echo "- Total: **$bowrain_size**" >> size-report.md
             echo "- Screenshots: $bowrain_img" >> size-report.md
@@ -259,10 +277,10 @@ jobs:
           fi
 
           # Web app
-          if [ -d "downloaded-assets/web-app-assets" ]; then
-            webapp_size=$(du -sh downloaded-assets/web-app-assets | cut -f1)
-            webapp_img=$(du -sh downloaded-assets/web-app-assets/website/static/img/web-app 2>/dev/null | cut -f1 || echo "N/A")
-            webapp_vid=$(du -sh downloaded-assets/web-app-assets/website/static/video/web-app 2>/dev/null | cut -f1 || echo "N/A")
+          if [ -d "downloaded-assets/web-app" ]; then
+            webapp_size=$(du -sh downloaded-assets/web-app | cut -f1)
+            webapp_img=$(du -sh downloaded-assets/web-app/img/web-app 2>/dev/null | cut -f1 || echo "N/A")
+            webapp_vid=$(du -sh downloaded-assets/web-app/video/web-app 2>/dev/null | cut -f1 || echo "N/A")
             echo "### Web App" >> size-report.md
             echo "- Total: **$webapp_size**" >> size-report.md
             echo "- Screenshots: $webapp_img" >> size-report.md
@@ -271,8 +289,8 @@ jobs:
           fi
 
           # CLI
-          if [ -d "downloaded-assets/cli-assets" ]; then
-            cli_size=$(du -sh downloaded-assets/cli-assets | cut -f1)
+          if [ -d "downloaded-assets/cli" ]; then
+            cli_size=$(du -sh downloaded-assets/cli | cut -f1)
             echo "### CLI Recordings" >> size-report.md
             echo "- Total: **$cli_size**" >> size-report.md
             echo "" >> size-report.md
@@ -303,22 +321,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download all assets
+      - name: Download Bowrain assets
         uses: actions/download-artifact@v4
         with:
-          path: downloaded-assets
+          path: downloaded-assets/bowrain
+          pattern: bowrain-assets-*
+          merge-multiple: true
+
+      - name: Download Web App assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets/web-app
+          pattern: web-app-assets-*
+          merge-multiple: true
+
+      - name: Download CLI assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets/cli
+          name: cli-assets
 
       - name: Copy assets to website/static
         run: |
-          # Bowrain
-          cp -r downloaded-assets/bowrain-assets/website/static/* website/static/ || true
+          # Bowrain (merged artifacts contain img/bowrain/{theme}/ and video/bowrain/{theme}/)
+          cp -r downloaded-assets/bowrain/* website/static/ 2>/dev/null || true
 
-          # Web app
-          cp -r downloaded-assets/web-app-assets/website/static/* website/static/ || true
+          # Web app (merged artifacts contain img/web-app/{theme}/ and video/web-app/{theme}/)
+          cp -r downloaded-assets/web-app/* website/static/ 2>/dev/null || true
 
           # CLI
           mkdir -p website/static/video/cli
-          cp downloaded-assets/cli-assets/* website/static/video/cli/ || true
+          cp downloaded-assets/cli/* website/static/video/cli/ || true
 
       - name: Report asset sizes
         run: |
