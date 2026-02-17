@@ -7,10 +7,10 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/tool"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"

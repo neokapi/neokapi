@@ -10,13 +10,13 @@ import (
 
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/platform/project"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

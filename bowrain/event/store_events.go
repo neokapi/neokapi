@@ -3,8 +3,8 @@ package event
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // EventEmittingStore wraps a ContentStore and emits events on mutations.

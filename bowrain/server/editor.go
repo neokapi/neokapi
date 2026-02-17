@@ -13,17 +13,17 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/gokapi/gokapi/core/ai/provider"
-	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
+	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/ai/provider"
+	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/core/tool"
 )
 
 // ---------------------------------------------------------------------------
@@ -38,9 +38,9 @@ type workspaceTMTB struct {
 
 // workspaceStores manages per-workspace TM and terminology stores.
 type workspaceStores struct {
-	mu       sync.RWMutex
-	stores   map[string]*workspaceTMTB
-	dataDir  string
+	mu      sync.RWMutex
+	stores  map[string]*workspaceTMTB
+	dataDir string
 }
 
 func newWorkspaceStores(dataDir string) *workspaceStores {
@@ -93,7 +93,6 @@ func (ws *workspaceStores) getTB(wsSlug string) *termbase.InMemoryTermBase {
 	w.tb = termbase.NewInMemoryTermBase()
 	return w.tb
 }
-
 
 // ---------------------------------------------------------------------------
 // API response/request types
@@ -1078,7 +1077,6 @@ func editorInfoToSpan(si SpanInfoResponse) *model.Span {
 	}
 }
 
-
 func editorComputeStats(parts []*model.Part, targetLocale string) *TranslationStatsResponse {
 	stats := &TranslationStatsResponse{}
 	for _, pt := range parts {
@@ -1199,5 +1197,3 @@ func editorTermsFromInfo(terms []TermInfoResponse) []termbase.Term {
 	}
 	return result
 }
-
-

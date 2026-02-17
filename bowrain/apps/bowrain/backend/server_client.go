@@ -573,4 +573,3 @@ func infoTermsToProto(terms []TermInfo) []*pb.TermInfo {
 	}
 	return result
 }
-

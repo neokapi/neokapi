@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 )
 

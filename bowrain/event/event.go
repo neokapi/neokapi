@@ -17,19 +17,19 @@ type (
 
 // Re-export constants.
 const (
-	EventBlockCreated   = platev.EventBlockCreated
-	EventBlockUpdated   = platev.EventBlockUpdated
-	EventBlockDeleted   = platev.EventBlockDeleted
-	EventProjectCreated = platev.EventProjectCreated
-	EventProjectUpdated = platev.EventProjectUpdated
-	EventProjectDeleted = platev.EventProjectDeleted
-	EventVersionCreated = platev.EventVersionCreated
-	EventPullCompleted  = platev.EventPullCompleted
-	EventPushCompleted  = platev.EventPushCompleted
-	EventSyncCompleted  = platev.EventSyncCompleted
-	EventFlowStarted    = platev.EventFlowStarted
-	EventFlowCompleted  = platev.EventFlowCompleted
-	EventFlowFailed     = platev.EventFlowFailed
+	EventBlockCreated    = platev.EventBlockCreated
+	EventBlockUpdated    = platev.EventBlockUpdated
+	EventBlockDeleted    = platev.EventBlockDeleted
+	EventProjectCreated  = platev.EventProjectCreated
+	EventProjectUpdated  = platev.EventProjectUpdated
+	EventProjectDeleted  = platev.EventProjectDeleted
+	EventVersionCreated  = platev.EventVersionCreated
+	EventPullCompleted   = platev.EventPullCompleted
+	EventPushCompleted   = platev.EventPushCompleted
+	EventSyncCompleted   = platev.EventSyncCompleted
+	EventFlowStarted     = platev.EventFlowStarted
+	EventFlowCompleted   = platev.EventFlowCompleted
+	EventFlowFailed      = platev.EventFlowFailed
 	EventQualityGatePass = platev.EventQualityGatePass
 	EventQualityGateFail = platev.EventQualityGateFail
 )

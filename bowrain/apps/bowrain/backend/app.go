@@ -7,22 +7,22 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
+	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
+	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/ai/provider"
+	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/version"
-	"github.com/gokapi/gokapi/core/formats"
-	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
 	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/version"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -32,9 +32,9 @@ type App struct {
 	app          *application.App
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
-	store        store.ContentStore          // persistent SQLite
-	tm           *sqltm.SQLiteTM              // lazily initialized
-	tb           *termbase.InMemoryTermBase  // lazily initialized
+	store        store.ContentStore         // persistent SQLite
+	tm           *sqltm.SQLiteTM            // lazily initialized
+	tb           *termbase.InMemoryTermBase // lazily initialized
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
@@ -43,15 +43,15 @@ type App struct {
 
 	// Server connection (online mode).
 	mu               sync.RWMutex
-	remote           *ServerClient           // nil when disconnected
-	connState        ConnectionState         // current connection state
-	serverURL        string                  // e.g. "http://localhost:8080"
-	activeWS         string                  // selected workspace slug
-	authInfo         *storedDesktopAuth      // cached auth info
-	deviceFlowClient *auth.DeviceFlowClient  // active login flow
-	watcher          *ProjectWatcher         // active WatchProject stream
-	offlineQueue     *OfflineQueue           // pending mutations when offline
-	reconnectCancel  context.CancelFunc      // stops the reconnection goroutine
+	remote           *ServerClient          // nil when disconnected
+	connState        ConnectionState        // current connection state
+	serverURL        string                 // e.g. "http://localhost:8080"
+	activeWS         string                 // selected workspace slug
+	authInfo         *storedDesktopAuth     // cached auth info
+	deviceFlowClient *auth.DeviceFlowClient // active login flow
+	watcher          *ProjectWatcher        // active WatchProject stream
+	offlineQueue     *OfflineQueue          // pending mutations when offline
+	reconnectCancel  context.CancelFunc     // stops the reconnection goroutine
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string

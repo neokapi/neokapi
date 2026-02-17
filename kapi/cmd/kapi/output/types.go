@@ -25,13 +25,13 @@ func (v VersionOutput) FormatText(w io.Writer) error {
 
 // StatusOutput represents sync status.
 type StatusOutput struct {
-	Project     ProjectInfo   `json:"project"`
-	ItemCount   int           `json:"item_count"`
-	PendingPush int           `json:"pending_push"`
-	PendingPull int           `json:"pending_pull"`
-	LastSync    *time.Time    `json:"last_sync,omitempty"`
-	Errors      []string      `json:"errors,omitempty"`
-	UpToDate    bool          `json:"up_to_date"`
+	Project     ProjectInfo `json:"project"`
+	ItemCount   int         `json:"item_count"`
+	PendingPush int         `json:"pending_push"`
+	PendingPull int         `json:"pending_pull"`
+	LastSync    *time.Time  `json:"last_sync,omitempty"`
+	Errors      []string    `json:"errors,omitempty"`
+	UpToDate    bool        `json:"up_to_date"`
 }
 
 type ProjectInfo struct {

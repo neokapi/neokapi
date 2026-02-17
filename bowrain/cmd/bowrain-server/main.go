@@ -10,8 +10,8 @@ import (
 	"strconv"
 
 	"github.com/gokapi/gokapi/bowrain/apps/web"
-	"github.com/gokapi/gokapi/bowrain/server"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	"github.com/gokapi/gokapi/bowrain/server"
 	"google.golang.org/grpc"
 )
 

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	fw "github.com/gokapi/gokapi/core/sievepen"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/model"
+	fw "github.com/gokapi/gokapi/core/sievepen"
 )
 
 // SQLiteTM is a persistent translation memory backed by SQLite with

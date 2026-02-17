@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/core/plugin/server"
 	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/gokapi/gokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

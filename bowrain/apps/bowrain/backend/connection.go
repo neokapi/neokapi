@@ -49,10 +49,10 @@ type DeviceAuthInfo struct {
 // storedDesktopAuth is the auth token persisted at ~/.config/bowrain/auth.json.
 // Matches the CLI's StoredAuth format so both tools share the same token.
 type storedDesktopAuth struct {
-	ServerURL    string           `json:"server_url"`
-	AccessToken  string           `json:"access_token"`
-	RefreshToken string           `json:"refresh_token,omitempty"`
-	Expiry       time.Time        `json:"expiry"`
+	ServerURL    string            `json:"server_url"`
+	AccessToken  string            `json:"access_token"`
+	RefreshToken string            `json:"refresh_token,omitempty"`
+	Expiry       time.Time         `json:"expiry"`
 	User         storedDesktopUser `json:"user"`
 }
 

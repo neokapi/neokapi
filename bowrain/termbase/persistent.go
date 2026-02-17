@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	fw "github.com/gokapi/gokapi/core/termbase"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
+	fw "github.com/gokapi/gokapi/core/termbase"
 )
 
 // SQLiteTermBase is a persistent termbase backed by SQLite.

@@ -3,8 +3,8 @@ package backend
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/gokapi/gokapi/platform/config"
 )
 
 // Capability describes a specific format or tool provided by a plugin.

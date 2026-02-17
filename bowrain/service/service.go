@@ -4,8 +4,8 @@ package service
 
 import (
 	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/registry"
 )
 
 // Services aggregates all service dependencies.

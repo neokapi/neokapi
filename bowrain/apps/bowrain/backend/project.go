@@ -12,9 +12,9 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/kaz"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/bowrain/store"
 )
 
 // ProjectInfo describes a translation project exposed to the frontend.

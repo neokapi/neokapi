@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // ProjectService provides project and block operations.

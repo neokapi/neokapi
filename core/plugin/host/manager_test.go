@@ -5,8 +5,8 @@ import (
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/gokapi/gokapi/core/registry"
 	"github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/model"
 )
 
 // ConnectorInfo describes a connector for the frontend.

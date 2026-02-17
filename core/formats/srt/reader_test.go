@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/formats/srt"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

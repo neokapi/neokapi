@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/spf13/cobra"
 )
 

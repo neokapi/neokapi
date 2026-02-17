@@ -30,15 +30,15 @@ type Project struct {
 
 // Item represents a file or data object within a project.
 type Item struct {
-	ProjectID  string            `json:"project_id"`
-	Name       string            `json:"name"`
-	Format     string            `json:"format"`
-	ItemType   string            `json:"item_type"`
-	SourceBytes []byte           `json:"source_bytes,omitempty"`
-	BlockIndex string            `json:"block_index"`
-	Properties map[string]string `json:"properties,omitempty"`
-	CreatedAt  time.Time         `json:"created_at"`
-	UpdatedAt  time.Time         `json:"updated_at"`
+	ProjectID   string            `json:"project_id"`
+	Name        string            `json:"name"`
+	Format      string            `json:"format"`
+	ItemType    string            `json:"item_type"`
+	SourceBytes []byte            `json:"source_bytes,omitempty"`
+	BlockIndex  string            `json:"block_index"`
+	Properties  map[string]string `json:"properties,omitempty"`
+	CreatedAt   time.Time         `json:"created_at"`
+	UpdatedAt   time.Time         `json:"updated_at"`
 }
 
 // StoredBlock wraps a model.Block with store metadata.

@@ -239,7 +239,6 @@ steps:
 	return nil
 }
 
-
 func init() {
 	initCmd.Flags().StringVar(&initServerURL, "server", "", "Bowrain Server URL (e.g., https://bowrain.example.com)")
 	initCmd.Flags().StringVar(&initProjectID, "project", "", "Bowrain Server project ID")

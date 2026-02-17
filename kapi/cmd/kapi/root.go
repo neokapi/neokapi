@@ -5,11 +5,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
-	"github.com/gokapi/gokapi/platform/config"
-	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/spf13/cobra"
 )
 

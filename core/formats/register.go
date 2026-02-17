@@ -2,7 +2,6 @@ package formats
 
 import (
 	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
@@ -17,6 +16,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/xliff2"
 	xmlfmt "github.com/gokapi/gokapi/core/formats/xml"
 	"github.com/gokapi/gokapi/core/formats/yaml"
+	"github.com/gokapi/gokapi/core/registry"
 )
 
 // RegisterAll registers all built-in data formats with the given registry.

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/core/version"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/spf13/cobra"
 )
 
