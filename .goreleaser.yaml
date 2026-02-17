@@ -7,10 +7,9 @@ before:
     # Create placeholder so bowrain/apps/bowrain/main.go's //go:embed all:frontend/dist succeeds
     # without a real frontend build (bowrain is built separately in the release workflow).
     - mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
+    # Tests are already run by the release workflow before GoReleaser.
     - go mod tidy
-    - cd bowrain && go mod tidy
-    - go test ./...
-    - cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
+    - bash -c "cd bowrain && go mod tidy"
 
 builds:
   - id: kapi
