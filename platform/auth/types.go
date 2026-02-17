@@ -29,6 +29,7 @@ type Workspace struct {
 	Description string        `json:"description"`
 	LogoURL     string        `json:"logo_url"`
 	Type        WorkspaceType `json:"type"`
+	Role        Role          `json:"role,omitempty"` // current user's role (populated by list/get with user context)
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
 }

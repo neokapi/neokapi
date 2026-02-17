@@ -215,7 +215,7 @@ func (s *SQLiteAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (
 
 func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.created_at, w.updated_at
+		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
 		 JOIN workspace_members wm ON w.id = wm.workspace_id
 		 WHERE wm.user_id = ?
@@ -227,7 +227,7 @@ func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]
 
 	result := make([]*Workspace, 0)
 	for rows.Next() {
-		w, err := scanWorkspaceRow(rows)
+		w, err := scanWorkspaceWithRole(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -375,6 +375,21 @@ func scanWorkspace(row scanner) (*Workspace, error) {
 
 func scanWorkspaceRow(rows scanner) (*Workspace, error) {
 	return scanWorkspace(rows)
+}
+
+// scanWorkspaceWithRole scans workspace columns plus wm.role.
+func scanWorkspaceWithRole(row scanner) (*Workspace, error) {
+	var w Workspace
+	var wsType, createdStr, updatedStr, role string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &createdStr, &updatedStr, &role)
+	if err != nil {
+		return nil, fmt.Errorf("scan workspace with role: %w", err)
+	}
+	w.Type = WorkspaceType(wsType)
+	w.Role = Role(role)
+	w.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	return &w, nil
 }
 
 func scanMembership(row scanner) (*Membership, error) {

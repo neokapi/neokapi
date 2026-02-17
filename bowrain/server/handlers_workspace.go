@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/labstack/echo/v4"
 )
 
@@ -51,6 +51,7 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		if err := s.Services.Auth.CreateWorkspaceWithOwner(c.Request().Context(), w, userID); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
+		w.Role = auth.RoleOwner
 	} else {
 		if err := s.AuthStore.CreateWorkspace(c.Request().Context(), w); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -81,6 +82,12 @@ func (s *Server) HandleGetWorkspace(c echo.Context) error {
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	// Enrich with the current user's role if available.
+	if userID, ok := c.Get("user_id").(string); ok && userID != "" {
+		if m, err := s.AuthStore.GetMembership(c.Request().Context(), w.ID, userID); err == nil {
+			w.Role = m.Role
+		}
 	}
 	return c.JSON(http.StatusOK, w)
 }
