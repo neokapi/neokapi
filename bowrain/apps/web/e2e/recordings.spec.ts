@@ -20,7 +20,7 @@ import {
   pause,
 } from "./helpers/cursor-helper";
 
-const isCI = !!process.env.CI;
+const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
 async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t) => {
