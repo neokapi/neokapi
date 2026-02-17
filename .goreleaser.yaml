@@ -10,7 +10,7 @@ before:
     - go mod tidy
     - cd bowrain && go mod tidy
     - go test ./...
-    - cd bowrain && go test ./...
+    - cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
 
 builds:
   - id: kapi

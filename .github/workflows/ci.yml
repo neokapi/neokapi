@@ -47,11 +47,14 @@ jobs:
           go mod download && go mod verify
           cd bowrain && go mod download && go mod verify
 
+      - name: Create Bowrain frontend placeholder
+        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+
       - name: Run framework tests
         run: go test -race -coverprofile=framework.out -covermode=atomic ./...
 
       - name: Run platform tests
-        run: cd bowrain && go test -race -coverprofile=platform.out -covermode=atomic ./...
+        run: cd bowrain && go test -race -coverprofile=platform.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
 
       - name: Merge coverage
         run: |

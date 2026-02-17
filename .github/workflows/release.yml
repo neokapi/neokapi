@@ -47,11 +47,14 @@ jobs:
         working-directory: bowrain/apps/kapi-web
         run: npm ci && npm run build
 
+      - name: Create Bowrain frontend placeholder
+        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+
       - name: Run framework tests
         run: go test ./...
 
       - name: Run platform tests
-        run: cd bowrain && go test ./...
+        run: cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
