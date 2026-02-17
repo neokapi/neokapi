@@ -25,6 +25,7 @@ KNOWN_RECORDINGS=(
   "term-explorer"
   "context-panel"
   "settings"
+  "invite-workflow"
 )
 
 if [ ! -d "$RECORDINGS_DIR" ]; then

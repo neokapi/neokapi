@@ -128,13 +128,9 @@ jobs:
         run: npm run e2e:recordings
         timeout-minutes: 30
 
-      - name: Copy recordings (dark theme)
+      - name: Copy recordings (all themes)
         working-directory: bowrain/apps/web
-        run: THEME=dark bash scripts/copy-recordings.sh
-
-      - name: Copy recordings (light theme)
-        working-directory: bowrain/apps/web
-        run: THEME=light bash scripts/copy-recordings.sh
+        run: npm run recordings:copy
 
       - name: Upload web app assets
         uses: actions/upload-artifact@v4
@@ -340,6 +336,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "docs: regenerate screenshots and recordings [skip ci]"
+            git commit -m "docs: regenerate screenshots and recordings"
             git push
           fi
