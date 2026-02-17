@@ -373,10 +373,6 @@ func scanWorkspace(row scanner) (*Workspace, error) {
 	return &w, nil
 }
 
-func scanWorkspaceRow(rows scanner) (*Workspace, error) {
-	return scanWorkspace(rows)
-}
-
 // scanWorkspaceWithRole scans workspace columns plus wm.role.
 func scanWorkspaceWithRole(row scanner) (*Workspace, error) {
 	var w Workspace
