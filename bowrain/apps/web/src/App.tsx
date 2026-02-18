@@ -23,11 +23,19 @@ import {
   Button,
   Input,
   Label,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
 } from "@gokapi/ui";
-import { LoginPage } from "./auth/LoginPage";
 import { JoinPage } from "./auth/JoinPage";
 
 const api = new RestApiAdapter();
+
+// When both access and refresh tokens are invalid, redirect to OIDC.
+api.onSessionExpired = () => {
+  window.location.href = "/api/v1/auth/login";
+};
 
 // ---------------------------------------------------------------------------
 // Translate view — state machine: Dashboard → Project → Editor
@@ -364,24 +372,17 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [signedOut, setSignedOut] = useState(false);
 
-  // Check for token in URL (OIDC redirect callback sets /?token=...&user=...)
-  // Also detect /join/:code route for invite acceptance.
+  // Detect /join/:code route on mount.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      api.setToken(token);
-      window.history.replaceState({}, "", window.location.pathname);
-    }
-
     const joinMatch = window.location.pathname.match(/^\/join\/([^/]+)$/);
     if (joinMatch) {
       setJoinCode(joinMatch[1]);
     }
   }, []);
 
-  // Detect server mode and authenticate
+  // Detect server mode and authenticate.
   useEffect(() => {
     (async () => {
       try {
@@ -393,6 +394,7 @@ function AppContent() {
           setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" }]);
           setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" });
         } else {
+          // In server mode, cookies are sent automatically. Try to get current user.
           const currentUser = await api.getCurrentUser();
           if (currentUser) {
             setUser(currentUser);
@@ -411,11 +413,16 @@ function AppContent() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSignOut = useCallback(() => {
-    api.setToken("");
+  const handleSignOut = useCallback(async () => {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+    } catch {
+      // Best-effort
+    }
     setUser(null);
     setWorkspaces([]);
     setActiveWorkspace(null);
+    setSignedOut(true);
   }, [setUser, setWorkspaces, setActiveWorkspace]);
 
   const handleCreateWorkspace = useCallback(() => {
@@ -439,7 +446,7 @@ function AppContent() {
     );
   }
 
-  // Join route: show join page for invite acceptance
+  // Join route: show join page for invite acceptance.
   if (joinCode) {
     return (
       <JoinPage
@@ -452,9 +459,39 @@ function AppContent() {
     );
   }
 
-  // Server mode without auth: show login page
+  // Server mode without auth: show signed-out card or redirect to OIDC.
   if (serverMode === "server" && !user) {
-    return <LoginPage />;
+    if (signedOut) {
+      return (
+        <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
+          <Card className="min-w-[360px]">
+            <CardHeader className="items-center text-center">
+              <CardTitle className="text-xl font-semibold">Signed out</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                You have been signed out successfully.
+              </p>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <Button
+                onClick={() => { window.location.href = "/api/v1/auth/login"; }}
+                className="w-full"
+                size="lg"
+              >
+                Sign in again
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    // Auto-redirect to OIDC.
+    window.location.href = "/api/v1/auth/login";
+    return (
+      <div className="flex items-center justify-center h-screen bg-background text-muted-foreground">
+        Redirecting to sign in...
+      </div>
+    );
   }
 
   const isEditor = activeView === "translate";

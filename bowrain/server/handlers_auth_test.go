@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gokapi/gokapi/bowrain/auth"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -150,7 +152,29 @@ func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "redirect_uri must be http://127.0.0.1")
+	assert.Contains(t, rec.Body.String(), "redirect_uri must be")
+}
+
+func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.StorePath = t.TempDir() + "/test.db"
+	cfg.JWTSecret = "test-secret"
+	cfg.OIDCIssuerURL = "http://localhost:8180"
+	cfg.OIDCClientID = "test-client"
+	srv := NewServer(cfg)
+	e := srv.GetEcho()
+
+	// bowrain:// scheme should be accepted (will fail at OIDC discovery, but not at redirect_uri validation).
+	params := url.Values{
+		"redirect_uri":          {"bowrain://auth/callback"},
+		"code_challenge":        {"test-challenge"},
+		"code_challenge_method": {"S256"},
+	}
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/desktop/login?"+params.Encode(), nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	// Should NOT be 400 "redirect_uri must be..." — it should proceed to OIDC discovery (and fail there since no real OIDC).
+	assert.NotEqual(t, http.StatusBadRequest, rec.Code)
 }
 
 func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
@@ -276,4 +300,121 @@ func TestDesktopAuthStatesCleanup(t *testing.T) {
 	_, exists := desktopAuthStates.entries[state]
 	desktopAuthStates.Unlock()
 	assert.False(t, exists, "state entry should be consumed after callback")
+}
+
+// --- Cookie auth tests ---
+
+// generateTestToken creates a signed JWT for testing.
+func generateTestToken(t *testing.T, secret string) string {
+	t.Helper()
+	user := &auth.User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
+	token, err := auth.GenerateToken(user, secret, 24*time.Hour)
+	require.NoError(t, err)
+	return token
+}
+
+func TestAuthMiddlewareCookieFallback(t *testing.T) {
+	jwtSecret := "test-secret"
+	token := generateTestToken(t, jwtSecret)
+
+	e := echo.New()
+	e.Use(AuthMiddleware(jwtSecret))
+	e.GET("/api/v1/auth/me", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{
+			"user_id": c.Get("user_id").(string),
+			"email":   c.Get("email").(string),
+		})
+	})
+
+	// Request with cookie, no Authorization header → should succeed.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: token})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, "user-1", body["user_id"])
+	assert.Equal(t, "test@example.com", body["email"])
+}
+
+func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
+	jwtSecret := "test-secret"
+
+	// Generate two tokens with different user IDs.
+	bearerUser := &auth.User{ID: "bearer-user", Email: "bearer@example.com", Name: "Bearer"}
+	bearerToken, err := auth.GenerateToken(bearerUser, jwtSecret, 24*time.Hour)
+	require.NoError(t, err)
+
+	cookieUser := &auth.User{ID: "cookie-user", Email: "cookie@example.com", Name: "Cookie"}
+	cookieToken, err := auth.GenerateToken(cookieUser, jwtSecret, 24*time.Hour)
+	require.NoError(t, err)
+
+	e := echo.New()
+	e.Use(AuthMiddleware(jwtSecret))
+	e.GET("/test", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"user_id": c.Get("user_id").(string)})
+	})
+
+	// Request with both Bearer header and cookie → Bearer wins.
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+bearerToken)
+	req.AddCookie(&http.Cookie{Name: sessionCookieName, Value: cookieToken})
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	var body map[string]string
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &body))
+	assert.Equal(t, "bearer-user", body["user_id"])
+}
+
+func TestAuthMiddlewareNeitherHeaderNorCookie(t *testing.T) {
+	e := echo.New()
+	e.Use(AuthMiddleware("test-secret"))
+	e.GET("/test", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, nil)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestLogoutClearsCookies(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.StorePath = t.TempDir() + "/test.db"
+	cfg.JWTSecret = "test-secret"
+	srv := NewServer(cfg)
+	e := srv.GetEcho()
+
+	token := generateTestToken(t, cfg.JWTSecret)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Verify Set-Cookie headers clear the session cookies.
+	cookies := rec.Result().Cookies()
+	var foundSession, foundRefresh bool
+	for _, c := range cookies {
+		if c.Name == sessionCookieName {
+			foundSession = true
+			assert.Equal(t, -1, c.MaxAge, "session cookie should have MaxAge=-1")
+			assert.True(t, c.HttpOnly, "session cookie should be HttpOnly")
+		}
+		if c.Name == refreshCookieName {
+			foundRefresh = true
+			assert.Equal(t, -1, c.MaxAge, "refresh cookie should have MaxAge=-1")
+			assert.True(t, c.HttpOnly, "refresh cookie should be HttpOnly")
+		}
+	}
+	assert.True(t, foundSession, "logout should set session cookie with MaxAge=-1")
+	assert.True(t, foundRefresh, "logout should set refresh cookie with MaxAge=-1")
 }

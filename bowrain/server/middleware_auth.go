@@ -10,45 +10,79 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// AuthMiddleware validates JWT tokens from the Authorization header
-// and sets user claims on the Echo context.
+const sessionCookieName = "bowrain_session"
+
+// validateBearerToken extracts and validates a JWT from a "Bearer <token>" Authorization header.
+// Returns the validated claims or nil if the header is absent or not a Bearer token.
+// If the header is present but the token is invalid, it returns an error string.
+func validateBearerToken(c echo.Context, jwtSecret string) (*auth.Claims, string) {
+	header := c.Request().Header.Get("Authorization")
+	if header == "" || !strings.HasPrefix(header, "Bearer ") {
+		return nil, ""
+	}
+	token := strings.TrimPrefix(header, "Bearer ")
+	claims, err := auth.ValidateToken(token, jwtSecret)
+	if err != nil {
+		return nil, "invalid token: " + err.Error()
+	}
+	return claims, ""
+}
+
+// validateSessionCookie extracts and validates a JWT from the bowrain_session cookie.
+func validateSessionCookie(c echo.Context, jwtSecret string) *auth.Claims {
+	cookie, err := c.Cookie(sessionCookieName)
+	if err != nil || cookie.Value == "" {
+		return nil
+	}
+	claims, err := auth.ValidateToken(cookie.Value, jwtSecret)
+	if err != nil {
+		return nil
+	}
+	return claims
+}
+
+// setClaimsOnContext sets user claims on the Echo context for downstream handlers.
+func setClaimsOnContext(c echo.Context, claims *auth.Claims) {
+	c.Set("user_id", claims.Subject)
+	c.Set("email", claims.Email)
+	c.Set("name", claims.Name)
+}
+
+// AuthMiddleware validates JWT tokens from the Authorization header (Bearer)
+// or the bowrain_session cookie and sets user claims on the Echo context.
 func AuthMiddleware(jwtSecret string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			header := c.Request().Header.Get("Authorization")
-			if header == "" {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization header"})
+			// Try Bearer header first.
+			claims, errMsg := validateBearerToken(c, jwtSecret)
+			if errMsg != "" {
+				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: errMsg})
+			}
+			if claims != nil {
+				setClaimsOnContext(c, claims)
+				return next(c)
 			}
 
-			token := strings.TrimPrefix(header, "Bearer ")
-			if token == header {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header format"})
+			// Fall back to session cookie.
+			claims = validateSessionCookie(c, jwtSecret)
+			if claims != nil {
+				setClaimsOnContext(c, claims)
+				return next(c)
 			}
 
-			claims, err := auth.ValidateToken(token, jwtSecret)
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
-			}
-
-			c.Set("user_id", claims.Subject)
-			c.Set("email", claims.Email)
-			c.Set("name", claims.Name)
-			return next(c)
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization"})
 		}
 	}
 }
 
-// ClaimOrAuthMiddleware accepts either a JWT (Bearer) or a ClaimToken for sync routes.
-// With a ClaimToken, access is restricted to only the matching project.
+// ClaimOrAuthMiddleware accepts either a JWT (Bearer), a ClaimToken for sync routes,
+// or a session cookie. With a ClaimToken, access is restricted to only the matching project.
 func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			header := c.Request().Header.Get("Authorization")
-			if header == "" {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization header"})
-			}
 
-			// Try ClaimToken first.
+			// Try ClaimToken first (only from header).
 			if strings.HasPrefix(header, "ClaimToken ") {
 				token := strings.TrimPrefix(header, "ClaimToken ")
 				hash := sha256.Sum256([]byte(token))
@@ -69,21 +103,24 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 				return next(c)
 			}
 
-			// Fall back to JWT.
-			token := strings.TrimPrefix(header, "Bearer ")
-			if token == header {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid authorization header format"})
+			// Try Bearer header.
+			claims, errMsg := validateBearerToken(c, jwtSecret)
+			if errMsg != "" {
+				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: errMsg})
+			}
+			if claims != nil {
+				setClaimsOnContext(c, claims)
+				return next(c)
 			}
 
-			claims, err := auth.ValidateToken(token, jwtSecret)
-			if err != nil {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+			// Fall back to session cookie.
+			claims = validateSessionCookie(c, jwtSecret)
+			if claims != nil {
+				setClaimsOnContext(c, claims)
+				return next(c)
 			}
 
-			c.Set("user_id", claims.Subject)
-			c.Set("email", claims.Email)
-			c.Set("name", claims.Name)
-			return next(c)
+			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization"})
 		}
 	}
 }

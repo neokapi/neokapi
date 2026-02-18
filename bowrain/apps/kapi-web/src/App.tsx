@@ -356,15 +356,6 @@ function AppContent() {
   const [showCreateWs, setShowCreateWs] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      api.setToken(token);
-      window.history.replaceState({}, "", "/");
-    }
-  }, []);
-
-  useEffect(() => {
     (async () => {
       try {
         const config: ConfigResponse = await api.getConfig();

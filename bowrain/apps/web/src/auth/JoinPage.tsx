@@ -11,10 +11,15 @@ interface JoinPageProps {
   onJoined: () => void;
 }
 
+/** Set a short-lived cookie so the server redirects back here after OIDC. */
+function setReturnPathCookie(path: string) {
+  document.cookie = `bowrain_return_path=${encodeURIComponent(path)}; path=/; max-age=600; SameSite=Lax`;
+}
+
 export function JoinPage({ code, onJoined }: JoinPageProps) {
   const api = useApi();
   const { user } = useAuth();
-  const { workspaces, setWorkspaces, setActiveWorkspace } = useWorkspace();
+  const { setWorkspaces, setActiveWorkspace } = useWorkspace();
   const [accepting, setAccepting] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<AcceptInviteResponse | null>(null);
@@ -47,28 +52,27 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Not authenticated: show a friendly landing page with a "Sign in to join" button.
   if (!user) {
-    // Not authenticated — redirect to login, then come back.
     return (
       <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
         <Card className="min-w-[360px]">
           <CardHeader className="items-center text-center">
             <CardTitle className="text-xl font-semibold">Join Workspace</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Sign in to accept this invitation
+              You have been invited to join a workspace. Sign in to accept the invitation.
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Button
               onClick={() => {
-                // Preserve the join code in URL so we return here after auth.
-                const returnUrl = `${window.location.origin}/join/${code}`;
-                window.location.href = `/api/v1/auth/login?return_url=${encodeURIComponent(returnUrl)}`;
+                setReturnPathCookie(`/join/${code}`);
+                window.location.href = "/api/v1/auth/login";
               }}
               className="w-full"
               size="lg"
             >
-              Sign in to continue
+              Sign in to join
             </Button>
           </CardContent>
         </Card>

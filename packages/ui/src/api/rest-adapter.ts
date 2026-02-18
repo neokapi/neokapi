@@ -13,18 +13,40 @@ import type {
 /**
  * RestApiAdapter talks to the gokapi REST server.
  * Used by the web apps (apps/web and apps/kapi-web).
+ *
+ * Supports two auth modes:
+ * - Bearer token mode (desktop/CLI): token set via setToken(), sent as Authorization header.
+ * - Cookie mode (web): no token set, browser sends HttpOnly cookies automatically.
  */
 export class RestApiAdapter implements ApiAdapter {
   private baseUrl: string;
   private token: string | null;
+  private refreshToken: string | null;
+
+  /** Called when tokens are refreshed so the consumer can persist them. */
+  onTokenRefresh?: (token: string, refreshToken: string) => void;
+
+  /** Called when the session is invalid and the user must re-authenticate. */
+  onSessionExpired?: () => void;
+
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string = "", token: string | null = null) {
     this.baseUrl = baseUrl;
     this.token = token;
+    this.refreshToken = null;
   }
 
   setToken(token: string) {
-    this.token = token;
+    this.token = token || null;
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
+
+  setRefreshToken(rt: string) {
+    this.refreshToken = rt || null;
   }
 
   private headers(): Record<string, string> {
@@ -35,11 +57,55 @@ export class RestApiAdapter implements ApiAdapter {
     return h;
   }
 
+  /** Attempt to refresh the access token using the stored refresh token or cookie. */
+  private async tryRefresh(): Promise<boolean> {
+    try {
+      const resp = await fetch(`${this.baseUrl}/api/v1/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(this.refreshToken ? { refresh_token: this.refreshToken } : {}),
+      });
+      if (!resp.ok) return false;
+      const data = await resp.json();
+      if (data.access_token) {
+        this.token = data.access_token;
+        this.refreshToken = data.refresh_token;
+        this.onTokenRefresh?.(data.access_token, data.refresh_token);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private async fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: { ...this.headers(), ...init?.headers },
+      credentials: "same-origin",
     });
+    if (resp.status === 401) {
+      // Deduplicate concurrent refresh attempts.
+      if (!this.refreshPromise) {
+        this.refreshPromise = this.tryRefresh().finally(() => { this.refreshPromise = null; });
+      }
+      const refreshed = await this.refreshPromise;
+      if (refreshed) {
+        // Retry the original request with the new token.
+        const retry = await fetch(`${this.baseUrl}${path}`, {
+          ...init,
+          headers: { ...this.headers(), ...init?.headers },
+          credentials: "same-origin",
+        });
+        if (!retry.ok) {
+          const body = await retry.text();
+          throw new Error(`${retry.status}: ${body}`);
+        }
+        return retry.json();
+      }
+      this.onSessionExpired?.();
+    }
     if (!resp.ok) {
       const body = await resp.text();
       throw new Error(`${resp.status}: ${body}`);
@@ -51,6 +117,7 @@ export class RestApiAdapter implements ApiAdapter {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
       headers: { ...this.headers(), ...init?.headers },
+      credentials: "same-origin",
     });
     if (!resp.ok) {
       const body = await resp.text();
@@ -192,6 +259,7 @@ export class RestApiAdapter implements ApiAdapter {
     const resp = await fetch(`${this.baseUrl}${this.ep(workspaceSlug)}/${projectId}/files`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      credentials: "same-origin",
       body: formData,
     });
     if (!resp.ok) {

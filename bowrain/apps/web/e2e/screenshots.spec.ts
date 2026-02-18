@@ -17,6 +17,21 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../website/static/img/web-app");
 
+const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
+
+/** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
+async function injectAuthCookie(page: Page, authToken: string) {
+  const url = new URL(BASE_URL);
+  await page.context().addCookies([{
+    name: "bowrain_session",
+    value: authToken,
+    domain: url.hostname,
+    path: "/api/",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+}
+
 async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t) => {
     const isDark = t !== "light";
@@ -71,7 +86,8 @@ test.describe("Web App Screenshots", () => {
       await uploadSeedFiles(token, wsSlug, p3.id, ["release-notes.md"]);
 
       // Navigate with token
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await expect(page.getByText("Company Website").first()).toBeVisible({ timeout: 10000 });
       await expect(page.getByText("Mobile App").first()).toBeVisible();
       await expect(page.getByText("Release Notes").first()).toBeVisible();
@@ -93,7 +109,8 @@ test.describe("Web App Screenshots", () => {
       const p = await createEditorProject(token, wsSlug, "Company Website", "en", ["fr", "de"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["about-us.html", "app-strings.json", "release-notes.md"]);
 
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await expect(page.getByText("Company Website").first()).toBeVisible({ timeout: 10000 });
       await page.getByText("Company Website").first().click();
       await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -135,7 +152,8 @@ test.describe("Web App Screenshots", () => {
       const dir = path.join(SCREENSHOT_BASE, theme);
       await seedTMEntries(token, wsSlug);
 
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await page.waitForTimeout(1000);
 
       await page.getByTestId("nav-memory").click();
@@ -152,7 +170,8 @@ test.describe("Web App Screenshots", () => {
       const dir = path.join(SCREENSHOT_BASE, theme);
       await seedConcepts(token, wsSlug);
 
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await page.waitForTimeout(1000);
 
       await page.getByTestId("nav-termbase").click();
@@ -167,7 +186,8 @@ test.describe("Web App Screenshots", () => {
 
     test(`capture settings [${theme}]`, async ({ page }) => {
       const dir = path.join(SCREENSHOT_BASE, theme);
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await page.waitForTimeout(1000);
 
       await page.getByTestId("nav-settings").click();
@@ -183,7 +203,8 @@ test.describe("Web App Screenshots", () => {
       // Seed an invite so the invite list is populated
       await createInvite(token, wsSlug, "member", "translator@example.com", 1, 7);
 
-      await page.goto(`/?token=${token}`);
+      await injectAuthCookie(page, token);
+      await page.goto("/");
       await page.waitForTimeout(1000);
 
       await page.getByTestId("nav-settings").click();

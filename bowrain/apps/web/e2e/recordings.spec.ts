@@ -22,6 +22,21 @@ import {
 
 const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
+const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
+
+/** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
+async function injectAuthCookie(page: Page, authToken: string) {
+  const url = new URL(BASE_URL);
+  await page.context().addCookies([{
+    name: "bowrain_session",
+    value: authToken,
+    domain: url.hostname,
+    path: "/api/",
+    httpOnly: true,
+    sameSite: "Lax",
+  }]);
+}
+
 async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
   await page.evaluate((t) => {
     const isDark = t !== "light";
@@ -48,7 +63,8 @@ test.describe("Web App Recordings", () => {
   });
 
   async function setupRecording(page: Page, theme: "glass" | "light" | "aurora") {
-    await page.goto(`/?token=${token}`);
+    await injectAuthCookie(page, token);
+    await page.goto("/");
     // Wait for app to fully load (sidebar nav should be visible)
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
     await setTheme(page, theme);

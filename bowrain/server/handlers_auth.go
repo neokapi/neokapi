@@ -294,10 +294,15 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "redirect_uri and code_challenge required"})
 	}
 
-	// Security: only allow localhost redirect URIs.
+	// Security: only allow localhost or bowrain:// redirect URIs.
 	parsedURI, err := url.Parse(redirectURI)
-	if err != nil || (parsedURI.Hostname() != "127.0.0.1" && parsedURI.Hostname() != "localhost") {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "redirect_uri must be http://127.0.0.1:..."})
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid redirect_uri"})
+	}
+	isLocalhost := parsedURI.Hostname() == "127.0.0.1" || parsedURI.Hostname() == "localhost"
+	isCustomScheme := parsedURI.Scheme == "bowrain"
+	if !isLocalhost && !isCustomScheme {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "redirect_uri must be http://127.0.0.1:... or bowrain://..."})
 	}
 
 	if challengeMethod != "" && challengeMethod != "S256" {
@@ -504,6 +509,59 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 <h1 style="color:#58a6ff">Device authorized!</h1><p>You can close this window and return to your terminal.</p></body></html>`)
 }
 
+const refreshCookieName = "bowrain_refresh"
+
+// setSessionCookies sets HttpOnly cookies for the access and refresh tokens.
+func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
+	secure := c.Scheme() == "https"
+
+	c.SetCookie(&http.Cookie{
+		Name:     sessionCookieName,
+		Value:    accessToken,
+		Path:     "/api/",
+		MaxAge:   86400, // 24h
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	if refreshToken != "" {
+		c.SetCookie(&http.Cookie{
+			Name:     refreshCookieName,
+			Value:    refreshToken,
+			Path:     "/api/v1/auth/refresh",
+			MaxAge:   30 * 24 * 60 * 60, // 30 days
+			HttpOnly: true,
+			Secure:   secure,
+			SameSite: http.SameSiteStrictMode,
+		})
+	}
+}
+
+// clearSessionCookies removes the session and refresh cookies.
+func clearSessionCookies(c echo.Context) {
+	secure := c.Scheme() == "https"
+
+	c.SetCookie(&http.Cookie{
+		Name:     sessionCookieName,
+		Value:    "",
+		Path:     "/api/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteLaxMode,
+	})
+	c.SetCookie(&http.Cookie{
+		Name:     refreshCookieName,
+		Value:    "",
+		Path:     "/api/v1/auth/refresh",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
 // handleOIDCCodeExchange performs the OAuth2 authorization code exchange.
 // It uses OIDC discovery to resolve the token endpoint, making it compatible
 // with any OIDC provider (Keycloak, Dex, etc.).
@@ -577,12 +635,22 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 		_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
 	}
 
-	// Redirect to frontend with token.
-	frontendURL := "/?token=" + token + "&user=" + user.Email
-	if refreshToken != "" {
-		frontendURL += "&refresh_token=" + refreshToken
+	// Set HttpOnly cookies and redirect to frontend (no tokens in URL).
+	setSessionCookies(c, token, refreshToken)
+
+	// Check for a return-path cookie (e.g. from /join/:code before OIDC redirect).
+	returnPath := "/"
+	if rp, err := c.Cookie("bowrain_return_path"); err == nil && rp.Value != "" {
+		returnPath = rp.Value
+		// Clear the return-path cookie.
+		c.SetCookie(&http.Cookie{
+			Name:   "bowrain_return_path",
+			Value:  "",
+			Path:   "/",
+			MaxAge: -1,
+		})
 	}
-	return c.Redirect(http.StatusFound, frontendURL)
+	return c.Redirect(http.StatusFound, returnPath)
 }
 
 // RefreshRequest is the request body for POST /api/v1/auth/refresh.
@@ -601,12 +669,20 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request"})
 	}
-	if req.RefreshToken == "" {
+
+	// Accept refresh token from JSON body or cookie.
+	rawRefresh := req.RefreshToken
+	if rawRefresh == "" {
+		if rc, err := c.Cookie(refreshCookieName); err == nil {
+			rawRefresh = rc.Value
+		}
+	}
+	if rawRefresh == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "refresh_token required"})
 	}
 
 	// Hash the incoming token for lookup.
-	hash := sha256.Sum256([]byte(req.RefreshToken))
+	hash := sha256.Sum256([]byte(rawRefresh))
 	tokenHash := hex.EncodeToString(hash[:])
 
 	ctx := c.Request().Context()
@@ -637,6 +713,9 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
 	}
 
+	// Set cookies (for web clients) and return JSON (for CLI/desktop).
+	setSessionCookies(c, accessToken, newRefreshToken)
+
 	return c.JSON(http.StatusOK, auth.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
@@ -665,9 +744,8 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// HandleAuthLogout invalidates the current session.
-// Since JWTs are stateless, this is a no-op on the server side.
-// The client is expected to discard the token.
+// HandleAuthLogout invalidates the current session by clearing cookies.
 func (s *Server) HandleAuthLogout(c echo.Context) error {
+	clearSessionCookies(c)
 	return c.JSON(http.StatusOK, map[string]string{"status": "logged out"})
 }
