@@ -176,6 +176,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup.GET("/login", s.HandleAuthLogin)
 		authGroup.GET("/callback", s.HandleAuthCallback)
 		authGroup.POST("/callback", s.HandleAuthCallback)
+		authGroup.GET("/desktop/login", s.HandleDesktopLogin)
+		authGroup.GET("/desktop/callback", s.HandleDesktopCallback)
 
 		// Device verification page (user opens in browser)
 		authGroup.GET("/device/verify", s.HandleAuthCallback)

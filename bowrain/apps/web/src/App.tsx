@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  WorkspaceRail,
-  MainSidebar,
+  AppSidebar,
   AuthProvider,
   WorkspaceProvider,
   ApiProvider,
@@ -460,39 +459,17 @@ function AppContent() {
 
   const isEditor = activeView === "translate";
 
-  // Local mode: simplified layout (no workspace rail)
-  if (serverMode === "local") {
-    return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        <MainSidebar
-          workspace={activeWorkspace}
-          activeView={activeView}
-          onViewChange={setActiveView}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-        />
-        <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
-          <ViewContent activeView={activeView} workspace={activeWorkspace} />
-        </main>
-      </div>
-    );
-  }
-
-  // Server mode: full layout with workspace rail
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <WorkspaceRail
+      <AppSidebar
         workspaces={workspaces}
         activeWorkspace={activeWorkspace}
         onSelectWorkspace={(ws: Workspace) => setActiveWorkspace(ws)}
-        onCreateWorkspace={handleCreateWorkspace}
-        user={user}
-        onAvatarClick={handleSignOut}
-      />
-      <MainSidebar
-        workspace={activeWorkspace}
+        onCreateWorkspace={serverMode === "server" ? handleCreateWorkspace : undefined}
         activeView={activeView}
         onViewChange={setActiveView}
+        user={user}
+        onSignOut={serverMode === "server" ? handleSignOut : undefined}
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
       />

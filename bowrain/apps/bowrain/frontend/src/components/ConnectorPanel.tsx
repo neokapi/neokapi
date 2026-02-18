@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
+import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
 
 interface ConnectorInfo {
   id: string;

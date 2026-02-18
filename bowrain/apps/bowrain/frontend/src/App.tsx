@@ -8,7 +8,7 @@ import {
   ApiProvider,
   WorkspaceProvider,
   ThemeProvider,
-  MainSidebar,
+  AppSidebar,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
@@ -23,12 +23,12 @@ import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DocumentPreview } from "./components/DocumentPreview";
 import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
-import type { ProjectInfo, BlockInfo, Workspace } from "@gokapi/ui";
+import type { ProjectInfo, BlockInfo, Workspace, User } from "@gokapi/ui";
 import { Shuffle, Link, Loader2 } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../bindings/github.com/gokapi/gokapi/apps/bowrain/backend/app.js";
+import * as Backend from "../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
 
 type AppView = View | "flows" | "connectors";
 type AppMode = "loading" | "connecting" | "workspace-select" | "ready";
@@ -102,6 +102,14 @@ function App() {
       } else if (ci.state === "connected") {
         setIsServerMode(true);
         setMode("workspace-select");
+      } else if (ci.state === "offline" && ci.workspace) {
+        // Server unreachable but cached auth exists — go to app in offline mode
+        setWorkspace({ id: ci.workspace, name: ci.workspace, slug: ci.workspace, description: "", logo_url: "", type: "team" as const, role: "owner" });
+        setIsServerMode(true);
+        setMode("ready");
+        Backend.GetPendingChangesCount?.()
+          .then((n: number) => setPendingChanges(n))
+          .catch(() => {});
       } else {
         setMode("connecting");
       }
@@ -126,12 +134,6 @@ function App() {
     setIsServerMode(true);
     setMode("ready");
   }, [connection]);
-
-  const handleSkipConnect = useCallback(() => {
-    setIsServerMode(false);
-    setWorkspace(localWorkspace);
-    setMode("ready");
-  }, []);
 
   const handleDisconnect = useCallback(async () => {
     await connection.disconnect();
@@ -262,6 +264,14 @@ function App() {
     );
   }, []);
 
+  // Construct user object from connection info for the sidebar
+  const sidebarUser: User | null = isServerMode && connection.info.user_name
+    ? { id: "server", email: connection.info.user_name, name: connection.info.user_name, avatar_url: "" }
+    : null;
+
+  // Connection state for sidebar badge
+  const connectionState = isServerMode ? connection.info.state as "disconnected" | "connecting" | "connected" | "offline" : undefined;
+
   // --- Pre-app screens ---
 
   if (mode === "loading") {
@@ -289,9 +299,8 @@ function App() {
             info={connection.info}
             onConnect={handleServerConnect}
             onStartLogin={connection.startLogin}
-            onPollLogin={connection.pollLogin}
+            onWaitForLogin={connection.waitForLogin}
             onCancelLogin={connection.cancelLogin}
-            onSkip={handleSkipConnect}
           />
         </div>
       </ThemeProvider>
@@ -404,21 +413,27 @@ function App() {
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={workspace}>
           <div className="flex h-screen overflow-hidden">
-            <MainSidebar
-              workspace={workspace}
+            <AppSidebar
+              workspaces={[workspace]}
+              activeWorkspace={workspace}
+              onSelectWorkspace={() => {}}
               activeView={activeView}
               onViewChange={handleViewChange}
+              extraNavItems={desktopNavItems}
+              user={sidebarUser}
+              onSignOut={isServerMode ? handleDisconnect : undefined}
               collapsed={sidebarCollapsed}
               onCollapsedChange={setSidebarCollapsed}
-              extraNavItems={desktopNavItems}
               topSpacer={38}
               collapsedWidth={60}
+              connectionState={connectionState}
+              pendingChanges={pendingChanges}
+              showThemeToggle={false}
             />
             <div className="flex-1 flex flex-col min-h-0">
               <Header
                 sidebarCollapsed={sidebarCollapsed}
                 connectionState={isServerMode ? connection.info.state : "disconnected"}
-                userName={connection.info.user_name}
                 pendingChanges={pendingChanges}
                 onDisconnect={isServerMode ? handleDisconnect : undefined}
               />

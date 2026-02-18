@@ -70,7 +70,7 @@ jobs:
             website/static/video/bowrain/${{ matrix.theme }}/
           retention-days: 30
 
-  # ── Web App Screenshots & Recordings (needs Docker stack with Dex) ─────────
+  # ── Web App Screenshots & Recordings (needs Keycloak + local server) ────────
   web-app-assets:
     name: Web App Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
@@ -104,8 +104,19 @@ jobs:
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
-      - name: Start Docker stack (Keycloak + bowrain-server)
-        run: docker compose up -d
+      - name: Start dependencies (Keycloak + Mailpit)
+        run: docker compose up -d --wait
+
+      - name: Start bowrain-server
+        run: |
+          BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
+          BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
+          BOWRAIN_OIDC_CLIENT_ID=bowrain \
+          BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
+          BOWRAIN_SMTP_HOST=localhost:1025 \
+          BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+          bin/bowrain-server &
+          echo $! > .bowrain-server.pid
 
       - name: Wait for server health
         run: |
@@ -148,9 +159,14 @@ jobs:
             website/static/video/web-app/${{ matrix.theme }}/
           retention-days: 30
 
-      - name: Shutdown Docker stack
+      - name: Shutdown server and dependencies
         if: always()
-        run: docker compose down -v
+        run: |
+          if [ -f .bowrain-server.pid ]; then
+            kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
+            rm -f .bowrain-server.pid
+          fi
+          docker compose down -v
 
   # ── CLI Recordings (VHS) ────────────────────────────────────────────────────
   cli-recordings:

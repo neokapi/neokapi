@@ -41,6 +41,9 @@ dist/
 **/frontend/package.json.md5
 **/.task/
 
+# Dev server
+.bowrain-server.pid
+
 # Playwright
 test-results/
 playwright-report/

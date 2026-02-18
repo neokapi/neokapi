@@ -7,15 +7,25 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/zalando/go-keyring"
 )
 
 var errNotConnected = errors.New("not connected to server")
+
+const (
+	keyringService         = "bowrain"
+	keyringAccessTokenKey  = "access-token"
+	keyringRefreshTokenKey = "refresh-token"
+)
 
 // ConnectionState represents the connection state of the desktop client.
 type ConnectionState string
@@ -36,30 +46,31 @@ type ConnectionInfo struct {
 	Workspace string          `json:"workspace,omitempty"`
 }
 
-// DeviceAuthInfo is returned when starting a login flow.
-type DeviceAuthInfo struct {
-	UserCode        string `json:"user_code"`
-	VerificationURI string `json:"verification_uri"`
-	ExpiresIn       int    `json:"expires_in"`
-	// deviceCode is kept private — the frontend only needs userCode + URI.
-	deviceCode string
-	interval   int
-}
-
-// storedDesktopAuth is the auth token persisted at ~/.config/bowrain/auth.json.
-// Matches the CLI's StoredAuth format so both tools share the same token.
+// storedDesktopAuth holds non-secret auth metadata persisted at ~/.config/bowrain/auth.json.
+// Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, etc.).
 type storedDesktopAuth struct {
-	ServerURL    string            `json:"server_url"`
-	AccessToken  string            `json:"access_token"`
-	RefreshToken string            `json:"refresh_token,omitempty"`
-	Expiry       time.Time         `json:"expiry"`
-	User         storedDesktopUser `json:"user"`
+	ServerURL string            `json:"server_url"`
+	Expiry    time.Time         `json:"expiry"`
+	User      storedDesktopUser `json:"user"`
+
+	// In-memory only — loaded from keyring, never serialized to disk.
+	AccessToken  string `json:"-"`
+	RefreshToken string `json:"-"`
 }
 
 type storedDesktopUser struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
 	Name  string `json:"name"`
+}
+
+// pkceResult is the result received from the local PKCE callback server.
+type pkceResult struct {
+	AccessToken  string
+	RefreshToken string
+	UserEmail    string
+	UserName     string
+	Err          error
 }
 
 // GetConnectionState returns the current connection info.
@@ -116,6 +127,7 @@ func (a *App) GetPendingChangesCount() int {
 // The URL should be the HTTP base URL (e.g. "http://localhost:8080").
 // gRPC port is discovered from the server health endpoint.
 func (a *App) ConnectToServer(serverURL string) error {
+	serverURL = strings.TrimRight(serverURL, "/")
 	a.mu.Lock()
 	a.connState = StateConnecting
 	a.serverURL = serverURL
@@ -165,94 +177,175 @@ func (a *App) ConnectToServer(serverURL string) error {
 	return nil
 }
 
-// StartLogin begins a device authorization flow against the server.
-func (a *App) StartLogin(serverURL string) (*DeviceAuthInfo, error) {
-	client := &auth.DeviceFlowClient{
-		DeviceAuthURL: serverURL + "/api/v1/auth/device/start",
-		TokenURL:      serverURL + "/api/v1/auth/device/poll",
-		ClientID:      "bowrain-desktop",
-	}
+// StartLogin begins an authorization code + PKCE flow against the server.
+// It starts a local HTTP server to receive the callback, generates PKCE
+// parameters, and opens the system browser to the server's desktop login
+// endpoint. The frontend should call WaitForLogin to block until the
+// callback is received.
+func (a *App) StartLogin(serverURL string) error {
+	serverURL = strings.TrimRight(serverURL, "/")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	resp, err := client.StartDeviceAuth(ctx)
+	// Generate PKCE code verifier + challenge.
+	verifier, err := platauth.GenerateCodeVerifier()
 	if err != nil {
-		return nil, fmt.Errorf("device auth start: %w", err)
+		return fmt.Errorf("generate PKCE verifier: %w", err)
 	}
+	challenge := platauth.ComputeCodeChallenge(verifier)
+
+	// Start a local HTTP server on a random available port.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return fmt.Errorf("start callback server: %w", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	resultCh := make(chan *pkceResult, 1)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		token := q.Get("token")
+		refreshToken := q.Get("refresh_token")
+		userEmail := q.Get("user")
+		userName := q.Get("name")
+
+		if token == "" {
+			errMsg := q.Get("error")
+			if errMsg == "" {
+				errMsg = "no token received"
+			}
+			resultCh <- &pkceResult{Err: fmt.Errorf("auth failed: %s", errMsg)}
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprintf(w, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1 style="color:#e53e3e">Authentication Failed</h1><p>%s</p><p>You can close this tab.</p></body></html>`, errMsg)
+			return
+		}
+
+		resultCh <- &pkceResult{
+			AccessToken:  token,
+			RefreshToken: refreshToken,
+			UserEmail:    userEmail,
+			UserName:     userName,
+		}
+
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1 style="color:#58a6ff">Sign-in Complete</h1><p>You can close this tab and return to Bowrain.</p></body></html>`)
+	})
+
+	srv := &http.Server{Handler: mux}
+	go func() {
+		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			resultCh <- &pkceResult{Err: fmt.Errorf("callback server: %w", err)}
+		}
+	}()
 
 	a.mu.Lock()
 	a.serverURL = serverURL
-	a.deviceFlowClient = client
+	a.pkceServer = srv
+	a.pkceVerifier = verifier
+	a.pkceResultCh = resultCh
 	a.mu.Unlock()
 
-	return &DeviceAuthInfo{
-		UserCode:        resp.UserCode,
-		VerificationURI: resp.VerificationURI,
-		ExpiresIn:       resp.ExpiresIn,
-		deviceCode:      resp.DeviceCode,
-		interval:        resp.Interval,
-	}, nil
+	// Build the desktop login URL and open in the system browser.
+	callbackURL := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
+	loginURL := fmt.Sprintf("%s/api/v1/auth/desktop/login?redirect_uri=%s&code_challenge=%s&code_challenge_method=S256",
+		serverURL,
+		url.QueryEscape(callbackURL),
+		url.QueryEscape(challenge),
+	)
+
+	// Open the browser. We use the Wails runtime Browser.OpenURL from the
+	// frontend side, but provide the URL for the frontend to open.
+	// Actually, for simplicity, open it from Go directly.
+	openBrowser(loginURL)
+
+	return nil
 }
 
-// PollLogin polls for the device auth token. Returns true when authorized.
-func (a *App) PollLogin(deviceCode string, interval int) (bool, error) {
+// WaitForLogin blocks until the PKCE callback is received or a timeout occurs.
+// Returns true when authentication succeeds.
+func (a *App) WaitForLogin() (bool, error) {
 	a.mu.RLock()
-	client := a.deviceFlowClient
+	resultCh := a.pkceResultCh
 	serverURL := a.serverURL
 	a.mu.RUnlock()
 
-	if client == nil {
+	if resultCh == nil {
 		return false, fmt.Errorf("no active login flow — call StartLogin first")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(interval+5)*time.Second)
-	defer cancel()
+	// Wait for the callback with a 10-minute timeout.
+	select {
+	case result := <-resultCh:
+		// Shut down the local server.
+		a.cleanupPKCE()
 
-	token, pending, err := client.TryToken(ctx, deviceCode)
-	if err != nil {
-		return false, err
+		if result.Err != nil {
+			return false, result.Err
+		}
+
+		// Save tokens to keychain and metadata to disk.
+		stored := &storedDesktopAuth{
+			ServerURL:    serverURL,
+			AccessToken:  result.AccessToken,
+			RefreshToken: result.RefreshToken,
+			Expiry:       time.Now().Add(24 * time.Hour),
+			User: storedDesktopUser{
+				Email: result.UserEmail,
+				Name:  result.UserName,
+			},
+		}
+
+		// Fetch full user info (including ID) from the server.
+		if user, err := fetchDesktopUserInfo(serverURL, result.AccessToken); err == nil {
+			stored.User = *user
+		}
+
+		if err := saveDesktopAuth(stored); err != nil {
+			return true, fmt.Errorf("save auth: %w", err)
+		}
+
+		a.mu.Lock()
+		a.authInfo = stored
+		a.mu.Unlock()
+
+		return true, nil
+
+	case <-time.After(10 * time.Minute):
+		a.cleanupPKCE()
+		return false, fmt.Errorf("login timed out")
 	}
-	if pending {
-		return false, nil
-	}
-
-	// Success — save token and connect.
-	stored := &storedDesktopAuth{
-		ServerURL:    serverURL,
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		Expiry:       time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
-	}
-
-	// Fetch user info.
-	if user, err := fetchDesktopUserInfo(serverURL, token.AccessToken); err == nil {
-		stored.User = *user
-	}
-
-	if err := saveDesktopAuth(stored); err != nil {
-		return true, fmt.Errorf("save auth: %w", err)
-	}
-
-	a.mu.Lock()
-	a.authInfo = stored
-	a.deviceFlowClient = nil
-	a.mu.Unlock()
-
-	return true, nil
 }
 
-// CancelLogin cancels any active device auth flow.
+// CancelLogin cancels any active PKCE login flow.
 func (a *App) CancelLogin() {
+	a.cleanupPKCE()
+}
+
+// cleanupPKCE shuts down the local callback server and clears PKCE state.
+func (a *App) cleanupPKCE() {
 	a.mu.Lock()
-	a.deviceFlowClient = nil
+	srv := a.pkceServer
+	a.pkceServer = nil
+	a.pkceVerifier = ""
+	a.pkceResultCh = nil
 	a.mu.Unlock()
+
+	if srv != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}
 }
 
 // Logout removes stored auth and disconnects.
 func (a *App) Logout() {
 	a.Disconnect()
 	_ = os.Remove(desktopAuthFilePath())
+	// Remove tokens from keyring (best-effort).
+	_ = keyring.Delete(keyringService, keyringAccessTokenKey)
+	_ = keyring.Delete(keyringService, keyringRefreshTokenKey)
 }
 
 // Disconnect closes the server connection.
@@ -288,7 +381,9 @@ func (a *App) SelectWorkspace(slug string) error {
 	return nil
 }
 
-// --- Auth persistence (~/.config/bowrain/auth.json) ---
+// --- Auth persistence ---
+// Non-secret metadata: ~/.config/bowrain/auth.json
+// Tokens: OS keychain via go-keyring
 
 func desktopAuthFilePath() string {
 	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
@@ -302,6 +397,19 @@ func desktopAuthFilePath() string {
 }
 
 func saveDesktopAuth(a *storedDesktopAuth) error {
+	// Save tokens to OS keychain.
+	if a.AccessToken != "" {
+		if err := keyring.Set(keyringService, keyringAccessTokenKey, a.AccessToken); err != nil {
+			return fmt.Errorf("save access token to keyring: %w", err)
+		}
+	}
+	if a.RefreshToken != "" {
+		if err := keyring.Set(keyringService, keyringRefreshTokenKey, a.RefreshToken); err != nil {
+			return fmt.Errorf("save refresh token to keyring: %w", err)
+		}
+	}
+
+	// Save non-secret metadata to disk.
 	path := desktopAuthFilePath()
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return err
@@ -322,6 +430,11 @@ func loadDesktopAuth() (*storedDesktopAuth, error) {
 	if err := json.Unmarshal(data, &a); err != nil {
 		return nil, err
 	}
+
+	// Load tokens from keyring.
+	a.AccessToken, _ = keyring.Get(keyringService, keyringAccessTokenKey)
+	a.RefreshToken, _ = keyring.Get(keyringService, keyringRefreshTokenKey)
+
 	return &a, nil
 }
 
@@ -441,5 +554,17 @@ func (a *App) TryAutoConnect() {
 	// Try connecting silently.
 	if err := a.ConnectToServer(stored.ServerURL); err != nil {
 		return
+	}
+}
+
+// openBrowser opens the given URL in the system's default browser.
+func openBrowser(url string) {
+	// Use exec.Command for cross-platform browser opening.
+	// On macOS: open URL
+	// On Linux: xdg-open URL
+	// On Windows: rundll32 url.dll,FileProtocolHandler URL
+	cmd := browserCommand(url)
+	if cmd != nil {
+		_ = cmd.Start()
 	}
 }

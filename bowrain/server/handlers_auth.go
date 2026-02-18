@@ -37,6 +37,19 @@ var deviceCodes = struct {
 	entries map[string]*deviceCodeEntry
 }{entries: make(map[string]*deviceCodeEntry)}
 
+// desktopAuthEntry stores the state of a pending desktop PKCE authorization.
+type desktopAuthEntry struct {
+	RedirectURI   string    // desktop's localhost callback URL
+	CodeChallenge string    // PKCE code_challenge from the desktop
+	ExpiresAt     time.Time // expiry for this entry
+}
+
+// desktopAuthStates is an in-memory store for pending desktop auth states.
+var desktopAuthStates = struct {
+	sync.Mutex
+	entries map[string]*desktopAuthEntry
+}{entries: make(map[string]*desktopAuthEntry)}
+
 func randomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
@@ -262,6 +275,184 @@ button:hover{background:#79b8ff}</style></head>
 <body><div class="card"><h1>Bowrain</h1><p>Enter the code shown in your terminal:</p>
 <form method="POST" action="/api/v1/auth/device/verify"><input name="user_code" placeholder="xxxx-xxxx" required autofocus>
 <br><button type="submit">Authorize</button></form></div></body></html>`)
+}
+
+// HandleDesktopLogin initiates the authorization code + PKCE flow for the
+// desktop app. The desktop provides a localhost redirect_uri and a PKCE
+// code_challenge. We store the state and redirect the browser to the OIDC
+// provider's authorization endpoint.
+func (s *Server) HandleDesktopLogin(c echo.Context) error {
+	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
+	}
+
+	redirectURI := c.QueryParam("redirect_uri")
+	codeChallenge := c.QueryParam("code_challenge")
+	challengeMethod := c.QueryParam("code_challenge_method")
+
+	if redirectURI == "" || codeChallenge == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "redirect_uri and code_challenge required"})
+	}
+
+	// Security: only allow localhost redirect URIs.
+	parsedURI, err := url.Parse(redirectURI)
+	if err != nil || (parsedURI.Hostname() != "127.0.0.1" && parsedURI.Hostname() != "localhost") {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "redirect_uri must be http://127.0.0.1:..."})
+	}
+
+	if challengeMethod != "" && challengeMethod != "S256" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "only S256 code_challenge_method is supported"})
+	}
+
+	// Discover the authorization endpoint from the OIDC provider.
+	oidcCtx := s.oidcContext(c.Request().Context())
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+	endpoint := provider.Endpoint()
+
+	// If a public URL is configured (Docker), rewrite the auth endpoint.
+	authURL := endpoint.AuthURL
+	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
+		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
+	}
+
+	// The server's own callback URL — the OIDC provider redirects here.
+	serverCallbackURI := fmt.Sprintf("%s://%s/api/v1/auth/desktop/callback", c.Scheme(), c.Request().Host)
+
+	state := randomHex(16)
+
+	// Store the state mapping.
+	desktopAuthStates.Lock()
+	desktopAuthStates.entries[state] = &desktopAuthEntry{
+		RedirectURI:   redirectURI,
+		CodeChallenge: codeChallenge,
+		ExpiresAt:     time.Now().Add(10 * time.Minute),
+	}
+	desktopAuthStates.Unlock()
+
+	params := url.Values{
+		"client_id":     {s.Config.OIDCClientID},
+		"redirect_uri":  {serverCallbackURI},
+		"response_type": {"code"},
+		"scope":         {"openid profile email"},
+		"state":         {state},
+	}
+
+	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
+}
+
+// HandleDesktopCallback handles the OIDC provider's redirect after the user
+// authenticates. It exchanges the authorization code for tokens, creates/gets
+// the user, generates a Bowrain JWT + refresh token, and redirects to the
+// desktop app's localhost callback URI with the tokens as query parameters.
+func (s *Server) HandleDesktopCallback(c echo.Context) error {
+	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+
+	code := c.QueryParam("code")
+	state := c.QueryParam("state")
+
+	if code == "" || state == "" {
+		errMsg := c.QueryParam("error_description")
+		if errMsg == "" {
+			errMsg = c.QueryParam("error")
+		}
+		if errMsg == "" {
+			errMsg = "missing code or state"
+		}
+		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1>Authentication Failed</h1><p>`+errMsg+`</p></body></html>`)
+	}
+
+	// Look up and consume the pending state.
+	desktopAuthStates.Lock()
+	entry, ok := desktopAuthStates.entries[state]
+	if ok {
+		delete(desktopAuthStates.entries, state)
+	}
+	desktopAuthStates.Unlock()
+
+	if !ok || time.Now().After(entry.ExpiresAt) {
+		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1>Invalid or Expired Session</h1><p>Please try signing in again from the desktop app.</p></body></html>`)
+	}
+
+	ctx := c.Request().Context()
+	serverCallbackURI := fmt.Sprintf("%s://%s/api/v1/auth/desktop/callback", c.Scheme(), c.Request().Host)
+
+	// Exchange the authorization code with the OIDC provider.
+	oidcCtx := s.oidcContext(ctx)
+	oauth2Cfg, err := auth.NewOAuth2Config(oidcCtx, auth.OIDCConfig{
+		IssuerURL:    s.Config.OIDCIssuerURL,
+		ClientID:     s.Config.OIDCClientID,
+		ClientSecret: s.Config.OIDCClientSecret,
+		RedirectURL:  serverCallbackURI,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+
+	oauth2Token, err := oauth2Cfg.Exchange(ctx, code)
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
+	}
+
+	// Verify the ID token.
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "no id_token in response"})
+	}
+
+	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create verifier: " + err.Error()})
+	}
+
+	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "verify id_token: " + err.Error()})
+	}
+
+	var claims struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
+	}
+
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "")
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
+	}
+
+	token, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
+	}
+
+	// Generate and store a refresh token.
+	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
+	if rtErr == nil {
+		rtHash := sha256.Sum256([]byte(refreshToken))
+		_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+	}
+
+	// Redirect to the desktop app's localhost callback with tokens.
+	desktopRedirect, _ := url.Parse(entry.RedirectURI)
+	q := desktopRedirect.Query()
+	q.Set("token", token)
+	if refreshToken != "" {
+		q.Set("refresh_token", refreshToken)
+	}
+	q.Set("user", claims.Email)
+	q.Set("name", claims.Name)
+	desktopRedirect.RawQuery = q.Encode()
+
+	return c.Redirect(http.StatusFound, desktopRedirect.String())
 }
 
 // handleDeviceVerification matches a user_code to a pending device and authorizes it.

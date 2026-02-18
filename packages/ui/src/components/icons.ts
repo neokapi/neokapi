@@ -37,4 +37,8 @@ export {
   Mail,
   UserPlus,
   Clock,
+  ChevronsUpDown,
+  LogOut,
+  User,
+  WifiOff,
 } from "lucide-react";

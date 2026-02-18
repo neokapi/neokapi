@@ -1,37 +1,31 @@
-import { useState, useEffect, useRef } from "react";
-import { Button, Input, cn } from "@gokapi/ui";
-import { Loader2, Globe, ExternalLink } from "lucide-react";
-import type { ConnectionInfo, DeviceAuthInfo } from "../hooks/useApi";
-
-import { Browser } from "@wailsio/runtime";
+import { useState } from "react";
+import { Button, Input } from "@gokapi/ui";
+import { Loader2, Globe } from "lucide-react";
+import type { ConnectionInfo } from "../hooks/useApi";
 
 interface ServerConnectProps {
   info: ConnectionInfo;
   onConnect: (serverURL: string) => Promise<ConnectionInfo>;
-  onStartLogin: (serverURL: string) => Promise<DeviceAuthInfo>;
-  onPollLogin: (deviceCode: string, interval: number) => Promise<boolean>;
+  onStartLogin: (serverURL: string) => Promise<void>;
+  onWaitForLogin: () => Promise<boolean>;
   onCancelLogin: () => Promise<void>;
-  onSkip: () => void;
 }
 
-type Stage = "url" | "auth" | "polling";
+type Stage = "url" | "waiting";
 
 export function ServerConnect({
   info,
   onConnect,
   onStartLogin,
-  onPollLogin,
+  onWaitForLogin,
   onCancelLogin,
-  onSkip,
 }: ServerConnectProps) {
   const [stage, setStage] = useState<Stage>("url");
   const [serverURL, setServerURL] = useState(info.server_url || "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [authInfo, setAuthInfo] = useState<DeviceAuthInfo | null>(null);
-  const pollingRef = useRef(false);
 
-  // Try connecting with stored auth first.
+  // Try connecting with stored auth first, then start PKCE login.
   const handleConnect = async () => {
     if (!serverURL.trim()) return;
     setLoading(true);
@@ -43,64 +37,33 @@ export function ServerConnect({
         return;
       }
     } catch {
-      // No stored auth or expired — proceed to login.
+      // No stored auth or expired — proceed to PKCE login.
     }
-    // Start device auth.
+    // Start PKCE auth — opens browser automatically.
     try {
-      const auth = await onStartLogin(serverURL.trim());
-      setAuthInfo(auth);
-      setStage("auth");
+      await onStartLogin(serverURL.trim());
+      setStage("waiting");
+      setLoading(false);
+      // Wait for the PKCE callback.
+      try {
+        const authorized = await onWaitForLogin();
+        if (authorized) {
+          // Try connecting now that we have tokens.
+          await onConnect(serverURL.trim());
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setStage("url");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
       setLoading(false);
     }
   };
 
-  // Open verification URL and start polling.
-  const handleOpenAndPoll = () => {
-    if (!authInfo) return;
-    try {
-      Browser.OpenURL(authInfo.verification_uri);
-    } catch {
-      // If Browser.OpenURL isn't available, continue anyway.
-    }
-    setStage("polling");
-  };
-
-  // Poll for authorization.
-  useEffect(() => {
-    if (stage !== "polling" || !authInfo) return;
-    pollingRef.current = true;
-
-    const interval = (authInfo.expires_in > 0 ? Math.min(authInfo.expires_in, 5) : 5) * 1000;
-    const timer = setInterval(async () => {
-      if (!pollingRef.current) return;
-      try {
-        const authorized = await onPollLogin(authInfo.user_code, interval / 1000);
-        if (authorized) {
-          pollingRef.current = false;
-          // Try connecting now.
-          await onConnect(serverURL.trim());
-        }
-      } catch (e) {
-        pollingRef.current = false;
-        setError(e instanceof Error ? e.message : String(e));
-        setStage("url");
-      }
-    }, interval);
-
-    return () => {
-      pollingRef.current = false;
-      clearInterval(timer);
-    };
-  }, [stage, authInfo, onPollLogin, onConnect, serverURL]);
-
   const handleCancel = async () => {
-    pollingRef.current = false;
     await onCancelLogin();
     setStage("url");
-    setAuthInfo(null);
     setError(null);
   };
 
@@ -139,44 +102,20 @@ export function ServerConnect({
                 disabled={!serverURL.trim() || loading}
               >
                 {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Connect
+                Sign In
               </Button>
             </div>
           </>
         )}
 
-        {stage === "auth" && authInfo && (
-          <div className="space-y-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              Enter this code in your browser to authorize:
-            </p>
-            <div className="bg-muted rounded-lg p-4">
-              <code className="text-2xl font-mono font-bold tracking-widest">
-                {authInfo.user_code}
-              </code>
-            </div>
-            <Button
-              className="w-full"
-              onClick={handleOpenAndPoll}
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Open in Browser
-            </Button>
-          </div>
-        )}
-
-        {stage === "polling" && (
+        {stage === "waiting" && (
           <div className="space-y-4 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
             <p className="text-sm text-muted-foreground">
-              Waiting for authorization...
+              Completing sign-in in your browser...
             </p>
-            {authInfo && (
-              <div className="bg-muted rounded-lg p-3">
-                <code className="text-lg font-mono font-bold tracking-widest">
-                  {authInfo.user_code}
-                </code>
-              </div>
+            {error && (
+              <p className="text-sm text-destructive">{error}</p>
             )}
             <Button
               variant="outline"
@@ -187,17 +126,6 @@ export function ServerConnect({
           </div>
         )}
 
-        <div className="text-center pt-2">
-          <button
-            onClick={onSkip}
-            className={cn(
-              "text-sm text-muted-foreground hover:text-foreground transition-colors",
-              "underline underline-offset-2",
-            )}
-          >
-            Work Offline
-          </button>
-        </div>
       </div>
     </div>
   );

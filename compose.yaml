@@ -1,19 +1,16 @@
-# Development stack: Keycloak OIDC + Mailpit SMTP + bowrain-server
+# Development dependencies: Keycloak OIDC + Mailpit SMTP
 #
-# Used by: e2e tests, web app screenshots/recordings, local dev.
+# The bowrain-server runs locally for faster iteration — no Docker
+# image rebuild needed for Go changes.
 #
 # Usage:
-#   docker compose up -d --build --wait
-#   curl -sf http://localhost:8080/api/v1/health
-#   docker compose down -v
+#   docker compose up -d --wait         # start deps
+#   make dev-server                     # run server locally
+#   docker compose down -v              # stop deps
 #
 # Services:
-#   - Keycloak OIDC provider:  http://localhost:8180
-#   - Mailpit (dev SMTP):      http://localhost:8025
-#   - bowrain-server:           http://localhost:8080
-#
-# CLI auth testing:
-#   kapi auth login --server http://localhost:8080
+#   - Keycloak OIDC provider:  http://localhost:8180  (admin/admin)
+#   - Mailpit (dev SMTP):      http://localhost:8025  (web UI), :1025 (SMTP)
 
 services:
   keycloak:
@@ -38,34 +35,3 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
-
-  bowrain:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    # For production (use pre-built image instead of build):
-    # image: ghcr.io/gokapi/bowrain-server:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - BOWRAIN_JWT_SECRET=dev-secret-change-in-production
-      - BOWRAIN_OIDC_ISSUER_URL=http://keycloak:8080/realms/bowrain
-      - BOWRAIN_OIDC_PUBLIC_URL=http://localhost:8180/realms/bowrain
-      - BOWRAIN_OIDC_CLIENT_ID=bowrain
-      - BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret
-      - BOWRAIN_STORE=/data/bowrain.db
-      - BOWRAIN_SMTP_HOST=mailpit:1025
-      - BOWRAIN_SMTP_FROM=noreply@bowrain.cloud
-    volumes:
-      - bowrain-data:/data
-    depends_on:
-      keycloak:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-volumes:
-  bowrain-data:

@@ -3,11 +3,11 @@ package backend
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
@@ -47,9 +47,11 @@ type App struct {
 	connState        ConnectionState        // current connection state
 	serverURL        string                 // e.g. "http://localhost:8080"
 	activeWS         string                 // selected workspace slug
-	authInfo         *storedDesktopAuth     // cached auth info
-	deviceFlowClient *auth.DeviceFlowClient // active login flow
-	watcher          *ProjectWatcher        // active WatchProject stream
+	authInfo     *storedDesktopAuth // cached auth info
+	pkceServer   *http.Server      // local PKCE callback server
+	pkceVerifier string            // PKCE code_verifier
+	pkceResultCh chan *pkceResult   // result from PKCE callback
+	watcher      *ProjectWatcher   // active WatchProject stream
 	offlineQueue     *OfflineQueue          // pending mutations when offline
 	reconnectCancel  context.CancelFunc     // stops the reconnection goroutine
 

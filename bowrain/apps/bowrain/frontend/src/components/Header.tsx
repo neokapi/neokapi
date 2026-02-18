@@ -5,12 +5,11 @@ type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 interface HeaderProps {
   sidebarCollapsed: boolean;
   connectionState: ConnectionState;
-  userName?: string;
   pendingChanges?: number;
   onDisconnect?: () => void;
 }
 
-export function Header({ sidebarCollapsed, connectionState, userName, pendingChanges, onDisconnect }: HeaderProps) {
+export function Header({ sidebarCollapsed, connectionState, pendingChanges, onDisconnect }: HeaderProps) {
   const isConnected = connectionState === "connected";
   const isOffline = connectionState === "offline";
 
@@ -40,9 +39,6 @@ export function Header({ sidebarCollapsed, connectionState, userName, pendingCha
         Localization Workbench
       </span>
       <div className="flex items-center gap-3">
-        {(isConnected || isOffline) && userName && (
-          <span className="text-xs text-muted-foreground">{userName}</span>
-        )}
         {isOffline && (
           <span className="flex items-center gap-1 text-xs text-amber-500">
             <WifiOff className="w-3 h-3" />

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/zalando/go-keyring"
 )
 
 // --- parseServerURL tests ---
@@ -98,6 +99,7 @@ func TestDiscoverGRPCAddrHTTPSWithPort(t *testing.T) {
 // --- Auth persistence tests ---
 
 func TestSaveAndLoadDesktopAuth(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
@@ -139,6 +141,7 @@ func TestLoadDesktopAuthMissing(t *testing.T) {
 }
 
 func TestSaveDesktopAuthPermissions(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
@@ -155,9 +158,19 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 	require.NoError(t, err)
 	// Should be 0600 (owner read/write only).
 	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+
+	// Tokens should be in keyring, not in the JSON file.
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "secret-token")
+
+	kr, err := keyring.Get(keyringService, keyringAccessTokenKey)
+	require.NoError(t, err)
+	assert.Equal(t, "secret-token", kr)
 }
 
 func TestDesktopAuthJSONFormat(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
@@ -173,13 +186,21 @@ func TestDesktopAuthJSONFormat(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(tmpDir, "auth.json"))
 	require.NoError(t, err)
 
-	// Should be valid JSON with expected fields.
+	// JSON should have metadata but NOT tokens (those go to keyring).
 	var parsed map[string]any
 	err = json.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 	assert.Equal(t, "http://localhost:8080", parsed["server_url"])
-	assert.Equal(t, "token", parsed["access_token"])
-	assert.Equal(t, "refresh", parsed["refresh_token"])
+	assert.Nil(t, parsed["access_token"])  // json:"-" means it won't be serialized
+	assert.Nil(t, parsed["refresh_token"]) // json:"-" means it won't be serialized
+
+	// Tokens should be in keyring.
+	at, err := keyring.Get(keyringService, keyringAccessTokenKey)
+	require.NoError(t, err)
+	assert.Equal(t, "token", at)
+	rt, err := keyring.Get(keyringService, keyringRefreshTokenKey)
+	require.NoError(t, err)
+	assert.Equal(t, "refresh", rt)
 }
 
 // --- Connection state tests ---
@@ -229,6 +250,7 @@ func TestDisconnectResetsState(t *testing.T) {
 }
 
 func TestLogoutRemovesAuthFile(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
@@ -265,6 +287,7 @@ func TestConnectToServerNoStoredAuth(t *testing.T) {
 }
 
 func TestConnectToServerExpiredToken(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
@@ -286,12 +309,7 @@ func TestConnectToServerExpiredToken(t *testing.T) {
 func TestCancelLogin(t *testing.T) {
 	app := newTestApp(t)
 
-	// Set a device flow client to simulate active login.
-	app.mu.Lock()
-	app.deviceFlowClient = nil // Already nil, just verifying no panic.
-	app.mu.Unlock()
-
-	// Should not panic.
+	// Verify CancelLogin does not panic when no active flow.
 	app.CancelLogin()
 }
 
@@ -306,6 +324,7 @@ func TestTryAutoConnectNoAuth(t *testing.T) {
 }
 
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
+	keyring.MockInit()
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 

@@ -121,6 +121,21 @@ docker-push: ## Push Docker image to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
 
+dev-deps: ## Start dev dependencies (Keycloak + Mailpit) in Docker
+	docker compose up -d --wait
+
+dev-deps-down: ## Stop dev dependencies
+	docker compose down -v
+
+dev-server: build-server ## Run bowrain-server locally against Docker deps
+	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
+	BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
+	BOWRAIN_OIDC_CLIENT_ID=bowrain \
+	BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
+	BOWRAIN_SMTP_HOST=localhost:1025 \
+	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+	bin/bowrain-server
+
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 
 screenshots: frontend-deps ## Generate documentation screenshots
