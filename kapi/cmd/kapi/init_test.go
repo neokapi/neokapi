@@ -44,7 +44,7 @@ func TestRunInitQuickStart(t *testing.T) {
 		assert.Equal(t, "en", req["source_locale"])
 
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]string{
+		_ = json.NewEncoder(w).Encode(map[string]string{
 			"project_id":  "proj_qs_123",
 			"claim_token": "clm_qs_abc",
 		})
