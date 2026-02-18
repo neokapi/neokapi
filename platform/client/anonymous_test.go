@@ -25,7 +25,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 			assert.Equal(t, []any{"nb", "fr"}, targets)
 
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"project_id":  "proj_123",
 				"claim_token": "clm_abc456",
 			})
@@ -41,7 +41,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 	t.Run("server error", func(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(`{"error":"internal error"}`))
+			_, _ = w.Write([]byte(`{"error":"internal error"}`))
 		}))
 		defer srv.Close()
 
@@ -54,7 +54,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/api/v1/projects/anonymous", r.URL.Path)
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(map[string]string{
+			_ = json.NewEncoder(w).Encode(map[string]string{
 				"project_id":  "proj_456",
 				"claim_token": "clm_def789",
 			})
