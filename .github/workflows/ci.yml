@@ -229,9 +229,43 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - name: Run e2e tests
-        run: bash e2e/run.sh
-        timeout-minutes: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npx tsc
+
+      - name: Build SaaS web UI
+        working-directory: bowrain/apps/web
+        run: npm run build
+
+      - name: Start e2e stack (Docker + bowrain-server)
+        run: bash e2e/setup.sh
+        timeout-minutes: 5
+
+      - name: Run Go e2e tests
+        run: go test -tags=e2e -count=1 -v ./e2e/
+        timeout-minutes: 5
+
+      - name: Install Playwright browsers
+        working-directory: bowrain/apps/web
+        run: npx playwright install --with-deps chromium
+
+      - name: Run web app E2E tests
+        working-directory: bowrain/apps/web
+        run: npx playwright test --config playwright.e2e.config.ts
+        timeout-minutes: 5
+
+      - name: Tear down e2e stack
+        if: always()
+        run: bash e2e/teardown.sh
 
   check-assets:
     name: Validate Documentation Assets

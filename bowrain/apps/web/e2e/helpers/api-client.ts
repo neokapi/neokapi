@@ -305,7 +305,7 @@ export async function createAnonymousProject(
   name: string,
   sourceLocale: string,
   targetLocales: string[],
-): Promise<{ id: string; claim_token: string }> {
+): Promise<{ project_id: string; claim_token: string }> {
   const resp = await fetch(`${API}/projects/anonymous`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

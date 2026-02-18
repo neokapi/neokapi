@@ -102,14 +102,14 @@ test.describe("Claim Flow", () => {
 
   test("claim via API works correctly", async () => {
     // Create anonymous project and claim via API helper.
-    const { id, claim_token } = await createAnonymousProject(
+    const { project_id, claim_token } = await createAnonymousProject(
       "API Claim Project",
       "en",
       ["fr"],
     );
 
     const result = await claimProject(token, claim_token);
-    expect(result.project_id).toBe(id);
+    expect(result.project_id).toBe(project_id);
     expect(result.workspace_slug).toBeTruthy();
   });
 });

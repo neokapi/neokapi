@@ -102,7 +102,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
             </a>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={handleOpen} data-testid="open-in-desktop-btn">
+          <Button variant="outline" size="sm" onClick={handleOpen} data-testid="open-in-desktop-btn" data-href={deepLink}>
             Open{osLabel}
           </Button>
         )}

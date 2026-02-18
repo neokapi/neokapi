@@ -23,6 +23,39 @@ async function injectAuthCookie(page: Page, authToken: string) {
   }]);
 }
 
+/**
+ * Intercept bowrain:// deep link navigation by patching Location.prototype.href.
+ * Must be called BEFORE triggering the navigation (before clicking the Open button).
+ * Returns a function that retrieves any captured deep link URLs.
+ */
+async function interceptDeepLinks(page: Page) {
+  await page.evaluate(() => {
+    (window as Record<string, unknown>).__capturedDeepLinks = [] as string[];
+    const proto = Object.getPrototypeOf(window.location);
+    const desc = Object.getOwnPropertyDescriptor(proto, "href");
+    if (desc?.set) {
+      const origSet = desc.set;
+      Object.defineProperty(proto, "href", {
+        set(val: string) {
+          if (typeof val === "string" && val.startsWith("bowrain://")) {
+            ((window as Record<string, unknown>).__capturedDeepLinks as string[]).push(val);
+            return; // Swallow — don't navigate
+          }
+          origSet.call(this, val);
+        },
+        get: desc.get,
+        configurable: true,
+      });
+    }
+  });
+
+  return async () => {
+    return page.evaluate(
+      () => (window as Record<string, unknown>).__capturedDeepLinks as string[],
+    );
+  };
+}
+
 let token: string;
 let wsSlug: string;
 let projectId: string;
@@ -63,36 +96,12 @@ test.describe("Open in Desktop", () => {
     await expect(page.getByText("Desktop Test Project").first()).toBeVisible({ timeout: 15000 });
     await page.getByText("Desktop Test Project").first().click();
 
-    await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible({ timeout: 10000 });
+    const btn = page.getByTestId("open-in-desktop-btn");
+    await expect(btn).toBeVisible({ timeout: 10000 });
 
-    // Intercept the deep link navigation (prevent actual protocol handler).
-    const deepLinkPromise = page.evaluate(() => {
-      return new Promise<string>((resolve) => {
-        const origAssign = Object.getOwnPropertyDescriptor(window.location, "href");
-        let captured = "";
-        Object.defineProperty(window.location, "href", {
-          set(val: string) {
-            if (val.startsWith("bowrain://")) {
-              captured = val;
-              resolve(val);
-            } else if (origAssign?.set) {
-              origAssign.set.call(window.location, val);
-            }
-          },
-          get() {
-            return origAssign?.get?.call(window.location) ?? "";
-          },
-          configurable: true,
-        });
-        // Timeout fallback.
-        setTimeout(() => resolve(captured), 3000);
-      });
-    });
-
-    await page.getByTestId("open-in-desktop-btn").click();
-
-    const deepLink = await deepLinkPromise;
-    // The deep link should follow the bowrain:// protocol pattern.
+    // Read the deep link from the data-href attribute (no clicking needed).
+    const deepLink = await btn.getAttribute("data-href");
+    expect(deepLink).toBeTruthy();
     expect(deepLink).toMatch(/^bowrain:\/\/project\/.+\?server=.+&workspace=.+$/);
     expect(deepLink).toContain(`server=${encodeURIComponent(BASE_URL)}`);
     expect(deepLink).toContain(`workspace=${wsSlug}`);
@@ -143,14 +152,8 @@ test.describe("Open in Desktop", () => {
 
     await expect(page.getByTestId("open-in-desktop-btn")).toBeVisible({ timeout: 10000 });
 
-    // Prevent navigation on bowrain:// protocol.
-    await page.evaluate(() => {
-      Object.defineProperty(window.location, "href", {
-        set() { /* swallow bowrain:// deep link */ },
-        get() { return document.location.href; },
-        configurable: true,
-      });
-    });
+    // Intercept bowrain:// navigation before clicking.
+    await interceptDeepLinks(page);
 
     await page.getByTestId("open-in-desktop-btn").click();
 
