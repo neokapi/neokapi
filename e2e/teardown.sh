@@ -1,10 +1,10 @@
 #!/bin/bash
-# Stop the e2e Docker Compose stack and clean up volumes.
+# Stop the Docker Compose stack and clean up volumes.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "Stopping e2e stack..."
-docker compose down -v
+docker compose -f "$ROOT_DIR/compose.yaml" down -v
 echo "Done."

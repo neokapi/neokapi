@@ -3,8 +3,8 @@
 # Usage: ./start-server.sh [--build]
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
-COMPOSE_FILE="$REPO_ROOT/e2e/docker-compose.yml"
+REPO_ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/compose.yaml"
 
 echo "Starting bowrain-server Docker stack..."
 

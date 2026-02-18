@@ -1,31 +1,37 @@
-# Development docker-compose for bowrain with Keycloak OIDC provider.
+# Development stack: Keycloak OIDC + Mailpit SMTP + bowrain-server
 #
-# For production self-hosting, see:
-#   https://gokapi.dev/docs/user-guide/self-hosting
+# Used by: e2e tests, web app screenshots/recordings, local dev.
 #
 # Usage:
-#   cd deploy && docker-compose up
+#   docker compose up -d --build --wait
+#   curl -sf http://localhost:8080/api/v1/health
+#   docker compose down -v
 #
-# This starts:
-#   - Keycloak OIDC provider on http://localhost:8180
-#   - Mailpit (dev SMTP) on http://localhost:8025
-#   - bowrain-server on http://localhost:8080
+# Services:
+#   - Keycloak OIDC provider:  http://localhost:8180
+#   - Mailpit (dev SMTP):      http://localhost:8025
+#   - bowrain-server:           http://localhost:8080
 #
-# To test CLI auth:
+# CLI auth testing:
 #   kapi auth login --server http://localhost:8080
 
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:26.1
     command: start-dev --import-realm
     environment:
       KC_HEALTH_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
-      - ../e2e/keycloak/realm.json:/opt/keycloak/data/import/realm.json
+      - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
     ports:
       - "8180:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
 
   mailpit:
     image: axllent/mailpit:latest
@@ -34,9 +40,8 @@ services:
       - "1025:1025"
 
   bowrain:
-    # For development (builds from source):
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
     # For production (use pre-built image instead of build):
     # image: ghcr.io/gokapi/bowrain-server:latest
@@ -54,7 +59,13 @@ services:
     volumes:
       - bowrain-data:/data
     depends_on:
-      - keycloak
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/api/v1/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   bowrain-data:

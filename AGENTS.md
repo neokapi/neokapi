@@ -271,13 +271,13 @@ make screenshots                 # screenshots → website/static/img/bowrain/{d
 make recordings                  # recordings → website/static/video/bowrain/{dark,light}/
 
 # 2. Web app screenshots + recordings (needs Docker stack for real auth)
-cd e2e && docker compose up -d   # starts Dex + bowrain-server
+docker compose up -d   # starts Keycloak + bowrain-server
 # Wait for healthy: curl -sf http://localhost:8080/api/v1/health
 cd bowrain/apps/web && npm run e2e:screenshots
 cd bowrain/apps/web && npm run e2e:recordings
 THEME=dark  bash bowrain/apps/web/scripts/copy-recordings.sh
 THEME=light bash bowrain/apps/web/scripts/copy-recordings.sh
-cd e2e && docker compose down -v
+docker compose down -v
 
 # 3. CLI recordings (needs VHS: brew install charmbracelet/tap/vhs)
 make cli-recordings              # runs tapes + copies to website/static/video/cli/
@@ -300,7 +300,7 @@ make docs-assets                 # screenshots + recordings + cli-recordings
 
 All screenshots and recordings must run against real gokapi infrastructure. Specifically:
 
-- **Authentication & identity**: Use the real Dex OIDC provider via `e2e/docker-compose.yml`. Never mock the auth flow.
+- **Authentication & identity**: Use the real Dex OIDC provider via `compose.yaml`. Never mock the auth flow.
 - **bowrain-server**: Use the real server binary (locally built or Docker image). Never use a mock API server.
 - **Database & storage**: Use a real database instance (the Docker stack provisions one automatically).
 - **External integrations** outside the scope of this project (e.g. third-party MT providers, external LLM APIs) may be mocked if needed for isolation.

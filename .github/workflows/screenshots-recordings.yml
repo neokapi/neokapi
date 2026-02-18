@@ -104,8 +104,7 @@ jobs:
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
-      - name: Start Docker stack (Dex + bowrain-server)
-        working-directory: e2e
+      - name: Start Docker stack (Keycloak + bowrain-server)
         run: docker compose up -d
 
       - name: Wait for server health
@@ -151,7 +150,6 @@ jobs:
 
       - name: Shutdown Docker stack
         if: always()
-        working-directory: e2e
         run: docker compose down -v
 
   # ── CLI Recordings (VHS) ────────────────────────────────────────────────────
