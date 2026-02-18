@@ -29,6 +29,7 @@ import {
   CardTitle,
 } from "@gokapi/ui";
 import { JoinPage } from "./auth/JoinPage";
+import { ClaimPage } from "./auth/ClaimPage";
 
 const api = new RestApiAdapter();
 
@@ -160,6 +161,7 @@ function TranslateView() {
         onRemoveFile={handleRemoveFile}
         onOpenTM={() => { setShowTM(true); setShowTerms(false); }}
         onOpenTerms={() => { setShowTerms(true); setShowTM(false); }}
+        serverMode={ws ? { serverURL: window.location.origin, workspaceSlug: ws } : undefined}
       />
     );
   }
@@ -372,13 +374,18 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [joinCode, setJoinCode] = useState<string | null>(null);
+  const [claimToken, setClaimToken] = useState<string | null>(null);
   const [signedOut, setSignedOut] = useState(false);
 
-  // Detect /join/:code route on mount.
+  // Detect /join/:code and /claim/:token routes on mount.
   useEffect(() => {
     const joinMatch = window.location.pathname.match(/^\/join\/([^/]+)$/);
     if (joinMatch) {
       setJoinCode(joinMatch[1]);
+    }
+    const claimMatch = window.location.pathname.match(/^\/claim\/([^/]+)$/);
+    if (claimMatch) {
+      setClaimToken(claimMatch[1]);
     }
   }, []);
 
@@ -453,6 +460,19 @@ function AppContent() {
         code={joinCode}
         onJoined={() => {
           setJoinCode(null);
+          window.history.replaceState({}, "", "/");
+        }}
+      />
+    );
+  }
+
+  // Claim route: show claim page for anonymous project claiming.
+  if (claimToken) {
+    return (
+      <ClaimPage
+        token={claimToken}
+        onClaimed={() => {
+          setClaimToken(null);
           window.history.replaceState({}, "", "/");
         }}
       />

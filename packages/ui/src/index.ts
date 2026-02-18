@@ -32,6 +32,7 @@ export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
 export { ProjectDashboard } from "./components/ProjectDashboard";
 export { ProjectView } from "./components/ProjectView";
+export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
@@ -90,7 +91,7 @@ export type {
   BlockTermMatch, TermEnforceResult,
   LocaleInfo, FormatInfo, ToolInfo,
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
-  Invite, AcceptInviteResponse,
+  Invite, AcceptInviteResponse, ClaimProjectResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/MainSidebar";
 

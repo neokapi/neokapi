@@ -10,6 +10,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/installation',
         'getting-started/quickstart',
         'getting-started/project-walkthrough',
+        'getting-started/e2e-walkthrough',
       ],
     },
     {

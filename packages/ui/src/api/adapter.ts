@@ -6,7 +6,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
-  Invite, AcceptInviteResponse,
+  Invite, AcceptInviteResponse, ClaimProjectResponse,
 } from "../types/api";
 
 /**
@@ -38,6 +38,9 @@ export interface ApiAdapter {
   createInvite(workspaceSlug: string, email: string, role: string, maxUses: number): Promise<Invite>;
   deleteInvite(workspaceSlug: string, inviteId: string): Promise<void>;
   acceptInvite(code: string): Promise<AcceptInviteResponse>;
+
+  // Claim
+  claimProject(claimToken: string): Promise<ClaimProjectResponse>;
 
   // Projects (workspace-scoped)
   listProjects(workspaceSlug: string): Promise<ProjectInfo[]>;

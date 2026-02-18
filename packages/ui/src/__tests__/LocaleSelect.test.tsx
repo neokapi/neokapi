@@ -35,6 +35,7 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
     testProviderConfig: vi.fn(), listFormats: vi.fn(), listTools: vi.fn(),
     listInvites: vi.fn(), createInvite: vi.fn(), deleteInvite: vi.fn(),
     acceptInvite: vi.fn(),
+    claimProject: vi.fn(),
   } as ApiAdapter;
 }
 

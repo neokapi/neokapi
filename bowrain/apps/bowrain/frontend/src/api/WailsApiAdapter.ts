@@ -7,7 +7,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
-  Invite, AcceptInviteResponse,
+  Invite, AcceptInviteResponse, ClaimProjectResponse,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -58,6 +58,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async createInvite(): Promise<Invite> { throw new Error("Not supported in desktop mode"); }
   async deleteInvite(): Promise<void> { throw new Error("Not supported in desktop mode"); }
   async acceptInvite(): Promise<AcceptInviteResponse> { throw new Error("Not supported in desktop mode"); }
+  async claimProject(): Promise<ClaimProjectResponse> { throw new Error("Not supported in desktop mode"); }
 
   // --- Projects ---
   async listProjects(): Promise<ProjectInfo[]> {

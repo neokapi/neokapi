@@ -4,6 +4,7 @@ import { useLocales } from "../hooks/useLocales";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
+import { OpenInDesktop } from "./OpenInDesktop";
 import {
   ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
   FileType, MessageSquare, FileSpreadsheet, Upload, X, Lock, Package,
@@ -18,6 +19,8 @@ interface ProjectViewProps {
   onRemoveFile: (fileName: string) => void;
   onOpenTM?: () => void;
   onOpenTerms?: () => void;
+  /** When set, shows "Open in Bowrain Desktop" banner with deep link. */
+  serverMode?: { serverURL: string; workspaceSlug: string };
 }
 
 export function ProjectView({
@@ -28,6 +31,7 @@ export function ProjectView({
   onRemoveFile,
   onOpenTM,
   onOpenTerms,
+  serverMode,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,6 +76,13 @@ export function ProjectView({
 
   return (
     <div>
+      {serverMode && (
+        <OpenInDesktop
+          projectId={project.id}
+          serverURL={serverMode.serverURL}
+          workspaceSlug={serverMode.workspaceSlug}
+        />
+      )}
       <div className="flex items-center gap-3 mb-6">
         <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-projects">
           <ArrowLeft className="w-3.5 h-3.5 mr-1" />

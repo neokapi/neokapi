@@ -310,3 +310,38 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]Block
 	}
 	return blocks, nil
 }
+
+// CreateAnonymousProject creates a new anonymous project on a Bowrain server.
+// No authentication is required. Returns the project ID and claim token.
+func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string) (projectID, claimToken string, err error) {
+	body, err := json.Marshal(map[string]any{
+		"name":           name,
+		"source_locale":  sourceLocale,
+		"target_locales": targetLocales,
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/anonymous"
+	resp, err := http.Post(u, "application/json", bytes.NewReader(body))
+	if err != nil {
+		return "", "", fmt.Errorf("create anonymous project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", "", fmt.Errorf("create anonymous project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		ProjectID  string `json:"project_id"`
+		ClaimToken string `json:"claim_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", "", fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.ProjectID, result.ClaimToken, nil
+}

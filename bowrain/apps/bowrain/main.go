@@ -3,6 +3,8 @@ package main
 import (
 	"embed"
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/gokapi/gokapi/bowrain/apps/bowrain/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -52,17 +54,35 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
-	// Handle bowrain:// URLs from the OS protocol handler (used for OIDC auth callback).
+	// Handle bowrain:// URLs from the OS protocol handler.
+	// Routes by path: auth/callback → OIDC, project/{id} → deep link.
 	app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
-		authURL := event.Context().URL()
-		if authURL != "" {
-			// Bring the app to the foreground. Show/Focus are Cocoa calls that
-			// must run on the main thread; the event handler runs in a goroutine.
-			application.InvokeSync(func() {
-				app.Show()
-				win.Focus()
-			})
-			go appService.HandleAuthURL(authURL)
+		rawURL := event.Context().URL()
+		if rawURL == "" {
+			return
+		}
+
+		// Bring the app to the foreground.
+		application.InvokeSync(func() {
+			app.Show()
+			win.Focus()
+		})
+
+		parsed, err := url.Parse(rawURL)
+		if err != nil {
+			log.Printf("bowrain: invalid URL: %v", err)
+			return
+		}
+
+		// Route by host+path. In bowrain://auth/callback, host is "auth", path is "/callback".
+		// In bowrain://project/{id}, host is "project", path is "/{id}".
+		switch {
+		case parsed.Host == "auth" && strings.HasPrefix(parsed.Path, "/callback"):
+			go appService.HandleAuthURL(rawURL)
+		case parsed.Host == "project":
+			go appService.HandleProjectURL(rawURL)
+		default:
+			log.Printf("bowrain: unrecognized URL scheme path: %s", rawURL)
 		}
 	})
 

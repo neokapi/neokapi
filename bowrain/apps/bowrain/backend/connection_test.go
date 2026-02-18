@@ -364,6 +364,24 @@ func TestHandleAuthURLNoActiveFlow(t *testing.T) {
 	app.HandleAuthURL("bowrain://auth/callback?token=jwt-123")
 }
 
+func TestHandleProjectURLValid(t *testing.T) {
+	app := newTestApp(t)
+	// Should not panic. Without a.app, event emission is skipped.
+	app.HandleProjectURL("bowrain://project/proj_123?server=https%3A%2F%2Fexample.com&workspace=my-ws")
+}
+
+func TestHandleProjectURLInvalid(t *testing.T) {
+	app := newTestApp(t)
+	// Should not panic on invalid URL.
+	app.HandleProjectURL("://invalid")
+}
+
+func TestHandleProjectURLMissingID(t *testing.T) {
+	app := newTestApp(t)
+	// bowrain://project/ with empty path should be handled gracefully.
+	app.HandleProjectURL("bowrain://project/")
+}
+
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()

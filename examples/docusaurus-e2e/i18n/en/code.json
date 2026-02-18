@@ -1,0 +1,102 @@
+{
+  "theme.navbar.title": {
+    "message": "Acme Docs",
+    "description": "The title in the navbar"
+  },
+  "theme.navbar.docs": {
+    "message": "Documentation",
+    "description": "Navbar link to documentation"
+  },
+  "theme.navbar.blog": {
+    "message": "Blog",
+    "description": "Navbar link to blog"
+  },
+  "homepage.hero.title": {
+    "message": "Build Amazing Things with Acme",
+    "description": "The homepage hero title"
+  },
+  "homepage.hero.subtitle": {
+    "message": "Acme provides the tools and infrastructure you need to ship faster and more reliably.",
+    "description": "The homepage hero subtitle"
+  },
+  "homepage.cta.getStarted": {
+    "message": "Get Started",
+    "description": "CTA button to get started"
+  },
+  "homepage.cta.learnMore": {
+    "message": "Learn More",
+    "description": "CTA button to learn more"
+  },
+  "homepage.features.speed.title": {
+    "message": "Lightning Fast",
+    "description": "Feature card title for speed"
+  },
+  "homepage.features.speed.description": {
+    "message": "Built for performance from the ground up. Sub-millisecond response times even under heavy load.",
+    "description": "Feature card description for speed"
+  },
+  "homepage.features.security.title": {
+    "message": "Enterprise Security",
+    "description": "Feature card title for security"
+  },
+  "homepage.features.security.description": {
+    "message": "SOC 2 Type II certified. End-to-end encryption for all data in transit and at rest.",
+    "description": "Feature card description for security"
+  },
+  "homepage.features.integration.title": {
+    "message": "Easy Integration",
+    "description": "Feature card title for integration"
+  },
+  "homepage.features.integration.description": {
+    "message": "Connect with your existing tools in minutes. SDKs available for all major languages.",
+    "description": "Feature card description for integration"
+  },
+  "homepage.features.scalability.title": {
+    "message": "Infinite Scalability",
+    "description": "Feature card title for scalability"
+  },
+  "homepage.features.scalability.description": {
+    "message": "Auto-scales from zero to millions of requests. Pay only for what you use.",
+    "description": "Feature card description for scalability"
+  },
+  "homepage.features.monitoring.title": {
+    "message": "Real-Time Monitoring",
+    "description": "Feature card title for monitoring"
+  },
+  "homepage.features.monitoring.description": {
+    "message": "Track every metric that matters. Custom dashboards and intelligent alerting built in.",
+    "description": "Feature card description for monitoring"
+  },
+  "homepage.features.support.title": {
+    "message": "24/7 Support",
+    "description": "Feature card title for support"
+  },
+  "homepage.features.support.description": {
+    "message": "Our expert team is available around the clock. Average response time under 5 minutes.",
+    "description": "Feature card description for support"
+  },
+  "homepage.testimonial.quote": {
+    "message": "Acme reduced our deployment time from hours to minutes. It's transformed how we ship software.",
+    "description": "Customer testimonial quote"
+  },
+  "homepage.testimonial.author": {
+    "message": "Jane Smith, CTO at TechCorp",
+    "description": "Customer testimonial author"
+  },
+  "footer.docs.title": {
+    "message": "Docs",
+    "description": "Footer column title for docs"
+  },
+  "footer.community.title": {
+    "message": "Community",
+    "description": "Footer column title for community"
+  },
+  "footer.more.title": {
+    "message": "More",
+    "description": "Footer column title for more links"
+  },
+  "footer.copyright": {
+    "message": "Copyright © 2026 Acme, Inc. All rights reserved.",
+    "description": "Footer copyright text"
+  }
+}

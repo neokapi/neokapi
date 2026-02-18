@@ -318,6 +318,35 @@ func (a *App) HandleAuthURL(rawURL string) {
 	}
 }
 
+// HandleProjectURL processes a bowrain://project/{id}?server=...&workspace=... deep link.
+// It emits a "deep-link-project" event to the frontend with the parsed parameters.
+func (a *App) HandleProjectURL(rawURL string) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		log.Printf("bowrain: invalid project URL: %v", err)
+		return
+	}
+
+	// In bowrain://project/{id}, host is "project", path is "/{id}".
+	projectID := strings.TrimPrefix(parsed.Path, "/")
+	if projectID == "" {
+		log.Printf("bowrain: project URL missing project ID: %s", rawURL)
+		return
+	}
+
+	q := parsed.Query()
+	serverURL := q.Get("server")
+	workspace := q.Get("workspace")
+
+	if a.app != nil {
+		a.app.Event.Emit("deep-link-project", map[string]string{
+			"project_id": projectID,
+			"server_url": serverURL,
+			"workspace":  workspace,
+		})
+	}
+}
+
 // CancelLogin cancels any active PKCE login flow.
 func (a *App) CancelLogin() {
 	a.cleanupPKCE()

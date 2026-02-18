@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "e2e:screenshots": "playwright test --config playwright.config.ts",
-    "e2e:recordings": "playwright test --config playwright.recordings.config.ts"
+    "e2e:recordings": "playwright test --config playwright.recordings.config.ts",
+    "e2e:tests": "playwright test --config playwright.e2e.config.ts"
   },
   "dependencies": {
     "@lexical/react": "^0.39.0",

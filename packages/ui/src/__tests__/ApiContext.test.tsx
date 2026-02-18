@@ -61,6 +61,7 @@ function createMockAdapter(): ApiAdapter {
     createInvite: vi.fn(),
     deleteInvite: vi.fn(),
     acceptInvite: vi.fn(),
+    claimProject: vi.fn(),
   } as ApiAdapter;
 }
 

@@ -79,6 +79,32 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for deep-link-project events from bowrain:// URL handler.
+  useEffect(() => {
+    const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {
+      const info = event.data as { project_id: string; server_url: string; workspace: string };
+      if (!info?.project_id) return;
+      // If connected, try to open the project directly.
+      // Otherwise store the info so it can be opened after connecting.
+      connection.refresh().then((ci) => {
+        if (ci.state === "connected") {
+          wailsAdapter.getProject(info.workspace || "", info.project_id)
+            .then((proj) => {
+              setActiveProject(proj);
+              setActiveFile(null);
+              setShowTMExplorer(false);
+              setShowTermExplorer(false);
+            })
+            .catch(() => {
+              console.warn("Deep link: could not open project", info.project_id);
+            });
+        }
+      });
+    });
+    return () => { cancel?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // --- Connection flow ---
 
   // Initial check: auto-reconnect from stored auth

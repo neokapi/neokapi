@@ -47,6 +47,12 @@ export interface AcceptInviteResponse {
   role: string;
 }
 
+/** Claim project response */
+export interface ClaimProjectResponse {
+  project_id: string;
+  workspace_slug: string;
+}
+
 /** Project info */
 export interface ProjectInfo {
   id: string;

@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -52,7 +55,40 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	// Send invite email asynchronously if email is provided and SMTP is configured.
+	if inv.Email != "" && s.EmailSender != nil {
+		baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Request().Host)
+		go s.sendInviteEmail(context.Background(), inv, baseURL)
+	}
+
 	return c.JSON(http.StatusCreated, inv)
+}
+
+// sendInviteEmail sends an HTML email with the invite link.
+func (s *Server) sendInviteEmail(ctx context.Context, inv *auth.Invite, baseURL string) {
+	joinURL := fmt.Sprintf("%s/join/%s", baseURL, inv.Code)
+
+	subject := fmt.Sprintf("You've been invited to join a workspace on Bowrain")
+
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+<h2 style="margin-bottom: 8px;">You're Invited</h2>
+<p>You've been invited to join a workspace on Bowrain as <strong>%s</strong>.</p>
+<p style="margin: 24px 0;">
+  <a href="%s" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+    Accept Invitation
+  </a>
+</p>
+<p style="color: #6b7280; font-size: 13px;">
+  Or copy this link: <a href="%s">%s</a>
+</p>
+</body>
+</html>`, string(inv.Role), joinURL, joinURL, joinURL)
+
+	if err := s.EmailSender.Send(ctx, inv.Email, subject, body); err != nil {
+		log.Printf("failed to send invite email to %s: %v", inv.Email, err)
+	}
 }
 
 // HandleListInvites lists all invitations for the workspace.

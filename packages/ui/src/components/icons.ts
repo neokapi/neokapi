@@ -41,4 +41,5 @@ export {
   LogOut,
   User,
   WifiOff,
+  Monitor,
 } from "lucide-react";

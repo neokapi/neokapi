@@ -7,7 +7,7 @@ import type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
-  Invite, AcceptInviteResponse,
+  Invite, AcceptInviteResponse, ClaimProjectResponse,
 } from "../types/api";
 
 /**
@@ -217,6 +217,13 @@ export class RestApiAdapter implements ApiAdapter {
 
   async acceptInvite(code: string): Promise<AcceptInviteResponse> {
     return this.fetchJSON(`/api/v1/join/${code}`, { method: "POST" });
+  }
+
+  async claimProject(claimToken: string): Promise<ClaimProjectResponse> {
+    return this.fetchJSON(`/api/v1/projects/claim`, {
+      method: "POST",
+      body: JSON.stringify({ claim_token: claimToken }),
+    });
   }
 
   // ── Projects ─────────────────────────────────────────────────────────────
