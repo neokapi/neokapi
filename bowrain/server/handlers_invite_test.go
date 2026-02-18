@@ -45,13 +45,15 @@ func TestSendInviteEmail(t *testing.T) {
 		Role:  auth.RoleMember,
 	}
 
-	s.sendInviteEmail(context.Background(), inv, "https://app.bowrain.dev")
+	s.sendInviteEmail(context.Background(), inv, "https://app.bowrain.dev", "Acme Inc.")
 
 	require.Len(t, mock.getSent(), 1)
 	email := mock.getSent()[0]
 	assert.Equal(t, "translator@example.com", email.To)
 	assert.Contains(t, email.Subject, "invited")
+	assert.Contains(t, email.Subject, "Acme Inc.")
 	assert.Contains(t, email.Body, "https://app.bowrain.dev/join/abc123def456")
 	assert.Contains(t, email.Body, "Accept Invitation")
+	assert.Contains(t, email.Body, "Acme Inc.")
 	assert.Contains(t, email.Body, string(auth.RoleMember))
 }

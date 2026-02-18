@@ -58,23 +58,24 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	// Send invite email asynchronously if email is provided and SMTP is configured.
 	if inv.Email != "" && s.EmailSender != nil {
 		baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Request().Host)
-		go s.sendInviteEmail(context.Background(), inv, baseURL)
+		wsSlug := c.Param("ws")
+		go s.sendInviteEmail(context.Background(), inv, baseURL, wsSlug)
 	}
 
 	return c.JSON(http.StatusCreated, inv)
 }
 
 // sendInviteEmail sends an HTML email with the invite link.
-func (s *Server) sendInviteEmail(ctx context.Context, inv *auth.Invite, baseURL string) {
+func (s *Server) sendInviteEmail(ctx context.Context, inv *auth.Invite, baseURL, workspaceName string) {
 	joinURL := fmt.Sprintf("%s/join/%s", baseURL, inv.Code)
 
-	subject := fmt.Sprintf("You've been invited to join a workspace on Bowrain")
+	subject := fmt.Sprintf("You've been invited to join %s on Bowrain", workspaceName)
 
 	body := fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
 <h2 style="margin-bottom: 8px;">You're Invited</h2>
-<p>You've been invited to join a workspace on Bowrain as <strong>%s</strong>.</p>
+<p>You've been invited to join <strong>%s</strong> on Bowrain as <strong>%s</strong>.</p>
 <p style="margin: 24px 0;">
   <a href="%s" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500;">
     Accept Invitation
@@ -84,7 +85,7 @@ func (s *Server) sendInviteEmail(ctx context.Context, inv *auth.Invite, baseURL 
   Or copy this link: <a href="%s">%s</a>
 </p>
 </body>
-</html>`, string(inv.Role), joinURL, joinURL, joinURL)
+</html>`, workspaceName, string(inv.Role), joinURL, joinURL, joinURL)
 
 	if err := s.EmailSender.Send(ctx, inv.Email, subject, body); err != nil {
 		log.Printf("failed to send invite email to %s: %v", inv.Email, err)
