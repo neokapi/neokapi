@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gokapi/gokapi/bowrain/auth"
+	platformAuth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 )
@@ -123,15 +125,24 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
 	}
 
+	// Generate and store a refresh token.
+	refreshToken, err := platformAuth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate refresh token: " + err.Error()})
+	}
+	rtHash := sha256.Sum256([]byte(refreshToken))
+	_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+
 	// Clean up the device code.
 	deviceCodes.Lock()
 	delete(deviceCodes.entries, deviceCode)
 	deviceCodes.Unlock()
 
 	return c.JSON(http.StatusOK, auth.TokenResponse{
-		AccessToken: token,
-		TokenType:   "Bearer",
-		ExpiresIn:   86400,
+		AccessToken:  token,
+		TokenType:    "Bearer",
+		ExpiresIn:    86400,
+		RefreshToken: refreshToken,
 	})
 }
 
@@ -368,8 +379,79 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
 	}
 
+	// Generate and store a refresh token.
+	refreshToken, rtErr := platformAuth.GenerateRefreshToken()
+	if rtErr == nil {
+		rtHash := sha256.Sum256([]byte(refreshToken))
+		_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
+	}
+
 	// Redirect to frontend with token.
-	return c.Redirect(http.StatusFound, "/?token="+token+"&user="+user.Email)
+	frontendURL := "/?token=" + token + "&user=" + user.Email
+	if refreshToken != "" {
+		frontendURL += "&refresh_token=" + refreshToken
+	}
+	return c.Redirect(http.StatusFound, frontendURL)
+}
+
+// RefreshRequest is the request body for POST /api/v1/auth/refresh.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// HandleTokenRefresh exchanges a valid refresh token for a new access token
+// and a rotated refresh token. The old refresh token is consumed (single-use).
+func (s *Server) HandleTokenRefresh(c echo.Context) error {
+	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+
+	var req RefreshRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request"})
+	}
+	if req.RefreshToken == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "refresh_token required"})
+	}
+
+	// Hash the incoming token for lookup.
+	hash := sha256.Sum256([]byte(req.RefreshToken))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	ctx := c.Request().Context()
+	userID, err := s.AuthStore.ValidateRefreshTokenByHash(ctx, tokenHash)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid or expired refresh token"})
+	}
+
+	// Get user info for the new JWT.
+	user, err := s.AuthStore.GetUser(ctx, userID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "user not found"})
+	}
+
+	// Generate new access token.
+	accessToken, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate token"})
+	}
+
+	// Generate new refresh token (rotation).
+	newRefreshToken, err := platformAuth.GenerateRefreshToken()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate refresh token"})
+	}
+	newHash := sha256.Sum256([]byte(newRefreshToken))
+	if _, err = s.AuthStore.StoreRefreshToken(ctx, userID, hex.EncodeToString(newHash[:]), time.Now().Add(30*24*time.Hour)); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store refresh token"})
+	}
+
+	return c.JSON(http.StatusOK, auth.TokenResponse{
+		AccessToken:  accessToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    86400,
+		RefreshToken: newRefreshToken,
+	})
 }
 
 // HandleAuthMe returns the current authenticated user.

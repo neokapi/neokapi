@@ -35,7 +35,8 @@ const (
 
 // Re-export variables.
 var (
-	ValidRoles    = platauth.ValidRoles
-	GenerateToken = platauth.GenerateToken
-	ValidateToken = platauth.ValidateToken
+	ValidRoles           = platauth.ValidRoles
+	GenerateToken        = platauth.GenerateToken
+	ValidateToken        = platauth.ValidateToken
+	GenerateRefreshToken = platauth.GenerateRefreshToken
 )

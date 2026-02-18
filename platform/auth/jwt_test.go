@@ -42,3 +42,15 @@ func TestValidateTokenExpired(t *testing.T) {
 	_, err = ValidateToken(token, "secret")
 	assert.Error(t, err)
 }
+
+func TestGenerateRefreshToken(t *testing.T) {
+	token1, err := GenerateRefreshToken()
+	require.NoError(t, err)
+	assert.NotEmpty(t, token1)
+	// base64url encoded 32 bytes = 44 chars (with padding).
+	assert.Len(t, token1, 44)
+
+	token2, err := GenerateRefreshToken()
+	require.NoError(t, err)
+	assert.NotEqual(t, token1, token2, "refresh tokens should be unique")
+}

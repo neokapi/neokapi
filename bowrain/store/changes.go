@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -11,25 +12,34 @@ import (
 const MaxChangesPerRequest = 1000
 
 // GetChanges returns change log entries for a project since the given cursor.
-// If locale is non-empty, only source changes and target changes for that locale
-// are returned. The returned ChangeSet includes a NewCursor for pagination and
-// HasMore to indicate additional results.
-func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*ChangeSet, error) {
+// If locales is non-empty, only source changes (locale IS NULL) and target
+// changes for the specified locales are returned. The returned ChangeSet
+// includes a NewCursor for pagination and HasMore to indicate additional results.
+func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error) {
 	if limit <= 0 || limit > MaxChangesPerRequest {
 		limit = MaxChangesPerRequest
 	}
 
 	var query string
 	var args []any
-	if locale != "" {
-		// Locale-scoped: only source changes + target changes for this locale.
+	if len(locales) > 0 {
+		// Locale-scoped: only source changes + target changes for these locales.
+		placeholders := make([]string, len(locales))
+		for i := range locales {
+			placeholders[i] = "?"
+		}
+		inClause := strings.Join(placeholders, ", ")
 		query = `SELECT seq, block_id, change_type, COALESCE(locale, ''), COALESCE(content_hash, ''), logged_at
 				 FROM change_log
 				 WHERE project_id = ? AND seq > ?
-				   AND (locale IS NULL OR locale = ?)
+				   AND (locale IS NULL OR locale IN (` + inClause + `))
 				 ORDER BY seq ASC
 				 LIMIT ?`
-		args = []any{projectID, sinceCursor, locale, limit + 1}
+		args = []any{projectID, sinceCursor}
+		for _, loc := range locales {
+			args = append(args, loc)
+		}
+		args = append(args, limit+1)
 	} else {
 		// All changes.
 		query = `SELECT seq, block_id, change_type, COALESCE(locale, ''), COALESCE(content_hash, ''), logged_at

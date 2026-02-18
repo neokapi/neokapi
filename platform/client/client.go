@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // BowrainClient is a REST client for the Bowrain server sync API.
@@ -22,6 +23,9 @@ type BowrainClient struct {
 	authToken  string // JWT bearer token; empty for local-mode
 	claimToken string // ClaimToken for anonymous projects
 	httpClient *http.Client
+
+	refreshToken   string                             // opaque refresh token for auto-refresh
+	onTokenRefresh func(newAccess, newRefresh string)  // callback after successful refresh
 }
 
 // NewBowrainClient creates a new client for the given server URL and project.
@@ -74,6 +78,86 @@ func (c *BowrainClient) applyAuth(req *http.Request) {
 	}
 }
 
+// SetRefreshToken configures auto-refresh with the given refresh token.
+// The onRefresh callback is called after a successful token refresh so the
+// caller can persist the new tokens.
+func (c *BowrainClient) SetRefreshToken(token string, onRefresh func(newAccess, newRefresh string)) {
+	c.refreshToken = token
+	c.onTokenRefresh = onRefresh
+}
+
+// doRequest executes an HTTP request and automatically retries once with a
+// refreshed access token when the server returns 401 Unauthorized. Auto-retry
+// is only attempted for requests without a body (GET, HEAD, DELETE) because
+// the body of POST/PUT requests is consumed on the first attempt.
+func (c *BowrainClient) doRequest(req *http.Request) (*http.Response, error) {
+	c.applyAuth(req)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Auto-refresh on 401 if we have a refresh token.
+	canRetry := req.Body == nil || req.Body == http.NoBody
+	if resp.StatusCode == http.StatusUnauthorized && c.refreshToken != "" && c.authToken != "" && canRetry {
+		resp.Body.Close()
+
+		if refreshErr := c.doRefresh(req.Context()); refreshErr != nil {
+			return nil, fmt.Errorf("token refresh failed: %w", refreshErr)
+		}
+
+		// Retry the original request with the new token.
+		retryReq, err := http.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), nil)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range req.Header {
+			retryReq.Header[k] = v
+		}
+		c.applyAuth(retryReq)
+		return c.httpClient.Do(retryReq)
+	}
+
+	return resp, nil
+}
+
+// doRefresh calls the /api/v1/auth/refresh endpoint to obtain a new access
+// token and a rotated refresh token.
+func (c *BowrainClient) doRefresh(ctx context.Context) error {
+	body, _ := json.Marshal(map[string]string{"refresh_token": c.refreshToken})
+	refreshURL := c.baseURL + "/api/v1/auth/refresh"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, refreshURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("refresh failed with HTTP %d", resp.StatusCode)
+	}
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return err
+	}
+
+	c.authToken = tokenResp.AccessToken
+	c.refreshToken = tokenResp.RefreshToken
+	if c.onTokenRefresh != nil {
+		c.onTokenRefresh(tokenResp.AccessToken, tokenResp.RefreshToken)
+	}
+	return nil
+}
+
 // SyncPushRequest is the request body for pushing blocks.
 type SyncPushRequest struct {
 	Blocks []BlockInput `json:"blocks"`
@@ -81,10 +165,11 @@ type SyncPushRequest struct {
 
 // BlockInput represents a block in the API.
 type BlockInput struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
+	ID       string `json:"id"`
+	Text     string `json:"text"`
+	Name     string `json:"name,omitempty"`
+	Type     string `json:"type,omitempty"`
+	ItemName string `json:"item_name,omitempty"`
 }
 
 // SyncPushResponse is the response from a push.
@@ -95,11 +180,12 @@ type SyncPushResponse struct {
 
 // ChangeEntry represents a single change log entry from the server.
 type ChangeEntry struct {
-	Seq         int64  `json:"seq"`
-	BlockID     string `json:"block_id"`
-	ChangeType  string `json:"change_type"`
-	Locale      string `json:"locale"`
-	ContentHash string `json:"content_hash"`
+	Seq         int64     `json:"seq"`
+	BlockID     string    `json:"block_id"`
+	ChangeType  string    `json:"change_type"`
+	Locale      string    `json:"locale,omitempty"`
+	ContentHash string    `json:"content_hash,omitempty"`
+	LoggedAt    time.Time `json:"logged_at,omitempty"`
 }
 
 // SyncPullResponse is the response from a pull.
@@ -107,6 +193,15 @@ type SyncPullResponse struct {
 	Changes   []ChangeEntry `json:"changes"`
 	NewCursor int64         `json:"new_cursor"`
 	HasMore   bool          `json:"has_more"`
+}
+
+// BlockContent represents a block with its translations from the server.
+type BlockContent struct {
+	ID       string            `json:"id"`
+	Name     string            `json:"name"`
+	ItemName string            `json:"item_name"`
+	Source   string            `json:"source"`
+	Targets  map[string]string `json:"targets"` // locale → plain text
 }
 
 // Push sends blocks to the server.
@@ -122,9 +217,8 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("push request: %w", err)
 	}
@@ -163,9 +257,8 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
-	c.applyAuth(req)
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.doRequest(req)
 	if err != nil {
 		return nil, fmt.Errorf("pull request: %w", err)
 	}
@@ -181,4 +274,39 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 		return nil, fmt.Errorf("decode pull response: %w", err)
 	}
 	return &result, nil
+}
+
+// GetBlocks fetches blocks for a specific item (source file) with their translations.
+func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]BlockContent, error) {
+	u, err := url.Parse(c.projectPrefix() + "/sync/blocks")
+	if err != nil {
+		return nil, fmt.Errorf("parse URL: %w", err)
+	}
+	q := u.Query()
+	if itemName != "" {
+		q.Set("item_name", itemName)
+	}
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("get blocks request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("get blocks failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var blocks []BlockContent
+	if err := json.NewDecoder(resp.Body).Decode(&blocks); err != nil {
+		return nil, fmt.Errorf("decode blocks response: %w", err)
+	}
+	return blocks, nil
 }

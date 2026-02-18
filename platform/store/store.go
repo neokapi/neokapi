@@ -37,7 +37,7 @@ type ContentStore interface {
 	Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
 
 	// Change log (incremental sync)
-	GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*ChangeSet, error)
+	GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error)
 	LatestCursor(ctx context.Context, projectID string) (int64, error)
 	CompactChangeLog(ctx context.Context, projectID string, retainDays int) (int64, error)
 

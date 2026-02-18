@@ -8,30 +8,18 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/auth"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 
-// StoredAuth is the auth token persisted at ~/.config/kapi/auth.json.
-type StoredAuth struct {
-	ServerURL    string     `json:"server_url"`
-	AccessToken  string     `json:"access_token"`
-	RefreshToken string     `json:"refresh_token,omitempty"`
-	Expiry       time.Time  `json:"expiry"`
-	User         StoredUser `json:"user"`
-}
-
-// StoredUser is the user info stored alongside the token.
-type StoredUser struct {
-	ID    string `json:"id"`
-	Email string `json:"email"`
-	Name  string `json:"name"`
-}
+// Type aliases for backwards compatibility within this package.
+type StoredAuth = config.StoredAuth
+type StoredUser = config.StoredUser
 
 var authServerURL string
 
@@ -207,6 +195,7 @@ Requires authentication (run: kapi auth login first).`,
 		if err == nil && proj.Config.Server != nil {
 			proj.Config.Server.ClaimToken = ""
 			proj.Config.Server.ProjectID = result.ProjectID
+			proj.Config.Server.Workspace = result.WorkspaceSlug
 			if saveErr := project.SaveConfig(proj.KapiDir, proj.Config); saveErr != nil {
 				fmt.Printf("Warning: could not update .kapi/config.yaml: %v\n", saveErr)
 			}
@@ -227,40 +216,11 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 }
 
-func authFilePath() string {
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
-		return filepath.Join(dir, "auth.json")
-	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	return filepath.Join(configDir, "kapi", "auth.json")
-}
+func authFilePath() string { return config.AuthFilePath() }
 
-func saveAuth(a StoredAuth) error {
-	path := authFilePath()
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(a, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0600)
-}
+func saveAuth(a StoredAuth) error { return config.SaveAuth(a) }
 
-func loadAuth() (*StoredAuth, error) {
-	data, err := os.ReadFile(authFilePath())
-	if err != nil {
-		return nil, err
-	}
-	var a StoredAuth
-	if err := json.Unmarshal(data, &a); err != nil {
-		return nil, err
-	}
-	return &a, nil
-}
+func loadAuth() (*StoredAuth, error) { return config.LoadAuth() }
 
 // fetchUserInfo calls /api/v1/auth/me to get user details from the server.
 func fetchUserInfo(serverURL, token string) (*StoredUser, error) {

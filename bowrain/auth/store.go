@@ -41,6 +41,12 @@ type AuthStore interface {
 	IncrementInviteUseCount(ctx context.Context, inviteID string) error
 	DeleteInvite(ctx context.Context, inviteID string) error
 
+	// Refresh tokens
+	StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error)
+	ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (userID string, err error)
+	RevokeRefreshToken(ctx context.Context, tokenID string) error
+	RevokeUserRefreshTokens(ctx context.Context, userID string) error
+
 	// Lifecycle
 	Close() error
 }

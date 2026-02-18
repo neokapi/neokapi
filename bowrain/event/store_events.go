@@ -157,8 +157,8 @@ func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.
 	return s.inner.Diff(ctx, from, to)
 }
 
-func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*store.ChangeSet, error) {
-	return s.inner.GetChanges(ctx, projectID, sinceCursor, locale, limit)
+func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.inner.GetChanges(ctx, projectID, sinceCursor, locales, limit)
 }
 
 func (s *EventEmittingStore) LatestCursor(ctx context.Context, projectID string) (int64, error) {

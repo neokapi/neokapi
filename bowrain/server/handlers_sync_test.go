@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/bowrain/store"
+	apiclient "github.com/gokapi/gokapi/platform/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -42,7 +43,7 @@ func TestSyncPush(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp SyncPushResponse
+	var resp apiclient.SyncPushResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Equal(t, 2, resp.Stored)
 	assert.Greater(t, resp.NewCursor, int64(0))
@@ -85,7 +86,7 @@ func TestSyncPull(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp SyncPullResponse
+	var resp store.ChangeSet
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Len(t, resp.Changes, 2)
 	assert.Greater(t, resp.NewCursor, int64(0))
@@ -113,7 +114,7 @@ func TestSyncPull_Pagination(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp SyncPullResponse
+	var resp store.ChangeSet
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Len(t, resp.Changes, 3)
 	assert.True(t, resp.HasMore)
@@ -125,10 +126,59 @@ func TestSyncPull_Pagination(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp2 SyncPullResponse
+	var resp2 store.ChangeSet
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp2))
 	assert.Len(t, resp2.Changes, 2)
 	assert.False(t, resp2.HasMore)
+}
+
+func TestSyncGetBlocks(t *testing.T) {
+	srv := newTestServer(t)
+	e := srv.GetEcho()
+	pid := createProject(t, srv)
+
+	// Push blocks with item_name.
+	body := `{"blocks":[{"id":"b1","text":"Hello","item_name":"en.json"},{"id":"b2","text":"World","item_name":"en.json"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// Get blocks for item.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var blocks []apiclient.BlockContent
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
+	assert.Len(t, blocks, 2)
+
+	// Verify block content.
+	blockMap := map[string]apiclient.BlockContent{}
+	for _, b := range blocks {
+		blockMap[b.ID] = b
+	}
+	assert.Equal(t, "Hello", blockMap["b1"].Source)
+	assert.Equal(t, "World", blockMap["b2"].Source)
+	assert.Equal(t, "en.json", blockMap["b1"].ItemName)
+}
+
+func TestSyncGetBlocks_Empty(t *testing.T) {
+	srv := newTestServer(t)
+	e := srv.GetEcho()
+	pid := createProject(t, srv)
+
+	// Get blocks for an item that doesn't exist.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=nonexistent.json", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var blocks []apiclient.BlockContent
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
+	assert.Empty(t, blocks)
 }
 
 func TestGetChanges(t *testing.T) {

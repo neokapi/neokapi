@@ -62,6 +62,9 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("Pulled %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
+	if result.FilesWritten > 0 {
+		fmt.Printf("Wrote %d translated files\n", result.FilesWritten)
+	}
 	return nil
 }
 

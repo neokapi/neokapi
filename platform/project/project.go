@@ -163,15 +163,17 @@ type ProjectMeta struct {
 type ServerConfig struct {
 	URL        string `yaml:"url"`
 	ProjectID  string `yaml:"project_id"`
+	Workspace  string `yaml:"workspace,omitempty"`
 	ClaimToken string `yaml:"claim_token,omitempty"`
 	// Auth token comes from kapi auth login (stored separately)
 }
 
 // Mapping defines a local - remote file mapping.
 type Mapping struct {
-	Local  string `yaml:"local"`  // Glob pattern
-	Remote string `yaml:"remote"` // Template with {path}, {filename}, {basename}
-	Format string `yaml:"format"` // Format ID (json, html, etc.)
+	Local      string `yaml:"local"`                  // Glob pattern
+	Remote     string `yaml:"remote"`                 // Template with {path}, {filename}, {basename}
+	Format     string `yaml:"format"`                 // Format ID (json, html, etc.)
+	TargetPath string `yaml:"target_path,omitempty"`  // Target locale template (e.g. "locales/{locale}.json")
 }
 
 // DefaultConfig returns a default configuration.

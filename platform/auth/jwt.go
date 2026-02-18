@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"time"
 
@@ -50,4 +52,13 @@ func ValidateToken(tokenString, secret string) (*Claims, error) {
 		return nil, fmt.Errorf("invalid token claims")
 	}
 	return claims, nil
+}
+
+// GenerateRefreshToken returns a cryptographically random opaque token string.
+func GenerateRefreshToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("generate refresh token: %w", err)
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
 }

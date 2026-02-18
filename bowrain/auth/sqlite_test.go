@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -206,4 +207,112 @@ func TestDeleteWorkspaceCascadesMemberships(t *testing.T) {
 	members, err := s.ListMembers(ctx, w.ID)
 	require.NoError(t, err)
 	assert.Empty(t, members)
+}
+
+// ---------------------------------------------------------------------------
+// Refresh Tokens
+// ---------------------------------------------------------------------------
+
+func TestStoreAndValidateRefreshToken(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &User{Email: "refresh@example.com", Name: "Refresh User"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	tokenHash := "abc123hash"
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+
+	id, err := s.StoreRefreshToken(ctx, u.ID, tokenHash, expiresAt)
+	require.NoError(t, err)
+	assert.NotEmpty(t, id)
+
+	// Validate should return the user ID and consume the token.
+	userID, err := s.ValidateRefreshTokenByHash(ctx, tokenHash)
+	require.NoError(t, err)
+	assert.Equal(t, u.ID, userID)
+
+	// Second validation should fail (single-use rotation).
+	_, err = s.ValidateRefreshTokenByHash(ctx, tokenHash)
+	assert.Error(t, err)
+}
+
+func TestValidateRefreshTokenExpired(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &User{Email: "expired@example.com", Name: "Expired"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	tokenHash := "expiredhash"
+	expiresAt := time.Now().Add(-1 * time.Hour) // already expired
+
+	_, err := s.StoreRefreshToken(ctx, u.ID, tokenHash, expiresAt)
+	require.NoError(t, err)
+
+	_, err = s.ValidateRefreshTokenByHash(ctx, tokenHash)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expired")
+}
+
+func TestRevokeRefreshToken(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &User{Email: "revoke@example.com", Name: "Revoke"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	tokenHash := "revokehash"
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+
+	id, err := s.StoreRefreshToken(ctx, u.ID, tokenHash, expiresAt)
+	require.NoError(t, err)
+
+	require.NoError(t, s.RevokeRefreshToken(ctx, id))
+
+	// Should no longer be valid.
+	_, err = s.ValidateRefreshTokenByHash(ctx, tokenHash)
+	assert.Error(t, err)
+}
+
+func TestRevokeUserRefreshTokens(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &User{Email: "revokeall@example.com", Name: "RevokeAll"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	_, err := s.StoreRefreshToken(ctx, u.ID, "hash1", expiresAt)
+	require.NoError(t, err)
+	_, err = s.StoreRefreshToken(ctx, u.ID, "hash2", expiresAt)
+	require.NoError(t, err)
+
+	require.NoError(t, s.RevokeUserRefreshTokens(ctx, u.ID))
+
+	// Both tokens should be revoked.
+	_, err = s.ValidateRefreshTokenByHash(ctx, "hash1")
+	assert.Error(t, err)
+	_, err = s.ValidateRefreshTokenByHash(ctx, "hash2")
+	assert.Error(t, err)
+}
+
+func TestDeleteUserCascadesRefreshTokens(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &User{Email: "cascade-rt@example.com", Name: "CascadeRT"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	expiresAt := time.Now().Add(30 * 24 * time.Hour)
+	_, err := s.StoreRefreshToken(ctx, u.ID, "cascadehash", expiresAt)
+	require.NoError(t, err)
+
+	// Deleting user via raw SQL (since there's no DeleteUser method).
+	_, err = s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, u.ID)
+	require.NoError(t, err)
+
+	// Refresh token should be cascaded.
+	_, err = s.ValidateRefreshTokenByHash(ctx, "cascadehash")
+	assert.Error(t, err)
 }

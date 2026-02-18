@@ -47,6 +47,11 @@ func (s *ProjectService) StoreBlocks(ctx context.Context, projectID string, bloc
 	return s.store.StoreBlocks(ctx, projectID, blocks)
 }
 
+// StoreBlocksForItem stores blocks scoped to a specific item (source file).
+func (s *ProjectService) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
+	return s.store.StoreBlocksForItem(ctx, projectID, itemName, blocks)
+}
+
 // GetBlock retrieves a single block.
 func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string) (*store.StoredBlock, error) {
 	return s.store.GetBlock(ctx, projectID, blockID)
@@ -73,8 +78,8 @@ func (s *ProjectService) Diff(ctx context.Context, from, to string) (*store.Vers
 }
 
 // GetChanges returns change log entries since the given cursor.
-func (s *ProjectService) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locale string, limit int) (*store.ChangeSet, error) {
-	return s.store.GetChanges(ctx, projectID, sinceCursor, locale, limit)
+func (s *ProjectService) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.store.GetChanges(ctx, projectID, sinceCursor, locales, limit)
 }
 
 // LatestCursor returns the most recent change log sequence number for a project.

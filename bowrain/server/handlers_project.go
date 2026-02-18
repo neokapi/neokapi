@@ -5,6 +5,7 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
+	apiclient "github.com/gokapi/gokapi/platform/client"
 	"github.com/labstack/echo/v4"
 )
 
@@ -17,15 +18,7 @@ type ProjectRequest struct {
 
 // BlocksRequest is the request body for storing blocks.
 type BlocksRequest struct {
-	Blocks []BlockInput `json:"blocks"`
-}
-
-// BlockInput represents a block in the API input.
-type BlockInput struct {
-	ID   string `json:"id"`
-	Text string `json:"text"`
-	Name string `json:"name,omitempty"`
-	Type string `json:"type,omitempty"`
+	Blocks []apiclient.BlockInput `json:"blocks"`
 }
 
 // VersionRequest is the request body for creating a version.

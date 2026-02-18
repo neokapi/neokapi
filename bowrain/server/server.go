@@ -145,6 +145,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		v1.GET("/projects/:id/versions", s.HandleListVersions)
 		v1.POST("/projects/:id/sync/push", s.HandleSyncPush)
 		v1.GET("/projects/:id/sync/pull", s.HandleSyncPull)
+		v1.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
 		v1.GET("/projects/:id/changes", s.HandleGetChanges)
 
 		// In local mode, workspace-scoped routes are registered without
@@ -171,6 +172,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup := v1.Group("/auth")
 		authGroup.POST("/device/start", s.HandleDeviceAuthStart)
 		authGroup.POST("/device/poll", s.HandleDeviceAuthPoll)
+		authGroup.POST("/refresh", s.HandleTokenRefresh)
 		authGroup.GET("/login", s.HandleAuthLogin)
 		authGroup.GET("/callback", s.HandleAuthCallback)
 		authGroup.POST("/callback", s.HandleAuthCallback)
@@ -199,6 +201,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 			syncGroup.POST("/push", s.HandleSyncPush)
 			syncGroup.GET("/pull", s.HandleSyncPull)
+			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 		}
 
 		// Workspace endpoints (require auth + workspace membership)

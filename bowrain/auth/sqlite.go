@@ -90,6 +90,21 @@ var authMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     7,
+		Description: "create refresh_tokens table",
+		SQL: `
+			CREATE TABLE refresh_tokens (
+				id         TEXT PRIMARY KEY,
+				user_id    TEXT NOT NULL,
+				token_hash TEXT NOT NULL UNIQUE,
+				expires_at TEXT NOT NULL,
+				created_at TEXT NOT NULL,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);
+			CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -531,6 +546,59 @@ func (s *SQLiteAuthStore) DeleteInvite(ctx context.Context, inviteID string) err
 	_, err := s.db.ExecContext(ctx, `DELETE FROM workspace_invites WHERE id = ?`, inviteID)
 	if err != nil {
 		return fmt.Errorf("delete invite: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Refresh Tokens
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteAuthStore) StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
+	id := uuid.NewString()
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
+		id, userID, tokenHash, expiresAt.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		return "", fmt.Errorf("insert refresh token: %w", err)
+	}
+	return id, nil
+}
+
+func (s *SQLiteAuthStore) ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (string, error) {
+	var id, userID, expiresStr string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, user_id, expires_at FROM refresh_tokens WHERE token_hash = ?`, tokenHash).
+		Scan(&id, &userID, &expiresStr)
+	if err != nil {
+		return "", fmt.Errorf("refresh token not found: %w", err)
+	}
+
+	expiresAt, _ := time.Parse(time.RFC3339, expiresStr)
+	if time.Now().After(expiresAt) {
+		// Expired — delete and reject.
+		_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id)
+		return "", fmt.Errorf("refresh token expired")
+	}
+
+	// Single-use: delete after successful validation (token rotation).
+	_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id)
+	return userID, nil
+}
+
+func (s *SQLiteAuthStore) RevokeRefreshToken(ctx context.Context, tokenID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, tokenID)
+	if err != nil {
+		return fmt.Errorf("revoke refresh token: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) RevokeUserRefreshTokens(ctx context.Context, userID string) error {
+	_, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE user_id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("revoke user refresh tokens: %w", err)
 	}
 	return nil
 }

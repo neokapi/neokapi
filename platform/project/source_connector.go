@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
 	apiclient "github.com/gokapi/gokapi/platform/client"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/connector"
 )
 
@@ -39,9 +41,26 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 
 	var client *apiclient.BowrainClient
 	srv := project.Config.Server
-	if srv.ClaimToken != "" {
+	switch {
+	case srv.ClaimToken != "":
 		client = apiclient.NewClaimTokenClient(srv.URL, srv.ProjectID, srv.ClaimToken)
-	} else {
+	case srv.Workspace != "":
+		authInfo, err := config.LoadAuth()
+		if err != nil {
+			return nil, fmt.Errorf("workspace sync requires authentication: run 'kapi auth login'")
+		}
+		if authInfo.ServerURL != srv.URL {
+			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, srv.URL)
+		}
+		client = apiclient.NewWorkspaceBowrainClient(srv.URL, srv.Workspace, srv.ProjectID, authInfo.AccessToken)
+		if authInfo.RefreshToken != "" {
+			client.SetRefreshToken(authInfo.RefreshToken, func(newAccess, newRefresh string) {
+				authInfo.AccessToken = newAccess
+				authInfo.RefreshToken = newRefresh
+				_ = config.SaveAuth(*authInfo)
+			})
+		}
+	default:
 		client = apiclient.NewBowrainClient(srv.URL, srv.ProjectID)
 	}
 
@@ -72,7 +91,7 @@ func (c *KapiSourceConnector) Category() connector.Category {
 // Status reports the sync state.
 func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
 	// Count local changes by scanning files and comparing to cache.
-	localBlocks, _, err := c.scanLocalBlocks(ctx, nil)
+	hashMap, _, err := c.scanLocalBlocks(ctx, nil)
 	if err != nil {
 		return &connector.SyncStatus{
 			ConnectorID: c.ID(),
@@ -80,10 +99,15 @@ func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus
 		}, nil
 	}
 
+	totalBlocks := 0
 	pendingPush := 0
-	for blockID, hash := range localBlocks {
-		if cachedHash, ok := c.lookupCachedHash(blockID); !ok || cachedHash != hash {
-			pendingPush++
+	for itemName, fileHashes := range hashMap {
+		for blockID, hash := range fileHashes {
+			totalBlocks++
+			cachedHash, inCache := c.lookupCachedHashForItem(itemName, blockID)
+			if !inCache || cachedHash != hash {
+				pendingPush++
+			}
 		}
 	}
 
@@ -102,7 +126,7 @@ func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus
 	return &connector.SyncStatus{
 		ConnectorID: c.ID(),
 		LastSync:    c.cache.LastSync,
-		ItemCount:   len(localBlocks),
+		ItemCount:   totalBlocks,
 		PendingPush: pendingPush,
 		PendingPull: pendingPull,
 	}, nil
@@ -120,31 +144,38 @@ func (c *KapiSourceConnector) Close() error {
 
 // Push sends source content from local files to Bowrain.
 func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
-	// Scan local files and extract blocks.
-	blockHashes, blocks, err := c.scanLocalBlocks(ctx, opts.Paths)
+	// Scan local files and extract blocks grouped by item.
+	hashMap, blockMap, err := c.scanLocalBlocks(ctx, opts.Paths)
 	if err != nil {
 		return nil, fmt.Errorf("scan local files: %w", err)
 	}
 
-	// Diff against cache to find changed blocks.
-	var changed []*model.Block
-	for _, b := range blocks {
-		hash := blockHashes[b.ID]
-		cachedHash, inCache := c.lookupCachedHash(b.ID)
-		if opts.Force || !inCache || cachedHash != hash {
-			changed = append(changed, b)
+	// Diff against cache to find changed blocks, keeping item association.
+	type itemBlock struct {
+		itemName string
+		block    *model.Block
+	}
+	var changed []itemBlock
+	for itemName, blocks := range blockMap {
+		fileHashes := hashMap[itemName]
+		for _, b := range blocks {
+			hash := fileHashes[b.ID]
+			cachedHash, inCache := c.lookupCachedHashForItem(itemName, b.ID)
+			if opts.Force || !inCache || cachedHash != hash {
+				changed = append(changed, itemBlock{itemName: itemName, block: b})
+			}
 		}
 	}
 
 	if opts.DryRun {
 		return &connector.PushResult{
 			BlocksPushed: len(changed),
-			FilesScanned: len(c.cache.Files),
+			FilesScanned: len(hashMap),
 		}, nil
 	}
 
 	if len(changed) == 0 {
-		return &connector.PushResult{FilesScanned: len(blockHashes)}, nil
+		return &connector.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
 	// Push in batches of maxBatch.
@@ -157,12 +188,13 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 		batch := changed[i:end]
 
 		inputs := make([]apiclient.BlockInput, len(batch))
-		for j, b := range batch {
+		for j, ib := range batch {
 			inputs[j] = apiclient.BlockInput{
-				ID:   b.ID,
-				Text: b.SourceText(),
-				Name: b.Name,
-				Type: b.Type,
+				ID:       ib.block.ID,
+				Text:     ib.block.SourceText(),
+				Name:     ib.block.Name,
+				Type:     ib.block.Type,
+				ItemName: ib.itemName,
 			}
 		}
 
@@ -175,10 +207,20 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 		chunkCount++
 	}
 
-	// Update cache with new hashes and cursor.
-	for id, hash := range blockHashes {
-		c.updateCachedHash(id, hash)
+	// Update cache with per-file hashes.
+	for itemName, fileHashes := range hashMap {
+		fc, ok := c.cache.Files[itemName]
+		if !ok {
+			fc = &FileCache{Blocks: map[string]string{}}
+			c.cache.Files[itemName] = fc
+		}
+		for blockID, hash := range fileHashes {
+			fc.Blocks[blockID] = hash
+		}
 	}
+	// Remove legacy "_blocks" key if present.
+	delete(c.cache.Files, "_blocks")
+
 	c.cache.SyncCursor = lastCursor
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Config.Server.URL
@@ -190,7 +232,7 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 
 	return &connector.PushResult{
 		BlocksPushed: totalStored,
-		FilesScanned: len(blockHashes),
+		FilesScanned: len(hashMap),
 		ChunkCount:   chunkCount,
 	}, nil
 }
@@ -202,25 +244,18 @@ func (c *KapiSourceConnector) Pull(ctx context.Context, opts connector.PullOptio
 		locales[i] = string(l)
 	}
 
-	totalPulled := 0
 	cursor := c.cache.SyncCursor
 	if opts.Force {
 		cursor = 0
 	}
 
+	// Phase 1: Collect changes from the change log.
+	totalPulled := 0
+
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
 		if err != nil {
 			return nil, fmt.Errorf("pull changes: %w", err)
-		}
-
-		if opts.DryRun {
-			totalPulled += len(resp.Changes)
-			if !resp.HasMore {
-				break
-			}
-			cursor = resp.NewCursor
-			continue
 		}
 
 		totalPulled += len(resp.Changes)
@@ -231,25 +266,97 @@ func (c *KapiSourceConnector) Pull(ctx context.Context, opts connector.PullOptio
 		}
 	}
 
-	if !opts.DryRun {
-		c.cache.SyncCursor = cursor
-		c.cache.LastSync = time.Now().UTC()
-		if err := c.cache.Save(c.project.KapiDir); err != nil {
-			return nil, fmt.Errorf("save sync cache: %w", err)
+	if opts.DryRun {
+		return &connector.PullResult{
+			BlocksPulled: totalPulled,
+			LocalesCount: len(opts.Locales),
+		}, nil
+	}
+
+	// Phase 2: For each item with changes, fetch blocks and write translated files.
+	filesWritten := 0
+
+	if totalPulled > 0 && len(locales) > 0 {
+		// Get all local items by scanning source files.
+		hashMap, _, err := c.scanLocalBlocks(ctx, nil)
+		if err != nil {
+			return nil, fmt.Errorf("scan local blocks: %w", err)
 		}
+
+		for itemName := range hashMap {
+			// Fetch server blocks with targets for this item.
+			blocks, err := c.client.GetBlocks(ctx, itemName)
+			if err != nil {
+				continue // Skip items that fail.
+			}
+			if len(blocks) == 0 {
+				continue
+			}
+
+			// Check if any blocks have targets for our locales.
+			hasTargets := false
+			for _, b := range blocks {
+				if len(b.Targets) > 0 {
+					hasTargets = true
+					break
+				}
+			}
+			if !hasTargets {
+				continue
+			}
+
+			// Write a translated file for each target locale.
+			for _, loc := range locales {
+				// Build target map for this locale.
+				targetMap := map[string]string{} // blockID → translated text
+				for _, b := range blocks {
+					if t, ok := b.Targets[loc]; ok {
+						targetMap[b.ID] = t
+					}
+				}
+				if len(targetMap) == 0 {
+					continue
+				}
+
+				// Determine output path.
+				outPath := c.resolveTargetPath(itemName, loc)
+				absOut := c.project.ResolvePath(outPath)
+
+				// Read source, inject targets, write output.
+				absSource := c.project.ResolvePath(itemName)
+				formatName := c.detectFormat(absSource)
+				if formatName == "" {
+					continue
+				}
+
+				if err := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap); err != nil {
+					continue
+				}
+				filesWritten++
+			}
+		}
+	}
+
+	// Update cursor.
+	c.cache.SyncCursor = cursor
+	c.cache.LastSync = time.Now().UTC()
+	if err := c.cache.Save(c.project.KapiDir); err != nil {
+		return nil, fmt.Errorf("save sync cache: %w", err)
 	}
 
 	return &connector.PullResult{
 		BlocksPulled: totalPulled,
 		LocalesCount: len(opts.Locales),
+		FilesWritten: filesWritten,
 	}, nil
 }
 
 // scanLocalBlocks walks local source files, reads them with format readers,
-// and extracts blocks. Returns blockID→contentHash map and the blocks themselves.
-func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]string, []*model.Block, error) {
-	hashes := map[string]string{}
-	var allBlocks []*model.Block
+// and extracts blocks grouped by item (file path relative to project root).
+// Returns itemName→(blockID→hash) and itemName→blocks.
+func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
+	hashMap := map[string]map[string]string{}
+	blockMap := map[string][]*model.Block{}
 
 	// If no specific paths, use mappings to discover files.
 	if len(paths) == 0 {
@@ -263,7 +370,7 @@ func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []strin
 	}
 
 	if len(paths) == 0 {
-		return hashes, allBlocks, nil
+		return hashMap, blockMap, nil
 	}
 
 	for _, p := range paths {
@@ -286,14 +393,17 @@ func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []strin
 			continue // Skip files that can't be parsed.
 		}
 
+		relPath, _ := c.project.RelativePath(absPath)
+		fileHashes := map[string]string{}
 		for _, b := range blocks {
 			identity := model.ComputeIdentity(b)
-			hashes[b.ID] = identity.ContentHash
-			allBlocks = append(allBlocks, b)
+			fileHashes[b.ID] = identity.ContentHash
 		}
+		hashMap[relPath] = fileHashes
+		blockMap[relPath] = blocks
 	}
 
-	return hashes, allBlocks, nil
+	return hashMap, blockMap, nil
 }
 
 // detectFormat determines the format for a file using mappings or the registry.
@@ -362,25 +472,115 @@ func (c *KapiSourceConnector) readBlocks(ctx context.Context, filePath, formatNa
 	return blocks, nil
 }
 
-// lookupCachedHash finds a block's cached hash across all file caches.
-func (c *KapiSourceConnector) lookupCachedHash(blockID string) (string, bool) {
-	for _, fc := range c.cache.Files {
-		if hash, ok := fc.Blocks[blockID]; ok {
-			return hash, true
+// resolveTargetPath determines the output path for a translated file.
+// It checks mappings for an explicit target_path template, falls back to
+// replacing the source locale in the path, or appends the locale as a suffix.
+func (c *KapiSourceConnector) resolveTargetPath(itemName, locale string) string {
+	relPath := itemName
+
+	// Check if any mapping has a target_path template.
+	for _, m := range c.project.Config.Mappings {
+		matched, err := filepath.Match(m.Local, relPath)
+		if err == nil && matched && m.TargetPath != "" {
+			return strings.ReplaceAll(m.TargetPath, "{locale}", locale)
 		}
 	}
-	return "", false
+
+	// Default: replace the source locale in the path with the target locale.
+	srcLocale := string(c.project.Config.Project.SourceLocale)
+	if srcLocale != "" && strings.Contains(relPath, srcLocale) {
+		return strings.Replace(relPath, srcLocale, locale, 1)
+	}
+
+	// If we cannot determine the target path, put it next to the source with a locale suffix.
+	ext := filepath.Ext(relPath)
+	base := strings.TrimSuffix(relPath, ext)
+	return base + "." + locale + ext
 }
 
-// updateCachedHash updates the hash for a block in a flat "blocks" entry.
-func (c *KapiSourceConnector) updateCachedHash(blockID, hash string) {
-	const globalKey = "_blocks"
-	fc, ok := c.cache.Files[globalKey]
-	if !ok {
-		fc = &FileCache{Blocks: map[string]string{}}
-		c.cache.Files[globalKey] = fc
+// writeTranslatedFile reads a source file, injects target translations into blocks,
+// and writes the translated output file using the appropriate format writer.
+func (c *KapiSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
+	// Read source.
+	reader, err := c.formatReg.NewReader(formatName)
+	if err != nil {
+		return fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
-	fc.Blocks[blockID] = hash
+
+	f, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("open source file %s: %w", sourcePath, err)
+	}
+
+	doc := &model.RawDocument{
+		URI:      sourcePath,
+		FormatID: formatName,
+		Reader:   f,
+	}
+	if err := reader.Open(ctx, doc); err != nil {
+		f.Close()
+		return fmt.Errorf("open document %s: %w", sourcePath, err)
+	}
+
+	// Collect parts, injecting targets.
+	var parts []*model.Part
+	ch := reader.Read(ctx)
+	for pr := range ch {
+		if pr.Error != nil {
+			continue
+		}
+		p := pr.Part
+		if p.Type == model.PartBlock {
+			if b, ok := p.Resource.(*model.Block); ok {
+				if t, exists := targets[b.ID]; exists {
+					b.SetTargetText(model.LocaleID(locale), t)
+				}
+			}
+		}
+		parts = append(parts, p)
+	}
+
+	// Write output.
+	writer, err := c.formatReg.NewWriter(formatName)
+	if err != nil {
+		return fmt.Errorf("create writer for %s: %w", formatName, err)
+	}
+
+	// Ensure output directory exists.
+	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+		return fmt.Errorf("create output directory: %w", err)
+	}
+
+	if err := writer.SetOutput(outputPath); err != nil {
+		return fmt.Errorf("set output path: %w", err)
+	}
+	writer.SetLocale(model.LocaleID(locale))
+
+	outCh := make(chan *model.Part, len(parts))
+	for _, p := range parts {
+		outCh <- p
+	}
+	close(outCh)
+
+	if err := writer.Write(ctx, outCh); err != nil {
+		return fmt.Errorf("write translated file: %w", err)
+	}
+
+	return writer.Close()
+}
+
+// lookupCachedHashForItem finds a block's cached hash for a specific item.
+func (c *KapiSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
+	fc, ok := c.cache.Files[itemName]
+	if !ok {
+		// Fall back to legacy "_blocks" key for migration.
+		fc, ok = c.cache.Files["_blocks"]
+		if !ok {
+			return "", false
+		}
+	}
+	hash, found := fc.Blocks[blockID]
+	return hash, found
 }
 
 // Ensure KapiSourceConnector implements SourceConnector at compile time.
