@@ -43,6 +43,9 @@ dist/
 
 # Dev server
 .bowrain-server.pid
+bowrain-dev.db*
+bowrain-e2e.db*
+bowrain-ci.db*
 
 # Playwright
 test-results/

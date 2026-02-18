@@ -1,4 +1,4 @@
-import { LogOut, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
@@ -6,10 +6,9 @@ interface HeaderProps {
   sidebarCollapsed: boolean;
   connectionState: ConnectionState;
   pendingChanges?: number;
-  onDisconnect?: () => void;
 }
 
-export function Header({ sidebarCollapsed, connectionState, pendingChanges, onDisconnect }: HeaderProps) {
+export function Header({ sidebarCollapsed, connectionState, pendingChanges }: HeaderProps) {
   const isConnected = connectionState === "connected";
   const isOffline = connectionState === "offline";
 
@@ -27,9 +26,11 @@ export function Header({ sidebarCollapsed, connectionState, pendingChanges, onDi
 
   return (
     <header
-      className="h-12 bg-card border-b border-border flex items-center justify-between"
+      className="h-12 border-b border-border flex items-center justify-between glass-surface"
       style={{
         padding: sidebarCollapsed ? "0 20px 0 80px" : "0 20px",
+        background: "var(--glass-bg-medium, var(--semantic-surface, hsl(var(--card))))",
+        borderColor: "var(--semantic-border, hsl(var(--border)))",
         // Wails: draggable title bar region
         // @ts-expect-error non-standard CSS property for Wails
         "--wails-draggable": "drag",
@@ -49,23 +50,8 @@ export function Header({ sidebarCollapsed, connectionState, pendingChanges, onDi
         )}
         <span
           className={`w-2 h-2 rounded-full inline-block ${dotColor}`}
+          title={stateLabel}
         />
-        <span className="text-xs text-muted-foreground">
-          {stateLabel}
-        </span>
-        {(isConnected || isOffline) && onDisconnect && (
-          <button
-            onClick={onDisconnect}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            title="Disconnect from server"
-            style={{
-              // @ts-expect-error prevent drag on interactive element
-              "--wails-draggable": "no-drag",
-            }}
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
     </header>
   );

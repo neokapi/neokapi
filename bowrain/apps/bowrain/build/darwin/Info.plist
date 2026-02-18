@@ -23,6 +23,19 @@
         <string>true</string>
         <key>NSHumanReadableCopyright</key>
         <string>(c) 2025, gokapi</string>
+        <key>CFBundleURLTypes</key>
+        <array>
+            <dict>
+                <key>CFBundleURLName</key>
+                <string>io.github.gokapi.bowrain</string>
+                <key>CFBundleURLSchemes</key>
+                <array>
+                    <string>bowrain</string>
+                </array>
+                <key>CFBundleTypeRole</key>
+                <string>Viewer</string>
+            </dict>
+        </array>
         <key>CFBundleDocumentTypes</key>
         <array>
             <dict>

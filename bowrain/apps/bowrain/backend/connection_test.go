@@ -323,6 +323,47 @@ func TestTryAutoConnectNoAuth(t *testing.T) {
 	assert.Equal(t, StateDisconnected, app.GetConnectionState().State)
 }
 
+func TestHandleAuthURL(t *testing.T) {
+	app := newTestApp(t)
+
+	// Set up an active login flow.
+	resultCh := make(chan *pkceResult, 1)
+	app.mu.Lock()
+	app.pkceResultCh = resultCh
+	app.mu.Unlock()
+
+	// Simulate receiving a bowrain:// URL.
+	app.HandleAuthURL("bowrain://auth/callback?token=jwt-123&refresh_token=rt-456&user=alice@test.com&name=Alice")
+
+	result := <-resultCh
+	require.NoError(t, result.Err)
+	assert.Equal(t, "jwt-123", result.AccessToken)
+	assert.Equal(t, "rt-456", result.RefreshToken)
+	assert.Equal(t, "alice@test.com", result.UserEmail)
+	assert.Equal(t, "Alice", result.UserName)
+}
+
+func TestHandleAuthURLNoToken(t *testing.T) {
+	app := newTestApp(t)
+
+	resultCh := make(chan *pkceResult, 1)
+	app.mu.Lock()
+	app.pkceResultCh = resultCh
+	app.mu.Unlock()
+
+	app.HandleAuthURL("bowrain://auth/callback?error=access_denied")
+
+	result := <-resultCh
+	require.Error(t, result.Err)
+	assert.Contains(t, result.Err.Error(), "access_denied")
+}
+
+func TestHandleAuthURLNoActiveFlow(t *testing.T) {
+	app := newTestApp(t)
+	// Should not panic when no login flow is active.
+	app.HandleAuthURL("bowrain://auth/callback?token=jwt-123")
+}
+
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()

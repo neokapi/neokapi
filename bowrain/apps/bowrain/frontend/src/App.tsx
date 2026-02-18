@@ -9,6 +9,7 @@ import {
   WorkspaceProvider,
   ThemeProvider,
   AppSidebar,
+  AnimatedBackgroundGlass,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
@@ -135,8 +136,8 @@ function App() {
     setMode("ready");
   }, [connection]);
 
-  const handleDisconnect = useCallback(async () => {
-    await connection.disconnect();
+  const handleSignOut = useCallback(async () => {
+    await connection.logout();
     setIsServerMode(false);
     setWorkspace(localWorkspace);
     setActiveProject(null);
@@ -412,7 +413,8 @@ function App() {
     <ThemeProvider>
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={workspace}>
-          <div className="flex h-screen overflow-hidden">
+          <AnimatedBackgroundGlass />
+          <div className="relative z-10 flex h-screen overflow-hidden">
             <AppSidebar
               workspaces={[workspace]}
               activeWorkspace={workspace}
@@ -421,7 +423,7 @@ function App() {
               onViewChange={handleViewChange}
               extraNavItems={desktopNavItems}
               user={sidebarUser}
-              onSignOut={isServerMode ? handleDisconnect : undefined}
+              onSignOut={isServerMode ? handleSignOut : undefined}
               collapsed={sidebarCollapsed}
               onCollapsedChange={setSidebarCollapsed}
               topSpacer={38}
@@ -435,7 +437,6 @@ function App() {
                 sidebarCollapsed={sidebarCollapsed}
                 connectionState={isServerMode ? connection.info.state : "disconnected"}
                 pendingChanges={pendingChanges}
-                onDisconnect={isServerMode ? handleDisconnect : undefined}
               />
               <main
                 className={cn(

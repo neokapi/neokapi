@@ -18,6 +18,8 @@ BOWRAIN_OIDC_CLIENT_ID=bowrain \
 BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
 BOWRAIN_SMTP_HOST=localhost:1025 \
 BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+BOWRAIN_STORE="$ROOT_DIR/bowrain-e2e.db" \
+BOWRAIN_GRPC_PORT=9080 \
 "$ROOT_DIR/bin/bowrain-server" &
 echo $! > "$ROOT_DIR/.bowrain-server.pid"
 

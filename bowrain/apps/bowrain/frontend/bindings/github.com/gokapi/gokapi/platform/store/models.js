@@ -53,7 +53,7 @@ export class Project {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_: string]: string } | undefined}
+             * @type {{ [_ in string]?: string } | undefined}
              */
             this["properties"] = undefined;
         }

@@ -1,13 +1,11 @@
 package backend
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -185,6 +183,17 @@ func (a *App) ConnectToServer(serverURL string) error {
 func (a *App) StartLogin(serverURL string) error {
 	serverURL = strings.TrimRight(serverURL, "/")
 
+	// Verify this is a valid Bowrain server before opening the browser.
+	client := &http.Client{Timeout: 5 * time.Second}
+	resp, err := client.Get(serverURL + "/api/v1/health")
+	if err != nil {
+		return fmt.Errorf("cannot reach server: %w", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("not a valid Bowrain server (health check returned %d)", resp.StatusCode)
+	}
+
 	// Generate PKCE code verifier + challenge.
 	verifier, err := platauth.GenerateCodeVerifier()
 	if err != nil {
@@ -192,73 +201,27 @@ func (a *App) StartLogin(serverURL string) error {
 	}
 	challenge := platauth.ComputeCodeChallenge(verifier)
 
-	// Start a local HTTP server on a random available port.
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return fmt.Errorf("start callback server: %w", err)
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-
 	resultCh := make(chan *pkceResult, 1)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		token := q.Get("token")
-		refreshToken := q.Get("refresh_token")
-		userEmail := q.Get("user")
-		userName := q.Get("name")
-
-		if token == "" {
-			errMsg := q.Get("error")
-			if errMsg == "" {
-				errMsg = "no token received"
-			}
-			resultCh <- &pkceResult{Err: fmt.Errorf("auth failed: %s", errMsg)}
-			w.Header().Set("Content-Type", "text/html")
-			fmt.Fprintf(w, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1 style="color:#e53e3e">Authentication Failed</h1><p>%s</p><p>You can close this tab.</p></body></html>`, errMsg)
-			return
-		}
-
-		resultCh <- &pkceResult{
-			AccessToken:  token,
-			RefreshToken: refreshToken,
-			UserEmail:    userEmail,
-			UserName:     userName,
-		}
-
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1 style="color:#58a6ff">Sign-in Complete</h1><p>You can close this tab and return to Bowrain.</p></body></html>`)
-	})
-
-	srv := &http.Server{Handler: mux}
-	go func() {
-		if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			resultCh <- &pkceResult{Err: fmt.Errorf("callback server: %w", err)}
-		}
-	}()
 
 	a.mu.Lock()
 	a.serverURL = serverURL
-	a.pkceServer = srv
 	a.pkceVerifier = verifier
 	a.pkceResultCh = resultCh
 	a.mu.Unlock()
 
-	// Build the desktop login URL and open in the system browser.
-	callbackURL := fmt.Sprintf("http://127.0.0.1:%d/callback", port)
+	// Build the desktop login URL with bowrain:// as the redirect URI.
 	loginURL := fmt.Sprintf("%s/api/v1/auth/desktop/login?redirect_uri=%s&code_challenge=%s&code_challenge_method=S256",
 		serverURL,
-		url.QueryEscape(callbackURL),
+		url.QueryEscape("bowrain://auth/callback"),
 		url.QueryEscape(challenge),
 	)
 
-	// Open the browser. We use the Wails runtime Browser.OpenURL from the
-	// frontend side, but provide the URL for the frontend to open.
-	// Actually, for simplicity, open it from Go directly.
-	openBrowser(loginURL)
+	// Open the system browser for OIDC login.
+	// After authentication, the server redirects to bowrain://auth/callback?token=...
+	// which the OS routes back to this app via the registered URL protocol handler.
+	if a.app != nil {
+		_ = a.app.Browser.OpenURL(loginURL)
+	}
 
 	return nil
 }
@@ -318,25 +281,54 @@ func (a *App) WaitForLogin() (bool, error) {
 	}
 }
 
+// HandleAuthURL processes a bowrain:// URL received via the OS protocol handler.
+// Expected format: bowrain://auth/callback?token=...&refresh_token=...&user=...&name=...
+func (a *App) HandleAuthURL(rawURL string) {
+	a.mu.RLock()
+	resultCh := a.pkceResultCh
+	a.mu.RUnlock()
+
+	if resultCh == nil {
+		log.Printf("bowrain: received auth URL but no login flow is active")
+		return
+	}
+
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		resultCh <- &pkceResult{Err: fmt.Errorf("invalid auth URL: %w", err)}
+		return
+	}
+
+	q := parsed.Query()
+	token := q.Get("token")
+	if token == "" {
+		errMsg := q.Get("error")
+		if errMsg == "" {
+			errMsg = "no token received"
+		}
+		resultCh <- &pkceResult{Err: fmt.Errorf("auth failed: %s", errMsg)}
+		return
+	}
+
+	resultCh <- &pkceResult{
+		AccessToken:  token,
+		RefreshToken: q.Get("refresh_token"),
+		UserEmail:    q.Get("user"),
+		UserName:     q.Get("name"),
+	}
+}
+
 // CancelLogin cancels any active PKCE login flow.
 func (a *App) CancelLogin() {
 	a.cleanupPKCE()
 }
 
-// cleanupPKCE shuts down the local callback server and clears PKCE state.
+// cleanupPKCE clears PKCE state.
 func (a *App) cleanupPKCE() {
 	a.mu.Lock()
-	srv := a.pkceServer
-	a.pkceServer = nil
 	a.pkceVerifier = ""
 	a.pkceResultCh = nil
 	a.mu.Unlock()
-
-	if srv != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		_ = srv.Shutdown(ctx)
-	}
 }
 
 // Logout removes stored auth and disconnects.
@@ -557,14 +549,3 @@ func (a *App) TryAutoConnect() {
 	}
 }
 
-// openBrowser opens the given URL in the system's default browser.
-func openBrowser(url string) {
-	// Use exec.Command for cross-platform browser opening.
-	// On macOS: open URL
-	// On Linux: xdg-open URL
-	// On Windows: rundll32 url.dll,FileProtocolHandler URL
-	cmd := browserCommand(url)
-	if cmd != nil {
-		_ = cmd.Start()
-	}
-}

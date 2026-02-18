@@ -20,6 +20,9 @@ import * as store$0 from "../../../store/models.js";
 import * as locale$0 from "../../../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
+import * as store$1 from "../../../../platform/store/models.js";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore: Unused imports
 import * as application$0 from "../../../../../../wailsapp/wails/v3/pkg/application/models.js";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -76,7 +79,7 @@ export function AddTMEntry(projectID, source, target, sourceLocale, targetLocale
 }
 
 /**
- * CancelLogin cancels any active device auth flow.
+ * CancelLogin cancels any active PKCE login flow.
  * @returns {$CancellablePromise<void>}
  */
 export function CancelLogin() {
@@ -105,7 +108,7 @@ export function CloseProject(projectID) {
 /**
  * ConfigureConnector creates and stores a connector instance.
  * @param {string} connectorType
- * @param {{ [_: string]: string }} config
+ * @param {{ [_ in string]?: string }} config
  * @returns {$CancellablePromise<$models.ConnectorInfo | null>}
  */
 export function ConfigureConnector(connectorType, config) {
@@ -417,6 +420,16 @@ export function GetWordCount(projectID, itemName) {
 }
 
 /**
+ * HandleAuthURL processes a bowrain:// URL received via the OS protocol handler.
+ * Expected format: bowrain://auth/callback?token=...&refresh_token=...&user=...&name=...
+ * @param {string} rawURL
+ * @returns {$CancellablePromise<void>}
+ */
+export function HandleAuthURL(rawURL) {
+    return $Call.ByID(2903663249, rawURL);
+}
+
+/**
  * ImportTermsCSV imports terms from CSV content into the termbase.
  * @param {string} projectID
  * @param {string} csvContent
@@ -683,16 +696,6 @@ export function PluginDir() {
 }
 
 /**
- * PollLogin polls for the device auth token. Returns true when authorized.
- * @param {string} deviceCode
- * @param {number} interval
- * @returns {$CancellablePromise<boolean>}
- */
-export function PollLogin(deviceCode, interval) {
-    return $Call.ByID(3374814478, deviceCode, interval);
-}
-
-/**
  * PseudoTranslateItem pseudo-translates all blocks in an item.
  * @param {string} projectID
  * @param {string} itemName
@@ -849,14 +852,16 @@ export function SetApplication(app) {
 }
 
 /**
- * StartLogin begins a device authorization flow against the server.
+ * StartLogin begins an authorization code + PKCE flow against the server.
+ * It starts a local HTTP server to receive the callback, generates PKCE
+ * parameters, and opens the system browser to the server's desktop login
+ * endpoint. The frontend should call WaitForLogin to block until the
+ * callback is received.
  * @param {string} serverURL
- * @returns {$CancellablePromise<$models.DeviceAuthInfo | null>}
+ * @returns {$CancellablePromise<void>}
  */
 export function StartLogin(serverURL) {
-    return $Call.ByID(3233764069, serverURL).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType64($result);
-    }));
+    return $Call.ByID(3233764069, serverURL);
 }
 
 /**
@@ -912,7 +917,7 @@ export function TMTranslateItem(projectID, itemName, targetLocale) {
  */
 export function TermEnforceItem(projectID, itemName, targetLocale) {
     return $Call.ByID(3329823539, projectID, itemName, targetLocale).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType66($result);
+        return $$createType64($result);
     }));
 }
 
@@ -992,6 +997,15 @@ export function UpdateTMEntry(req) {
     return $Call.ByID(599183202, req);
 }
 
+/**
+ * WaitForLogin blocks until the PKCE callback is received or a timeout occurs.
+ * Returns true when authentication succeeds.
+ * @returns {$CancellablePromise<boolean>}
+ */
+export function WaitForLogin() {
+    return $Call.ByID(3030848205);
+}
+
 // Private type creation functions
 const $$createType0 = $models.TranslationStats.createFrom;
 const $$createType1 = $Create.Nullable($$createType0);
@@ -1005,7 +1019,7 @@ const $$createType8 = $models.PluginUpdateInfo.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = $models.ConnectorInfo.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = store$0.Version.createFrom;
+const $$createType12 = store$1.Version.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
 const $$createType14 = $models.ContentItemInfo.createFrom;
 const $$createType15 = $Create.Array($$createType14);
@@ -1043,7 +1057,7 @@ const $$createType46 = $Create.Array($$createType45);
 const $$createType47 = $Create.Array($$createType4);
 const $$createType48 = $models.ProviderConfigInfo.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = store$0.Project.createFrom;
+const $$createType50 = store$1.Project.createFrom;
 const $$createType51 = $Create.Nullable($$createType50);
 const $$createType52 = $Create.Array($$createType51);
 const $$createType53 = $Create.Array($$createType13);
@@ -1056,7 +1070,5 @@ const $$createType59 = $Create.Nullable($$createType58);
 const $$createType60 = $models.BlockTermMatch.createFrom;
 const $$createType61 = $Create.Array($$createType60);
 const $$createType62 = $Create.Nullable($$createType48);
-const $$createType63 = $models.DeviceAuthInfo.createFrom;
-const $$createType64 = $Create.Nullable($$createType63);
-const $$createType65 = $models.TermEnforceResult.createFrom;
-const $$createType66 = $Create.Array($$createType65);
+const $$createType63 = $models.TermEnforceResult.createFrom;
+const $$createType64 = $Create.Array($$createType63);

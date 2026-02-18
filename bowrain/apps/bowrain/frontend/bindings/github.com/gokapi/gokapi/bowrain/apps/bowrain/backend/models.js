@@ -175,14 +175,14 @@ export class BlockInfo {
         if (!("targets" in $$source)) {
             /**
              * @member
-             * @type {{ [_: string]: string }}
+             * @type {{ [_ in string]?: string }}
              */
             this["targets"] = {};
         }
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_: string]: string } | undefined}
+             * @type {{ [_ in string]?: string } | undefined}
              */
             this["targets_coded"] = undefined;
         }
@@ -203,7 +203,7 @@ export class BlockInfo {
         if (!("properties" in $$source)) {
             /**
              * @member
-             * @type {{ [_: string]: string }}
+             * @type {{ [_ in string]?: string }}
              */
             this["properties"] = {};
         }
@@ -422,7 +422,7 @@ export class ConceptInfo {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_: string]: string } | undefined}
+             * @type {{ [_ in string]?: string } | undefined}
              */
             this["properties"] = undefined;
         }
@@ -644,51 +644,6 @@ export class ContentItemInfo {
 }
 
 /**
- * DeviceAuthInfo is returned when starting a login flow.
- */
-export class DeviceAuthInfo {
-    /**
-     * Creates a new DeviceAuthInfo instance.
-     * @param {Partial<DeviceAuthInfo>} [$$source = {}] - The source object to create the DeviceAuthInfo.
-     */
-    constructor($$source = {}) {
-        if (!("user_code" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["user_code"] = "";
-        }
-        if (!("verification_uri" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["verification_uri"] = "";
-        }
-        if (!("expires_in" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["expires_in"] = 0;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new DeviceAuthInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {DeviceAuthInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new DeviceAuthInfo(/** @type {Partial<DeviceAuthInfo>} */($$parsedSource));
-    }
-}
-
-/**
  * FlowDefinitionInfo is the frontend-facing flow definition type.
  */
 export class FlowDefinitionInfo {
@@ -861,7 +816,7 @@ export class FlowNodeInfo {
         if (/** @type {any} */(false)) {
             /**
              * @member
-             * @type {{ [_: string]: any } | undefined}
+             * @type {{ [_ in string]?: any } | undefined}
              */
             this["config"] = undefined;
         }
@@ -2518,14 +2473,14 @@ export class WordCountResult {
         if (!("target_words" in $$source)) {
             /**
              * @member
-             * @type {{ [_: string]: number }}
+             * @type {{ [_ in string]?: number }}
              */
             this["target_words"] = {};
         }
         if (!("target_chars" in $$source)) {
             /**
              * @member
-             * @type {{ [_: string]: number }}
+             * @type {{ [_ in string]?: number }}
              */
             this["target_chars"] = {};
         }

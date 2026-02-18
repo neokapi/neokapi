@@ -3,7 +3,6 @@ package backend
 import (
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
@@ -48,9 +47,8 @@ type App struct {
 	serverURL        string                 // e.g. "http://localhost:8080"
 	activeWS         string                 // selected workspace slug
 	authInfo     *storedDesktopAuth // cached auth info
-	pkceServer   *http.Server      // local PKCE callback server
 	pkceVerifier string            // PKCE code_verifier
-	pkceResultCh chan *pkceResult   // result from PKCE callback
+	pkceResultCh chan *pkceResult   // result from URL protocol callback
 	watcher      *ProjectWatcher   // active WatchProject stream
 	offlineQueue     *OfflineQueue          // pending mutations when offline
 	reconnectCancel  context.CancelFunc     // stops the reconnection goroutine

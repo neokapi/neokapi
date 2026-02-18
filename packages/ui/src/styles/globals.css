@@ -152,14 +152,6 @@
     @apply bg-background text-foreground;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-
-  /* Rich gradient backgrounds for glass/aurora — enables frosted glass effect */
-  [data-theme="glass"] body {
-    background: linear-gradient(135deg, oklch(15% 0.04 280), oklch(12% 0.06 300), oklch(15% 0.04 260));
-  }
-  [data-theme="aurora"] body {
-    background: linear-gradient(135deg, oklch(10% 0.05 280), oklch(8% 0.08 300), oklch(10% 0.05 320));
-  }
 }
 
 /* Glass surface utility for layout elements */

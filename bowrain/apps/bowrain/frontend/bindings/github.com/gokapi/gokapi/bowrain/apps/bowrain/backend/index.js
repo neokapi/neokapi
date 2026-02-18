@@ -18,7 +18,6 @@ export {
     ConnectionState,
     ConnectorInfo,
     ContentItemInfo,
-    DeviceAuthInfo,
     FlowDefinitionInfo,
     FlowEdgeInfo,
     FlowNodeInfo,

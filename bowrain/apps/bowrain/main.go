@@ -52,6 +52,20 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
+	// Handle bowrain:// URLs from the OS protocol handler (used for OIDC auth callback).
+	app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
+		authURL := event.Context().URL()
+		if authURL != "" {
+			// Bring the app to the foreground. Show/Focus are Cocoa calls that
+			// must run on the main thread; the event handler runs in a goroutine.
+			application.InvokeSync(func() {
+				app.Show()
+				win.Focus()
+			})
+			go appService.HandleAuthURL(authURL)
+		}
+	})
+
 	// Load plugins in the background after the window is ready.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
 		go appService.LoadPlugins()

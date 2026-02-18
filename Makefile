@@ -127,6 +127,9 @@ dev-deps: ## Start dev dependencies (Keycloak + Mailpit) in Docker
 dev-deps-down: ## Stop dev dependencies
 	docker compose down -v
 
+bowrain-dev: ## Launch Bowrain desktop app in dev mode (hot reload)
+	cd bowrain/apps/bowrain && wails3 dev
+
 dev-server: build-server ## Run bowrain-server locally against Docker deps
 	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
 	BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
@@ -134,6 +137,8 @@ dev-server: build-server ## Run bowrain-server locally against Docker deps
 	BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
 	BOWRAIN_SMTP_HOST=localhost:1025 \
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+	BOWRAIN_STORE=bowrain-dev.db \
+	BOWRAIN_GRPC_PORT=9080 \
 	bin/bowrain-server
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────

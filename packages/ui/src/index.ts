@@ -1,6 +1,9 @@
 // Utilities
 export { cn } from "./lib/utils";
 
+// Glass UI (shadcn-glass-ui)
+export { AnimatedBackgroundGlass } from "./components/ui/animated-background";
+
 // UI primitives (shadcn/ui)
 export { Button, type ButtonProps } from "./components/ui/button";
 export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, GlassCard } from "./components/ui/card";

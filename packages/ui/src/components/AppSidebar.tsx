@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { cn } from "../lib/utils";
 import type { Workspace, User } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Sparkles, WifiOff } from "./icons";
+import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Sparkles } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { AccountMenu } from "./AccountMenu";
 import type { NavItem } from "./MainSidebar";
@@ -61,10 +62,13 @@ export function AppSidebar<V extends string = string>({
 
   const iconsOnly = collapsed && collapsedWidth > 0;
   const width = collapsed ? collapsedWidth : 220;
+  const [hovered, setHovered] = useState(false);
 
   return (
     <nav
-      className="flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden shrink-0"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      className="relative z-10 flex flex-col transition-[width] duration-200 ease-in-out overflow-visible shrink-0"
       style={{
         width,
         background: "var(--sidebar-bg)",
@@ -75,7 +79,7 @@ export function AppSidebar<V extends string = string>({
         boxShadow: "var(--sidebar-glow, none)",
       }}
     >
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Top spacer (e.g. macOS traffic lights) */}
         {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
 
@@ -141,35 +145,15 @@ export function AppSidebar<V extends string = string>({
           </ul>
         </div>
 
-        {/* Connection badge (when provided) */}
-        {connectionState && connectionState !== "disconnected" && (
+        {/* Footer: theme toggle */}
+        {!iconsOnly && showThemeToggle && (
           <div
-            className="px-4 py-2 border-t"
+            className="px-4 py-3 border-t flex items-center"
             style={{ borderColor: "var(--semantic-border)" }}
           >
-            <ConnectionBadge state={connectionState} pendingChanges={pendingChanges} collapsed={iconsOnly} />
+            <ThemeToggle />
           </div>
         )}
-
-        {/* Footer: theme toggle + collapse */}
-        <div
-          className={cn(
-            "px-4 py-3 border-t flex items-center",
-            iconsOnly ? "justify-center" : "justify-between",
-          )}
-          style={{ borderColor: "var(--semantic-border)" }}
-        >
-          {!iconsOnly && showThemeToggle && <ThemeToggle />}
-          <button
-            onClick={() => onCollapsedChange(!collapsed)}
-            className="bg-transparent border-none cursor-pointer transition-colors"
-            style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
-          >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
 
         {/* User account */}
         {user && onSignOut && (
@@ -186,58 +170,27 @@ export function AppSidebar<V extends string = string>({
           </div>
         )}
       </div>
+
+      {/* Floating collapse/expand button on sidebar edge */}
+      <button
+        onClick={() => onCollapsedChange(!collapsed)}
+        className="absolute top-1/2 -translate-y-1/2 rounded-full w-6 h-6 flex items-center justify-center border cursor-pointer transition-opacity duration-200 z-10 shadow-sm"
+        style={{
+          right: -12,
+          opacity: hovered ? 1 : 0,
+          pointerEvents: hovered ? "auto" : "none",
+          background: "var(--glass-bg-strong, hsl(var(--card) / 0.8))",
+          borderColor: "var(--semantic-border, hsl(var(--border)))",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
+          color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)",
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
+      >
+        {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+      </button>
     </nav>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Internal: ConnectionBadge
-// ---------------------------------------------------------------------------
-
-function ConnectionBadge({
-  state,
-  pendingChanges,
-  collapsed,
-}: {
-  state: ConnectionState;
-  pendingChanges?: number;
-  collapsed: boolean;
-}) {
-  const isConnected = state === "connected";
-  const isOffline = state === "offline";
-
-  const dotColor = isConnected
-    ? "bg-green-500"
-    : isOffline
-      ? "bg-amber-500"
-      : "bg-muted-foreground/40";
-
-  const label = isConnected
-    ? "Connected"
-    : isOffline
-      ? "Offline"
-      : "Connecting";
-
-  return (
-    <div className="flex items-center gap-2">
-      <span className={`w-2 h-2 rounded-full inline-block shrink-0 ${dotColor}`} />
-      {!collapsed && (
-        <>
-          <span
-            className="text-xs"
-            style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
-          >
-            {label}
-          </span>
-          {isOffline && pendingChanges != null && pendingChanges > 0 && (
-            <span className="flex items-center gap-1 text-xs text-amber-500 ml-auto">
-              <WifiOff className="w-3 h-3" />
-              {pendingChanges}
-            </span>
-          )}
-        </>
-      )}
-    </div>
   );
 }
 
