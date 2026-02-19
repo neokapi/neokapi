@@ -3,7 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   testMatch: "recordings.spec.ts",
-  timeout: 60000, // Longer timeout for recordings
+  timeout: 120000, // Longer timeout for human-speed recordings (200+ chars at 100ms/char + UI interactions)
   globalTimeout: process.env.CI ? 1800000 : 0, // 30 min cap in CI (39 tests with human-speed typing)
   retries: 0, // No retries for recordings - we want consistent videos
   reporter: process.env.CI ? "list" : "html",
