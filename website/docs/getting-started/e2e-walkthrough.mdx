@@ -42,31 +42,41 @@ kapi --version
 
 ## Step 1: Initialize the Project
 
-Navigate to the example Docusaurus project and create a Kapi project using
-**Quick start** mode, which creates the project directly on the server:
+Navigate to the example Docusaurus project and create a Kapi project. You can
+create an anonymous project and receive a claim link by email:
 
 ```bash
 cd examples/docusaurus-e2e
 
-kapi init --quickstart \
-  --name "Docusaurus E2E Demo" \
-  --source en \
-  --targets nb,fr \
-  --server http://localhost:8080
+kapi init --name "Docusaurus E2E Demo" --email alex@example.com
+```
+
+Or create an anonymous project and get the claim URL printed directly:
+
+```bash
+kapi init --anonymous --name "Docusaurus E2E Demo" --source en
 ```
 
 This creates a `.kapi/` directory with the project configuration and prints a
-**claim URL** that you'll use in [Step 4](#step-4-claim-the-project):
+**claim URL** (or sends it via email) that you'll use in [Step 4](#step-4-claim-the-project):
 
 ```
-Project created on server!
-  Project ID: proj_abc123...
-  Claim URL:  http://localhost:8080/claim/clm_def456...
+Creating project on https://bowrain.example.com...
+Initialized .kapi/ project in: /path/to/examples/docusaurus-e2e
+
+Project created: proj_abc123...
+Claim URL: https://bowrain.example.com/claim/clm_def456...
 
 Next steps:
-  1. kapi push     Upload content to the server
-  2. Open the claim URL to add this project to your workspace
+  1. Run: kapi push    — upload content to the server
+  2. Open the claim URL to take ownership of the project
+  3. Invite translators from the web dashboard
 ```
+
+:::tip
+The server URL is resolved from `KAPI_SERVER_URL` environment variable or existing
+auth state. Set it once and `kapi init` picks it up automatically.
+:::
 
 ---
 
@@ -123,19 +133,16 @@ Done. 74 blocks pushed.
 
 ## Step 4: Claim the Project
 
-The project was created anonymously on the server. To manage it, **claim** it
-by opening the claim URL printed in [Step 1](#step-1-initialize-the-project):
-
-```
-http://localhost:8080/claim/clm_def456...
-```
+The project was created anonymously on the server. To manage it, **claim** it.
+If you used `--email`, check your inbox for the claim link. Otherwise, open the
+claim URL printed in [Step 1](#step-1-initialize-the-project).
 
 If you're not signed in, the claim page prompts you to authenticate first. After
 signing in, the project is automatically added to your workspace.
 
 The claim flow:
 
-1. Open the claim URL in your browser
+1. Open the claim URL in your browser (or click the link in your email)
 2. Sign in with your SSO provider (or create an account)
 3. The project is claimed into your personal workspace
 4. Click **Go to workspace** to see the project dashboard
@@ -191,8 +198,8 @@ dashboard. They select a file (e.g., `code.json`) and open the
 
 If the translator has Bowrain Desktop installed, they'll see an
 **Open in Bowrain Desktop** banner on the project view. Clicking it opens the
-desktop app via a `bowrain://` deep link, providing the same translation
-editor with native performance and offline support.
+desktop app via a `bowrain:` deep link (e.g., `bowrain:https://bowrain.example.com/ws/acme/projects/proj_123`),
+providing the same translation editor with native performance and offline support.
 
 :::note
 The desktop app supports **offline editing**. Translations are synced
@@ -234,10 +241,10 @@ npm run serve
 
 | Step | Tool | What Happens |
 |------|------|-------------|
-| 1. Initialize | `kapi init --quickstart` | Creates project on server, generates claim URL |
+| 1. Initialize | `kapi init --anonymous` | Creates project on server, generates claim URL |
 | 2. Pseudo-translate | `kapi pseudo-translate` | Generates test translations for UI validation |
 | 3. Push | `kapi push` | Uploads source content to Bowrain Server |
-| 4. Claim | Web browser | Developer claims the anonymous project |
+| 4. Claim | Web browser / email | Developer claims the anonymous project |
 | 5. Invite | Web app / API | Admin invites translator to workspace |
 | 6. Translate | Web / Desktop | Translator works on content |
 | 7. Pull | `kapi pull` | Downloads translated files into codebase |

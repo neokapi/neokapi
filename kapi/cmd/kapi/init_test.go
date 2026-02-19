@@ -33,7 +33,7 @@ func TestParseTargetLocales(t *testing.T) {
 	}
 }
 
-func TestRunInitQuickStart(t *testing.T) {
+func TestRunInitAnonymous(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v1/projects/anonymous", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
@@ -58,7 +58,7 @@ func TestRunInitQuickStart(t *testing.T) {
 	cfg.Project.SourceLocale = "en"
 	cfg.Project.TargetLocales = []model.LocaleID{"nb", "fr"}
 
-	err := runInitQuickStart(dir, cfg, withServerURL(srv.URL))
+	err := runInitAnonymous(dir, cfg, srv.URL, "")
 	require.NoError(t, err)
 
 	// Verify .kapi/ directory was created.
@@ -76,4 +76,83 @@ func TestRunInitQuickStart(t *testing.T) {
 	assert.Equal(t, srv.URL, loadedCfg.Server.URL)
 	assert.Equal(t, "proj_qs_123", loadedCfg.Server.ProjectID)
 	assert.Equal(t, "clm_qs_abc", loadedCfg.Server.ClaimToken)
+}
+
+func TestRunInitAnonymousWithEmail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		assert.Equal(t, "user@example.com", req["email"])
+		assert.Equal(t, "test-project", req["name"])
+
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"project_id":  "proj_email_123",
+			"claim_token": "clm_email_abc",
+		})
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+
+	cfg := project.DefaultConfig()
+	cfg.Project.Name = "test-project"
+	cfg.Project.SourceLocale = "en"
+
+	err := runInitAnonymous(dir, cfg, srv.URL, "user@example.com")
+	require.NoError(t, err)
+
+	kapiDir := filepath.Join(dir, ".kapi")
+	loadedCfg, err := project.LoadConfig(kapiDir)
+	require.NoError(t, err)
+	assert.Equal(t, "proj_email_123", loadedCfg.Server.ProjectID)
+}
+
+func TestRunInitAnonymousNoTargets(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+		// target_locales should not be present when empty.
+		assert.Nil(t, req["target_locales"])
+
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"project_id":  "proj_dyn",
+			"claim_token": "clm_dyn",
+		})
+	}))
+	defer srv.Close()
+
+	dir := t.TempDir()
+
+	cfg := project.DefaultConfig()
+	cfg.Project.Name = "dynamic-project"
+	cfg.Project.SourceLocale = "en"
+	// No target locales — should be treated as dynamic.
+
+	err := runInitAnonymous(dir, cfg, srv.URL, "")
+	require.NoError(t, err)
+}
+
+func TestResolveServerURL(t *testing.T) {
+	t.Run("flag takes priority", func(t *testing.T) {
+		initServerURL = "http://flag.example.com"
+		t.Setenv("KAPI_SERVER_URL", "http://env.example.com")
+		defer func() { initServerURL = "" }()
+		assert.Equal(t, "http://flag.example.com", resolveServerURL())
+	})
+
+	t.Run("env fallback", func(t *testing.T) {
+		initServerURL = ""
+		t.Setenv("KAPI_SERVER_URL", "http://env.example.com")
+		assert.Equal(t, "http://env.example.com", resolveServerURL())
+	})
+
+	t.Run("baked-in default when nothing set", func(t *testing.T) {
+		initServerURL = ""
+		t.Setenv("KAPI_SERVER_URL", "")
+		result := resolveServerURL()
+		// Falls through to the baked-in default from AppConfig.
+		assert.Equal(t, "http://localhost:8080", result)
+	})
 }

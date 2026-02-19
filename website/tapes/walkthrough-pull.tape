@@ -1,5 +1,6 @@
 # VHS Tape: E2E walkthrough — kapi pull
-# Demonstrates pulling translated content from Bowrain Server
+# Demonstrates pulling translated content from Bowrain Server.
+# Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
 Output output/walkthrough-pull.webm
 Output output/walkthrough-pull.gif
@@ -10,7 +11,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "cd ../../examples/docusaurus-e2e"
+Type "cd $WALKTHROUGH_DIR"
 Enter
 Sleep 500ms
 

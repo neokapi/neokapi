@@ -1,5 +1,6 @@
-# VHS Tape: E2E walkthrough — kapi init (Quick start)
-# Demonstrates Quick start mode for creating a project on the server
+# VHS Tape: E2E walkthrough — kapi init (anonymous project)
+# Demonstrates creating an anonymous project on the server.
+# Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
 Output output/walkthrough-init.webm
 Output output/walkthrough-init.gif
@@ -10,19 +11,15 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "# Step 1: Initialize a project with Quick start"
+Type "# Step 1: Initialize a project"
 Enter
 Sleep 500ms
 
-Type "cd ../../examples/docusaurus-e2e"
+Type "cd $WALKTHROUGH_DIR"
 Enter
 Sleep 500ms
 
-Type "rm -rf .kapi"
-Enter
-Sleep 300ms
-
-Type "kapi init --quickstart --name 'Docusaurus E2E Demo' --source en --targets nb,fr --server http://localhost:8080"
+Type "kapi init --anonymous --name 'Docusaurus E2E Demo' --source en"
 Enter
 Sleep 3s
 
@@ -42,7 +39,15 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "kapi status"
+Type "# Add .kapi/ to git"
+Enter
+Sleep 500ms
+
+Type "git add .kapi"
+Enter
+Sleep 500ms
+
+Type "git status"
 Enter
 Sleep 2s
 

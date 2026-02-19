@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/viper"
 	"gopkg.in/yaml.v3"
 )
 
@@ -23,6 +24,29 @@ func LoadConfig(kapiDir string) (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// GetConfigValue reads a dot-notation key from .kapi/config.yaml.
+// For example, "project.name" or "server.url".
+func GetConfigValue(kapiDir, key string) string {
+	configPath := filepath.Join(kapiDir, ConfigFile)
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+	_ = v.ReadInConfig()
+	return v.GetString(key)
+}
+
+// SetConfigValue sets a dot-notation key in .kapi/config.yaml.
+// The file is loaded, updated, and written back.
+func SetConfigValue(kapiDir, key, value string) error {
+	configPath := filepath.Join(kapiDir, ConfigFile)
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("yaml")
+	_ = v.ReadInConfig()
+	v.Set(key, value)
+	return v.WriteConfigAs(configPath)
 }
 
 // SaveConfig saves the project configuration to .kapi/config.yaml.

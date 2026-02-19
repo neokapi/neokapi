@@ -56,6 +56,21 @@ else
   echo "Docker not available. Server-backed tapes will be skipped."
 fi
 
+# Set KAPI_SERVER_URL for walkthrough tapes when server is available.
+if [ "$SERVER_AVAILABLE" = true ]; then
+  export KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
+fi
+
+# Set up clean walkthrough directory for walkthrough tapes.
+WALKTHROUGH_DIR=""
+if [ "$SERVER_AVAILABLE" = true ]; then
+  echo ""
+  echo "Setting up walkthrough test directory..."
+  WALKTHROUGH_DIR="$(bash "$SCRIPT_DIR/scripts/setup-walkthrough.sh")"
+  export WALKTHROUGH_DIR
+  echo "  Walkthrough dir: $WALKTHROUGH_DIR"
+fi
+
 # Generate all tapes
 echo ""
 echo "Generating CLI demo videos..."
@@ -109,8 +124,11 @@ if [ "$SERVER_AVAILABLE" = true ]; then
   bash "$SCRIPT_DIR/stop-server.sh" || true
 fi
 
-# Clean up temp config
+# Clean up temp dirs
 rm -rf "$KAPI_CONFIG_DIR"
+if [ -n "$WALKTHROUGH_DIR" ]; then
+  rm -rf "$(dirname "$WALKTHROUGH_DIR")"
+fi
 
 if [ $failed -gt 0 ]; then
   echo ""

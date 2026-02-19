@@ -187,12 +187,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Build kapi CLI
+      - name: Build kapi CLI and bowrain-server
         run: |
           npm ci
           cd packages/ui && npx tsc
           cd ../../bowrain/apps/kapi-web && npm run build
           cd ../../.. && make build
+          cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       # Install VHS using the official setup
       - name: Install VHS
@@ -208,33 +209,55 @@ jobs:
       - name: Install Xvfb
         run: sudo apt-get install -y xvfb
 
+      - name: Start dependencies (Keycloak + Mailpit)
+        run: docker compose up -d --wait
+
+      - name: Start bowrain-server
+        run: |
+          BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
+          BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
+          BOWRAIN_OIDC_CLIENT_ID=bowrain \
+          BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
+          BOWRAIN_SMTP_HOST=localhost:1025 \
+          BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+          BOWRAIN_STORE=bowrain-ci.db \
+          BOWRAIN_GRPC_PORT=9080 \
+          bin/bowrain-server &
+          echo $! > .bowrain-server.pid
+
+      - name: Wait for server health
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:8080/api/v1/health; then
+              echo "Server is healthy"
+              exit 0
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+          echo "Server failed to become healthy"
+          exit 1
+
       - name: Generate CLI recordings with VHS
         working-directory: website/tapes
         run: |
           export PATH="$PWD/../../bin:$PATH"
-          export KAPI_CONFIG_DIR="$(mktemp -d)"
-          mkdir -p output
+          export KAPI_SERVER_URL=http://localhost:8080
 
           # Start virtual display for VHS
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           export DISPLAY=:99
 
-          # Run VHS on all tapes
-          for tape in *.tape; do
-            if [ -f "$tape" ]; then
-              name="${tape%.tape}"
-              echo "Recording: $name"
-              vhs "$tape" || echo "Warning: $name failed"
-            fi
-          done
+          bash generate.sh
 
-          # Copy to docs
-          DOCS_VIDEO_DIR="../../website/static/video/cli"
-          mkdir -p "$DOCS_VIDEO_DIR"
-          cp output/*.webm "$DOCS_VIDEO_DIR/" 2>/dev/null || true
-          cp output/*.gif "$DOCS_VIDEO_DIR/" 2>/dev/null || true
-
-          rm -rf "$KAPI_CONFIG_DIR"
+      - name: Shutdown server and dependencies
+        if: always()
+        run: |
+          if [ -f .bowrain-server.pid ]; then
+            kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
+            rm -f .bowrain-server.pid
+          fi
+          docker compose down -v
 
       - name: Upload CLI assets
         uses: actions/upload-artifact@v4

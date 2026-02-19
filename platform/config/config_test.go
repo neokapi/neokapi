@@ -50,6 +50,36 @@ func TestChannelBufferDefault(t *testing.T) {
 	assert.Equal(t, 64, cfg.ChannelBuffer())
 }
 
+func TestServerURLDefault(t *testing.T) {
+	cfg := NewAppConfig()
+	assert.Equal(t, "http://localhost:8080", cfg.ServerURL())
+}
+
+func TestServerURLOverride(t *testing.T) {
+	cfg := NewAppConfig()
+	cfg.Set("server.url", "https://bowrain.example.com")
+	assert.Equal(t, "https://bowrain.example.com", cfg.ServerURL())
+}
+
+func TestGlobalConfigFilePath(t *testing.T) {
+	t.Setenv("KAPI_CONFIG_DIR", "/tmp/test-kapi-config")
+	assert.Equal(t, "/tmp/test-kapi-config/kapi.yaml", GlobalConfigFilePath())
+}
+
+func TestSetGlobalConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("KAPI_CONFIG_DIR", dir)
+
+	err := SetGlobalConfig("server.url", "https://bowrain.example.com")
+	require.NoError(t, err)
+
+	// Verify by reading back.
+	cfg := NewAppConfig()
+	cfg.v.SetConfigFile(GlobalConfigFilePath())
+	require.NoError(t, cfg.v.ReadInConfig())
+	assert.Equal(t, "https://bowrain.example.com", cfg.v.GetString("server.url"))
+}
+
 func TestConfigLoadNoFile(t *testing.T) {
 	cfg := NewAppConfig()
 	err := cfg.Load()

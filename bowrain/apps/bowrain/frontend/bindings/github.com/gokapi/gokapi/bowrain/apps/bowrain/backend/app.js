@@ -430,6 +430,17 @@ export function HandleAuthURL(rawURL) {
 }
 
 /**
+ * HandleDeepLink processes a deep link web URL (after stripping the "bowrain:" prefix).
+ * The URL is a standard web URL like https://bowrain.cloud/ws/acme/projects/proj_123.
+ * It parses path components and emits a "deep-link-project" event to the frontend.
+ * @param {string} webURL
+ * @returns {$CancellablePromise<void>}
+ */
+export function HandleDeepLink(webURL) {
+    return $Call.ByID(4065365848, webURL);
+}
+
+/**
  * ImportTermsCSV imports terms from CSV content into the termbase.
  * @param {string} projectID
  * @param {string} csvContent

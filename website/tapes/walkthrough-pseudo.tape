@@ -1,5 +1,6 @@
 # VHS Tape: E2E walkthrough — pseudo-translate
-# Demonstrates pseudo-translation on Docusaurus i18n JSON files
+# Demonstrates pseudo-translation on Docusaurus i18n JSON files.
+# Requires: WALKTHROUGH_DIR set by generate.sh.
 
 Output output/walkthrough-pseudo.webm
 Output output/walkthrough-pseudo.gif
@@ -14,7 +15,7 @@ Type "# Step 2: Generate pseudo-translations for UI testing"
 Enter
 Sleep 500ms
 
-Type "cd ../../examples/docusaurus-e2e"
+Type "cd $WALKTHROUGH_DIR"
 Enter
 Sleep 500ms
 
@@ -41,5 +42,21 @@ Sleep 500ms
 Type "head -20 i18n/qps/code.json"
 Enter
 Sleep 3s
+
+Type ""
+Enter
+Sleep 500ms
+
+Type "# Add pseudo-translations to git"
+Enter
+Sleep 500ms
+
+Type "git add i18n/qps"
+Enter
+Sleep 500ms
+
+Type "git status"
+Enter
+Sleep 2s
 
 Sleep 1s

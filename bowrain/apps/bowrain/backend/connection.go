@@ -318,25 +318,36 @@ func (a *App) HandleAuthURL(rawURL string) {
 	}
 }
 
-// HandleProjectURL processes a bowrain://project/{id}?server=...&workspace=... deep link.
-// It emits a "deep-link-project" event to the frontend with the parsed parameters.
-func (a *App) HandleProjectURL(rawURL string) {
-	parsed, err := url.Parse(rawURL)
+// HandleDeepLink processes a deep link web URL (after stripping the "bowrain:" prefix).
+// The URL is a standard web URL like https://bowrain.cloud/ws/acme/projects/proj_123.
+// It parses path components and emits a "deep-link-project" event to the frontend.
+func (a *App) HandleDeepLink(webURL string) {
+	parsed, err := url.Parse(webURL)
 	if err != nil {
-		log.Printf("bowrain: invalid project URL: %v", err)
+		log.Printf("bowrain: invalid deep link URL: %v", err)
 		return
 	}
 
-	// In bowrain://project/{id}, host is "project", path is "/{id}".
-	projectID := strings.TrimPrefix(parsed.Path, "/")
+	// Reconstruct the server URL (scheme + host).
+	serverURL := parsed.Scheme + "://" + parsed.Host
+
+	// Parse path: /ws/{workspace}/projects/{projectId}[/files/{fileId}]
+	segments := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+
+	var workspace, projectID string
+	for i := 0; i < len(segments)-1; i++ {
+		switch segments[i] {
+		case "ws":
+			workspace = segments[i+1]
+		case "projects":
+			projectID = segments[i+1]
+		}
+	}
+
 	if projectID == "" {
-		log.Printf("bowrain: project URL missing project ID: %s", rawURL)
+		log.Printf("bowrain: deep link missing project ID: %s", webURL)
 		return
 	}
-
-	q := parsed.Query()
-	serverURL := q.Get("server")
-	workspace := q.Get("workspace")
 
 	if a.app != nil {
 		a.app.Event.Emit("deep-link-project", map[string]string{
@@ -577,4 +588,3 @@ func (a *App) TryAutoConnect() {
 		return
 	}
 }
-

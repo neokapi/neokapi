@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"log"
-	"net/url"
 	"strings"
 
 	"github.com/gokapi/gokapi/bowrain/apps/bowrain/backend"
@@ -54,8 +53,10 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
-	// Handle bowrain:// URLs from the OS protocol handler.
-	// Routes by path: auth/callback → OIDC, project/{id} → deep link.
+	// Handle bowrain: URLs from the OS protocol handler.
+	// Two formats:
+	//   bowrain://auth/callback?...  → OIDC auth callback (unchanged)
+	//   bowrain:https://server/...   → deep link to web URL
 	app.Event.OnApplicationEvent(events.Common.ApplicationLaunchedWithUrl, func(event *application.ApplicationEvent) {
 		rawURL := event.Context().URL()
 		if rawURL == "" {
@@ -68,21 +69,16 @@ func main() {
 			win.Focus()
 		})
 
-		parsed, err := url.Parse(rawURL)
-		if err != nil {
-			log.Printf("bowrain: invalid URL: %v", err)
-			return
-		}
-
-		// Route by host+path. In bowrain://auth/callback, host is "auth", path is "/callback".
-		// In bowrain://project/{id}, host is "project", path is "/{id}".
 		switch {
-		case parsed.Host == "auth" && strings.HasPrefix(parsed.Path, "/callback"):
+		case strings.HasPrefix(rawURL, "bowrain://auth/"):
+			// OIDC auth callback — unchanged.
 			go appService.HandleAuthURL(rawURL)
-		case parsed.Host == "project":
-			go appService.HandleProjectURL(rawURL)
+		case strings.HasPrefix(rawURL, "bowrain:"):
+			// Deep link: strip "bowrain:" prefix, rest is a web URL.
+			webURL := strings.TrimPrefix(rawURL, "bowrain:")
+			go appService.HandleDeepLink(webURL)
 		default:
-			log.Printf("bowrain: unrecognized URL scheme path: %s", rawURL)
+			log.Printf("bowrain: unrecognized URL: %s", rawURL)
 		}
 	})
 

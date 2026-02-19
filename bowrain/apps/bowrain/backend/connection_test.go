@@ -364,22 +364,22 @@ func TestHandleAuthURLNoActiveFlow(t *testing.T) {
 	app.HandleAuthURL("bowrain://auth/callback?token=jwt-123")
 }
 
-func TestHandleProjectURLValid(t *testing.T) {
+func TestHandleDeepLinkValid(t *testing.T) {
 	app := newTestApp(t)
 	// Should not panic. Without a.app, event emission is skipped.
-	app.HandleProjectURL("bowrain://project/proj_123?server=https%3A%2F%2Fexample.com&workspace=my-ws")
+	app.HandleDeepLink("https://example.com/ws/my-ws/projects/proj_123")
 }
 
-func TestHandleProjectURLInvalid(t *testing.T) {
+func TestHandleDeepLinkInvalid(t *testing.T) {
 	app := newTestApp(t)
 	// Should not panic on invalid URL.
-	app.HandleProjectURL("://invalid")
+	app.HandleDeepLink("://invalid")
 }
 
-func TestHandleProjectURLMissingID(t *testing.T) {
+func TestHandleDeepLinkMissingID(t *testing.T) {
 	app := newTestApp(t)
-	// bowrain://project/ with empty path should be handled gracefully.
-	app.HandleProjectURL("bowrain://project/")
+	// URL with no project segment should be handled gracefully.
+	app.HandleDeepLink("https://example.com/ws/my-ws")
 }
 
 func TestTryAutoConnectExpiredAuth(t *testing.T) {

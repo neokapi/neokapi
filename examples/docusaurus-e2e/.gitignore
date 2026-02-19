@@ -3,5 +3,3 @@ build/
 .docusaurus/
 .cache-loader/
 *.log
-.kapi/
-i18n/qps/

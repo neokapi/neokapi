@@ -25,6 +25,7 @@ func NewAppConfig() *AppConfig {
 	v.AutomaticEnv()
 
 	// Set defaults
+	v.SetDefault("server.url", "http://localhost:8080")
 	v.SetDefault("flow.channelBuffer", 64)
 	pluginDir := "./plugins"
 	if configDir, err := os.UserConfigDir(); err == nil {
@@ -32,6 +33,9 @@ func NewAppConfig() *AppConfig {
 	}
 	v.SetDefault("plugins.directory", pluginDir)
 	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
+
+	// Explicit env bindings for keys that don't follow simple prefix rules.
+	_ = v.BindEnv("server.url", "KAPI_SERVER_URL")
 
 	return &AppConfig{v: v}
 }
@@ -85,6 +89,44 @@ func (c *AppConfig) PluginDirectory() string {
 // RegistryURL returns the URL of the remote plugin registry.
 func (c *AppConfig) RegistryURL() string {
 	return c.v.GetString("plugins.registry")
+}
+
+// ServerURL returns the configured Bowrain Server URL.
+// Resolved from config file (server.url) or KAPI_SERVER_URL env var.
+func (c *AppConfig) ServerURL() string {
+	return c.v.GetString("server.url")
+}
+
+// GlobalConfigFilePath returns the path to the global config file (~/.config/kapi/kapi.yaml).
+func GlobalConfigFilePath() string {
+	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+		return filepath.Join(dir, "kapi.yaml")
+	}
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		configDir = filepath.Join(os.Getenv("HOME"), ".config")
+	}
+	return filepath.Join(configDir, "kapi", "kapi.yaml")
+}
+
+// SetGlobalConfig sets a key-value pair in the global config file.
+// The file is loaded, updated, and written back as YAML.
+func SetGlobalConfig(key, value string) error {
+	path := GlobalConfigFilePath()
+
+	v := viper.New()
+	v.SetConfigFile(path)
+	v.SetConfigType("yaml")
+
+	// Try to read existing config (ignore not-found).
+	_ = v.ReadInConfig()
+
+	v.Set(key, value)
+
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	return v.WriteConfigAs(path)
 }
 
 // FormatPriorities returns the configured format priority overrides.

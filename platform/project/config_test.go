@@ -139,7 +139,7 @@ func TestSaveConfig(t *testing.T) {
 		assert.Equal(t, cfg.Hooks, reloaded.Hooks)
 	})
 
-	t.Run("save to existing directory", func(t *testing.T) {
+	t.Run("save minimal config", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		kapiDir := filepath.Join(tmpDir, ".kapi")
 		require.NoError(t, os.MkdirAll(kapiDir, 0755))
@@ -159,4 +159,29 @@ func TestSaveConfig(t *testing.T) {
 		_, err = os.Stat(configPath)
 		require.NoError(t, err)
 	})
+}
+
+func TestGetSetConfigValue(t *testing.T) {
+	dir := t.TempDir()
+	kapiDir := filepath.Join(dir, KapiDir)
+	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+
+	cfg := DefaultConfig()
+	cfg.Project.Name = "test-project"
+	require.NoError(t, SaveConfig(kapiDir, cfg))
+
+	// Read existing value.
+	assert.Equal(t, "test-project", GetConfigValue(kapiDir, "project.name"))
+	assert.Equal(t, "en", GetConfigValue(kapiDir, "project.source_locale"))
+
+	// Set a new value.
+	require.NoError(t, SetConfigValue(kapiDir, "project.name", "renamed"))
+	assert.Equal(t, "renamed", GetConfigValue(kapiDir, "project.name"))
+
+	// Set a nested value that didn't exist before.
+	require.NoError(t, SetConfigValue(kapiDir, "server.url", "https://example.com"))
+	assert.Equal(t, "https://example.com", GetConfigValue(kapiDir, "server.url"))
+
+	// Unset key returns empty.
+	assert.Equal(t, "", GetConfigValue(kapiDir, "nonexistent.key"))
 }

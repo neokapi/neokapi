@@ -24,7 +24,7 @@ Shows which blocks have changed locally or remotely since the last sync.`,
 
 		if proj.Config.Server == nil {
 			fmt.Println("No server configured")
-			fmt.Println("Run 'kapi init --server <URL> --project <ID>' to connect")
+			fmt.Println("Run 'kapi init' to connect to a server")
 			return nil
 		}
 

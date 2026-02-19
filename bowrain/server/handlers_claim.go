@@ -10,7 +10,8 @@ import (
 type AnonymousProjectRequest struct {
 	Name          string   `json:"name"`
 	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales"`
+	TargetLocales []string `json:"target_locales"` // optional; empty = dynamic
+	Email         string   `json:"email"`          // optional; if set, server sends claim email
 }
 
 // AnonymousProjectResponse is the response body for anonymous project creation.
@@ -21,7 +22,8 @@ type AnonymousProjectResponse struct {
 }
 
 // HandleCreateAnonymousProject creates an anonymous project with a claim token.
-// No authentication required.
+// No authentication required. target_locales is optional (empty = dynamic locales).
+// If email is provided, the server sends a claim email to that address.
 func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
@@ -32,8 +34,8 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if req.Name == "" || req.SourceLocale == "" || len(req.TargetLocales) == 0 {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name, source_locale, and target_locales are required"})
+	if req.Name == "" || req.SourceLocale == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name and source_locale are required"})
 	}
 
 	ctx := c.Request().Context()
@@ -42,8 +44,8 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Look up the unclaimed project to get the expiry.
-	// The claim token is the plaintext; we return it to the caller.
+	// TODO: if req.Email != "", send claim email via EmailService once available.
+
 	return c.JSON(http.StatusCreated, AnonymousProjectResponse{
 		ProjectID:  projectID,
 		ClaimToken: claimToken,

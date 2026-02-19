@@ -12,8 +12,8 @@ import (
 
 // mockEmailSender records sent emails for test assertions.
 type mockEmailSender struct {
-	mu    sync.Mutex
-	sent  []sentEmail
+	mu   sync.Mutex
+	sent []sentEmail
 }
 
 type sentEmail struct {

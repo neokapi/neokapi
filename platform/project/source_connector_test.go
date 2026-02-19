@@ -68,10 +68,10 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 
 // mockSyncHandler is a simple mock that records push requests and returns pull responses.
 type mockSyncHandler struct {
-	pushCalls   int
-	pushBlocks  []apiclient.BlockInput
-	pullCursor  int64
-	pullChanges []apiclient.ChangeEntry // Changes to return from pull
+	pushCalls    int
+	pushBlocks   []apiclient.BlockInput
+	pullCursor   int64
+	pullChanges  []apiclient.ChangeEntry             // Changes to return from pull
 	blocksByItem map[string][]apiclient.BlockContent // item_name → blocks for /sync/blocks
 }
 

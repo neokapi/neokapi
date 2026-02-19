@@ -32,59 +32,71 @@ var authCmd = &cobra.Command{
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Log in via OAuth device flow",
-	Long:  "Start a device authorization flow to authenticate with Bowrain Server.",
+	Long: `Start a device authorization flow to authenticate with Bowrain Server.
+
+Server URL is resolved from (first match wins):
+  1. --server flag
+  2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
+  3. Built-in default (http://localhost:8080)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if authServerURL == "" {
-			return fmt.Errorf("--server flag is required")
+		serverURL := resolveServerURLFrom(authServerURL)
+		if serverURL == "" {
+			return fmt.Errorf("server URL not configured — set KAPI_SERVER_URL or use --server")
 		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
-		client := &auth.DeviceFlowClient{
-			DeviceAuthURL: authServerURL + "/api/v1/auth/device/start",
-			TokenURL:      authServerURL + "/api/v1/auth/device/poll",
-			ClientID:      "kapi-cli",
-		}
-
-		fmt.Println("Starting device authorization flow...")
-		resp, err := client.StartDeviceAuth(ctx)
-		if err != nil {
-			return fmt.Errorf("device auth start failed: %w", err)
-		}
-
-		fmt.Printf("\nOpen the following URL in your browser:\n\n  %s\n\n", resp.VerificationURI)
-		fmt.Printf("Enter code: %s\n\n", resp.UserCode)
-		fmt.Println("Waiting for authorization...")
-
-		token, err := client.PollForToken(ctx, resp.DeviceCode, resp.Interval)
-		if err != nil {
-			return fmt.Errorf("authorization failed: %w", err)
-		}
-
-		stored := StoredAuth{
-			ServerURL:    authServerURL,
-			AccessToken:  token.AccessToken,
-			RefreshToken: token.RefreshToken,
-			Expiry:       time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
-		}
-
-		// Fetch user info from /auth/me using the new token.
-		if user, err := fetchUserInfo(authServerURL, token.AccessToken); err == nil {
-			stored.User = *user
-		}
-
-		if err := saveAuth(stored); err != nil {
-			return fmt.Errorf("save token: %w", err)
-		}
-
-		if stored.User.Email != "" {
-			fmt.Printf("Logged in as %s\n", stored.User.Email)
-		} else {
-			fmt.Println("Login successful! Token saved.")
-		}
-		return nil
+		_, err := performLogin(serverURL)
+		return err
 	},
+}
+
+// performLogin runs the device authorization flow for the given server URL.
+// On success, stores the credentials and returns the StoredAuth.
+func performLogin(serverURL string) (*StoredAuth, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	client := &auth.DeviceFlowClient{
+		DeviceAuthURL: serverURL + "/api/v1/auth/device/start",
+		TokenURL:      serverURL + "/api/v1/auth/device/poll",
+		ClientID:      "kapi-cli",
+	}
+
+	fmt.Println("Starting device authorization flow...")
+	resp, err := client.StartDeviceAuth(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("device auth start failed: %w", err)
+	}
+
+	fmt.Printf("\nOpen the following URL in your browser:\n\n  %s\n\n", resp.VerificationURI)
+	fmt.Printf("Enter code: %s\n\n", resp.UserCode)
+	fmt.Println("Waiting for authorization...")
+
+	token, err := client.PollForToken(ctx, resp.DeviceCode, resp.Interval)
+	if err != nil {
+		return nil, fmt.Errorf("authorization failed: %w", err)
+	}
+
+	stored := StoredAuth{
+		ServerURL:    serverURL,
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		Expiry:       time.Now().Add(time.Duration(token.ExpiresIn) * time.Second),
+	}
+
+	// Fetch user info from /auth/me using the new token.
+	if user, err := fetchUserInfo(serverURL, token.AccessToken); err == nil {
+		stored.User = *user
+	}
+
+	if err := saveAuth(stored); err != nil {
+		return nil, fmt.Errorf("save token: %w", err)
+	}
+
+	if stored.User.Email != "" {
+		fmt.Printf("Logged in as %s\n", stored.User.Email)
+	} else {
+		fmt.Println("Login successful! Token saved.")
+	}
+	return &stored, nil
 }
 
 var authLogoutCmd = &cobra.Command{
@@ -144,7 +156,7 @@ Requires authentication (run: kapi auth login first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: kapi auth login --server <URL>")
+			return fmt.Errorf("not authenticated — run: kapi auth login")
 		}
 
 		var claimToken string
@@ -214,6 +226,25 @@ func init() {
 	authCmd.AddCommand(authStatusCmd)
 	authCmd.AddCommand(authClaimCmd)
 	rootCmd.AddCommand(authCmd)
+}
+
+// resolveServerURLFrom resolves the server URL from an explicit override,
+// then global config (env + file), then auth state, then baked-in default.
+func resolveServerURLFrom(explicit string) string {
+	if explicit != "" {
+		return explicit
+	}
+	// Check global config (includes KAPI_SERVER_URL env via Viper BindEnv).
+	cfg := config.NewAppConfig()
+	_ = cfg.Load()
+	if u := cfg.ServerURL(); u != "" {
+		return u
+	}
+	// Fall back to auth state.
+	if stored, err := loadAuth(); err == nil && stored.ServerURL != "" {
+		return stored.ServerURL
+	}
+	return ""
 }
 
 func authFilePath() string { return config.AuthFilePath() }

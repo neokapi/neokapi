@@ -41,17 +41,17 @@ type App struct {
 	eventBus     *event.ChannelEventBus
 
 	// Server connection (online mode).
-	mu               sync.RWMutex
-	remote           *ServerClient          // nil when disconnected
-	connState        ConnectionState        // current connection state
-	serverURL        string                 // e.g. "http://localhost:8080"
-	activeWS         string                 // selected workspace slug
-	authInfo     *storedDesktopAuth // cached auth info
-	pkceVerifier string            // PKCE code_verifier
-	pkceResultCh chan *pkceResult   // result from URL protocol callback
-	watcher      *ProjectWatcher   // active WatchProject stream
-	offlineQueue     *OfflineQueue          // pending mutations when offline
-	reconnectCancel  context.CancelFunc     // stops the reconnection goroutine
+	mu              sync.RWMutex
+	remote          *ServerClient      // nil when disconnected
+	connState       ConnectionState    // current connection state
+	serverURL       string             // e.g. "http://localhost:8080"
+	activeWS        string             // selected workspace slug
+	authInfo        *storedDesktopAuth // cached auth info
+	pkceVerifier    string             // PKCE code_verifier
+	pkceResultCh    chan *pkceResult   // result from URL protocol callback
+	watcher         *ProjectWatcher    // active WatchProject stream
+	offlineQueue    *OfflineQueue      // pending mutations when offline
+	reconnectCancel context.CancelFunc // stops the reconnection goroutine
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string

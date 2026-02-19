@@ -170,10 +170,10 @@ type ServerConfig struct {
 
 // Mapping defines a local - remote file mapping.
 type Mapping struct {
-	Local      string `yaml:"local"`                  // Glob pattern
-	Remote     string `yaml:"remote"`                 // Template with {path}, {filename}, {basename}
-	Format     string `yaml:"format"`                 // Format ID (json, html, etc.)
-	TargetPath string `yaml:"target_path,omitempty"`  // Target locale template (e.g. "locales/{locale}.json")
+	Local      string `yaml:"local"`                 // Glob pattern
+	Remote     string `yaml:"remote"`                // Template with {path}, {filename}, {basename}
+	Format     string `yaml:"format"`                // Format ID (json, html, etc.)
+	TargetPath string `yaml:"target_path,omitempty"` // Target locale template (e.g. "locales/{locale}.json")
 }
 
 // DefaultConfig returns a default configuration.
@@ -181,7 +181,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Project: ProjectMeta{
 			Name:          "my-project",
-			SourceLocale:  "en-US",
+			SourceLocale:  "en",
 			TargetLocales: []model.LocaleID{},
 		},
 		Mappings: []Mapping{},

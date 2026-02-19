@@ -25,7 +25,7 @@ type BowrainClient struct {
 	httpClient *http.Client
 
 	refreshToken   string                             // opaque refresh token for auto-refresh
-	onTokenRefresh func(newAccess, newRefresh string)  // callback after successful refresh
+	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
 }
 
 // NewBowrainClient creates a new client for the given server URL and project.
@@ -313,12 +313,21 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]Block
 
 // CreateAnonymousProject creates a new anonymous project on a Bowrain server.
 // No authentication is required. Returns the project ID and claim token.
-func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string) (projectID, claimToken string, err error) {
-	body, err := json.Marshal(map[string]any{
-		"name":           name,
-		"source_locale":  sourceLocale,
-		"target_locales": targetLocales,
-	})
+// If email is non-empty, the server sends a claim email to that address.
+// targetLocales may be empty (server treats as dynamic).
+func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
+	payload := map[string]any{
+		"name":          name,
+		"source_locale": sourceLocale,
+	}
+	if len(targetLocales) > 0 {
+		payload["target_locales"] = targetLocales
+	}
+	if email != "" {
+		payload["email"] = email
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return "", "", fmt.Errorf("marshal request: %w", err)
 	}
@@ -344,4 +353,49 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 	}
 
 	return result.ProjectID, result.ClaimToken, nil
+}
+
+// CreateAuthenticatedProject creates a project on the server as an authenticated user.
+// The project is created in the user's workspace. Returns the project ID.
+func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string) (projectID string, err error) {
+	payload := map[string]any{
+		"name":          name,
+		"source_locale": sourceLocale,
+	}
+	if len(targetLocales) > 0 {
+		payload["target_locales"] = targetLocales
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("marshal request: %w", err)
+	}
+
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects"
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("create project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("create project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode response: %w", err)
+	}
+
+	return result.ID, nil
 }

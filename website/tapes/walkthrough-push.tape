@@ -1,5 +1,6 @@
 # VHS Tape: E2E walkthrough — kapi push
-# Demonstrates pushing source content to the Bowrain Server
+# Demonstrates pushing source content to Bowrain Server.
+# Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
 Output output/walkthrough-push.webm
 Output output/walkthrough-push.gif
@@ -10,7 +11,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "cd ../../examples/docusaurus-e2e"
+Type "cd $WALKTHROUGH_DIR"
 Enter
 Sleep 500ms
 
