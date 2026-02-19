@@ -41,6 +41,9 @@ dist/
 **/frontend/package.json.md5
 **/.task/
 
+# Keycloak theme build output
+dist_keycloak/
+
 # Dev server
 .bowrain-server.pid
 bowrain-dev.db*

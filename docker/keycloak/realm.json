@@ -1,6 +1,7 @@
 {
   "realm": "bowrain",
   "enabled": true,
+  "loginTheme": "bowrain",
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
   "verifyEmail": true,
@@ -36,6 +37,32 @@
       "attributes": {
         "oauth2.device.authorization.grant.enabled": "true",
         "oauth2.device.polling.interval": "5"
+      }
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "google",
+      "providerId": "google",
+      "enabled": true,
+      "trustEmail": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "placeholder-google-client-id",
+        "clientSecret": "placeholder-google-client-secret",
+        "defaultScope": "openid email profile"
+      }
+    },
+    {
+      "alias": "github",
+      "providerId": "github",
+      "enabled": true,
+      "trustEmail": false,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "placeholder-github-client-id",
+        "clientSecret": "placeholder-github-client-secret",
+        "defaultScope": "user:email"
       }
     }
   ],

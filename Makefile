@@ -33,6 +33,7 @@ SERVER_PROTO_DIR := bowrain/proto/v1
 FRONTEND_DIR := bowrain/apps/bowrain/frontend
 KAPI_WEB_DIR := bowrain/apps/kapi-web
 WEB_DIR      := bowrain/apps/web
+KC_THEME_DIR := bowrain/apps/keycloak-theme
 WEBSITE_DIR  := website
 NPM         := npm
 
@@ -45,6 +46,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
+        keycloak-theme \
         docker-build docker-push \
         screenshots recordings cli-recordings docs-assets \
         docs-deps docs-dev docs-build docs-serve
@@ -109,6 +111,11 @@ web-deps: ## Install SaaS web UI dependencies
 web-build: ui-deps web-deps ## Build SaaS web UI for production
 	cd packages/ui && npx tsc
 	cd $(WEB_DIR) && $(NPM) run build
+
+# ── Keycloak Theme ─────────────────────────────────────────────────────────
+
+keycloak-theme: ui-deps ## Build Keycloak login theme JAR
+	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run build-keycloak-theme
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
@@ -270,6 +277,8 @@ clean: ## Remove build artifacts
 	rm -rf $(KAPI_WEB_DIR)/node_modules
 	rm -rf $(WEB_DIR)/dist
 	rm -rf $(WEB_DIR)/node_modules
+	rm -rf $(KC_THEME_DIR)/dist_keycloak
+	rm -rf $(KC_THEME_DIR)/node_modules
 	$(GO) clean -cache -testcache
 
 # ── Dependencies ─────────────────────────────────────────────────────────────
