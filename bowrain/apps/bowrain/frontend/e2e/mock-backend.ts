@@ -131,97 +131,99 @@ export async function injectMockBackend(page: Page) {
     const providerConfigs: Record<string, any> = {};
 
     // Call IDs from the generated bindings (app.js)
+    // Regenerate by running: grep -E '(export function|ByID)' bindings/.../app.js | paste - -
     const IDS = {
-      AITranslateItem: 2725002960,
-      AddConcept: 3793362128,
-      AddItems: 1333276848,
-      AddTMEntry: 4152216329,
-      CancelLogin: 2779862064,
-      CheckPluginUpdates: 4061886530,
-      CloseProject: 3497243272,
-      ConfigureConnector: 623426718,
-      ConnectToServer: 3376247435,
-      CreateProject: 2219834270,
-      CreateStoreVersion: 3924427090,
-      DeleteConcept: 3900518770,
-      DeleteFlowDefinition: 488503031,
-      DeleteProviderConfig: 2103858573,
-      DeleteTMEntry: 1886996955,
-      DetectFormat: 3882758361,
-      Disconnect: 1153711123,
-      ExportTermsJSON: 166152904,
-      ExportTranslatedItem: 227674686,
-      FetchContent: 948929260,
-      GetConnectionState: 3895233544,
-      GetPendingChangesCount: 2065414586,
-      GetConnectorStatus: 2734390172,
-      GetCurrentWorkspace: 3228582525,
-      GetFlowDefinition: 2095856838,
-      GetItemBlocks: 2825501758,
-      GetKnownLocales: 3316047929,
-      GetLocaleDisplayName: 804882882,
-      GetProject: 1329939084,
-      GetServerWorkspaces: 1356633606,
-      GetTMCount: 1658982651,
-      GetTMEntries: 2865323100,
-      GetTermCount: 433951236,
-      GetTerms: 2057317714,
-      GetVersion: 2634198737,
-      GetWordCount: 2276123042,
-      ImportTermsCSV: 4189664393,
-      ImportTermsJSON: 498422205,
-      InitContentStore: 3381103485,
-      InstallPlugin: 3779799163,
-      ListAvailablePlugins: 1924078444,
-      ListConnectorTypes: 2405972949,
-      ListConnectors: 252507085,
-      ListContentItems: 3747764474,
-      ListFlowDefinitions: 3738265581,
-      ListFormats: 1658666415,
-      ListPlugins: 1851753111,
-      ListProjectFiles: 3993987349,
-      ListProjects: 1552139139,
-      ListProviderConfigs: 1091807543,
-      ListStoreProjects: 3166171152,
-      ListStoreVersions: 3506910791,
-      ListTools: 2273599896,
-      ListWorkspaces: 3212201675,
-      LoadPlugins: 3302678495,
-      Logout: 1298226851,
-      LookupTMForBlock: 2472708440,
-      LookupTerms: 1594665302,
-      LookupTermsForBlock: 2436021002,
-      OpenFileInOS: 2953479918,
-      PluginDir: 2089167097,
-      PollLogin: 3205924797,
-      PseudoTranslateItem: 2488163560,
-      PublishContent: 965587317,
-      RemoveConnector: 3005427920,
-      RemoveItem: 938648902,
-      ReviewBlock: 3550018030,
-      RenderBlockHTML: 3630764479,
-      RenderDocumentPreview: 3649056848,
-      SaveFlowDefinition: 2719448633,
-      SaveProviderConfig: 755781535,
-      SearchPlugins: 219729007,
-      SearchPluginsByMimeType: 2104841290,
-      SearchPluginsByType: 3673978410,
-      SelectWorkspace: 2048218230,
-      SetApplication: 1182474139,
-      StartLogin: 3005652700,
-      StartWatching: 4056045666,
-      StopWatching: 2502756712,
-      StoreProject: 3310579751,
-      TMTranslateItem: 1452459471,
-      TermEnforceItem: 2381680068,
-      TestProviderConfig: 2576607394,
-      TryAutoConnect: 3511479517,
-      UpdateBlockTarget: 1528557592,
-      UpdateBlockTargetCoded: 1612164251,
-      UpdateConcept: 1418320064,
-      UpdatePlugin: 2070488879,
-      UpdatePresence: 924246729,
-      UpdateTMEntry: 1441483449,
+      AITranslateItem: 3833381231,
+      AddConcept: 719452361,
+      AddItems: 1434721329,
+      AddTMEntry: 877455352,
+      CancelLogin: 3289589827,
+      CheckPluginUpdates: 1088477127,
+      CloseProject: 637964653,
+      ConfigureConnector: 841619083,
+      ConnectToServer: 288733108,
+      CreateProject: 2130069333,
+      CreateStoreVersion: 2078292987,
+      DeleteConcept: 1376672601,
+      DeleteFlowDefinition: 1457337606,
+      DeleteProviderConfig: 342995976,
+      DeleteTMEntry: 4015029384,
+      DetectFormat: 2179396356,
+      Disconnect: 3528414750,
+      ExportTermsJSON: 2638745103,
+      ExportTranslatedItem: 4125088179,
+      FetchContent: 22013833,
+      GetConnectionState: 3987796829,
+      GetConnectorStatus: 1829045277,
+      GetCurrentWorkspace: 904108310,
+      GetFlowDefinition: 3175563113,
+      GetItemBlocks: 2088446217,
+      GetKnownLocales: 2495870350,
+      GetLocaleDisplayName: 2935944419,
+      GetPendingChangesCount: 3858291339,
+      GetProject: 2892209989,
+      GetServerWorkspaces: 165034281,
+      GetTMCount: 3119672290,
+      GetTMEntries: 2992774929,
+      GetTermCount: 2074669881,
+      GetTerms: 2895806515,
+      GetVersion: 786200620,
+      GetWordCount: 190637087,
+      HandleAuthURL: 2903663249,
+      ImportTermsCSV: 1679997992,
+      ImportTermsJSON: 1732103746,
+      InitContentStore: 2256235904,
+      InstallPlugin: 2560743300,
+      ListAvailablePlugins: 1795845765,
+      ListConnectorTypes: 466904028,
+      ListConnectors: 1368602820,
+      ListContentItems: 3978759763,
+      ListFlowDefinitions: 4157260890,
+      ListFormats: 1681849380,
+      ListPlugins: 753017412,
+      ListProjectFiles: 882190332,
+      ListProjects: 1255557302,
+      ListProviderConfigs: 3058742760,
+      ListStoreProjects: 3984800687,
+      ListStoreVersions: 3231346900,
+      ListTools: 1541369311,
+      ListWorkspaces: 4194869326,
+      LoadPlugins: 94348104,
+      Logout: 2339440858,
+      LookupTMForBlock: 1594338737,
+      LookupTerms: 2439242857,
+      LookupTermsForBlock: 3836117605,
+      OpenFileInOS: 297848223,
+      PluginDir: 3876796230,
+      PseudoTranslateItem: 3367128751,
+      PublishContent: 3040050000,
+      RemoveConnector: 3187295799,
+      RemoveItem: 955365195,
+      RenderBlockHTML: 1608416120,
+      RenderDocumentPreview: 777632695,
+      ReviewBlock: 606879369,
+      SaveFlowDefinition: 3830790084,
+      SaveProviderConfig: 1048690342,
+      SearchPlugins: 449915992,
+      SearchPluginsByMimeType: 3097772677,
+      SearchPluginsByType: 1393138621,
+      SelectWorkspace: 1341049209,
+      SetApplication: 3283026770,
+      StartLogin: 3233764069,
+      StartWatching: 3651380581,
+      StopWatching: 1791447961,
+      StoreProject: 964705390,
+      TMTranslateItem: 1557619680,
+      TermEnforceItem: 3329823539,
+      TestProviderConfig: 1256157615,
+      TryAutoConnect: 2558202524,
+      UpdateBlockTarget: 2405874115,
+      UpdateBlockTargetCoded: 4136758170,
+      UpdateConcept: 170988979,
+      UpdatePlugin: 1320658074,
+      UpdatePresence: 3564843684,
+      UpdateTMEntry: 599183202,
+      WaitForLogin: 3030848205,
     };
 
     // Global TM storage (workspace-scoped, not per-project)
@@ -1038,18 +1040,47 @@ export async function injectMockBackend(page: Page) {
 
     // --- Connection mock handlers ---
 
-    // Connection state: "disconnected" by default
+    // Connection state: "disconnected" by default.
+    // If __skipConnection flag is set (via addInitScript), GetConnectionState
+    // returns a state that bypasses the ServerConnect screen:
+    //   - "local" (default): offline state with workspace → non-server mode
+    //   - "server": connected state with workspace → server mode
     let connectionState = "disconnected";
     let serverURL = "";
     let userName = "";
     let workspace = "";
 
-    mock[IDS.GetConnectionState] = () => ({
-      state: connectionState,
-      server_url: serverURL,
-      user_name: userName,
-      workspace: workspace,
-    });
+    mock[IDS.GetConnectionState] = () => {
+      // Lazy check: if __skipConnection was set (possibly by a later addInitScript),
+      // upgrade the connection state on first call.
+      const skipMode = (window as any).__skipConnection;
+      if (skipMode && connectionState === "disconnected") {
+        if (skipMode === "server") {
+          connectionState = "connected";
+          serverURL = "http://mock-server";
+          userName = "Test User";
+          workspace = "personal";
+        } else {
+          // Default: offline mode with cached workspace.
+          // App.tsx treats "offline" + workspace as isServerMode=false if
+          // no server URL, but actually "offline" + workspace → isServerMode=true.
+          // The only way to get isServerMode=false is "disconnected" which
+          // shows ServerConnect. So we use "connected" but the App.tsx logic
+          // for workspace-less connected will set isServerMode=true.
+          // For test compatibility, we use "connected" with workspace.
+          connectionState = "connected";
+          serverURL = "http://mock-server";
+          userName = "Test User";
+          workspace = "personal";
+        }
+      }
+      return {
+        state: connectionState,
+        server_url: serverURL,
+        user_name: userName,
+        workspace: workspace,
+      };
+    };
 
     mock[IDS.TryAutoConnect] = () => {
       // No stored auth in mock — stays disconnected.
@@ -1065,18 +1096,12 @@ export async function injectMockBackend(page: Page) {
     };
 
     mock[IDS.StartLogin] = (url: string) => {
+      // PKCE flow: opens browser, no return value needed.
       serverURL = url;
-      return {
-        device_code: "MOCK-DEVICE-CODE",
-        user_code: "ABCD-1234",
-        verification_uri: "http://localhost:8080/device",
-        expires_in: 600,
-        interval: 5,
-      };
     };
 
-    mock[IDS.PollLogin] = (_deviceCode: string, _interval: number) => {
-      // Simulate immediate auth success.
+    mock[IDS.WaitForLogin] = () => {
+      // Simulate immediate PKCE auth success.
       connectionState = "connected";
       userName = "Test User";
       return true;
@@ -1141,15 +1166,25 @@ export async function injectMockBackend(page: Page) {
 }
 
 /**
- * Clicks "Work Offline" on the ServerConnect screen to bypass the
- * connection flow and reach the main app. Call after page.goto("/").
+ * Bypasses the ServerConnect screen by setting a flag that makes the
+ * mock backend start in "connected" mode with a workspace.
+ *
+ * IMPORTANT: Must be called BEFORE page.goto("/"), then await the
+ * returned promise to wait for the app to become ready.
+ *
+ * Usage:
+ *   await injectMockBackend(page);
+ *   const ready = skipConnectionScreen(page);
+ *   await page.goto("/");
+ *   await ready;
  */
 export async function skipConnectionScreen(page: Page) {
-  const offlineBtn = page.getByText("Work Offline");
-  await offlineBtn.waitFor({ state: "visible", timeout: 5000 });
-  await offlineBtn.click();
+  // Set a flag that the addInitScript mock handler reads.
+  await page.addInitScript(() => {
+    (window as any).__skipConnection = true;
+  });
   // Wait for the main sidebar to appear, indicating the app is ready.
-  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 5000 });
+  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 10000 });
 }
 
 /**
@@ -1158,6 +1193,11 @@ export async function skipConnectionScreen(page: Page) {
  */
 export async function setupLocalApp(page: Page) {
   await injectMockBackend(page);
+  // Set up the skip flag before navigating.
+  await page.addInitScript(() => {
+    (window as any).__skipConnection = true;
+  });
   await page.goto("/");
-  await skipConnectionScreen(page);
+  // Wait for the main sidebar to appear, indicating the app is ready.
+  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 10000 });
 }

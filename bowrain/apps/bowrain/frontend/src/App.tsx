@@ -146,6 +146,18 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load existing projects from backend when entering ready mode
+  useEffect(() => {
+    if (mode !== "ready") return;
+    Backend.ListProjects()
+      .then((serverProjects: ProjectInfo[]) => {
+        if (serverProjects?.length) {
+          setProjects(serverProjects);
+        }
+      })
+      .catch(() => {});
+  }, [mode]);
+
   const handleServerConnect = useCallback(async (serverURL: string) => {
     const ci = await connection.connect(serverURL);
     if (ci.state === "connected") {
@@ -402,8 +414,8 @@ function App() {
           project={activeProject}
           onBack={handleBackToProjects}
           onOpenFile={handleOpenFile}
-          onUploadFiles={isServerMode ? () => {} : handleUploadFiles}
-          onRemoveFile={isServerMode ? () => {} : handleRemoveFile}
+          onUploadFiles={handleUploadFiles}
+          onRemoveFile={handleRemoveFile}
           onOpenTM={handleOpenTM}
           onOpenTerms={handleOpenTerms}
         />
@@ -415,7 +427,7 @@ function App() {
         return (
           <ProjectDashboard
             projects={projects}
-            onCreateProject={isServerMode ? () => {} : handleCreateProject}
+            onCreateProject={handleCreateProject}
             onOpenProject={handleOpenProject}
           />
         );

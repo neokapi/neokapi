@@ -63,10 +63,10 @@ test.describe("Web App Screenshots", () => {
   for (const theme of themes) {
     test(`capture login page [${theme}]`, async ({ page }) => {
       const dir = path.join(SCREENSHOT_BASE, theme);
-      // Visit without token — server mode shows login page
+      // Visit without token — server mode redirects to Keycloak login page
       await page.goto("/");
-      await expect(page.getByText("Sign in with SSO")).toBeVisible({ timeout: 10000 });
-      await setTheme(page, theme);
+      // Wait for Keycloak login form to appear (standard theme)
+      await expect(page.locator("#kc-form-login, #username, input[name='username']").first()).toBeVisible({ timeout: 15000 });
       await page.screenshot({ path: path.join(dir, "login.png") });
     });
 

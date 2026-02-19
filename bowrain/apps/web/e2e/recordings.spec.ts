@@ -79,21 +79,10 @@ test.describe("Web App Recordings", () => {
     test(`record login-and-workspace [${theme}]`, async ({ page }) => {
       test.skip(isCI, "Recording tests are skipped in CI");
 
-      // Show login page first (no token)
+      // Navigate without token — Auth Code + PKCE redirects to Keycloak login
       await page.goto("/");
-      await expect(page.getByText("Sign in with SSO")).toBeVisible({ timeout: 10000 });
-      await setTheme(page, theme);
-      await injectCursor(page);
-      await moveCursorTo(page, 640, 400, 0);
-
-      await pause(page, 2000);
-
-      // Click SSO button — redirects to Keycloak identity provider
-      const ssoBtn = page.getByText("Sign in with SSO");
-      await humanClick(page, ssoBtn);
-
       // Wait for Keycloak login page
-      await page.waitForURL("**/realms/bowrain/**", { timeout: 10000 });
+      await page.waitForURL("**/realms/bowrain/**", { timeout: 15000 });
       await pause(page, 1500);
 
       // Fill in credentials on Keycloak login form
