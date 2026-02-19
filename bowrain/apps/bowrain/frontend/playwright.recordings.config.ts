@@ -21,7 +21,7 @@ export default defineConfig({
       size: { width: 1280, height: 800 },
     },
     // Slower actions for better video visualization
-    actionTimeout: 10000,
+    actionTimeout: 15000,
   },
   webServer: {
     command: "npm run dev -- --port 5173",
