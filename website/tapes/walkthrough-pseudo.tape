@@ -14,6 +14,10 @@ Type "# Step 2: Generate pseudo-translations for UI testing"
 Enter
 Sleep 500ms
 
+Type "cd ../../examples/docusaurus-e2e"
+Enter
+Sleep 500ms
+
 Type "head -20 i18n/en/code.json"
 Enter
 Sleep 2s

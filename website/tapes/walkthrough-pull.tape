@@ -10,6 +10,10 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
+Type "cd ../../examples/docusaurus-e2e"
+Enter
+Sleep 500ms
+
 Type "# Step 7: Pull translations back to codebase"
 Enter
 Sleep 500ms

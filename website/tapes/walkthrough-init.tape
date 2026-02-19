@@ -14,9 +14,13 @@ Type "# Step 1: Initialize a project with Quick start"
 Enter
 Sleep 500ms
 
-Type "cd examples/docusaurus-e2e"
+Type "cd ../../examples/docusaurus-e2e"
 Enter
 Sleep 500ms
+
+Type "rm -rf .kapi"
+Enter
+Sleep 300ms
 
 Type "kapi init --quickstart --name 'Docusaurus E2E Demo' --source en --targets nb,fr --server http://localhost:8080"
 Enter
