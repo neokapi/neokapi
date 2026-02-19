@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/client"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -52,13 +54,25 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get current directory: %w", err)
 	}
 
-	// Non-interactive: flags provided or stdin is not a TTY.
-	if initAnonymous || initEmail != "" || initServerURL != "" || initProjectID != "" || !isTTY() {
-		return runInitNonInteractive(cwd)
+	// Fail fast if .kapi/ already exists — before any server calls or prompts.
+	kapiDir := filepath.Join(cwd, project.KapiDir)
+	if _, err := os.Stat(kapiDir); err == nil {
+		return fmt.Errorf(".kapi/ directory already exists at %s", cwd)
 	}
 
-	// Interactive mode.
-	return runInitInteractive(cwd)
+	var result *output.InitOutput
+
+	// Non-interactive: flags provided or stdin is not a TTY.
+	if initAnonymous || initEmail != "" || initServerURL != "" || initProjectID != "" || !isTTY() {
+		result, err = runInitNonInteractive(cwd)
+	} else {
+		result, err = runInitInteractive(cwd)
+	}
+	if err != nil {
+		return err
+	}
+
+	return output.Print(cmd, *result)
 }
 
 func isTTY() bool {
@@ -92,7 +106,7 @@ func parseTargetLocales(s string) []model.LocaleID {
 	return locales
 }
 
-func runInitNonInteractive(cwd string) error {
+func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	cfg := project.DefaultConfig()
 
 	if initProjectName != "" {
@@ -112,14 +126,14 @@ func runInitNonInteractive(cwd string) error {
 	if initProjectID != "" {
 		serverURL := resolveServerURL()
 		if serverURL == "" {
-			return fmt.Errorf("--server or KAPI_SERVER_URL is required when --project is specified")
+			return nil, fmt.Errorf("--server or KAPI_SERVER_URL is required when --project is specified")
 		}
 		auth, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated with server (run: kapi auth login)")
+			return nil, fmt.Errorf("not authenticated with server (run: kapi auth login)")
 		}
 		if auth.ServerURL != serverURL {
-			return fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
+			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
 		}
 		cfg.Server = &project.ServerConfig{
 			URL:       serverURL,
@@ -134,7 +148,7 @@ func runInitNonInteractive(cwd string) error {
 	if initAnonymous || initEmail != "" {
 		serverURL := resolveServerURL()
 		if serverURL == "" {
-			return fmt.Errorf("%s", serverURLHelp)
+			return nil, fmt.Errorf("%s", serverURLHelp)
 		}
 		return runInitAnonymous(cwd, cfg, serverURL, initEmail)
 	}
@@ -146,35 +160,39 @@ func runInitNonInteractive(cwd string) error {
 		return finishInit(cwd, cfg)
 	}
 
-	// Authenticated: create project on server.
-	return runInitCreateAuthenticated(cwd, cfg, auth)
+	// Authenticated: create project on server (defaults to personal workspace).
+	return runInitCreateAuthenticated(cwd, cfg, auth, "")
 }
 
-func runInitInteractive(cwd string) error {
+func runInitInteractive(cwd string) (*output.InitOutput, error) {
 	// Check if already logged in.
 	stored, authErr := loadAuth()
 	serverURL := resolveServerURL()
 
 	if authErr == nil && stored.ServerURL != "" {
-		// Already logged in — create project directly.
+		// Already logged in — select workspace first, then project details.
+		wsSlug, err := selectWorkspace(stored.ServerURL, stored.AccessToken)
+		if err != nil {
+			return nil, err
+		}
+
 		dirName := filepath.Base(cwd)
 		var projectName, sourceLocale string
 
-		err := huh.NewForm(
+		err = huh.NewForm(
 			huh.NewGroup(
 				huh.NewNote().Title(fmt.Sprintf("Bowrain: %s (signed in as %s)", stored.ServerURL, stored.User.Email)),
 				huh.NewInput().
 					Title("Project name").
 					Value(&projectName).
 					Placeholder(dirName),
-				huh.NewInput().
-					Title("Source locale").
-					Value(&sourceLocale).
-					Placeholder("en"),
+			),
+			huh.NewGroup(
+				localeInput("Source locale", &sourceLocale),
 			),
 		).Run()
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		if projectName == "" {
@@ -190,7 +208,7 @@ func runInitInteractive(cwd string) error {
 			cfg.Project.TargetLocales = parseTargetLocales(initTargets)
 		}
 
-		return runInitCreateAuthenticated(cwd, cfg, stored)
+		return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug)
 	}
 
 	// Not logged in — show menu.
@@ -211,7 +229,7 @@ func runInitInteractive(cwd string) error {
 		),
 	).Run()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch choice {
@@ -224,15 +242,21 @@ func runInitInteractive(cwd string) error {
 	case "local":
 		return runInitLocal(cwd)
 	default:
-		return fmt.Errorf("unexpected choice: %s", choice)
+		return nil, fmt.Errorf("unexpected choice: %s", choice)
 	}
 }
 
 // runInitSignIn performs the device auth flow, then creates the project.
-func runInitSignIn(cwd, serverURL string) error {
+func runInitSignIn(cwd, serverURL string) (*output.InitOutput, error) {
 	stored, err := performLogin(serverURL)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	// Select workspace first, then project details.
+	wsSlug, err := selectWorkspace(stored.ServerURL, stored.AccessToken)
+	if err != nil {
+		return nil, err
 	}
 
 	dirName := filepath.Base(cwd)
@@ -244,14 +268,13 @@ func runInitSignIn(cwd, serverURL string) error {
 				Title("Project name").
 				Value(&projectName).
 				Placeholder(dirName),
-			huh.NewInput().
-				Title("Source locale").
-				Value(&sourceLocale).
-				Placeholder("en"),
+		),
+		huh.NewGroup(
+			localeInput("Source locale", &sourceLocale),
 		),
 	).Run()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if projectName == "" {
@@ -267,11 +290,11 @@ func runInitSignIn(cwd, serverURL string) error {
 		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
 	}
 
-	return runInitCreateAuthenticated(cwd, cfg, stored)
+	return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug)
 }
 
 // runInitEmailClaim creates an anonymous project and sends the claim email.
-func runInitEmailClaim(cwd, serverURL string) error {
+func runInitEmailClaim(cwd, serverURL string) (*output.InitOutput, error) {
 	dirName := filepath.Base(cwd)
 	var projectName, sourceLocale, email string
 
@@ -281,10 +304,11 @@ func runInitEmailClaim(cwd, serverURL string) error {
 				Title("Project name").
 				Value(&projectName).
 				Placeholder(dirName),
-			huh.NewInput().
-				Title("Source locale").
-				Value(&sourceLocale).
-				Placeholder("en"),
+		),
+		huh.NewGroup(
+			localeInput("Source locale", &sourceLocale),
+		),
+		huh.NewGroup(
 			huh.NewInput().
 				Title("Your email address").
 				Value(&email).
@@ -292,14 +316,14 @@ func runInitEmailClaim(cwd, serverURL string) error {
 		),
 	).Run()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if projectName == "" {
 		projectName = dirName
 	}
 	if email == "" {
-		return fmt.Errorf("email address is required")
+		return nil, fmt.Errorf("email address is required")
 	}
 
 	cfg := project.DefaultConfig()
@@ -315,7 +339,7 @@ func runInitEmailClaim(cwd, serverURL string) error {
 }
 
 // runInitAnonymousInteractive creates an anonymous project (no email).
-func runInitAnonymousInteractive(cwd, serverURL string) error {
+func runInitAnonymousInteractive(cwd, serverURL string) (*output.InitOutput, error) {
 	dirName := filepath.Base(cwd)
 	var projectName, sourceLocale string
 
@@ -325,14 +349,13 @@ func runInitAnonymousInteractive(cwd, serverURL string) error {
 				Title("Project name").
 				Value(&projectName).
 				Placeholder(dirName),
-			huh.NewInput().
-				Title("Source locale").
-				Value(&sourceLocale).
-				Placeholder("en"),
+		),
+		huh.NewGroup(
+			localeInput("Source locale", &sourceLocale),
 		),
 	).Run()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if projectName == "" {
@@ -351,7 +374,7 @@ func runInitAnonymousInteractive(cwd, serverURL string) error {
 	return runInitAnonymous(cwd, cfg, serverURL, "")
 }
 
-func runInitLocal(cwd string) error {
+func runInitLocal(cwd string) (*output.InitOutput, error) {
 	dirName := filepath.Base(cwd)
 	var projectName, sourceLocale string
 
@@ -361,14 +384,13 @@ func runInitLocal(cwd string) error {
 				Title("Project name").
 				Value(&projectName).
 				Placeholder(dirName),
-			huh.NewInput().
-				Title("Source locale").
-				Value(&sourceLocale).
-				Placeholder("en"),
+		),
+		huh.NewGroup(
+			localeInput("Source locale", &sourceLocale),
 		),
 	).Run()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if projectName == "" {
@@ -389,7 +411,7 @@ func runInitLocal(cwd string) error {
 
 // runInitAnonymous creates an anonymous project on the server.
 // If email is non-empty, the server sends a claim email.
-func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) error {
+func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) (*output.InitOutput, error) {
 	if cfg.Project.SourceLocale == "" {
 		cfg.Project.SourceLocale = "en"
 	}
@@ -410,7 +432,7 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 		email,
 	)
 	if err != nil {
-		return fmt.Errorf("create anonymous project: %w", err)
+		return nil, fmt.Errorf("create anonymous project: %w", err)
 	}
 
 	cfg.Server = &project.ServerConfig{
@@ -419,34 +441,21 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 		ClaimToken: claimToken,
 	}
 
-	if err := finishInit(cwd, cfg); err != nil {
-		return err
+	out, err := finishInit(cwd, cfg)
+	if err != nil {
+		return nil, err
 	}
 
-	// Print next steps.
-	claimURL := strings.TrimRight(serverURL, "/") + "/claim/" + claimToken
-	fmt.Printf("\nProject created: %s\n", projectID)
-
+	out.ClaimURL = strings.TrimRight(serverURL, "/") + "/claim/" + claimToken
 	if email != "" {
-		fmt.Printf("A claim link has been sent to %s\n", email)
-	} else {
-		fmt.Printf("Claim URL: %s\n", claimURL)
+		out.ClaimEmail = email
 	}
 
-	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Run: kapi push    — upload content to the server")
-	if email != "" {
-		fmt.Println("  2. Check your email for the claim link to take ownership")
-	} else {
-		fmt.Println("  2. Open the claim URL to take ownership of the project")
-	}
-	fmt.Println("  3. Invite translators from the web dashboard")
-
-	return nil
+	return out, nil
 }
 
 // runInitCreateAuthenticated creates a project on the server using existing auth.
-func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *StoredAuth) error {
+func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *StoredAuth, workspace string) (*output.InitOutput, error) {
 	if cfg.Project.SourceLocale == "" {
 		cfg.Project.SourceLocale = "en"
 	}
@@ -458,56 +467,161 @@ func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *StoredAut
 
 	fmt.Printf("Creating project on %s...\n", auth.ServerURL)
 
-	projectID, err := client.CreateAuthenticatedProject(
+	projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
 		auth.ServerURL,
 		auth.AccessToken,
 		cfg.Project.Name,
 		string(cfg.Project.SourceLocale),
 		targets,
+		workspace,
 	)
 	if err != nil {
-		return fmt.Errorf("create project: %w", err)
+		return nil, fmt.Errorf("create project: %w", err)
 	}
 
 	cfg.Server = &project.ServerConfig{
 		URL:       auth.ServerURL,
 		ProjectID: projectID,
+		Workspace: workspaceSlug,
 	}
 
-	if err := finishInit(cwd, cfg); err != nil {
-		return err
-	}
-
-	fmt.Printf("\nProject created: %s\n", projectID)
-	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Run: kapi push    — upload content to the server")
-	fmt.Println("  2. Invite translators from the web dashboard")
-
-	return nil
+	return finishInit(cwd, cfg)
 }
 
-func finishInit(cwd string, cfg *project.Config) error {
+// selectWorkspace prompts the user to pick a workspace if multiple are
+// available. If only one workspace exists it is returned automatically.
+func selectWorkspace(serverURL, token string) (string, error) {
+	workspaces, err := client.ListWorkspaces(serverURL, token)
+	if err != nil {
+		// Non-fatal: server may not support workspaces yet.
+		return "", nil
+	}
+	if len(workspaces) == 0 {
+		return "", nil
+	}
+
+	options := make([]huh.Option[string], 0, len(workspaces)+1)
+	for _, ws := range workspaces {
+		label := ws.Name
+		if ws.Type == "personal" {
+			label += " (personal)"
+		}
+		options = append(options, huh.NewOption(label, ws.Slug))
+	}
+	options = append(options, huh.NewOption("Create new workspace", "_create_"))
+
+	var selected string
+	err = huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Which workspace?").
+				Options(options...).
+				Value(&selected),
+		),
+	).Run()
+	if err != nil {
+		return "", err
+	}
+
+	if selected == "_create_" {
+		return createWorkspace(serverURL, token)
+	}
+	return selected, nil
+}
+
+// createWorkspace prompts for a workspace name, derives a slug, creates it
+// on the server, and returns the new workspace's slug.
+func createWorkspace(serverURL, token string) (string, error) {
+	var name string
+	err := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Workspace name").
+				Value(&name).
+				Validate(func(s string) error {
+					if strings.TrimSpace(s) == "" {
+						return fmt.Errorf("name is required")
+					}
+					return nil
+				}),
+		),
+	).Run()
+	if err != nil {
+		return "", err
+	}
+
+	slug := toSlug(name)
+
+	fmt.Printf("Creating workspace %q (%s)...\n", name, slug)
+	ws, err := client.CreateWorkspace(serverURL, token, name, slug)
+	if err != nil {
+		return "", fmt.Errorf("create workspace: %w", err)
+	}
+	fmt.Printf("Workspace created: %s\n", ws.Slug)
+	return ws.Slug, nil
+}
+
+// toSlug converts a name to a URL-friendly slug.
+func toSlug(name string) string {
+	s := strings.ToLower(strings.TrimSpace(name))
+	// Replace non-alphanumeric runs with a single hyphen.
+	var b strings.Builder
+	prevHyphen := false
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			prevHyphen = false
+		} else if !prevHyphen {
+			b.WriteByte('-')
+			prevHyphen = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+// localeSelect returns a filterable huh.Select field populated with BCP-47
+// well-known locales. English is pre-selected as the default.
+func localeInput(title string, value *string) huh.Field {
+	locales := locale.WellKnownLocales()
+	options := make([]huh.Option[string], 0, len(locales))
+	for _, l := range locales {
+		label := fmt.Sprintf("%s (%s)", l.DisplayName, l.Code)
+		options = append(options, huh.NewOption(label, l.Code))
+	}
+
+	*value = "en"
+
+	return huh.NewSelect[string]().
+		Title(title).
+		Description("Type / to filter").
+		Options(options...).
+		Value(value).
+		Height(5)
+}
+
+func finishInit(cwd string, cfg *project.Config) (*output.InitOutput, error) {
 	proj, err := project.InitProject(cwd, cfg)
 	if err != nil {
-		return fmt.Errorf("initialize project: %w", err)
+		return nil, fmt.Errorf("initialize project: %w", err)
 	}
-
-	fmt.Printf("Initialized .kapi/ project in: %s\n", proj.Root)
-	fmt.Printf("Configuration: %s\n", filepath.Join(proj.KapiDir, project.ConfigFile))
 
 	if err := createExampleFlow(proj); err != nil {
-		return fmt.Errorf("create example flow: %w", err)
+		return nil, fmt.Errorf("create example flow: %w", err)
 	}
 
-	if cfg.Server == nil {
-		fmt.Println("\nNext steps:")
-		fmt.Println("  1. Edit .kapi/config.yaml to configure your project")
-		fmt.Println("  2. Add file mappings to sync with Bowrain Server")
-		fmt.Println("  3. Run: kapi auth login")
-		fmt.Println("  4. Run: kapi pull to sync translations")
+	out := &output.InitOutput{
+		Root:      proj.Root,
+		ConfigDir: filepath.Join(proj.KapiDir, project.ConfigFile),
 	}
 
-	return nil
+	if cfg.Server != nil {
+		out.Server = cfg.Server.URL
+		out.ProjectID = cfg.Server.ProjectID
+		out.Workspace = cfg.Server.Workspace
+		out.ClaimToken = cfg.Server.ClaimToken
+	}
+
+	return out, nil
 }
 
 func createExampleFlow(proj *project.Project) error {
@@ -534,6 +648,7 @@ steps:
 }
 
 func init() {
+	output.AddFlags(initCmd)
 	initCmd.Flags().StringVar(&initServerURL, "server", "", "Bowrain Server URL (overrides KAPI_SERVER_URL)")
 	initCmd.Flags().StringVar(&initProjectID, "project", "", "Bowrain Server project ID (for connecting to existing project)")
 	initCmd.Flags().StringVar(&initProjectName, "name", "", "Project name (default: current directory name)")

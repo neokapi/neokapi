@@ -274,3 +274,55 @@ func (f FlowsListOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "\nTotal: %d flow(s)\n", f.Total)
 	return nil
 }
+
+// InitOutput represents the result of kapi init.
+type InitOutput struct {
+	Root       string `json:"root"`
+	ConfigDir  string `json:"config_dir"`
+	ProjectID  string `json:"project_id,omitempty"`
+	Server     string `json:"server,omitempty"`
+	Workspace  string `json:"workspace,omitempty"`
+	ClaimToken string `json:"claim_token,omitempty"`
+	ClaimURL   string `json:"claim_url,omitempty"`
+	ClaimEmail string `json:"claim_email,omitempty"`
+}
+
+func (o InitOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Initialized .kapi/ project in: %s\n", o.Root)
+	fmt.Fprintf(w, "Configuration: %s\n", o.ConfigDir)
+
+	if o.ProjectID != "" {
+		fmt.Fprintf(w, "\nProject created: %s\n", o.ProjectID)
+	}
+	if o.Workspace != "" {
+		fmt.Fprintf(w, "Workspace: %s\n", o.Workspace)
+	}
+	if o.ClaimEmail != "" {
+		fmt.Fprintf(w, "A claim link has been sent to %s\n", o.ClaimEmail)
+	} else if o.ClaimURL != "" {
+		fmt.Fprintf(w, "Claim URL: %s\n", o.ClaimURL)
+	}
+
+	fmt.Fprintln(w)
+	if o.Server != "" {
+		fmt.Fprintln(w, "Next steps:")
+		fmt.Fprintln(w, "  1. Run: kapi push    — upload content to the server")
+		if o.ClaimEmail != "" {
+			fmt.Fprintln(w, "  2. Check your email for the claim link to take ownership")
+			fmt.Fprintln(w, "  3. Invite translators from the web dashboard")
+		} else if o.ClaimURL != "" {
+			fmt.Fprintln(w, "  2. Open the claim URL to take ownership of the project")
+			fmt.Fprintln(w, "  3. Invite translators from the web dashboard")
+		} else {
+			fmt.Fprintln(w, "  2. Invite translators from the web dashboard")
+		}
+	} else {
+		fmt.Fprintln(w, "Next steps:")
+		fmt.Fprintln(w, "  1. Edit .kapi/config.yaml to configure your project")
+		fmt.Fprintln(w, "  2. Add file mappings to sync with Bowrain Server")
+		fmt.Fprintln(w, "  3. Run: kapi auth login")
+		fmt.Fprintln(w, "  4. Run: kapi pull to sync translations")
+	}
+
+	return nil
+}

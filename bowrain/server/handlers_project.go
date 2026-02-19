@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"github.com/gokapi/gokapi/bowrain/auth"
 	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
 	apiclient "github.com/gokapi/gokapi/platform/client"
@@ -14,6 +15,7 @@ type ProjectRequest struct {
 	Name          string   `json:"name"`
 	SourceLocale  string   `json:"source_locale"`
 	TargetLocales []string `json:"target_locales"`
+	Workspace     string   `json:"workspace,omitempty"`
 }
 
 // BlocksRequest is the request body for storing blocks.
@@ -51,6 +53,81 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusCreated, p)
+}
+
+// HandleCreateProjectAuthenticated creates a project in the authenticated
+// user's workspace. If a workspace slug is provided in the request, it
+// verifies membership and uses that workspace; otherwise it defaults to
+// the user's personal workspace.
+func (s *Server) HandleCreateProjectAuthenticated(c echo.Context) error {
+	if s.Services == nil || s.AuthStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	userID, _ := c.Get("user_id").(string)
+	if userID == "" {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "not authenticated"})
+	}
+
+	var req ProjectRequest
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	ctx := c.Request().Context()
+
+	var targetWS *auth.Workspace
+
+	if req.Workspace != "" {
+		// Resolve workspace by slug and verify membership.
+		ws, err := s.AuthStore.GetWorkspaceBySlug(ctx, req.Workspace)
+		if err != nil {
+			return c.JSON(http.StatusNotFound, ErrorResponse{Error: "workspace not found: " + req.Workspace})
+		}
+		if _, err := s.AuthStore.GetMembership(ctx, ws.ID, userID); err != nil {
+			return c.JSON(http.StatusForbidden, ErrorResponse{Error: "not a member of workspace: " + req.Workspace})
+		}
+		targetWS = ws
+	} else {
+		// Default to the user's personal workspace.
+		workspaces, err := s.AuthStore.ListWorkspaces(ctx, userID)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "list workspaces: " + err.Error()})
+		}
+		for _, ws := range workspaces {
+			if ws.Type == auth.WorkspaceTypePersonal {
+				targetWS = ws
+				break
+			}
+		}
+		if targetWS == nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no personal workspace found"})
+		}
+	}
+
+	locales := make([]model.LocaleID, len(req.TargetLocales))
+	for i, l := range req.TargetLocales {
+		locales[i] = model.LocaleID(l)
+	}
+
+	p := &store.Project{
+		Name:          req.Name,
+		SourceLocale:  model.LocaleID(req.SourceLocale),
+		TargetLocales: locales,
+		WorkspaceID:   targetWS.ID,
+	}
+	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, map[string]any{
+		"id":              p.ID,
+		"name":            p.Name,
+		"source_locale":   string(p.SourceLocale),
+		"target_locales":  req.TargetLocales,
+		"workspace_id":    p.WorkspaceID,
+		"workspace_slug":  targetWS.Slug,
+	})
 }
 
 func (s *Server) HandleGetProject(c echo.Context) error {

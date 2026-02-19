@@ -120,15 +120,37 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 			assert.Equal(t, "en", req["source_locale"])
 
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(map[string]string{
-				"id": "proj_auth_123",
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":             "proj_auth_123",
+				"workspace_slug": "my-ws",
 			})
 		}))
 		defer srv.Close()
 
-		projectID, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil)
+		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "")
 		require.NoError(t, err)
 		assert.Equal(t, "proj_auth_123", projectID)
+		assert.Equal(t, "my-ws", wsSlug)
+	})
+
+	t.Run("with workspace", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			var req map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, "team-ws", req["workspace"])
+
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"id":             "proj_ws_456",
+				"workspace_slug": "team-ws",
+			})
+		}))
+		defer srv.Close()
+
+		projectID, wsSlug, err := CreateAuthenticatedProject(srv.URL, "my-token", "my-project", "en", nil, "team-ws")
+		require.NoError(t, err)
+		assert.Equal(t, "proj_ws_456", projectID)
+		assert.Equal(t, "team-ws", wsSlug)
 	})
 
 	t.Run("unauthorized", func(t *testing.T) {
@@ -138,8 +160,84 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 		}))
 		defer srv.Close()
 
-		_, err := CreateAuthenticatedProject(srv.URL, "bad-token", "my-project", "en", nil)
+		_, _, err := CreateAuthenticatedProject(srv.URL, "bad-token", "my-project", "en", nil, "")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "HTTP 401")
+	})
+}
+
+func TestListWorkspaces(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v1/workspaces", r.URL.Path)
+			assert.Equal(t, http.MethodGet, r.Method)
+			assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
+
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode([]map[string]string{
+				{"id": "ws1", "name": "Personal", "slug": "personal", "type": "personal"},
+				{"id": "ws2", "name": "Team", "slug": "team", "type": "team"},
+			})
+		}))
+		defer srv.Close()
+
+		workspaces, err := ListWorkspaces(srv.URL, "my-token")
+		require.NoError(t, err)
+		require.Len(t, workspaces, 2)
+		assert.Equal(t, "personal", workspaces[0].Slug)
+		assert.Equal(t, "team", workspaces[1].Slug)
+	})
+
+	t.Run("unauthorized", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"error":"invalid token"}`))
+		}))
+		defer srv.Close()
+
+		_, err := ListWorkspaces(srv.URL, "my-token")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "HTTP 401")
+	})
+}
+
+func TestCreateWorkspace(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/v1/workspaces", r.URL.Path)
+			assert.Equal(t, http.MethodPost, r.Method)
+			assert.Equal(t, "Bearer my-token", r.Header.Get("Authorization"))
+
+			var req map[string]string
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+			assert.Equal(t, "My Team", req["name"])
+			assert.Equal(t, "my-team", req["slug"])
+
+			w.WriteHeader(http.StatusCreated)
+			_ = json.NewEncoder(w).Encode(map[string]string{
+				"id":   "ws_new",
+				"name": "My Team",
+				"slug": "my-team",
+				"type": "team",
+			})
+		}))
+		defer srv.Close()
+
+		ws, err := CreateWorkspace(srv.URL, "my-token", "My Team", "my-team")
+		require.NoError(t, err)
+		assert.Equal(t, "my-team", ws.Slug)
+		assert.Equal(t, "My Team", ws.Name)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			_, _ = w.Write([]byte(`{"error":"slug already taken"}`))
+		}))
+		defer srv.Close()
+
+		_, err := CreateWorkspace(srv.URL, "my-token", "My Team", "my-team")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "HTTP 409")
 	})
 }

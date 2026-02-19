@@ -357,7 +357,7 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 
 // CreateAuthenticatedProject creates a project on the server as an authenticated user.
 // The project is created in the user's workspace. Returns the project ID.
-func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string) (projectID string, err error) {
+func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
 	payload := map[string]any{
 		"name":          name,
 		"source_locale": sourceLocale,
@@ -365,37 +365,115 @@ func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, tar
 	if len(targetLocales) > 0 {
 		payload["target_locales"] = targetLocales
 	}
+	if workspace != "" {
+		payload["workspace"] = workspace
+	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
+		return "", "", fmt.Errorf("marshal request: %w", err)
 	}
 
 	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects"
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
+		return "", "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("create project: %w", err)
+		return "", "", fmt.Errorf("create project: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("create project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+		return "", "", fmt.Errorf("create project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
 	var result struct {
-		ID string `json:"id"`
+		ID            string `json:"id"`
+		WorkspaceSlug string `json:"workspace_slug"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
+		return "", "", fmt.Errorf("decode response: %w", err)
 	}
 
-	return result.ID, nil
+	return result.ID, result.WorkspaceSlug, nil
+}
+
+// WorkspaceInfo contains basic workspace metadata returned by ListWorkspaces.
+type WorkspaceInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Slug string `json:"slug"`
+	Type string `json:"type"`
+}
+
+// ListWorkspaces returns the workspaces accessible to the authenticated user.
+func ListWorkspaces(serverURL, token string) ([]WorkspaceInfo, error) {
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("list workspaces: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("list workspaces failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result []WorkspaceInfo
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return result, nil
+}
+
+// CreateWorkspace creates a new team workspace on the server and returns it.
+func CreateWorkspace(serverURL, token, name, slug string) (*WorkspaceInfo, error) {
+	payload := map[string]string{
+		"name": name,
+		"slug": slug,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/workspaces"
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("create workspace: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("create workspace failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result WorkspaceInfo
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+
+	return &result, nil
 }

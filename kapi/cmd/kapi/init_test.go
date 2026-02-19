@@ -58,7 +58,7 @@ func TestRunInitAnonymous(t *testing.T) {
 	cfg.Project.SourceLocale = "en"
 	cfg.Project.TargetLocales = []model.LocaleID{"nb", "fr"}
 
-	err := runInitAnonymous(dir, cfg, srv.URL, "")
+	_, err := runInitAnonymous(dir, cfg, srv.URL, "")
 	require.NoError(t, err)
 
 	// Verify .kapi/ directory was created.
@@ -99,7 +99,7 @@ func TestRunInitAnonymousWithEmail(t *testing.T) {
 	cfg.Project.Name = "test-project"
 	cfg.Project.SourceLocale = "en"
 
-	err := runInitAnonymous(dir, cfg, srv.URL, "user@example.com")
+	_, err := runInitAnonymous(dir, cfg, srv.URL, "user@example.com")
 	require.NoError(t, err)
 
 	kapiDir := filepath.Join(dir, ".kapi")
@@ -130,7 +130,7 @@ func TestRunInitAnonymousNoTargets(t *testing.T) {
 	cfg.Project.SourceLocale = "en"
 	// No target locales — should be treated as dynamic.
 
-	err := runInitAnonymous(dir, cfg, srv.URL, "")
+	_, err := runInitAnonymous(dir, cfg, srv.URL, "")
 	require.NoError(t, err)
 }
 
