@@ -17,7 +17,7 @@ cd my-app/
 kapi init
 ```
 
-The interactive wizard guides you through setup. Choose **Quick start** for a
+The interactive wizard guides you through setup. Choose **Local only** for a
 local-only project, or use flags to skip the wizard:
 
 ```bash
@@ -191,14 +191,15 @@ is updated with the server connection details.
 
 ### Option B: Interactive Init
 
-Re-run `kapi init` and choose **Sign in** to create a new server-connected
-project from scratch:
+Re-run `kapi init` and choose **Sign in to Bowrain** to create a new
+server-connected project from scratch:
 
 ```bash
 kapi init
-# → Choose "Sign in"
+# → Choose "Sign in to Bowrain"
 # → Authenticate via browser (device flow)
-# → Select workspace and configure project
+# → Select workspace (or create a new one)
+# → Enter project name and source locale
 ```
 
 ### After Connecting
@@ -290,7 +291,7 @@ All commands work from anywhere within the project tree.
 
 If you don't need team collaboration:
 
-1. `kapi init` — initialize project (Quick start or Local only)
+1. `kapi init` — initialize project (choose "Local only")
 2. Define flows in `.kapi/flows/`
 3. `kapi flow run <flow>` — process files
 4. Commit results to git
@@ -302,7 +303,7 @@ No server required. Perfect for individual translators or small teams using git 
 For team collaboration with Bowrain Server:
 
 1. `kapi auth login --server <URL>` — authenticate with the server
-2. `kapi auth claim` — claim your local project into a workspace, or re-run `kapi init` with "Sign in"
+2. `kapi auth claim` — claim your local project into a workspace, or re-run `kapi init` with "Sign in to Bowrain"
 3. `kapi pull` — fetch latest translations
 4. Edit files locally or run flows
 5. `kapi diff` — review changes

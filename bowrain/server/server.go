@@ -184,6 +184,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authGroup.POST("/device/verify", func(c echo.Context) error {
 			return s.handleDeviceVerification(c, c.FormValue("user_code"))
 		})
+		authGroup.GET("/device/callback", s.HandleDeviceAuthCallback)
 
 		// Protected auth routes (require valid token)
 		authProtected := authGroup.Group("")
@@ -194,6 +195,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Authenticated routes (JWT required, no workspace scope).
 		jwtProtected := v1.Group("")
 		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret))
+		jwtProtected.POST("/projects", s.HandleCreateProjectAuthenticated)
 		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 

@@ -44,6 +44,7 @@ project:
 server:
   url: https://bowrain.example.com
   project_id: abc123
+  workspace: my-team
 
 # File mappings: local paths ↔ remote items
 mappings:

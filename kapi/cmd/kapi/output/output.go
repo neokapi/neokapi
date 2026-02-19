@@ -33,7 +33,7 @@ type TextFormatter interface {
 func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("json", false, "Output in JSON format")
 	cmd.Flags().Bool("text", false, "Output in text format (default)")
-	cmd.Flags().StringP("output-format", "o", "", "Output format: json, text")
+	cmd.Flags().String("output-format", "", "Output format: json, text")
 }
 
 // AddPersistentFlags registers output format flags as persistent flags.
@@ -41,7 +41,7 @@ func AddFlags(cmd *cobra.Command) {
 func AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().Bool("json", false, "Output in JSON format")
 	cmd.PersistentFlags().Bool("text", false, "Output in text format (default)")
-	cmd.PersistentFlags().StringP("output-format", "o", "", "Output format: json, text")
+	cmd.PersistentFlags().String("output-format", "", "Output format: json, text")
 }
 
 // GetFormat resolves the output format from command flags.

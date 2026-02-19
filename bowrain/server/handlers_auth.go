@@ -37,10 +37,25 @@ var deviceCodes = struct {
 	entries map[string]*deviceCodeEntry
 }{entries: make(map[string]*deviceCodeEntry)}
 
+// webAuthEntry stores the state of a pending web OIDC authorization.
+type webAuthEntry struct {
+	CodeVerifier string
+	Nonce        string
+	ExpiresAt    time.Time
+}
+
+// webAuthStates is an in-memory store for pending web auth states.
+var webAuthStates = struct {
+	sync.Mutex
+	entries map[string]*webAuthEntry
+}{entries: make(map[string]*webAuthEntry)}
+
 // desktopAuthEntry stores the state of a pending desktop PKCE authorization.
 type desktopAuthEntry struct {
 	RedirectURI   string    // desktop's localhost callback URL
 	CodeChallenge string    // PKCE code_challenge from the desktop
+	CodeVerifier  string    // server-side PKCE verifier for OIDC exchange
+	Nonce         string    // OIDC nonce for ID token replay protection
 	ExpiresAt     time.Time // expiry for this entry
 }
 
@@ -49,6 +64,21 @@ var desktopAuthStates = struct {
 	sync.Mutex
 	entries map[string]*desktopAuthEntry
 }{entries: make(map[string]*desktopAuthEntry)}
+
+// deviceVerifyEntry maps an OIDC state to a pending device code during
+// the device verification flow (user authenticates via OIDC to authorize the device).
+type deviceVerifyEntry struct {
+	DeviceCode   string
+	CodeVerifier string // server-side PKCE verifier for OIDC exchange
+	Nonce        string // OIDC nonce for ID token replay protection
+	ExpiresAt    time.Time
+}
+
+// deviceVerifyStates is an in-memory store for pending device verification OIDC states.
+var deviceVerifyStates = struct {
+	sync.Mutex
+	entries map[string]*deviceVerifyEntry
+}{entries: make(map[string]*deviceVerifyEntry)}
 
 func randomHex(n int) string {
 	b := make([]byte, n)
@@ -61,6 +91,75 @@ func randomUserCode() string {
 	_, _ = rand.Read(b)
 	code := hex.EncodeToString(b)
 	return fmt.Sprintf("%s-%s", code[:4], code[4:])
+}
+
+// oidcAuthParams holds the PKCE verifier+challenge, nonce, and state generated
+// for a single OIDC authorization request.
+type oidcAuthParams struct {
+	State, CodeVerifier, Challenge, Nonce string
+}
+
+// newOIDCAuthParams generates fresh PKCE, nonce, and state values for an
+// OIDC authorization redirect.
+func newOIDCAuthParams() (*oidcAuthParams, error) {
+	verifier, err := platformAuth.GenerateCodeVerifier()
+	if err != nil {
+		return nil, fmt.Errorf("generate PKCE verifier: %w", err)
+	}
+	return &oidcAuthParams{
+		State:        randomHex(16),
+		CodeVerifier: verifier,
+		Challenge:    platformAuth.ComputeCodeChallenge(verifier),
+		Nonce:        randomHex(16),
+	}, nil
+}
+
+func init() {
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cleanupExpiredAuthStates()
+		}
+	}()
+}
+
+// cleanupExpiredAuthStates removes expired entries from all in-memory auth
+// state stores. Called periodically by the background goroutine.
+func cleanupExpiredAuthStates() {
+	now := time.Now()
+
+	deviceCodes.Lock()
+	for k, v := range deviceCodes.entries {
+		if now.After(v.ExpiresAt) {
+			delete(deviceCodes.entries, k)
+		}
+	}
+	deviceCodes.Unlock()
+
+	webAuthStates.Lock()
+	for k, v := range webAuthStates.entries {
+		if now.After(v.ExpiresAt) {
+			delete(webAuthStates.entries, k)
+		}
+	}
+	webAuthStates.Unlock()
+
+	desktopAuthStates.Lock()
+	for k, v := range desktopAuthStates.entries {
+		if now.After(v.ExpiresAt) {
+			delete(desktopAuthStates.entries, k)
+		}
+	}
+	desktopAuthStates.Unlock()
+
+	deviceVerifyStates.Lock()
+	for k, v := range deviceVerifyStates.entries {
+		if now.After(v.ExpiresAt) {
+			delete(deviceVerifyStates.entries, k)
+		}
+	}
+	deviceVerifyStates.Unlock()
 }
 
 // HandleDeviceAuthStart starts the device authorization flow (RFC 8628).
@@ -225,14 +324,30 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 	}
 
 	redirectURI := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
-	state := randomHex(16)
+
+	ap, err := newOIDCAuthParams()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Store state → web auth entry for validation in the callback.
+	webAuthStates.Lock()
+	webAuthStates.entries[ap.State] = &webAuthEntry{
+		CodeVerifier: ap.CodeVerifier,
+		Nonce:        ap.Nonce,
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+	}
+	webAuthStates.Unlock()
 
 	params := url.Values{
-		"client_id":     {s.Config.OIDCClientID},
-		"redirect_uri":  {redirectURI},
-		"response_type": {"code"},
-		"scope":         {"openid profile email"},
-		"state":         {state},
+		"client_id":             {s.Config.OIDCClientID},
+		"redirect_uri":          {redirectURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid profile email"},
+		"state":                 {ap.State},
+		"code_challenge":        {ap.Challenge},
+		"code_challenge_method": {"S256"},
+		"nonce":                 {ap.Nonce},
 	}
 
 	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
@@ -254,13 +369,14 @@ func (s *Server) HandleAuthCallback(c echo.Context) error {
 
 	// For browser-based OIDC callback (authorization code flow)
 	code := c.QueryParam("code")
+	state := c.QueryParam("state")
 
 	if userCode != "" {
 		return s.handleDeviceVerification(c, userCode)
 	}
 
 	if code != "" {
-		return s.handleOIDCCodeExchange(c, code)
+		return s.handleOIDCCodeExchange(c, code, state)
 	}
 
 	// Show device verification form
@@ -326,23 +442,31 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 	// The server's own callback URL — the OIDC provider redirects here.
 	serverCallbackURI := fmt.Sprintf("%s://%s/api/v1/auth/desktop/callback", c.Scheme(), c.Request().Host)
 
-	state := randomHex(16)
+	ap, err := newOIDCAuthParams()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
 
 	// Store the state mapping.
 	desktopAuthStates.Lock()
-	desktopAuthStates.entries[state] = &desktopAuthEntry{
+	desktopAuthStates.entries[ap.State] = &desktopAuthEntry{
 		RedirectURI:   redirectURI,
 		CodeChallenge: codeChallenge,
+		CodeVerifier:  ap.CodeVerifier,
+		Nonce:         ap.Nonce,
 		ExpiresAt:     time.Now().Add(10 * time.Minute),
 	}
 	desktopAuthStates.Unlock()
 
 	params := url.Values{
-		"client_id":     {s.Config.OIDCClientID},
-		"redirect_uri":  {serverCallbackURI},
-		"response_type": {"code"},
-		"scope":         {"openid profile email"},
-		"state":         {state},
+		"client_id":             {s.Config.OIDCClientID},
+		"redirect_uri":          {serverCallbackURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid profile email"},
+		"state":                 {ap.State},
+		"code_challenge":        {ap.Challenge},
+		"code_challenge_method": {"S256"},
+		"nonce":                 {ap.Nonce},
 	}
 
 	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
@@ -400,7 +524,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code)
+	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(entry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}
@@ -419,6 +543,11 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "verify id_token: " + err.Error()})
+	}
+
+	// Verify nonce to prevent ID token replay.
+	if idToken.Nonce != entry.Nonce {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
 	var claims struct {
@@ -460,29 +589,87 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	return c.Redirect(http.StatusFound, desktopRedirect.String())
 }
 
-// handleDeviceVerification matches a user_code to a pending device and authorizes it.
+// handleDeviceVerification matches a user_code to a pending device and either
+// redirects the browser through OIDC (when configured) or falls back to direct
+// authorization (for local dev / testing without an OIDC provider).
 func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error {
 	// Find the matching device code entry.
 	deviceCodes.Lock()
 	var matchedCode string
-	var matchedEntry *deviceCodeEntry
 	for code, entry := range deviceCodes.entries {
 		if entry.UserCode == userCode && !entry.Authorized {
 			matchedCode = code
-			matchedEntry = entry
 			break
 		}
 	}
 	deviceCodes.Unlock()
 
-	if matchedEntry == nil {
+	if matchedCode == "" {
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
 <h1>Invalid or expired code</h1><p>Please check the code and try again.</p></body></html>`)
 	}
 
-	// For now, authorize with a default user (in production, this would come from the OIDC session).
-	// When an OIDC provider is configured, the user would already be authenticated via the session cookie.
-	// Check both query params and form values to support programmatic e2e testing.
+	// If OIDC is configured, redirect through the identity provider.
+	if s.Config.OIDCIssuerURL != "" && s.Config.OIDCClientID != "" {
+		return s.handleDeviceVerificationOIDC(c, matchedCode)
+	}
+
+	// No OIDC configured — fall back to direct authorization (local dev / tests).
+	return s.handleDeviceVerificationDirect(c, matchedCode)
+}
+
+// handleDeviceVerificationOIDC redirects the browser to the OIDC provider for
+// authentication. After the user authenticates, the provider redirects to
+// /api/v1/auth/device/callback, which completes the device authorization.
+func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string) error {
+	oidcCtx := s.oidcContext(c.Request().Context())
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+	endpoint := provider.Endpoint()
+
+	// If a public URL is configured (Docker), rewrite the auth endpoint.
+	authURL := endpoint.AuthURL
+	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
+		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
+	}
+
+	callbackURI := fmt.Sprintf("%s://%s/api/v1/auth/device/callback", c.Scheme(), c.Request().Host)
+
+	ap, err := newOIDCAuthParams()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Store the state → device_code mapping.
+	deviceVerifyStates.Lock()
+	deviceVerifyStates.entries[ap.State] = &deviceVerifyEntry{
+		DeviceCode:   deviceCode,
+		CodeVerifier: ap.CodeVerifier,
+		Nonce:        ap.Nonce,
+		ExpiresAt:    time.Now().Add(10 * time.Minute),
+	}
+	deviceVerifyStates.Unlock()
+
+	params := url.Values{
+		"client_id":             {s.Config.OIDCClientID},
+		"redirect_uri":          {callbackURI},
+		"response_type":         {"code"},
+		"scope":                 {"openid profile email"},
+		"state":                 {ap.State},
+		"code_challenge":        {ap.Challenge},
+		"code_challenge_method": {"S256"},
+		"nonce":                 {ap.Nonce},
+	}
+
+	return c.Redirect(http.StatusFound, authURL+"?"+params.Encode())
+}
+
+// handleDeviceVerificationDirect authorizes the device without OIDC, using
+// form values or defaults. Used when no OIDC provider is configured
+// (local development, CI tests).
+func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode string) error {
 	email := c.QueryParam("email")
 	if email == "" {
 		email = c.FormValue("email")
@@ -499,10 +686,109 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 	}
 
 	deviceCodes.Lock()
-	matchedEntry.Authorized = true
-	matchedEntry.UserEmail = email
-	matchedEntry.UserName = name
-	deviceCodes.entries[matchedCode] = matchedEntry
+	if entry, ok := deviceCodes.entries[deviceCode]; ok {
+		entry.Authorized = true
+		entry.UserEmail = email
+		entry.UserName = name
+	}
+	deviceCodes.Unlock()
+
+	return c.HTML(http.StatusOK, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1 style="color:#58a6ff">Device authorized!</h1><p>You can close this window and return to your terminal.</p></body></html>`)
+}
+
+// HandleDeviceAuthCallback handles the OIDC redirect after the user authenticated
+// to authorize a pending device code. It exchanges the authorization code,
+// verifies the ID token, extracts claims, and marks the device as authorized.
+func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
+	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+
+	code := c.QueryParam("code")
+	state := c.QueryParam("state")
+
+	if code == "" || state == "" {
+		errMsg := c.QueryParam("error_description")
+		if errMsg == "" {
+			errMsg = c.QueryParam("error")
+		}
+		if errMsg == "" {
+			errMsg = "missing code or state"
+		}
+		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1>Authentication Failed</h1><p>`+errMsg+`</p></body></html>`)
+	}
+
+	// Look up and consume the pending state → device_code mapping.
+	deviceVerifyStates.Lock()
+	entry, ok := deviceVerifyStates.entries[state]
+	if ok {
+		delete(deviceVerifyStates.entries, state)
+	}
+	deviceVerifyStates.Unlock()
+
+	if !ok || time.Now().After(entry.ExpiresAt) {
+		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1>Invalid or Expired Session</h1><p>Please try authorizing the device again.</p></body></html>`)
+	}
+
+	ctx := c.Request().Context()
+	callbackURI := fmt.Sprintf("%s://%s/api/v1/auth/device/callback", c.Scheme(), c.Request().Host)
+
+	// Exchange the authorization code with the OIDC provider.
+	oidcCtx := s.oidcContext(ctx)
+	oauth2Cfg, err := auth.NewOAuth2Config(oidcCtx, auth.OIDCConfig{
+		IssuerURL:    s.Config.OIDCIssuerURL,
+		ClientID:     s.Config.OIDCClientID,
+		ClientSecret: s.Config.OIDCClientSecret,
+		RedirectURL:  callbackURI,
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
+	}
+
+	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(entry.CodeVerifier))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
+	}
+
+	// Verify the ID token.
+	rawIDToken, ok := oauth2Token.Extra("id_token").(string)
+	if !ok {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "no id_token in response"})
+	}
+
+	verifier, err := auth.NewOIDCVerifier(oidcCtx, s.Config.OIDCIssuerURL, s.Config.OIDCClientID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create verifier: " + err.Error()})
+	}
+
+	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "verify id_token: " + err.Error()})
+	}
+
+	// Verify nonce to prevent ID token replay.
+	if idToken.Nonce != entry.Nonce {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
+	}
+
+	var claims struct {
+		Email string `json:"email"`
+		Name  string `json:"name"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
+	}
+
+	// Mark the device as authorized with the real OIDC identity.
+	deviceCodes.Lock()
+	if dce, exists := deviceCodes.entries[entry.DeviceCode]; exists {
+		dce.Authorized = true
+		dce.UserEmail = claims.Email
+		dce.UserName = claims.Name
+	}
 	deviceCodes.Unlock()
 
 	return c.HTML(http.StatusOK, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
@@ -562,14 +848,27 @@ func clearSessionCookies(c echo.Context) {
 	})
 }
 
-// handleOIDCCodeExchange performs the OAuth2 authorization code exchange.
-// It uses OIDC discovery to resolve the token endpoint, making it compatible
-// with any OIDC provider (Keycloak, Dex, etc.).
-func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
+// handleOIDCCodeExchange performs the OAuth2 authorization code exchange for
+// the web flow. It validates the state parameter, sends the PKCE verifier,
+// and checks the nonce in the returned ID token.
+func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) error {
 	ctx := c.Request().Context()
 
 	if s.Config.OIDCIssuerURL == "" || s.Config.OIDCClientID == "" {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "OIDC not configured"})
+	}
+
+	// Look up and consume the pending web auth state.
+	webAuthStates.Lock()
+	webEntry, ok := webAuthStates.entries[state]
+	if ok {
+		delete(webAuthStates.entries, state)
+	}
+	webAuthStates.Unlock()
+
+	if !ok || time.Now().After(webEntry.ExpiresAt) {
+		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
+<h1>Invalid or Expired Session</h1><p>Please try signing in again.</p></body></html>`)
 	}
 
 	redirectURL := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
@@ -589,7 +888,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code)
+	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(webEntry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}
@@ -608,6 +907,11 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code string) error {
 	idToken, err := verifier.Verify(oidcCtx, rawIDToken)
 	if err != nil {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "verify id_token: " + err.Error()})
+	}
+
+	// Verify nonce to prevent ID token replay.
+	if idToken.Nonce != webEntry.Nonce {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
 	var claims struct {

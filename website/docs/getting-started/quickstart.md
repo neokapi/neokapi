@@ -15,11 +15,13 @@ Create a `.kapi/` project directory (like `.git` for localization):
 kapi init
 ```
 
-The interactive wizard offers three paths:
+The interactive wizard guides you through setup. If you're already signed in,
+it goes straight to workspace and project configuration. Otherwise, it offers:
 
-1. **Quick start** — create an anonymous local project (no server needed)
-2. **Sign in** — authenticate with a Bowrain Server and create a server-connected project
-3. **Local only** — create a local project with full control over settings
+1. **Sign in to Bowrain** — authenticate and create a server-connected project
+2. **Email me a claim link** — create an anonymous project with email claim
+3. **Continue without signing in** — create an anonymous project (prints claim URL)
+4. **Local only** — no server connection, pure local project
 
 You can also skip the wizard with flags:
 
@@ -92,6 +94,7 @@ kapi --help
 | `kapi status` | Show sync state |
 | `kapi flow run` | Execute a workflow |
 | `kapi flow list` | List available flows |
+| `kapi config` | View or set configuration values |
 | `kapi serve` | Open local web editor |
 | `kapi formats` | List supported formats |
 | `kapi tools` | List available tools |
@@ -99,6 +102,6 @@ kapi --help
 ## Next Steps
 
 - **Full walkthrough**: See [Project Walkthrough](/docs/getting-started/project-walkthrough)
-- **Connect to server**: Use interactive `kapi init` and choose "Sign in", or run `kapi auth login --server <URL>` followed by `kapi auth claim`
+- **Connect to server**: Use interactive `kapi init` and choose "Sign in to Bowrain"
 - **Explore flows**: `kapi flow list`
 - **CLI reference**: [User Guide](/docs/kapi-cli/commands/init)

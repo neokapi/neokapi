@@ -1,0 +1,85 @@
+---
+title: config
+sidebar_position: 2
+---
+
+# kapi config
+
+View or set configuration values for the current project or global settings.
+
+## Usage
+
+```bash
+kapi config [key] [value] [flags]
+```
+
+## Description
+
+With no arguments, prints the path to the config file.
+With one argument (key), prints the current value.
+With two arguments (key value), sets the value.
+
+By default, operates on the project config file (`.kapi/config.yaml`).
+Use `--global` to read/write the global config file (`~/.config/kapi/kapi.yaml`).
+
+## Examples
+
+```bash
+# Show path to project config
+kapi config
+
+# Read a project config value
+kapi config project.name
+kapi config server.url
+
+# Set a project config value
+kapi config project.name "My Project"
+
+# Read global config
+kapi config --global server.url
+
+# Set global config (applies to all projects)
+kapi config --global server.url https://bowrain.example.com
+```
+
+## Options
+
+| Flag | Description |
+|------|-------------|
+| `--global` | Use global config file (`~/.config/kapi/kapi.yaml`) instead of project config |
+
+## Config Keys
+
+### Project Config (`.kapi/config.yaml`)
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `project.name` | Project name | `My App` |
+| `project.source_locale` | Source locale (BCP 47) | `en-US` |
+| `server.url` | Bowrain Server URL | `https://bowrain.example.com` |
+| `server.project_id` | Server project ID | `proj_abc123` |
+| `server.workspace` | Workspace slug | `my-team` |
+
+### Global Config (`~/.config/kapi/kapi.yaml`)
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `server.url` | Default server URL for all projects | `https://bowrain.example.com` |
+| `plugin_directory` | Plugin directory path | `/home/user/.kapi/plugins` |
+
+## Global vs Project Config
+
+Global config provides defaults that apply to all projects. Project config
+overrides global values for the current project.
+
+For example, set the server URL globally so all `kapi init` commands use it:
+
+```bash
+kapi config --global server.url https://bowrain.example.com
+```
+
+Then override it for a specific project if needed:
+
+```bash
+kapi config server.url https://staging.bowrain.example.com
+```

@@ -56,6 +56,7 @@ project:
 server:
   url: https://bowrain.example.com
   project_id: abc123
+  workspace: my-team
   # Auth token comes from: kapi auth login --server URL
 
 # File mappings: local paths ↔ remote items
@@ -91,6 +92,7 @@ flows:
 - **`project.target_locales`** — Array of BCP-47 tags for target locales
 - **`server.url`** — (Optional) Bowrain Server URL for pull/push
 - **`server.project_id`** — (Optional) Remote project ID
+- **`server.workspace`** — (Optional) Workspace slug for workspace-scoped API routes
 - **`mappings`** — Array of local ↔ remote path mappings (see below)
 - **`hooks`** — Flow names to run on events (`pre-push`, `post-pull`)
 - **`flows`** — Per-flow configuration overrides
@@ -207,40 +209,44 @@ Flows use the same tool system as Bowrain ([ADR-006](./006-tool-system.md)) but 
 The `kapi init` command creates a new project:
 
 ```bash
-# Standalone project (no server)
-cd my-app/
+# Interactive mode (recommended)
 kapi init
 
-# Connected project
+# Non-interactive: local project
+kapi init --name "My App" --source en-US --targets fr-FR,de-DE
+
+# Non-interactive: anonymous project
+kapi init --anonymous --name "My App" --source en
+
+# Non-interactive: connect to existing project
 kapi init --server https://bowrain.example.com --project my-app-l10n
 ```
 
-**`kapi init` workflow:**
+**Interactive `kapi init` workflow:**
 1. Check if `.kapi/` already exists (error if so)
-2. Create `.kapi/config.yaml` with defaults
-3. If `--server` provided:
-   - Verify auth token exists (`kapi auth status`)
-   - Fetch project metadata from server
-   - Populate `server.url` and `server.project_id`
-4. Create `.kapi/flows/` directory with example flows
-5. Create `.gitignore` entry for `.kapi/.sync-cache`
+2. If already authenticated:
+   - Prompt for workspace selection (or create a new workspace)
+   - Prompt for project name and source locale (BCP-47 selector)
+   - Create project on server in the selected workspace
+3. If not authenticated, offer four paths:
+   - **Sign in**: OAuth device flow → workspace selection → project details
+   - **Email claim**: project details → email → anonymous project with email claim
+   - **Anonymous**: project details → anonymous project (prints claim URL)
+   - **Local only**: project details → local-only project
+4. Create `.kapi/config.yaml` with project settings (including `server.workspace` if applicable)
+5. Create `.kapi/flows/` directory with example flows
+6. Create `.kapi/.gitignore` to exclude `.sync-cache`
 
-**Example generated `config.yaml`:**
-```yaml
-project:
-  name: my-app
-  source_locale: en-US
-  target_locales: []
+**Non-interactive `kapi init` workflow:**
+1. Check if `.kapi/` already exists (error if so)
+2. Create `.kapi/config.yaml` from flag values
+3. If `--anonymous` or `--email`: create anonymous project on server
+4. If `--project`: verify auth and connect to existing project
+5. If authenticated with no flags: create project in personal workspace
+6. Create `.kapi/flows/` directory with example flows
+7. Create `.kapi/.gitignore`
 
-# Uncomment to connect to Bowrain Server:
-# server:
-#   url: https://bowrain.example.com
-#   project_id: your-project-id
-
-mappings: []
-
-hooks: {}
-```
+All paths support `--json` output for CI/CD integration.
 
 ### Project Commands
 

@@ -287,6 +287,7 @@ func listProjectFlows(cmd *cobra.Command, proj *project.Project) error {
 }
 
 func init() {
+	addProcessingFlags(flowRunCmd)
 	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	flowRunCmd.Flags().StringP("output", "o", "", "output file path (single-file mode only)")
 	flowRunCmd.Flags().IntP("concurrency", "j", 0, "max parallel documents (0 = auto, 1 = sequential)")

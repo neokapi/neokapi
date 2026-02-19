@@ -80,13 +80,19 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default: gokapi.yaml)")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress output")
-	rootCmd.PersistentFlags().StringVarP(&formatFlag, "format", "f", "", "override input format detection")
-	rootCmd.PersistentFlags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input encoding")
-	rootCmd.PersistentFlags().StringVar(&sourceLang, "source-lang", "en", "source language (BCP 47)")
-	rootCmd.PersistentFlags().StringVar(&targetLang, "target-lang", "", "target language (BCP 47)")
 	rootCmd.PersistentFlags().StringVar(&pluginDir, "plugin-dir", "",
 		"plugin directory (default: $HOME/.kapi/plugins, env: KAPI_PLUGIN_DIR)")
 
 	// Output format flags (--json, --text, --output-format)
 	output.AddPersistentFlags(rootCmd)
+}
+
+// addProcessingFlags adds file-processing flags (--format, --encoding,
+// --source-lang, --target-lang) to a command. These only apply to commands
+// that process files (flow run, tool commands).
+func addProcessingFlags(cmd *cobra.Command) {
+	cmd.Flags().StringVarP(&formatFlag, "format", "f", "", "override input format detection")
+	cmd.Flags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input encoding")
+	cmd.Flags().StringVar(&sourceLang, "source-lang", "en", "source language (BCP 47)")
+	cmd.Flags().StringVar(&targetLang, "target-lang", "", "target language (BCP 47)")
 }

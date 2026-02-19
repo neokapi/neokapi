@@ -304,9 +304,9 @@ func TestAddPersistentFlags(t *testing.T) {
 	assert.NotNil(t, cmd.PersistentFlags().Lookup("text"))
 	assert.NotNil(t, cmd.PersistentFlags().Lookup("output-format"))
 
-	// Verify shorthand for output-format
+	// output-format has no shorthand (avoids conflict with -o/--output on subcommands)
 	flag := cmd.PersistentFlags().Lookup("output-format")
-	assert.Equal(t, "o", flag.Shorthand)
+	assert.Equal(t, "", flag.Shorthand)
 }
 
 func TestPrintTo_FallbackToJSON(t *testing.T) {

@@ -56,12 +56,19 @@ kapi flow list
 |------|-------|-------------|
 | `--input` | `-i` | Input file path(s); repeat for multiple files (required) |
 | `--output` | `-o` | Output file path (single-file mode only) |
+| `--format` | `-f` | Override input format detection |
+| `--encoding` | `-e` | Input encoding (default: UTF-8) |
+| `--source-lang` | | Source language, BCP 47 (default: en) |
+| `--target-lang` | | Target language, BCP 47 (required) |
 | `--concurrency` | `-j` | Max parallel documents (0 = auto, 1 = sequential) |
 | `--provider` | | LLM provider: anthropic, openai, ollama (default: anthropic) |
 | `--api-key` | | API key for LLM provider |
 | `--model` | | LLM model name |
-| `--source-lang` | | Source language, BCP 47 (default: en) |
-| `--target-lang` | | Target language, BCP 47 (required) |
+
+:::note
+The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
+specific to `flow run` and tool commands. They are not global flags.
+:::
 
 ## Project-Based Flows
 

@@ -63,15 +63,18 @@ This creates a `.kapi/` directory with the project configuration and prints a
 ```
 Creating project on https://bowrain.example.com...
 Initialized .kapi/ project in: /path/to/examples/docusaurus-e2e
+Configuration: /path/to/examples/docusaurus-e2e/.kapi/config.yaml
 
-Project created: proj_abc123...
-Claim URL: https://bowrain.example.com/claim/clm_def456...
+Project created: proj_abc123
+Claim URL: https://bowrain.example.com/claim/clm_def456
 
 Next steps:
   1. Run: kapi push    — upload content to the server
   2. Open the claim URL to take ownership of the project
   3. Invite translators from the web dashboard
 ```
+
+Use `--json` for machine-readable output in CI/CD pipelines.
 
 :::tip
 The server URL is resolved from `KAPI_SERVER_URL` environment variable or existing
@@ -242,7 +245,7 @@ npm run serve
 | Step | Tool | What Happens |
 |------|------|-------------|
 | 1. Initialize | `kapi init --anonymous` | Creates project on server, generates claim URL |
-| 2. Pseudo-translate | `kapi pseudo-translate` | Generates test translations for UI validation |
+| 2. Pseudo-translate | `kapi pseudo-translate` | Generate test translations for UI validation |
 | 3. Push | `kapi push` | Uploads source content to Bowrain Server |
 | 4. Claim | Web browser / email | Developer claims the anonymous project |
 | 5. Invite | Web app / API | Admin invites translator to workspace |

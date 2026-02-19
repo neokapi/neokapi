@@ -26,7 +26,9 @@ The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommand
 ```
 kapi
 ├── init             # Initialize a new .kapi/ project
-│   └── --server URL --project ID (optional server connection)
+│   └── --name, --source, --targets, --server, --project, --anonymous, --email
+├── config           # View or set configuration values
+│   └── --global (use ~/.config/kapi/kapi.yaml instead of .kapi/config.yaml)
 ├── status           # Show sync state (local vs remote)
 ├── diff             # Show changes between local and remote
 ├── pull             # Pull from Bowrain Server → update local files
@@ -35,6 +37,7 @@ kapi
 │   └── --force, --dry-run, --message MSG, [paths...]
 ├── flow             # Flow management
 │   ├── run FLOW     # Execute a flow from .kapi/flows/
+│   │   └── --format, --encoding, --source-lang, --target-lang
 │   └── list         # List available flows
 ├── serve            # Start local dashboard (web UI)
 │   └── --port 3000
@@ -82,23 +85,45 @@ The following commands are **removed** as they do not fit the new architecture:
 Creates a new `.kapi/` project directory:
 
 ```bash
-# Standalone project (no server)
-cd my-app/
+# Interactive mode (recommended)
 kapi init
 
-# Connected to Bowrain Server
+# Non-interactive: local project
+kapi init --name "My App" --source en-US --targets fr-FR,de-DE
+
+# Non-interactive: anonymous project with claim URL
+kapi init --anonymous --name "My App" --source en
+
+# Non-interactive: connect to existing project
 kapi init --server https://bowrain.example.com --project my-app-l10n
 ```
 
-**Workflow:**
+**Interactive mode** (default when stdin is a terminal):
+- If already signed in: select workspace → enter project name → select source locale
+- If not signed in: choose from Sign in / Email claim / Anonymous / Local only
+- Workspace selector allows choosing existing workspaces or creating new ones
+- Source locale uses a BCP-47 selector with type-ahead filtering
+
+**Non-interactive workflow:**
 1. Check if `.kapi/` already exists (error if so)
-2. Create `.kapi/config.yaml` with defaults
-3. If `--server` provided:
-   - Verify auth token exists (`kapi auth status`)
-   - Fetch project metadata from server
-   - Populate `server.url` and `server.project_id`
-4. Create `.kapi/flows/` directory with example flows
-5. Create `.gitignore` entry for `.kapi/.sync-cache`
+2. Create `.kapi/config.yaml` with defaults or provided flags
+3. If `--anonymous` or `--email`: create anonymous project on server
+4. If `--project` provided: verify auth and connect to existing project
+5. If authenticated with no flags: create project in personal workspace
+6. Create `.kapi/flows/` directory with example flows
+7. Create `.gitignore` entry for `.kapi/.sync-cache`
+
+All paths support `--json` output for CI/CD integration.
+
+#### **`kapi config` — View or Set Configuration**
+
+Read and write project or global configuration values:
+
+```bash
+kapi config project.name                    # Read project name
+kapi config project.name "New Name"         # Set project name
+kapi config --global server.url https://...  # Set global server URL
+```
 
 #### **`kapi status` — Show Sync State**
 

@@ -101,6 +101,7 @@ func init() {
 				})
 			},
 		}
+		addProcessingFlags(cmd)
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
 		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")

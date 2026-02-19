@@ -53,6 +53,16 @@ kapi push -m "message"  # Upload to server
 
 Only changed blocks transfer (content-addressed sync).
 
+### Configuration
+
+View or set project and global configuration values:
+
+```bash
+kapi config project.name              # Print project name
+kapi config project.name "My App"     # Set project name
+kapi config --global server.url https://bowrain.example.com  # Set global server URL
+```
+
 ## When to Use Kapi
 
 Use Kapi CLI when you:

@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
           label: 'Commands',
           items: [
             'kapi-cli/commands/init',
+            'kapi-cli/commands/config',
             'kapi-cli/commands/status',
             'kapi-cli/commands/diff',
             'kapi-cli/commands/pull',
