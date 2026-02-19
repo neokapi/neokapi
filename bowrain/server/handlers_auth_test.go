@@ -59,8 +59,8 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	req2.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec2 := httptest.NewRecorder()
 	e.ServeHTTP(rec2, req2)
-	assert.Equal(t, http.StatusOK, rec2.Code)
-	assert.Contains(t, rec2.Body.String(), "Device authorized")
+	assert.Equal(t, http.StatusFound, rec2.Code)
+	assert.Equal(t, "/device/authorized", rec2.Header().Get("Location"))
 
 	// Verify the entry was authorized with the correct email/name.
 	deviceCodes.Lock()
@@ -98,7 +98,8 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Equal(t, "/device/authorized", rec.Header().Get("Location"))
 
 	deviceCodes.Lock()
 	entry := deviceCodes.entries["test-device-default"]
@@ -213,12 +214,12 @@ func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
 	srv := NewServer(cfg)
 	e := srv.GetEcho()
 
-	// Missing code and state → should get 400 HTML error.
+	// Missing code and state → should redirect to verify page with error.
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/device/callback", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Authentication Failed")
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Contains(t, rec.Header().Get("Location"), "/device/verify?error=")
 }
 
 func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
@@ -228,7 +229,7 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 	srv := NewServer(cfg)
 	e := srv.GetEcho()
 
-	// Valid code but unknown state → should get 400.
+	// Valid code but unknown state → should redirect to verify page with error.
 	params := url.Values{
 		"code":  {"some-code"},
 		"state": {"nonexistent-state"},
@@ -236,8 +237,8 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/device/callback?"+params.Encode(), nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Contains(t, rec.Header().Get("Location"), "/device/verify?error=")
 }
 
 func TestHandleDeviceAuthCallbackExpiredState(t *testing.T) {
@@ -262,8 +263,8 @@ func TestHandleDeviceAuthCallbackExpiredState(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/device/callback?"+params.Encode(), nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
+	assert.Equal(t, http.StatusFound, rec.Code)
+	assert.Contains(t, rec.Header().Get("Location"), "/device/verify?error=")
 
 	// State should have been consumed.
 	deviceVerifyStates.Lock()

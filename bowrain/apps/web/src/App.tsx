@@ -30,6 +30,8 @@ import {
 } from "@gokapi/ui";
 import { JoinPage } from "./auth/JoinPage";
 import { ClaimPage } from "./auth/ClaimPage";
+import { DeviceVerifyPage } from "./auth/DeviceVerifyPage";
+import { DeviceAuthorizedPage } from "./auth/DeviceAuthorizedPage";
 
 const api = new RestApiAdapter();
 
@@ -37,7 +39,7 @@ const api = new RestApiAdapter();
 // Skip redirect for /claim/ and /join/ routes — those pages handle auth themselves.
 api.onSessionExpired = () => {
   const path = window.location.pathname;
-  if (path.startsWith("/claim/") || path.startsWith("/join/")) {
+  if (path.startsWith("/claim/") || path.startsWith("/join/") || path.startsWith("/device/")) {
     return;
   }
   window.location.href = "/api/v1/auth/login";
@@ -380,6 +382,8 @@ function AppContent() {
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [joinCode, setJoinCode] = useState<string | null>(null);
   const [claimToken, setClaimToken] = useState<string | null>(null);
+  const [deviceVerify, setDeviceVerify] = useState(false);
+  const [deviceAuthorized, setDeviceAuthorized] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
 
   // Detect /join/:code and /claim/:token routes on mount.
@@ -391,6 +395,12 @@ function AppContent() {
     const claimMatch = window.location.pathname.match(/^\/claim\/([^/]+)$/);
     if (claimMatch) {
       setClaimToken(claimMatch[1]);
+    }
+    if (window.location.pathname === "/device/verify") {
+      setDeviceVerify(true);
+    }
+    if (window.location.pathname === "/device/authorized") {
+      setDeviceAuthorized(true);
     }
   }, []);
 
@@ -457,6 +467,10 @@ function AppContent() {
       </div>
     );
   }
+
+  // Device auth routes: standalone pages, no authentication required.
+  if (deviceVerify) return <DeviceVerifyPage />;
+  if (deviceAuthorized) return <DeviceAuthorizedPage />;
 
   // Join route: show join page for invite acceptance.
   if (joinCode) {

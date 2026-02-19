@@ -209,6 +209,11 @@ func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) err
 		return fmt.Errorf("invite has been fully used")
 	}
 
+	// If the user is already a member, treat as success (idempotent).
+	if _, err := s.store.GetMembership(ctx, inv.WorkspaceID, userID); err == nil {
+		return nil
+	}
+
 	if err := s.store.AddMember(ctx, inv.WorkspaceID, userID, inv.Role); err != nil {
 		return fmt.Errorf("add member: %w", err)
 	}

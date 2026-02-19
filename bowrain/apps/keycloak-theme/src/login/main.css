@@ -1,7 +1,7 @@
 @import "@gokapi/ui/styles/globals.css";
 
 /* Ensure Tailwind scans shadcn-glass-ui dist for runtime class names (pl-10, left-2.5, etc.) */
-@source "../../../../../../node_modules/shadcn-glass-ui/dist";
+@source "../../../../../node_modules/shadcn-glass-ui/dist";
 
 /*
  * shadcn-glass-ui token bridge for Keycloakify
@@ -267,6 +267,7 @@ body {
   align-items: center;
   justify-content: center;
   color: hsl(210 40% 98%);
+  background: linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to));
 }
 
 #root {
@@ -276,4 +277,18 @@ body {
   width: 100%;
   position: relative;
   z-index: 1;
+}
+
+/*
+ * Tailwind v4 icon-input padding fix
+ *
+ * InputGlass uses pl-10 (padding-left, physical) for icon space, but
+ * inputVariants injects px-4 (padding-inline, logical shorthand).
+ * In Tailwind v4 the logical shorthand can win over the physical longhand
+ * depending on cascade resolution, causing text to overlap the icon.
+ * Re-declare the padding with the matching logical longhand so it always
+ * overrides the shorthand from px-*.
+ */
+input.pl-10 {
+  padding-inline-start: calc(var(--spacing) * 10);
 }

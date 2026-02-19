@@ -188,7 +188,7 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 	return c.JSON(http.StatusOK, auth.DeviceAuthResponse{
 		DeviceCode:      deviceCode,
 		UserCode:        userCode,
-		VerificationURI: baseURL + "/api/v1/auth/device/verify",
+		VerificationURI: baseURL + "/device/verify",
 		ExpiresIn:       600,
 		Interval:        5,
 	})
@@ -379,18 +379,8 @@ func (s *Server) HandleAuthCallback(c echo.Context) error {
 		return s.handleOIDCCodeExchange(c, code, state)
 	}
 
-	// Show device verification form
-	return c.HTML(http.StatusOK, `<!DOCTYPE html>
-<html><head><title>Bowrain - Authorize Device</title>
-<style>body{font-family:system-ui;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#1a1a2e}
-.card{background:#16213e;padding:40px;border-radius:12px;text-align:center;color:#e0e0e0;max-width:400px}
-h1{color:#58a6ff;margin-bottom:8px}input{padding:12px;font-size:18px;border:2px solid #333;border-radius:8px;
-background:#0f3460;color:#fff;text-align:center;letter-spacing:4px;width:200px;margin:16px 0}
-button{padding:12px 32px;font-size:16px;background:#58a6ff;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600}
-button:hover{background:#79b8ff}</style></head>
-<body><div class="card"><h1>Bowrain</h1><p>Enter the code shown in your terminal:</p>
-<form method="POST" action="/api/v1/auth/device/verify"><input name="user_code" placeholder="xxxx-xxxx" required autofocus>
-<br><button type="submit">Authorize</button></form></div></body></html>`)
+	// Redirect to web app's device verification page (backward compat for old URL).
+	return c.Redirect(http.StatusFound, "/device/verify")
 }
 
 // HandleDesktopLogin initiates the authorization code + PKCE flow for the
@@ -605,8 +595,7 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 	deviceCodes.Unlock()
 
 	if matchedCode == "" {
-		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1>Invalid or expired code</h1><p>Please check the code and try again.</p></body></html>`)
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
 
 	// If OIDC is configured, redirect through the identity provider.
@@ -693,8 +682,7 @@ func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode strin
 	}
 	deviceCodes.Unlock()
 
-	return c.HTML(http.StatusOK, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1 style="color:#58a6ff">Device authorized!</h1><p>You can close this window and return to your terminal.</p></body></html>`)
+	return c.Redirect(http.StatusFound, "/device/authorized")
 }
 
 // HandleDeviceAuthCallback handles the OIDC redirect after the user authenticated
@@ -714,10 +702,9 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 			errMsg = c.QueryParam("error")
 		}
 		if errMsg == "" {
-			errMsg = "missing code or state"
+			errMsg = "Authentication failed."
 		}
-		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1>Authentication Failed</h1><p>`+errMsg+`</p></body></html>`)
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape(errMsg))
 	}
 
 	// Look up and consume the pending state → device_code mapping.
@@ -729,8 +716,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	deviceVerifyStates.Unlock()
 
 	if !ok || time.Now().After(entry.ExpiresAt) {
-		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1>Invalid or Expired Session</h1><p>Please try authorizing the device again.</p></body></html>`)
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Session expired. Please try again."))
 	}
 
 	ctx := c.Request().Context()
@@ -791,8 +777,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	}
 	deviceCodes.Unlock()
 
-	return c.HTML(http.StatusOK, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
-<h1 style="color:#58a6ff">Device authorized!</h1><p>You can close this window and return to your terminal.</p></body></html>`)
+	return c.Redirect(http.StatusFound, "/device/authorized")
 }
 
 const refreshCookieName = "bowrain_refresh"
