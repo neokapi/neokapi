@@ -135,8 +135,13 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'link',
-      label: 'Architecture Decision Records',
-      href: '/docs/adr/index',
+      label: 'Architecture Decisions',
+      href: '/docs/ad/index',
+    },
+    {
+      type: 'link',
+      label: 'Implementation Notes',
+      href: '/docs/notes/index',
     },
   ],
 };

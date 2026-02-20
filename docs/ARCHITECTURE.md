@@ -2,7 +2,7 @@
 
 gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
 in Go. For the reasoning behind each major design choice, see the
-[Architecture Decision Records](adr/README.md).
+[Architecture Decisions](ad/README.md).
 
 ## Architecture Diagram
 
@@ -60,7 +60,7 @@ graph TB
 
 Documents flow through a channel-based concurrent pipeline. Each tool runs in
 its own goroutine. Buffered channels provide backpressure. See
-[ADR-003](adr/003-streaming-pipeline-and-flow-execution.md).
+[AD-004](ad/004-processing-engine.md).
 
 ## Package Layout
 
@@ -150,7 +150,7 @@ gokapi/                              ── Framework Module ──
 │   └── packages/
 │       └── ui/                      # Shared React component library (@gokapi/ui)
 │
-├── docs/                            # Documentation and ADRs
+├── docs/                            # Documentation, architecture decisions, notes
 └── website/                         # Docusaurus 3 documentation site
 ```
 
@@ -232,7 +232,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[ADR-002](adr/002-content-model.md).
+[AD-002](ad/002-content-model.md).
 
 ### Inline Span Encoding
 

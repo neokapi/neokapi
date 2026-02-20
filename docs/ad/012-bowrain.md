@@ -1,9 +1,9 @@
 ---
 id: 012-bowrain
 sidebar_position: 12
-title: "ADR-012: Bowrain Desktop App"
+title: "AD-012: Bowrain Desktop App"
 ---
-# ADR-012: Bowrain desktop app with Wails v3
+# AD-012: Bowrain desktop app with Wails v3
 
 ## Context
 
@@ -42,7 +42,7 @@ stability and ES module support.
 ### Connector-Driven Project Workflow
 
 The primary workflow is connector-driven rather than file-centric. Connectors
-([ADR-005](./005-connector-system.md)) are the integration mechanism that
+([AD-005](./005-connector-system.md)) are the integration mechanism that
 connects Bowrain to content sources:
 
 1. **Connect** -- Configure a connector (CMS, design tool, code repo, or local
@@ -52,16 +52,16 @@ connects Bowrain to content sources:
 3. **Select** -- Choose which items to pull for translation, with locale and
    content type filters
 4. **Pull** -- Extract content into the Content Store
-   ([ADR-003](./003-content-store.md)) via `Connector.Pull()`, producing the
+   ([AD-003](./003-content-store.md)) via `Connector.Pull()`, producing the
    same Part stream used throughout the pipeline
 5. **Translate** -- Work in the translation editor with TM
-   ([ADR-009](./009-translation-memory.md)), terminology
-   ([ADR-010](./010-terminology.md)), and AI assistance
-   ([ADR-008](./008-ai-integration.md))
+   ([AD-009](./009-translation-memory.md)), terminology
+   ([AD-010](./010-terminology.md)), and AI assistance
+   ([AD-008](./008-ai-integration.md))
 6. **Push** -- Send translations back to the source system via
    `Connector.Push()`
 
-For file-based workflows, the FileConnector ([ADR-005](./005-connector-system.md))
+For file-based workflows, the FileConnector ([AD-005](./005-connector-system.md))
 provides the same experience: browse files, select, extract, translate, merge
 back. This means the UI does not distinguish between a CMS integration and a
 local file -- the same workflow applies to both.
@@ -83,82 +83,23 @@ The connector management panel provides:
 
 ### Translation Editor
 
-Four layout modes:
-
-- **Grid** (default) -- Table view with source and target columns for all
-  blocks. Efficient for scanning and bulk editing
-- **Focus** -- Single-block deep editing with full-width source/target panels
-  and block navigation (prev/next). Term highlights and TM matches are shown
-  inline
-- **Split Horizontal / Vertical** -- Side-by-side or stacked editing with a
-  live document preview pane
-
-Block status tracking: `not-started`, `draft` (has target text), `translated`
-(translation-origin property set), `reviewed` (translation-status is
-"reviewed"). A status-colored progress bar shows block completion at a glance.
-
-Enhanced toolbar: Copy Source to Target, Mark as Reviewed, Navigate to
-Prev/Next Untranslated.
-
-### Context Panel
-
-Rich metadata display alongside the translation editor, providing translators
-with the information they need without leaving the editing view:
-
-- **TM matches** -- Fuzzy and exact matches from Sievepen
-  ([ADR-009](./009-translation-memory.md)) with match scores, entity
-  adaptations, and one-click application to the target field
-- **Terminology** -- Recognized terms highlighted inline in the source text
-  with definitions, preferred translations, and status. Click to navigate to the
-  concept in the terminology module ([ADR-010](./010-terminology.md))
-- **Display hints** -- Content type, max length, and preview from the source
-  system, carried on Blocks via the content model
-  ([ADR-002](./002-content-model.md))
-- **ContentRef** -- Link back to the source item in the connected system,
-  enabling translators to view content in its original context
-  ([ADR-002](./002-content-model.md))
+Four layout modes (Grid, Focus, Split Horizontal, Split Vertical) with block status tracking and an enhanced toolbar. The context panel provides TM matches, terminology highlights, display hints, and ContentRef links alongside the editor.
 
 ### Flow Editor
 
-Built on React Flow (@xyflow/react v12) for drag-and-drop visual flow building:
+Built on React Flow (@xyflow/react v12) for drag-and-drop visual flow building with color-coded node types, validation, and template support.
 
-- Nodes represent readers, tools, and writers with color-coded type indicators
-  (Transform, Enrich, Validate)
-- Edges represent the data flow between nodes
-- Add/remove nodes and edges interactively
-- Built-in flows available as templates; user-created flows are persisted via
-  FlowStore
-- Flow definitions are validated (cycle detection via TopologicalOrder, node
-  reference integrity) before saving
+See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for translation editor modes, context panel details, and flow editor specifics.
 
 ### Terminology Module
 
-Dedicated terminology management interface
-([ADR-010](./010-terminology.md)):
-
-- **Browse and search** -- Faceted search by locale, domain, product, status.
-  Concept graph visualization for related terms. Term concordance showing all
-  Blocks where a term appears in the current project
-- **Edit and review** -- Create/edit concepts and terms. Inline term suggestion
-  during translation (right-click selected text to suggest a new term).
-  Moderation queue for proposed terms with approval workflow
-- **Import and export** -- CSV, TBX, JSON import with field mapping UI. Export
-  in any supported format. Merge imported terms with existing termbase via
-  conflict resolution UI
-- **Analytics** -- Term usage statistics across project content. Coverage
-  (percentage of source terms with approved translations). Consistency
-  (preferred terms vs. variants in target text). Freshness (terms not reviewed
-  since configurable date)
-- **Editor integration** -- Recognized terms highlighted inline in the
-  translation editor. Hover to see definition, preferred translation, and
-  status. Click to navigate to the term in the terminology module
+Dedicated terminology management interface with faceted search, concept editing, import/export, analytics, and editor integration ([AD-010](./010-terminology.md)).
 
 ### Translation Memory Explorer
 
-- Fuzzy match visualization with score indicators
-- TM entry browsing with entity mapping display showing generalized vs. plain
-  matches ([ADR-009](./009-translation-memory.md))
-- TMX import/export for interoperability with external TM systems
+TM entry browsing with fuzzy match visualization, entity mapping display, and TMX import/export ([AD-009](./009-translation-memory.md)).
+
+See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for terminology module and TM explorer details.
 
 ### Embedded Translation UI Concept
 
@@ -168,7 +109,7 @@ actual design or web page) while translating.
 
 The embedded UI is a WebView rendering a subset of the Bowrain translation
 editor, connected to the host application's connector
-([ADR-005](./005-connector-system.md)) via a bidirectional message channel.
+([AD-005](./005-connector-system.md)) via a bidirectional message channel.
 When a translator edits a translation in the embedded panel, the change
 propagates through the connector to update the Content Store. When source
 content changes in the host application, the embedded panel updates to reflect
@@ -179,50 +120,18 @@ full in-context translation experience within native tools.
 
 ### Workspace Switcher (Slack-like Sidebar)
 
-Bowrain uses a Slack-inspired two-panel sidebar layout for workspace navigation:
+Bowrain uses a Slack-inspired two-panel sidebar layout: a 60px workspace rail and a 220px main sidebar for navigation within the active workspace.
 
-- **Workspace Rail** (60px, dark background) -- Far-left icon rail showing
-  workspace icons (first letter or custom logo with colored badge). Active
-  workspace has a pill-shaped highlight. Bottom section has "+" button for
-  creating workspaces and a user avatar with account menu
-- **Main Sidebar** (220px) -- Navigation panel for the active workspace with
-  sections: Translate (project list), Termbase, Memory (TM), Flows, Connectors,
-  Settings. Below navigation: collapsible project list for quick switching
+### Shared Component Library (`packages/ui/`)
 
-```
-┌──────┬──────────┬────────────────────────────────────────┐
-│ Rail │ Sidebar  │  Main Content                          │
-│ 60px │  220px   │                                        │
-│ [WS] │ Translate│  (ProjectDashboard/Editor/TM/Terms)    │
-│ [WS] │ Termbase │                                        │
-│      │ Memory   │                                        │
-│  +   │ Flows    │                                        │
-│ [AV] │ Settings │                                        │
-└──────┴──────────┴────────────────────────────────────────┘
-```
+Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse across Bowrain (desktop) and the web app, with platform-specific API adapters.
 
-In local/desktop mode, a "Personal" workspace is created automatically. When
-connected to a `bowrain-server` instance, the rail shows all workspaces the user
-belongs to with role-based access ([ADR-015](./015-auth-and-workspaces.md)).
-
-### Shared Component Library (`bowrain/packages/ui/`)
-
-Core UI components are extracted to `bowrain/packages/ui/` (`@gokapi/ui`) for reuse
-across Bowrain (desktop) and the web app. The library includes:
-
-- **Layout**: `WorkspaceRail`, `MainSidebar`, `AccountMenu`, `WorkspaceIcon`
-- **Context**: `AuthContext`, `WorkspaceContext` with React hooks
-- **API Adapter**: `ApiAdapter` interface with platform-specific implementations
-  -- `RestApiAdapter` for the web app, Wails bindings for desktop
-
-Bowrain imports from `@gokapi/ui` and provides a Wails-specific API adapter that
-bridges Go method calls to the shared `ApiAdapter` interface. This ensures the
-same UI components render identically in both desktop and browser contexts.
+See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for workspace rail layout, shared component library details, and API adapter architecture.
 
 ### Plugin Manager
 
 Install/update plugins from the plugin registry
-([ADR-007](./007-plugin-system.md)). Display installed formats, tools, and
+([AD-007](./007-plugin-system.md)). Display installed formats, tools, and
 connectors with version information. One-click updates when new versions are
 available.
 
@@ -288,32 +197,14 @@ same project.
 
 ### Offline Layer
 
-When the gRPC connection drops, the app transitions to `offline` state and
-continues working against the local cache:
+When the gRPC connection drops, the app transitions to `offline` state with a SQLite-backed offline queue that persists mutations for FIFO replay on reconnection. Changes are never lost, even across app restarts.
 
-- **Local cache** — On project open, blocks are fetched from the server and
-  stored locally. Reads always serve from the local ContentStore (fast). Writes
-  go to the server first; on success, the local cache updates
-- **Offline queue** — On write failure (network error), mutations are queued in
-  a SQLite-backed `OfflineQueue` at `~/.config/bowrain/offline-queue.db`.
-  Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`,
-  `delete_tm_entry`, `add_concept`, `delete_concept`
-- **Reconnection** — A background goroutine (`reconnectLoop`) pings the server
-  with exponential backoff (2s → 30s cap, 10% jitter). On successful
-  reconnect, pending changes replay in FIFO order, and the `WatchProject`
-  stream resumes
-- **Frontend indicators** — The header shows "Offline" with a count of pending
-  changes (e.g., "3 pending"). When reconnected, the count clears and the
-  status returns to "Connected"
-
-The offline queue persists across app restarts — changes are never lost even if
-the app is closed while offline. Failed replays increment an attempt counter
-and record the error for debugging.
+See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for offline queue operations, reconnection algorithm, and frontend indicators.
 
 ### Project Format
 
 Projects on the local ContentStore use SQLite
-([ADR-003](./003-content-store.md)). When connected to a server, the local
+([AD-003](./003-content-store.md)). When connected to a server, the local
 store acts as a read cache. In fully local mode, it is the source of truth.
 
 ## Alternatives Considered
@@ -336,7 +227,7 @@ store acts as a read cache. In fully local mode, it is the source of truth.
 - Wails auto-generates TypeScript bindings from Go method signatures
 - Connector-driven workflow positions Bowrain as a platform client, not just a
   file editor. The same UI works for CMS content, design tool text, code
-  repositories, and local files ([ADR-005](./005-connector-system.md))
+  repositories, and local files ([AD-005](./005-connector-system.md))
 - Embedded translation concept enables in-context translation within native
   design and CMS tools, a significant differentiator
 - Collaborative mode via gRPC gives real-time multi-user editing with presence
@@ -349,4 +240,4 @@ store acts as a read cache. In fully local mode, it is the source of truth.
 - Hot reload in development via `wails3 dev`
 - Playwright E2E tests validate UI workflows in CI
 - Locale selectors show friendly names via the `locale` package
-  ([ADR-001](./001-vision.md))
+  ([AD-001](./001-vision.md))

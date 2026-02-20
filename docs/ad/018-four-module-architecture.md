@@ -1,4 +1,9 @@
-# ADR-018: Four-Module Monorepo Architecture
+---
+id: 018-four-module-architecture
+sidebar_position: 18
+title: "AD-018: Four-Module Monorepo Architecture"
+---
+# AD-018: Four-Module Monorepo Architecture
 
 ## Context
 
@@ -82,6 +87,12 @@ platform/v0.1.0   → platform
 kapi/v0.1.0       → kapi
 bowrain/v0.16.0   → bowrain
 ```
+
+### Build and Tooling
+
+All four modules target Go 1.24+. The Makefile provides per-module build, test, vet, and lint targets. CI verifies module isolation with `GOWORK=off` builds to catch accidental cross-module imports.
+
+`go mod tidy` does not respect `go.work` — each child module requires explicit `replace` directives in its `go.mod` for local development (e.g., `replace github.com/gokapi/gokapi => ../`).
 
 ## Consequences
 

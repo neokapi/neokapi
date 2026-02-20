@@ -1,9 +1,9 @@
 ---
 id: 001-vision
 sidebar_position: 1
-title: "ADR-001: Vision — The Open Localization Platform"
+title: "AD-001: Vision — The Open Localization Platform"
 ---
-# ADR-001: Vision — The Open Localization Platform
+# AD-001: Vision — The Open Localization Platform
 
 ## Vision
 
@@ -48,12 +48,12 @@ data model.
 
 5. **AI-native** — LLM-powered translation, quality assurance, terminology
    extraction, and review are composable pipeline tools
-   ([ADR-008](./008-ai-integration.md)), not bolted-on services. They
+   ([AD-008](./008-ai-integration.md)), not bolted-on services. They
    participate in the same flow execution model as every other tool
-   ([ADR-004](./004-processing-engine.md)).
+   ([AD-004](./004-processing-engine.md)).
 
 6. **Open and extensible** — Plugins via gRPC
-   ([ADR-007](./007-plugin-system.md)), a Java bridge for Okapi filters,
+   ([AD-007](./007-plugin-system.md)), a Java bridge for Okapi filters,
    and community connectors. The content model is public; anyone can build
    integrations.
 
@@ -64,7 +64,7 @@ data model.
   minimal Docker images, and desktop apps without bundling a JVM or Node.js.
 
 - **Goroutines and channels** — The streaming pipeline
-  ([ADR-004](./004-processing-engine.md)) runs each tool in its own
+  ([AD-004](./004-processing-engine.md)) runs each tool in its own
   goroutine, connected by buffered channels. This maps directly to Go's
   concurrency primitives, providing natural backpressure and cancellation
   propagation via `context.Context`.
@@ -78,7 +78,7 @@ data model.
 
 ### Content Model Concepts
 
-The content model ([ADR-002](./002-content-model.md)) uses the following
+The content model ([AD-002](./002-content-model.md)) uses the following
 core types:
 
 | Concept | Description |
@@ -91,7 +91,7 @@ core types:
 | Media | Binary content |
 
 Parts flow through a channel-based pipeline
-([ADR-004](./004-processing-engine.md)) where each tool runs in its own
+([AD-004](./004-processing-engine.md)) where each tool runs in its own
 goroutine.
 
 ### Package Layout
@@ -215,10 +215,10 @@ All subsystems validate locale codes at their boundaries:
 | Subsystem | Validation point |
 |---|---|
 | CLI flags (`--source-lang`, `--target-lang`) | Cobra argument parsing |
-| KAZ manifest ([ADR-003](./003-content-store.md)) | Archive open/create |
-| TM entries ([ADR-009](./009-translation-memory.md)) | Entry insert/query |
-| Terminology ([ADR-010](./010-terminology.md)) | Term creation |
-| Bowrain project creation ([ADR-012](./012-bowrain.md)) | Locale selector component |
+| KAZ manifest ([AD-003](./003-content-store.md)) | Archive open/create |
+| TM entries ([AD-009](./009-translation-memory.md)) | Entry insert/query |
+| Terminology ([AD-010](./010-terminology.md)) | Term creation |
+| Bowrain project creation ([AD-012](./012-bowrain.md)) | Locale selector component |
 | Format readers/writers | Source/target language properties |
 
 ## Alternatives Considered

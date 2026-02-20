@@ -1,9 +1,9 @@
 ---
 id: 014-testing-and-docs
 sidebar_position: 14
-title: "ADR-014: Testing, Documentation, and Website"
+title: "AD-014: Testing, Documentation, and Website"
 ---
-# ADR-014: Testing, documentation, and website
+# AD-014: Testing, documentation, and website
 
 ## Context
 
@@ -67,7 +67,7 @@ Static site at `website/` using [Docusaurus](https://docusaurus.io/) v3:
 website/
 ├── docusaurus.config.ts    # Site configuration
 ├── sidebars.ts             # Main docs sidebar
-├── sidebars-adr.ts         # ADR sidebar
+├── sidebars-ad.ts          # AD sidebar
 ├── src/pages/              # Custom React pages (landing page)
 ├── docs/                   # User and developer documentation
 │   ├── getting-started/    # Quickstart, installation
@@ -81,27 +81,29 @@ website/
 ```
 
 **User Guide** -- CLI reference, format guides, TM usage, AI configuration,
-connector setup, and Bowrain documentation (see [ADR-012](012-bowrain.md)).
+connector setup, and Bowrain documentation (see [AD-012](012-bowrain.md)).
 
 **Developer Guide** -- Architecture, interfaces, format implementation, tool
 implementation, plugin development, testing patterns, and release process.
 
-**ADRs** live in `docs/adr/` (repository root), included via a separate
+**Architecture Decisions** live in `docs/ad/` (repository root), included via a separate
 Docusaurus plugin instance:
 
 ```typescript
 plugins: [
   ['@docusaurus/plugin-content-docs', {
-    id: 'adr',
-    path: '../docs/adr',
-    routeBasePath: 'docs/adr',
-    sidebarPath: './sidebars-adr.ts',
+    id: 'ad',
+    path: '../docs/ad',
+    routeBasePath: 'docs/ad',
+    sidebarPath: './sidebars-ad.ts',
   }],
 ],
 ```
 
-ADRs are organized by architectural concern and updated in place as subsystems
-evolve, rather than appended chronologically.
+ADs are organized by architectural concern and updated in place as subsystems
+evolve, rather than appended chronologically. **Implementation Notes** live in
+`docs/notes/` for tactical details (schemas, algorithms, API routes) extracted
+from ADs.
 
 ### Hosting: GitHub Pages
 
@@ -148,7 +150,7 @@ with human-like interaction helpers:
 - `injectWindowChrome()` -- adds window title bar for context
 
 Demo workflows include project creation, translation editing, focus view, TM
-explorer, flow editor, and settings configuration (see [ADR-012](012-bowrain.md)
+explorer, flow editor, and settings configuration (see [AD-012](012-bowrain.md)
 for Bowrain architecture).
 
 Run: `make recordings`. Runs in CI with extended timeout for human-speed typing.
@@ -195,7 +197,7 @@ backend enables reproducible demos.
 
 - Documentation lives alongside code, encouraging updates with features
 - Two-audience separation (user/developer) provides clear navigation
-- ADRs are accessible both in-repo and on the website
+- Architecture Decisions and Implementation Notes are accessible both in-repo and on the website
 - Demo videos are generated from actual commands and UI, preventing drift
 - GitHub Pages hosting has no cost and integrates with existing workflow
 - Test pyramid ensures coverage at every level with appropriate speed/cost

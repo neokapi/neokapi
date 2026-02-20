@@ -82,4 +82,4 @@ service ToolPlugin {
 }
 ```
 
-See [ADR-005](/docs/adr/007-plugin-system) for the full design rationale.
+See [AD-007](/docs/ad/007-plugin-system) for the full design rationale.

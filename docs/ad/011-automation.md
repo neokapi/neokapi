@@ -1,9 +1,9 @@
 ---
 id: 011-automation
 sidebar_position: 11
-title: "ADR-011: Automation and Event System"
+title: "AD-011: Automation and Event System"
 ---
-# ADR-011: Automation and Event System
+# AD-011: Automation and Event System
 
 ## Context
 
@@ -11,7 +11,7 @@ Manual localization workflows are error-prone and brittle. Content changes in a 
 
 The key insight is that automation should be event-driven rather than scheduled — reacting to what actually happened rather than polling on a timer. Quality checks should run when content changes. Compliance rules should be enforced before data ships.
 
-**This ADR establishes the automation architecture for Bowrain Server.** Automation is a **server-side concern** — it orchestrates multi-step workflows across connectors, flows, and quality gates. This is distinct from Kapi's simpler **flow hooks** ([ADR-016](./016-kapi-project-model.md)), which run local tools before/after sync operations.
+**This AD establishes the automation architecture for Bowrain Server.** Automation is a **server-side concern** — it orchestrates multi-step workflows across connectors, flows, and quality gates. This is distinct from Kapi's simpler **flow hooks** ([AD-016](./016-kapi-project-model.md)), which run local tools before/after sync operations.
 
 ## Decision
 
@@ -170,7 +170,7 @@ Example gates:
 
 ### Continuous Sync (Server-Side)
 
-Server-side connectors ([ADR-005](./005-connector-system.md)) can be configured for continuous sync — periodically pulling content and pushing translations:
+Server-side connectors ([AD-005](./005-connector-system.md)) can be configured for continuous sync — periodically pulling content and pushing translations:
 
 ```yaml
 sync:
@@ -189,7 +189,7 @@ Continuous sync bridges the gap between event-driven automation (reactive) and t
 
 ### Kapi Flow Hooks (Client-Side)
 
-Kapi provides simple flow hooks in `.kapi/config.yaml` ([ADR-016](./016-kapi-project-model.md)):
+Kapi provides simple flow hooks in `.kapi/config.yaml` ([AD-016](./016-kapi-project-model.md)):
 
 ```yaml
 # .kapi/config.yaml

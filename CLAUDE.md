@@ -146,7 +146,7 @@ gokapi/
 │   └── ui/                # Shared React component library
 │
 │   ── Non-Go Assets ─────────────────────
-├── docs/                  # ADRs, architecture docs
+├── docs/                  # Architecture decisions, implementation notes
 ├── website/               # Docusaurus site
 ├── e2e/                   # E2E test infra
 ├── deploy/                # Deployment configs
@@ -155,7 +155,7 @@ gokapi/
 
 ### Kapi Project Model (.kapi/ Directories)
 
-Kapi uses a git-like project model with `.kapi/` directories ([ADR-016](docs/adr/016-kapi-project-model.md)):
+Kapi uses a git-like project model with `.kapi/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
 
 ```
 my-app/
@@ -317,6 +317,8 @@ Before committing any UI-related change:
 5. All recordings regenerated and copied to `website/static/video/`
 6. Go build succeeds (`make build build-server`)
 
-## Architecture Decision Records
+## Architecture Decisions
 
-ADRs live in `docs/adr/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each ADR should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing ADR in place rather than appending a new one. Only create a new ADR when a genuinely new architectural concern is introduced.
+ADs live in `docs/ad/`. They are organized by architectural concern (content model, plugin system, Java bridge, etc.), not by chronological order. Each AD should describe the current state of its subsystem as a self-contained document. When a subsystem evolves, update the existing AD in place rather than appending a new one. Only create a new AD when a genuinely new architectural concern is introduced.
+
+Implementation notes live in `docs/notes/`. These contain tactical details (SQL schemas, API routes, algorithm pseudocode) extracted from ADs to keep decisions focused on the WHY and WHAT.

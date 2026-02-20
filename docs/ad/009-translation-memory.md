@@ -1,9 +1,9 @@
 ---
 id: 009-translation-memory
 sidebar_position: 9
-title: "ADR-009: Translation Memory"
+title: "AD-009: Translation Memory"
 ---
-# ADR-009: Content-aware translation memory
+# AD-009: Content-aware translation memory
 
 ## Context
 
@@ -28,14 +28,14 @@ alone. This loses critical information:
 gokapi's TM is content-aware: it stores full Fragments with Spans and entity
 metadata, derives multiple matching keys, and returns matches with entity
 adaptation information. TM now persists within the Content Store ecosystem
-([ADR-003](./003-content-store.md)) and is portable via KAZ archives.
+([AD-003](./003-content-store.md)) and is portable via KAZ archives.
 
 ## Decision
 
 ### Content-Aware Storage
 
 The Sievepen TM library (`sievepen/`) stores Fragments -- the same content
-model type used throughout the pipeline ([ADR-002](./002-content-model.md)) --
+model type used throughout the pipeline ([AD-002](./002-content-model.md)) --
 rather than plain strings. Each TM entry preserves inline Spans (markup codes)
 and entity mappings.
 
@@ -54,56 +54,11 @@ type TMEntry struct {
 }
 ```
 
-### Derived Matching Keys
-
-Each TM entry has multiple matching representations derived from its stored
-Fragment. These are computed at storage time and indexed for fast lookup:
-
-- **plain**: `Fragment.Text()` -- strips all Span markers. Enables matching
-  against legacy TMs and unanalyzed content.
-- **structural**: Spans rendered as numbered placeholders (`\{1\}`, `\{/1\}`).
-  Enables matching with inline code position awareness.
-- **generalized**: Entity Spans as typed placeholders (`\{PERSON\}`,
-  `\{PRODUCT\}`). Maximum reuse -- entities are interchangeable.
-
-The generalized key is the most powerful: "John works at Acme" and "Alice works
-at Globex" both generalize to `\{PERSON\} works at \{ORGANIZATION\}` -- an
-exact match.
-
 ### Tiered Matching Pipeline
 
-Lookup tries matching strategies in order of reuse potential:
+The TM derives three matching keys from each Fragment (plain, structural, generalized) and tries them in order of reuse potential: generalized exact, structural exact, plain exact, then fuzzy variants. Generalized matching turns entity variation into exact matches -- "John works at Acme" matches "Alice works at Globex" at 100%. Entity adaptation in match results enables automatic substitution.
 
-1. generalized exact -- score 1.0 (entities differ, structure identical)
-2. structural exact -- score 1.0 (inline codes match exactly)
-3. plain exact -- score 1.0 (text-only exact match)
-4. generalized fuzzy -- Levenshtein on generalized keys
-5. structural fuzzy -- Levenshtein on structural keys
-6. plain fuzzy -- Levenshtein on plain keys
-
-The first match at or above the score threshold wins. A generalized exact match
-(different entity values, identical structure) is preferred over a plain fuzzy
-match (similar text, unknown structure). Levenshtein edit distance with a
-configurable threshold (default 75%) provides fuzzy matching.
-
-### Entity Adaptation
-
-When a generalized match is found, the match result carries adaptation
-information to substitute entity values from the current source into the stored
-target:
-
-```go
-type TMMatch struct {
-    Entry             TMEntry
-    Score             float64
-    MatchType         MatchType
-    EntityAdaptations []EntityAdaptation
-}
-```
-
-The `tm-leverage` tool ([ADR-006](./006-tool-system.md)) applies adaptations
-automatically -- translators receive pre-adapted targets with correct entity
-values.
+See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full tiered matching pipeline, derived key descriptions, and entity adaptation details.
 
 ### Lookup Interface
 
@@ -127,8 +82,8 @@ Spans for the structural key. No separate pre-processing step is needed.
    processing.
 2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are
    pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
-   layer with TermBase ([ADR-010](./010-terminology.md)) and Content Store
-   ([ADR-003](./003-content-store.md)). Pure Go with no CGo dependencies.
+   layer with TermBase ([AD-010](./010-terminology.md)) and Content Store
+   ([AD-003](./003-content-store.md)). Pure Go with no CGo dependencies.
 
 Generalized and structural exact matching is an indexed lookup -- fast even for
 large TMs. Fuzzy matching falls back to scanning with Levenshtein, which is
@@ -137,7 +92,7 @@ workflows.
 
 ### Content Store Integration
 
-TM persists alongside the Content Store ([ADR-003](./003-content-store.md)).
+TM persists alongside the Content Store ([AD-003](./003-content-store.md)).
 When a project version is created, TM entries relevant to that project are
 snapshotted. KAZ archives embed TM entries as `tm/entries.json` for portable
 sharing -- a team member can import a KAZ file and get both the project content
@@ -151,18 +106,9 @@ through the pipeline with entity analysis.
 
 ### TMX Import/Export
 
-The import/export layer maps between Fragment Spans and TMX inline elements:
+The import/export layer maps between Fragment Spans and TMX inline elements (`SpanPlaceholder` to `<ph>`, `SpanOpening` to `<bpt>`, `SpanClosing` to `<ept>`). Entity metadata is carried as `<prop>` elements. Legacy plain-text TMX imports participate in plain matching only.
 
-| Fragment Span | TMX Element |
-|---|---|
-| `SpanPlaceholder` | `<ph>` |
-| `SpanOpening` | `<bpt>` |
-| `SpanClosing` | `<ept>` |
-
-Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. When
-importing legacy TMX files that contain only plain text (no inline codes),
-entries are stored with plain Fragments and no entity mappings. They participate
-in plain matching only.
+See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX element mapping table.
 
 ## Alternatives Considered
 
@@ -189,6 +135,6 @@ in plain matching only.
 - The tiered matching pipeline (generalized, structural, plain) maximizes reuse
   while falling back gracefully for legacy content
 - TMX roundtrip preserves inline codes via standard TMX elements
-- Shared SQLite infrastructure with TermBase ([ADR-010](./010-terminology.md))
-  and Content Store ([ADR-003](./003-content-store.md)) reduces code duplication
+- Shared SQLite infrastructure with TermBase ([AD-010](./010-terminology.md))
+  and Content Store ([AD-003](./003-content-store.md)) reduces code duplication
 - TM is portable via KAZ archives for offline sharing

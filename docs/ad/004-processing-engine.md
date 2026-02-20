@@ -1,9 +1,9 @@
 ---
 id: 004-processing-engine
 sidebar_position: 4
-title: "ADR-004: Processing Engine"
+title: "AD-004: Processing Engine"
 ---
-# ADR-004: Channel-based processing engine
+# AD-004: Channel-based processing engine
 
 ## Context
 
@@ -20,7 +20,7 @@ one document) and inter-document concurrency (multiple documents processed
 simultaneously).
 
 The processing engine now operates on content from the Content Store
-([ADR-003](./003-content-store.md)), not just raw files. Flows read versioned
+([AD-003](./003-content-store.md)), not just raw files. Flows read versioned
 blocks, apply transformations, and persist results back to the store. This
 decouples extraction from processing from delivery and enables incremental
 workflows where only changed blocks are re-processed.
@@ -42,7 +42,7 @@ provide backpressure. `errgroup.Group` coordinates error handling across
 goroutines. Context cancellation propagates to all stages.
 
 Parts carry typed resources through the pipeline (see
-[ADR-002](./002-content-model.md)): Blocks contain translatable content,
+[AD-002](./002-content-model.md)): Blocks contain translatable content,
 Data carries structural markup, Layers group nested content, and Media
 holds binary assets. Tools declare which resource types they handle; the
 rest pass through unchanged.
@@ -71,7 +71,7 @@ executor := flow.NewFlowExecutor(
 ### Store Integration
 
 Flows can read from and write to the Content Store
-([ADR-003](./003-content-store.md)):
+([AD-003](./003-content-store.md)):
 
 - **Extract flow**: Connector -> Format Reader -> Store (blocks persisted
   with content hashes)
@@ -82,7 +82,7 @@ Flows can read from and write to the Content Store
 
 This decouples extraction from processing from delivery. A connector
 extracts content once, and multiple flows can process the same stored
-content. Content-addressable hashing (see [ADR-002](./002-content-model.md))
+content. Content-addressable hashing (see [AD-002](./002-content-model.md))
 means unchanged blocks are skipped on re-extraction, and incremental
 processing flows only touch blocks whose source content has changed.
 
@@ -136,7 +136,7 @@ Flow definitions are distinguished by source:
   project directory
 
 Flow definitions enable visual editing in Bowrain
-([ADR-012](./012-bowrain.md)) through a drag-and-drop node
+([AD-012](./012-bowrain.md)) through a drag-and-drop node
 graph, and JSON serialization supports import/export and version control
 of flow configurations.
 
@@ -168,10 +168,10 @@ of flow configurations.
   streaming model
 - Tool authors do not manage goroutines; the executor handles lifecycle
 - Flow definitions enable visual flow editing in Bowrain
-  ([ADR-012](./012-bowrain.md))
+  ([AD-012](./012-bowrain.md))
 - TopologicalOrder validation catches cycles before runtime, providing fast
   feedback during flow authoring
 - JSON serialization supports import/export and version control of flow
   configurations
-- Connectors ([ADR-005](./005-connector-system.md)) integrate naturally: extract
+- Connectors ([AD-005](./005-connector-system.md)) integrate naturally: extract
   once to the store, process with multiple flows, merge back when ready

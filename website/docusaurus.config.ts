@@ -34,10 +34,20 @@ const config: Config = {
     [
       '@docusaurus/plugin-content-docs',
       {
-        id: 'adr',
-        path: '../docs/adr',
-        routeBasePath: 'docs/adr',
-        sidebarPath: './sidebars-adr.ts',
+        id: 'ad',
+        path: '../docs/ad',
+        routeBasePath: 'docs/ad',
+        sidebarPath: './sidebars-ad.ts',
+        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+      },
+    ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'notes',
+        path: '../docs/notes',
+        routeBasePath: 'docs/notes',
+        sidebarPath: './sidebars-notes.ts',
         editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
       },
     ],

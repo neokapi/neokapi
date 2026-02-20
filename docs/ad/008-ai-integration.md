@@ -1,9 +1,9 @@
 ---
 id: 008-ai-integration
 sidebar_position: 8
-title: "ADR-008: AI Integration"
+title: "AD-008: AI Integration"
 ---
-# ADR-008: First-class AI and LLM integration
+# AD-008: First-class AI and LLM integration
 
 ## Context
 
@@ -30,7 +30,7 @@ Three built-in implementations exist: Anthropic Claude (`ai/provider/anthropic.g
 
 ### AI Tools
 
-Six AI tools are implemented as standard Tools (see [ADR-006](./006-tool-system.md)) that embed `BaseTool`:
+Six AI tools are implemented as standard Tools (see [AD-006](./006-tool-system.md)) that embed `BaseTool`:
 
 | Tool | Package | Purpose |
 |---|---|---|
@@ -39,9 +39,9 @@ Six AI tools are implemented as standard Tools (see [ADR-006](./006-tool-system.
 | `ai-terminology` | `ai/tools/terminology.go` | Extract terminology candidates from source Blocks |
 | `ai-review` | `ai/tools/review.go` | Review translations with explanations |
 | `entity-annotate` | planned | Annotate named entities (people, places, dates, products) |
-| `brand-voice-check` | planned | Validate content against brand voice rules (see [ADR-010](./010-terminology.md)) |
+| `brand-voice-check` | planned | Validate content against brand voice rules (see [AD-010](./010-terminology.md)) |
 
-The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `entity-annotate` tool will produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. See [ADR-010](./010-terminology.md) for the full terminology and brand management design.
+The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `entity-annotate` tool will produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. See [AD-010](./010-terminology.md) for the full terminology and brand management design.
 
 Because AI tools are standard Tools, they compose naturally in flows:
 
@@ -121,11 +121,11 @@ Current prompt templates:
 
 ## Consequences
 
-- AI translation is a pipeline tool, not a separate system. It composes with all other tools ([ADR-006](./006-tool-system.md)).
-- Tools can be ordered to maximize quality: TM leverage ([ADR-009](./009-translation-memory.md)) before AI avoids retranslating exact matches, reducing cost.
-- Terminology context flows through the pipeline via annotations ([ADR-010](./010-terminology.md)), enabling AI tools to produce terminology-consistent translations from the start.
+- AI translation is a pipeline tool, not a separate system. It composes with all other tools ([AD-006](./006-tool-system.md)).
+- Tools can be ordered to maximize quality: TM leverage ([AD-009](./009-translation-memory.md)) before AI avoids retranslating exact matches, reducing cost.
+- Terminology context flows through the pipeline via annotations ([AD-010](./010-terminology.md)), enabling AI tools to produce terminology-consistent translations from the start.
 - The worker pool prevents API rate limit violations and handles transient failures gracefully, making AI translation reliable in production.
 - Batching reduces API call count and improves throughput for large document processing.
 - Provider abstraction enables cost optimization: local Ollama for development, Claude or OpenAI for production, MT connectors for simple translations.
 - Prompt templates are centralized and testable. Mock providers enable deterministic testing without API calls.
-- The content model ([ADR-002](./002-content-model.md)) carries AI-generated annotations (TM match scores, QA issues, term suggestions) alongside the translated content.
+- The content model ([AD-002](./002-content-model.md)) carries AI-generated annotations (TM match scores, QA issues, term suggestions) alongside the translated content.

@@ -55,4 +55,4 @@ Each plugin version includes a `*.bridge.json` descriptor:
 
 Through the Java bridge, gokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
 
-See [ADR-006](/docs/adr/007-plugin-system) for the complete design rationale.
+See [AD-007](/docs/ad/007-plugin-system) for the complete design rationale.

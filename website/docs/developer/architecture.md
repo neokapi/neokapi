@@ -9,7 +9,7 @@ gokapi is an open localization platform built in Go. Bidirectional connectors
 sync content from live systems into a versioned store, composable tools process
 content through a concurrent pipeline, and automation drives the workflow. For
 the reasoning behind each major design choice, see the
-[Architecture Decision Records](/docs/adr/001-vision).
+[Architecture Decisions](/docs/ad/001-vision).
 
 ## Platform Architecture
 
@@ -99,8 +99,8 @@ Content flows from source systems through bidirectional connectors into a
 versioned content store. The processing pipeline runs each tool in its own
 goroutine, connected by buffered channels with automatic backpressure.
 Event-driven automation triggers flows, enforces quality gates, and sends
-notifications. See [ADR-001](/docs/adr/001-vision) and
-[ADR-004](/docs/adr/004-processing-engine).
+notifications. See [AD-001](/docs/ad/001-vision) and
+[AD-004](/docs/ad/004-processing-engine).
 
 ## Package Layout
 
@@ -186,7 +186,7 @@ gokapi/                              ── Framework Module ──
 │       └── ui/                      # Shared React component library (@gokapi/ui)
 │
 │   ── Non-Go Assets (stay at root) ──
-├── docs/                            # ADRs, architecture docs
+├── docs/                            # Architecture decisions, notes
 └── website/                         # Docusaurus 3 documentation site
 ```
 
@@ -268,7 +268,7 @@ classDiagram
 
 Embedded content (HTML inside JSON, CDATA in XML) is modeled as nested
 Layers, each with its own DataFormat. See
-[ADR-002](/docs/adr/002-content-model).
+[AD-002](/docs/ad/002-content-model).
 
 ### Inline Span Encoding
 

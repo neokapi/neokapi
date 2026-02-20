@@ -1,9 +1,9 @@
 ---
 id: 006-tool-system
 sidebar_position: 6
-title: "ADR-006: Tool System"
+title: "AD-006: Tool System"
 ---
-# ADR-006: Tool system with BaseTool dispatch
+# AD-006: Tool system with BaseTool dispatch
 
 ## Context
 
@@ -13,9 +13,9 @@ extractor handles Media. Requiring every tool to implement the full
 `Process(ctx, in, out)` method with a type switch over all Part types leads
 to repetitive boilerplate.
 
-The streaming pipeline ([ADR-004](./004-processing-engine.md)) delivers Parts
+The streaming pipeline ([AD-004](./004-processing-engine.md)) delivers Parts
 through channels. Tools sit between reader and writer stages, processing Parts
-as they flow through. The content model ([ADR-002](./002-content-model.md))
+as they flow through. The content model ([AD-002](./002-content-model.md))
 defines the Part types that tools operate on: Blocks for translatable content,
 Data for structural elements, and Media for binary content.
 
@@ -54,16 +54,16 @@ can override `Process` directly.
 
 | Tool | Category | Description |
 |---|---|---|
-| `wordcount` | Validate | Count words per block |
+| `wordcount` | Validate | Count words per block (also exposed as `Block.WordCount()`) |
 | `charcount` | Validate | Count characters per block |
 | `pseudo-translate` | Transform | Generate pseudo-translations for i18n testing |
 | `search-replace` | Transform | Regex-based search and replace in content |
 | `segmentation` | Transform | Split blocks into sentence segments using SRX-like rules |
 | `qa-check` | Validate | Check translations (missing, whitespace, numbers) |
-| `tm-leverage` | Enrich | Pre-fill translations from Sievepen TM ([ADR-009](./009-translation-memory.md)) |
-| `term-lookup` | Enrich | Scan source text for known terms from TermBase ([ADR-010](./010-terminology.md)) |
-| `term-enforce` | Validate | Validate preferred term usage in target text ([ADR-010](./010-terminology.md)) |
-| `entity-annotate` | Enrich | Annotate named entities (people, places, dates) ([ADR-010](./010-terminology.md)) |
+| `tm-leverage` | Enrich | Pre-fill translations from Sievepen TM ([AD-009](./009-translation-memory.md)) |
+| `term-lookup` | Enrich | Scan source text for known terms from TermBase ([AD-010](./010-terminology.md)) |
+| `term-enforce` | Validate | Validate preferred term usage in target text ([AD-010](./010-terminology.md)) |
+| `entity-annotate` | Enrich | Annotate named entities (people, places, dates) ([AD-010](./010-terminology.md)) |
 | `redact` | Transform | Replace entity values with placeholders for privacy |
 | `unredact` | Transform | Restore original values after external processing |
 
@@ -89,12 +89,12 @@ through a shared data model rather than direct dependencies.
 ### Registration
 
 Tools register into a `ToolRegistry` with a name and factory function,
-mirroring the format registry pattern ([ADR-004](./004-processing-engine.md)).
+mirroring the format registry pattern ([AD-004](./004-processing-engine.md)).
 The CLI and flow executor look up tools by name. The `RegisterTools(reg)`
 function auto-registers all built-in utility tools with default configurations;
 users can customize tool settings via `gokapi.yaml`.
 
-Plugin tools ([ADR-007](./007-plugin-system.md)) use the same `Tool` interface
+Plugin tools ([AD-007](./007-plugin-system.md)) use the same `Tool` interface
 via gRPC translation, so plugin-provided tools and built-in tools are
 interchangeable from the pipeline's perspective.
 
@@ -118,5 +118,5 @@ interchangeable from the pipeline's perspective.
 - Categories guide tool design and set expectations for idempotency and
   ordering
 - Annotation-based inter-tool communication keeps tools loosely coupled
-- Plugin tools ([ADR-007](./007-plugin-system.md)) use the same interface via
+- Plugin tools ([AD-007](./007-plugin-system.md)) use the same interface via
   gRPC translation, so the pipeline treats all tools uniformly

@@ -1,7 +1,7 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
-  adr: [
+  ad: [
     'README',
     '001-vision',
     '002-content-model',
@@ -17,6 +17,12 @@ const sidebars: SidebarsConfig = {
     '012-bowrain',
     '013-cli-and-server',
     '014-testing-and-docs',
+    '015-auth-and-workspaces',
+    '016-kapi-project-model',
+    '017-cli-output-format',
+    '018-four-module-architecture',
+    '019-mt-providers',
+    '020-collaborative-editor',
   ],
 };
 

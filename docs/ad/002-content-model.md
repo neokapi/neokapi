@@ -1,9 +1,9 @@
 ---
 id: 002-content-model
 sidebar_position: 2
-title: "ADR-002: Content Model"
+title: "AD-002: Content Model"
 ---
-# ADR-002: Part-Resource content model with content-addressable identity
+# AD-002: Part-Resource content model with content-addressable identity
 
 ## Context
 
@@ -82,7 +82,7 @@ This enables incremental extraction: only blocks whose identity has changed
 since the last extraction cycle need reprocessing. It also enables
 deduplication across documents -- identical blocks share the same
 `ContentHash`, allowing translation memory and AI tools to avoid redundant
-work (see [ADR-003](./003-content-store.md)).
+work (see [AD-003](./003-content-store.md)).
 
 ### Nested Layers for Embedded Content
 
@@ -176,7 +176,7 @@ ContentRef links blocks back to their origin system, enabling bidirectional
 sync. When a connector pulls content, it sets the ContentRef. When pushing
 translations back, the connector uses the ContentRef to locate the target
 in the external system. This is central to the connector architecture
-described in [ADR-005](./005-connector-system.md).
+described in [AD-005](./005-connector-system.md).
 
 ### Annotation System
 
@@ -202,7 +202,7 @@ Annotations are keyed by type and instance (e.g., `"term:0"`, `"term:1"`)
 to support multiple annotations of the same type per Block. Annotations
 carry character-level positions via `TextRange` (start/end offsets within
 source text). This enables precise inline highlighting in Bowrain without
-re-detecting boundaries at render time. See [ADR-010](./010-terminology.md)
+re-detecting boundaries at render time. See [AD-010](./010-terminology.md)
 for the full annotation data models.
 
 ## Alternatives Considered
@@ -228,17 +228,17 @@ for the full annotation data models.
   pass-through behavior
 - The Part stream remains a single ordered channel; no fan-out complexity
 - Content-addressable identity enables incremental extraction and deduplication
-  ([ADR-003](./003-content-store.md))
+  ([AD-003](./003-content-store.md))
 - Dynamic properties let tools and connectors carry metadata without content
   model changes
 - Display hints guide UI rendering in
   [Bowrain](./012-bowrain.md) without coupling
 - ContentRef enables bidirectional connector sync
-  ([ADR-005](./005-connector-system.md))
+  ([AD-005](./005-connector-system.md))
 - The Annotation interface is open for extension -- new annotation types can
   be added by tools without modifying the content model
 - `LocaleID` fields on Blocks and Layers hold BCP-47 tags validated by the
-  `locale` package (see [ADR-001](./001-vision.md))
+  `locale` package (see [AD-001](./001-vision.md))
 - Format readers that detect embedded content must emit child Layers with the
   correct format identifier
-  ([ADR-001](./001-vision.md))
+  ([AD-001](./001-vision.md))

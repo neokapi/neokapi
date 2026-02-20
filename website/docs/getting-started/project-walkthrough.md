@@ -330,6 +330,6 @@ Now that you have a Kapi project:
 - **Manage terminology**: [Terminology features](/docs/features/terminology)
 - **Serve locally**: [`kapi serve`](/docs/kapi-cli/commands/serve)
 - **Understand sync**: [Push](/docs/kapi-cli/commands/push) and [Pull](/docs/kapi-cli/commands/pull)
-- **Read ADRs**: [Architecture decisions](/docs/adr/001-vision)
+- **Read ADs**: [Architecture decisions](/docs/ad/001-vision)
 
 For team deployments, see [Bowrain Server](/docs/developer/server).

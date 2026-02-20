@@ -1,9 +1,9 @@
 ---
 id: 017-cli-output-format
 sidebar_position: 17
-title: "ADR-017: CLI Output Format Flags"
+title: "AD-017: CLI Output Format Flags"
 ---
-# ADR-017: CLI Output Format Flags
+# AD-017: CLI Output Format Flags
 
 ## Context
 
