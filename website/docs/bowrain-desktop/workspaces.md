@@ -40,7 +40,7 @@ switching without going back to the full project view.
 
 When running Bowrain standalone (not connected to a server), a "Personal"
 workspace is created automatically. This is your default workspace for local
-work with `.kaz` files and local projects.
+work with local projects.
 
 ## Connecting to a Server
 

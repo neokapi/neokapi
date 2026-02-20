@@ -24,7 +24,7 @@ Download the latest release from [GitHub Releases](https://github.com/gokapi/gok
 ## First Project
 
 1. Launch Bowrain
-2. Create a new project or open an existing `.kaz` archive
+2. Create a new project or open a sample project
 3. Add source files to the project
 4. Configure source and target languages
 5. Run a translation flow or edit translations manually
@@ -35,13 +35,13 @@ Download the latest release from [GitHub Releases](https://github.com/gokapi/gok
 
 Bowrain ships with ready-to-use sample projects in `bowrain/apps/bowrain/samples/`:
 
-1. Open `website-translation.kaz` — a half-translated website with TM entries and terminology
+1. Open the Website Translation sample project — a half-translated website with TM entries and terminology
 2. Click on `index.html` to open the translation editor
 3. Click **"TM Lookup"** in the toolbar to auto-fill blocks from translation memory
 4. Click **"Context"** to open the side panel showing TM matches and terminology per block
 5. Navigate blocks and click **"Apply"** on TM matches to insert translations
 6. Go back to project view and click **"Terminology"** to browse the termbase
-7. Click **"Save"** — TM and terminology are persisted in the `.kaz` file
+7. Click **"Save"** — TM and terminology are persisted in the project database
 
 ## Editor Layout Modes
 
@@ -77,7 +77,7 @@ The progress bar at the top of the editor shows the distribution of block status
 
 ## Using Translation Memory
 
-Each project has its own TM that persists in the `.kaz` file:
+Each project has its own TM that persists in the project database:
 
 1. **TM Explorer**: From the project view, click "Translation Memory" to browse, search, add, edit, or delete entries
 2. **TM Lookup**: In the editor toolbar, click "TM Lookup" to batch-apply TM matches to all untranslated blocks

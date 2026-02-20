@@ -92,7 +92,7 @@ gokapi/
 │   ├── registry/          # Format and tool registries
 │   ├── encoding/          # Character encoding detection/conversion
 │   ├── locale/            # BCP-47 locale utilities
-│   ├── kaz/               # KAZ archive format (ZIP-based)
+│   ├── editor/            # Block index serialization and preview generation
 │   ├── version/           # Version info (set via ldflags)
 │   ├── formats/           # 15 built-in format implementations
 │   ├── ai/                # LLM providers + AI tools

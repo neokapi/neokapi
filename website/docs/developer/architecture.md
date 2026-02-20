@@ -116,7 +116,7 @@ gokapi/                              ── Framework Module ──
 ├── registry/                        # FormatRegistry, ToolRegistry
 ├── encoding/                        # Text encoding utilities
 ├── locale/                          # BCP-47 locale handling
-├── kaz/                             # KAZ archive format
+├── editor/                          # Block index serialization and preview generation
 ├── version/                         # Build version info
 │
 ├── formats/                         # 15 built-in format implementations

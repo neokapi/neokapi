@@ -1,4 +1,4 @@
-package kaz
+package editor
 
 import (
 	"bytes"

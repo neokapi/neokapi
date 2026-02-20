@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/editor"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -56,7 +56,7 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 	}
 	reader.Close()
 
-	preview := kaz.BuildPreview(parts, item.SourceBytes, item.Format, proj.SourceLocale)
+	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.SourceLocale)
 	return preview, nil
 }
 
@@ -86,7 +86,7 @@ func (a *App) RenderBlockHTML(projectID, itemName, blockID, targetLocale string)
 
 	// For source rendering, try the block index for HTML-enriched source
 	if item.BlockIndex != "" {
-		var blockIndex kaz.BlockIndex
+		var blockIndex editor.BlockIndex
 		if err := json.Unmarshal([]byte(item.BlockIndex), &blockIndex); err == nil {
 			b := blockIndex.BlockByID(blockID)
 			if b != nil && b.SourceHTML != "" {

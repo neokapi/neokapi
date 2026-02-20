@@ -162,13 +162,6 @@ POST   /api/v1/workspaces/:ws/projects/:id/pull
 POST   /api/v1/workspaces/:ws/projects/:id/push
 ```
 
-### KAZ Export/Import
-
-```
-GET    /api/v1/workspaces/:ws/projects/:id/export
-POST   /api/v1/workspaces/:ws/projects/import
-```
-
 ### Connector Management (server-side only)
 
 ```

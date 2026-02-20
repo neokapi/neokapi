@@ -42,10 +42,6 @@ type ContentStore interface {
     ListVersions(ctx context.Context, projectID string) ([]Version, error)
     Diff(ctx context.Context, projectID string, fromVersion, toVersion string) (*VersionDiff, error)
 
-    // Export/Import (KAZ snapshots)
-    ExportKAZ(ctx context.Context, projectID string, w io.Writer) error
-    ImportKAZ(ctx context.Context, r io.Reader) (string, error)
-
     // Lifecycle
     Close() error
 }
@@ -55,7 +51,6 @@ type ContentStore interface {
 - **Project CRUD** — Multi-tenant project management within workspaces ([AD-015](./015-auth-and-workspaces.md))
 - **Content-addressed storage** — Deduplicated block storage by content hash
 - **Version tracking** — Immutable snapshots of project state
-- **KAZ export/import** — Portable snapshots for backup and sharing
 
 ### Content-Addressed Block Storage
 
@@ -112,15 +107,11 @@ The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO), shar
 
 See [Content Store Schema](/docs/notes/content-store-schema) for the full SQL CREATE TABLE statements and migration details.
 
-### KAZ as Portable Snapshot Format
-
-KAZ archives (ZIP) provide portable project snapshots for backup, sharing, migration, and offline editing. KAZ is server-side only -- Kapi uses REST API sync, not KAZ files.
-
 ### Server API Integration
 
-The ContentStore is exposed via Bowrain Server's REST API with routes for project CRUD, block operations, sync (pull/push), and KAZ export/import.
+The ContentStore is exposed via Bowrain Server's REST API with routes for project CRUD, block operations, and sync (pull/push).
 
-See [Content Store Schema](/docs/notes/content-store-schema) for the KAZ archive layout, REST API route listing, and database-level details.
+See [Content Store Schema](/docs/notes/content-store-schema) for the REST API route listing and database-level details.
 
 ### Store and Pipeline Integration
 
@@ -181,8 +172,6 @@ Source System (CMS, Design Tool, Code Repo)
 - The store sits between connectors and the pipeline — connectors write to the store, flows process store content. This decouples extraction from processing.
 
 - SQLite backend works without external dependencies. TM and terminology are co-located in the same storage infrastructure, sharing connection pooling and migration tooling ([AD-009](./009-translation-memory.md), [AD-010](./010-terminology.md)).
-
-- KAZ provides portable project snapshots for backup, sharing, and offline editing. It is a **server export format**, not a Kapi working format.
 
 - Block-level granularity is the right level for localization — not too fine (characters or words) and not too coarse (documents or pages). This aligns with the content model's `Block` as the fundamental translatable unit ([AD-002](./002-content-model.md)).
 

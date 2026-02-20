@@ -198,7 +198,6 @@ The `EntityAdaptations` field on `TMMatch` lists each substitution with its posi
 - **Pipeline tool**: `tools/TMLeverageTool` uses `Lookup` to pre-fill translations
 - **Bowrain editor**: `LookupTMForBlock` in the backend uses `Lookup` for per-block matches in the Context panel
 - **Bowrain TM Explorer**: Uses `SearchEntries` for paginated browsing
-- **KAZ persistence**: TM entries are serialized as JSON in `tm/entries.json` within the `.kaz` archive
 
 ## Design Decisions
 

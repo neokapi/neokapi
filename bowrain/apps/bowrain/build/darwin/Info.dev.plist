@@ -41,20 +41,5 @@
                 <string>Viewer</string>
             </dict>
         </array>
-        <key>CFBundleDocumentTypes</key>
-        <array>
-            <dict>
-                <key>CFBundleTypeName</key>
-                <string>Bowrain Project</string>
-                <key>CFBundleTypeRole</key>
-                <string>Editor</string>
-                <key>LSHandlerRank</key>
-                <string>Owner</string>
-                <key>CFBundleTypeExtensions</key>
-                <array>
-                    <string>kaz</string>
-                </array>
-            </dict>
-        </array>
     </dict>
 </plist>

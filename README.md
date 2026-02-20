@@ -99,7 +99,7 @@ kapi tools
 
 Bowrain is a native desktop translation editor built with [Wails](https://wails.io/) and React. It provides a graphical interface for translation projects with:
 
-- Project management with `.kaz` package format
+- Project management with SQLite-backed content store
 - Side-by-side translation editing
 - Document preview
 - AI-powered translation via Anthropic, OpenAI, and Ollama

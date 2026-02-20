@@ -47,10 +47,6 @@ type ContentStore interface {
     ListVersions(ctx context.Context, projectID string) ([]*Version, error)
     Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
 
-    // KAZ export/import
-    ExportKAZ(ctx context.Context, projectID string, w io.Writer) error
-    ImportKAZ(ctx context.Context, r io.Reader) (string, error)
-
     Close() error
 }
 ```
@@ -109,19 +105,6 @@ diff, err := store.Diff(ctx, v1.ID, v2.ID)
 for _, change := range diff.Changes {
     fmt.Printf("%s: %s\n", change.BlockID, change.ChangeType)
 }
-```
-
-## KAZ Export/Import
-
-Projects can be exported as KAZ archives (ZIP format) for sharing and offline editing:
-
-```go
-// Export
-var buf bytes.Buffer
-err := store.ExportKAZ(ctx, projectID, &buf)
-
-// Import
-importedProjectID, err := store.ImportKAZ(ctx, bytes.NewReader(buf.Bytes()))
 ```
 
 ## Flow Integration

@@ -13,7 +13,7 @@ import (
 	"unicode"
 
 	"github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/editor"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -250,7 +250,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 		reader.Close()
 
 		// Build block index.
-		blockIndex := kaz.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
 		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		// Store item with source bytes.

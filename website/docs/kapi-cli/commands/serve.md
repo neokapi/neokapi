@@ -11,23 +11,20 @@ projects. No authentication or server setup required.
 ## Usage
 
 ```bash
-kapi serve [project.kaz | directory] [flags]
+kapi serve [directory] [flags]
 ```
 
 ## Examples
 
 ```bash
-# Open a KAZ project in the browser
-kapi serve ./website.kaz
-
 # Open a project directory
 kapi serve ./my-project/
 
 # Use a custom port
-kapi serve ./website.kaz --port 4000
+kapi serve ./my-project/ --port 4000
 
 # Don't auto-open the browser
-kapi serve ./website.kaz --no-open
+kapi serve ./my-project/ --no-open
 ```
 
 ## What Happens

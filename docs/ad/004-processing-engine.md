@@ -132,8 +132,7 @@ Flow definitions are distinguished by source:
 - `source: "built-in"` -- shipped with gokapi, immutable
 - `source: "user"` -- created by the user, stored in the user's config
   directory
-- `source: "project"` -- stored within a project's `.kaz` archive or
-  project directory
+- `source: "project"` -- stored within a project directory
 
 Flow definitions enable visual editing in Bowrain
 ([AD-012](./012-bowrain.md)) through a drag-and-drop node

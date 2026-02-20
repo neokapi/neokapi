@@ -78,31 +78,7 @@ GET    /api/v1/workspaces/:ws/projects/:id/sync-state
 POST   /api/v1/workspaces/:ws/projects/:id/pull
 POST   /api/v1/workspaces/:ws/projects/:id/push
 
-# KAZ export/import
-GET    /api/v1/workspaces/:ws/projects/:id/export
-POST   /api/v1/workspaces/:ws/projects/import
 ```
 
 Kapi interacts with the store via API, not directly. The `kapi pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
 
-## KAZ Archive Layout
-
-The `.kaz` archive format (ZIP) is a portable serialization of a ContentStore project snapshot:
-
-```
-project.kaz (ZIP)
-+-- manifest.yaml           # project metadata, source/target locales
-+-- blocks/
-|   +-- <item>.json         # block index per source item
-+-- preview/
-|   +-- <item>.html         # HTML preview for editor display
-+-- items/
-|   +-- <file>              # original source files (optional)
-+-- tm/
-|   +-- entries.json        # embedded TM entries
-+-- terms/
-|   +-- concepts.json       # terminology snapshot
-+-- version.json            # version metadata
-```
-
-KAZ is server-side only. It is an export format from the ContentStore, used for backup, sharing, migration, and offline editing. Kapi does not use KAZ files -- it operates on local file systems with `.kapi/` project directories ([AD-016](/docs/ad/016-kapi-project-model)).

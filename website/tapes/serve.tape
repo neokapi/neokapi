@@ -22,15 +22,15 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Open a .kaz project in the browser"
+Type "# Open a project in the browser"
 Enter
 Sleep 500ms
-Type "# kapi serve website.kaz"
+Type "# kapi serve"
 Enter
 Sleep 500ms
 Type "# → Starting local project server at http://localhost:3000"
 Enter
-Type "# → Project: /Users/demo/website.kaz"
+Type "# → Project: /Users/demo/my-project"
 Enter
 Type "# → Press Ctrl+C to stop."
 Enter
@@ -43,7 +43,7 @@ Sleep 500ms
 Type "# Use a custom port"
 Enter
 Sleep 500ms
-Type "# kapi serve website.kaz --port 4000"
+Type "# kapi serve --port 4000"
 Enter
 Sleep 500ms
 Type "# → Starting local project server at http://localhost:4000"
@@ -54,28 +54,12 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Serve the current directory"
+Type "# On Ctrl+C, changes are saved"
 Enter
 Sleep 500ms
-Type "# kapi serve"
+Type "# → Saving project..."
 Enter
-Sleep 500ms
-Type "# → Starting local project server at http://localhost:3000"
-Enter
-Type "# → Project: /Users/demo/my-project"
-Enter
-Sleep 1500ms
-
-Type ""
-Enter
-Sleep 500ms
-
-Type "# On Ctrl+C, changes are exported back to the .kaz file"
-Enter
-Sleep 500ms
-Type "# → Saving changes back to website.kaz"
-Enter
-Type "# → Saved project to website.kaz"
+Type "# → Project saved."
 Enter
 Sleep 2s
 

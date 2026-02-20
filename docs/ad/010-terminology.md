@@ -70,12 +70,6 @@ Brand voice rules (tone, style) with a `brand-voice-check` pipeline tool
 using LLM analysis ([AD-008](./008-ai-integration.md)). Positions gokapi as
 the only open-source system bridging terminology and brand governance.
 
-### KAZ Integration
-
-KAZ archives embed a read-only terminology snapshot (`terms/concepts.json`)
-for offline/sharing use. Master termbase is managed externally. On project
-open, Bowrain checks freshness and offers to refresh the snapshot.
-
 ### Content Model Extensions
 
 Two annotation types (`TermAnnotation`, `EntityAnnotation`) implement the `Annotation` interface with character-level `TextRange` positions for precise inline highlighting in Bowrain ([AD-012](./012-bowrain.md)). See [Terminology Data Model](/docs/notes/terminology-data-model) for details.

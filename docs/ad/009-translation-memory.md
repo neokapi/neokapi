@@ -27,8 +27,8 @@ alone. This loses critical information:
 
 gokapi's TM is content-aware: it stores full Fragments with Spans and entity
 metadata, derives multiple matching keys, and returns matches with entity
-adaptation information. TM now persists within the Content Store ecosystem
-([AD-003](./003-content-store.md)) and is portable via KAZ archives.
+adaptation information. TM persists within the Content Store ecosystem
+([AD-003](./003-content-store.md)).
 
 ## Decision
 
@@ -94,9 +94,7 @@ workflows.
 
 TM persists alongside the Content Store ([AD-003](./003-content-store.md)).
 When a project version is created, TM entries relevant to that project are
-snapshotted. KAZ archives embed TM entries as `tm/entries.json` for portable
-sharing -- a team member can import a KAZ file and get both the project content
-and TM in one step.
+snapshotted.
 
 After translation (human or AI), Blocks are saved to TM with their full
 Fragment representation and entity mappings. The save-to-TM step extracts
@@ -137,4 +135,4 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
 - TMX roundtrip preserves inline codes via standard TMX elements
 - Shared SQLite infrastructure with TermBase ([AD-010](./010-terminology.md))
   and Content Store ([AD-003](./003-content-store.md)) reduces code duplication
-- TM is portable via KAZ archives for offline sharing
+- TMX import/export provides portability for offline sharing

@@ -42,7 +42,7 @@ TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches a
 
 ## Bowrain Integration
 
-In Bowrain, each project has its own in-memory TM that persists in the `.kaz` project file:
+In Bowrain, each project has its own in-memory TM that persists in the project database:
 
 1. **TM Explorer**: Click "Translation Memory" in the project view to browse, search, edit, add, and delete TM entries
 2. **TM Lookup**: In the translation editor, click "TM Lookup" to batch-apply TM matches to all untranslated blocks

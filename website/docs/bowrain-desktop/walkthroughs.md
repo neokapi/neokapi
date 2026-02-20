@@ -11,12 +11,12 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 
 **Goal**: Open a half-translated project and use translation memory to fill in missing translations.
 
-**Sample project**: `website-translation.kaz`
+**Sample project**: Website Translation
 
 ### Steps
 
 1. **Launch Bowrain** and click "Open Project"
-2. **Select** `website-translation.kaz` from `bowrain/apps/bowrain/samples/`
+2. **Select** the Website Translation sample project
 3. **Review the project**: You'll see `index.html` with its block count — some blocks already have French translations, German is mostly empty
 4. **Click** on `index.html` to open the translation editor
 5. **Notice** the progress bar: some blocks are translated (blue), some are not started (gray)
@@ -30,14 +30,14 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
    - For blocks filled by TM Lookup, you'll see the source of the match
 9. **Navigate to a partially matching block** — the Context panel may show fuzzy matches (< 100%) that you can review and apply manually
 10. **Click "Apply"** on a fuzzy match to insert it, then edit as needed
-11. **Save the project** with Cmd/Ctrl+S — TM entries are persisted in the `.kaz` file
+11. **Save the project** with Cmd/Ctrl+S — TM entries are persisted in the project database
 
 ### What You Learned
 
 - TM Lookup batch-applies matches to all untranslated blocks
 - The Context panel provides per-block TM matches for manual review
 - Exact matches are applied automatically; fuzzy matches require manual review
-- TM data persists in the `.kaz` project file
+- TM data persists in the project database
 
 ---
 
@@ -45,11 +45,11 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 
 **Goal**: Import terminology, browse concepts, and see term suggestions while translating.
 
-**Sample project**: `software-ui.kaz`
+**Sample project**: Software UI
 
 ### Steps
 
-1. **Open** `software-ui.kaz` — this is a new project with 33 UI string blocks and a pre-loaded termbase
+1. **Open** the Software UI sample project — this is a new project with 33 UI string blocks and a pre-loaded termbase
 2. **Click "Terminology"** in the project view to open the Terminology Explorer
 3. **Browse concepts**: You'll see concepts like "Task" (en/fr/de/ja), "Dashboard" (en/fr/de/ja), etc.
    - Each concept shows its domain, definition, and terms with status badges
@@ -69,7 +69,7 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
    - The Terminology section shows matched terms with target suggestions
    - Each match shows: source term, target term(s), domain, and lifecycle status
 10. **Use the term suggestions** to ensure consistent terminology across your translations
-11. **Save** — the termbase persists in the `.kaz` file
+11. **Save** — the termbase persists in the project database
 
 ### What You Learned
 
@@ -84,11 +84,11 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 
 **Goal**: Use the Context panel to leverage both TM matches and terminology while translating.
 
-**Sample project**: `website-translation.kaz`
+**Sample project**: Website Translation
 
 ### Steps
 
-1. **Open** `website-translation.kaz` and click on `index.html`
+1. **Open** the Website Translation sample project and click on `index.html`
 2. **Click "Context"** in the toolbar to open the side panel
 3. **The panel has two sections**:
    - **TM Matches**: Shows translation memory matches for the current block
@@ -114,11 +114,11 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 
 **Goal**: Translate a new project end-to-end using all available resources.
 
-**Sample project**: `software-ui.kaz`
+**Sample project**: Software UI
 
 ### Steps
 
-1. **Open** `software-ui.kaz` — 33 untranslated blocks with a 27-entry TM
+1. **Open** the Software UI sample project — 33 untranslated blocks with a 27-entry TM
 2. **Click "TM Lookup"** — blocks with TM matches are auto-filled (look for progress bar change)
 3. **Open the editor** and enable the **Context panel**
 4. **Work through remaining blocks**:
@@ -143,11 +143,11 @@ Step-by-step guides for common Bowrain workflows, designed to be followed along 
 
 **Goal**: Review a completed translation and export the results.
 
-**Sample project**: `marketing-content.kaz`
+**Sample project**: Marketing Content
 
 ### Steps
 
-1. **Open** `marketing-content.kaz` — fully translated in 3 target languages (fr, de, es)
+1. **Open** the Marketing Content sample project — fully translated in 3 target languages (fr, de, es)
 2. **Open the editor** — all blocks show as translated (blue progress bar)
 3. **Switch target locale** to review each language
 4. **Enable the Context panel** to cross-reference translations with TM and terminology

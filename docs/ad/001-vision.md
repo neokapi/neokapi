@@ -110,7 +110,7 @@ gokapi/                    ── Framework Module ──
   registry/       FormatRegistry, ToolRegistry
   encoding/       text encoding utilities
   locale/         BCP-47 locale handling
-  kaz/            KAZ archive format
+  editor/         block index serialization and preview generation
   version/        build version info
   formats/        built-in format implementations (15 formats: html, xml,
                   xliff, xliff2, json, yaml, po, properties, plaintext,
@@ -215,7 +215,7 @@ All subsystems validate locale codes at their boundaries:
 | Subsystem | Validation point |
 |---|---|
 | CLI flags (`--source-lang`, `--target-lang`) | Cobra argument parsing |
-| KAZ manifest ([AD-003](./003-content-store.md)) | Archive open/create |
+| Project config ([AD-016](./016-kapi-project-model.md)) | Project initialization |
 | TM entries ([AD-009](./009-translation-memory.md)) | Entry insert/query |
 | Terminology ([AD-010](./010-terminology.md)) | Term creation |
 | Bowrain project creation ([AD-012](./012-bowrain.md)) | Locale selector component |

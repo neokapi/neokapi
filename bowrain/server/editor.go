@@ -18,7 +18,7 @@ import (
 	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
-	"github.com/gokapi/gokapi/core/kaz"
+	"github.com/gokapi/gokapi/core/editor"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/core/sievepen"
@@ -408,7 +408,7 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 		reader.Close()
 
 		// Build block index.
-		blockIndex := kaz.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
 		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		// Store item with source bytes.

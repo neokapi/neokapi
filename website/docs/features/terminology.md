@@ -110,7 +110,7 @@ Violations are reported as block properties (`term-enforce-errors`, `term-enforc
 
 ## Bowrain Integration
 
-In Bowrain, each project has its own termbase that persists in the `.kaz` project file:
+In Bowrain, each project has its own termbase that persists in the project database:
 
 ### Terminology Explorer
 

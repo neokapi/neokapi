@@ -6,7 +6,7 @@
 - **BlockIdentity**: Content-addressable hashing (SHA-256) for block deduplication and change detection
 - **ContentRef**: Links blocks to external connector sources with sync tracking
 - **DisplayHint**: UI rendering guidance (preview, context, max length, content type)
-- **ContentStore interface**: Project CRUD, block storage with deduplication, version management, KAZ export/import
+- **ContentStore interface**: Project CRUD, block storage with deduplication, version management
 - **SQLite backend**: Full ContentStore implementation using the shared `internal/storage` layer with WAL mode
 - **Version tracking**: Snapshot-based versioning with block-level diff between versions
 - **Flow integration**: `WithStore()` option for connecting flows to the content store
@@ -34,11 +34,6 @@
 - **Loop prevention**: Causation chain tracking with configurable max depth (default 5)
 - **Quality gates**: Blocking and advisory gates with threshold-based evaluation
 - **Webhook delivery**: HMAC-SHA256 signed webhooks with retry and exponential backoff
-
-### KAZ Store Export (Phase 1.4)
-- **Store-based KAZ format**: New KAZ v2.0 format serializing ContentStore snapshots
-- **ExportKAZ/ImportKAZ**: Full implementation in SQLiteStore with block, version, and connector metadata
-- **Block conversion**: Bidirectional `BlockToExport`/`ExportToBlock` helpers for model.Block
 
 ### gRPC Server (Phase 3.3)
 - **Proto definitions**: `proto/v1/gokapi_service.proto` with streaming RPCs

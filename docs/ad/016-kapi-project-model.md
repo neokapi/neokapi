@@ -196,7 +196,7 @@ See [Kapi Sync Protocol](/docs/notes/kapi-sync-protocol) for push/pull algorithm
 
 - **Single `kapi.yaml` file** (like `package.json`): Works for simple cases but becomes cluttered when adding flow definitions, mappings, and hooks. Separate `flows/` directory keeps configuration organized.
 
-- **KAZ files as the project format**: KAZ archives ([AD-003](./003-content-store.md)) are server-side snapshots, not working directories. They lack version control integration, live editing, and incremental sync. `.kapi/` directories integrate naturally with git.
+- **Archive files as the project format**: Snapshot archives lack version control integration, live editing, and incremental sync. `.kapi/` directories integrate naturally with git.
 
 - **Store-based local projects**: Using SQLite ContentStore for local work adds unnecessary complexity. Files are the native format — direct file editing is faster and more transparent than store operations.
 

@@ -133,42 +133,6 @@ OpenAI, Ollama) are built-in because AI translation is a core value proposition.
 The test: if removing it makes gokapi feel incomplete for the common case, it
 should be built-in.
 
-### Project Portability
-
-KAZ manifests ([AD-003](./003-content-store.md)) record plugin dependencies
-to prevent "works on my machine" problems:
-
-```yaml
-# manifest.yaml inside project.kaz
-plugins:
-  formats:
-    - name: gokapi-format-docx
-      version: "1.2.0"
-      min_version: "1.1.0"
-      required: true
-  tools:
-    - name: gokapi-tool-terminology
-      version: "1.0.3"
-      min_version: "1.0.0"
-      required: false           # Flow works without it, skips term annotation
-```
-
-When a project is opened, gokapi validates plugin availability:
-
-```
-$ kapi merge -i project.kaz
-Error: project requires plugins not available locally:
-  X gokapi-format-docx >= 1.1.0 (not installed)
-  OK gokapi-tool-terminology >= 1.0.0 (installed: 1.0.3)
-
-Install missing plugins with:
-  kapi plugins install gokapi-format-docx
-```
-
-When an optional plugin is missing, the flow skips that tool and logs a warning
-rather than failing. This allows projects to degrade gracefully when shared
-across environments with different plugin sets.
-
 ## Alternatives Considered
 
 - **Go `plugin` package** — in-process; no crash isolation; Linux/macOS only;
@@ -200,8 +164,6 @@ across environments with different plugin sets.
   ([AD-005](./005-connector-system.md))
 - Plugin configuration integrates cleanly with the Viper config system
   ([AD-001](./001-vision.md)); namespaced flags prevent collisions
-- KAZ manifests record plugin dependencies for project portability
-  ([AD-003](./003-content-store.md))
 - Plugin scope is enforced by the RPC boundary -- plugins cannot modify core
   behavior
 - The built-in vs plugin split keeps the out-of-box experience complete while

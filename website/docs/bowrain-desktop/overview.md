@@ -85,32 +85,26 @@ The TM Explorer provides full access to the translation memory. Browse, search, 
 
 ## Project Format
 
-Bowrain uses the `.kaz` archive format as its native project format. A `.kaz` file is a ZIP archive containing:
+Bowrain stores projects in a local SQLite database backed by the Content Store. Each project contains:
 
 - **Source documents** in their original formats
 - **Translation blocks** with per-locale target segments
-- **Translation memory** entries (persisted as `tm/entries.json`)
-- **Terminology** concepts (persisted as `terms/concepts.json`)
+- **Translation memory** entries
+- **Terminology** concepts
 - **Preview HTML** for live document preview
 
 TM and terminology are saved automatically when you save the project and restored when you open it. This means each project carries its own linguistic resources — no external database setup required.
-
-Projects can be opened from the command line:
-
-```bash
-bowrain project.kaz
-```
 
 Bowrain runs as a single native application on macOS, Windows, and Linux — no additional runtimes or dependencies required.
 
 ## Sample Projects
 
-Bowrain ships with sample `.kaz` projects for immediate testing:
+Bowrain ships with sample projects for immediate testing:
 
 | Project | Content | Status | Use Case |
 |---------|---------|--------|----------|
-| `website-translation.kaz` | Corporate website (HTML) | Half-translated (en→fr,de) | TM leverage demo — auto-fill translations |
-| `software-ui.kaz` | Task manager UI strings (JSON) | New, with 27-entry TM | Start with existing TM, translate remaining strings |
-| `marketing-content.kaz` | Marketing landing page (HTML) | Fully translated (en→fr,de,es) | Review and export workflows |
+| Website Translation | Corporate website (HTML) | Half-translated (en→fr,de) | TM leverage demo — auto-fill translations |
+| Software UI | Task manager UI strings (JSON) | New, with 27-entry TM | Start with existing TM, translate remaining strings |
+| Marketing Content | Marketing landing page (HTML) | Fully translated (en→fr,de,es) | Review and export workflows |
 
 Sample files are located in `bowrain/apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.
