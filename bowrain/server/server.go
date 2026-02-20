@@ -90,8 +90,8 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
-	// Initialize auth store for multi-user mode.
-	if !cfg.LocalMode && cfg.JWTSecret != "" && cfg.StorePath != "" {
+	// Initialize auth store when authentication is configured.
+	if cfg.JWTSecret != "" && cfg.StorePath != "" {
 		authDBPath := cfg.StorePath + ".auth"
 		as, err := auth.NewSQLiteAuthStore(authDBPath)
 		if err != nil {
@@ -132,29 +132,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/tools", s.HandleListTools)
 	v1.GET("/locales", s.HandleGetKnownLocales)
 
-	// Local-mode flat routes (no auth required, used by kapi CLI and tests).
-	if s.Config.LocalMode {
-		v1.POST("/projects", s.HandleCreateProject)
-		v1.GET("/projects", s.HandleListProjects)
-		v1.GET("/projects/:id", s.HandleGetProject)
-		v1.PUT("/projects/:id", s.HandleUpdateProject)
-		v1.DELETE("/projects/:id", s.HandleDeleteProject)
-		v1.POST("/projects/:id/blocks", s.HandleStoreBlocks)
-		v1.GET("/projects/:id/blocks", s.HandleGetBlocks)
-		v1.POST("/projects/:id/versions", s.HandleCreateVersion)
-		v1.GET("/projects/:id/versions", s.HandleListVersions)
-		v1.POST("/projects/:id/sync/push", s.HandleSyncPush)
-		v1.GET("/projects/:id/sync/pull", s.HandleSyncPull)
-		v1.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
-		v1.GET("/projects/:id/changes", s.HandleGetChanges)
-
-		// In local mode, workspace-scoped routes are registered without
-		// auth middleware. The frontend uses workspace slug "local".
-		wsLocal := v1.Group("/workspaces/:ws")
-		s.registerWorkspaceContentRoutes(wsLocal)
-	}
-
-	// Connector endpoints
+	// Connector endpoints (public).
 	v1.GET("/connectors/types", s.HandleListConnectorTypes)
 	v1.GET("/connectors", s.HandleListActiveConnectors)
 	v1.POST("/connectors", s.HandleAddConnector)
@@ -163,8 +141,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.POST("/fetch", s.HandleFetch)
 	v1.POST("/publish", s.HandlePublish)
 
-	// Multi-user mode: auth + workspace-scoped routes with middleware.
-	if !s.Config.LocalMode && s.Config.JWTSecret != "" {
+	// Authenticated mode: auth routes, protected endpoints, workspace management.
+	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required).
 		v1.POST("/projects/anonymous", s.HandleCreateAnonymousProject)
 
@@ -192,10 +170,19 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.GET("/me", s.HandleAuthMe)
 		authProtected.POST("/logout", s.HandleAuthLogout)
 
-		// Authenticated routes (JWT required, no workspace scope).
+		// JWT-protected routes: project CRUD, blocks, versions, changes.
 		jwtProtected := v1.Group("")
 		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret))
-		jwtProtected.POST("/projects", s.HandleCreateProjectAuthenticated)
+		jwtProtected.POST("/projects", s.HandleCreateProject)
+		jwtProtected.GET("/projects", s.HandleListProjects)
+		jwtProtected.GET("/projects/:id", s.HandleGetProject)
+		jwtProtected.PUT("/projects/:id", s.HandleUpdateProject)
+		jwtProtected.DELETE("/projects/:id", s.HandleDeleteProject)
+		jwtProtected.POST("/projects/:id/blocks", s.HandleStoreBlocks)
+		jwtProtected.GET("/projects/:id/blocks", s.HandleGetBlocks)
+		jwtProtected.POST("/projects/:id/versions", s.HandleCreateVersion)
+		jwtProtected.GET("/projects/:id/versions", s.HandleListVersions)
+		jwtProtected.GET("/projects/:id/changes", s.HandleGetChanges)
 		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 
@@ -249,12 +236,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes
 // (editor projects, file management, block editing, translation, TM, terms, providers)
-// on the given route group. This is shared between local mode (no auth) and
-// multi-user mode (with auth middleware).
+// on the given route group.
 func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Workspace-scoped project routes
 	g.GET("/projects", s.HandleListWorkspaceProjects)
 	g.POST("/projects", s.HandleCreateWorkspaceProject)
+
+	// Sync routes (workspace-scoped, used by kapi CLI with workspace config)
+	g.POST("/projects/:id/sync/push", s.HandleSyncPush)
+	g.GET("/projects/:id/sync/pull", s.HandleSyncPull)
+	g.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
 
 	// Editor project routes
 	g.POST("/editor/projects", s.HandleCreateEditorProject)

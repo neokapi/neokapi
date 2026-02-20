@@ -29,37 +29,10 @@ type VersionRequest struct {
 	Description string `json:"description"`
 }
 
+// HandleCreateProject creates a project in the authenticated user's workspace.
+// If a workspace slug is provided in the request, it verifies membership and
+// uses that workspace; otherwise it defaults to the user's personal workspace.
 func (s *Server) HandleCreateProject(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	var req ProjectRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	locales := make([]model.LocaleID, len(req.TargetLocales))
-	for i, l := range req.TargetLocales {
-		locales[i] = model.LocaleID(l)
-	}
-
-	p := &store.Project{
-		Name:          req.Name,
-		SourceLocale:  model.LocaleID(req.SourceLocale),
-		TargetLocales: locales,
-	}
-	if err := s.Services.Project.CreateProject(c.Request().Context(), p); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	return c.JSON(http.StatusCreated, p)
-}
-
-// HandleCreateProjectAuthenticated creates a project in the authenticated
-// user's workspace. If a workspace slug is provided in the request, it
-// verifies membership and uses that workspace; otherwise it defaults to
-// the user's personal workspace.
-func (s *Server) HandleCreateProjectAuthenticated(c echo.Context) error {
 	if s.Services == nil || s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
