@@ -25,6 +25,7 @@ const config: Config = {
     mermaid: true,
     hooks: {
       onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownImages: 'warn',
     },
   },
 
