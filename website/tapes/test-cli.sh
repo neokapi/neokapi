@@ -122,7 +122,7 @@ echo ""
 
 # serve.tape tests
 echo "serve.tape commands:"
-test_cmd "kapi serve --help" "kapi serve --help" "Start a lightweight"
+test_cmd "kapi serve --help" "kapi serve --help" "Open a local web dashboard"
 echo ""
 
 # workspaces.tape tests (only if server is running)
