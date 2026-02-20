@@ -32,11 +32,10 @@ async function injectAuthCookie(page: Page, authToken: string) {
   }]);
 }
 
-async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
+async function setTheme(page: Page, theme: "dark" | "light") {
   await page.evaluate((t) => {
-    const isDark = t !== "light";
+    const isDark = t === "dark";
     document.documentElement.classList.toggle("dark", isDark);
-    document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
   // Allow CSS variables to settle
@@ -46,7 +45,7 @@ async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
 let token: string;
 let wsSlug: string;
 
-const themes = ["glass", "light", "aurora"] as const;
+const themes = ["dark", "light"] as const;
 
 test.describe("Web App Screenshots", () => {
   test.use({ viewport: { width: 1280, height: 800 } });

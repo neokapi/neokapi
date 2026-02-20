@@ -3,13 +3,12 @@
 # Matches test names to video filenames.
 #
 # Usage:
-#   THEME=glass  ./copy-recordings.sh   # copy to website/static/video/web-app/glass/
+#   THEME=dark   ./copy-recordings.sh   # copy to website/static/video/web-app/dark/
 #   THEME=light  ./copy-recordings.sh   # copy to website/static/video/web-app/light/
-#   THEME=aurora ./copy-recordings.sh   # copy to website/static/video/web-app/aurora/
-#   ./copy-recordings.sh                # copy to website/static/video/web-app/glass/ (default)
+#   ./copy-recordings.sh                # copy to website/static/video/web-app/dark/ (default)
 set -euo pipefail
 
-THEME="${THEME:-glass}"
+THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RECORDINGS_DIR="$WEB_DIR/recordings-output"
@@ -46,7 +45,7 @@ for dir in "$RECORDINGS_DIR"/*/; do
   name=$(echo "$dirname" | tr '[:upper:]' '[:lower:]')
 
   # Skip directories for other themes
-  for skip_theme in glass light aurora; do
+  for skip_theme in dark light; do
     if [[ "$THEME" != "$skip_theme" && "$name" == *"-${skip_theme}-"* ]]; then continue 2; fi
   done
 

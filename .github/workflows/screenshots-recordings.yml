@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        theme: [glass, light, aurora]
+        theme: [dark, light]
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        theme: [glass, light, aurora]
+        theme: [dark, light]
     steps:
       - uses: actions/checkout@v4
 

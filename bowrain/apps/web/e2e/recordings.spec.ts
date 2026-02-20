@@ -37,11 +37,10 @@ async function injectAuthCookie(page: Page, authToken: string) {
   }]);
 }
 
-async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
+async function setTheme(page: Page, theme: "dark" | "light") {
   await page.evaluate((t) => {
-    const isDark = t !== "light";
+    const isDark = t === "dark";
     document.documentElement.classList.toggle("dark", isDark);
-    document.documentElement.dataset.theme = t;
     localStorage.setItem("gokapi-theme", t);
   }, theme);
   await page.waitForTimeout(100);
@@ -50,7 +49,7 @@ async function setTheme(page: Page, theme: "glass" | "light" | "aurora") {
 let token: string;
 let wsSlug: string;
 
-const themes = ["glass", "light", "aurora"] as const;
+const themes = ["dark", "light"] as const;
 
 test.describe("Web App Recordings", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -62,7 +61,7 @@ test.describe("Web App Recordings", () => {
     wsSlug = ws.slug;
   });
 
-  async function setupRecording(page: Page, theme: "glass" | "light" | "aurora") {
+  async function setupRecording(page: Page, theme: "dark" | "light") {
     await injectAuthCookie(page, token);
     await page.goto("/");
     // Wait for app to fully load (sidebar nav should be visible)

@@ -1,7 +1,7 @@
 import { cn } from "../lib/utils";
 import type { Workspace } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Sparkles } from "./icons";
+import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Monitor } from "./icons";
 
 export type View = "translate" | "termbase" | "memory" | "settings";
 
@@ -157,16 +157,16 @@ export function MainSidebar<V extends string = View>({
   );
 }
 
-const nextTheme: Record<Theme, Theme> = { glass: "light", light: "aurora", aurora: "glass" };
+const nextTheme: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
 const themeIcons: Record<Theme, React.ReactNode> = {
-  glass: <Moon className="w-4 h-4" />,
   light: <Sun className="w-4 h-4" />,
-  aurora: <Sparkles className="w-4 h-4" />,
+  dark: <Moon className="w-4 h-4" />,
+  system: <Monitor className="w-4 h-4" />,
 };
 const themeLabels: Record<Theme, string> = {
-  glass: "Glass",
   light: "Light",
-  aurora: "Aurora",
+  dark: "Dark",
+  system: "System",
 };
 
 function ThemeToggle() {

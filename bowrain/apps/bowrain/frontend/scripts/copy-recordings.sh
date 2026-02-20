@@ -2,16 +2,15 @@
 # Copy Playwright recording videos to docs folder with clean names.
 #
 # Usage:
-#   THEME=glass  ./copy-recordings.sh   # copy to website/static/video/bowrain/glass/
+#   THEME=dark   ./copy-recordings.sh   # copy to website/static/video/bowrain/dark/
 #   THEME=light  ./copy-recordings.sh   # copy to website/static/video/bowrain/light/
-#   THEME=aurora ./copy-recordings.sh   # copy to website/static/video/bowrain/aurora/
-#   ./copy-recordings.sh                # copy to website/static/video/bowrain/glass/ (default)
+#   ./copy-recordings.sh                # copy to website/static/video/bowrain/dark/ (default)
 
 set -uo pipefail
 # Temporarily disabled -e to debug CI issues
 # set -euo pipefail
 
-THEME="${THEME:-glass}"
+THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$(dirname "$SCRIPT_DIR")"
 RECORDINGS_DIR="$FRONTEND_DIR/recordings-output"
@@ -58,7 +57,7 @@ for dir in "$RECORDINGS_DIR"/*/; do
 
   # Skip directories for other themes
   skip_dir=0
-  for skip_theme in glass light aurora; do
+  for skip_theme in dark light; do
     if [[ "$THEME" != "$skip_theme" && "$dir_lower" == *"-${skip_theme}-"* ]]; then
       skip_dir=1
       break

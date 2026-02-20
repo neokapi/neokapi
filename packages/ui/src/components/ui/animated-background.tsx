@@ -12,7 +12,7 @@ export interface AnimatedBackgroundProps {
  */
 export function AnimatedBackgroundGlass({ className, showCenterOrb }: AnimatedBackgroundProps) {
   const { theme } = useTheme();
-  const shouldShowCenterOrb = showCenterOrb ?? theme === "glass";
+  const shouldShowCenterOrb = showCenterOrb ?? theme === "dark";
 
   return (
     <div

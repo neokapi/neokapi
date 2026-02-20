@@ -39,45 +39,8 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Glass theme (default) — dark navy with purple accents, glassmorphism effects */
-:root,
-[data-theme="glass"] {
-  --background: 222 47% 11%;
-  --foreground: 210 40% 98%;
-  --card: 222 84% 5% / 0.6;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 84% 5% / 0.6;
-  --popover-foreground: 210 40% 98%;
-  --primary: 271 91% 65%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17% / 0.5;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17% / 0.5;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17% / 0.5;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 0 0% 100% / 0.12;
-  --input: 0 0% 100% / 0.12;
-  --ring: 263 70% 50%;
-  --success: 158 64% 52%;
-  --warning: 43 96% 56%;
-
-  --sidebar-background: 222 47% 9% / 0.8;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 271 91% 65%;
-  --sidebar-primary-foreground: 210 40% 98%;
-  --sidebar-accent: 217 33% 20% / 0.5;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 0 0% 100% / 0.1;
-  --sidebar-ring: 263 70% 50%;
-
-  --radius: 1rem;
-}
-
-/* Light theme — clean white with violet accents */
-[data-theme="light"] {
+/* Light theme (default) — clean white with violet accents */
+:root {
   --background: 0 0% 100%;
   --foreground: 222 47% 11%;
   --card: 0 0% 100%;
@@ -108,10 +71,12 @@
   --sidebar-accent-foreground: 222 47% 11%;
   --sidebar-border: 214 32% 91%;
   --sidebar-ring: 263 70% 50%;
+
+  --radius: 1rem;
 }
 
-/* Aurora theme — dark gradient with violet/purple glow effects */
-[data-theme="aurora"] {
+/* Dark theme — deep navy with violet/purple glow effects */
+.dark {
   --background: 222 84% 5%;
   --foreground: 210 40% 98%;
   --card: 222 47% 11% / 0.5;
