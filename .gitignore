@@ -57,6 +57,11 @@ playwright-report/
 # Docusaurus
 website/build/
 website/.docusaurus/
+
+# Generated documentation assets (fetched from docs-assets release in CI)
+website/static/img/bowrain/
+website/static/img/web-app/
+website/static/video/
 bowrain/apps/bowrain/frontend/recordings-output/
 website/tapes/output/
 website/tapes/out/

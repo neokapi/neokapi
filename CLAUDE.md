@@ -287,14 +287,22 @@ make cli-recordings              # runs tapes + copies to website/static/video/c
 make docs-assets                 # screenshots + recordings + cli-recordings
 ```
 
+**Fetching pre-built assets (no local regeneration needed):**
+```bash
+make fetch-docs-assets           # downloads tarball from docs-assets GitHub release
+```
+
 **In CI:**
 ```bash
 # Automated via GitHub Actions (.github/workflows/screenshots-recordings.yml)
-# - On-demand: workflow_dispatch (can optionally commit assets)
-# - On release: automatically triggered by version tags (commits assets)
-# - Nightly: scheduled at 2 AM UTC (uploads artifacts only)
+# - On-demand: workflow_dispatch
+# - On release: automatically triggered by version tags
+# - Nightly: scheduled at 2 AM UTC
 #
-# All three systems (Bowrain, Web app, CLI) run in parallel jobs
+# All three systems (Bowrain, Web app, CLI) run in parallel jobs.
+# A publish-assets job creates a tarball and uploads it to the "docs-assets"
+# GitHub release. The docs deploy workflow fetches this tarball before building.
+# Assets are NOT stored in git.
 ```
 
 ### Real systems, not mocks

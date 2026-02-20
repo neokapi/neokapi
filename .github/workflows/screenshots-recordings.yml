@@ -2,12 +2,6 @@ name: Screenshots & Recordings
 
 on:
   workflow_dispatch:
-    inputs:
-      commit_assets:
-        description: 'Commit generated assets back to repo'
-        required: false
-        default: 'false'
-        type: boolean
   schedule:
     # Nightly at 2 AM UTC
     - cron: '0 2 * * *'
@@ -16,7 +10,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: write  # Needed to commit assets back to repo
+  contents: write  # Needed to create/update releases
 
 jobs:
   # ── Bowrain Screenshots & Recordings (self-contained) ───────────────────────
@@ -266,12 +260,11 @@ jobs:
           path: website/static/video/cli/
           retention-days: 30
 
-  # ── Asset Size Tracking ────────────────────────────────────────────────────
-  track-asset-sizes:
-    name: Track Asset Sizes
+  # ── Publish Assets to Release ──────────────────────────────────────────────
+  publish-assets:
+    name: Publish Assets to Release
     runs-on: ubuntu-latest
     needs: [bowrain-assets, web-app-assets, cli-recordings]
-    if: always()
     steps:
       - uses: actions/checkout@v4
 
@@ -295,124 +288,43 @@ jobs:
           path: downloaded-assets/cli
           name: cli-assets
 
-      - name: Calculate asset sizes
-        id: sizes
+      - name: Assemble tarball
         run: |
-          echo "## 📊 Documentation Asset Sizes" > size-report.md
-          echo "" >> size-report.md
-          echo "Generated: $(date -u +"%Y-%m-%d %H:%M UTC")" >> size-report.md
-          echo "" >> size-report.md
+          mkdir -p assembled/img assembled/video
 
-          # Bowrain
-          if [ -d "downloaded-assets/bowrain" ]; then
-            bowrain_size=$(du -sh downloaded-assets/bowrain | cut -f1)
-            bowrain_img=$(du -sh downloaded-assets/bowrain/img/bowrain 2>/dev/null | cut -f1 || echo "N/A")
-            bowrain_vid=$(du -sh downloaded-assets/bowrain/video/bowrain 2>/dev/null | cut -f1 || echo "N/A")
-            echo "### Bowrain" >> size-report.md
-            echo "- Total: **$bowrain_size**" >> size-report.md
-            echo "- Screenshots: $bowrain_img" >> size-report.md
-            echo "- Recordings: $bowrain_vid" >> size-report.md
-            echo "" >> size-report.md
-          fi
+          # Bowrain screenshots + recordings
+          cp -r downloaded-assets/bowrain/img/bowrain assembled/img/ 2>/dev/null || true
+          cp -r downloaded-assets/bowrain/video/bowrain assembled/video/ 2>/dev/null || true
 
-          # Web app
-          if [ -d "downloaded-assets/web-app" ]; then
-            webapp_size=$(du -sh downloaded-assets/web-app | cut -f1)
-            webapp_img=$(du -sh downloaded-assets/web-app/img/web-app 2>/dev/null | cut -f1 || echo "N/A")
-            webapp_vid=$(du -sh downloaded-assets/web-app/video/web-app 2>/dev/null | cut -f1 || echo "N/A")
-            echo "### Web App" >> size-report.md
-            echo "- Total: **$webapp_size**" >> size-report.md
-            echo "- Screenshots: $webapp_img" >> size-report.md
-            echo "- Recordings: $webapp_vid" >> size-report.md
-            echo "" >> size-report.md
-          fi
+          # Web app screenshots + recordings
+          cp -r downloaded-assets/web-app/img/web-app assembled/img/ 2>/dev/null || true
+          cp -r downloaded-assets/web-app/video/web-app assembled/video/ 2>/dev/null || true
 
-          # CLI
-          if [ -d "downloaded-assets/cli" ]; then
-            cli_size=$(du -sh downloaded-assets/cli | cut -f1)
-            echo "### CLI Recordings" >> size-report.md
-            echo "- Total: **$cli_size**" >> size-report.md
-            echo "" >> size-report.md
-          fi
+          # CLI recordings
+          mkdir -p assembled/video/cli
+          cp downloaded-assets/cli/* assembled/video/cli/ 2>/dev/null || true
 
-          # Grand total
-          total_size=$(du -sh downloaded-assets | cut -f1)
-          echo "### Grand Total" >> size-report.md
-          echo "**$total_size**" >> size-report.md
-
-          cat size-report.md
-
-      - name: Upload size report
-        uses: actions/upload-artifact@v4
-        with:
-          name: asset-size-report
-          path: size-report.md
-          retention-days: 90
-
-  # ── Commit Assets (for releases and manual triggers) ───────────────────────
-  commit-assets:
-    name: Commit Assets to Repo
-    runs-on: ubuntu-latest
-    needs: [bowrain-assets, web-app-assets, cli-recordings]
-    if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.commit_assets)
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download Bowrain assets
-        uses: actions/download-artifact@v4
-        with:
-          path: downloaded-assets/bowrain
-          pattern: bowrain-assets-*
-          merge-multiple: true
-
-      - name: Download Web App assets
-        uses: actions/download-artifact@v4
-        with:
-          path: downloaded-assets/web-app
-          pattern: web-app-assets-*
-          merge-multiple: true
-
-      - name: Download CLI assets
-        uses: actions/download-artifact@v4
-        with:
-          path: downloaded-assets/cli
-          name: cli-assets
-
-      - name: Copy assets to website/static
-        run: |
-          # Bowrain (merged artifacts contain img/bowrain/{theme}/ and video/bowrain/{theme}/)
-          cp -r downloaded-assets/bowrain/* website/static/ 2>/dev/null || true
-
-          # Web app (merged artifacts contain img/web-app/{theme}/ and video/web-app/{theme}/)
-          cp -r downloaded-assets/web-app/* website/static/ 2>/dev/null || true
-
-          # CLI
-          mkdir -p website/static/video/cli
-          cp downloaded-assets/cli/* website/static/video/cli/ || true
-
-      - name: Report asset sizes
-        run: |
-          echo "## Asset sizes being committed:"
-          du -sh website/static/img/bowrain || true
-          du -sh website/static/video/bowrain || true
-          du -sh website/static/img/web-app || true
-          du -sh website/static/video/web-app || true
-          du -sh website/static/video/cli || true
-          echo ""
+          echo "## Asset sizes:"
+          du -sh assembled/img assembled/video
           echo "Total:"
-          du -sh website/static/img website/static/video
+          du -sh assembled
 
-      - name: Commit and push assets
+          cd assembled
+          tar czf ../docs-assets.tar.gz .
+
+          ls -lh ../docs-assets.tar.gz
+
+      - name: Upload to docs-assets release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add website/static/img/ website/static/video/
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "docs: regenerate screenshots and recordings"
-            git push
+          # Create the release if it doesn't exist
+          if ! gh release view docs-assets > /dev/null 2>&1; then
+            gh release create docs-assets \
+              --title "Documentation Assets" \
+              --notes "Auto-generated screenshots, recordings, and CLI demos for the documentation site. Updated by CI on every run." \
+              --latest=false
           fi
+
+          # Upload tarball (overwrite existing)
+          gh release upload docs-assets docs-assets.tar.gz --clobber

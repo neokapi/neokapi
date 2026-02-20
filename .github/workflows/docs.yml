@@ -26,6 +26,20 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: website/package-lock.json
+
+      - name: Fetch documentation assets from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view docs-assets > /dev/null 2>&1; then
+            gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp
+            tar xzf /tmp/docs-assets.tar.gz -C website/static
+            echo "Fetched docs assets:"
+            du -sh website/static/img website/static/video 2>/dev/null || true
+          else
+            echo "Warning: docs-assets release not found, building without screenshots/recordings"
+          fi
+
       - run: npm ci
         working-directory: website
       - run: npm run build

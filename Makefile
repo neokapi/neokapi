@@ -48,7 +48,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
         docker-build docker-push \
-        screenshots recordings cli-recordings docs-assets \
+        screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
 # Default target
@@ -160,6 +160,15 @@ cli-recordings: build ## Generate CLI demo videos using VHS
 	./website/tapes/generate.sh
 
 docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
+
+fetch-docs-assets: ## Download pre-built docs assets from the docs-assets GitHub release
+	@echo "Fetching docs assets from GitHub release..."
+	@gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp --clobber
+	@mkdir -p website/static
+	@tar xzf /tmp/docs-assets.tar.gz -C website/static
+	@rm -f /tmp/docs-assets.tar.gz
+	@echo "Done. Assets extracted to website/static/"
+	@du -sh website/static/img website/static/video 2>/dev/null || true
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
