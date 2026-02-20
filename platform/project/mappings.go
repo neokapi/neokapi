@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // ResolveRemotePath resolves a local path to a remote path using mappings.
@@ -18,7 +20,7 @@ func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format
 	// Try each mapping in order
 	for _, m := range p.Config.Mappings {
 		// Check if local path matches the glob pattern
-		matched, err := filepath.Match(m.Local, relPath)
+		matched, err := doublestar.Match(m.Local, relPath)
 		if err != nil {
 			continue
 		}

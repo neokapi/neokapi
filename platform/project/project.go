@@ -145,6 +145,9 @@ type Config struct {
 	// File mappings
 	Mappings []Mapping `yaml:"mappings,omitempty"`
 
+	// Exclude patterns — files matching these are skipped during scanning
+	Exclude []string `yaml:"exclude,omitempty"`
+
 	// Flow hooks
 	Hooks map[string][]string `yaml:"hooks,omitempty"`
 

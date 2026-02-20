@@ -487,6 +487,43 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	assert.Equal(t, "src/messages.fr.json", conn.resolveTargetPath("src/messages.json", "fr"))
 }
 
+func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
+	mock := &mockSyncHandler{}
+	proj, formatReg := setupTestProject(t, mock)
+
+	// Add a second JSON file in a "legacy" subdirectory.
+	legacyDir := filepath.Join(proj.Root, "src", "locales", "legacy")
+	require.NoError(t, os.MkdirAll(legacyDir, 0755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(legacyDir, "old.json"),
+		[]byte(`{"obsolete":"Remove me"}`),
+		0644,
+	))
+
+	// Change mapping to a recursive glob, add an exclude.
+	proj.Config.Mappings = []Mapping{
+		{Local: "src/locales/**/*.json", Format: "json"},
+	}
+	proj.Config.Exclude = []string{"src/locales/legacy/*.json"}
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	ctx := context.Background()
+
+	// Push should only see the non-excluded file.
+	result, err := conn.Push(ctx, connector.PushOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.FilesScanned, "excluded legacy file should not be scanned")
+	assert.Equal(t, 2, result.BlocksPushed, "only blocks from en.json")
+
+	// Verify no blocks came from the excluded file.
+	for _, bi := range mock.pushBlocks {
+		assert.NotContains(t, bi.ItemName, "legacy", "excluded file should not produce blocks")
+	}
+}
+
 func TestSourceConnector_InterfaceCompliance(t *testing.T) {
 	// Compile-time check that KapiSourceConnector implements SourceConnector.
 	var _ connector.SourceConnector = (*KapiSourceConnector)(nil)

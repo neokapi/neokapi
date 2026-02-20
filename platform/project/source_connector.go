@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
 	apiclient "github.com/gokapi/gokapi/platform/client"
@@ -361,11 +362,13 @@ func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []strin
 	// If no specific paths, use mappings to discover files.
 	if len(paths) == 0 {
 		for _, m := range c.project.Config.Mappings {
-			matched, err := filepath.Glob(filepath.Join(c.project.Root, m.Local))
+			relPaths, err := ExpandGlob(c.project.Root, m.Local, c.project.Config.Exclude...)
 			if err != nil {
 				continue
 			}
-			paths = append(paths, matched...)
+			for _, rp := range relPaths {
+				paths = append(paths, filepath.Join(c.project.Root, rp))
+			}
 		}
 	}
 
@@ -415,7 +418,7 @@ func (c *KapiSourceConnector) detectFormat(absPath string) string {
 
 	// Check mappings first.
 	for _, m := range c.project.Config.Mappings {
-		matched, err := filepath.Match(m.Local, relPath)
+		matched, err := doublestar.Match(m.Local, relPath)
 		if err == nil && matched && m.Format != "" {
 			return m.Format
 		}
@@ -480,7 +483,7 @@ func (c *KapiSourceConnector) resolveTargetPath(itemName, locale string) string 
 
 	// Check if any mapping has a target_path template.
 	for _, m := range c.project.Config.Mappings {
-		matched, err := filepath.Match(m.Local, relPath)
+		matched, err := doublestar.Match(m.Local, relPath)
 		if err == nil && matched && m.TargetPath != "" {
 			return strings.ReplaceAll(m.TargetPath, "{locale}", locale)
 		}

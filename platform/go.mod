@@ -3,6 +3,7 @@ module github.com/gokapi/gokapi/platform
 go 1.26.0
 
 require (
+	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/gokapi/gokapi v0.0.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/spf13/viper v1.21.0
