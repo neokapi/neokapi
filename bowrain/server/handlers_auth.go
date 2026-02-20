@@ -582,6 +582,11 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 // handleDeviceVerification matches a user_code to a pending device and either
 // redirects the browser through OIDC (when configured) or falls back to direct
 // authorization (for local dev / testing without an OIDC provider).
+//
+// When the request includes explicit email (and optional name) form values,
+// direct authorization is used regardless of OIDC configuration. This allows
+// programmatic clients (E2E tests, CLI helpers) to complete the device flow
+// without driving a full browser-based OIDC login.
 func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error {
 	// Find the matching device code entry.
 	deviceCodes.Lock()
@@ -596,6 +601,12 @@ func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error
 
 	if matchedCode == "" {
 		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
+	}
+
+	// If explicit email is provided (programmatic/test request), use direct
+	// verification — the caller already knows the user identity.
+	if email := c.FormValue("email"); email != "" {
+		return s.handleDeviceVerificationDirect(c, matchedCode)
 	}
 
 	// If OIDC is configured, redirect through the identity provider.
