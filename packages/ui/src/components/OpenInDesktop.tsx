@@ -19,8 +19,7 @@ function detectOS(): "Mac" | "Windows" | "Linux" | "unknown" {
 }
 
 function buildDeepLink(projectId: string, serverURL: string, workspaceSlug: string): string {
-  const webURL = `${serverURL}/ws/${workspaceSlug}/projects/${projectId}`;
-  return `bowrain:${webURL}`;
+  return `bowrain://project/${projectId}?server=${encodeURIComponent(serverURL)}&workspace=${encodeURIComponent(workspaceSlug)}`;
 }
 
 export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDesktopProps) {
