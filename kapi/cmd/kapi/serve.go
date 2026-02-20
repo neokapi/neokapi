@@ -22,11 +22,10 @@ var (
 
 var serveCmd = &cobra.Command{
 	Use:   "serve [project-dir]",
-	Short: "Start a local project dashboard",
-	Long: `Start a lightweight web server for viewing a local kapi project.
+	Short: "Open a local dashboard",
+	Long: `Open a local web dashboard for this project.
 
-Serves a simple project info dashboard on localhost. If no argument is given,
-the current directory is used.`,
+If no directory is given, the current directory is used.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		projectPath := "."

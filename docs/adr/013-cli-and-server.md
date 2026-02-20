@@ -437,6 +437,6 @@ The CLI is designed for non-interactive use in CI/CD pipelines:
 
 - The CLI command structure reflects the new architecture: project-centric, sync-focused, file-based.
 
-- Server logic is shared between `bowrain-server` (multi-user) and `kapi serve` (local) via `ServerConfig.LocalMode` flag.
+- Server auth behavior is determined by `ServerConfig.JWTSecret`: when set, the server enables authentication, OIDC login, and workspace management; when empty, routes are registered without auth middleware.
 
 - Kapi positions itself as **the file connector** for Bowrain Server — it handles files, the server handles integrations ([ADR-005](./005-connector-system.md)).

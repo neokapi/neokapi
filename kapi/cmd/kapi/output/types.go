@@ -86,6 +86,8 @@ func (v VersionOutput) FormatText(w io.Writer) error {
 type StatusOutput struct {
 	Project     ProjectInfo `json:"project"`
 	ItemCount   int         `json:"item_count"`
+	FileCount   int         `json:"file_count"`
+	WordCount   int         `json:"word_count"`
 	PendingPush int         `json:"pending_push"`
 	PendingPull int         `json:"pending_pull"`
 	LastSync    *time.Time  `json:"last_sync,omitempty"`
@@ -105,12 +107,12 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Config:       %s\n", s.Project.ConfigDir)
 
 	if s.Project.Server == "" {
-		fmt.Fprintln(w, "\nSync status requires a Bowrain server connection.")
-		fmt.Fprintf(w, "  Configure server in %s/config.yaml\n", s.Project.ConfigDir)
+		fmt.Fprintln(w, "\nNot connected to a server.")
+		fmt.Fprintln(w, "  Run 'kapi init' with a server or set one in .kapi/config.yaml")
 		return nil
 	}
 
-	fmt.Fprintf(w, "\nLocal blocks: %d\n", s.ItemCount)
+	fmt.Fprintf(w, "\nLocal: %d files, %d blocks (%d words)\n", s.FileCount, s.ItemCount, s.WordCount)
 
 	if s.PendingPush > 0 {
 		fmt.Fprintf(w, "Pending push: %d blocks changed locally\n", s.PendingPush)
@@ -118,7 +120,7 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 	if s.PendingPull > 0 {
 		fmt.Fprintf(w, "Pending pull: %d remote changes available\n", s.PendingPull)
 	} else if s.PendingPull < 0 {
-		fmt.Fprintln(w, "Pending pull: remote changes available (count unknown)")
+		fmt.Fprintln(w, "Pending pull: remote changes available")
 	}
 	if s.UpToDate {
 		fmt.Fprintln(w, "Up to date.")
@@ -383,5 +385,88 @@ func (o InitOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "  4. Run: kapi pull to sync translations")
 	}
 
+	return nil
+}
+
+// LsEntry represents a single file in the ls output.
+type LsEntry struct {
+	Path   string `json:"path"`
+	Format string `json:"format"`
+	Blocks int    `json:"blocks,omitempty"`
+	Words  int    `json:"words,omitempty"`
+	Dirty  int    `json:"dirty,omitempty"`
+}
+
+// LsOutput represents the result of kapi ls.
+type LsOutput struct {
+	Files    []LsEntry `json:"files"`
+	Total    int       `json:"total"`
+	Blocks   int       `json:"blocks,omitempty"`
+	Words    int       `json:"words,omitempty"`
+	Changed  int       `json:"changed,omitempty"`
+	HasStats bool      `json:"-"`
+	HasDirty bool      `json:"-"`
+}
+
+func (o LsOutput) FormatText(w io.Writer) error {
+	if len(o.Files) == 0 {
+		fmt.Fprintln(w, "No tracked files.")
+		return nil
+	}
+
+	if o.HasStats || o.HasDirty {
+		// Compute column widths.
+		pathW := 4 // "PATH"
+		fmtW := 6  // "FORMAT"
+		for _, f := range o.Files {
+			if len(f.Path) > pathW {
+				pathW = len(f.Path)
+			}
+			if len(f.Format) > fmtW {
+				fmtW = len(f.Format)
+			}
+		}
+		pathW += 2
+		fmtW += 2
+
+		// Header.
+		header := fmt.Sprintf("  %-*s %-*s %8s %8s", pathW, "PATH", fmtW, "FORMAT", "BLOCKS", "WORDS")
+		separator := fmt.Sprintf("  %-*s %-*s %8s %8s", pathW, "----", fmtW, "------", "------", "-----")
+		if o.HasDirty {
+			header += fmt.Sprintf(" %8s", "DIRTY")
+			separator += fmt.Sprintf(" %8s", "-----")
+		}
+		fmt.Fprintln(w, header)
+		fmt.Fprintln(w, separator)
+
+		for _, f := range o.Files {
+			line := fmt.Sprintf("  %-*s %-*s %8d %8d", pathW, f.Path, fmtW, f.Format, f.Blocks, f.Words)
+			if o.HasDirty {
+				line += fmt.Sprintf(" %8d", f.Dirty)
+			}
+			fmt.Fprintln(w, line)
+		}
+
+		// Summary.
+		summary := fmt.Sprintf("\n%d file(s), %d blocks, %d words", o.Total, o.Blocks, o.Words)
+		if o.HasDirty {
+			summary += fmt.Sprintf(", %d changed", o.Changed)
+		}
+		fmt.Fprintln(w, summary)
+	} else {
+		// Simple two-column output.
+		pathW := 4
+		for _, f := range o.Files {
+			if len(f.Path) > pathW {
+				pathW = len(f.Path)
+			}
+		}
+		pathW += 2
+
+		for _, f := range o.Files {
+			fmt.Fprintf(w, "%-*s %s\n", pathW, f.Path, f.Format)
+		}
+		fmt.Fprintf(w, "\n%d file(s)\n", o.Total)
+	}
 	return nil
 }

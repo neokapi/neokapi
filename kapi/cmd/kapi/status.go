@@ -10,11 +10,8 @@ import (
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show sync state between local files and Bowrain Server",
-	Long: `Display the sync state showing modified local files, remote changes,
-and conflicts between local and remote versions.
-
-Similar to 'git status' but for localization files.`,
+	Short: "Show project sync status",
+	Long: `Show what has changed locally and on the server since the last sync.`,
 	RunE: runStatus,
 }
 
@@ -46,6 +43,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	out.Project.Server = proj.Config.Server.URL
 	out.Project.ProjectID = proj.Config.Server.ProjectID
 	out.ItemCount = status.ItemCount
+	out.FileCount = status.FileCount
+	out.WordCount = status.WordCount
 	out.PendingPush = status.PendingPush
 	out.PendingPull = status.PendingPull
 	out.UpToDate = status.PendingPush == 0 && status.PendingPull == 0

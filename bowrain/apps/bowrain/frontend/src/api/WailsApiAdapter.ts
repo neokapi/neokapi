@@ -22,7 +22,7 @@ import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/b
 export class WailsApiAdapter implements ApiAdapter {
   // --- Server config ---
   async getConfig(): Promise<ConfigResponse> {
-    return { mode: "local", version: "0.1.0" };
+    return { mode: "standalone", version: "0.1.0" };
   }
 
   // --- Auth (not applicable in desktop) ---

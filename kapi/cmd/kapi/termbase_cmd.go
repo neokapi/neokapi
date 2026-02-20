@@ -14,10 +14,10 @@ import (
 var termbaseCmd = &cobra.Command{
 	Use:   "termbase",
 	Short: "Manage terminology",
-	Long: `Commands for creating, importing, exporting, and querying termbases.
+	Long: `Manage project terminology.
 
-Termbases are concept-oriented terminology databases stored as JSON files.
-Use these commands to manage termbases independently or as part of a translation workflow.
+A termbase is a glossary of approved terms stored as a JSON file.
+Use these commands to import, export, look up, and manage terms.
 
 Examples:
   kapi termbase import --format csv --source-locale en --target-locale fr terms.csv
@@ -360,7 +360,7 @@ func runTermbaseStats(cmd *cobra.Command, args []string) error {
 func init() {
 	// Shared flags for all termbase subcommands.
 	for _, cmd := range []*cobra.Command{tbImportCmd, tbExportCmd, tbLookupCmd, tbSearchCmd, tbStatsCmd} {
-		cmd.Flags().String("db", "termbase.json", "termbase file path")
+		cmd.Flags().String("db", "termbase.json", "path to the termbase file")
 	}
 
 	// Import flags.
@@ -382,7 +382,7 @@ func init() {
 	tbLookupCmd.Flags().String("source-locale", "en", "source locale")
 	tbLookupCmd.Flags().String("target-locale", "", "target locale to show translations")
 	tbLookupCmd.Flags().String("domain", "", "filter by domain")
-	tbLookupCmd.Flags().Bool("fuzzy", false, "enable fuzzy matching")
+	tbLookupCmd.Flags().Bool("fuzzy", false, "also show approximate matches")
 
 	// Search flags.
 	tbSearchCmd.Flags().String("source-locale", "", "filter by source locale")

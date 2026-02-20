@@ -19,8 +19,8 @@ var (
 
 var formatsCmd = &cobra.Command{
 	Use:   "formats",
-	Short: "List available data formats",
-	Long: `List all available data formats with metadata.
+	Short: "List supported file formats",
+	Long: `List all file formats that kapi can read and write.
 
 Use --mime or --ext to filter by MIME type or file extension.
 

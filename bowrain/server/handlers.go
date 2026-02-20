@@ -16,7 +16,7 @@ type HealthResponse struct {
 
 // ConfigResponse reports the server's operating mode.
 type ConfigResponse struct {
-	Mode    string `json:"mode"` // "local" or "server"
+	Mode    string `json:"mode"` // "standalone" or "server"
 	Version string `json:"version"`
 }
 
@@ -49,8 +49,8 @@ func (s *Server) HandleHealth(c echo.Context) error {
 // HandleConfig returns the server configuration mode.
 func (s *Server) HandleConfig(c echo.Context) error {
 	mode := "server"
-	if s.Config.LocalMode {
-		mode = "local"
+	if s.Config.JWTSecret == "" {
+		mode = "standalone"
 	}
 	return c.JSON(http.StatusOK, ConfigResponse{
 		Mode:    mode,

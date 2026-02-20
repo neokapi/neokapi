@@ -45,6 +45,8 @@ type SyncStatus struct {
 	ConnectorID string
 	LastSync    time.Time
 	ItemCount   int
+	FileCount   int // total local files scanned
+	WordCount   int // total source words across all local blocks
 	PendingPull int // Items changed externally since last pull
 	PendingPush int // Items changed locally since last push
 	Errors      []string
@@ -124,6 +126,7 @@ type PushResult struct {
 	BlocksPushed int
 	FilesScanned int
 	ChunkCount   int
+	WordCount    int // total source words across pushed blocks
 }
 
 // PullResult summarizes the result of a pull operation.

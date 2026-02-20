@@ -81,6 +81,17 @@ func (b *Block) SetTargetFragment(locale LocaleID, frag *Fragment) {
 	b.Targets[locale] = []*Segment{{ID: "s1", Content: frag}}
 }
 
+// WordCount returns the number of words in the source text.
+// Words are sequences of non-whitespace characters. Coded text
+// markers are stripped automatically by SourceText().
+func (b *Block) WordCount() int {
+	text := strings.TrimSpace(b.SourceText())
+	if text == "" {
+		return 0
+	}
+	return len(strings.Fields(text))
+}
+
 // NewBlock creates a new translatable Block with the given ID and source text.
 func NewBlock(id, text string) *Block {
 	return &Block{

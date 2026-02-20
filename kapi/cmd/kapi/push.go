@@ -15,11 +15,10 @@ var (
 
 var pushCmd = &cobra.Command{
 	Use:   "push [paths...]",
-	Short: "Push local changes to Bowrain Server",
-	Long: `Send local file changes to Bowrain Server.
+	Short: "Upload local changes to the server",
+	Long: `Upload local changes to the server.
 
-Only changed blocks are transferred (incremental sync using content hashing).
-Runs pre-push hooks if configured in .kapi/config.yaml (unless --no-hooks).`,
+Only changed blocks are sent. Runs pre-push hooks if configured.`,
 	RunE: runPush,
 }
 
@@ -45,7 +44,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 	}
 
 	if pushDryRun {
-		fmt.Printf("Would push %d blocks (scanned %d files)\n", result.BlocksPushed, result.FilesScanned)
+		fmt.Printf("Would push %d blocks, %d words (scanned %d files)\n", result.BlocksPushed, result.WordCount, result.FilesScanned)
 		return nil
 	}
 
@@ -54,15 +53,12 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Pushed %d blocks (scanned %d files)\n", result.BlocksPushed, result.FilesScanned)
-	if result.ChunkCount > 1 {
-		fmt.Printf("  (sent in %d batches)\n", result.ChunkCount)
-	}
+	fmt.Printf("Pushed %d blocks, %d words (scanned %d files)\n", result.BlocksPushed, result.WordCount, result.FilesScanned)
 	return nil
 }
 
 func init() {
-	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Push all blocks, ignoring sync cache")
-	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Report what would be pushed without sending")
+	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Re-upload everything, even unchanged blocks")
+	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
 	rootCmd.AddCommand(pushCmd)
 }

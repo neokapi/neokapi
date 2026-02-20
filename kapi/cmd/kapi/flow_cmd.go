@@ -22,12 +22,12 @@ import (
 
 var flowCmd = &cobra.Command{
 	Use:   "flow",
-	Short: "Manage and execute flows",
+	Short: "Run processing flows",
 }
 
 var flowRunCmd = &cobra.Command{
 	Use:   "run [flow-name]",
-	Short: "Execute a flow from .kapi/flows/",
+	Short: "Run a flow",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		flowName := args[0]
@@ -290,10 +290,10 @@ func init() {
 	addProcessingFlags(flowRunCmd)
 	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
 	flowRunCmd.Flags().StringP("output", "o", "", "output file path (single-file mode only)")
-	flowRunCmd.Flags().IntP("concurrency", "j", 0, "max parallel documents (0 = auto, 1 = sequential)")
-	flowRunCmd.Flags().String("provider", "anthropic", "LLM provider (anthropic, openai, ollama)")
-	flowRunCmd.Flags().String("api-key", "", "API key for LLM provider")
-	flowRunCmd.Flags().String("model", "", "LLM model name")
+	flowRunCmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+	flowRunCmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	flowRunCmd.Flags().String("api-key", "", "API key for the AI provider")
+	flowRunCmd.Flags().String("model", "", "AI model name")
 
 	flowCmd.AddCommand(flowRunCmd)
 	flowCmd.AddCommand(flowListCmd)

@@ -78,7 +78,7 @@ export interface ProjectItem {
 
 /** Server config response */
 export interface ConfigResponse {
-  mode: "local" | "server";
+  mode: "standalone" | "server";
   version: string;
 }
 

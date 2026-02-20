@@ -46,8 +46,9 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 			SourceLocale: "en",
 		},
 		Server: &ServerConfig{
-			URL:       srv.URL,
-			ProjectID: "proj-123",
+			URL:        srv.URL,
+			ProjectID:  "proj-123",
+			ClaimToken: "test-token",
 		},
 		Mappings: []Mapping{
 			{Local: "src/locales/*.json", Format: "json"},

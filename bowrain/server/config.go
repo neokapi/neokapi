@@ -1,9 +1,11 @@
 // Package server provides the REST and gRPC API server for Bowrain.
-// It is imported by both cmd/bowrain-server (multi-user deployment)
-// and cmd/kapi serve (local single-project mode).
 package server
 
 // ServerConfig holds configuration for the REST API server.
+//
+// Auth behavior is determined by JWTSecret: when set, the server enables
+// authentication, OIDC login, and workspace management. When empty (e.g.
+// in tests), routes are registered without auth middleware.
 type ServerConfig struct {
 	// Port is the HTTP port to listen on.
 	Port int
@@ -32,10 +34,6 @@ type ServerConfig struct {
 	// WebUIDir is the path to built web UI static files.
 	// If set, the server serves static files for the web UI.
 	WebUIDir string
-
-	// LocalMode indicates the server is running in local single-project mode
-	// (kapi serve) with no authentication required.
-	LocalMode bool
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.
@@ -43,14 +41,5 @@ func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
 		Port: 8080,
 		Host: "0.0.0.0",
-	}
-}
-
-// LocalServerConfig returns a ServerConfig for local single-project mode.
-func LocalServerConfig() ServerConfig {
-	return ServerConfig{
-		Port:      3000,
-		Host:      "127.0.0.1",
-		LocalMode: true,
 	}
 }

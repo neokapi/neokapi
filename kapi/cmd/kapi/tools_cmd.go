@@ -9,7 +9,7 @@ import (
 
 var toolsCmd = &cobra.Command{
 	Use:   "tools",
-	Short: "List available tools",
+	Short: "List available processing tools",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var tools []output.ToolInfo
 

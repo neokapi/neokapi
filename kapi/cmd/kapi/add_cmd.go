@@ -13,10 +13,10 @@ var addFormat string
 
 var addCmd = &cobra.Command{
 	Use:   "add <pattern> [pattern...]",
-	Short: "Track source file patterns",
-	Long: `Add source file patterns to the project mappings in .kapi/config.yaml.
+	Short: "Add files to the project",
+	Long: `Add file patterns to this project so kapi knows which files to process.
 
-Patterns support ** for recursive directory matching (e.g. "src/**/*.html").
+Patterns support ** for recursive matching.
 
 Examples:
   kapi add "src/**/*.html"
@@ -86,6 +86,6 @@ Examples:
 }
 
 func init() {
-	addCmd.Flags().StringVarP(&addFormat, "format", "f", "", "override format detection (e.g. html, json)")
+	addCmd.Flags().StringVarP(&addFormat, "format", "f", "", "file format (e.g. html, json); auto-detected if omitted")
 	rootCmd.AddCommand(addCmd)
 }

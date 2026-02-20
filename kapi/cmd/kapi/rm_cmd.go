@@ -10,13 +10,11 @@ import (
 
 var rmCmd = &cobra.Command{
 	Use:   "rm <pattern> [pattern...]",
-	Short: "Remove or exclude source file patterns",
-	Long: `Remove source file patterns from the project mappings, or add them to the
-exclude list in .kapi/config.yaml.
+	Short: "Remove files from the project",
+	Long: `Stop tracking files that match the given patterns.
 
-If the pattern exactly matches an existing mapping, the mapping is removed.
-Otherwise the pattern is added to the exclude list so matching files are
-skipped during scanning.
+If the pattern matches one you added with 'kapi add', it is removed entirely.
+Otherwise the pattern is added to the exclude list so those files are skipped.
 
 Examples:
   kapi rm "src/**/*.html"          # removes the mapping

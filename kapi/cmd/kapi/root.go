@@ -28,13 +28,10 @@ var (
 
 var rootCmd = &cobra.Command{
 	Use:          "kapi",
-	Short:        "kapi is a localization and translation toolkit",
+	Short:        "A localization and translation toolkit",
 	SilenceUsage: true,
-	Long: `kapi is a powerful localization toolkit that provides format conversion,
-content extraction, translation, and quality assurance for multilingual content.
-
-It supports a wide range of document formats and provides AI-powered
-translation and quality checking capabilities.`,
+	Long: `kapi helps you manage multilingual content — convert document formats,
+translate with AI, and run quality checks across a wide range of file types.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		formatReg = registry.NewFormatRegistry()
 		formats.RegisterAll(formatReg)
@@ -77,11 +74,11 @@ translation and quality checking capabilities.`,
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default: gokapi.yaml)")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file path")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.PersistentFlags().BoolVarP(&quiet, "quiet", "q", false, "suppress output")
 	rootCmd.PersistentFlags().StringVar(&pluginDir, "plugin-dir", "",
-		"plugin directory (default: $HOME/.kapi/plugins, env: KAPI_PLUGIN_DIR)")
+		"plugin directory")
 
 	// Output format flags (--json, --text, --output-format)
 	output.AddPersistentFlags(rootCmd)
@@ -92,7 +89,7 @@ func init() {
 // that process files (flow run, tool commands).
 func addProcessingFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&formatFlag, "format", "f", "", "override input format detection")
-	cmd.Flags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input encoding")
-	cmd.Flags().StringVar(&sourceLang, "source-lang", "en", "source language (BCP 47)")
-	cmd.Flags().StringVar(&targetLang, "target-lang", "", "target language (BCP 47)")
+	cmd.Flags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input file encoding")
+	cmd.Flags().StringVar(&sourceLang, "source-lang", "en", "source language (e.g. en, en-US)")
+	cmd.Flags().StringVar(&targetLang, "target-lang", "", "target language (e.g. fr, de-DE)")
 }

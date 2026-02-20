@@ -25,14 +25,14 @@ var authServerURL string
 
 var authCmd = &cobra.Command{
 	Use:   "auth",
-	Short: "Authenticate with Bowrain Server",
-	Long:  "Manage authentication tokens for accessing a remote Bowrain Server.",
+	Short: "Log in to the server",
+	Long:  "Log in, log out, or check your authentication status.",
 }
 
 var authLoginCmd = &cobra.Command{
 	Use:   "login",
-	Short: "Log in via OAuth device flow",
-	Long: `Start a device authorization flow to authenticate with Bowrain Server.
+	Short: "Log in to the server",
+	Long: `Log in to a Bowrain server. Opens a browser for authentication.
 
 Server URL is resolved from (first match wins):
   1. --server flag
@@ -101,7 +101,7 @@ func performLogin(serverURL string) (*StoredAuth, error) {
 
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
-	Short: "Remove stored authentication token",
+	Short: "Log out",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		path := authFilePath()
 		if err := os.Remove(path); err != nil {
@@ -118,7 +118,7 @@ var authLogoutCmd = &cobra.Command{
 
 var authStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show current authentication status",
+	Short: "Show login status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
@@ -148,11 +148,11 @@ var authStatusCmd = &cobra.Command{
 
 var authClaimCmd = &cobra.Command{
 	Use:   "claim [claim-token]",
-	Short: "Claim an anonymous project into your workspace",
-	Long: `Claim an anonymous project by providing a claim token.
+	Short: "Claim a project into your workspace",
+	Long: `Take ownership of a project by providing a claim token.
 
-If no token argument is given, reads the claim_token from .kapi/config.yaml.
-Requires authentication (run: kapi auth login first).`,
+If no token is given, it is read from .kapi/config.yaml.
+Requires authentication (run 'kapi auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
@@ -220,7 +220,7 @@ Requires authentication (run: kapi auth login first).`,
 }
 
 func init() {
-	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "Bowrain Server URL (e.g., http://localhost:8080)")
+	authLoginCmd.Flags().StringVar(&authServerURL, "server", "", "server URL")
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authLogoutCmd)
 	authCmd.AddCommand(authStatusCmd)

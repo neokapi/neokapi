@@ -60,8 +60,7 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 		}
 
 		// Count source words.
-		sourceText := block.SourceText()
-		sourceCount := countWords(sourceText)
+		sourceCount := block.WordCount()
 		block.Properties[PropWordCountSource] = strconv.Itoa(sourceCount)
 
 		// Count target words.

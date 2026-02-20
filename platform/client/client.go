@@ -14,28 +14,19 @@ import (
 )
 
 // BowrainClient is a REST client for the Bowrain server sync API.
-// It supports both local-mode flat routes (/api/v1/projects/:id/...)
-// and workspace-scoped routes (/api/v1/workspaces/:ws/projects/:id/...).
+// It supports two auth modes:
+//   - ClaimToken: unclaimed project, flat routes /api/v1/projects/:id/sync/*
+//   - JWT + workspace: workspace project, routes /api/v1/workspaces/:ws/projects/:id/sync/*
 type BowrainClient struct {
 	baseURL    string
 	projectID  string
-	workspace  string // workspace slug; empty for local-mode flat routes
-	authToken  string // JWT bearer token; empty for local-mode
-	claimToken string // ClaimToken for anonymous projects
+	workspace  string // workspace slug; empty for unclaimed (ClaimToken) projects
+	authToken  string // JWT bearer token for workspace projects
+	claimToken string // ClaimToken for unclaimed projects
 	httpClient *http.Client
 
 	refreshToken   string                             // opaque refresh token for auto-refresh
 	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
-}
-
-// NewBowrainClient creates a new client for the given server URL and project.
-// Uses local-mode flat routes (no auth).
-func NewBowrainClient(serverURL, projectID string) *BowrainClient {
-	return &BowrainClient{
-		baseURL:    strings.TrimRight(serverURL, "/"),
-		projectID:  projectID,
-		httpClient: &http.Client{},
-	}
 }
 
 // NewWorkspaceBowrainClient creates a client that uses workspace-scoped routes with auth.
@@ -60,8 +51,8 @@ func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient
 }
 
 // projectPrefix returns the URL prefix for project-scoped endpoints.
-// In workspace mode: /api/v1/workspaces/{ws}/projects/{pid}
-// In local mode:     /api/v1/projects/{pid}
+// Workspace project: /api/v1/workspaces/{ws}/projects/{pid}
+// Unclaimed project: /api/v1/projects/{pid}
 func (c *BowrainClient) projectPrefix() string {
 	if c.workspace != "" {
 		return fmt.Sprintf("%s/api/v1/workspaces/%s/projects/%s", c.baseURL, c.workspace, c.projectID)

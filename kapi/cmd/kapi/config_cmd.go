@@ -13,7 +13,7 @@ var configGlobal bool
 
 var configCmd = &cobra.Command{
 	Use:   "config [key] [value]",
-	Short: "View or set configuration values",
+	Short: "View or change settings",
 	Long: `View or set configuration values.
 
 With no arguments, shows the path to the config file.

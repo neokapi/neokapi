@@ -17,11 +17,10 @@ var (
 
 var pullCmd = &cobra.Command{
 	Use:   "pull",
-	Short: "Pull changes from Bowrain Server",
-	Long: `Fetch changes from Bowrain Server and update local files.
+	Short: "Download translations from the server",
+	Long: `Download translations from the server and update local files.
 
-Only changed blocks are transferred (incremental sync using content hashing).
-Runs post-pull hooks if configured in .kapi/config.yaml.`,
+Only changed blocks are transferred. Runs post-pull hooks if configured.`,
 	RunE: runPull,
 }
 
@@ -63,14 +62,14 @@ func runPull(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("Pulled %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
 	if result.FilesWritten > 0 {
-		fmt.Printf("Wrote %d translated files\n", result.FilesWritten)
+		fmt.Printf("Updated %d file(s)\n", result.FilesWritten)
 	}
 	return nil
 }
 
 func init() {
-	pullCmd.Flags().StringSliceVar(&pullLocales, "locale", nil, "Target locales to pull (e.g. fr-FR,de-DE)")
-	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Overwrite local changes")
-	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Report what would be pulled without writing")
+	pullCmd.Flags().StringSliceVar(&pullLocales, "locale", nil, "languages to download (e.g. fr,de)")
+	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Re-download everything, even unchanged content")
+	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")
 	rootCmd.AddCommand(pullCmd)
 }

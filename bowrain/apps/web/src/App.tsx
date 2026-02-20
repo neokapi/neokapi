@@ -377,7 +377,7 @@ function AppContent() {
   const { workspaces, setWorkspaces, activeWorkspace, setActiveWorkspace } = useWorkspace();
   const [activeView, setActiveView] = useState<View>("translate");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [serverMode, setServerMode] = useState<"local" | "server" | null>(null);
+  const [serverMode, setServerMode] = useState<"standalone" | "server" | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [joinCode, setJoinCode] = useState<string | null>(null);
@@ -411,7 +411,7 @@ function AppContent() {
         const config: ConfigResponse = await api.getConfig();
         setServerMode(config.mode);
 
-        if (config.mode === "local") {
+        if (config.mode === "standalone") {
           setUser({ id: "local", email: "", name: "Local User", avatar_url: "" });
           setWorkspaces([{ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" }]);
           setActiveWorkspace({ id: "local", name: "Local", slug: "local", description: "", logo_url: "", type: "personal", role: "owner" });

@@ -232,7 +232,7 @@ func formatColumns(items []string) string {
 
 var pluginsInstallCmd = &cobra.Command{
 	Use:   "install <name[@version]>",
-	Short: "Install a plugin from the registry",
+	Short: "Install a plugin",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ref := registry.ParsePluginRef(args[0])
@@ -262,7 +262,7 @@ var pluginsInstallCmd = &cobra.Command{
 
 var pluginsUpdateCmd = &cobra.Command{
 	Use:   "update [name[@version]]",
-	Short: "Update installed plugins",
+	Short: "Update plugins",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.NewAppConfig()
@@ -311,7 +311,7 @@ var pluginsUpdateCmd = &cobra.Command{
 
 var pluginsRemoveCmd = &cobra.Command{
 	Use:   "remove <name[@version]>",
-	Short: "Remove an installed plugin",
+	Short: "Remove a plugin",
 	Long: `Remove an installed plugin.
 
   kapi plugins remove okapi@1.46.0   Remove a specific version
@@ -351,7 +351,7 @@ var (
 
 var pluginsSearchCmd = &cobra.Command{
 	Use:   "search [query]",
-	Short: "Search for plugins in the registry",
+	Short: "Search for plugins",
 	Long: `Search for plugins by text query, capability type, MIME type, or file extension.
 
 When --type, --mime, or --ext flags are provided, the query argument is optional.

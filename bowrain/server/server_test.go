@@ -40,11 +40,13 @@ func TestConfigEndpoint(t *testing.T) {
 	var resp ConfigResponse
 	err := json.Unmarshal(rec.Body.Bytes(), &resp)
 	require.NoError(t, err)
-	assert.Equal(t, "server", resp.Mode)
+	assert.Equal(t, "standalone", resp.Mode)
 }
 
-func TestConfigEndpointLocalMode(t *testing.T) {
-	srv := NewServer(LocalServerConfig())
+func TestConfigEndpointStandaloneMode(t *testing.T) {
+	// Without JWTSecret, mode should be "standalone".
+	cfg := DefaultServerConfig()
+	srv := NewServer(cfg)
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
@@ -56,7 +58,7 @@ func TestConfigEndpointLocalMode(t *testing.T) {
 	var resp ConfigResponse
 	err := json.Unmarshal(rec.Body.Bytes(), &resp)
 	require.NoError(t, err)
-	assert.Equal(t, "local", resp.Mode)
+	assert.Equal(t, "standalone", resp.Mode)
 }
 
 func TestListFormatsEndpoint(t *testing.T) {
@@ -119,11 +121,23 @@ func TestDefaultServerConfig(t *testing.T) {
 	assert.Empty(t, cfg.DataDir)
 }
 
-func TestLocalServerConfig(t *testing.T) {
-	cfg := LocalServerConfig()
-	assert.Equal(t, 3000, cfg.Port)
-	assert.Equal(t, "127.0.0.1", cfg.Host)
-	assert.True(t, cfg.LocalMode)
+func TestConfigEndpointServerMode(t *testing.T) {
+	// With JWTSecret, mode should be "server".
+	cfg := DefaultServerConfig()
+	cfg.JWTSecret = "test-secret"
+	srv := NewServer(cfg)
+	e := srv.GetEcho()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp ConfigResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "server", resp.Mode)
 }
 
 func TestNewServerCreatesRegistries(t *testing.T) {

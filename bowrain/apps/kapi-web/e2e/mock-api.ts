@@ -148,9 +148,9 @@ function extractPathSegment(url: string, afterKey: string): string {
 export async function setupMockApi(page: Page) {
   reset();
 
-  // Config — local mode
+  // Config — standalone mode (no auth)
   await page.route("**/api/v1/config", (route) => {
-    json(route, { mode: "local" });
+    json(route, { mode: "standalone" });
   });
 
   // Locales

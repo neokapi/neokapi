@@ -28,23 +28,22 @@ var (
 
 var initCmd = &cobra.Command{
 	Use:   "init",
-	Short: "Initialize a new .kapi/ project",
-	Long: `Initialize a new .kapi/ project directory in the current directory.
+	Short: "Set up a new project",
+	Long: `Set up a new kapi project in the current directory.
 
-Creates .kapi/config.yaml with project configuration, .kapi/flows/ for flow
-definitions, and .kapi/.gitignore to exclude sync state.
+Creates the .kapi/ folder with your project configuration and an example flow.
 
 In interactive mode (default when stdin is a terminal), presents a guided setup
 wizard. Use flags for non-interactive CI/CD usage.
 
-Server URL is resolved from (first match wins):
+The server URL is determined from (first match wins):
   1. --server flag
   2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
   3. Existing auth state (from kapi auth login)
   4. Built-in default (http://localhost:8080)
 
-Use --anonymous to create an anonymous project (prints claim URL).
-Use --email to create an anonymous project and receive the claim link by email.`,
+Use --anonymous to create a project without signing in.
+Use --email to create a project and email a link to claim it.`,
 	RunE: runInit,
 }
 
@@ -649,13 +648,13 @@ steps:
 
 func init() {
 	output.AddFlags(initCmd)
-	initCmd.Flags().StringVar(&initServerURL, "server", "", "Bowrain Server URL (overrides KAPI_SERVER_URL)")
-	initCmd.Flags().StringVar(&initProjectID, "project", "", "Bowrain Server project ID (for connecting to existing project)")
+	initCmd.Flags().StringVar(&initServerURL, "server", "", "server URL")
+	initCmd.Flags().StringVar(&initProjectID, "project", "", "connect to an existing project by ID")
 	initCmd.Flags().StringVar(&initProjectName, "name", "", "Project name (default: current directory name)")
 	initCmd.Flags().StringVar(&initSource, "source", "", "Source locale (default: en)")
 	initCmd.Flags().StringVar(&initTargets, "targets", "", "Target locales, comma-separated (e.g., nb,fr)")
-	initCmd.Flags().BoolVar(&initAnonymous, "anonymous", false, "Create an anonymous project on the server (prints claim URL)")
-	initCmd.Flags().StringVar(&initEmail, "email", "", "Create anonymous project and send claim link to this email")
+	initCmd.Flags().BoolVar(&initAnonymous, "anonymous", false, "Create a project without signing in")
+	initCmd.Flags().StringVar(&initEmail, "email", "", "Create a project and email a link to claim it")
 
 	rootCmd.AddCommand(initCmd)
 }

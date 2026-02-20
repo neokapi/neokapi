@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -62,7 +63,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 			})
 		}
 	default:
-		client = apiclient.NewBowrainClient(srv.URL, srv.ProjectID)
+		return nil, fmt.Errorf("server config requires either workspace or claim_token")
 	}
 
 	return &KapiSourceConnector{
@@ -72,6 +73,69 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		cache:     cache,
 		maxBatch:  1000,
 	}, nil
+}
+
+// NewLocalConnector creates a KapiSourceConnector for local-only operations
+// (listing files, scanning blocks) without requiring a server connection.
+func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *KapiSourceConnector {
+	cache := LoadSyncCache(project.KapiDir)
+	return &KapiSourceConnector{
+		project:   project,
+		formatReg: formatReg,
+		cache:     cache,
+	}
+}
+
+// FileInfo describes a single tracked file with optional stats.
+type FileInfo struct {
+	Path       string // Relative path from project root
+	Format     string // Detected format name
+	BlockCount int    // Number of translatable blocks (-1 = not scanned)
+	WordCount  int    // Total source word count (-1 = not scanned)
+	DirtyCount int    // Blocks changed vs cache (-1 = not checked)
+}
+
+// ListFiles scans all tracked files and returns per-file stats.
+// It uses scanLocalBlocks for block extraction and compares against the
+// sync cache for dirty detection. Results are sorted by path.
+func (c *KapiSourceConnector) ListFiles(ctx context.Context, paths []string) ([]FileInfo, error) {
+	_, blockMap, err := c.scanLocalBlocks(ctx, paths)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []FileInfo
+	for relPath, blocks := range blockMap {
+		words := 0
+		for _, b := range blocks {
+			words += b.WordCount()
+		}
+
+		dirty := 0
+		for _, b := range blocks {
+			identity := model.ComputeIdentity(b)
+			cached, found := c.lookupCachedHashForItem(relPath, b.ID)
+			if !found || cached != identity.ContentHash {
+				dirty++
+			}
+		}
+
+		absPath := filepath.Join(c.project.Root, relPath)
+		formatName := c.detectFormat(absPath)
+
+		files = append(files, FileInfo{
+			Path:       relPath,
+			Format:     formatName,
+			BlockCount: len(blocks),
+			WordCount:  words,
+			DirtyCount: dirty,
+		})
+	}
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].Path < files[j].Path
+	})
+	return files, nil
 }
 
 // ID returns the connector identifier.
@@ -92,7 +156,7 @@ func (c *KapiSourceConnector) Category() connector.Category {
 // Status reports the sync state.
 func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
 	// Count local changes by scanning files and comparing to cache.
-	hashMap, _, err := c.scanLocalBlocks(ctx, nil)
+	hashMap, blockMap, err := c.scanLocalBlocks(ctx, nil)
 	if err != nil {
 		return &connector.SyncStatus{
 			ConnectorID: c.ID(),
@@ -112,6 +176,13 @@ func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus
 		}
 	}
 
+	totalWords := 0
+	for _, blocks := range blockMap {
+		for _, b := range blocks {
+			totalWords += b.WordCount()
+		}
+	}
+
 	// Check remote changes by querying the server.
 	pendingPull := 0
 	if c.cache.SyncCursor > 0 {
@@ -128,6 +199,8 @@ func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus
 		ConnectorID: c.ID(),
 		LastSync:    c.cache.LastSync,
 		ItemCount:   totalBlocks,
+		FileCount:   len(hashMap),
+		WordCount:   totalWords,
 		PendingPush: pendingPush,
 		PendingPull: pendingPull,
 	}, nil
@@ -168,10 +241,16 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 		}
 	}
 
+	pushWords := 0
+	for _, ib := range changed {
+		pushWords += ib.block.WordCount()
+	}
+
 	if opts.DryRun {
 		return &connector.PushResult{
 			BlocksPushed: len(changed),
 			FilesScanned: len(hashMap),
+			WordCount:    pushWords,
 		}, nil
 	}
 
@@ -235,6 +314,7 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 		BlocksPushed: totalStored,
 		FilesScanned: len(hashMap),
 		ChunkCount:   chunkCount,
+		WordCount:    pushWords,
 	}, nil
 }
 
