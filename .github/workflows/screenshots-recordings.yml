@@ -98,6 +98,9 @@ jobs:
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
+      - name: Build Keycloak theme
+        run: make keycloak-theme
+
       - name: Start dependencies (Keycloak + Mailpit)
         run: docker compose up -d --wait
 
@@ -186,6 +189,7 @@ jobs:
           npm ci
           cd packages/ui && npx tsc
           cd ../../bowrain/apps/kapi-web && npm run build
+          cd ../web && npm run build
           cd ../../.. && make build
           cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
@@ -202,6 +206,9 @@ jobs:
       # VHS needs Xvfb for headless rendering
       - name: Install Xvfb
         run: sudo apt-get install -y xvfb
+
+      - name: Build Keycloak theme
+        run: make keycloak-theme
 
       - name: Start dependencies (Keycloak + Mailpit)
         run: docker compose up -d --wait
