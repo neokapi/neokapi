@@ -5,6 +5,7 @@ import type {
   FlowInfo,
   FlowDefinitionInfo,
   PluginInfo,
+  VersionInfo,
   ProjectInfo,
   BlockInfo,
   UpdateBlockRequest,
@@ -97,6 +98,21 @@ export function usePlugins() {
   }, []);
 
   return { plugins, pluginDir, loading, error };
+}
+
+export function useVersion() {
+  const [version, setVersion] = useState<VersionInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Backend.GetVersion()
+      .then((r: VersionInfo) => setVersion(r))
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return { version, loading, error };
 }
 
 export function useHealth() {

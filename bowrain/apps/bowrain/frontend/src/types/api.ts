@@ -93,6 +93,13 @@ export interface Membership {
   user: User;
 }
 
+/** Version info */
+export interface VersionInfo {
+  version: string;
+  commit: string;
+  build_date: string;
+}
+
 /** Health check response */
 export interface HealthResponse {
   status: string;

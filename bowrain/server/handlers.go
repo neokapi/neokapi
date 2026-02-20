@@ -10,14 +10,25 @@ import (
 
 // HealthResponse is the response for the health check endpoint.
 type HealthResponse struct {
-	Status  string `json:"status"`
-	Version string `json:"version"`
+	Status    string `json:"status"`
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
 }
 
 // ConfigResponse reports the server's operating mode.
 type ConfigResponse struct {
-	Mode    string `json:"mode"` // "standalone" or "server"
-	Version string `json:"version"`
+	Mode      string `json:"mode"` // "standalone" or "server"
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
+}
+
+// InfoResponse returns detailed build information.
+type InfoResponse struct {
+	Version   string `json:"version"`
+	Commit    string `json:"commit"`
+	BuildDate string `json:"build_date"`
 }
 
 // FormatInfo describes a registered format.
@@ -41,8 +52,10 @@ type ErrorResponse struct {
 // HandleHealth returns a simple health check.
 func (s *Server) HandleHealth(c echo.Context) error {
 	return c.JSON(http.StatusOK, HealthResponse{
-		Status:  "ok",
-		Version: version.Version,
+		Status:    "ok",
+		Version:   version.Version,
+		Commit:    version.Commit,
+		BuildDate: version.BuildDate,
 	})
 }
 
@@ -53,8 +66,19 @@ func (s *Server) HandleConfig(c echo.Context) error {
 		mode = "standalone"
 	}
 	return c.JSON(http.StatusOK, ConfigResponse{
-		Mode:    mode,
-		Version: version.Version,
+		Mode:      mode,
+		Version:   version.Version,
+		Commit:    version.Commit,
+		BuildDate: version.BuildDate,
+	})
+}
+
+// HandleInfo returns detailed build information.
+func (s *Server) HandleInfo(c echo.Context) error {
+	return c.JSON(http.StatusOK, InfoResponse{
+		Version:   version.Version,
+		Commit:    version.Commit,
+		BuildDate: version.BuildDate,
 	})
 }
 

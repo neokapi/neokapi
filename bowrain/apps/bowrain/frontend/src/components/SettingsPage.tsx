@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@gokapi/ui";
-import { useFormats, useTools, useFlows, usePlugins, useProviderConfigs, useProviderApi } from "../hooks/useApi";
+import { useFormats, useTools, useFlows, usePlugins, useVersion, useProviderConfigs, useProviderApi } from "../hooks/useApi";
 import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
 
 type SettingsTab = "general" | "ai-providers" | "plugins" | "system-info";
@@ -369,6 +369,7 @@ function PluginsTable({ plugins }: { plugins: PluginInfo[] }) {
 /* ── System Info ── */
 
 function SystemInfoTab() {
+  const { version } = useVersion();
   const { formats, loading: fmtLoading, error: fmtError } = useFormats();
   const { tools, loading: toolLoading, error: toolError } = useTools();
   const { flows, loading: flowLoading, error: flowError } = useFlows();
@@ -381,6 +382,19 @@ function SystemInfoTab() {
 
   return (
     <div data-testid="settings-system-info" className="flex flex-col gap-8">
+      {version && (
+        <section data-testid="version-info">
+          <h2 className="mb-2">Version</h2>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted-foreground">Version</span>
+            <span>{version.version}</span>
+            <span className="text-muted-foreground">Commit</span>
+            <span className="font-mono text-xs">{version.commit}</span>
+            <span className="text-muted-foreground">Build Date</span>
+            <span>{version.build_date}</span>
+          </div>
+        </section>
+      )}
       <FormatsSection formats={formats} />
       <ToolsSection tools={tools} />
       <FlowsSection flows={flows} />

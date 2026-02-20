@@ -128,6 +128,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1 := e.Group("/api/v1")
 	v1.GET("/health", s.HandleHealth)
 	v1.GET("/config", s.HandleConfig)
+	v1.GET("/info", s.HandleInfo)
 	v1.GET("/formats", s.HandleListFormats)
 	v1.GET("/tools", s.HandleListTools)
 	v1.GET("/locales", s.HandleGetKnownLocales)

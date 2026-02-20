@@ -61,6 +61,24 @@ func TestConfigEndpointStandaloneMode(t *testing.T) {
 	assert.Equal(t, "standalone", resp.Mode)
 }
 
+func TestInfoEndpoint(t *testing.T) {
+	srv := NewServer(DefaultServerConfig())
+	e := srv.GetEcho()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp InfoResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &resp)
+	require.NoError(t, err)
+	assert.NotEmpty(t, resp.Version)
+	assert.NotEmpty(t, resp.Commit)
+	assert.NotEmpty(t, resp.BuildDate)
+}
+
 func TestListFormatsEndpoint(t *testing.T) {
 	srv := NewServer(DefaultServerConfig())
 	e := srv.GetEcho()
