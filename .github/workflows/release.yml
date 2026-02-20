@@ -69,6 +69,9 @@ jobs:
       - name: Run bowrain tests
         run: cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
 
+      - name: Reset go.work.sum
+        run: git checkout -- go.work.sum
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
