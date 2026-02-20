@@ -13,9 +13,10 @@ cp -r "$EXAMPLE_DIR" "$WALKTHROUGH_DIR"
 cd "$WALKTHROUGH_DIR"
 
 git init -q
+git config user.email "alex@example.com"
+git config user.name "Alex Developer"
 git add -A
-git commit -q -m "Initial commit" \
-  --author="Alex Developer <alex@example.com>"
+git commit -q -m "Initial commit"
 
 export WALKTHROUGH_DIR
 echo "$WALKTHROUGH_DIR"

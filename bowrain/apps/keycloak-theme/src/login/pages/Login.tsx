@@ -124,7 +124,7 @@ export default function Login(props: {
                             </div>
                         )}
 
-                        <Button type="submit" className="w-full" tabIndex={4}>
+                        <Button id="kc-login" type="submit" className="w-full" tabIndex={4}>
                             {msgStr("doLogIn")}
                         </Button>
                     </form>
