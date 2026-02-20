@@ -328,3 +328,8 @@ jobs:
 
           # Upload tarball (overwrite existing)
           gh release upload docs-assets docs-assets.tar.gz --clobber
+
+      - name: Trigger docs redeploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run "Deploy Docs" --ref main
