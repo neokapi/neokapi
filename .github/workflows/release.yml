@@ -148,19 +148,74 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
-      - name: Install frontend dependencies
-        working-directory: bowrain/apps/bowrain/frontend
-        run: npm install
-
-      - name: Build Bowrain
-        if: runner.os != 'macOS'
+      # Build frontend and assets manually to avoid Wails Taskfile running
+      # `npm install` which conflicts with the workspace npm ci above.
+      - name: Generate Wails bindings
         working-directory: bowrain/apps/bowrain
-        run: wails3 build
+        shell: bash
+        run: |
+          go mod tidy
+          wails3 generate bindings -f '-tags production -trimpath -buildvcs=false -ldflags="-w -s"' -clean=true
+          sed -i.bak 's/= \$0\./= store\$0./g' frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js
+          rm -f frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js.bak
 
-      - name: Package Bowrain (macOS universal)
+      - name: Build Bowrain frontend
+        working-directory: bowrain/apps/bowrain/frontend
+        run: npm run build
+
+      - name: Generate icons
+        working-directory: bowrain/apps/bowrain/build
+        run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
+      - name: Generate Windows resources
+        if: runner.os == 'Windows'
+        working-directory: bowrain/apps/bowrain
+        shell: bash
+        run: wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_amd64.syso
+
+      - name: Build Bowrain (Linux)
+        if: runner.os == 'Linux'
+        working-directory: bowrain/apps/bowrain
+        env:
+          GOOS: linux
+          CGO_ENABLED: "1"
+        run: go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o bin/Bowrain
+
+      - name: Build Bowrain (Windows)
+        if: runner.os == 'Windows'
+        working-directory: bowrain/apps/bowrain
+        shell: bash
+        env:
+          GOOS: windows
+          CGO_ENABLED: "0"
+        run: |
+          go build -tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui" -o bin/Bowrain.exe
+          rm -f *.syso
+
+      - name: Build Bowrain (macOS universal)
         if: runner.os == 'macOS'
         working-directory: bowrain/apps/bowrain
-        run: wails3 task darwin:package:universal
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-mmacosx-version-min=10.15"
+          CGO_LDFLAGS: "-mmacosx-version-min=10.15"
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o bin/Bowrain-arm64
+          GOOS=darwin GOARCH=amd64 go build -tags production -trimpath -buildvcs=false -ldflags="-w -s" -o bin/Bowrain-amd64
+          lipo -create -output bin/Bowrain bin/Bowrain-amd64 bin/Bowrain-arm64
+          rm bin/Bowrain-amd64 bin/Bowrain-arm64
+
+      - name: Create macOS .app bundle
+        if: runner.os == 'macOS'
+        working-directory: bowrain/apps/bowrain
+        run: |
+          mkdir -p bin/Bowrain.app/Contents/MacOS
+          mkdir -p bin/Bowrain.app/Contents/Resources
+          cp build/darwin/icons.icns bin/Bowrain.app/Contents/Resources
+          cp bin/Bowrain bin/Bowrain.app/Contents/MacOS
+          cp build/darwin/Info.plist bin/Bowrain.app/Contents
+          codesign --force --deep --sign - bin/Bowrain.app
 
       - name: Extract version
         id: version
