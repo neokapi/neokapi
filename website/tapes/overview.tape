@@ -2,7 +2,6 @@
 # Quick overview of kapi CLI capabilities
 
 Output output/overview.webm
-Output output/overview.gif
 
 Set FontSize 16
 Set Width 1000

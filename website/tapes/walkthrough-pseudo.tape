@@ -3,7 +3,6 @@
 # Requires: WALKTHROUGH_DIR set by generate.sh.
 
 Output output/walkthrough-pseudo.webm
-Output output/walkthrough-pseudo.gif
 
 Set FontSize 16
 Set Width 1000

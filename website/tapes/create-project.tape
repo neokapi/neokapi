@@ -2,7 +2,6 @@
 # Shows project init, word count and pseudo-translation of source files
 
 Output output/create-project.webm
-Output output/create-project.gif
 
 Set FontSize 15
 Set Width 1000

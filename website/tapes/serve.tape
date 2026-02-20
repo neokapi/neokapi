@@ -2,7 +2,6 @@
 # Demonstrates the local project server command
 
 Output output/serve.webm
-Output output/serve.gif
 
 Set FontSize 16
 Set Width 1000

@@ -3,7 +3,6 @@
 # Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
 Output output/walkthrough-push.webm
-Output output/walkthrough-push.gif
 
 Set FontSize 16
 Set Width 1000

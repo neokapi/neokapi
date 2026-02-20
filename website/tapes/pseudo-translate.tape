@@ -2,7 +2,6 @@
 # Demonstrates pseudo-translation for UI testing
 
 Output output/pseudo-translate.webm
-Output output/pseudo-translate.gif
 
 Set FontSize 16
 Set Width 900

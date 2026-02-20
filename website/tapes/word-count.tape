@@ -2,7 +2,6 @@
 # Demonstrates word counting for localization estimation
 
 Output output/word-count.webm
-Output output/word-count.gif
 
 Set FontSize 16
 Set Width 900

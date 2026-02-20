@@ -4,7 +4,6 @@
 # Note: A personal workspace is auto-created on first login.
 
 Output output/workspaces.webm
-Output output/workspaces.gif
 
 Set FontSize 16
 Set Width 1000

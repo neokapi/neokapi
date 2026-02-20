@@ -2,7 +2,6 @@
 # Demonstrates the CLI authentication commands
 
 Output output/auth-login.webm
-Output output/auth-login.gif
 
 Set FontSize 16
 Set Width 1000

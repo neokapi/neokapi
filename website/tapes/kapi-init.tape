@@ -2,7 +2,6 @@
 # Demonstrates the interactive project initialization
 
 Output output/kapi-init.webm
-Output output/kapi-init.gif
 
 Set FontSize 16
 Set Width 1000
