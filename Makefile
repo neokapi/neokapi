@@ -30,6 +30,7 @@ COVER_DIR   := coverage
 PROTO_DIR        := core/plugin/proto/v1
 PROTO_FILES      := $(wildcard $(PROTO_DIR)/*.proto)
 SERVER_PROTO_DIR := bowrain/proto/v1
+CERT_DIR     := docker/traefik/certs
 FRONTEND_DIR := bowrain/apps/bowrain/frontend
 KAPI_WEB_DIR := bowrain/apps/kapi-web
 WEB_DIR      := bowrain/apps/web
@@ -47,7 +48,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
-        docker-build docker-push \
+        docker-build docker-push certs \
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
@@ -128,7 +129,7 @@ docker-push: ## Push Docker image to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
 
-dev-deps: ## Start dev dependencies (Keycloak + Mailpit) in Docker
+dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
 	docker compose up -d --wait
 
 dev-deps-down: ## Stop dev dependencies
@@ -137,9 +138,14 @@ dev-deps-down: ## Stop dev dependencies
 bowrain-dev: ## Launch Bowrain desktop app in dev mode (hot reload)
 	cd bowrain/apps/bowrain && wails3 dev
 
+certs: ## Generate mkcert TLS certificates for *.bowrain.mymac
+	@mkdir -p $(CERT_DIR)
+	mkcert -cert-file $(CERT_DIR)/wildcard.pem -key-file $(CERT_DIR)/wildcard-key.pem \
+		"*.bowrain.mymac" "bowrain.mymac"
+
 dev-server: build-server ## Run bowrain-server locally against Docker deps
 	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
-	BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
+	BOWRAIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain \
 	BOWRAIN_OIDC_CLIENT_ID=bowrain \
 	BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
 	BOWRAIN_SMTP_HOST=localhost:1025 \
@@ -147,6 +153,9 @@ dev-server: build-server ## Run bowrain-server locally against Docker deps
 	BOWRAIN_STORE=bowrain-dev.db \
 	BOWRAIN_GRPC_PORT=9080 \
 	bin/bowrain-server
+
+dev-web: ## Run web UI dev server with HMR (proxy → localhost:8080)
+	cd bowrain/apps/web && $(NPM) run dev
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 

@@ -1,0 +1,31 @@
+# Traefik v3 static configuration for local development.
+#
+# Entrypoints:
+#   - :80  → HTTP, redirects all traffic to HTTPS
+#   - :443 → HTTPS, terminates TLS with mkcert-generated certs
+#
+# Providers:
+#   - Docker labels (containerized services: Keycloak, Mailpit)
+#   - File-based dynamic config (host-running services: bowrain-server, Vite)
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+api:
+  dashboard: true
+  insecure: false

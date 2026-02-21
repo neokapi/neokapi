@@ -54,6 +54,9 @@ bowrain-ci.db*
 test-results/
 playwright-report/
 
+# Local TLS certs (mkcert)
+docker/traefik/certs/
+
 # Docusaurus
 website/build/
 website/.docusaurus/

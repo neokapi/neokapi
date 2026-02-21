@@ -252,14 +252,14 @@ Screenshots and video recordings serve as documentation and are embedded on the 
 Screenshots are captured via Playwright and written directly to `website/static/img/`:
 
 1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `bowrain/apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/{dark,light}/`.
-2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Dex OIDC. Output: `website/static/img/web-app/{dark,light}/`.
+2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Keycloak OIDC. Output: `website/static/img/web-app/{dark,light}/`.
 
 ### Recording systems
 
 There are three independent video recording pipelines:
 
 1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
-2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Dex OIDC.
+2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
 3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
 
 ### How to regenerate

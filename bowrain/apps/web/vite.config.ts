@@ -10,6 +10,12 @@ export default defineConfig({
       "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
     },
   },
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": "http://localhost:8080",
+    },
+  },
   build: {
     outDir: "dist",
     rollupOptions: {

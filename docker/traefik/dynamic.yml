@@ -1,0 +1,42 @@
+# Traefik v3 dynamic configuration.
+#
+# Routes host-running services (bowrain-server, Vite dev server) and
+# configures TLS with mkcert-generated wildcard certificates.
+
+http:
+  routers:
+    # API requests → bowrain-server on host:8080
+    bowrain-api:
+      rule: "Host(`bowrain.mymac`) && PathPrefix(`/api`)"
+      service: bowrain-api
+      tls: {}
+      priority: 100
+
+    # Everything else → Vite dev server on host:5173
+    bowrain-app:
+      rule: "Host(`bowrain.mymac`)"
+      service: bowrain-app
+      tls: {}
+      priority: 90
+
+    # Traefik dashboard
+    traefik-dashboard:
+      rule: "Host(`traefik.bowrain.mymac`)"
+      service: api@internal
+      tls: {}
+
+  services:
+    bowrain-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8080"
+
+    bowrain-app:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5173"
+
+tls:
+  certificates:
+    - certFile: /etc/certs/wildcard.pem
+      keyFile: /etc/certs/wildcard-key.pem

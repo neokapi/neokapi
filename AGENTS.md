@@ -252,14 +252,14 @@ Screenshots and video recordings serve as documentation and are embedded on the 
 Screenshots are captured via Playwright and written directly to `website/static/img/`:
 
 1. **Bowrain (desktop GUI)** — 9 screenshots x 2 themes in `bowrain/apps/bowrain/frontend/e2e/screenshots.spec.ts`. Self-contained (auto-starts a Vite dev server). Output: `website/static/img/bowrain/{dark,light}/`.
-2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Dex OIDC. Output: `website/static/img/web-app/{dark,light}/`.
+2. **Web app** — 6 test suites (multiple captures each) x 2 themes in `bowrain/apps/web/e2e/screenshots.spec.ts`. Requires a running bowrain-server with Keycloak OIDC. Output: `website/static/img/web-app/{dark,light}/`.
 
 ### Recording systems
 
 There are three independent video recording pipelines:
 
 1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
-2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Dex OIDC.
+2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
 3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
 
 ### How to regenerate
@@ -271,8 +271,9 @@ make screenshots                 # screenshots → website/static/img/bowrain/{d
 make recordings                  # recordings → website/static/video/bowrain/{dark,light}/
 
 # 2. Web app screenshots + recordings (needs Docker stack for real auth)
-docker compose up -d   # starts Keycloak + bowrain-server
-# Wait for healthy: curl -sf http://localhost:8080/api/v1/health
+docker compose up -d --wait   # starts Traefik + Keycloak + Mailpit
+make dev-server &
+# Wait for healthy: curl -sf https://bowrain.mymac/api/v1/health
 cd bowrain/apps/web && npm run e2e:screenshots
 cd bowrain/apps/web && npm run e2e:recordings
 THEME=dark  bash bowrain/apps/web/scripts/copy-recordings.sh
@@ -300,7 +301,7 @@ make docs-assets                 # screenshots + recordings + cli-recordings
 
 All screenshots and recordings must run against real gokapi infrastructure. Specifically:
 
-- **Authentication & identity**: Use the real Dex OIDC provider via `compose.yaml`. Never mock the auth flow.
+- **Authentication & identity**: Use the real Keycloak OIDC provider via `compose.yaml`. Never mock the auth flow.
 - **bowrain-server**: Use the real server binary (locally built or Docker image). Never use a mock API server.
 - **Database & storage**: Use a real database instance (the Docker stack provisions one automatically).
 - **External integrations** outside the scope of this project (e.g. third-party MT providers, external LLM APIs) may be mocked if needed for isolation.

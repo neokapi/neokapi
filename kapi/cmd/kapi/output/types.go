@@ -38,7 +38,7 @@ func (o AddOutput) FormatText(w io.Writer) error {
 // RmEntry represents a single pattern processed by kapi rm.
 type RmEntry struct {
 	Pattern string `json:"pattern"`
-	Action  string `json:"action"`          // "removed", "excluded", "already_excluded"
+	Action  string `json:"action"`           // "removed", "excluded", "already_excluded"
 	Format  string `json:"format,omitempty"` // only for "removed"
 	Files   int    `json:"files,omitempty"`  // only for "excluded"
 }

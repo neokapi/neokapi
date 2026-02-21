@@ -11,8 +11,8 @@ import (
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show project sync status",
-	Long: `Show what has changed locally and on the server since the last sync.`,
-	RunE: runStatus,
+	Long:  `Show what has changed locally and on the server since the last sync.`,
+	RunE:  runStatus,
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {

@@ -94,12 +94,12 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusCreated, map[string]any{
-		"id":              p.ID,
-		"name":            p.Name,
-		"source_locale":   string(p.SourceLocale),
-		"target_locales":  req.TargetLocales,
-		"workspace_id":    p.WorkspaceID,
-		"workspace_slug":  targetWS.Slug,
+		"id":             p.ID,
+		"name":           p.Name,
+		"source_locale":  string(p.SourceLocale),
+		"target_locales": req.TargetLocales,
+		"workspace_id":   p.WorkspaceID,
+		"workspace_slug": targetWS.Slug,
 	})
 }
 

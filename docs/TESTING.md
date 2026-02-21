@@ -277,7 +277,7 @@ npm run e2e:screenshots   # requires Docker backend (bowrain-server)
 npm run e2e:recordings    # requires Docker backend
 ```
 
-**Configuration:** `playwright.config.ts` — connects to a real backend at `http://localhost:8080`. Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
+**Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
 #### kapi-web (`bowrain/apps/kapi-web`)
 
