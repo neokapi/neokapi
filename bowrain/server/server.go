@@ -47,6 +47,9 @@ type Server struct {
 	// Nil if SMTP is not configured.
 	EmailSender EmailSenderI
 
+	// collabHub manages collaborative editing WebSocket rooms.
+	collabHub *collabHub
+
 	// WebUIFS is an optional embedded filesystem for serving the web UI.
 	// When set, it takes precedence over Config.WebUIDir.
 	WebUIFS fs.FS
@@ -69,6 +72,7 @@ func NewServer(cfg ServerConfig) *Server {
 		ConnectorReg:   connReg,
 		EventBus:       event.NewChannelEventBus(),
 		wsStores:       newWorkspaceStores(cfg.DataDir),
+		collabHub:      newCollabHub(),
 	}
 
 	// Initialize credential store.
@@ -290,6 +294,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/terms/import/csv", s.HandleImportTermsCSV)
 	g.POST("/terms/import/json", s.HandleImportTermsJSON)
 	g.GET("/terms/export/json", s.HandleExportTermsJSON)
+
+	// Collaborative editing WebSocket
+	g.GET("/editor/projects/:pid/collab/:fname", s.HandleCollabWebSocket)
 
 	// Provider configs (workspace-level)
 	g.GET("/providers", s.HandleListProviderConfigs)

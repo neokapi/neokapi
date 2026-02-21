@@ -70,6 +70,12 @@ export type { Theme } from "./context/ThemeContext";
 export type { ApiAdapter } from "./api/adapter";
 export { RestApiAdapter } from "./api/rest-adapter";
 
+// Collaboration
+export { PresenceAvatars } from "./components/PresenceAvatars";
+export type { PresenceAvatarsProps } from "./components/PresenceAvatars";
+export { useCollaboration } from "./hooks/useCollaboration";
+export type { CollabUser, CollabConnectionState, UseCollaborationOptions } from "./hooks/useCollaboration";
+
 // Hooks
 export { useProjectApi } from "./hooks/useProjectApi";
 export { useEditorApi } from "./hooks/useEditorApi";

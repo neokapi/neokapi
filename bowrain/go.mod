@@ -3,6 +3,7 @@ module github.com/gokapi/gokapi/bowrain
 go 1.26.0
 
 require (
+	github.com/coder/websocket v1.8.14
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/gokapi/gokapi v0.0.0
 	github.com/gokapi/gokapi/platform v0.0.0
@@ -26,7 +27,6 @@ require (
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/bep/debounce v1.2.1 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
-	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect

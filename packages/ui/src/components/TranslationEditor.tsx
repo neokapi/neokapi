@@ -28,6 +28,8 @@ interface TranslationEditorProps {
     onBlockSelect: (blockId: string) => void;
     blocks: BlockInfo[];
   }) => React.ReactNode;
+  /** Optional presence slot rendered in the editor toolbar. */
+  presenceSlot?: React.ReactNode;
 }
 
 type LayoutMode = "grid" | "focus" | "split-h" | "split-v";
@@ -83,7 +85,7 @@ function termStatusClass(status: string): string {
   return colors[status] || "text-muted-foreground bg-muted";
 }
 
-export function TranslationEditor({ project, fileName, onBack, onExport, renderPreview }: TranslationEditorProps) {
+export function TranslationEditor({ project, fileName, onBack, onExport, renderPreview, presenceSlot }: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -784,6 +786,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {project.name}
         </Button>
         <span className="text-base font-semibold flex-1">{fileName}</span>
+        {presenceSlot}
         {/* Layout mode switcher */}
         <div className="flex gap-0.5 bg-muted rounded-md p-0.5" data-testid="layout-switcher">
           {availableLayouts.map((mode) => (
