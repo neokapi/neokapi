@@ -101,8 +101,8 @@ jobs:
       - name: Build Keycloak theme
         run: make keycloak-theme
 
-      - name: Start dependencies (Keycloak + Mailpit, CI mode)
-        run: docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+      - name: Start dependencies (Keycloak + Mailpit)
+        run: docker compose -f compose.yaml up -d --wait
 
       - name: Start bowrain-server
         run: |
@@ -165,7 +165,7 @@ jobs:
             kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
             rm -f .bowrain-server.pid
           fi
-          docker compose -f compose.yaml -f compose.ci.yaml down -v
+          docker compose -f compose.yaml down -v
 
   # ── CLI Recordings (VHS) ────────────────────────────────────────────────────
   cli-recordings:
@@ -210,8 +210,8 @@ jobs:
       - name: Build Keycloak theme
         run: make keycloak-theme
 
-      - name: Start dependencies (Keycloak + Mailpit, CI mode)
-        run: docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+      - name: Start dependencies (Keycloak + Mailpit)
+        run: docker compose -f compose.yaml up -d --wait
 
       - name: Start bowrain-server
         run: |
@@ -259,7 +259,7 @@ jobs:
             kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
             rm -f .bowrain-server.pid
           fi
-          docker compose -f compose.yaml -f compose.ci.yaml down -v
+          docker compose -f compose.yaml down -v
 
       - name: Upload CLI assets
         uses: actions/upload-artifact@v4

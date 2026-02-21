@@ -1,0 +1,47 @@
+# Local development overlay — adds Traefik reverse proxy with TLS.
+#
+# Automatically loaded by `docker compose up`. Skipped by CI which uses
+# `docker compose -f compose.yaml up` explicitly.
+#
+# First-time setup (macOS):
+#   brew install dnsmasq mkcert
+#   echo 'address=/.mymac/127.0.0.1' >> $(brew --prefix)/etc/dnsmasq.conf
+#   sudo brew services restart dnsmasq
+#   sudo mkdir -p /etc/resolver
+#   echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/mymac
+#   mkcert -install
+#   make certs
+
+services:
+  traefik:
+    image: traefik:v3
+    volumes:
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./docker/traefik/certs:/etc/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  keycloak:
+    environment:
+      KC_HOSTNAME: https://auth.bowrain.mymac
+      KC_PROXY_HEADERS: xforwarded
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.bowrain.mymac`)"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+  mailpit:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailpit.rule=Host(`mail.bowrain.mymac`)"
+      - "traefik.http.routers.mailpit.tls=true"
+      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"

@@ -71,7 +71,7 @@ See [Docker Compose Development Setup](docs/notes/docker-compose.md) for details
 ### CI mode (no Traefik, plain HTTP)
 
 ```bash
-docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+docker compose -f compose.yaml up -d --wait    # skips compose.override.yaml
 ```
 
 ## Makefile Targets

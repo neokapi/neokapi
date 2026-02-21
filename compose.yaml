@@ -1,67 +1,33 @@
-# Development dependencies: Traefik reverse proxy, Keycloak OIDC, Mailpit SMTP
+# Development dependencies: Keycloak OIDC + Mailpit SMTP
 #
-# The bowrain-server and Vite dev server run locally — Traefik routes
-# HTTPS traffic to them via host.docker.internal.
+# The bowrain-server and Vite dev server run locally — not in Docker.
 #
-# First-time setup (macOS):
-#   brew install dnsmasq mkcert
-#   echo 'address=/.mymac/127.0.0.1' >> $(brew --prefix)/etc/dnsmasq.conf
-#   sudo brew services restart dnsmasq
-#   sudo mkdir -p /etc/resolver
-#   echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/mymac
-#   mkcert -install
-#   make certs
+# Local dev (Traefik + TLS):
+#   docker compose up -d --wait         # auto-loads compose.override.yaml
+#   make dev-server                     # bowrain-server on :8080
+#   make dev-web                        # Vite dev server on :5173
+#   → https://bowrain.mymac             # web app via Traefik
+#   → https://auth.bowrain.mymac        # Keycloak via Traefik
+#   → https://mail.bowrain.mymac        # Mailpit via Traefik
 #
-# Usage:
-#   docker compose up -d --wait         # start Traefik + deps
-#   make dev-server                     # run server locally
-#   make dev-web                        # run Vite dev server
-#   docker compose down -v              # stop everything
-#
-# Services:
-#   - Web app:     https://bowrain.mymac          (Vite HMR)
-#   - API:         https://bowrain.mymac/api/*    (bowrain-server)
-#   - Keycloak:    https://auth.bowrain.mymac     (admin/admin)
-#   - Mailpit:     https://mail.bowrain.mymac     (web UI), :1025 (SMTP)
-#   - Traefik:     https://traefik.bowrain.mymac  (dashboard)
-#
-# CI: use  docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
-#   (no Traefik, direct ports: Keycloak:8180, Mailpit:8025)
+# CI (plain HTTP, no Traefik):
+#   docker compose -f compose.yaml up -d --wait   # skips override
+#   → Keycloak at http://localhost:8180
+#   → Mailpit at http://localhost:8025
 
 services:
-  traefik:
-    image: traefik:v3
-    volumes:
-      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./docker/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - ./docker/traefik/certs:/etc/certs:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   keycloak:
     image: quay.io/keycloak/keycloak:26.1
     command: start-dev --import-realm
     environment:
       KC_HEALTH_ENABLED: "true"
-      KC_HOSTNAME: https://auth.bowrain.mymac
-      KC_PROXY_HEADERS: xforwarded
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     volumes:
       - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
       - ./bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.keycloak.rule=Host(`auth.bowrain.mymac`)"
-      - "traefik.http.routers.keycloak.tls=true"
-      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    ports:
+      - "8180:8080"
     healthcheck:
       test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
       interval: 10s
@@ -71,9 +37,5 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
+      - "8025:8025"
       - "1025:1025"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.mailpit.rule=Host(`mail.bowrain.mymac`)"
-      - "traefik.http.routers.mailpit.tls=true"
-      - "traefik.http.services.mailpit.loadbalancer.server.port=8025"

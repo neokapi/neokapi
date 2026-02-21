@@ -5,8 +5,8 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "Starting dependencies (Keycloak + Mailpit, CI mode — no Traefik)..."
-docker compose -f "$ROOT_DIR/compose.yaml" -f "$ROOT_DIR/compose.ci.yaml" up -d --wait
+echo "Starting dependencies (Keycloak + Mailpit)..."
+docker compose -f "$ROOT_DIR/compose.yaml" up -d --wait
 
 echo "Building bowrain-server..."
 cd "$ROOT_DIR" && make build-server

@@ -61,7 +61,31 @@ make certs
 
 After this, `*.bowrain.mymac` resolves to localhost and the mkcert CA is trusted by browsers and Go's `net/http` client.
 
-## compose.yaml
+## Compose Files
+
+### compose.yaml (base)
+
+The base file is CI-compatible — no Traefik, direct port mapping:
+
+```yaml
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    # ...
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+```
+
+### compose.override.yaml (local dev)
+
+Auto-loaded by `docker compose up`, adds Traefik with TLS and Keycloak proxy settings:
 
 ```yaml
 services:
@@ -77,12 +101,9 @@ services:
       - "443:443"
 
   keycloak:
-    image: quay.io/keycloak/keycloak:26.1
-    command: start-dev --import-realm
     environment:
       KC_HOSTNAME: https://auth.bowrain.mymac
       KC_PROXY_HEADERS: xforwarded
-      # ...
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.keycloak.rule=Host(`auth.bowrain.mymac`)"
@@ -90,9 +111,6 @@ services:
       - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
 
   mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "1025:1025"   # SMTP still on host for bowrain-server
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mailpit.rule=Host(`mail.bowrain.mymac`)"
@@ -113,9 +131,9 @@ services:
 
 - **Image**: `quay.io/keycloak/keycloak:26.1`
 - **Mode**: `start-dev` (development mode, no persistent database)
-- **Hostname**: `KC_HOSTNAME=https://auth.bowrain.mymac` — Keycloak uses this for OIDC discovery URLs and redirect validation
-- **Proxy**: `KC_PROXY_HEADERS=xforwarded` — trusts Traefik's `X-Forwarded-*` headers
-- **Admin console**: `https://auth.bowrain.mymac` with credentials `admin`/`admin`
+- **Hostname** (via override): `KC_HOSTNAME=https://auth.bowrain.mymac` — Keycloak uses this for OIDC discovery URLs and redirect validation
+- **Proxy** (via override): `KC_PROXY_HEADERS=xforwarded` — trusts Traefik's `X-Forwarded-*` headers
+- **Admin console**: `https://auth.bowrain.mymac` (local dev) or `http://localhost:8180` (CI) with credentials `admin`/`admin`
 - **Realm import**: `--import-realm` loads `docker/keycloak/realm.json` at startup, which configures the `bowrain` realm with:
   - OIDC client `bowrain` (confidential, secret `bowrain-secret`)
   - OAuth2 device authorization grant enabled (for CLI auth)
@@ -181,21 +199,24 @@ docker compose down -v
 
 The `-v` flag on `docker compose down` removes volumes, ensuring a clean state for the next session. Keycloak runs in dev mode with no persistent storage, so realm data is re-imported from `realm.json` on every startup.
 
-## CI Overlay (compose.ci.yaml)
+## CI Mode (Plain HTTP)
 
-CI runs without Traefik, mkcert, or DNS configuration. A `compose.ci.yaml` overlay re-exposes direct ports and disables the TLS proxy:
+CI runs without Traefik, mkcert, or DNS configuration by using `compose.yaml` directly (skipping the auto-loaded `compose.override.yaml`):
 
 ```bash
-docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
+docker compose -f compose.yaml up -d --wait
 ```
 
-This overlay:
-- Disables the `traefik` service via `profiles: ["disabled"]`
-- Re-exposes Keycloak on host port `8180`
-- Re-exposes Mailpit web UI on host port `8025`
-- Clears `KC_HOSTNAME` and `KC_PROXY_HEADERS` so Keycloak works without a proxy
+This uses the base compose file which has no Traefik, no `KC_HOSTNAME`, and exposes direct ports (Keycloak on `8180`, Mailpit on `8025`). The `-f compose.yaml` flag tells Docker Compose to skip the override file.
 
 CI scripts (e.g. `e2e/setup.sh`, GitHub Actions workflows) use `http://localhost:8180/realms/bowrain` as the OIDC issuer and `http://localhost:8080` as the server URL.
+
+### File Layout
+
+| File | Purpose | Used by |
+|---|---|---|
+| `compose.yaml` | Base: Keycloak + Mailpit with direct ports, no Traefik | CI (`-f compose.yaml`) |
+| `compose.override.yaml` | Adds Traefik, `KC_HOSTNAME`, TLS labels | Local dev (auto-loaded) |
 
 ## Supporting E2E Testing
 
