@@ -12,7 +12,7 @@ import {
 interface AccountMenuProps {
   user: User;
   onSignOut: () => void;
-  variant?: "default" | "sidebar";
+  variant?: "default" | "sidebar" | "icon";
   onSettings?: () => void;
   collapsed?: boolean;
 }
@@ -63,6 +63,35 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
         <DropdownMenuContent align="start" side="top" className="w-[200px] backdrop-blur-lg">
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
             {user.email}
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {onSettings && (
+            <DropdownMenuItem onClick={onSettings} className="flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={onSignOut} className="flex items-center gap-2">
+            <LogOut className="w-4 h-4" />
+            <span>Sign out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  }
+
+  // Icon-only variant (avatar only, no label or border)
+  if (variant === "icon") {
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-opacity outline-none opacity-60 hover:opacity-100"
+        >
+          <UserAvatar user={user} size={24} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
+            {user.email || user.name}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {onSettings && (

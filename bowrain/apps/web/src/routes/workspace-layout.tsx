@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import {
   AnimatedBackgroundGlass,
   AppSidebar,
+  TopBar,
   useAuth,
   useWorkspace,
   useApi,
@@ -305,13 +306,17 @@ export function WorkspaceLayout() {
           activeView={activeView}
           onViewChange={handleViewChange}
           user={user}
-          onSignOut={serverMode === "server" ? handleSignOut : undefined}
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
+          collapsedWidth={60}
+          showThemeToggle={false}
         />
-        <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
-          <Outlet />
-        </main>
+        <div className="flex-1 flex flex-col min-h-0">
+          <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
+          <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
+            <Outlet />
+          </main>
+        </div>
 
         {showCreateWs && (
           <CreateWorkspaceDialog

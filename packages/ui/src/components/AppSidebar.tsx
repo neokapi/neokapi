@@ -84,10 +84,7 @@ export function AppSidebar<V extends string = string>({
         {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
 
         {/* Workspace switcher */}
-        <div
-          className="border-b shrink-0"
-          style={{ borderColor: "var(--semantic-border)" }}
-        >
+        <div className="shrink-0">
           <WorkspaceSwitcher
             workspaces={workspaces}
             activeWorkspace={activeWorkspace}
@@ -147,20 +144,14 @@ export function AppSidebar<V extends string = string>({
 
         {/* Footer: theme toggle */}
         {!iconsOnly && showThemeToggle && (
-          <div
-            className="px-4 py-3 border-t flex items-center"
-            style={{ borderColor: "var(--semantic-border)" }}
-          >
+          <div className="px-4 py-3 flex items-center">
             <ThemeToggle />
           </div>
         )}
 
         {/* User account */}
         {user && onSignOut && (
-          <div
-            className="border-t shrink-0"
-            style={{ borderColor: "var(--semantic-border)" }}
-          >
+          <div className="shrink-0">
             <AccountMenu
               user={user}
               onSignOut={onSignOut}

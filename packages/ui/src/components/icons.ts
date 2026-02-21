@@ -42,4 +42,5 @@ export {
   User,
   WifiOff,
   Monitor,
+  Bell,
 } from "lucide-react";

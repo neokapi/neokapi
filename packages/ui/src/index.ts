@@ -26,6 +26,8 @@ export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";
 export { MainSidebar } from "./components/MainSidebar";
 export { AccountMenu } from "./components/AccountMenu";
+export { TopBar } from "./components/TopBar";
+export type { TopBarProps } from "./components/TopBar";
 export { AppSidebar } from "./components/AppSidebar";
 export type { AppSidebarProps } from "./components/AppSidebar";
 export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
