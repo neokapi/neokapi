@@ -4,164 +4,104 @@
 [![Screenshots & Recordings](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml)
 [![Docs](https://github.com/gokapi/gokapi/actions/workflows/docs.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/docs.yml)
 
-> **Experimental:** Gokapi is, like some current government administrations, an ongoing experiment and should not be used in production.
+> **Experimental:** Gokapi is an ongoing experiment and should not be used in production.
 
 An AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. Format-aware document parsing, channel-based concurrent processing, and pluggable tools for localization and translation.
 
-## Architecture
+## Install
 
-Documents flow through a channel-based concurrent pipeline where each tool runs in its own goroutine:
-
-```
-RawDocument → DataFormatReader → [Tool 1] → [Tool 2] → ... → DataFormatWriter → Output
-                                    ↕            ↕
-                              chan *Part    chan *Part
-```
-
-Buffered channels provide backpressure. `errgroup.Group` coordinates error handling. Context cancellation propagates to all stages.
-
-The content model uses **Parts** as the fundamental streaming unit:
-
-- **Layer** — structural grouping; layers nest for embedded content (e.g. HTML inside JSON)
-- **Block** — translatable content with source/target segments per locale
-- **Fragment** — text with inline spans using coded text (Unicode PUA markers)
-- **Data** — non-translatable structure
-- **Media** — binary content
-
-## Installation
-
-**Homebrew (CLI):**
+**Homebrew:**
 
 ```bash
-brew install --cask gokapi/tap/kapi
+brew install --cask gokapi/tap/kapi      # CLI
+brew install --cask gokapi/tap/bowrain    # Desktop app (macOS)
 ```
 
-**Homebrew (Bowrain desktop app, macOS):**
+Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://github.com/gokapi/gokapi/releases) page.
+
+## Repository Layout
+
+Four Go modules coordinated by `go.work`:
+
+| Module | Path | Description |
+|--------|------|-------------|
+| **Framework** | `core/` | Content model, format readers/writers, processing tools, pipeline executor, plugin system |
+| **Platform** | `platform/` | Shared types, interfaces, REST client, config |
+| **Kapi** | `kapi/` | CLI tool for local file processing and server sync |
+| **Bowrain** | `bowrain/` | Server, desktop app, SQLite storage, auth, connectors |
+
+See [AD-018](docs/ad/018-four-module-architecture.md) for the full rationale.
+
+## Development Setup
+
+### Prerequisites (one-time, macOS)
 
 ```bash
-brew install --cask gokapi/tap/bowrain
+brew install dnsmasq mkcert
+
+# Resolve *.mymac → 127.0.0.1
+echo 'address=/.mymac/127.0.0.1' >> $(brew --prefix)/etc/dnsmasq.conf
+sudo brew services restart dnsmasq
+sudo mkdir -p /etc/resolver
+echo 'nameserver 127.0.0.1' | sudo tee /etc/resolver/mymac
+
+# Install local CA + generate TLS certs
+mkcert -install
+make certs
 ```
 
-**Direct download:**
-
-Pre-built binaries for Linux, macOS, and Windows are available on the [Releases](https://github.com/gokapi/gokapi/releases) page.
-
-**From source:**
+### Run locally
 
 ```bash
-go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
+docker compose up -d --wait    # Traefik + Keycloak + Mailpit
+make dev-server                # Build + run bowrain-server
+make dev-web                   # Vite dev server with HMR
 ```
 
-## Quick Start
+| Service | URL |
+|---------|-----|
+| Web app | https://bowrain.mymac |
+| API | https://bowrain.mymac/api/* |
+| Keycloak | https://auth.bowrain.mymac (admin/admin) |
+| Mailpit | https://mail.bowrain.mymac |
+| Traefik | https://traefik.bowrain.mymac |
+
+See [Docker Compose Development Setup](docs/notes/docker-compose.md) for details.
+
+### CI mode (no Traefik, plain HTTP)
 
 ```bash
-# Convert HTML to XLIFF for translation
-kapi convert -i document.html -o document.xliff -f html -t xliff2
-
-# Translate using AI (requires API key)
-kapi translate -i document.xliff -p anthropic -l fr
-
-# Merge translations back
-kapi merge -i document.xliff -o translated.html -f html
-
-# Run a processing flow
-kapi flow -c pipeline.yaml
-
-# List supported formats
-kapi formats
-
-# List available tools
-kapi tools
+docker compose -f compose.yaml -f compose.ci.yaml up -d --wait
 ```
 
-## Supported Formats
+## Makefile Targets
 
-| Format | ID | Extensions |
-|--------|-----|------------|
-| Plain Text | `plaintext` | `.txt` |
-| HTML | `html` | `.html`, `.htm` |
-| XML | `xml` | `.xml` |
-| XLIFF 1.2 | `xliff` | `.xlf`, `.xliff` |
-| XLIFF 2.0 | `xliff2` | `.xlf`, `.xliff` |
-| YAML | `yaml` | `.yml`, `.yaml` |
-| JSON | `json` | `.json` |
-| GNU gettext PO | `po` | `.po`, `.pot` |
-| Java Properties | `properties` | `.properties` |
-| Markdown | `markdown` | `.md`, `.markdown` |
-| CSV | `csv` | `.csv` |
-| SRT Subtitles | `srt` | `.srt` |
-| WebVTT Subtitles | `vtt` | `.vtt` |
-| TMX | `tmx` | `.tmx` |
-
-## Applications
-
-### Bowrain
-
-Bowrain is a native desktop translation editor built with [Wails](https://wails.io/) and React. It provides a graphical interface for translation projects with:
-
-- Project management with SQLite-backed content store
-- Side-by-side translation editing
-- Document preview
-- AI-powered translation via Anthropic, OpenAI, and Ollama
-- Translation memory (Sievepen)
-
-Build: `cd bowrain/apps/bowrain && wails build`
-
-### REST Server
-
-The `bowrain-server` binary exposes the framework as an Echo v4 REST API:
-
-```bash
-make build-server
-./bin/bowrain-server
+```
+make build              Build kapi CLI → bin/kapi
+make build-server       Build bowrain-server → bin/bowrain-server
+make build-all          Build all Go binaries
+make test               Run all tests (all four modules)
+make test-framework     Framework tests only
+make test-platform      Platform tests only
+make test-kapi          Kapi tests only
+make test-bowrain       Bowrain tests only
+make check              fmt + vet + lint
+make cover              Coverage report → coverage/coverage.html
+make certs              Generate mkcert TLS certs for *.bowrain.mymac
+make dev-server         Build + run server against Docker deps
+make dev-web            Vite dev server with HMR
+make dev-deps           Start Docker deps
+make dev-deps-down      Stop Docker deps
 ```
 
-## Development
-
-```bash
-make build              # Build kapi CLI → bin/kapi
-make build-server       # Build REST server → bin/bowrain-server
-make test               # Run all tests
-make test-unit          # Unit tests only (-short flag)
-make test-race          # Tests with race detector
-make cover              # Coverage report → coverage/coverage.html
-make fmt                # Format Go source
-make vet                # Run go vet
-make lint               # Run golangci-lint
-make check              # fmt + vet + lint
-```
-
-Run a single test:
-
-```bash
-go test ./flow/ -run TestExecutorCancellation -v
-```
-
-Bowrain development:
-
-```bash
-cd bowrain/apps/bowrain && wails dev          # Dev mode with hot reload
-cd bowrain/apps/bowrain/frontend && npm run test:e2e   # Playwright E2E tests
-```
-
-## Plugin System
-
-gokapi uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with gRPC for out-of-process tool plugins. A Java bridge enables running legacy Okapi filters as gokapi plugins.
-
-```bash
-kapi plugins                          # List installed plugins
-make build-bridge-jar                 # Build Java bridge
-make test-bridge-integration          # Test bridge integration
-```
+Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
 ## Documentation
 
-- [Overview](docs/OVERVIEW.md) — project vision and terminology mapping
-- [Architecture](docs/ARCHITECTURE.md) — technical architecture
-- [Interfaces](docs/INTERFACES.md) — interface definitions and contracts
-- [Phases](docs/PHASES.md) — implementation roadmap
-- [Testing](docs/TESTING.md) — testing strategy
-- [Release](docs/RELEASE.md) — release process
+- **[Architecture Decisions](docs/ad/)** — one AD per architectural concern
+- **[Implementation Notes](docs/notes/)** — schemas, protocols, algorithms
+- **[Testing Strategy](docs/TESTING.md)** — test pyramid, patterns, CI config
+- **[Website](website/)** — Docusaurus docs site (`cd website && npm start`)
 
 ## License
 
