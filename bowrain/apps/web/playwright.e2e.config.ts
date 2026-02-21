@@ -6,7 +6,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: ["claim-flow.spec.ts", "open-in-desktop.spec.ts"],
+  testMatch: ["claim-flow.spec.ts", "open-in-desktop.spec.ts", "routing.spec.ts"],
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
