@@ -10,8 +10,8 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
-      <Card className="min-w-[360px]">
+    <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
+      <Card className="min-w-[360px] glass-surface">
         <CardHeader className="items-center text-center">
           <CardTitle className="text-3xl font-bold">gokapi</CardTitle>
           <p className="text-sm text-muted-foreground">

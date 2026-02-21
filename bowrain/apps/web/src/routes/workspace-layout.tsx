@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import {
+  AnimatedBackgroundGlass,
   AppSidebar,
   useAuth,
   useWorkspace,
@@ -240,9 +241,12 @@ export function WorkspaceLayout() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-background text-muted-foreground">
-        Loading...
-      </div>
+      <>
+        <AnimatedBackgroundGlass />
+        <div className="relative z-10 flex items-center justify-center h-screen text-muted-foreground">
+          Loading...
+        </div>
+      </>
     );
   }
 
@@ -250,63 +254,72 @@ export function WorkspaceLayout() {
   if (serverMode === "server" && !user) {
     if (signedOut) {
       return (
-        <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
-          <Card className="min-w-[360px]">
-            <CardHeader className="items-center text-center">
-              <CardTitle className="text-xl font-semibold">Signed out</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                You have been signed out successfully.
-              </p>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Button
-                onClick={() => { window.location.href = "/api/v1/auth/login"; }}
-                className="w-full"
-                size="lg"
-              >
-                Sign in again
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <>
+          <AnimatedBackgroundGlass />
+          <div className="relative z-10 flex items-center justify-center h-screen flex-col gap-6 text-foreground">
+            <Card className="min-w-[360px]">
+              <CardHeader className="items-center text-center">
+                <CardTitle className="text-xl font-semibold">Signed out</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  You have been signed out successfully.
+                </p>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <Button
+                  onClick={() => { window.location.href = "/api/v1/auth/login"; }}
+                  className="w-full"
+                  size="lg"
+                >
+                  Sign in again
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </>
       );
     }
 
     // Auto-redirect to OIDC.
     window.location.href = "/api/v1/auth/login";
     return (
-      <div className="flex items-center justify-center h-screen bg-background text-muted-foreground">
-        Redirecting to sign in...
-      </div>
+      <>
+        <AnimatedBackgroundGlass />
+        <div className="relative z-10 flex items-center justify-center h-screen text-muted-foreground">
+          Redirecting to sign in...
+        </div>
+      </>
     );
   }
 
   const isEditor = activeView === "translate";
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <AppSidebar
-        workspaces={workspaces}
-        activeWorkspace={activeWorkspace}
-        onSelectWorkspace={handleSelectWorkspace}
-        onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-        activeView={activeView}
-        onViewChange={handleViewChange}
-        user={user}
-        onSignOut={serverMode === "server" ? handleSignOut : undefined}
-        collapsed={sidebarCollapsed}
-        onCollapsedChange={setSidebarCollapsed}
-      />
-      <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
-        <Outlet />
-      </main>
-
-      {showCreateWs && (
-        <CreateWorkspaceDialog
-          onClose={() => setShowCreateWs(false)}
-          onCreate={handleWorkspaceCreated}
+    <>
+      <AnimatedBackgroundGlass />
+      <div className="relative z-10 flex h-screen overflow-hidden">
+        <AppSidebar
+          workspaces={workspaces}
+          activeWorkspace={activeWorkspace}
+          onSelectWorkspace={handleSelectWorkspace}
+          onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+          activeView={activeView}
+          onViewChange={handleViewChange}
+          user={user}
+          onSignOut={serverMode === "server" ? handleSignOut : undefined}
+          collapsed={sidebarCollapsed}
+          onCollapsedChange={setSidebarCollapsed}
         />
-      )}
-    </div>
+        <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
+          <Outlet />
+        </main>
+
+        {showCreateWs && (
+          <CreateWorkspaceDialog
+            onClose={() => setShowCreateWs(false)}
+            onCreate={handleWorkspaceCreated}
+          />
+        )}
+      </div>
+    </>
   );
 }

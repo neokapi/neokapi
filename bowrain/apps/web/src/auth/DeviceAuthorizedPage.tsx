@@ -1,4 +1,4 @@
-import { AnimatedBackgroundGlass, Card, CardContent } from "@gokapi/ui";
+import { Card, CardContent } from "@gokapi/ui";
 
 function CheckCircleIcon() {
   return (
@@ -19,21 +19,18 @@ function CheckCircleIcon() {
 
 export function DeviceAuthorizedPage() {
   return (
-    <>
-      <AnimatedBackgroundGlass />
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="glass-surface">
-            <CardContent className="flex flex-col items-center text-center gap-4 py-10">
-              <CheckCircleIcon />
-              <h1 className="text-2xl font-semibold tracking-tight">Device Authorized!</h1>
-              <p className="text-sm text-muted-foreground">
-                You can close this window and return to your terminal.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="glass-surface">
+          <CardContent className="flex flex-col items-center text-center gap-4 py-10">
+            <CheckCircleIcon />
+            <h1 className="text-2xl font-semibold tracking-tight">Device Authorized!</h1>
+            <p className="text-sm text-muted-foreground">
+              You can close this window and return to your terminal.
+            </p>
+          </CardContent>
+        </Card>
       </div>
-    </>
+    </div>
   );
 }

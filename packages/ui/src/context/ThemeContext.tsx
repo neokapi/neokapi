@@ -43,6 +43,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isDark = theme === "dark";
       }
       document.documentElement.classList.toggle("dark", isDark);
+      // Activate shadcn-glass-ui semantic tokens (--semantic-*, --orb-*, --bg-*, --sidebar-*).
+      document.documentElement.setAttribute("data-theme", isDark ? "glass" : "light");
     };
 
     applyTheme();

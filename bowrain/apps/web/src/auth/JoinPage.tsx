@@ -55,8 +55,8 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
   // Not authenticated: show a friendly landing page with a "Sign in to join" button.
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
-        <Card className="min-w-[360px]">
+      <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
+        <Card className="min-w-[360px] glass-surface">
           <CardHeader className="items-center text-center">
             <CardTitle className="text-xl font-semibold">Join Workspace</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -82,8 +82,8 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
 
   if (result) {
     return (
-      <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
-        <Card className="min-w-[360px]">
+      <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
+        <Card className="min-w-[360px] glass-surface">
           <CardHeader className="items-center text-center">
             <CardTitle className="text-xl font-semibold">Joined!</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -101,8 +101,8 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
   }
 
   return (
-    <div className="flex items-center justify-center h-screen flex-col gap-6 bg-background text-foreground">
-      <Card className="min-w-[360px]">
+    <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
+      <Card className="min-w-[360px] glass-surface">
         <CardHeader className="items-center text-center">
           <CardTitle className="text-xl font-semibold">Join Workspace</CardTitle>
           <p className="text-sm text-muted-foreground">
