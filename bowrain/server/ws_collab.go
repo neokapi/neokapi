@@ -97,12 +97,6 @@ func (room *collabRoom) broadcast(sender *collabClient, msg []byte) {
 	}
 }
 
-// awareness sends the current list of connected users in the room.
-type awarenessInfo struct {
-	UserID string `json:"userId"`
-	Name   string `json:"name"`
-}
-
 // HandleCollabWebSocket handles WebSocket connections for collaborative editing.
 // Route: GET /api/v1/workspaces/:ws/editor/projects/:pid/collab/:fname
 // Query params: locale (required)
@@ -133,7 +127,7 @@ func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 	if err != nil {
 		return fmt.Errorf("collab: websocket accept: %w", err)
 	}
-	defer conn.CloseNow()
+	defer func() { _ = conn.CloseNow() }()
 
 	// Set read limit (1 MB for Yjs messages).
 	conn.SetReadLimit(1 << 20)

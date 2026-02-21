@@ -119,21 +119,21 @@ func TestCollabWebSocket_RelayMessages(t *testing.T) {
 	headers1.Set("X-Test-User-ID", "user1")
 	headers1.Set("X-Test-User-Name", "Alice")
 	conn1, _, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
-		Subprotocols:  []string{"yjs"},
-		HTTPHeader:    headers1,
+		Subprotocols: []string{"yjs"},
+		HTTPHeader:   headers1,
 	})
 	require.NoError(t, err)
-	defer conn1.CloseNow()
+	defer func() { _ = conn1.CloseNow() }()
 
 	headers2 := http.Header{}
 	headers2.Set("X-Test-User-ID", "user2")
 	headers2.Set("X-Test-User-Name", "Bob")
 	conn2, _, err := websocket.Dial(ctx, wsURL+"/ws/acme/proj1/file.html?locale=fr", &websocket.DialOptions{
-		Subprotocols:  []string{"yjs"},
-		HTTPHeader:    headers2,
+		Subprotocols: []string{"yjs"},
+		HTTPHeader:   headers2,
 	})
 	require.NoError(t, err)
-	defer conn2.CloseNow()
+	defer func() { _ = conn2.CloseNow() }()
 
 	// Give server time to register both clients.
 	time.Sleep(100 * time.Millisecond)
