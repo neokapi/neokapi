@@ -18,8 +18,9 @@ function setReturnPathCookie(path: string) {
 
 export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
   const api = useApi();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const { setWorkspaces, setActiveWorkspace } = useWorkspace();
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [claiming, setClaiming] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<ClaimProjectResponse | null>(null);
@@ -45,12 +46,41 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
     }
   };
 
-  // Auto-claim on mount if user is authenticated.
+  // On mount, try to fetch the current user (the session cookie may already be set).
   useEffect(() => {
-    if (user && !result && !error) {
+    if (user) {
+      setCheckingAuth(false);
+      return;
+    }
+    (async () => {
+      try {
+        const currentUser = await api.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+        }
+      } catch {
+        // No session — user stays null.
+      } finally {
+        setCheckingAuth(false);
+      }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-claim once user is resolved.
+  useEffect(() => {
+    if (user && !result && !error && !claiming) {
       handleClaim();
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Still checking whether the user has an active session.
+  if (checkingAuth) {
+    return (
+      <div className="flex items-center justify-center h-screen text-muted-foreground">
+        Loading...
+      </div>
+    );
+  }
 
   // Not authenticated: show a friendly landing page with a "Sign in to claim" button.
   if (!user) {
