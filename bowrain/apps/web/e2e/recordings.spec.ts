@@ -61,9 +61,10 @@ test.describe("Web App Recordings", () => {
     wsSlug = ws.slug;
   });
 
+  /** Navigate directly to the workspace dashboard and set up recording chrome. */
   async function setupRecording(page: Page, theme: "dark" | "light") {
     await injectAuthCookie(page, token);
-    await page.goto("/");
+    await page.goto(`/${wsSlug}`);
     // Wait for app to fully load (sidebar nav should be visible)
     await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
     await setTheme(page, theme);
@@ -93,7 +94,7 @@ test.describe("Web App Recordings", () => {
       // Submit login — Keycloak redirects back to Bowrain with auth code
       await page.locator("#kc-login").click();
 
-      // Wait for redirect back to Bowrain app
+      // Wait for redirect back to Bowrain app (lands on /$workspace)
       await page.waitForURL("**/localhost:8080/**", { timeout: 15000 });
       await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
       await setTheme(page, theme);
@@ -104,7 +105,7 @@ test.describe("Web App Recordings", () => {
       await page.waitForTimeout(2000);
       await expect(page.getByText("Acme Inc.")).toBeVisible({ timeout: 10000 });
 
-      // Hover over the sidebar navigation items
+      // Navigate through sidebar views — each click navigates to a route
       await humanClick(page, page.getByTestId("nav-translate"));
       await pause(page, 1000);
 
@@ -197,17 +198,13 @@ test.describe("Web App Recordings", () => {
       const p = await createEditorProject(token, wsSlug, "Release Notes", "en", ["fr"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["release-notes.md"]);
 
-      await setupRecording(page, theme);
-
-      await expect(page.getByText("Release Notes").first()).toBeVisible({ timeout: 10000 });
-      await pause(page, 800);
-      const rnCard = page.getByText("Release Notes").first();
-      await humanClick(page, rnCard);
-      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-      await pause(page, 800);
-
-      await humanClickNative(page, "open-file-release-notes.md");
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the editor route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/project/${p.id}/translate/release-notes.md`);
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1000);
 
       // Pseudo translate first so there's content
@@ -244,17 +241,13 @@ test.describe("Web App Recordings", () => {
       const p = await createEditorProject(token, wsSlug, "Mobile App", "en", ["fr", "de"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["app-strings.json"]);
 
-      await setupRecording(page, theme);
-
-      await expect(page.getByText("Mobile App").first()).toBeVisible({ timeout: 10000 });
-      await pause(page, 800);
-      const maCard = page.getByText("Mobile App").first();
-      await humanClick(page, maCard);
-      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-      await pause(page, 800);
-
-      await humanClickNative(page, "open-file-app-strings.json");
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the editor route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/project/${p.id}/translate/app-strings.json`);
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1000);
 
       // Show the empty state first
@@ -283,12 +276,13 @@ test.describe("Web App Recordings", () => {
 
       await seedTMEntries(token, wsSlug);
 
-      await setupRecording(page, theme);
-      await pause(page, 1000);
-
-      // Navigate to TM
-      await humanClick(page, page.getByTestId("nav-memory"));
-      await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the TM explorer route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/memory`);
+      await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1500);
 
       // Search for an entry
@@ -319,12 +313,13 @@ test.describe("Web App Recordings", () => {
 
       await seedConcepts(token, wsSlug);
 
-      await setupRecording(page, theme);
-      await pause(page, 1000);
-
-      // Navigate to Termbase
-      await humanClick(page, page.getByTestId("nav-termbase"));
-      await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the termbase route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/termbase`);
+      await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1500);
 
       // Search for a term
@@ -359,17 +354,13 @@ test.describe("Web App Recordings", () => {
       await seedTMEntries(token, wsSlug);
       await seedConcepts(token, wsSlug);
 
-      await setupRecording(page, theme);
-
-      await expect(page.getByText("Context Demo").first()).toBeVisible({ timeout: 10000 });
-      await pause(page, 800);
-      const ctxCard = page.getByText("Context Demo").first();
-      await humanClick(page, ctxCard);
-      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-      await pause(page, 800);
-
-      await humanClickNative(page, "open-file-about-us.html");
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the editor route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1000);
 
       // Open context panel
@@ -402,11 +393,13 @@ test.describe("Web App Recordings", () => {
     test(`record settings [${theme}]`, async ({ page }) => {
       test.skip(isCI, "Recording tests are skipped in CI");
 
-      await setupRecording(page, theme);
-      await pause(page, 1000);
-
-      await humanClick(page, page.getByTestId("nav-settings"));
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+      // Navigate directly to settings route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/settings`);
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 2000);
 
       // Hover over workspace info fields
@@ -424,12 +417,13 @@ test.describe("Web App Recordings", () => {
       test.skip(isCI, "Recording tests are skipped in CI");
       test.setTimeout(180_000); // invite workflow needs extra time for human-speed interactions
 
-      await setupRecording(page, theme);
-      await pause(page, 1000);
-
-      // Navigate to Settings
-      await humanClick(page, page.getByTestId("nav-settings"));
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+      // Navigate directly to settings route
+      await injectAuthCookie(page, token);
+      await page.goto(`/${wsSlug}/settings`);
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+      await setTheme(page, theme);
+      await injectCursor(page);
+      await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1500);
 
       // Scroll to Invitations section

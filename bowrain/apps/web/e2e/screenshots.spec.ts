@@ -84,9 +84,9 @@ test.describe("Web App Screenshots", () => {
       const p3 = await createEditorProject(token, wsSlug, "Release Notes", "en", ["fr"]);
       await uploadSeedFiles(token, wsSlug, p3.id, ["release-notes.md"]);
 
-      // Navigate with token
+      // Navigate directly to the workspace dashboard route
       await injectAuthCookie(page, token);
-      await page.goto("/");
+      await page.goto(`/${wsSlug}`);
       await expect(page.getByText("Company Website").first()).toBeVisible({ timeout: 10000 });
       await expect(page.getByText("Mobile App").first()).toBeVisible();
       await expect(page.getByText("Release Notes").first()).toBeVisible();
@@ -108,18 +108,17 @@ test.describe("Web App Screenshots", () => {
       const p = await createEditorProject(token, wsSlug, "Company Website", "en", ["fr", "de"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["about-us.html", "app-strings.json", "release-notes.md"]);
 
+      // Navigate directly to the project detail route
       await injectAuthCookie(page, token);
-      await page.goto("/");
-      await expect(page.getByText("Company Website").first()).toBeVisible({ timeout: 10000 });
-      await page.getByText("Company Website").first().click();
-      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+      await page.goto(`/${wsSlug}/project/${p.id}`);
+      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "project-view.png") });
 
-      // Open file in editor
-      await page.getByTestId("open-file-about-us.html").click();
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+      // Navigate directly to the editor route
+      await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "editor.png") });
@@ -151,12 +150,10 @@ test.describe("Web App Screenshots", () => {
       const dir = path.join(SCREENSHOT_BASE, theme);
       await seedTMEntries(token, wsSlug);
 
+      // Navigate directly to the TM explorer route
       await injectAuthCookie(page, token);
-      await page.goto("/");
-      await page.waitForTimeout(1000);
-
-      await page.getByTestId("nav-memory").click();
-      await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 5000 });
+      await page.goto(`/${wsSlug}/memory`);
+      await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 10000 });
 
       // Wait for entries to load
       await page.waitForTimeout(1000);
@@ -169,12 +166,10 @@ test.describe("Web App Screenshots", () => {
       const dir = path.join(SCREENSHOT_BASE, theme);
       await seedConcepts(token, wsSlug);
 
+      // Navigate directly to the termbase route
       await injectAuthCookie(page, token);
-      await page.goto("/");
-      await page.waitForTimeout(1000);
-
-      await page.getByTestId("nav-termbase").click();
-      await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 5000 });
+      await page.goto(`/${wsSlug}/termbase`);
+      await expect(page.getByTestId("term-explorer")).toBeVisible({ timeout: 10000 });
 
       // Wait for concepts to load
       await page.waitForTimeout(1000);
@@ -185,12 +180,10 @@ test.describe("Web App Screenshots", () => {
 
     test(`capture settings [${theme}]`, async ({ page }) => {
       const dir = path.join(SCREENSHOT_BASE, theme);
+      // Navigate directly to the settings route
       await injectAuthCookie(page, token);
-      await page.goto("/");
-      await page.waitForTimeout(1000);
-
-      await page.getByTestId("nav-settings").click();
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+      await page.goto(`/${wsSlug}/settings`);
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "settings.png") });
@@ -202,12 +195,10 @@ test.describe("Web App Screenshots", () => {
       // Seed an invite so the invite list is populated
       await createInvite(token, wsSlug, "member", "translator@example.com", 1, 7);
 
+      // Navigate directly to the settings route
       await injectAuthCookie(page, token);
-      await page.goto("/");
-      await page.waitForTimeout(1000);
-
-      await page.getByTestId("nav-settings").click();
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+      await page.goto(`/${wsSlug}/settings`);
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
 
       // Wait for invite list to load
       const inviteManager = page.getByTestId("invite-manager");
