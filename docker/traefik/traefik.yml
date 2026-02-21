@@ -1,8 +1,9 @@
 # Traefik v3 static configuration for local development.
 #
 # Entrypoints:
-#   - :80  → HTTP, redirects all traffic to HTTPS
-#   - :443 → HTTPS, terminates TLS with mkcert-generated certs
+#   - :80   → HTTP, redirects all traffic to HTTPS
+#   - :443  → HTTPS, terminates TLS with mkcert-generated certs
+#   - :1443 → gRPC (TCP passthrough to bowrain-server gRPC with native TLS)
 #
 # Providers:
 #   - Docker labels (containerized services: Keycloak, Mailpit)
@@ -18,6 +19,8 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+  grpc:
+    address: ":1443"
 
 providers:
   docker:

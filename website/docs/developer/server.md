@@ -80,6 +80,20 @@ bin/bowrain-server --port 8080 --grpc-port 9090
 
 Or via environment: `BOWRAIN_GRPC_PORT=9090`.
 
+### TLS Configuration
+
+The gRPC server supports native TLS to encrypt credentials and data in transit. Provide a certificate and key via flags or environment variables:
+
+```bash
+bin/bowrain-server --grpc-port 9090 \
+    --grpc-tls-cert /path/to/cert.pem \
+    --grpc-tls-key  /path/to/key.pem
+```
+
+Or via environment: `BOWRAIN_GRPC_TLS_CERT`, `BOWRAIN_GRPC_TLS_KEY`.
+
+When TLS is enabled, the server enforces TLS 1.2+ with AEAD cipher suites only. When omitted, the gRPC server runs without encryption (suitable for CI or when behind a TLS-terminating proxy). In local development, `make dev-server` automatically uses the mkcert wildcard certificates.
+
 ### Service Definition
 
 The `GokapiService` provides these RPCs:
@@ -111,9 +125,16 @@ Three RPCs use server-side streaming:
 ### Client Example
 
 ```go
-conn, err := grpc.NewClient("localhost:9090",
-    grpc.WithTransportCredentials(insecure.NewCredentials()),
+// Production / local dev with TLS:
+conn, err := grpc.NewClient("bowrain.mymac:1443",
+    grpc.WithTransportCredentials(credentials.NewClientTLSFromCert(nil, "")),
 )
+
+// CI / testing without TLS:
+// conn, err := grpc.NewClient("localhost:9090",
+//     grpc.WithTransportCredentials(insecure.NewCredentials()),
+// )
+
 client := serverv1.NewGokapiServiceClient(conn)
 
 // Stream blocks

@@ -8,13 +8,14 @@ This note documents the `compose.yaml` configuration at the repository root, whi
 
 ## Architecture
 
-The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in front of containerized services (Keycloak, Mailpit) and host-running services (bowrain-server, Vite dev server). This gives local development a production-like HTTPS experience.
+The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in front of containerized services (Keycloak, Mailpit) and host-running services (bowrain-server, Vite dev server). This gives local development a production-like HTTPS experience. The gRPC service uses TLS natively (not terminated by Traefik) with the same mkcert certificates, and Traefik provides TCP passthrough on port 1443.
 
 ```
-                     ┌──────────────┐
-                     │   Traefik    │
-                     │   :80 → :443 │
-                     └──────┬───────┘
+                     ┌──────────────────┐
+                     │     Traefik      │
+                     │  :80 → :443      │
+                     │  :1443 (gRPC PT) │
+                     └──────┬───────────┘
            ┌────────────────┼────────────────┐
            │                │                │
   ┌────────▼────────┐ ┌────▼─────┐ ┌────────▼────────┐
@@ -22,9 +23,9 @@ The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in 
   │ auth.bowrain.   │ │ mail.    │ │    internal      │
   │    mymac        │ │ bowrain. │ │                  │
   │ (OIDC provider) │ │  mymac   │ │ bowrain-server   │
-  │ container:8080  │ │ :8025    │ │ host:8080        │
-  └─────────────────┘ └──────────┘ │ Vite dev server  │
-                                   │ host:5173        │
+  │ container:8080  │ │ :8025    │ │ HTTP  host:8080  │
+  └─────────────────┘ └──────────┘ │ gRPC  host:9080  │
+                                   │ Vite  host:5173  │
                                    └──────────────────┘
 ```
 
@@ -32,6 +33,7 @@ The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in 
 |---|---|---|
 | Web app (dev) | `https://bowrain.mymac` | host:5173 (Vite HMR) |
 | API | `https://bowrain.mymac/api/*` | host:8080 (bowrain-server) |
+| gRPC | `bowrain.mymac:1443` | host:9080 (TCP passthrough, native TLS) |
 | Keycloak | `https://auth.bowrain.mymac` | keycloak container:8080 |
 | Mailpit | `https://mail.bowrain.mymac` | mailpit container:8025 |
 | Traefik dashboard | `https://traefik.bowrain.mymac` | traefik:8080 |
@@ -99,6 +101,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "1443:1443"  # gRPC TLS passthrough → bowrain-server:9080
 
   keycloak:
     environment:
@@ -121,9 +124,9 @@ services:
 ### Traefik
 
 - **Image**: `traefik:v3`
-- **Static config**: `docker/traefik/traefik.yml` — entrypoints (80→443 redirect), Docker + file providers, dashboard
-- **Dynamic config**: `docker/traefik/dynamic.yml` — routers for `bowrain.mymac` (API at priority 100, Vite at 90), TLS cert paths, dashboard router
-- **TLS certificates**: `docker/traefik/certs/` — mkcert-generated wildcard cert (`*.bowrain.mymac`), gitignored
+- **Static config**: `docker/traefik/traefik.yml` — entrypoints (80→443 redirect, 1443 gRPC passthrough), Docker + file providers, dashboard
+- **Dynamic config**: `docker/traefik/dynamic.yml` — HTTP routers for `bowrain.mymac` (API at priority 100, Vite at 90), TCP router for gRPC passthrough to host:9080, TLS cert paths, dashboard router
+- **TLS certificates**: `docker/traefik/certs/` — mkcert-generated wildcard cert (`*.bowrain.mymac`), gitignored. Used by Traefik for HTTP TLS termination and by bowrain-server for native gRPC TLS
 - **Docker labels**: Used for containerized services (Keycloak, Mailpit)
 - **File provider**: Used for host-running services (bowrain-server, Vite) via `host.docker.internal`
 
@@ -167,8 +170,12 @@ dev-server: build-server
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_STORE=bowrain-dev.db \
 	BOWRAIN_GRPC_PORT=9080 \
+	BOWRAIN_GRPC_TLS_CERT=$(CERT_DIR)/wildcard.pem \
+	BOWRAIN_GRPC_TLS_KEY=$(CERT_DIR)/wildcard-key.pem \
 	bin/bowrain-server
 ```
+
+The `BOWRAIN_GRPC_TLS_CERT` and `BOWRAIN_GRPC_TLS_KEY` variables point to the same mkcert wildcard certificate used by Traefik. The gRPC server loads these directly and handles TLS natively (Traefik uses TCP passthrough, not TLS termination, for gRPC). When these variables are omitted (e.g., in CI), the gRPC server runs without TLS and logs a warning.
 
 The `build-server` prerequisite chains through `web-build`, which in turn depends on `ui-deps` and `web-deps`, so a single `make dev-server` command handles the entire build pipeline from shared UI to server binary.
 

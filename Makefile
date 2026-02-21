@@ -152,6 +152,8 @@ dev-server: build-server ## Run bowrain-server locally against Docker deps
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_STORE=bowrain-dev.db \
 	BOWRAIN_GRPC_PORT=9080 \
+	BOWRAIN_GRPC_TLS_CERT=$(CERT_DIR)/wildcard.pem \
+	BOWRAIN_GRPC_TLS_KEY=$(CERT_DIR)/wildcard-key.pem \
 	bin/bowrain-server
 
 dev-web: ## Run web UI dev server with HMR (proxy → localhost:8080)
