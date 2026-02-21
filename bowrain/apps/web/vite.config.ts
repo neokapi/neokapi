@@ -12,5 +12,13 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-router": ["@tanstack/react-router"],
+          "vendor-query": ["@tanstack/react-query"],
+        },
+      },
+    },
   },
 });

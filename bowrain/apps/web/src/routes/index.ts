@@ -2,6 +2,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
 } from "@tanstack/react-router";
 import { RootLayout } from "./root-layout";
@@ -9,12 +10,6 @@ import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
 import { ProjectDashboardRoute } from "./workspace/dashboard";
 import { ProjectDetailRoute } from "./workspace/project-detail";
-import { TranslateRoute } from "./workspace/translate";
-import { TermbaseRoute } from "./workspace/termbase";
-import { MemoryRoute } from "./workspace/memory";
-import { SettingsIndexRoute } from "./workspace/settings";
-import { SettingsMembersRoute } from "./workspace/settings-members";
-import { SettingsProvidersRoute } from "./workspace/settings-providers";
 import { JoinRoute } from "./auth/join";
 import { ClaimRoute } from "./auth/claim";
 import { DeviceVerifyRoute } from "./auth/device-verify";
@@ -94,7 +89,10 @@ const projectRoute = createRoute({
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "project/$projectId/translate/$fileName",
-  component: TranslateRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/translate"),
+    "TranslateRoute",
+  ),
   validateSearch: (
     search: Record<string, unknown>,
   ): { locale?: string; block?: string; layout?: string } => ({
@@ -107,13 +105,19 @@ const translateRoute = createRoute({
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
-  component: TermbaseRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/termbase"),
+    "TermbaseRoute",
+  ),
 });
 
 const memoryRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "memory",
-  component: MemoryRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/memory"),
+    "MemoryRoute",
+  ),
 });
 
 const settingsRoute = createRoute({
@@ -125,19 +129,28 @@ const settingsRoute = createRoute({
 const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
-  component: SettingsIndexRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/settings"),
+    "SettingsIndexRoute",
+  ),
 });
 
 const settingsMembersRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "members",
-  component: SettingsMembersRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-members"),
+    "SettingsMembersRoute",
+  ),
 });
 
 const settingsProvidersRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "providers",
-  component: SettingsProvidersRoute,
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-providers"),
+    "SettingsProvidersRoute",
+  ),
 });
 
 // ---------------------------------------------------------------------------

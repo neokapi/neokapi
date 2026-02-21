@@ -19,15 +19,7 @@ import {
 } from "@gokapi/ui";
 import { useUIStore } from "../stores/ui-store";
 import { api } from "../api";
-
-/** Map a URL sub-path to a sidebar View id. */
-function viewFromPath(pathname: string, workspace: string): View {
-  const after = pathname.slice(`/${workspace}`.length);
-  if (after.startsWith("/termbase")) return "termbase";
-  if (after.startsWith("/memory")) return "memory";
-  if (after.startsWith("/settings")) return "settings";
-  return "translate";
-}
+import { viewFromPath } from "./view-from-path";
 
 // ---------------------------------------------------------------------------
 // Create workspace dialog
