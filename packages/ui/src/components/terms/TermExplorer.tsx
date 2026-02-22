@@ -5,8 +5,14 @@ import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { ConceptInfo, TermInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
-import { CardContent, GlassCard } from "../ui/card";
+import { GlassCard } from "../ui/card";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "../ui/dialog";
+import { AlertGlass, AlertGlassDescription } from "../ui/alert";
+import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
 
 interface TermExplorerProps {
@@ -42,6 +48,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editConcept, setEditConcept] = useState<ConceptInfo | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [newDomain, setNewDomain] = useState("");
@@ -96,6 +103,18 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     }
   }, [addConcept, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
+  const handleAddDialogChange = useCallback((open: boolean) => {
+    if (!open) {
+      setNewDomain("");
+      setNewDefinition("");
+      setNewTerms([
+        { text: "", locale: sourceLocale, status: "preferred" },
+        { text: "", locale: targetLocales[0] || "", status: "preferred" },
+      ]);
+    }
+    setShowAddForm(open);
+  }, [sourceLocale, targetLocales]);
+
   const handleEdit = useCallback((concept: ConceptInfo) => {
     setEditingId(concept.id);
     setEditConcept({ ...concept, terms: [...concept.terms] });
@@ -139,7 +158,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       const content = await file.text();
       try {
         const count = await importTermsCSV(content, sourceLocale, targetLocales[0] || "", "", true);
-        alert(`Imported ${count} concepts`);
+        setSuccessMessage(`Imported ${count} concepts`);
         fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("CSV import failed:", e);
@@ -158,7 +177,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       const content = await file.text();
       try {
         const count = await importTermsJSON(content);
-        alert(`Imported ${count} concepts`);
+        setSuccessMessage(`Imported ${count} concepts`);
         fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("JSON import failed:", e);
@@ -203,158 +222,193 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
 
   return (
     <div data-testid="term-explorer">
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="flex-1 text-xl font-semibold">Terminology</h2>
-        <Badge variant="secondary" data-testid="term-count-badge">{totalCount} concepts</Badge>
-      </div>
-
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <Input type="text" placeholder="Search terms..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} className="flex-1" data-testid="term-search-input" />
-        <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-source-locale-filter">
-          <option value="">All source locales</option>
-          {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
-        </select>
-        <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-target-locale-filter">
-          <option value="">All target locales</option>
-          {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
-        </select>
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={handleImportCSV} data-testid="term-import-csv-btn">Import CSV</Button>
-        <Button variant="outline" size="sm" onClick={handleImportJSON} data-testid="term-import-json-btn">Import JSON</Button>
-        <Button variant="outline" size="sm" onClick={handleExportJSON} data-testid="term-export-json-btn">Export JSON</Button>
-        <Button size="sm" onClick={() => setShowAddForm(!showAddForm)} data-testid="term-add-btn">+ Add Concept</Button>
-      </div>
-
-      {showAddForm && (
-        <GlassCard intensity="subtle" className="mb-4" data-testid="term-add-form"><CardContent className="p-4">
-          <h4 className="font-semibold mb-2">New Concept</h4>
-          <div className="flex gap-2 mb-2">
-            <Input placeholder="Domain" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} className="flex-1" data-testid="term-add-domain" />
-            <Input placeholder="Definition" value={newDefinition} onChange={(e) => setNewDefinition(e.target.value)} className="flex-[2]" data-testid="term-add-definition" />
+      <GlassCard intensity="subtle" className="p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold">Terminology</h2>
+            <p className="text-[13px] text-muted-foreground mt-1">{totalCount} concepts</p>
           </div>
-          <div className="text-xs font-semibold mb-1">Terms:</div>
-          {newTerms.map((term, idx) => (
-            <div key={idx} className="flex gap-1.5 mb-1">
-              <Input placeholder="Term text" value={term.text} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "text", e.target.value)} className="flex-[2]" />
-              <select value={term.locale} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "locale", e.target.value)} className="flex-1 px-2 py-1 border border-input rounded-md bg-transparent text-foreground text-sm">
-                {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
-              </select>
-              <select value={term.status} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "status", e.target.value)} className="flex-1 px-2 py-1 border border-input rounded-md bg-transparent text-foreground text-sm">
-                {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <Button variant="destructive" size="sm" onClick={() => removeTermRow(newTerms, setNewTerms, idx)}>x</Button>
-            </div>
-          ))}
-          <div className="flex gap-2 mt-2">
-            <Button variant="outline" size="sm" onClick={() => addTermRow(newTerms, setNewTerms)}>+ Term</Button>
-            <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)} data-testid="term-add-cancel">Cancel</Button>
-            <Button size="sm" onClick={handleAdd} data-testid="term-add-submit">Save</Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={handleImportCSV} data-testid="term-import-csv-btn">Import CSV</Button>
+            <Button variant="ghost" size="sm" onClick={handleImportJSON} data-testid="term-import-json-btn">Import JSON</Button>
+            <Button variant="ghost" size="sm" onClick={handleExportJSON} data-testid="term-export-json-btn">Export JSON</Button>
+            <Button size="sm" onClick={() => setShowAddForm(true)} data-testid="term-add-btn">+ Add Concept</Button>
           </div>
-        </CardContent></GlassCard>
-      )}
+        </div>
 
-      <GlassCard intensity="subtle" className="overflow-hidden">
-        <table className="w-full border-collapse text-[13px]">
-          <thead>
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Domain</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Terms</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Definition</th>
-              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider w-[100px]">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {concepts.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-8 text-center">
-                  {totalCount === 0 ? (
-                    <div data-testid="term-empty-state">
-                      <div className="text-[15px] font-semibold text-foreground mb-2">No concepts yet</div>
-                      <div className="text-[13px] text-muted-foreground mb-4">
-                        Add terms manually or import from a CSV or JSON termbase file.
-                      </div>
-                      <div className="flex gap-2 justify-center">
-                        <Button size="sm" onClick={() => setShowAddForm(true)}>+ Add Concept</Button>
-                        <Button variant="outline" size="sm" onClick={handleImportCSV}>Import CSV</Button>
-                        <Button variant="outline" size="sm" onClick={handleImportJSON}>Import JSON</Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[13px] text-muted-foreground">No results match your search.</div>
-                  )}
-                </td>
-              </tr>
+        {/* Success message */}
+        {successMessage && (
+          <AlertGlass variant="success" dismissible onDismiss={() => setSuccessMessage(null)} className="mb-6">
+            <AlertGlassDescription>{successMessage}</AlertGlassDescription>
+          </AlertGlass>
+        )}
+
+        {/* Search and filters */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <Input type="text" placeholder="Search terms..." defaultValue={query} onChange={(e) => handleQueryChange(e.target.value)} className="flex-1" data-testid="term-search-input" />
+          <select value={sourceLocaleFilter} onChange={(e) => { setSourceLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-source-locale-filter">
+            <option value="">All source locales</option>
+            {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
+          </select>
+          <select value={targetLocaleFilter} onChange={(e) => { setTargetLocaleFilter(e.target.value); setPage(0); }} className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm" data-testid="term-target-locale-filter">
+            <option value="">All target locales</option>
+            {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
+          </select>
+        </div>
+
+        {/* Table */}
+        {concepts.length === 0 ? (
+          <div className="py-12 text-center" data-testid="term-empty-state">
+            {totalCount === 0 ? (
+              <>
+                <div className="text-[15px] font-semibold text-foreground mb-2">No concepts yet</div>
+                <div className="text-[13px] text-muted-foreground mb-4">
+                  Add terms manually or import from a CSV or JSON termbase file.
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button size="sm" onClick={() => setShowAddForm(true)}>+ Add Concept</Button>
+                  <Button variant="ghost" size="sm" onClick={handleImportCSV}>Import CSV</Button>
+                  <Button variant="ghost" size="sm" onClick={handleImportJSON}>Import JSON</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-[13px] text-muted-foreground mb-2">No results match your search.</p>
+                <Button variant="ghost" size="sm" onClick={() => { setQuery(""); setSourceLocaleFilter(""); setTargetLocaleFilter(""); }}>Clear filters</Button>
+              </>
             )}
-            {concepts.map((concept) => (
-              <tr key={concept.id} className="border-b border-border transition-colors hover:bg-accent/50" data-testid={`term-concept-${concept.id}`}>
-                {editingId === concept.id && editConcept ? (
-                  <>
-                    <td className="px-3 py-2 align-top"><Input value={editConcept.domain} onChange={(e) => setEditConcept({ ...editConcept, domain: e.target.value })} className="w-full" /></td>
-                    <td className="px-3 py-2 align-top">
-                      {editConcept.terms.map((term, idx) => (
-                        <div key={idx} className="flex gap-1 mb-0.5">
-                          <Input value={term.text} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], text: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="flex-[2]" />
-                          <select value={term.locale} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], locale: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[60px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
-                            {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
-                          </select>
-                          <select value={term.status} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], status: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[80px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
-                            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </div>
-                      ))}
-                      <Button variant="outline" size="sm" className="text-[11px] px-1.5 py-0 h-6" onClick={() => setEditConcept({ ...editConcept, terms: [...editConcept.terms, { text: "", locale: sourceLocale, status: "approved" }] })}>+ term</Button>
-                    </td>
-                    <td className="px-3 py-2 align-top"><Input value={editConcept.definition} onChange={(e) => setEditConcept({ ...editConcept, definition: e.target.value })} className="w-full" /></td>
-                    <td className="px-3 py-2 align-top">
-                      <div className="flex gap-1">
-                        <Button size="sm" onClick={handleSaveEdit} data-testid={`term-save-btn-${concept.id}`}>Save</Button>
-                        <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditConcept(null); }}>Cancel</Button>
-                      </div>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="px-3 py-2 align-top"><span className="text-[11px] text-muted-foreground">{concept.domain || "-"}</span></td>
-                    <td className="px-3 py-2 align-top">
-                      {concept.terms.map((term, idx) => (
-                        <div key={idx} className="mb-0.5">
-                          <span className={term.status === "preferred" ? "font-semibold" : ""}>{term.text}</span>
-                          <span className="text-[11px] text-muted-foreground ml-1">[{getDisplayName(term.locale)}]</span>
-                          {" "}{statusBadge(term.status)}
-                          {term.note && <span className="text-[11px] text-muted-foreground ml-1">({term.note})</span>}
-                        </div>
-                      ))}
-                    </td>
-                    <td className="px-3 py-2 align-top"><span className="text-xs">{concept.definition || "-"}</span></td>
-                    <td className="px-3 py-2 align-top">
-                      <div className="flex gap-1">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(concept)} data-testid={`term-edit-btn-${concept.id}`}>Edit</Button>
-                        {deleteConfirmId === concept.id ? (
-                          <span className="inline-flex gap-1 ml-1">
-                            <Button variant="destructive" size="sm" onClick={() => handleDelete(concept.id)} data-testid={`term-confirm-delete-${concept.id}`}>Confirm</Button>
-                            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
-                          </span>
-                        ) : (
-                          <Button variant="outline" size="sm" className="text-destructive border-destructive hover:bg-destructive/10" onClick={() => setDeleteConfirmId(concept.id)} data-testid={`term-delete-btn-${concept.id}`}>Delete</Button>
-                        )}
-                      </div>
-                    </td>
-                  </>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-4 py-3 text-[13px] text-muted-foreground border-t border-border" data-testid="term-pagination">
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} data-testid="term-prev-page">Previous</Button>
-          <span data-testid="term-page-info">Page {page + 1} of {totalPages}</span>
-          <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} data-testid="term-next-page">Next</Button>
           </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[13px]">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-2.5 text-left text-sm font-medium text-muted-foreground">Domain</th>
+                    <th className="px-3 py-2.5 text-left text-sm font-medium text-muted-foreground">Terms</th>
+                    <th className="px-3 py-2.5 text-left text-sm font-medium text-muted-foreground">Definition</th>
+                    <th className="px-3 py-2.5 text-sm font-medium text-muted-foreground w-[100px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {concepts.map((concept) => (
+                    <tr key={concept.id} className="border-b border-border/50 transition-colors hover:bg-accent/50" data-testid={`term-concept-${concept.id}`}>
+                      {editingId === concept.id && editConcept ? (
+                        <>
+                          <td className="px-3 py-2 align-top"><Input value={editConcept.domain} onChange={(e) => setEditConcept({ ...editConcept, domain: e.target.value })} className="w-full" /></td>
+                          <td className="px-3 py-2 align-top">
+                            {editConcept.terms.map((term, idx) => (
+                              <div key={idx} className="flex gap-1 mb-0.5">
+                                <Input value={term.text} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], text: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="flex-[2]" />
+                                <select value={term.locale} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], locale: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[60px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
+                                  {allLocales.map((l) => <option key={l} value={l}>{getDisplayName(l)} ({l})</option>)}
+                                </select>
+                                <select value={term.status} onChange={(e) => { const terms = [...editConcept.terms]; terms[idx] = { ...terms[idx], status: e.target.value }; setEditConcept({ ...editConcept, terms }); }} className="w-[80px] px-1 py-1 border border-input rounded-md bg-transparent text-foreground text-xs">
+                                  {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                              </div>
+                            ))}
+                            <Button variant="outline" size="sm" className="text-[11px] px-1.5 py-0 h-6" onClick={() => setEditConcept({ ...editConcept, terms: [...editConcept.terms, { text: "", locale: sourceLocale, status: "approved" }] })}>+ term</Button>
+                          </td>
+                          <td className="px-3 py-2 align-top"><Input value={editConcept.definition} onChange={(e) => setEditConcept({ ...editConcept, definition: e.target.value })} className="w-full" /></td>
+                          <td className="px-3 py-2 align-top">
+                            <div className="flex gap-1">
+                              <Button size="sm" onClick={handleSaveEdit} data-testid={`term-save-btn-${concept.id}`}>Save</Button>
+                              <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditConcept(null); }}>Cancel</Button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2 align-top"><span className="text-[11px] text-muted-foreground">{concept.domain || "-"}</span></td>
+                          <td className="px-3 py-2 align-top">
+                            {concept.terms.map((term, idx) => (
+                              <div key={idx} className="mb-0.5">
+                                <span className={term.status === "preferred" ? "font-semibold" : ""}>{term.text}</span>
+                                <span className="text-[11px] text-muted-foreground ml-1">[{getDisplayName(term.locale)}]</span>
+                                {" "}{statusBadge(term.status)}
+                                {term.note && <span className="text-[11px] text-muted-foreground ml-1">({term.note})</span>}
+                              </div>
+                            ))}
+                          </td>
+                          <td className="px-3 py-2 align-top"><span className="text-xs">{concept.definition || "-"}</span></td>
+                          <td className="px-3 py-2 align-top">
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => handleEdit(concept)} data-testid={`term-edit-btn-${concept.id}`}>Edit</Button>
+                              {deleteConfirmId === concept.id ? (
+                                <span className="inline-flex gap-1 ml-1">
+                                  <Button variant="destructive" size="sm" onClick={() => handleDelete(concept.id)} data-testid={`term-confirm-delete-${concept.id}`}>Confirm</Button>
+                                  <Button variant="outline" size="sm" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+                                </span>
+                              ) : (
+                                <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setDeleteConfirmId(concept.id)} data-testid={`term-delete-btn-${concept.id}`}>Delete</Button>
+                              )}
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-border" data-testid="term-pagination">
+                <span className="text-sm text-muted-foreground">
+                  Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} data-testid="term-prev-page">Previous</Button>
+                  <span className="text-sm text-muted-foreground" data-testid="term-page-info">Page {page + 1} of {totalPages}</span>
+                  <Button size="sm" variant="ghost" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} data-testid="term-next-page">Next</Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </GlassCard>
+
+      <Dialog open={showAddForm} onOpenChange={handleAddDialogChange}>
+        <DialogContent className="sm:max-w-[560px]" data-testid="term-add-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>New Concept</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <Label className="text-muted-foreground">Domain</Label>
+                <Input placeholder="e.g. Legal, Medical" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} className="mt-1" data-testid="term-add-domain" autoFocus />
+              </div>
+              <div className="flex-[2]">
+                <Label className="text-muted-foreground">Definition</Label>
+                <Input placeholder="Concept definition" value={newDefinition} onChange={(e) => setNewDefinition(e.target.value)} className="mt-1" data-testid="term-add-definition" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-muted-foreground mb-2 block">Terms</Label>
+              <div className="flex flex-col gap-1.5">
+                {newTerms.map((term, idx) => (
+                  <div key={idx} className="flex gap-1.5 items-start">
+                    <Input placeholder="Term text" value={term.text} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "text", e.target.value)} className="flex-[2]" />
+                    <LocaleSelect value={term.locale} onChange={(v) => updateTermRow(newTerms, setNewTerms, idx, "locale", v)} codes={allLocales} className="flex-1" />
+                    <select value={term.status} onChange={(e) => updateTermRow(newTerms, setNewTerms, idx, "status", e.target.value)} className="flex-1 px-2 py-1.5 border border-input rounded-md bg-transparent text-foreground text-sm">
+                      {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive h-9 w-9 p-0" onClick={() => removeTermRow(newTerms, setNewTerms, idx)}>x</Button>
+                  </div>
+                ))}
+              </div>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => addTermRow(newTerms, setNewTerms)}>+ Term</Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleAddDialogChange(false)} data-testid="term-add-cancel">Cancel</Button>
+            <Button onClick={handleAdd} disabled={newTerms.every(t => !t.text.trim())} data-testid="term-add-submit">Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

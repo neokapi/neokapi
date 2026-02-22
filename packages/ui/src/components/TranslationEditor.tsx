@@ -11,6 +11,7 @@ import { TagChipComponent } from "./editor/TagChipComponent";
 import { buildPairs, validateTags } from "./editor/tagSemantics";
 import { Button } from "./ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
+import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 import { cn } from "../lib/utils";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
@@ -901,8 +902,16 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       </div>
 
       {/* Messages */}
-      {error && <div className="px-3 py-2 bg-destructive/10 border border-destructive rounded-md text-destructive text-sm mb-2">{error}</div>}
-      {message && <div className="px-3 py-2 bg-green-500/10 border border-green-500 rounded-md text-green-600 dark:text-green-400 text-sm mb-2">{message}</div>}
+      {error && (
+        <AlertGlass variant="destructive" dismissible onDismiss={() => setError(null)} className="mb-2">
+          <AlertGlassDescription>{error}</AlertGlassDescription>
+        </AlertGlass>
+      )}
+      {message && (
+        <AlertGlass variant="success" dismissible onDismiss={() => setMessage(null)} className="mb-2">
+          <AlertGlassDescription>{message}</AlertGlassDescription>
+        </AlertGlass>
+      )}
 
       {/* Main content area with optional context panel */}
       <div className="flex flex-1 overflow-hidden min-h-0">

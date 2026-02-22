@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { TMExplorer, useWorkspace, GlassCard, CardContent } from "@gokapi/ui";
+import { TMExplorer, useWorkspace, GlassCard } from "@gokapi/ui";
 
 export function MemoryRoute() {
   const navigate = useNavigate();
@@ -8,10 +8,8 @@ export function MemoryRoute() {
 
   if (!activeWorkspace) {
     return (
-      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto">
-        <CardContent className="p-8 text-center text-muted-foreground text-sm">
-          Select a workspace
-        </CardContent>
+      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
+        Select a workspace
       </GlassCard>
     );
   }

@@ -1,96 +1,39 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocales } from "../hooks/useLocales";
+import { ComboBoxGlass } from "./ui/combobox";
 
 interface LocaleSelectProps {
   value: string;
   onChange: (value: string) => void;
+  /** Restrict to these locale codes. If omitted, all known locales are shown. */
+  codes?: string[];
+  placeholder?: string;
+  className?: string;
   style?: React.CSSProperties;
   "data-testid"?: string;
 }
 
 /** Single-locale selector with search. Shows "French (fr)" in options, stores "fr". */
-export function LocaleSelect({ value, onChange, style, ...rest }: LocaleSelectProps) {
-  const { locales, loading } = useLocales();
-  const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
+export function LocaleSelect({ value, onChange, codes, placeholder, className, style, ...rest }: LocaleSelectProps) {
+  const { locales, getDisplayName, loading } = useLocales();
 
-  const filtered = useMemo(() => {
-    if (!search) return locales;
-    const q = search.toLowerCase();
-    return locales.filter(
-      (l) =>
-        l.display_name.toLowerCase().includes(q) ||
-        l.code.toLowerCase().includes(q),
-    );
-  }, [locales, search]);
-
-  const displayValue = useMemo(() => {
-    const found = locales.find((l) => l.code === value);
-    return found ? `${found.display_name} (${found.code})` : value;
-  }, [locales, value]);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const options = useMemo(() => {
+    if (codes) {
+      return codes.map((code) => ({ value: code, label: `${getDisplayName(code)} (${code})` }));
+    }
+    return locales.map((l) => ({ value: l.code, label: `${l.display_name} (${l.code})` }));
+  }, [codes, locales, getDisplayName]);
 
   return (
-    <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-3 py-2 bg-muted border border-input rounded-md text-foreground text-sm cursor-pointer text-left"
-        data-testid={rest["data-testid"] ? `${rest["data-testid"]}-trigger` : undefined}
-      >
-        {loading ? "Loading..." : displayValue || "Select locale..."}
-        <span className="ml-auto opacity-50">{"\u25BE"}</span>
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-md z-50 overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
-          <input
-            type="text"
-            placeholder="Search locales..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3 py-2 border-none border-b border-border bg-muted text-foreground text-[13px] outline-none box-border"
-            autoFocus
-            data-testid={rest["data-testid"] ? `${rest["data-testid"]}-search` : undefined}
-          />
-          <div className="max-h-60 overflow-y-auto">
-            {filtered.map((l) => (
-              <button
-                key={l.code}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onChange(l.code);
-                  setOpen(false);
-                  setSearch("");
-                }}
-                className={`block w-full px-3 py-1.5 border-none text-[13px] cursor-pointer text-left ${
-                  l.code === value
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-transparent text-foreground hover:bg-accent"
-                }`}
-                data-testid={rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined}
-              >
-                {l.display_name} <span className="opacity-60 text-xs">({l.code})</span>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <div className="px-3 py-2 text-xs text-muted-foreground">
-                No matching locales
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+    <div style={style} className={className} data-testid={rest["data-testid"]}>
+      <ComboBoxGlass
+        options={options}
+        value={value}
+        onValueChange={(v: string | undefined) => { if (v !== undefined) onChange(v); }}
+        placeholder={loading ? "Loading..." : placeholder || "Select locale..."}
+        searchPlaceholder="Search locales..."
+        emptyText="No matching locales"
+      />
     </div>
   );
 }

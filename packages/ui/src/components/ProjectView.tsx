@@ -4,7 +4,7 @@ import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Card, CardContent, GlassCard } from "./ui/card";
+import { GlassCard } from "./ui/card";
 import { OpenInDesktop } from "./OpenInDesktop";
 import {
   ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
@@ -92,117 +92,123 @@ export function ProjectView({
           workspaceSlug={serverMode.workspaceSlug}
         />
       )}
-      <div className="flex items-center gap-3 mb-6">
-        <h2 className="flex-1 text-xl font-semibold">{project.name}</h2>
-        {onOpenTerms && (
-          <Button variant="outline" onClick={onOpenTerms} data-testid="open-terms-btn">
-            Terminology
-          </Button>
-        )}
-        {onOpenTM && (
-          <Button variant="outline" onClick={onOpenTM} data-testid="open-tm-btn">
-            Translation Memory
-          </Button>
-        )}
-      </div>
 
-      <div className="flex gap-4 mb-6">
-        <GlassCard intensity="subtle" className="flex-1 text-center">
-          <CardContent className="py-3">
+      {/* Project overview card */}
+      <GlassCard intensity="subtle" className="p-6 mb-4">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-semibold">{project.name}</h2>
+            <p className="text-[13px] text-muted-foreground mt-1">
+              {getDisplayName(project.source_locale)} <ArrowRight className="w-3.5 h-3.5 inline-block" /> {project.target_locales.map(l => getDisplayName(l)).join(", ")}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {onOpenTerms && (
+              <Button variant="ghost" size="sm" onClick={onOpenTerms} data-testid="open-terms-btn">
+                Terminology
+              </Button>
+            )}
+            {onOpenTM && (
+              <Button variant="ghost" size="sm" onClick={onOpenTM} data-testid="open-tm-btn">
+                Translation Memory
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-4">
+          <div className="flex-1 text-center rounded-lg border border-border/50 py-3">
             <div className="text-2xl font-bold">{items.length}</div>
             <div className="text-xs text-muted-foreground">Files</div>
-          </CardContent>
-        </GlassCard>
-        <GlassCard intensity="subtle" className="flex-1 text-center">
-          <CardContent className="py-3">
+          </div>
+          <div className="flex-1 text-center rounded-lg border border-border/50 py-3">
             <div className="text-2xl font-bold">{totalBlocks}</div>
             <div className="text-xs text-muted-foreground">Blocks</div>
-          </CardContent>
-        </GlassCard>
-        <GlassCard intensity="subtle" className="flex-1 text-center">
-          <CardContent className="py-3">
+          </div>
+          <div className="flex-1 text-center rounded-lg border border-border/50 py-3">
             <div className="text-2xl font-bold">{totalWords}</div>
             <div className="text-xs text-muted-foreground">Words</div>
-          </CardContent>
-        </GlassCard>
-        <GlassCard intensity="subtle" className="flex-1 text-center">
-          <CardContent className="py-3">
-            <div className="text-sm font-semibold">
-              {getDisplayName(project.source_locale)} <ArrowRight className="w-3.5 h-3.5 inline-block" /> {project.target_locales.map(l => getDisplayName(l)).join(", ")}
-            </div>
-            <div className="text-xs text-muted-foreground">Languages</div>
-          </CardContent>
-        </GlassCard>
-      </div>
+          </div>
+        </div>
+      </GlassCard>
 
-      {/* File drop zone */}
-      <GlassCard
-        intensity="subtle"
-        className={`${dragOver ? "ring-2 ring-primary" : ""}`}
-        data-testid="file-drop-zone"
-      >
+      {/* Files card */}
+      <GlassCard intensity="subtle" className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold">Files</h3>
+            <p className="text-[13px] text-muted-foreground mt-1">{items.length} file{items.length !== 1 ? "s" : ""} in project</p>
+          </div>
+          <div>
+            <input ref={inputRef} type="file" multiple onChange={handleFileInputChange} className="hidden" />
+            <Button size="sm" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
+              Add Files
+            </Button>
+          </div>
+        </div>
+
+        {/* Drop zone */}
         <div
-          className="flex flex-col items-center justify-center gap-2 p-8"
+          className={`flex flex-col items-center justify-center gap-2 p-8 mb-6 rounded-lg border border-dashed border-border transition-all ${dragOver ? "ring-2 ring-primary bg-accent/30" : "bg-accent/10"}`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
+          data-testid="file-drop-zone"
         >
           <Package className="w-8 h-8 text-muted-foreground opacity-30" />
           <span className="text-muted-foreground text-[13px]">
             Drag and drop files here to add them to the project
           </span>
-          <input ref={inputRef} type="file" multiple onChange={handleFileInputChange} className="hidden" />
-          <Button size="sm" className="mt-2" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
-            Add Files
-          </Button>
         </div>
-      </GlassCard>
 
-      {/* File list */}
-      {items.length > 0 && (
-        <GlassCard intensity="subtle" className="mt-4 overflow-hidden">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">File</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Format</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Blocks</th>
-                <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Words</th>
-                <th className="px-4 py-2.5 text-xs font-semibold text-muted-foreground border-b border-border w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((f) => (
-                <tr key={f.name} className="transition-colors hover:bg-accent/50" data-testid={`file-row-${f.name}`}>
-                  <td className="px-4 py-2.5 text-sm border-b border-border">
-                    <button
-                      onClick={() => onOpenFile(f.name)}
-                      className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5"
-                      data-testid={`open-file-${f.name}`}
-                    >
-                      {formatIcon(f.format)} {f.name}
-                    </button>
-                  </td>
-                  <td className="px-4 py-2.5 text-sm border-b border-border">
-                    <Badge variant="secondary">{f.format}</Badge>
-                  </td>
-                  <td className="px-4 py-2.5 text-sm border-b border-border text-right">{f.block_count}</td>
-                  <td className="px-4 py-2.5 text-sm border-b border-border text-right">{f.word_count}</td>
-                  <td className="px-4 py-2.5 text-sm border-b border-border text-right">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onRemoveFile(f.name); }}
-                      className="bg-transparent border-none text-muted-foreground cursor-pointer px-2 py-1 rounded hover:text-destructive transition-colors"
-                      data-testid={`remove-file-${f.name}`}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </GlassCard>
-      )}
+        {/* File table */}
+        {items.length > 0 && (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">File</th>
+                    <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Format</th>
+                    <th className="px-4 py-2.5 text-right text-sm font-medium text-muted-foreground">Blocks</th>
+                    <th className="px-4 py-2.5 text-right text-sm font-medium text-muted-foreground">Words</th>
+                    <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-20"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((f) => (
+                    <tr key={f.name} className="border-b border-border/50 transition-colors hover:bg-accent/50" data-testid={`file-row-${f.name}`}>
+                      <td className="px-4 py-2.5 text-sm">
+                        <button
+                          onClick={() => onOpenFile(f.name)}
+                          className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5"
+                          data-testid={`open-file-${f.name}`}
+                        >
+                          {formatIcon(f.format)} {f.name}
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm">
+                        <Badge variant="secondary">{f.format}</Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-muted-foreground text-right">{f.block_count}</td>
+                      <td className="px-4 py-2.5 text-sm text-muted-foreground text-right">{f.word_count}</td>
+                      <td className="px-4 py-2.5 text-sm text-right">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onRemoveFile(f.name); }}
+                          className="bg-transparent border-none text-muted-foreground cursor-pointer px-2 py-1 rounded hover:text-destructive transition-colors"
+                          data-testid={`remove-file-${f.name}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </GlassCard>
     </div>
   );
 }

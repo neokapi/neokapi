@@ -5,7 +5,16 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
+import { GlassCard } from "./ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
+import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
 interface InviteManagerProps {
@@ -16,6 +25,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   const api = useApi();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [creating, setCreating] = useState(false);
@@ -45,6 +55,8 @@ export function InviteManager({ workspace }: InviteManagerProps) {
       const invite = await api.createInvite(workspace.slug, email.trim(), role, 1);
       setInvites((prev) => [invite, ...prev]);
       setEmail("");
+      setRole("member");
+      setShowInviteDialog(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create invite");
     } finally {
@@ -68,6 +80,15 @@ export function InviteManager({ workspace }: InviteManagerProps) {
     setTimeout(() => setCopied(null), 2000);
   };
 
+  const handleDialogChange = (open: boolean) => {
+    if (!open) {
+      setEmail("");
+      setRole("member");
+      setError("");
+    }
+    setShowInviteDialog(open);
+  };
+
   const isExpired = (inv: Invite) => new Date(inv.expires_at) < new Date();
   const isUsedUp = (inv: Invite) => inv.max_uses > 0 && inv.use_count >= inv.max_uses;
 
@@ -76,112 +97,167 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   if (!canManage) return null;
 
   return (
-    <div className="mt-6" data-testid="invite-manager">
-      <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-        <UserPlus className="h-4 w-4" />
-        Invitations
-      </h3>
-
-      {/* Create invite form */}
-      <div className="flex items-end gap-2 mb-4">
-        <div className="flex-1">
-          <Label className="text-xs text-muted-foreground">Email</Label>
-          <Input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="colleague@example.com"
-            className="mt-1"
-            data-testid="invite-email-input"
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          />
+    <>
+      <GlassCard intensity="subtle" className="p-6" data-testid="invite-manager">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Invitations
+            </h3>
+            <p className="text-[13px] text-muted-foreground mt-1">Invite members to this workspace</p>
+          </div>
+          <Button size="sm" onClick={() => setShowInviteDialog(true)} data-testid="invite-open-dialog-btn">
+            Invite
+          </Button>
         </div>
-        <div className="w-[120px]">
-          <Label className="text-xs text-muted-foreground">Role</Label>
-          <Select value={role} onValueChange={setRole}>
-            <SelectTrigger className="mt-1" data-testid="invite-role-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="member">Member</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="viewer">Viewer</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <Button onClick={handleCreate} disabled={creating || !email.trim()} size="sm" data-testid="invite-submit-btn">
-          {creating ? "Sending..." : "Invite"}
-        </Button>
-      </div>
 
-      {error && <div className="text-destructive text-xs mb-3">{error}</div>}
+        {error && (
+          <AlertGlass variant="destructive" dismissible onDismiss={() => setError("")} className="mb-4">
+            <AlertGlassDescription>{error}</AlertGlassDescription>
+          </AlertGlass>
+        )}
 
-      {/* Invite list */}
-      {loading ? (
-        <div className="text-xs text-muted-foreground">Loading invites...</div>
-      ) : invites.length === 0 ? (
-        <div className="text-xs text-muted-foreground">No pending invitations</div>
-      ) : (
-        <div className="space-y-2" data-testid="invite-list">
-          {invites.map((inv) => {
-            const expired = isExpired(inv);
-            const usedUp = isUsedUp(inv);
-            const inactive = expired || usedUp;
+        {/* Invite list */}
+        {loading ? (
+          <div className="text-sm text-muted-foreground">Loading invites...</div>
+        ) : invites.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">No pending invitations</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Recipient</th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Role</th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Expires</th>
+                  <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[100px]">Actions</th>
+                </tr>
+              </thead>
+              <tbody data-testid="invite-list">
+                {invites.map((inv) => {
+                  const expired = isExpired(inv);
+                  const usedUp = isUsedUp(inv);
+                  const inactive = expired || usedUp;
 
-            return (
-              <div
-                key={inv.id}
-                className={`flex items-center gap-3 rounded-md border border-border px-3 py-2 text-sm ${
-                  inactive ? "opacity-50" : ""
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="truncate font-medium">
-                    {inv.email || "Anyone with link"}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    {expired
-                      ? "Expired"
-                      : `Expires ${new Date(inv.expires_at).toLocaleDateString()}`}
-                    {inv.max_uses > 0 && (
-                      <span>
-                        ({inv.use_count}/{inv.max_uses} used)
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <Badge variant={inactive ? "outline" : "secondary"} className="text-xs">
-                  {inv.role}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0"
-                  onClick={() => handleCopyLink(inv.code)}
-                  title="Copy invite link"
-                  data-testid="invite-copy-link-btn"
-                >
-                  {copied === inv.code ? (
-                    <span className="text-xs text-green-500">OK</span>
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(inv.id)}
-                  title="Revoke invite"
-                  data-testid="invite-revoke-btn"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+                  return (
+                    <tr
+                      key={inv.id}
+                      className={`border-b border-border/50 transition-colors hover:bg-accent/50 ${inactive ? "opacity-50" : ""}`}
+                    >
+                      <td className="px-4 py-2.5 text-sm font-medium">
+                        {inv.email || "Anyone with link"}
+                        {inv.max_uses > 0 && (
+                          <span className="text-xs text-muted-foreground ml-2">
+                            ({inv.use_count}/{inv.max_uses} used)
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <Badge variant={inactive ? "outline" : "secondary"} className="text-xs">
+                          {inv.role}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-muted-foreground">
+                        <span className="inline-flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" />
+                          {expired
+                            ? "Expired"
+                            : new Date(inv.expires_at).toLocaleDateString()}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleCopyLink(inv.code)}
+                            title="Copy invite link"
+                            data-testid="invite-copy-link-btn"
+                          >
+                            {copied === inv.code ? (
+                              <span className="text-xs text-green-500">OK</span>
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            onClick={() => handleDelete(inv.id)}
+                            title="Revoke invite"
+                            data-testid="invite-revoke-btn"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </GlassCard>
+
+      {/* Invite dialog */}
+      <Dialog open={showInviteDialog} onOpenChange={handleDialogChange}>
+        <DialogContent className="sm:max-w-[420px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Invite Member</DialogTitle>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <Label className="text-muted-foreground">Email</Label>
+              <Input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="colleague@example.com"
+                autoFocus
+                className="mt-1"
+                data-testid="invite-email-input"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              />
+            </div>
+            <div>
+              <Label className="text-muted-foreground">Role</Label>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger className="mt-1" data-testid="invite-role-select">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="viewer">Viewer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {error && (
+              <AlertGlass variant="destructive">
+                <AlertGlassDescription>{error}</AlertGlassDescription>
+              </AlertGlass>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleDialogChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={creating || !email.trim()}
+              data-testid="invite-submit-btn"
+            >
+              {creating ? "Sending..." : "Send Invite"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

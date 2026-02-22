@@ -17,6 +17,9 @@ export { Separator } from "./components/ui/separator";
 export { Tabs, TabsList, TabsTrigger, TabsContent, TabsGlass } from "./components/ui/tabs";
 export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./components/ui/select";
 export { Switch, type SwitchProps } from "./components/ui/switch";
+export { AlertGlass, AlertGlassTitle, AlertGlassDescription } from "./components/ui/alert";
+export type { AlertGlassProps } from "./components/ui/alert";
+export { ComboBoxGlass } from "./components/ui/combobox";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
 export type { CollapsibleProps, CollapsibleTriggerProps, CollapsibleContentProps } from "./components/ui/collapsible";
 export {

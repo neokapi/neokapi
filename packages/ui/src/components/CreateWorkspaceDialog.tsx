@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./ui/dialog";
+import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 
 export interface CreateWorkspaceDialogProps {
   open: boolean;
@@ -66,7 +67,7 @@ export function CreateWorkspaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
         </DialogHeader>
@@ -91,7 +92,11 @@ export function CreateWorkspaceDialog({
               className="mt-1"
             />
           </div>
-          {error && <div className="text-destructive text-[13px]">{error}</div>}
+          {error && (
+            <AlertGlass variant="destructive">
+              <AlertGlassDescription>{error}</AlertGlassDescription>
+            </AlertGlass>
+          )}
         </div>
 
         <DialogFooter>
