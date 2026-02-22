@@ -497,9 +497,8 @@ func fetchDesktopUserInfo(serverURL, token string) (*storedDesktopUser, error) {
 }
 
 // discoverGRPCAddr derives the gRPC address from the server URL.
-// Convention: gRPC port = HTTP port + 1000 (e.g., 8080 → 9080).
+// gRPC is served on the same port as HTTP via h2c protocol multiplexing.
 func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
-	// Parse the URL to extract host and port.
 	u, err := parseServerURL(serverURL)
 	if err != nil {
 		return "", false, err
@@ -507,24 +506,16 @@ func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
 
 	useTLS = u.scheme == "https"
 
-	// Default ports based on scheme.
-	httpPort := u.port
-	if httpPort == "" {
+	port := u.port
+	if port == "" {
 		if useTLS {
-			httpPort = "443"
+			port = "443"
 		} else {
-			httpPort = "80"
+			port = "80"
 		}
 	}
 
-	// Derive gRPC port: HTTP port + 1000.
-	var portNum int
-	if _, err := fmt.Sscanf(httpPort, "%d", &portNum); err != nil {
-		return "", false, fmt.Errorf("invalid port %q in URL", httpPort)
-	}
-	grpcPort := portNum + 1000
-
-	return fmt.Sprintf("%s:%d", u.host, grpcPort), useTLS, nil
+	return fmt.Sprintf("%s:%s", u.host, port), useTLS, nil
 }
 
 type parsedURL struct {

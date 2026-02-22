@@ -3,7 +3,9 @@
 # Entrypoints:
 #   - :80   → HTTP, redirects all traffic to HTTPS
 #   - :443  → HTTPS, terminates TLS with mkcert-generated certs
-#   - :1443 → gRPC (TCP passthrough to bowrain-server gRPC with native TLS)
+#
+# gRPC and HTTP are multiplexed on the same port by bowrain-server using h2c,
+# so no dedicated gRPC entrypoint is needed.
 #
 # Providers:
 #   - Docker labels (containerized services: Keycloak, Mailpit)
@@ -19,8 +21,6 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
-  grpc:
-    address: ":1443"
 
 providers:
   docker:

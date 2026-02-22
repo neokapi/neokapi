@@ -41,7 +41,7 @@ Mode is determined by the `ServerConfig.JWTSecret` field: when set, the server e
 
 The **REST API** (Echo v4) covers public health/config routes, auth routes (device flow, OIDC, desktop PKCE, refresh), workspace CRUD with members, project CRUD scoped to workspaces, content/block routes, sync routes for Kapi pull/push, KAZ export/import, connector management, and flow execution.
 
-**gRPC** serves the Bowrain desktop app via a dedicated `EditorService` with 24 RPCs covering auth, projects, blocks, TM, terminology, and real-time collaboration. See [AD-020](./020-collaborative-editor.md) for the full EditorService specification. The gRPC port follows a discovery convention: HTTP port + 1000 (e.g., `localhost:8080` -> gRPC at `localhost:9080`).
+**gRPC** serves the Bowrain desktop app via a dedicated `EditorService` with 24 RPCs covering auth, projects, blocks, TM, terminology, and real-time collaboration. See [AD-020](./020-collaborative-editor.md) for the full EditorService specification. gRPC and HTTP are multiplexed on the same port via h2c (cleartext HTTP/2) protocol detection — requests with `Content-Type: application/grpc` are routed to the gRPC server, all others to the HTTP router.
 
 Both unary and streaming RPCs use JWT authentication via `authorization: Bearer <token>` in gRPC metadata, validated by server interceptors.
 

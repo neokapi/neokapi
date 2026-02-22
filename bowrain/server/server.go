@@ -25,6 +25,9 @@ import (
 	"github.com/gokapi/gokapi/platform/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
 )
 
 // Server is the REST API server for gokapi.
@@ -51,6 +54,11 @@ type Server struct {
 
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
+
+	// GRPCServer is an optional gRPC server multiplexed on the same port.
+	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
+	// are routed to this server. When nil, gRPC is not available.
+	GRPCServer *grpc.Server
 
 	// WebUIFS is an optional embedded filesystem for serving the web UI.
 	// When set, it takes precedence over Config.WebUIDir.
@@ -308,6 +316,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 }
 
 // Start initializes the Echo server and starts listening.
+// When GRPCServer is set, gRPC and HTTP are multiplexed on the same port
+// using h2c (cleartext HTTP/2). Requests with Content-Type: application/grpc
+// are routed to the gRPC server; all others go to Echo.
 func (s *Server) Start(addr string) error {
 	e := echo.New()
 	e.HideBanner = true
@@ -319,7 +330,28 @@ func (s *Server) Start(addr string) error {
 		addr = fmt.Sprintf("%s:%d", s.Config.Host, s.Config.Port)
 	}
 
-	return e.Start(addr)
+	// When no gRPC server is configured, use Echo's built-in listener.
+	if s.GRPCServer == nil {
+		return e.Start(addr)
+	}
+
+	// Multiplex gRPC and HTTP on the same port via h2c.
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor == 2 &&
+			strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+			s.GRPCServer.ServeHTTP(w, r)
+		} else {
+			e.ServeHTTP(w, r)
+		}
+	})
+
+	h2s := &http2.Server{}
+	srv := &http.Server{
+		Addr:    addr,
+		Handler: h2c.NewHandler(handler, h2s),
+	}
+	log.Printf("Starting Bowrain server on %s (HTTP + gRPC)", addr)
+	return srv.ListenAndServe()
 }
 
 // GetEcho returns the underlying Echo instance. Useful for testing.

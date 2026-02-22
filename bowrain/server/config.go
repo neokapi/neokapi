@@ -31,10 +31,6 @@ type ServerConfig struct {
 	SMTPHost string // SMTP server host:port
 	SMTPFrom string // sender email address
 
-	// gRPC TLS
-	GRPCTLSCertFile string // path to TLS certificate PEM file for gRPC server
-	GRPCTLSKeyFile  string // path to TLS private key PEM file for gRPC server
-
 	// WebUIDir is the path to built web UI static files.
 	// If set, the server serves static files for the web UI.
 	WebUIDir string

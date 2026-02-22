@@ -2,6 +2,9 @@
 #
 # Routes host-running services (bowrain-server, Vite dev server) and
 # configures TLS with mkcert-generated wildcard certificates.
+#
+# gRPC and HTTP are multiplexed on the same port by bowrain-server,
+# so all traffic is routed through the standard HTTP routers.
 
 http:
   routers:
@@ -35,25 +38,6 @@ http:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:5173"
-
-# TCP passthrough for gRPC — Traefik forwards the encrypted TCP stream
-# directly to bowrain-server's gRPC port, which handles TLS natively.
-# This avoids double TLS termination and supports HTTP/2 (required by gRPC).
-tcp:
-  routers:
-    bowrain-grpc:
-      entryPoints:
-        - grpc
-      rule: "HostSNI(`bowrain.mymac`)"
-      service: bowrain-grpc
-      tls:
-        passthrough: true
-
-  services:
-    bowrain-grpc:
-      loadBalancer:
-        servers:
-          - address: "host.docker.internal:9080"
 
 tls:
   certificates:

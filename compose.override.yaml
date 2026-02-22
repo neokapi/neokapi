@@ -23,7 +23,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "1443:1443"  # gRPC TLS passthrough → bowrain-server:9080
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
       interval: 10s

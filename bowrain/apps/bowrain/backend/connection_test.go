@@ -71,28 +71,28 @@ func TestParseServerURLEmptyHost(t *testing.T) {
 func TestDiscoverGRPCAddrHTTP(t *testing.T) {
 	addr, useTLS, err := discoverGRPCAddr("http://localhost:8080")
 	require.NoError(t, err)
-	assert.Equal(t, "localhost:9080", addr)
+	assert.Equal(t, "localhost:8080", addr)
 	assert.False(t, useTLS)
 }
 
 func TestDiscoverGRPCAddrHTTPS(t *testing.T) {
 	addr, useTLS, err := discoverGRPCAddr("https://bowrain.example.com")
 	require.NoError(t, err)
-	assert.Equal(t, "bowrain.example.com:1443", addr)
+	assert.Equal(t, "bowrain.example.com:443", addr)
 	assert.True(t, useTLS)
 }
 
 func TestDiscoverGRPCAddrHTTPNoPort(t *testing.T) {
 	addr, useTLS, err := discoverGRPCAddr("http://example.com")
 	require.NoError(t, err)
-	assert.Equal(t, "example.com:1080", addr)
+	assert.Equal(t, "example.com:80", addr)
 	assert.False(t, useTLS)
 }
 
 func TestDiscoverGRPCAddrHTTPSWithPort(t *testing.T) {
 	addr, useTLS, err := discoverGRPCAddr("https://example.com:9000")
 	require.NoError(t, err)
-	assert.Equal(t, "example.com:10000", addr)
+	assert.Equal(t, "example.com:9000", addr)
 	assert.True(t, useTLS)
 }
 
