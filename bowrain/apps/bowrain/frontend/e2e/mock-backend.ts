@@ -1184,7 +1184,7 @@ export async function skipConnectionScreen(page: Page) {
     (window as any).__skipConnection = true;
   });
   // Wait for the main sidebar to appear, indicating the app is ready.
-  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 10000 });
+  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
 }
 
 /**
@@ -1199,5 +1199,5 @@ export async function setupLocalApp(page: Page) {
   });
   await page.goto("/");
   // Wait for the main sidebar to appear, indicating the app is ready.
-  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 10000 });
+  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
 }

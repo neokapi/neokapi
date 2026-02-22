@@ -16,7 +16,7 @@ async function setupConnected(page: any) {
     (window as any).__skipConnection = true;
   });
   await page.goto("/");
-  await page.locator("[data-testid='main-sidebar'], nav").first().waitFor({ state: "visible", timeout: 10000 });
+  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
 }
 
 test("should show Connected indicator after connecting", async ({ page }) => {

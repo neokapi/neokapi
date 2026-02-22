@@ -3,7 +3,7 @@ import { setupLocalApp } from "./mock-backend";
 
 test.beforeEach(async ({ page }) => {
   await setupLocalApp(page);
-  await page.locator("nav button", { hasText: "Settings" }).click();
+  await page.getByTestId("nav-settings").click();
 });
 
 test.describe("Settings Page", () => {

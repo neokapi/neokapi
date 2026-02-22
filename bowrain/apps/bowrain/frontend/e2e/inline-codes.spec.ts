@@ -148,7 +148,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   );
 
   // Navigate away and back to pick up the file
-  await page.locator("nav button", { hasText: "Settings" }).click();
+  await page.getByTestId("nav-settings").click();
   await page.waitForTimeout(100);
   await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);

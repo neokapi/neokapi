@@ -102,7 +102,7 @@ async function openProjectView(page: any) {
   });
 
   // Refresh by navigating away and back
-  await page.locator("nav button", { hasText: "Settings" }).click();
+  await page.getByTestId("nav-settings").click();
   await page.waitForTimeout(100);
   await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
@@ -131,7 +131,7 @@ async function openEditor(page: any) {
   });
 
   // Refresh
-  await page.locator("nav button", { hasText: "Settings" }).click();
+  await page.getByTestId("nav-settings").click();
   await page.waitForTimeout(100);
   await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
@@ -266,7 +266,7 @@ test.describe("Screenshots", () => {
       await setTheme(page, theme);
 
       // Navigate to Flows view
-      await page.locator("nav button", { hasText: "Flows" }).click();
+      await page.getByTestId("nav-flows").click();
       await expect(page.getByTestId("flow-list")).toBeVisible();
 
       // Select AI Translate flow
@@ -306,7 +306,7 @@ test.describe("Screenshots", () => {
       await setTheme(page, theme);
 
       // Navigate to Settings
-      await page.locator("nav button", { hasText: "Settings" }).click();
+      await page.getByTestId("nav-settings").click();
       await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
 
       // Switch to AI Providers tab (more interesting than empty General)

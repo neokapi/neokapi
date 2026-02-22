@@ -71,7 +71,7 @@ async function openEditorWithTMAndTerms(page: any) {
   });
 
   // Navigate away and back to refresh
-  await page.locator("nav button", { hasText: "Settings" }).click();
+  await page.getByTestId("nav-settings").click();
   await page.waitForTimeout(100);
   await page.getByTestId("nav-translate").click();
   await page.waitForTimeout(200);
@@ -205,7 +205,7 @@ test.describe("Context Panel", () => {
     });
 
     // Navigate to editor
-    await page.locator("nav button", { hasText: "Settings" }).click();
+    await page.getByTestId("nav-settings").click();
     await page.waitForTimeout(100);
     await page.getByTestId("nav-translate").click();
     await page.waitForTimeout(200);
