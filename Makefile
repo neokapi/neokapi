@@ -52,12 +52,27 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
-# Default target
+# ── General ──────────────────────────────────────────────────────────────────
+
 all: frontend-build kapi-web-build web-build fmt vet lint test build ## Build and validate everything
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@awk '/^# ── / { \
+		gsub(/# ── /, ""); gsub(/ ─+$$/, ""); category = $$0; next \
+	} \
+	/^[a-zA-Z_-]+:.*## / { \
+		match($$0, /## (.*)/); desc = substr($$0, RSTART+3); \
+		match($$0, /^[a-zA-Z_-]+/); target = substr($$0, RSTART, RLENGTH); \
+		targets[++n] = target; descs[n] = desc; cats[n] = category \
+	} \
+	END { \
+		cur = ""; \
+		for (i = 1; i <= n; i++) { \
+			if (cats[i] != cur) { cur = cats[i]; printf "\n\033[1m%s\033[0m\n", cur } \
+			printf "  \033[36m%-20s\033[0m %s\n", targets[i], descs[i] \
+		} \
+		printf "\n" \
+	}' $(MAKEFILE_LIST)
 
 # ── Build ────────────────────────────────────────────────────────────────────
 
