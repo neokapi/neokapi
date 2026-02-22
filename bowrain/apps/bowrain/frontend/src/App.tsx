@@ -8,8 +8,7 @@ import {
   ApiProvider,
   WorkspaceProvider,
   ThemeProvider,
-  AppSidebar,
-  AnimatedBackgroundGlass,
+  AppShell,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
@@ -84,8 +83,6 @@ function App() {
     const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {
       const info = event.data as { project_id: string; server_url: string; workspace: string };
       if (!info?.project_id) return;
-      // If connected, try to open the project directly.
-      // Otherwise store the info so it can be opened after connecting.
       connection.refresh().then((ci) => {
         if (ci.state === "connected") {
           wailsAdapter.getProject(info.workspace || "", info.project_id)
@@ -107,11 +104,9 @@ function App() {
 
   // --- Connection flow ---
 
-  // Initial check: auto-reconnect from stored auth
   useEffect(() => {
     connection.refresh().then((ci) => {
       if (ci.state === "connected" && ci.workspace) {
-        // Auto-reconnected with workspace already selected
         connection.getServerWorkspaces().then((wsList) => {
           const ws = wsList.find((w) => w.slug === ci.workspace);
           if (ws) {
@@ -130,7 +125,6 @@ function App() {
         setIsServerMode(true);
         setMode("workspace-select");
       } else if (ci.state === "offline" && ci.workspace) {
-        // Server unreachable but cached auth exists — go to app in offline mode
         setWorkspace({ id: ci.workspace, name: ci.workspace, slug: ci.workspace, description: "", logo_url: "", type: "team" as const, role: "owner" });
         setIsServerMode(true);
         setMode("ready");
@@ -146,7 +140,6 @@ function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load existing projects from backend when entering ready mode
   useEffect(() => {
     if (mode !== "ready") return;
     Backend.ListProjects()
@@ -277,12 +270,10 @@ function App() {
     }
   }, []);
 
-  // Export handler for desktop: the WailsApiAdapter already handles export + open
   const handleDesktopExport = useCallback((_blob: Blob, _fileName: string) => {
     // No-op: WailsApiAdapter.exportTranslatedFile already exported to disk and opened in OS
   }, []);
 
-  // Render preview for split layout modes
   const renderDesktopPreview = useMemo(() => {
     return (props: {
       projectId: string;
@@ -303,12 +294,10 @@ function App() {
     );
   }, []);
 
-  // Construct user object from connection info for the sidebar
   const sidebarUser: User | null = isServerMode && connection.info.user_name
     ? { id: "server", email: connection.info.user_name, name: connection.info.user_name, avatar_url: "" }
     : null;
 
-  // Connection state for sidebar badge
   const connectionState = isServerMode ? connection.info.state as "disconnected" | "connecting" | "connected" | "offline" : undefined;
 
   // --- Pre-app screens ---
@@ -451,41 +440,34 @@ function App() {
     <ThemeProvider>
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={workspace}>
-          <AnimatedBackgroundGlass />
-          <div className="relative z-10 flex h-screen overflow-hidden">
-            <AppSidebar
-              workspaces={[workspace]}
-              activeWorkspace={workspace}
-              onSelectWorkspace={() => {}}
-              activeView={activeView}
-              onViewChange={handleViewChange}
-              extraNavItems={desktopNavItems}
-              user={sidebarUser}
-              onSignOut={isServerMode ? handleSignOut : undefined}
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
-              topSpacer={38}
-              collapsedWidth={60}
-              connectionState={connectionState}
-              pendingChanges={pendingChanges}
-              showThemeToggle={false}
-            />
-            <div className="flex-1 flex flex-col min-h-0">
+          <AppShell
+            workspaces={[workspace]}
+            activeWorkspace={workspace}
+            onSelectWorkspace={() => {}}
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            extraNavItems={desktopNavItems}
+            user={sidebarUser}
+            onSignOut={isServerMode ? handleSignOut : undefined}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            topSpacer={38}
+            connectionState={connectionState}
+            pendingChanges={pendingChanges}
+            showThemeToggle={false}
+            headerSlot={
               <Header
                 sidebarCollapsed={sidebarCollapsed}
                 connectionState={isServerMode ? connection.info.state : "disconnected"}
                 pendingChanges={pendingChanges}
               />
-              <main
-                className={cn(
-                  "flex-1 p-6 flex flex-col min-h-0",
-                  isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
-                )}
-              >
-                {renderView()}
-              </main>
-            </div>
-          </div>
+            }
+            contentClassName={cn(
+              isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
+            )}
+          >
+            {renderView()}
+          </AppShell>
         </WorkspaceProvider>
       </ApiProvider>
     </ThemeProvider>

@@ -39,21 +39,14 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
     return (
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none"
-          style={{ color: "var(--semantic-text)" }}
-          onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.currentTarget.style.background = "var(--semantic-surface-elevated)";
-          }}
-          onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-            e.currentTarget.style.background = "transparent";
-          }}
+          className="flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none text-sidebar-foreground hover:bg-sidebar-accent"
         >
-          <UserAvatar user={user} size={collapsed ? 28 : 28} />
+          <UserAvatar user={user} size={28} />
           {!collapsed && (
             <div className="flex-1 min-w-0 text-left">
               <div className="text-sm font-medium truncate">{user.name || user.email}</div>
               {user.name && user.email && (
-                <div className="text-[11px] truncate" style={{ color: "color-mix(in srgb, var(--semantic-text) 50%, transparent)" }}>
+                <div className="text-[11px] truncate text-muted-foreground">
                   {user.email}
                 </div>
               )}
@@ -109,7 +102,7 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
     );
   }
 
-  // Default variant (unchanged behavior)
+  // Default variant
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1.5 bg-transparent border border-input rounded-lg cursor-pointer text-foreground hover:bg-accent transition-colors">

@@ -1,11 +1,17 @@
-import { useState } from "react";
-import { cn } from "../lib/utils";
 import type { Workspace, User } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Sun, Moon, Monitor } from "./icons";
+import { Globe, BookOpen, Brain, Settings, Sun, Moon, Monitor } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { AccountMenu } from "./AccountMenu";
-import type { NavItem } from "./MainSidebar";
+import { SidebarGlass } from "./ui/sidebar";
+
+export type View = "translate" | "termbase" | "memory" | "settings";
+
+export interface NavItem {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+}
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
@@ -46,12 +52,7 @@ export function AppSidebar<V extends string = string>({
   extraNavItems = [],
   user,
   onSignOut,
-  collapsed,
-  onCollapsedChange,
   topSpacer = 0,
-  collapsedWidth = 0,
-  connectionState,
-  pendingChanges,
   showThemeToggle = true,
 }: AppSidebarProps<V>) {
   const navItems = [
@@ -60,133 +61,56 @@ export function AppSidebar<V extends string = string>({
     defaultNavItems[defaultNavItems.length - 1],
   ];
 
-  const iconsOnly = collapsed && collapsedWidth > 0;
-  const width = collapsed ? collapsedWidth : 220;
-  const [hovered, setHovered] = useState(false);
-
   return (
-    <nav
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className="relative z-10 flex flex-col transition-[width] duration-200 ease-in-out overflow-visible shrink-0"
-      style={{
-        width,
-        background: "var(--sidebar-bg)",
-        color: "var(--semantic-text)",
-        backdropFilter: "blur(var(--sidebar-backdrop-blur, 16px))",
-        WebkitBackdropFilter: "blur(var(--sidebar-backdrop-blur, 16px))",
-        borderRight: collapsed && collapsedWidth === 0 ? "none" : "1px solid var(--semantic-border)",
-        boxShadow: "var(--sidebar-glow, none)",
-      }}
-    >
-      <div className="flex flex-col h-full overflow-hidden">
-        {/* Top spacer (e.g. macOS traffic lights) */}
-        {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
+    <SidebarGlass.Root side="left" collapsible="icon">
+      {/* Top spacer (e.g. macOS traffic lights) */}
+      {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
 
-        {/* Workspace switcher */}
-        <div className="shrink-0">
-          <WorkspaceSwitcher
-            workspaces={workspaces}
-            activeWorkspace={activeWorkspace}
-            onSelectWorkspace={onSelectWorkspace}
-            onCreateWorkspace={onCreateWorkspace}
-            collapsed={iconsOnly}
-          />
-        </div>
+      <SidebarGlass.Header className="border-none px-3 py-2.5">
+        <WorkspaceSwitcher
+          workspaces={workspaces}
+          activeWorkspace={activeWorkspace}
+          onSelectWorkspace={onSelectWorkspace}
+          onCreateWorkspace={onCreateWorkspace}
+        />
+      </SidebarGlass.Header>
 
-        {/* Navigation items */}
-        <div className="flex-1 py-2 px-2">
-          <ul className="flex flex-col gap-1 list-none p-0 m-0">
-            {navItems.map(({ id, label, icon }) => {
-              const isActive = activeView === id;
-              return (
-                <li key={id} className="group/menu-item relative">
-                  <button
+      <SidebarGlass.Content className="px-2 py-2">
+        <SidebarGlass.Group>
+          <SidebarGlass.GroupContent>
+            <SidebarGlass.Menu>
+              {navItems.map(({ id, label, icon }) => (
+                <SidebarGlass.MenuItem key={id}>
+                  <SidebarGlass.MenuButton
                     data-testid={`nav-${id}`}
+                    isActive={activeView === id}
+                    tooltip={label}
                     onClick={() => onViewChange(id as V)}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-md border-none cursor-pointer text-sm text-left",
-                      "transition-[background,color] duration-200 ease-linear outline-none",
-                      iconsOnly ? "py-2.5 px-2 justify-center" : "px-3 py-2 justify-start",
-                    )}
-                    style={
-                      isActive
-                        ? {
-                            background: "var(--semantic-primary)",
-                            color: "var(--semantic-text-inverse)",
-                          }
-                        : {
-                            background: "transparent",
-                            color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)",
-                          }
-                    }
-                    onMouseEnter={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = "var(--semantic-surface-elevated)";
-                        e.currentTarget.style.color = "var(--semantic-text)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.background = "transparent";
-                        e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)";
-                      }
-                    }}
                   >
-                    <span className="shrink-0">{icon}</span>
-                    {!iconsOnly && <span>{label}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+                    {icon}
+                    <span>{label}</span>
+                  </SidebarGlass.MenuButton>
+                </SidebarGlass.MenuItem>
+              ))}
+            </SidebarGlass.Menu>
+          </SidebarGlass.GroupContent>
+        </SidebarGlass.Group>
+      </SidebarGlass.Content>
 
-        {/* Footer: theme toggle */}
-        {!iconsOnly && showThemeToggle && (
-          <div className="px-4 py-3 flex items-center">
-            <ThemeToggle />
-          </div>
-        )}
-
-        {/* User account */}
+      <SidebarGlass.Footer>
+        {showThemeToggle && <ThemeToggle />}
         {user && onSignOut && (
-          <div className="shrink-0">
-            <AccountMenu
-              user={user}
-              onSignOut={onSignOut}
-              variant="sidebar"
-              collapsed={iconsOnly}
-            />
-          </div>
+          <AccountMenu user={user} onSignOut={onSignOut} variant="sidebar" />
         )}
-      </div>
+      </SidebarGlass.Footer>
 
-      {/* Floating collapse/expand button on sidebar edge */}
-      <button
-        onClick={() => onCollapsedChange(!collapsed)}
-        className="absolute top-1/2 -translate-y-1/2 rounded-full w-6 h-6 flex items-center justify-center border cursor-pointer transition-opacity duration-200 z-10 shadow-sm"
-        style={{
-          right: -12,
-          opacity: hovered ? 1 : 0,
-          pointerEvents: hovered ? "auto" : "none",
-          background: "var(--glass-bg-strong, hsl(var(--card) / 0.8))",
-          borderColor: "var(--semantic-border, hsl(var(--border)))",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
-          color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
-      >
-        {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
-      </button>
-    </nav>
+      <SidebarGlass.Rail />
+    </SidebarGlass.Root>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Internal: ThemeToggle (extracted from MainSidebar)
+// Internal: ThemeToggle
 // ---------------------------------------------------------------------------
 
 const nextTheme: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
@@ -204,16 +128,14 @@ const themeLabels: Record<Theme, string> = {
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   return (
-    <button
+    <SidebarGlass.MenuButton
       data-testid="theme-toggle"
       onClick={() => setTheme(nextTheme[theme])}
-      title={`Theme: ${themeLabels[theme]}`}
-      className="bg-transparent border-none cursor-pointer p-0 leading-none transition-colors"
-      style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
-      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
-      onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
+      tooltip={`Theme: ${themeLabels[theme]}`}
+      size="sm"
     >
       {themeIcons[theme]}
-    </button>
+      <span>{themeLabels[theme]}</span>
+    </SidebarGlass.MenuButton>
   );
 }

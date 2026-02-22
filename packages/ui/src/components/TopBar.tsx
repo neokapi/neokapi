@@ -17,23 +17,15 @@ const themeIcons: Record<Theme, React.ReactNode> = {
 const themeLabels: Record<Theme, string> = { light: "Light", dark: "Dark", system: "System" };
 
 const iconBtnClass =
-  "flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors";
+  "flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors text-muted-foreground hover:text-foreground";
 
 export function TopBar({ user, onSignOut }: TopBarProps) {
   const { theme, setTheme } = useTheme();
 
   return (
-    <div
-      className="h-10 shrink-0 flex items-center justify-end gap-1 px-3"
-    >
+    <div className="h-10 shrink-0 flex items-center justify-end gap-1 px-3">
       {/* Notification bell (placeholder) */}
-      <button
-        className={iconBtnClass}
-        title="Notifications"
-        style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
-      >
+      <button className={iconBtnClass} title="Notifications">
         <Bell className="w-4 h-4" />
       </button>
 
@@ -43,9 +35,6 @@ export function TopBar({ user, onSignOut }: TopBarProps) {
         className={iconBtnClass}
         title={`Theme: ${themeLabels[theme]}`}
         onClick={() => setTheme(nextTheme[theme])}
-        style={{ color: "color-mix(in srgb, var(--semantic-text) 60%, transparent)" }}
-        onMouseEnter={(e) => { e.currentTarget.style.color = "var(--semantic-text)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.color = "color-mix(in srgb, var(--semantic-text) 60%, transparent)"; }}
       >
         {themeIcons[theme]}
       </button>

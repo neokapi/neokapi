@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  WorkspaceRail,
-  MainSidebar,
+  AppShell,
   AuthProvider,
   WorkspaceProvider,
   ApiProvider,
+  CreateWorkspaceDialog,
   useAuth,
   useWorkspace,
   useApi,
@@ -19,10 +19,6 @@ import {
   type ProjectInfo,
   type ConfigResponse,
   ThemeProvider,
-  cn,
-  Button,
-  Input,
-  Label,
 } from "@gokapi/ui";
 import { LoginPage } from "./auth/LoginPage";
 
@@ -238,92 +234,6 @@ function SettingsField({ label, value }: { label: string; value: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Create workspace dialog
-// ---------------------------------------------------------------------------
-
-function CreateWorkspaceDialog({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void;
-  onCreate: (ws: Workspace) => void;
-}) {
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleNameChange = (value: string) => {
-    setName(value);
-    setSlug(
-      value
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "")
-    );
-  };
-
-  const handleCreate = async () => {
-    if (!name.trim() || !slug.trim()) return;
-    setCreating(true);
-    setError("");
-    try {
-      const ws = await api.createWorkspace(name.trim(), slug.trim());
-      onCreate(ws);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create workspace");
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]"
-      onClick={onClose}
-    >
-      <div
-        className="bg-card rounded-xl border border-border p-8 min-w-[400px] max-w-[480px]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-lg font-semibold mb-5">Create Workspace</h3>
-
-        <Label className="text-muted-foreground">Name</Label>
-        <Input
-          value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
-          placeholder="My Workspace"
-          autoFocus
-          className="mt-1 mb-4"
-        />
-
-        <Label className="text-muted-foreground">Slug</Label>
-        <Input
-          value={slug}
-          onChange={(e) => setSlug(e.target.value)}
-          placeholder="my-workspace"
-          className="mt-1 mb-4"
-        />
-
-        {error && <div className="text-destructive text-[13px] mb-3">{error}</div>}
-
-        <div className="flex gap-2 justify-end">
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim() || !slug.trim()}
-          >
-            {creating ? "Creating..." : "Create"}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Main content area
 // ---------------------------------------------------------------------------
 
@@ -391,10 +301,6 @@ function AppContent() {
     setActiveWorkspace(null);
   }, [setUser, setWorkspaces, setActiveWorkspace]);
 
-  const handleCreateWorkspace = useCallback(() => {
-    setShowCreateWs(true);
-  }, []);
-
   const handleWorkspaceCreated = useCallback(
     (ws: Workspace) => {
       setWorkspaces([...workspaces, ws]);
@@ -418,46 +324,30 @@ function AppContent() {
 
   const isEditor = activeView === "translate";
 
-  if (serverMode === "standalone") {
-    return (
-      <div className="flex h-screen overflow-hidden bg-background">
-        <MainSidebar
-          workspace={activeWorkspace}
-          activeView={activeView}
-          onViewChange={setActiveView}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-        />
-        <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
-          <ViewContent activeView={activeView} workspace={activeWorkspace} />
-        </main>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <WorkspaceRail
+    <>
+      <AppShell
         workspaces={workspaces}
         activeWorkspace={activeWorkspace}
         onSelectWorkspace={(ws: Workspace) => setActiveWorkspace(ws)}
-        onCreateWorkspace={handleCreateWorkspace}
-        user={user}
-        onAvatarClick={handleSignOut}
-      />
-      <MainSidebar
-        workspace={activeWorkspace}
+        onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
         activeView={activeView}
         onViewChange={setActiveView}
+        user={user}
+        onSignOut={serverMode === "server" ? handleSignOut : undefined}
         collapsed={sidebarCollapsed}
         onCollapsedChange={setSidebarCollapsed}
-      />
-      <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
+        contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
+      >
         <ViewContent activeView={activeView} workspace={activeWorkspace} />
-      </main>
+      </AppShell>
 
-      {showCreateWs && <CreateWorkspaceDialog onClose={() => setShowCreateWs(false)} onCreate={handleWorkspaceCreated} />}
-    </div>
+      <CreateWorkspaceDialog
+        open={showCreateWs}
+        onOpenChange={setShowCreateWs}
+        onCreate={handleWorkspaceCreated}
+      />
+    </>
   );
 }
 

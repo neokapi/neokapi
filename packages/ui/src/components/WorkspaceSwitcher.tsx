@@ -8,22 +8,22 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
+import { useSidebar } from "./ui/sidebar";
 
 interface WorkspaceSwitcherProps {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   onSelectWorkspace: (ws: Workspace) => void;
   onCreateWorkspace?: () => void;
-  collapsed?: boolean;
 }
 
 /** Stacked workspace icons — active in front, another peeking behind. */
 function StackedIcons({ active, other }: { active: Workspace; other: Workspace | null }) {
   return (
     <div className="relative" style={{ width: 40, height: 42 }}>
-      {/* Back icon — offset to bottom-right, faded, slightly larger */}
+      {/* Back icon — offset to bottom-right, faded */}
       {other && (
-        <div className="absolute" style={{ top: 3, left: 2  , opacity: 0.35 }}>
+        <div className="absolute" style={{ top: 3, left: 2, opacity: 0.35 }}>
           <WorkspaceIcon workspace={other} active={false} onClick={() => {}} size={32} />
         </div>
       )}
@@ -40,16 +40,16 @@ export function WorkspaceSwitcher({
   activeWorkspace,
   onSelectWorkspace,
   onCreateWorkspace,
-  collapsed = false,
 }: WorkspaceSwitcherProps) {
+  const { state } = useSidebar();
+  const collapsed = state === "collapsed";
   const hasMultiple = workspaces.length > 1 || !!onCreateWorkspace;
 
   // Static label when single workspace and no create action
   if (!hasMultiple) {
     return (
       <div
-        className={collapsed ? "flex justify-center py-3" : "flex items-center gap-2 px-3 py-2.5"}
-        style={{ color: "var(--semantic-text)" }}
+        className={collapsed ? "flex justify-center py-3" : "flex items-center gap-2 px-3 py-2.5 text-sidebar-foreground"}
       >
         {activeWorkspace && (
           <WorkspaceIcon workspace={activeWorkspace} active={false} onClick={() => {}} size={collapsed ? 32 : 28} />
@@ -72,15 +72,8 @@ export function WorkspaceSwitcher({
         className={
           collapsed
             ? "flex justify-center w-full py-3 bg-transparent border-none cursor-pointer transition-colors outline-none"
-            : "flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none"
+            : "flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none text-sidebar-foreground hover:bg-sidebar-accent rounded-md"
         }
-        style={{ color: "var(--semantic-text)" }}
-        onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
-          if (!collapsed) e.currentTarget.style.background = "var(--semantic-surface-elevated)";
-        }}
-        onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
-          if (!collapsed) e.currentTarget.style.background = "transparent";
-        }}
       >
         {collapsed && activeWorkspace ? (
           <StackedIcons active={activeWorkspace} other={otherWs} />

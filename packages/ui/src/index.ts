@@ -3,6 +3,8 @@ export { cn } from "./lib/utils";
 
 // Glass UI (shadcn-glass-ui)
 export { AnimatedBackgroundGlass } from "./components/ui/animated-background";
+export { SidebarGlass, useSidebar } from "./components/ui/sidebar";
+export { ModalGlass } from "./components/ui/dialog";
 
 // UI primitives (shadcn/ui)
 export { Button, type ButtonProps } from "./components/ui/button";
@@ -17,6 +19,11 @@ export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from ".
 export { Switch, type SwitchProps } from "./components/ui/switch";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
 export type { CollapsibleProps, CollapsibleTriggerProps, CollapsibleContentProps } from "./components/ui/collapsible";
+export {
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter,
+  DialogTitle, DialogDescription, DialogClose,
+} from "./components/ui/dialog";
+export type { DialogProps, DialogContentProps } from "./components/ui/dialog";
 
 // Icons (Lucide)
 export * from "./components/icons";
@@ -24,12 +31,15 @@ export * from "./components/icons";
 // Components
 export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";
-export { MainSidebar } from "./components/MainSidebar";
 export { AccountMenu } from "./components/AccountMenu";
 export { TopBar } from "./components/TopBar";
 export type { TopBarProps } from "./components/TopBar";
 export { AppSidebar } from "./components/AppSidebar";
 export type { AppSidebarProps } from "./components/AppSidebar";
+export { AppShell } from "./components/AppShell";
+export type { AppShellProps } from "./components/AppShell";
+export { CreateWorkspaceDialog } from "./components/CreateWorkspaceDialog";
+export type { CreateWorkspaceDialogProps } from "./components/CreateWorkspaceDialog";
 export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
 export { ProjectDashboard } from "./components/ProjectDashboard";
@@ -101,7 +111,7 @@ export type {
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
 } from "./types/api";
-export type { View, NavItem } from "./components/MainSidebar";
+export type { View, NavItem } from "./components/AppSidebar";
 
 // Filter config editor
 export { FilterConfigEditor } from "./components/filter";
