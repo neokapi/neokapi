@@ -93,12 +93,18 @@ export function ProjectDashboard({
       )}
 
       {projects.length === 0 && !showCreate && (
-        <div className="flex flex-col items-center justify-center p-12 bg-card rounded-lg border border-dashed border-border backdrop-blur-sm" data-testid="empty-projects">
-          <FolderOpen className="w-12 h-12 mb-4 text-muted-foreground opacity-30" />
-          <p className="text-muted-foreground">
-            No projects yet. Create a new project to get started.
-          </p>
-        </div>
+        <GlassCard intensity="subtle" className="mx-auto max-w-md mt-12" data-testid="empty-projects">
+          <CardContent className="flex flex-col items-center text-center py-12 px-8">
+            <FolderOpen className="w-14 h-14 mb-5 text-primary opacity-40" />
+            <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Create your first translation project to start localizing your content.
+            </p>
+            <Button onClick={() => setShowCreate(true)}>
+              New Project
+            </Button>
+          </CardContent>
+        </GlassCard>
       )}
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">

@@ -77,6 +77,7 @@ export { WorkspaceProvider, useWorkspace } from "./context/WorkspaceContext";
 export { ApiProvider, useApi } from "./context/ApiContext";
 export { ThemeProvider, useTheme } from "./context/ThemeContext";
 export type { Theme } from "./context/ThemeContext";
+export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";

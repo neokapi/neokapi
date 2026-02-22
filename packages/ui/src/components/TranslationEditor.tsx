@@ -3,6 +3,7 @@ import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, Bl
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useProviderConfigs } from "../hooks/useProviderApi";
 import { useLocales } from "../hooks/useLocales";
+import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { SourceCellDisplay } from "./editor/SourceCellDisplay";
 import { TargetCellEditor } from "./editor/TargetCellEditor";
 import { parseCodedSegments } from "./editor/codedText";
@@ -107,6 +108,15 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const [appliedTMIndex, setAppliedTMIndex] = useState<number | null>(null);
 
   const { getDisplayName } = useLocales();
+
+  // Register breadcrumb in the top bar area
+  const breadcrumbNode = useMemo(() => (
+    <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-project">
+      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {project.name}
+    </Button>
+  ), [onBack, project.name]);
+  useSetBreadcrumb(breadcrumbNode);
+
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
   const { configs: providerConfigs } = useProviderConfigs();
@@ -782,9 +792,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
       <div className="flex items-center gap-3 mb-3">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-project">
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {project.name}
-        </Button>
         <span className="text-base font-semibold flex-1">{fileName}</span>
         {presenceSlot}
         {/* Layout mode switcher */}

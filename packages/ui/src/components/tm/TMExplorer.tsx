@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTMApi } from "../../hooks/useTMApi";
 import { useLocales } from "../../hooks/useLocales";
+import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { TMEntryInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -17,6 +18,13 @@ const PAGE_SIZE = 50;
 
 export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerProps) {
   const { getDisplayName } = useLocales();
+
+  const breadcrumbNode = useMemo(() => (
+    <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn">
+      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
+    </Button>
+  ), [onBack]);
+  useSetBreadcrumb(breadcrumbNode);
   const { getTMEntries, addTMEntry, updateTMEntry, deleteTMEntry } = useTMApi();
   const [entries, setEntries] = useState<TMEntryInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -119,7 +127,6 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     <div data-testid="tm-explorer">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn"><ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back</Button>
         <h2 className="flex-1 text-xl font-semibold">Translation Memory</h2>
         <Badge variant="secondary" data-testid="tm-count-badge">
           {totalCount} {totalCount === 1 ? "entry" : "entries"}

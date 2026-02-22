@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
+import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Card, CardContent } from "./ui/card";
@@ -36,6 +37,14 @@ export function ProjectView({
   const { getDisplayName } = useLocales();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+
+  // Register breadcrumb in the top bar area
+  const breadcrumbNode = useMemo(() => (
+    <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-projects">
+      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Projects
+    </Button>
+  ), [onBack]);
+  useSetBreadcrumb(breadcrumbNode);
 
   const items = project.items ?? [];
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
@@ -84,10 +93,6 @@ export function ProjectView({
         />
       )}
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-projects">
-          <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-          Projects
-        </Button>
         <h2 className="flex-1 text-xl font-semibold">{project.name}</h2>
         {onOpenTerms && (
           <Button variant="outline" onClick={onOpenTerms} data-testid="open-terms-btn">

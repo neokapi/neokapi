@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTermsApi } from "../../hooks/useTermsApi";
 import { useLocales } from "../../hooks/useLocales";
+import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { ConceptInfo, TermInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -19,6 +20,13 @@ const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprec
 
 export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack }: TermExplorerProps) {
   const { getDisplayName } = useLocales();
+
+  const breadcrumbNode = useMemo(() => (
+    <Button variant="outline" size="sm" onClick={onBack} data-testid="term-back-btn">
+      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
+    </Button>
+  ), [onBack]);
+  useSetBreadcrumb(breadcrumbNode);
   const {
     getTerms, addConcept, updateConcept, deleteConcept,
     importTermsCSV, importTermsJSON, exportTermsJSON,
@@ -195,7 +203,6 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   return (
     <div data-testid="term-explorer">
       <div className="flex items-center gap-3 mb-6">
-        <Button variant="outline" size="sm" onClick={onBack} data-testid="term-back-btn"><ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back</Button>
         <h2 className="flex-1 text-xl font-semibold">Terminology</h2>
         <Badge variant="secondary" data-testid="term-count-badge">{totalCount} concepts</Badge>
       </div>

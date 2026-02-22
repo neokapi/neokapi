@@ -25,8 +25,11 @@ export function WorkspaceIcon({ workspace, active, onClick, size = 40 }: Workspa
   const bg = workspace.logo_url ? undefined : hashColor(workspace.name);
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
       title={workspace.name}
       style={{
         width: size,
@@ -49,6 +52,6 @@ export function WorkspaceIcon({ workspace, active, onClick, size = 40 }: Workspa
       }}
     >
       {!workspace.logo_url && letter}
-    </button>
+    </div>
   );
 }
