@@ -206,7 +206,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
 
       {/* Invite dialog */}
       <Dialog open={showInviteDialog} onOpenChange={handleDialogChange}>
-        <DialogContent className="sm:max-w-[420px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
           </DialogHeader>

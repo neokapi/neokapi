@@ -371,7 +371,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       </GlassCard>
 
       <Dialog open={showAddForm} onOpenChange={handleAddDialogChange}>
-        <DialogContent className="sm:max-w-[560px]" data-testid="term-add-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent size="md" data-testid="term-add-form" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>New Concept</DialogTitle>
           </DialogHeader>

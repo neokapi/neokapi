@@ -236,7 +236,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
       </GlassCard>
 
       <Dialog open={showAddForm} onOpenChange={handleAddDialogChange}>
-        <DialogContent className="sm:max-w-[520px]" data-testid="tm-add-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent size="md" data-testid="tm-add-form" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Add TM Entry</DialogTitle>
           </DialogHeader>

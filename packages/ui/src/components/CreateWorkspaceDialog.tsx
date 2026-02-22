@@ -67,7 +67,7 @@ export function CreateWorkspaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
         </DialogHeader>

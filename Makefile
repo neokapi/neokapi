@@ -158,7 +158,9 @@ certs: ## Generate mkcert TLS certificates for *.bowrain.mymac
 	mkcert -cert-file $(CERT_DIR)/wildcard.pem -key-file $(CERT_DIR)/wildcard-key.pem \
 		"*.bowrain.mymac" "bowrain.mymac"
 
-dev-server: build-server ## Run bowrain-server locally against Docker deps
+dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
+	@mkdir -p $(BIN_DIR)
+	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-server ./cmd/bowrain-server
 	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
 	BOWRAIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain \
 	BOWRAIN_OIDC_CLIENT_ID=bowrain \

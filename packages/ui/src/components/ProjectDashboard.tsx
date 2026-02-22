@@ -100,7 +100,7 @@ export function ProjectDashboard({
       </GlassCard>
 
       <Dialog open={showCreate} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[520px]" data-testid="create-project-dialog" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent size="md" data-testid="create-project-dialog" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Create Translation Project</DialogTitle>
           </DialogHeader>
