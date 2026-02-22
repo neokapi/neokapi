@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	platstore "github.com/gokapi/gokapi/platform/store"
 )
 
 // MaxChangesPerRequest is the maximum number of change entries returned per query.
@@ -15,7 +17,7 @@ const MaxChangesPerRequest = 1000
 // If locales is non-empty, only source changes (locale IS NULL) and target
 // changes for the specified locales are returned. The returned ChangeSet
 // includes a NewCursor for pagination and HasMore to indicate additional results.
-func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error) {
+func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
 	if limit <= 0 || limit > MaxChangesPerRequest {
 		limit = MaxChangesPerRequest
 	}
@@ -56,9 +58,9 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCur
 	}
 	defer rows.Close()
 
-	var entries []ChangeEntry
+	var entries []platstore.ChangeEntry
 	for rows.Next() {
-		var e ChangeEntry
+		var e platstore.ChangeEntry
 		var loggedStr string
 		if err := rows.Scan(&e.Seq, &e.BlockID, &e.ChangeType, &e.Locale, &e.ContentHash, &loggedStr); err != nil {
 			return nil, fmt.Errorf("scan change entry: %w", err)
@@ -70,7 +72,7 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCur
 		return nil, fmt.Errorf("iterate change log: %w", err)
 	}
 
-	cs := &ChangeSet{}
+	cs := &platstore.ChangeSet{}
 	if len(entries) > limit {
 		cs.HasMore = true
 		entries = entries[:limit]

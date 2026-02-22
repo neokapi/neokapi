@@ -11,6 +11,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/client"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -454,7 +455,7 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 }
 
 // runInitCreateAuthenticated creates a project on the server using existing auth.
-func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *StoredAuth, workspace string) (*output.InitOutput, error) {
+func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.StoredAuth, workspace string) (*output.InitOutput, error) {
 	if cfg.Project.SourceLocale == "" {
 		cfg.Project.SourceLocale = "en"
 	}

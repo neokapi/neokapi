@@ -425,8 +425,7 @@ type SearchOptions struct {
 }
 
 // SearchPluginsAdvanced searches the registry using structured filters.
-// All non-empty fields are combined with AND logic. Plugins without capabilities
-// fall back to matching via PluginType when filtering by Type.
+// All non-empty fields are combined with AND logic.
 func (r *RemoteRegistry) SearchPluginsAdvanced(opts SearchOptions) ([]PluginManifest, error) {
 	available, err := r.ListAvailable()
 	if err != nil {
@@ -488,16 +487,9 @@ func matchesTextQuery(m PluginManifest, q string) bool {
 	return false
 }
 
-// matchesType checks capability types, with fallback to PluginType for legacy manifests.
+// matchesType checks capability types.
 func matchesType(m PluginManifest, capType string) bool {
-	if m.HasCapabilityType(capType) {
-		return true
-	}
-	// Legacy fallback: match PluginType if no capabilities are declared.
-	if len(m.Capabilities) == 0 && strings.Contains(strings.ToLower(m.PluginType), capType) {
-		return true
-	}
-	return false
+	return m.HasCapabilityType(capType)
 }
 
 // matchesExtension checks whether any capability handles the given extension.

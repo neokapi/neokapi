@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 )
 
@@ -15,13 +16,13 @@ const sessionCookieName = "bowrain_session"
 // validateBearerToken extracts and validates a JWT from a "Bearer <token>" Authorization header.
 // Returns the validated claims or nil if the header is absent or not a Bearer token.
 // If the header is present but the token is invalid, it returns an error string.
-func validateBearerToken(c echo.Context, jwtSecret string) (*auth.Claims, string) {
+func validateBearerToken(c echo.Context, jwtSecret string) (*platauth.Claims, string) {
 	header := c.Request().Header.Get("Authorization")
 	if header == "" || !strings.HasPrefix(header, "Bearer ") {
 		return nil, ""
 	}
 	token := strings.TrimPrefix(header, "Bearer ")
-	claims, err := auth.ValidateToken(token, jwtSecret)
+	claims, err := platauth.ValidateToken(token, jwtSecret)
 	if err != nil {
 		return nil, "invalid token: " + err.Error()
 	}
@@ -29,12 +30,12 @@ func validateBearerToken(c echo.Context, jwtSecret string) (*auth.Claims, string
 }
 
 // validateSessionCookie extracts and validates a JWT from the bowrain_session cookie.
-func validateSessionCookie(c echo.Context, jwtSecret string) *auth.Claims {
+func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
 	cookie, err := c.Cookie(sessionCookieName)
 	if err != nil || cookie.Value == "" {
 		return nil
 	}
-	claims, err := auth.ValidateToken(cookie.Value, jwtSecret)
+	claims, err := platauth.ValidateToken(cookie.Value, jwtSecret)
 	if err != nil {
 		return nil
 	}
@@ -42,7 +43,7 @@ func validateSessionCookie(c echo.Context, jwtSecret string) *auth.Claims {
 }
 
 // setClaimsOnContext sets user claims on the Echo context for downstream handlers.
-func setClaimsOnContext(c echo.Context, claims *auth.Claims) {
+func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 	c.Set("user_id", claims.Subject)
 	c.Set("email", claims.Email)
 	c.Set("name", claims.Name)

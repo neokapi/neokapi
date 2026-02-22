@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/platform/store"
 )
 
 // FlowService manages flow execution with optional store integration.

@@ -1,28 +1,31 @@
 package connector
 
-import "github.com/gokapi/gokapi/core/registry"
+import (
+	"github.com/gokapi/gokapi/core/registry"
+	platconn "github.com/gokapi/gokapi/platform/connector"
+)
 
 // RegisterAll registers all built-in connectors with the given registry.
 // The FileConnector and GitConnector require a FormatRegistry for format
 // detection and parsing.
-func RegisterAll(r *Registry, formatReg *registry.FormatRegistry) {
-	r.Register("file", CategoryFile, func(config map[string]string) (IntegrationConnector, error) {
+func RegisterAll(r *platconn.Registry, formatReg *registry.FormatRegistry) {
+	r.Register("file", platconn.CategoryFile, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewFileConnector(formatReg, config)
 	})
 
-	r.Register("git", CategoryCode, func(config map[string]string) (IntegrationConnector, error) {
+	r.Register("git", platconn.CategoryCode, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewGitConnector(formatReg, config)
 	})
 
-	r.Register("wordpress", CategoryCMS, func(config map[string]string) (IntegrationConnector, error) {
+	r.Register("wordpress", platconn.CategoryCMS, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewWordPressConnector(config)
 	})
 
-	r.Register("figma", CategoryDesign, func(config map[string]string) (IntegrationConnector, error) {
+	r.Register("figma", platconn.CategoryDesign, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewFigmaConnector(config)
 	})
 
-	r.Register("hubspot", CategoryMarketing, func(config map[string]string) (IntegrationConnector, error) {
+	r.Register("hubspot", platconn.CategoryMarketing, func(config map[string]string) (platconn.IntegrationConnector, error) {
 		return NewHubSpotConnector(config)
 	})
 }

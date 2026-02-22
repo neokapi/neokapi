@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 )
 
 // WordPressConnector integrates with WordPress sites via the REST API.
@@ -64,7 +65,7 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 
 func (c *WordPressConnector) ID() string         { return c.id }
 func (c *WordPressConnector) Name() string       { return c.connName }
-func (c *WordPressConnector) Category() Category { return CategoryCMS }
+func (c *WordPressConnector) Category() platconn.Category { return platconn.CategoryCMS }
 
 func (c *WordPressConnector) Configure(config map[string]string) error {
 	for k, v := range config {
@@ -75,13 +76,13 @@ func (c *WordPressConnector) Configure(config map[string]string) error {
 
 func (c *WordPressConnector) Close() error { return nil }
 
-func (c *WordPressConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
+func (c *WordPressConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	posts, err := c.fetchPosts(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var items []*ContentItem
+	var items []*platconn.ContentItem
 	for _, post := range posts {
 		blocks := []*model.Block{
 			makeBlock(fmt.Sprintf("post-%d-title", post.ID), post.Title.Rendered, "title"),
@@ -93,7 +94,7 @@ func (c *WordPressConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*C
 		}
 
 		modified, _ := time.Parse("2006-01-02T15:04:05", post.Modified)
-		items = append(items, &ContentItem{
+		items = append(items, &platconn.ContentItem{
 			ID:          fmt.Sprintf("post-%d", post.ID),
 			Name:        post.Title.Rendered,
 			Path:        fmt.Sprintf("posts/%s", post.Slug),
@@ -106,7 +107,7 @@ func (c *WordPressConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*C
 	return items, nil
 }
 
-func (c *WordPressConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
+func (c *WordPressConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	for _, item := range items {
 		wpID := item.Metadata["wp_id"]
 		if wpID == "" {
@@ -148,16 +149,16 @@ func (c *WordPressConnector) Publish(ctx context.Context, items []*ContentItem, 
 	return nil
 }
 
-func (c *WordPressConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Fetch(ctx, FetchOptions{})
+func (c *WordPressConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
+	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *WordPressConnector) Status(ctx context.Context) (*SyncStatus, error) {
+func (c *WordPressConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &SyncStatus{
+	return &platconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

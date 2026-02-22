@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/platform/store"
 	apiclient "github.com/gokapi/gokapi/platform/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

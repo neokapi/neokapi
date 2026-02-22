@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/model"
 	apiclient "github.com/gokapi/gokapi/platform/client"
 	"github.com/labstack/echo/v4"

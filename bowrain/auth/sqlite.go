@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/google/uuid"
 )
 
@@ -144,7 +145,7 @@ func (s *SQLiteAuthStore) Close() error {
 // Users
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *User) error {
+func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *platauth.User) error {
 	if u.ID == "" {
 		u.ID = uuid.NewString()
 	}
@@ -160,19 +161,19 @@ func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *User) error {
 	return nil
 }
 
-func (s *SQLiteAuthStore) GetUser(ctx context.Context, id string) (*User, error) {
+func (s *SQLiteAuthStore) GetUser(ctx context.Context, id string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`, id)
 	return scanUser(row)
 }
 
-func (s *SQLiteAuthStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+func (s *SQLiteAuthStore) GetUserByEmail(ctx context.Context, email string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, email, name, avatar_url, created_at FROM users WHERE email = ?`, email)
 	return scanUser(row)
 }
 
-func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *User) error {
+func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *platauth.User) error {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE users SET email=?, name=?, avatar_url=? WHERE id=?`,
 		u.Email, u.Name, u.AvatarURL, u.ID)
@@ -190,7 +191,7 @@ func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *User) error {
 // Workspaces
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *Workspace) error {
+func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	if w.ID == "" {
 		w.ID = uuid.NewString()
 	}
@@ -200,7 +201,7 @@ func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *Workspace) err
 	}
 	w.UpdatedAt = now
 	if w.Type == "" {
-		w.Type = WorkspaceTypeTeam
+		w.Type = platauth.WorkspaceTypeTeam
 	}
 
 	_, err := s.db.ExecContext(ctx,
@@ -214,21 +215,21 @@ func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *Workspace) err
 	return nil
 }
 
-func (s *SQLiteAuthStore) GetWorkspace(ctx context.Context, id string) (*Workspace, error) {
+func (s *SQLiteAuthStore) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, slug, description, logo_url, type, created_at, updated_at
 		 FROM workspaces WHERE id = ?`, id)
 	return scanWorkspace(row)
 }
 
-func (s *SQLiteAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*Workspace, error) {
+func (s *SQLiteAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, slug, description, logo_url, type, created_at, updated_at
 		 FROM workspaces WHERE slug = ?`, slug)
 	return scanWorkspace(row)
 }
 
-func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*Workspace, error) {
+func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
@@ -240,7 +241,7 @@ func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]
 	}
 	defer rows.Close()
 
-	result := make([]*Workspace, 0)
+	result := make([]*platauth.Workspace, 0)
 	for rows.Next() {
 		w, err := scanWorkspaceWithRole(rows)
 		if err != nil {
@@ -251,7 +252,7 @@ func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]
 	return result, rows.Err()
 }
 
-func (s *SQLiteAuthStore) UpdateWorkspace(ctx context.Context, w *Workspace) error {
+func (s *SQLiteAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE workspaces SET name=?, slug=?, description=?, logo_url=?, updated_at=? WHERE id=?`,
@@ -283,8 +284,8 @@ func (s *SQLiteAuthStore) DeleteWorkspace(ctx context.Context, id string) error 
 // Membership
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteAuthStore) AddMember(ctx context.Context, workspaceID, userID string, role Role) error {
-	if !ValidRoles[role] {
+func (s *SQLiteAuthStore) AddMember(ctx context.Context, workspaceID, userID string, role platauth.Role) error {
+	if !platauth.ValidRoles[role] {
 		return fmt.Errorf("invalid role: %s", role)
 	}
 	_, err := s.db.ExecContext(ctx,
@@ -310,8 +311,8 @@ func (s *SQLiteAuthStore) RemoveMember(ctx context.Context, workspaceID, userID 
 	return nil
 }
 
-func (s *SQLiteAuthStore) UpdateRole(ctx context.Context, workspaceID, userID string, role Role) error {
-	if !ValidRoles[role] {
+func (s *SQLiteAuthStore) UpdateRole(ctx context.Context, workspaceID, userID string, role platauth.Role) error {
+	if !platauth.ValidRoles[role] {
 		return fmt.Errorf("invalid role: %s", role)
 	}
 	res, err := s.db.ExecContext(ctx,
@@ -327,7 +328,7 @@ func (s *SQLiteAuthStore) UpdateRole(ctx context.Context, workspaceID, userID st
 	return nil
 }
 
-func (s *SQLiteAuthStore) ListMembers(ctx context.Context, workspaceID string) ([]*Membership, error) {
+func (s *SQLiteAuthStore) ListMembers(ctx context.Context, workspaceID string) ([]*platauth.Membership, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT workspace_id, user_id, role, joined_at
 		 FROM workspace_members WHERE workspace_id = ?
@@ -337,7 +338,7 @@ func (s *SQLiteAuthStore) ListMembers(ctx context.Context, workspaceID string) (
 	}
 	defer rows.Close()
 
-	result := make([]*Membership, 0)
+	result := make([]*platauth.Membership, 0)
 	for rows.Next() {
 		m, err := scanMembershipRow(rows)
 		if err != nil {
@@ -348,7 +349,7 @@ func (s *SQLiteAuthStore) ListMembers(ctx context.Context, workspaceID string) (
 	return result, rows.Err()
 }
 
-func (s *SQLiteAuthStore) GetMembership(ctx context.Context, workspaceID, userID string) (*Membership, error) {
+func (s *SQLiteAuthStore) GetMembership(ctx context.Context, workspaceID, userID string) (*platauth.Membership, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT workspace_id, user_id, role, joined_at
 		 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
@@ -364,8 +365,8 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func scanUser(row scanner) (*User, error) {
-	var u User
+func scanUser(row scanner) (*platauth.User, error) {
+	var u platauth.User
 	var createdStr string
 	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &createdStr)
 	if err != nil {
@@ -375,47 +376,47 @@ func scanUser(row scanner) (*User, error) {
 	return &u, nil
 }
 
-func scanWorkspace(row scanner) (*Workspace, error) {
-	var w Workspace
+func scanWorkspace(row scanner) (*platauth.Workspace, error) {
+	var w platauth.Workspace
 	var wsType, createdStr, updatedStr string
 	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace: %w", err)
 	}
-	w.Type = WorkspaceType(wsType)
+	w.Type = platauth.WorkspaceType(wsType)
 	w.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	return &w, nil
 }
 
 // scanWorkspaceWithRole scans workspace columns plus wm.role.
-func scanWorkspaceWithRole(row scanner) (*Workspace, error) {
-	var w Workspace
+func scanWorkspaceWithRole(row scanner) (*platauth.Workspace, error) {
+	var w platauth.Workspace
 	var wsType, createdStr, updatedStr, role string
 	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &createdStr, &updatedStr, &role)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace with role: %w", err)
 	}
-	w.Type = WorkspaceType(wsType)
-	w.Role = Role(role)
+	w.Type = platauth.WorkspaceType(wsType)
+	w.Role = platauth.Role(role)
 	w.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	return &w, nil
 }
 
-func scanMembership(row scanner) (*Membership, error) {
-	var m Membership
+func scanMembership(row scanner) (*platauth.Membership, error) {
+	var m platauth.Membership
 	var role, joinedStr string
 	err := row.Scan(&m.WorkspaceID, &m.UserID, &role, &joinedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan membership: %w", err)
 	}
-	m.Role = Role(role)
+	m.Role = platauth.Role(role)
 	m.JoinedAt, _ = time.Parse(time.RFC3339, joinedStr)
 	return &m, nil
 }
 
-func scanMembershipRow(rows scanner) (*Membership, error) {
+func scanMembershipRow(rows scanner) (*platauth.Membership, error) {
 	return scanMembership(rows)
 }
 
@@ -434,8 +435,8 @@ func (s *SQLiteAuthStore) CreateUnclaimedProject(ctx context.Context, projectID,
 	return nil
 }
 
-func (s *SQLiteAuthStore) GetUnclaimedByToken(ctx context.Context, claimTokenHash string) (*UnclaimedProject, error) {
-	var p UnclaimedProject
+func (s *SQLiteAuthStore) GetUnclaimedByToken(ctx context.Context, claimTokenHash string) (*platauth.UnclaimedProject, error) {
+	var p platauth.UnclaimedProject
 	var createdStr, expiresStr string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT project_id, claim_token, name, source_locale, target_locales, created_at, expires_at
@@ -471,7 +472,7 @@ func (s *SQLiteAuthStore) PurgeExpiredUnclaimed(ctx context.Context) (int, error
 // Invitations
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteAuthStore) CreateInvite(ctx context.Context, inv *Invite) error {
+func (s *SQLiteAuthStore) CreateInvite(ctx context.Context, inv *platauth.Invite) error {
 	if inv.ID == "" {
 		inv.ID = uuid.NewString()
 	}
@@ -490,8 +491,8 @@ func (s *SQLiteAuthStore) CreateInvite(ctx context.Context, inv *Invite) error {
 	return nil
 }
 
-func (s *SQLiteAuthStore) GetInviteByCode(ctx context.Context, code string) (*Invite, error) {
-	var inv Invite
+func (s *SQLiteAuthStore) GetInviteByCode(ctx context.Context, code string) (*platauth.Invite, error) {
+	var inv platauth.Invite
 	var role, expiresStr, createdStr string
 	err := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_id, code, email, role, max_uses, use_count, created_by, expires_at, created_at
@@ -501,13 +502,13 @@ func (s *SQLiteAuthStore) GetInviteByCode(ctx context.Context, code string) (*In
 	if err != nil {
 		return nil, fmt.Errorf("get invite: %w", err)
 	}
-	inv.Role = Role(role)
+	inv.Role = platauth.Role(role)
 	inv.ExpiresAt, _ = time.Parse(time.RFC3339, expiresStr)
 	inv.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	return &inv, nil
 }
 
-func (s *SQLiteAuthStore) ListInvites(ctx context.Context, workspaceID string) ([]*Invite, error) {
+func (s *SQLiteAuthStore) ListInvites(ctx context.Context, workspaceID string) ([]*platauth.Invite, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_id, code, email, role, max_uses, use_count, created_by, expires_at, created_at
 		 FROM workspace_invites WHERE workspace_id = ?
@@ -517,15 +518,15 @@ func (s *SQLiteAuthStore) ListInvites(ctx context.Context, workspaceID string) (
 	}
 	defer rows.Close()
 
-	result := make([]*Invite, 0)
+	result := make([]*platauth.Invite, 0)
 	for rows.Next() {
-		var inv Invite
+		var inv platauth.Invite
 		var role, expiresStr, createdStr string
 		if err := rows.Scan(&inv.ID, &inv.WorkspaceID, &inv.Code, &inv.Email, &role,
 			&inv.MaxUses, &inv.UseCount, &inv.CreatedBy, &expiresStr, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan invite: %w", err)
 		}
-		inv.Role = Role(role)
+		inv.Role = platauth.Role(role)
 		inv.ExpiresAt, _ = time.Parse(time.RFC3339, expiresStr)
 		inv.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 		result = append(result, &inv)

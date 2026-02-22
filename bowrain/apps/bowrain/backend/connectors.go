@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/platform/connector"
+	"github.com/gokapi/gokapi/platform/store"
 )
 
 // ConnectorInfo describes a connector for the frontend.
@@ -207,7 +208,7 @@ func (a *App) InitContentStore(dbPath string) error {
 	if a.store != nil {
 		a.store.Close()
 	}
-	cs, err := store.NewSQLiteStore(dbPath)
+	cs, err := bstore.NewSQLiteStore(dbPath)
 	if err != nil {
 		return fmt.Errorf("open content store: %w", err)
 	}

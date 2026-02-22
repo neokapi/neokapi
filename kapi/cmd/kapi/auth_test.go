@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,10 +30,10 @@ func TestSaveAndLoadAuth(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", dir)
 
-	original := StoredAuth{
+	original := config.StoredAuth{
 		ServerURL:   "http://localhost:8080",
 		AccessToken: "test-token-123",
-		User: StoredUser{
+		User: config.StoredUser{
 			ID:    "user-1",
 			Email: "test@example.com",
 			Name:  "Test User",

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func TestCreateAndGetUser(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "alice@example.com", Name: "Alice"}
+	u := &platauth.User{Email: "alice@example.com", Name: "Alice"}
 	require.NoError(t, s.CreateUser(ctx, u))
 	assert.NotEmpty(t, u.ID)
 	assert.False(t, u.CreatedAt.IsZero())
@@ -37,7 +38,7 @@ func TestGetUserByEmail(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "bob@example.com", Name: "Bob"}
+	u := &platauth.User{Email: "bob@example.com", Name: "Bob"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	got, err := s.GetUserByEmail(ctx, "bob@example.com")
@@ -49,7 +50,7 @@ func TestUpdateUser(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "carol@example.com", Name: "Carol"}
+	u := &platauth.User{Email: "carol@example.com", Name: "Carol"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	u.Name = "Carol Updated"
@@ -66,7 +67,7 @@ func TestCreateAndGetWorkspace(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	w := &Workspace{Name: "My Team", Slug: "my-team", Description: "Test workspace"}
+	w := &platauth.Workspace{Name: "My Team", Slug: "my-team", Description: "Test workspace"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 	assert.NotEmpty(t, w.ID)
 
@@ -80,7 +81,7 @@ func TestGetWorkspaceBySlug(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	w := &Workspace{Name: "Acme Corp", Slug: "acme-corp"}
+	w := &platauth.Workspace{Name: "Acme Corp", Slug: "acme-corp"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
 	got, err := s.GetWorkspaceBySlug(ctx, "acme-corp")
@@ -92,7 +93,7 @@ func TestUpdateWorkspace(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	w := &Workspace{Name: "Old Name", Slug: "old-name"}
+	w := &platauth.Workspace{Name: "Old Name", Slug: "old-name"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
 	w.Name = "New Name"
@@ -109,7 +110,7 @@ func TestDeleteWorkspace(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	w := &Workspace{Name: "Ephemeral", Slug: "ephemeral"}
+	w := &platauth.Workspace{Name: "Ephemeral", Slug: "ephemeral"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
 	require.NoError(t, s.DeleteWorkspace(ctx, w.ID))
@@ -122,19 +123,19 @@ func TestMembership(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "dan@example.com", Name: "Dan"}
+	u := &platauth.User{Email: "dan@example.com", Name: "Dan"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
-	w := &Workspace{Name: "Team", Slug: "team"}
+	w := &platauth.Workspace{Name: "Team", Slug: "team"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
 	// Add member.
-	require.NoError(t, s.AddMember(ctx, w.ID, u.ID, RoleMember))
+	require.NoError(t, s.AddMember(ctx, w.ID, u.ID, platauth.RoleMember))
 
 	// Get membership.
 	m, err := s.GetMembership(ctx, w.ID, u.ID)
 	require.NoError(t, err)
-	assert.Equal(t, RoleMember, m.Role)
+	assert.Equal(t, platauth.RoleMember, m.Role)
 
 	// List members.
 	members, err := s.ListMembers(ctx, w.ID)
@@ -143,10 +144,10 @@ func TestMembership(t *testing.T) {
 	assert.Equal(t, u.ID, members[0].UserID)
 
 	// Update role.
-	require.NoError(t, s.UpdateRole(ctx, w.ID, u.ID, RoleAdmin))
+	require.NoError(t, s.UpdateRole(ctx, w.ID, u.ID, platauth.RoleAdmin))
 	m, err = s.GetMembership(ctx, w.ID, u.ID)
 	require.NoError(t, err)
-	assert.Equal(t, RoleAdmin, m.Role)
+	assert.Equal(t, platauth.RoleAdmin, m.Role)
 
 	// Remove member.
 	require.NoError(t, s.RemoveMember(ctx, w.ID, u.ID))
@@ -159,16 +160,16 @@ func TestListWorkspacesByUser(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "eve@example.com", Name: "Eve"}
+	u := &platauth.User{Email: "eve@example.com", Name: "Eve"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
-	w1 := &Workspace{Name: "Alpha", Slug: "alpha"}
-	w2 := &Workspace{Name: "Beta", Slug: "beta"}
+	w1 := &platauth.Workspace{Name: "Alpha", Slug: "alpha"}
+	w2 := &platauth.Workspace{Name: "Beta", Slug: "beta"}
 	require.NoError(t, s.CreateWorkspace(ctx, w1))
 	require.NoError(t, s.CreateWorkspace(ctx, w2))
 
-	require.NoError(t, s.AddMember(ctx, w1.ID, u.ID, RoleOwner))
-	require.NoError(t, s.AddMember(ctx, w2.ID, u.ID, RoleMember))
+	require.NoError(t, s.AddMember(ctx, w1.ID, u.ID, platauth.RoleOwner))
+	require.NoError(t, s.AddMember(ctx, w2.ID, u.ID, platauth.RoleMember))
 
 	workspaces, err := s.ListWorkspaces(ctx, u.ID)
 	require.NoError(t, err)
@@ -181,12 +182,12 @@ func TestInvalidRole(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "test@example.com", Name: "Test"}
+	u := &platauth.User{Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.CreateUser(ctx, u))
-	w := &Workspace{Name: "WS", Slug: "ws"}
+	w := &platauth.Workspace{Name: "WS", Slug: "ws"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
 
-	err := s.AddMember(ctx, w.ID, u.ID, Role("superadmin"))
+	err := s.AddMember(ctx, w.ID, u.ID, platauth.Role("superadmin"))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid role")
 }
@@ -195,11 +196,11 @@ func TestDeleteWorkspaceCascadesMemberships(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "frank@example.com", Name: "Frank"}
+	u := &platauth.User{Email: "frank@example.com", Name: "Frank"}
 	require.NoError(t, s.CreateUser(ctx, u))
-	w := &Workspace{Name: "Cascade", Slug: "cascade"}
+	w := &platauth.Workspace{Name: "Cascade", Slug: "cascade"}
 	require.NoError(t, s.CreateWorkspace(ctx, w))
-	require.NoError(t, s.AddMember(ctx, w.ID, u.ID, RoleMember))
+	require.NoError(t, s.AddMember(ctx, w.ID, u.ID, platauth.RoleMember))
 
 	require.NoError(t, s.DeleteWorkspace(ctx, w.ID))
 
@@ -217,7 +218,7 @@ func TestStoreAndValidateRefreshToken(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "refresh@example.com", Name: "Refresh User"}
+	u := &platauth.User{Email: "refresh@example.com", Name: "Refresh User"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	tokenHash := "abc123hash"
@@ -241,7 +242,7 @@ func TestValidateRefreshTokenExpired(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "expired@example.com", Name: "Expired"}
+	u := &platauth.User{Email: "expired@example.com", Name: "Expired"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	tokenHash := "expiredhash"
@@ -259,7 +260,7 @@ func TestRevokeRefreshToken(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "revoke@example.com", Name: "Revoke"}
+	u := &platauth.User{Email: "revoke@example.com", Name: "Revoke"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	tokenHash := "revokehash"
@@ -279,7 +280,7 @@ func TestRevokeUserRefreshTokens(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "revokeall@example.com", Name: "RevokeAll"}
+	u := &platauth.User{Email: "revokeall@example.com", Name: "RevokeAll"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)
@@ -301,7 +302,7 @@ func TestDeleteUserCascadesRefreshTokens(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
-	u := &User{Email: "cascade-rt@example.com", Name: "CascadeRT"}
+	u := &platauth.User{Email: "cascade-rt@example.com", Name: "CascadeRT"}
 	require.NoError(t, s.CreateUser(ctx, u))
 
 	expiresAt := time.Now().Add(30 * 24 * time.Hour)

@@ -13,9 +13,7 @@ import (
 )
 
 func TestWordCountTool(t *testing.T) {
-	cfg := &tools.WordCountConfig{
-		Locale: model.LocaleFrench,
-	}
+	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
 	assert.Equal(t, "word-count", tl.Name())
@@ -27,7 +25,7 @@ func TestWordCountTool(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountSource])
-	assert.Equal(t, "4", resultBlock.Properties[tools.PropWordCountTarget])
+	assert.Equal(t, "4", resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"])
 }
 
 func TestWordCountToolSourceOnly(t *testing.T) {
@@ -40,9 +38,11 @@ func TestWordCountToolSourceOnly(t *testing.T) {
 
 	resultBlock := result.Resource.(*model.Block)
 	assert.Equal(t, "4", resultBlock.Properties[tools.PropWordCountSource])
-	// No target set, no locale configured -> no target count.
-	_, hasTargetCount := resultBlock.Properties[tools.PropWordCountTarget]
-	assert.False(t, hasTargetCount)
+	// No target set → no target count keys.
+	for key := range resultBlock.Properties {
+		assert.False(t, len(key) > len(tools.PropWordCountTargetPrefix) && key[:len(tools.PropWordCountTargetPrefix)] == tools.PropWordCountTargetPrefix,
+			"unexpected target count key: %s", key)
+	}
 }
 
 func TestWordCountToolEmptyText(t *testing.T) {
@@ -72,7 +72,6 @@ func TestWordCountToolSkipsNonTranslatable(t *testing.T) {
 }
 
 func TestWordCountToolAllLocales(t *testing.T) {
-	// Empty locale → count all target locales.
 	cfg := &tools.WordCountConfig{}
 	tl := tools.NewWordCountTool(cfg)
 
@@ -85,32 +84,9 @@ func TestWordCountToolAllLocales(t *testing.T) {
 	resultBlock := result.Resource.(*model.Block)
 	// Source always counted.
 	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountSource])
-	// Legacy single key should NOT be set.
-	_, hasLegacy := resultBlock.Properties[tools.PropWordCountTarget]
-	assert.False(t, hasLegacy)
 	// Per-locale keys should be set.
 	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"])
 	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountTargetPrefix+"de"])
-}
-
-func TestWordCountToolSingleLocaleBackwardCompat(t *testing.T) {
-	// With locale set → legacy behavior.
-	cfg := &tools.WordCountConfig{Locale: model.LocaleFrench}
-	tl := tools.NewWordCountTool(cfg)
-
-	block := model.NewBlock("tu1", "Hello world")
-	block.SetTargetText(model.LocaleFrench, "Bonjour le monde")
-	block.SetTargetText(model.LocaleGerman, "Hallo Welt")
-	part := &model.Part{Type: model.PartBlock, Resource: block}
-	result := processPart(t, tl, part)
-
-	resultBlock := result.Resource.(*model.Block)
-	assert.Equal(t, "2", resultBlock.Properties[tools.PropWordCountSource])
-	// Legacy single-locale key set.
-	assert.Equal(t, "3", resultBlock.Properties[tools.PropWordCountTarget])
-	// Per-locale keys should NOT be set.
-	_, hasPerLocale := resultBlock.Properties[tools.PropWordCountTargetPrefix+"fr"]
-	assert.False(t, hasPerLocale)
 }
 
 // --- WordCountCollector Tests ---
@@ -125,7 +101,7 @@ func TestWordCountCollector(t *testing.T) {
 
 	block1 := model.NewBlock("tu1", "Hello beautiful world")
 	block1.Properties[tools.PropWordCountSource] = "3"
-	block1.Properties[tools.PropWordCountTarget] = "4"
+	block1.Properties[tools.PropWordCountTargetPrefix+"fr"] = "4"
 
 	block2 := model.NewBlock("tu2", "Goodbye")
 	block2.Properties[tools.PropWordCountSource] = "1"
@@ -165,7 +141,7 @@ func TestWordCountCollectorMultipleDocuments(t *testing.T) {
 		}
 		block := model.NewBlock("tu1", "text")
 		block.Properties[tools.PropWordCountSource] = "2"
-		block.Properties[tools.PropWordCountTarget] = "3"
+		block.Properties[tools.PropWordCountTargetPrefix+"fr"] = "3"
 
 		parts := []*model.Part{
 			{Type: model.PartBlock, Resource: block},

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/registry"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 )
 
 // GitConnector fetches and publishes localization content from Git repositories.
@@ -64,7 +65,7 @@ func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]strin
 
 func (c *GitConnector) ID() string         { return c.id }
 func (c *GitConnector) Name() string       { return c.name }
-func (c *GitConnector) Category() Category { return CategoryCode }
+func (c *GitConnector) Category() platconn.Category { return platconn.CategoryCode }
 
 func (c *GitConnector) Configure(config map[string]string) error {
 	for k, v := range config {
@@ -110,7 +111,7 @@ func (c *GitConnector) ensureFileConnector() error {
 	return nil
 }
 
-func (c *GitConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
+func (c *GitConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	if err := c.ensureRepo(ctx); err != nil {
 		return nil, err
 	}
@@ -132,7 +133,7 @@ func (c *GitConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Content
 	return c.fileConnector.Fetch(ctx, opts)
 }
 
-func (c *GitConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
+func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	if err := c.ensureFileConnector(); err != nil {
 		return err
 	}
@@ -161,7 +162,7 @@ func (c *GitConnector) Publish(ctx context.Context, items []*ContentItem, opts P
 	return nil
 }
 
-func (c *GitConnector) List(ctx context.Context) ([]*ContentItem, error) {
+func (c *GitConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
 	if err := c.ensureRepo(ctx); err != nil {
 		return nil, err
 	}
@@ -175,7 +176,7 @@ func (c *GitConnector) List(ctx context.Context) ([]*ContentItem, error) {
 	}
 
 	// Filter by glob patterns.
-	var filtered []*ContentItem
+	var filtered []*platconn.ContentItem
 	for _, item := range allItems {
 		for _, pattern := range c.patterns {
 			matched, _ := filepath.Match(pattern, item.Path)
@@ -194,12 +195,12 @@ func (c *GitConnector) List(ctx context.Context) ([]*ContentItem, error) {
 	return filtered, nil
 }
 
-func (c *GitConnector) Status(ctx context.Context) (*SyncStatus, error) {
+func (c *GitConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &SyncStatus{
+	return &platconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

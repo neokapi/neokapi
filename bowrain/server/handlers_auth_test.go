@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -939,8 +939,8 @@ func TestCleanupExpiredAuthStates(t *testing.T) {
 // generateTestToken creates a signed JWT for testing.
 func generateTestToken(t *testing.T, secret string) string {
 	t.Helper()
-	user := &auth.User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
-	token, err := auth.GenerateToken(user, secret, 24*time.Hour)
+	user := &platauth.User{ID: "user-1", Email: "test@example.com", Name: "Test User"}
+	token, err := platauth.GenerateToken(user, secret, 24*time.Hour)
 	require.NoError(t, err)
 	return token
 }
@@ -975,12 +975,12 @@ func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
 	jwtSecret := "test-secret"
 
 	// Generate two tokens with different user IDs.
-	bearerUser := &auth.User{ID: "bearer-user", Email: "bearer@example.com", Name: "Bearer"}
-	bearerToken, err := auth.GenerateToken(bearerUser, jwtSecret, 24*time.Hour)
+	bearerUser := &platauth.User{ID: "bearer-user", Email: "bearer@example.com", Name: "Bearer"}
+	bearerToken, err := platauth.GenerateToken(bearerUser, jwtSecret, 24*time.Hour)
 	require.NoError(t, err)
 
-	cookieUser := &auth.User{ID: "cookie-user", Email: "cookie@example.com", Name: "Cookie"}
-	cookieToken, err := auth.GenerateToken(cookieUser, jwtSecret, 24*time.Hour)
+	cookieUser := &platauth.User{ID: "cookie-user", Email: "cookie@example.com", Name: "Cookie"}
+	cookieToken, err := platauth.GenerateToken(cookieUser, jwtSecret, 24*time.Hour)
 	require.NoError(t, err)
 
 	e := echo.New()

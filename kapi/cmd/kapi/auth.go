@@ -17,10 +17,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Type aliases for backwards compatibility within this package.
-type StoredAuth = config.StoredAuth
-type StoredUser = config.StoredUser
-
 var authServerURL string
 
 var authCmd = &cobra.Command{
@@ -49,8 +45,8 @@ Server URL is resolved from (first match wins):
 }
 
 // performLogin runs the device authorization flow for the given server URL.
-// On success, stores the credentials and returns the StoredAuth.
-func performLogin(serverURL string) (*StoredAuth, error) {
+// On success, stores the credentials and returns the stored auth info.
+func performLogin(serverURL string) (*config.StoredAuth, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -75,7 +71,7 @@ func performLogin(serverURL string) (*StoredAuth, error) {
 		return nil, fmt.Errorf("authorization failed: %w", err)
 	}
 
-	stored := StoredAuth{
+	stored := config.StoredAuth{
 		ServerURL:    serverURL,
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
@@ -249,12 +245,12 @@ func resolveServerURLFrom(explicit string) string {
 
 func authFilePath() string { return config.AuthFilePath() }
 
-func saveAuth(a StoredAuth) error { return config.SaveAuth(a) }
+func saveAuth(a config.StoredAuth) error { return config.SaveAuth(a) }
 
-func loadAuth() (*StoredAuth, error) { return config.LoadAuth() }
+func loadAuth() (*config.StoredAuth, error) { return config.LoadAuth() }
 
 // fetchUserInfo calls /api/v1/auth/me to get user details from the server.
-func fetchUserInfo(serverURL, token string) (*StoredUser, error) {
+func fetchUserInfo(serverURL, token string) (*config.StoredUser, error) {
 	req, err := http.NewRequest(http.MethodGet, serverURL+"/api/v1/auth/me", nil)
 	if err != nil {
 		return nil, err
@@ -272,7 +268,7 @@ func fetchUserInfo(serverURL, token string) (*StoredUser, error) {
 		return nil, fmt.Errorf("auth/me returned %d: %s", resp.StatusCode, body)
 	}
 
-	var user StoredUser
+	var user config.StoredUser
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		return nil, err
 	}

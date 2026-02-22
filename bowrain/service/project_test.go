@@ -4,15 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestStore(t *testing.T) *store.SQLiteStore {
+func newTestStore(t *testing.T) *bstore.SQLiteStore {
 	t.Helper()
-	s, err := store.NewSQLiteStore(":memory:")
+	s, err := bstore.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { s.Close() })
 	return s

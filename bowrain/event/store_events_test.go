@@ -6,15 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
+	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func newTestEventStore(t *testing.T) (*EventEmittingStore, *ChannelEventBus) {
 	t.Helper()
-	inner, err := store.NewSQLiteStore(":memory:")
+	inner, err := bstore.NewSQLiteStore(":memory:")
 	require.NoError(t, err)
 	t.Cleanup(func() { inner.Close() })
 
@@ -28,9 +30,9 @@ func TestEventEmittingStoreProject(t *testing.T) {
 	es, bus := newTestEventStore(t)
 	ctx := context.Background()
 
-	var events []Event
+	var events []platev.Event
 	var mu sync.Mutex
-	bus.SubscribeAll(func(e Event) {
+	bus.SubscribeAll(func(e platev.Event) {
 		mu.Lock()
 		events = append(events, e)
 		mu.Unlock()
@@ -49,23 +51,23 @@ func TestEventEmittingStoreProject(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	assert.Len(t, events, 3)
-	assert.Equal(t, EventProjectCreated, events[0].Type)
-	assert.Equal(t, EventProjectUpdated, events[1].Type)
-	assert.Equal(t, EventProjectDeleted, events[2].Type)
+	assert.Equal(t, platev.EventProjectCreated, events[0].Type)
+	assert.Equal(t, platev.EventProjectUpdated, events[1].Type)
+	assert.Equal(t, platev.EventProjectDeleted, events[2].Type)
 }
 
 func TestEventEmittingStoreBlocks(t *testing.T) {
 	es, bus := newTestEventStore(t)
 	ctx := context.Background()
 
-	var events []Event
+	var events []platev.Event
 	var mu sync.Mutex
-	bus.Subscribe(EventBlockUpdated, func(e Event) {
+	bus.Subscribe(platev.EventBlockUpdated, func(e platev.Event) {
 		mu.Lock()
 		events = append(events, e)
 		mu.Unlock()
 	})
-	bus.Subscribe(EventBlockDeleted, func(e Event) {
+	bus.Subscribe(platev.EventBlockDeleted, func(e platev.Event) {
 		mu.Lock()
 		events = append(events, e)
 		mu.Unlock()
@@ -90,9 +92,9 @@ func TestEventEmittingStoreVersion(t *testing.T) {
 	es, bus := newTestEventStore(t)
 	ctx := context.Background()
 
-	var received Event
+	var received platev.Event
 	var mu sync.Mutex
-	bus.Subscribe(EventVersionCreated, func(e Event) {
+	bus.Subscribe(platev.EventVersionCreated, func(e platev.Event) {
 		mu.Lock()
 		received = e
 		mu.Unlock()
@@ -109,6 +111,6 @@ func TestEventEmittingStoreVersion(t *testing.T) {
 
 	mu.Lock()
 	defer mu.Unlock()
-	assert.Equal(t, EventVersionCreated, received.Type)
+	assert.Equal(t, platev.EventVersionCreated, received.Type)
 	assert.Equal(t, "v1", received.Data["label"])
 }

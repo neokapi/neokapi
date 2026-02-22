@@ -17,10 +17,12 @@ import (
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
 	"github.com/gokapi/gokapi/bowrain/service"
-	"github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/registry"
 	libtools "github.com/gokapi/gokapi/core/tools"
+	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -30,7 +32,7 @@ type Server struct {
 	Config         ServerConfig
 	FormatRegistry *registry.FormatRegistry
 	ToolRegistry   *registry.ToolRegistry
-	ConnectorReg   *connector.Registry
+	ConnectorReg   *platconn.Registry
 	ContentStore   store.ContentStore
 	Services       *service.Services
 	AuthStore      auth.AuthStore
@@ -62,7 +64,7 @@ func NewServer(cfg ServerConfig) *Server {
 
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
-	connReg := connector.NewRegistry()
+	connReg := platconn.NewRegistry()
 	connector.RegisterAll(connReg, formatReg)
 
 	s := &Server{
@@ -85,7 +87,7 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Initialize content store if a store path is configured.
 	if cfg.StorePath != "" {
-		cs, err := store.NewSQLiteStore(cfg.StorePath)
+		cs, err := bstore.NewSQLiteStore(cfg.StorePath)
 		if err != nil {
 			log.Printf("WARNING: failed to open content store at %s: %v", cfg.StorePath, err)
 		} else {

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 )
 
 // HubSpotConnector integrates with HubSpot CMS for marketing content.
@@ -59,7 +60,7 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 
 func (c *HubSpotConnector) ID() string         { return c.id }
 func (c *HubSpotConnector) Name() string       { return c.connName }
-func (c *HubSpotConnector) Category() Category { return CategoryMarketing }
+func (c *HubSpotConnector) Category() platconn.Category { return platconn.CategoryMarketing }
 
 func (c *HubSpotConnector) Configure(config map[string]string) error {
 	for k, v := range config {
@@ -70,13 +71,13 @@ func (c *HubSpotConnector) Configure(config map[string]string) error {
 
 func (c *HubSpotConnector) Close() error { return nil }
 
-func (c *HubSpotConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
+func (c *HubSpotConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	pages, err := c.fetchPages(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var items []*ContentItem
+	var items []*platconn.ContentItem
 	for _, page := range pages {
 		blocks := []*model.Block{
 			makeBlock(fmt.Sprintf("page-%s-title", page.ID), page.HTMLTitle, "title"),
@@ -87,7 +88,7 @@ func (c *HubSpotConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Con
 		}
 
 		updated, _ := time.Parse(time.RFC3339, page.Updated)
-		items = append(items, &ContentItem{
+		items = append(items, &platconn.ContentItem{
 			ID:          page.ID,
 			Name:        page.Name,
 			Path:        fmt.Sprintf("pages/%s", page.Slug),
@@ -100,7 +101,7 @@ func (c *HubSpotConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Con
 	return items, nil
 }
 
-func (c *HubSpotConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
+func (c *HubSpotConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	for _, item := range items {
 		pageID := item.ID
 		if pageID == "" {
@@ -153,16 +154,16 @@ func (c *HubSpotConnector) Publish(ctx context.Context, items []*ContentItem, op
 	return nil
 }
 
-func (c *HubSpotConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Fetch(ctx, FetchOptions{})
+func (c *HubSpotConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
+	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *HubSpotConnector) Status(ctx context.Context) (*SyncStatus, error) {
+func (c *HubSpotConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &SyncStatus{
+	return &platconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

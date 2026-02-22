@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 )
 
 // FigmaConnector integrates with the Figma API to fetch text content.
@@ -71,7 +72,7 @@ func NewFigmaConnector(config map[string]string) (*FigmaConnector, error) {
 
 func (c *FigmaConnector) ID() string         { return c.id }
 func (c *FigmaConnector) Name() string       { return c.connName }
-func (c *FigmaConnector) Category() Category { return CategoryDesign }
+func (c *FigmaConnector) Category() platconn.Category { return platconn.CategoryDesign }
 
 func (c *FigmaConnector) Configure(config map[string]string) error {
 	for k, v := range config {
@@ -82,7 +83,7 @@ func (c *FigmaConnector) Configure(config map[string]string) error {
 
 func (c *FigmaConnector) Close() error { return nil }
 
-func (c *FigmaConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
+func (c *FigmaConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	file, err := c.fetchFile(ctx)
 	if err != nil {
 		return nil, err
@@ -91,7 +92,7 @@ func (c *FigmaConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Conte
 	var blocks []*model.Block
 	c.extractTextNodes(&file.Document, &blocks)
 
-	return []*ContentItem{{
+	return []*platconn.ContentItem{{
 		ID:       c.fileKey,
 		Name:     file.Name,
 		Path:     c.fileKey,
@@ -101,17 +102,17 @@ func (c *FigmaConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Conte
 	}}, nil
 }
 
-func (c *FigmaConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
+func (c *FigmaConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	// Figma API doesn't support direct text updates in the general API.
 	// This would require the Figma Plugin API or Variables API.
 	return fmt.Errorf("figma publish not yet supported via REST API")
 }
 
-func (c *FigmaConnector) List(ctx context.Context) ([]*ContentItem, error) {
-	return c.Fetch(ctx, FetchOptions{})
+func (c *FigmaConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
+	return c.Fetch(ctx, platconn.FetchOptions{})
 }
 
-func (c *FigmaConnector) Status(ctx context.Context) (*SyncStatus, error) {
+func (c *FigmaConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
@@ -120,7 +121,7 @@ func (c *FigmaConnector) Status(ctx context.Context) (*SyncStatus, error) {
 	for _, item := range items {
 		count += len(item.Blocks)
 	}
-	return &SyncStatus{
+	return &platconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   count,

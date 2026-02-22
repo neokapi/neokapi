@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -16,8 +16,8 @@ import (
 const testJWTSecret = "test-secret-key-for-grpc-auth"
 
 func TestExtractClaimsValid(t *testing.T) {
-	user := &auth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
-	token, err := auth.GenerateToken(user, testJWTSecret, time.Hour)
+	user := &platauth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
+	token, err := platauth.GenerateToken(user, testJWTSecret, time.Hour)
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
@@ -69,8 +69,8 @@ func TestExtractClaimsInvalidToken(t *testing.T) {
 }
 
 func TestExtractClaimsWrongSecret(t *testing.T) {
-	user := &auth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
-	token, err := auth.GenerateToken(user, "correct-secret", time.Hour)
+	user := &platauth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
+	token, err := platauth.GenerateToken(user, "correct-secret", time.Hour)
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
@@ -82,9 +82,9 @@ func TestExtractClaimsWrongSecret(t *testing.T) {
 }
 
 func TestExtractClaimsExpired(t *testing.T) {
-	user := &auth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
+	user := &platauth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
 	// Generate a token that expired 1 hour ago.
-	token, err := auth.GenerateToken(user, testJWTSecret, -time.Hour)
+	token, err := platauth.GenerateToken(user, testJWTSecret, -time.Hour)
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
@@ -96,7 +96,7 @@ func TestExtractClaimsExpired(t *testing.T) {
 }
 
 func TestGRPCUserFromContext(t *testing.T) {
-	claims := &auth.Claims{Email: "alice@test.com", Name: "Alice"}
+	claims := &platauth.Claims{Email: "alice@test.com", Name: "Alice"}
 	ctx := context.WithValue(context.Background(), grpcUserKey{}, claims)
 
 	got, ok := GRPCUserFromContext(ctx)
@@ -125,8 +125,8 @@ func TestUnaryInterceptorRejectsUnauthenticated(t *testing.T) {
 func TestUnaryInterceptorPassesAuthenticated(t *testing.T) {
 	interceptor := GRPCAuthUnaryInterceptor(testJWTSecret)
 
-	user := &auth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
-	token, err := auth.GenerateToken(user, testJWTSecret, time.Hour)
+	user := &platauth.User{ID: "user-1", Email: "alice@test.com", Name: "Alice"}
+	token, err := platauth.GenerateToken(user, testJWTSecret, time.Hour)
 	require.NoError(t, err)
 
 	md := metadata.Pairs("authorization", "Bearer "+token)

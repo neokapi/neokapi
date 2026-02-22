@@ -5,9 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/event"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
-	"github.com/gokapi/gokapi/bowrain/store"
+	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
@@ -594,7 +594,7 @@ func (g *EditorGRPCServer) WatchProject(req *pb.WatchProjectRequest, stream grpc
 
 	// Subscribe to events for this project.
 	if g.srv.EventBus != nil {
-		handler := func(e event.Event) {
+		handler := func(e platev.Event) {
 			// Filter events by project ID.
 			if e.ProjectID != projectID {
 				return
@@ -810,9 +810,9 @@ func (g *EditorGRPCServer) emitBlockChange(projectID, blockID, itemName, changeT
 	if claims, ok := GRPCUserFromContext(ctx); ok {
 		userName = claims.Name
 	}
-	g.srv.EventBus.Publish(event.Event{
+	g.srv.EventBus.Publish(platev.Event{
 		ID:        uuid.New().String(),
-		Type:      event.EventType("editor.block." + changeType),
+		Type:      platev.EventType("editor.block." + changeType),
 		Source:    "editor-grpc",
 		ProjectID: projectID,
 		Data: map[string]string{
@@ -826,8 +826,8 @@ func (g *EditorGRPCServer) emitBlockChange(projectID, blockID, itemName, changeT
 }
 
 // presenceJoinedEvent creates an event for a user joining a project.
-func presenceJoinedEvent(projectID string, entry *presenceEntry) event.Event {
-	return event.Event{
+func presenceJoinedEvent(projectID string, entry *presenceEntry) platev.Event {
+	return platev.Event{
 		ID:        uuid.New().String(),
 		Type:      "editor.presence.joined",
 		Source:    "editor-grpc",
@@ -843,8 +843,8 @@ func presenceJoinedEvent(projectID string, entry *presenceEntry) event.Event {
 }
 
 // presenceLeftEvent creates an event for a user leaving a project.
-func presenceLeftEvent(projectID string, entry *presenceEntry) event.Event {
-	return event.Event{
+func presenceLeftEvent(projectID string, entry *presenceEntry) platev.Event {
+	return platev.Event{
 		ID:        uuid.New().String(),
 		Type:      "editor.presence.left",
 		Source:    "editor-grpc",
@@ -861,7 +861,7 @@ func presenceLeftEvent(projectID string, entry *presenceEntry) event.Event {
 
 // busEventToProjectEvent converts an event bus Event to a gRPC ProjectEvent.
 // Returns nil if the event is not relevant to project watchers.
-func busEventToProjectEvent(e event.Event) *pb.ProjectEvent {
+func busEventToProjectEvent(e platev.Event) *pb.ProjectEvent {
 	kind := e.Data["event_kind"]
 
 	if kind == "presence" {

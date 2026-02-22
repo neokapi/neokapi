@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 )
 
@@ -34,8 +34,8 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	workspaceID, _ := c.Get("workspace_id").(string)
 	userID, _ := c.Get("user_id").(string)
 
-	role := auth.Role(req.Role)
-	if !auth.ValidRoles[role] {
+	role := platauth.Role(req.Role)
+	if !platauth.ValidRoles[role] {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role"})
 	}
 
@@ -66,7 +66,7 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 }
 
 // sendInviteEmail sends an HTML email with the invite link.
-func (s *Server) sendInviteEmail(ctx context.Context, inv *auth.Invite, baseURL, workspaceName string) {
+func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, baseURL, workspaceName string) {
 	joinURL := fmt.Sprintf("%s/join/%s", baseURL, inv.Code)
 
 	subject := fmt.Sprintf("You've been invited to join %s on Bowrain", workspaceName)

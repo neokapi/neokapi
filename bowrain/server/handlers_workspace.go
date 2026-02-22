@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/bowrain/store"
+	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/labstack/echo/v4"
 )
@@ -38,7 +38,7 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	w := &auth.Workspace{
+	w := &platauth.Workspace{
 		Name:        req.Name,
 		Slug:        req.Slug,
 		Description: req.Description,
@@ -51,7 +51,7 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 		if err := s.Services.Auth.CreateWorkspaceWithOwner(c.Request().Context(), w, userID); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
-		w.Role = auth.RoleOwner
+		w.Role = platauth.RoleOwner
 	} else {
 		if err := s.AuthStore.CreateWorkspace(c.Request().Context(), w); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -126,7 +126,7 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
-	if w.Type == auth.WorkspaceTypePersonal {
+	if w.Type == platauth.WorkspaceTypePersonal {
 		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "cannot delete personal workspace"})
 	}
 	if err := s.AuthStore.DeleteWorkspace(c.Request().Context(), w.ID); err != nil {
@@ -165,7 +165,7 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	role := auth.Role(req.Role)
+	role := platauth.Role(req.Role)
 	if err := s.AuthStore.AddMember(c.Request().Context(), w.ID, req.UserID, role); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -187,7 +187,7 @@ func (s *Server) HandleUpdateMemberRole(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	role := auth.Role(req.Role)
+	role := platauth.Role(req.Role)
 	if err := s.AuthStore.UpdateRole(c.Request().Context(), w.ID, c.Param("uid"), role); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}

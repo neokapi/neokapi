@@ -10,6 +10,7 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/storage"
 	"github.com/gokapi/gokapi/core/model"
+	platstore "github.com/gokapi/gokapi/platform/store"
 	"github.com/google/uuid"
 )
 
@@ -40,7 +41,7 @@ func (s *SQLiteStore) Close() error {
 // Project CRUD
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) CreateProject(ctx context.Context, p *Project) error {
+func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) error {
 	if p.ID == "" {
 		p.ID = uuid.NewString()
 	}
@@ -65,14 +66,14 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *Project) error {
 	return nil
 }
 
-func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*Project, error) {
+func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
 		 FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
-func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*Project, error) {
+func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
 		 FROM projects ORDER BY name`)
@@ -81,7 +82,7 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*Project, error) {
 	}
 	defer rows.Close()
 
-	result := make([]*Project, 0)
+	result := make([]*platstore.Project, 0)
 	for rows.Next() {
 		p, err := scanProjectRow(rows)
 		if err != nil {
@@ -92,7 +93,7 @@ func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*Project, error) {
 	return result, rows.Err()
 }
 
-func (s *SQLiteStore) UpdateProject(ctx context.Context, p *Project) error {
+func (s *SQLiteStore) UpdateProject(ctx context.Context, p *platstore.Project) error {
 	p.UpdatedAt = time.Now().UTC()
 	locales := joinLocales(p.TargetLocales)
 	propsJSON, err := json.Marshal(p.Properties)
@@ -131,7 +132,7 @@ func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
 // Item management
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *Item) error {
+func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *platstore.Item) error {
 	now := time.Now().UTC()
 	item.CreatedAt = now
 	item.UpdatedAt = now
@@ -163,14 +164,14 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *Ite
 	return nil
 }
 
-func (s *SQLiteStore) GetItem(ctx context.Context, projectID, itemName string) (*Item, error) {
+func (s *SQLiteStore) GetItem(ctx context.Context, projectID, itemName string) (*platstore.Item, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
 		 FROM items WHERE project_id=? AND name=?`, projectID, itemName)
 	return scanItem(row)
 }
 
-func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*Item, error) {
+func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*platstore.Item, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
 		 FROM items WHERE project_id=? ORDER BY name`, projectID)
@@ -179,7 +180,7 @@ func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*Item,
 	}
 	defer rows.Close()
 
-	var result []*Item
+	var result []*platstore.Item
 	for rows.Next() {
 		item, err := scanItem(rows)
 		if err != nil {
@@ -216,8 +217,8 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, itemName string
 	return tx.Commit()
 }
 
-func scanItem(row scanner) (*Item, error) {
-	var item Item
+func scanItem(row scanner) (*platstore.Item, error) {
+	var item platstore.Item
 	var propsJSON, createdStr, updatedStr string
 	err := row.Scan(&item.ProjectID, &item.Name, &item.Format, &item.ItemType,
 		&item.SourceBytes, &item.BlockIndex, &propsJSON, &createdStr, &updatedStr)
@@ -329,7 +330,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 	return tx.Commit()
 }
 
-func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*StoredBlock, error) {
+func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*platstore.StoredBlock, error) {
 	// Query all blocks matching the ID - there may be duplicates across items.
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
@@ -340,7 +341,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (
 	}
 	defer rows.Close()
 
-	var result *StoredBlock
+	var result *platstore.StoredBlock
 	for rows.Next() {
 		sb, err := scanStoredBlockRow(rows)
 		if err != nil {
@@ -360,7 +361,7 @@ func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (
 	return result, nil
 }
 
-func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error) {
+func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
 	where := []string{"project_id = ?"}
 	args := []any{query.ProjectID}
 
@@ -407,7 +408,7 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query BlockQuery) ([]*Store
 	}
 	defer rows.Close()
 
-	var result []*StoredBlock
+	var result []*platstore.StoredBlock
 	for rows.Next() {
 		sb, err := scanStoredBlockRow(rows)
 		if err != nil {
@@ -445,7 +446,7 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string
 // Version management
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, description string) (*Version, error) {
+func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, description string) (*platstore.Version, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -483,7 +484,7 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, descr
 		return nil, fmt.Errorf("commit version: %w", err)
 	}
 
-	return &Version{
+	return &platstore.Version{
 		ID:          versionID,
 		ProjectID:   projectID,
 		Label:       label,
@@ -493,12 +494,12 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, descr
 	}, nil
 }
 
-func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*Version, error) {
+func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*platstore.Version, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, label, description, block_count, created_at FROM versions WHERE id=?`,
 		versionID)
 
-	var v Version
+	var v platstore.Version
 	var createdStr string
 	err := row.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr)
 	if err != nil {
@@ -508,7 +509,7 @@ func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*Versio
 	return &v, nil
 }
 
-func (s *SQLiteStore) ListVersions(ctx context.Context, projectID string) ([]*Version, error) {
+func (s *SQLiteStore) ListVersions(ctx context.Context, projectID string) ([]*platstore.Version, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, label, description, block_count, created_at
 		 FROM versions WHERE project_id=? ORDER BY created_at DESC`, projectID)
@@ -517,9 +518,9 @@ func (s *SQLiteStore) ListVersions(ctx context.Context, projectID string) ([]*Ve
 	}
 	defer rows.Close()
 
-	var result []*Version
+	var result []*platstore.Version
 	for rows.Next() {
-		var v Version
+		var v platstore.Version
 		var createdStr string
 		if err := rows.Scan(&v.ID, &v.ProjectID, &v.Label, &v.Description, &v.BlockCount, &createdStr); err != nil {
 			return nil, fmt.Errorf("scan version: %w", err)
@@ -530,8 +531,8 @@ func (s *SQLiteStore) ListVersions(ctx context.Context, projectID string) ([]*Ve
 	return result, rows.Err()
 }
 
-func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID string) (*VersionDiff, error) {
-	diff := &VersionDiff{
+func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID string) (*platstore.VersionDiff, error) {
+	diff := &platstore.VersionDiff{
 		FromVersion: fromVersionID,
 		ToVersion:   toVersionID,
 	}
@@ -574,19 +575,19 @@ func (s *SQLiteStore) Diff(ctx context.Context, fromVersionID, toVersionID strin
 	for id, toHash := range toBlocks {
 		fromHash, existed := fromBlocks[id]
 		if !existed {
-			diff.Changes = append(diff.Changes, BlockChange{
-				BlockID: id, ChangeType: ChangeAdded, NewHash: toHash,
+			diff.Changes = append(diff.Changes, platstore.BlockChange{
+				BlockID: id, ChangeType: platstore.ChangeAdded, NewHash: toHash,
 			})
 		} else if fromHash != toHash {
-			diff.Changes = append(diff.Changes, BlockChange{
-				BlockID: id, ChangeType: ChangeModified, OldHash: fromHash, NewHash: toHash,
+			diff.Changes = append(diff.Changes, platstore.BlockChange{
+				BlockID: id, ChangeType: platstore.ChangeModified, OldHash: fromHash, NewHash: toHash,
 			})
 		}
 	}
 	for id, fromHash := range fromBlocks {
 		if _, exists := toBlocks[id]; !exists {
-			diff.Changes = append(diff.Changes, BlockChange{
-				BlockID: id, ChangeType: ChangeRemoved, OldHash: fromHash,
+			diff.Changes = append(diff.Changes, platstore.BlockChange{
+				BlockID: id, ChangeType: platstore.ChangeRemoved, OldHash: fromHash,
 			})
 		}
 	}
@@ -622,8 +623,8 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func scanProject(row scanner) (*Project, error) {
-	var p Project
+func scanProject(row scanner) (*platstore.Project, error) {
+	var p platstore.Project
 	var srcLocale, targetLocales, propsJSON, createdStr, updatedStr string
 	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID, &createdStr, &updatedStr)
 	if err != nil {
@@ -639,12 +640,12 @@ func scanProject(row scanner) (*Project, error) {
 	return &p, nil
 }
 
-func scanProjectRow(rows *sql.Rows) (*Project, error) {
+func scanProjectRow(rows *sql.Rows) (*platstore.Project, error) {
 	return scanProject(rows)
 }
 
-func scanStoredBlock(row scanner) (*StoredBlock, error) {
-	var sb StoredBlock
+func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
+	var sb platstore.StoredBlock
 	sb.Block = &model.Block{}
 	var translatable int
 	var sourceJSON, targetsJSON, propsJSON, annsJSON, storedStr, updatedStr string
@@ -676,6 +677,6 @@ func scanStoredBlock(row scanner) (*StoredBlock, error) {
 	return &sb, nil
 }
 
-func scanStoredBlockRow(rows *sql.Rows) (*StoredBlock, error) {
+func scanStoredBlockRow(rows *sql.Rows) (*platstore.StoredBlock, error) {
 	return scanStoredBlock(rows)
 }

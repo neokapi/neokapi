@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,10 +39,10 @@ func TestSendInviteEmail(t *testing.T) {
 	mock := &mockEmailSender{}
 	s := &Server{EmailSender: mock}
 
-	inv := &auth.Invite{
+	inv := &platauth.Invite{
 		Code:  "abc123def456",
 		Email: "translator@example.com",
-		Role:  auth.RoleMember,
+		Role:  platauth.RoleMember,
 	}
 
 	s.sendInviteEmail(context.Background(), inv, "https://app.bowrain.dev", "Acme Inc.")
@@ -55,5 +55,5 @@ func TestSendInviteEmail(t *testing.T) {
 	assert.Contains(t, email.Body, "https://app.bowrain.dev/join/abc123def456")
 	assert.Contains(t, email.Body, "Accept Invitation")
 	assert.Contains(t, email.Body, "Acme Inc.")
-	assert.Contains(t, email.Body, string(auth.RoleMember))
+	assert.Contains(t, email.Body, string(platauth.RoleMember))
 }

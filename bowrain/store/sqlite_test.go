@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
+	platstore "github.com/gokapi/gokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,9 +19,9 @@ func newTestStore(t *testing.T) *SQLiteStore {
 	return s
 }
 
-func createTestProject(t *testing.T, s *SQLiteStore) *Project {
+func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 	t.Helper()
-	p := &Project{
+	p := &platstore.Project{
 		Name:          "Test Project",
 		SourceLocale:  model.LocaleEnglish,
 		TargetLocales: []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
@@ -125,13 +126,13 @@ func TestBlockStorage(t *testing.T) {
 	})
 
 	t.Run("get blocks with query", func(t *testing.T) {
-		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
 		require.NoError(t, err)
 		assert.GreaterOrEqual(t, len(blocks), 2)
 	})
 
 	t.Run("get blocks by IDs", func(t *testing.T) {
-		blocks, err := s.GetBlocks(ctx, BlockQuery{
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{
 			ProjectID: p.ID,
 			IDs:       []string{"b1"},
 		})
@@ -142,7 +143,7 @@ func TestBlockStorage(t *testing.T) {
 
 	t.Run("get blocks by content hash", func(t *testing.T) {
 		hash := model.ComputeContentHash("Updated text")
-		blocks, err := s.GetBlocks(ctx, BlockQuery{
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{
 			ProjectID:   p.ID,
 			ContentHash: hash,
 		})
@@ -151,11 +152,11 @@ func TestBlockStorage(t *testing.T) {
 	})
 
 	t.Run("pagination", func(t *testing.T) {
-		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID, Limit: 1})
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Limit: 1})
 		require.NoError(t, err)
 		assert.Len(t, blocks, 1)
 
-		blocks2, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID, Limit: 1, Offset: 1})
+		blocks2, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID, Limit: 1, Offset: 1})
 		require.NoError(t, err)
 		assert.Len(t, blocks2, 1)
 		assert.NotEqual(t, blocks[0].ID, blocks2[0].ID)
@@ -226,14 +227,14 @@ func TestVersioning(t *testing.T) {
 		diff, err := s.Diff(ctx, v1[0].ID, v2.ID)
 		require.NoError(t, err)
 
-		changeMap := map[string]ChangeType{}
+		changeMap := map[string]platstore.ChangeType{}
 		for _, c := range diff.Changes {
 			changeMap[c.BlockID] = c.ChangeType
 		}
 
-		assert.Equal(t, ChangeModified, changeMap["b1"])
-		assert.Equal(t, ChangeRemoved, changeMap["b2"])
-		assert.Equal(t, ChangeAdded, changeMap["b3"])
+		assert.Equal(t, platstore.ChangeModified, changeMap["b1"])
+		assert.Equal(t, platstore.ChangeRemoved, changeMap["b2"])
+		assert.Equal(t, platstore.ChangeAdded, changeMap["b3"])
 	})
 }
 
@@ -262,7 +263,7 @@ func TestConcurrentAccess(t *testing.T) {
 		assert.NoError(t, <-done)
 	}
 
-	blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+	blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
 	require.NoError(t, err)
 	assert.Len(t, blocks, 10)
 }
@@ -277,7 +278,7 @@ func TestItemCRUD(t *testing.T) {
 	p := createTestProject(t, s)
 
 	t.Run("store and get", func(t *testing.T) {
-		item := &Item{
+		item := &platstore.Item{
 			Name:        "messages.json",
 			Format:      "json",
 			ItemType:    "file",
@@ -297,7 +298,7 @@ func TestItemCRUD(t *testing.T) {
 	})
 
 	t.Run("upsert", func(t *testing.T) {
-		item := &Item{
+		item := &platstore.Item{
 			Name:        "messages.json",
 			Format:      "json",
 			ItemType:    "file",
@@ -312,7 +313,7 @@ func TestItemCRUD(t *testing.T) {
 	})
 
 	t.Run("list", func(t *testing.T) {
-		item2 := &Item{
+		item2 := &platstore.Item{
 			Name:     "strings.xml",
 			Format:   "xml",
 			ItemType: "file",
@@ -353,7 +354,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Store an item.
-	item := &Item{Name: "messages.json", Format: "json", ItemType: "file"}
+	item := &platstore.Item{Name: "messages.json", Format: "json", ItemType: "file"}
 	require.NoError(t, s.StoreItem(ctx, p.ID, item))
 
 	// Store blocks associated with the item.
@@ -366,7 +367,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b3}))
 
 	t.Run("query by item name", func(t *testing.T) {
-		blocks, err := s.GetBlocks(ctx, BlockQuery{
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{
 			ProjectID: p.ID,
 			ItemName:  "messages.json",
 		})
@@ -378,7 +379,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	})
 
 	t.Run("query all blocks", func(t *testing.T) {
-		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
 		require.NoError(t, err)
 		assert.Len(t, blocks, 3)
 	})
@@ -392,7 +393,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	t.Run("delete item cascades blocks", func(t *testing.T) {
 		require.NoError(t, s.DeleteItem(ctx, p.ID, "messages.json"))
 
-		blocks, err := s.GetBlocks(ctx, BlockQuery{ProjectID: p.ID})
+		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
 		require.NoError(t, err)
 		assert.Len(t, blocks, 1)
 		assert.Equal(t, "other-1", blocks[0].ID)

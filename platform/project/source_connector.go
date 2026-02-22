@@ -298,9 +298,6 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 			fc.Blocks[blockID] = hash
 		}
 	}
-	// Remove legacy "_blocks" key if present.
-	delete(c.cache.Files, "_blocks")
-
 	c.cache.SyncCursor = lastCursor
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Config.Server.URL
@@ -656,11 +653,7 @@ func (c *KapiSourceConnector) writeTranslatedFile(ctx context.Context, sourcePat
 func (c *KapiSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
 	fc, ok := c.cache.Files[itemName]
 	if !ok {
-		// Fall back to legacy "_blocks" key for migration.
-		fc, ok = c.cache.Files["_blocks"]
-		if !ok {
-			return "", false
-		}
+		return "", false
 	}
 	hash, found := fc.Blocks[blockID]
 	return hash, found

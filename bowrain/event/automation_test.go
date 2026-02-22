@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,7 +16,7 @@ func TestAutomationRuleMatching(t *testing.T) {
 	var executed []string
 	var mu sync.Mutex
 
-	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
 		mu.Lock()
 		executed = append(executed, action.Type)
 		mu.Unlock()
@@ -25,12 +26,12 @@ func TestAutomationRuleMatching(t *testing.T) {
 
 	engine.AddRule(AutomationRule{
 		Name:      "auto-translate",
-		EventType: EventBlockCreated,
+		EventType: platev.EventBlockCreated,
 		Actions:   []AutomationAction{{Type: "flow", Config: map[string]string{"flow": "translate"}}},
 	})
 
-	bus.Publish(Event{Type: EventBlockCreated})
-	bus.Publish(Event{Type: EventBlockUpdated}) // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
+	bus.Publish(platev.Event{Type: platev.EventBlockUpdated}) // Should not trigger
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -47,7 +48,7 @@ func TestAutomationConditionEvaluation(t *testing.T) {
 	var triggered int
 	var mu sync.Mutex
 
-	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
 		mu.Lock()
 		triggered++
 		mu.Unlock()
@@ -57,15 +58,15 @@ func TestAutomationConditionEvaluation(t *testing.T) {
 
 	engine.AddRule(AutomationRule{
 		Name:      "priority-only",
-		EventType: EventBlockUpdated,
+		EventType: platev.EventBlockUpdated,
 		Conditions: []AutomationCondition{
 			{Field: "priority", Operator: "equals", Value: "high"},
 		},
 		Actions: []AutomationAction{{Type: "notify"}},
 	})
 
-	bus.Publish(Event{Type: EventBlockUpdated, Data: map[string]string{"priority": "low"}})
-	bus.Publish(Event{Type: EventBlockUpdated, Data: map[string]string{"priority": "high"}})
+	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, Data: map[string]string{"priority": "low"}})
+	bus.Publish(platev.Event{Type: platev.EventBlockUpdated, Data: map[string]string{"priority": "high"}})
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -81,13 +82,13 @@ func TestAutomationLoopPrevention(t *testing.T) {
 	var count int
 	var mu sync.Mutex
 
-	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
 		mu.Lock()
 		count++
 		mu.Unlock()
 		// Simulate re-emitting an event (which would loop without prevention).
-		bus.Publish(Event{
-			Type:        EventBlockUpdated,
+		bus.Publish(platev.Event{
+			Type:        platev.EventBlockUpdated,
 			CausationID: NextCausationID(event),
 		})
 		return nil
@@ -97,11 +98,11 @@ func TestAutomationLoopPrevention(t *testing.T) {
 
 	engine.AddRule(AutomationRule{
 		Name:      "loopy",
-		EventType: EventBlockUpdated,
+		EventType: platev.EventBlockUpdated,
 		Actions:   []AutomationAction{{Type: "flow"}},
 	})
 
-	bus.Publish(Event{Type: EventBlockUpdated})
+	bus.Publish(platev.Event{Type: platev.EventBlockUpdated})
 	time.Sleep(500 * time.Millisecond)
 
 	mu.Lock()
@@ -116,7 +117,7 @@ func TestAutomationPause(t *testing.T) {
 	var count int
 	var mu sync.Mutex
 
-	engine := NewAutomationEngine(bus, func(action AutomationAction, event Event) error {
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
 		mu.Lock()
 		count++
 		mu.Unlock()
@@ -126,12 +127,12 @@ func TestAutomationPause(t *testing.T) {
 
 	engine.AddRule(AutomationRule{
 		Name:      "test",
-		EventType: EventBlockCreated,
+		EventType: platev.EventBlockCreated,
 		Actions:   []AutomationAction{{Type: "flow"}},
 	})
 
 	engine.Pause()
-	bus.Publish(Event{Type: EventBlockCreated})
+	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
 	time.Sleep(100 * time.Millisecond)
 
 	mu.Lock()
@@ -139,7 +140,7 @@ func TestAutomationPause(t *testing.T) {
 	mu.Unlock()
 
 	engine.Resume()
-	bus.Publish(Event{Type: EventBlockCreated})
+	bus.Publish(platev.Event{Type: platev.EventBlockCreated})
 	time.Sleep(100 * time.Millisecond)
 
 	mu.Lock()

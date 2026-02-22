@@ -3,18 +3,19 @@ package event
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
+	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/gokapi/gokapi/platform/store"
 )
 
 // EventEmittingStore wraps a ContentStore and emits events on mutations.
 type EventEmittingStore struct {
 	inner store.ContentStore
-	bus   EventBus
+	bus   platev.EventBus
 }
 
 // NewEventEmittingStore wraps a ContentStore with event emission.
-func NewEventEmittingStore(inner store.ContentStore, bus EventBus) *EventEmittingStore {
+func NewEventEmittingStore(inner store.ContentStore, bus platev.EventBus) *EventEmittingStore {
 	return &EventEmittingStore{inner: inner, bus: bus}
 }
 
@@ -22,8 +23,8 @@ func (s *EventEmittingStore) CreateProject(ctx context.Context, p *store.Project
 	if err := s.inner.CreateProject(ctx, p); err != nil {
 		return err
 	}
-	s.bus.Publish(Event{
-		Type:      EventProjectCreated,
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventProjectCreated,
 		Source:    "store",
 		ProjectID: p.ID,
 		Data:      map[string]string{"name": p.Name},
@@ -43,8 +44,8 @@ func (s *EventEmittingStore) UpdateProject(ctx context.Context, p *store.Project
 	if err := s.inner.UpdateProject(ctx, p); err != nil {
 		return err
 	}
-	s.bus.Publish(Event{
-		Type:      EventProjectUpdated,
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventProjectUpdated,
 		Source:    "store",
 		ProjectID: p.ID,
 		Data:      map[string]string{"name": p.Name},
@@ -56,8 +57,8 @@ func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error
 	if err := s.inner.DeleteProject(ctx, id); err != nil {
 		return err
 	}
-	s.bus.Publish(Event{
-		Type:      EventProjectDeleted,
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventProjectDeleted,
 		Source:    "store",
 		ProjectID: id,
 	})
@@ -85,8 +86,8 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID string, 
 		return err
 	}
 	for _, b := range blocks {
-		s.bus.Publish(Event{
-			Type:      EventBlockUpdated,
+		s.bus.Publish(platev.Event{
+			Type:      platev.EventBlockUpdated,
 			Source:    "store",
 			ProjectID: projectID,
 			Data:      map[string]string{"block_id": b.ID},
@@ -100,8 +101,8 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 		return err
 	}
 	for _, b := range blocks {
-		s.bus.Publish(Event{
-			Type:      EventBlockUpdated,
+		s.bus.Publish(platev.Event{
+			Type:      platev.EventBlockUpdated,
 			Source:    "store",
 			ProjectID: projectID,
 			Data:      map[string]string{"block_id": b.ID, "item_name": itemName},
@@ -122,8 +123,8 @@ func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, blockID
 	if err := s.inner.DeleteBlock(ctx, projectID, blockID); err != nil {
 		return err
 	}
-	s.bus.Publish(Event{
-		Type:      EventBlockDeleted,
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventBlockDeleted,
 		Source:    "store",
 		ProjectID: projectID,
 		Data:      map[string]string{"block_id": blockID},
@@ -136,8 +137,8 @@ func (s *EventEmittingStore) CreateVersion(ctx context.Context, projectID, label
 	if err != nil {
 		return nil, err
 	}
-	s.bus.Publish(Event{
-		Type:      EventVersionCreated,
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventVersionCreated,
 		Source:    "store",
 		ProjectID: projectID,
 		Data:      map[string]string{"version_id": v.ID, "label": label},

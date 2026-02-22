@@ -105,8 +105,8 @@ func (s *WordCountSummary) FormatTable(w io.Writer) {
 }
 
 // WordCountCollector aggregates word counts from documents processed
-// by the WordCountTool. It reads PropWordCountSource, PropWordCountTarget,
-// and PropWordCountTargetPrefix properties from blocks.
+// by the WordCountTool. It reads PropWordCountSource and
+// PropWordCountTargetPrefix properties from blocks.
 //
 // It implements flow.Collector and is safe for concurrent use.
 type WordCountCollector struct {
@@ -144,14 +144,6 @@ func (wc *WordCountCollector) Collect(_ context.Context, item *flow.FlowItem, pa
 		if v, ok := block.Properties[PropWordCountSource]; ok {
 			n, _ := strconv.Atoi(v)
 			doc.SourceWords += n
-		}
-
-		// Legacy single-locale property.
-		if v, ok := block.Properties[PropWordCountTarget]; ok {
-			n, _ := strconv.Atoi(v)
-			// Use the item's target locale as the key; fall back to empty.
-			loc := item.TargetLocale
-			doc.TargetWords[loc] += n
 		}
 
 		// Per-locale properties (PropWordCountTargetPrefix + locale).

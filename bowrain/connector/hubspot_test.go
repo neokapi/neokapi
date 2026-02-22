@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,11 +74,11 @@ func TestHubSpotPull(t *testing.T) {
 
 func TestHubSpotCategory(t *testing.T) {
 	c := &HubSpotConnector{id: "test", config: map[string]string{}}
-	assert.Equal(t, CategoryMarketing, c.Category())
+	assert.Equal(t, platconn.CategoryMarketing, c.Category())
 }
 
 // pullHubSpotFromURL is a test helper that fetches pages from a custom URL.
-func pullHubSpotFromURL(ctx context.Context, c *HubSpotConnector, url string) ([]*ContentItem, error) {
+func pullHubSpotFromURL(ctx context.Context, c *HubSpotConnector, url string) ([]*platconn.ContentItem, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -95,7 +96,7 @@ func pullHubSpotFromURL(ctx context.Context, c *HubSpotConnector, url string) ([
 		return nil, err
 	}
 
-	var items []*ContentItem
+	var items []*platconn.ContentItem
 	for _, page := range list.Results {
 		blocks := []*model.Block{
 			makeBlock("page-"+page.ID+"-title", page.HTMLTitle, "title"),
@@ -104,7 +105,7 @@ func pullHubSpotFromURL(ctx context.Context, c *HubSpotConnector, url string) ([
 			blocks = append(blocks,
 				makeBlock("page-"+page.ID+"-meta", page.MetaDesc, "meta_description"))
 		}
-		items = append(items, &ContentItem{
+		items = append(items, &platconn.ContentItem{
 			ID:       page.ID,
 			Name:     page.Name,
 			Blocks:   blocks,

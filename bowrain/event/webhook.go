@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	platev "github.com/gokapi/gokapi/platform/event"
 )
 
 // WebhookConfig configures a webhook delivery endpoint.
@@ -35,7 +37,7 @@ func NewWebhookDelivery(config WebhookConfig) *WebhookDelivery {
 }
 
 // Deliver sends an event to the webhook endpoint.
-func (w *WebhookDelivery) Deliver(event Event) error {
+func (w *WebhookDelivery) Deliver(event platev.Event) error {
 	payload, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("marshal event: %w", err)

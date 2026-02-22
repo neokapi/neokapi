@@ -32,9 +32,7 @@ var builtinToolCommands = []toolCommandDef{
 		Aliases: []string{"wc"},
 		Short:   "Count words in source and target text",
 		NewTool: func() (tool.Tool, error) {
-			return libtools.NewWordCountTool(&libtools.WordCountConfig{
-				Locale: model.LocaleID(targetLang),
-			}), nil
+			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
 		},
 		NewCollector: func() flow.Collector {
 			return libtools.NewWordCountCollector()

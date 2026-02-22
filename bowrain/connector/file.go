@@ -9,6 +9,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 )
 
 // FileConnector reads and writes localization content from the filesystem
@@ -47,7 +48,7 @@ func NewFileConnector(formatReg *registry.FormatRegistry, config map[string]stri
 
 func (c *FileConnector) ID() string         { return c.id }
 func (c *FileConnector) Name() string       { return c.name }
-func (c *FileConnector) Category() Category { return CategoryFile }
+func (c *FileConnector) Category() platconn.Category { return platconn.CategoryFile }
 
 func (c *FileConnector) Configure(config map[string]string) error {
 	for k, v := range config {
@@ -63,7 +64,7 @@ func (c *FileConnector) Close() error { return nil }
 
 // Fetch reads files from the filesystem, parses them with format readers,
 // and returns ContentItems containing the extracted blocks.
-func (c *FileConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*ContentItem, error) {
+func (c *FileConnector) Fetch(ctx context.Context, opts platconn.FetchOptions) ([]*platconn.ContentItem, error) {
 	paths := opts.Paths
 	if len(paths) == 0 {
 		// Discover all files if no specific paths given.
@@ -76,7 +77,7 @@ func (c *FileConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Conten
 		}
 	}
 
-	var result []*ContentItem
+	var result []*platconn.ContentItem
 	for _, p := range paths {
 		item, err := c.fetchFile(ctx, filepath.Join(c.basePath, p))
 		if err != nil {
@@ -89,7 +90,7 @@ func (c *FileConnector) Fetch(ctx context.Context, opts FetchOptions) ([]*Conten
 	return result, nil
 }
 
-func (c *FileConnector) fetchFile(ctx context.Context, path string) (*ContentItem, error) {
+func (c *FileConnector) fetchFile(ctx context.Context, path string) (*platconn.ContentItem, error) {
 	ext := filepath.Ext(path)
 	detector := c.formatRegistry.Detector()
 	formatName, err := detector.DetectByExtension(ext)
@@ -137,7 +138,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*ContentIte
 		lastChanged = info.ModTime()
 	}
 
-	return &ContentItem{
+	return &platconn.ContentItem{
 		ID:          relPath,
 		Name:        filepath.Base(path),
 		Path:        relPath,
@@ -149,7 +150,7 @@ func (c *FileConnector) fetchFile(ctx context.Context, path string) (*ContentIte
 }
 
 // Publish writes translated content items back to the filesystem.
-func (c *FileConnector) Publish(ctx context.Context, items []*ContentItem, opts PublishOptions) error {
+func (c *FileConnector) Publish(ctx context.Context, items []*platconn.ContentItem, opts platconn.PublishOptions) error {
 	for _, item := range items {
 		if err := c.publishFile(ctx, item, opts); err != nil {
 			return fmt.Errorf("publish %s: %w", item.Path, err)
@@ -158,7 +159,7 @@ func (c *FileConnector) Publish(ctx context.Context, items []*ContentItem, opts 
 	return nil
 }
 
-func (c *FileConnector) publishFile(ctx context.Context, item *ContentItem, opts PublishOptions) error {
+func (c *FileConnector) publishFile(ctx context.Context, item *platconn.ContentItem, opts platconn.PublishOptions) error {
 	path := filepath.Join(c.basePath, item.Path)
 
 	writer, err := c.formatRegistry.NewWriter(item.Format)
@@ -182,9 +183,9 @@ func (c *FileConnector) publishFile(ctx context.Context, item *ContentItem, opts
 }
 
 // List scans the base directory for files whose extensions match known formats.
-func (c *FileConnector) List(ctx context.Context) ([]*ContentItem, error) {
+func (c *FileConnector) List(ctx context.Context) ([]*platconn.ContentItem, error) {
 	detector := c.formatRegistry.Detector()
-	var items []*ContentItem
+	var items []*platconn.ContentItem
 
 	err := filepath.Walk(c.basePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() {
@@ -196,7 +197,7 @@ func (c *FileConnector) List(ctx context.Context) ([]*ContentItem, error) {
 			return nil // Skip unrecognized files.
 		}
 		relPath, _ := filepath.Rel(c.basePath, path)
-		items = append(items, &ContentItem{
+		items = append(items, &platconn.ContentItem{
 			ID:          relPath,
 			Name:        info.Name(),
 			Path:        relPath,
@@ -213,12 +214,12 @@ func (c *FileConnector) List(ctx context.Context) ([]*ContentItem, error) {
 }
 
 // Status returns the current sync status.
-func (c *FileConnector) Status(ctx context.Context) (*SyncStatus, error) {
+func (c *FileConnector) Status(ctx context.Context) (*platconn.SyncStatus, error) {
 	items, err := c.List(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &SyncStatus{
+	return &platconn.SyncStatus{
 		ConnectorID: c.id,
 		LastSync:    time.Now(),
 		ItemCount:   len(items),

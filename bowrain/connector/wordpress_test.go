@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	platconn "github.com/gokapi/gokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,9 +60,9 @@ func TestWordPressFetch(t *testing.T) {
 		"url": srv.URL,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, CategoryCMS, c.Category())
+	assert.Equal(t, platconn.CategoryCMS, c.Category())
 
-	items, err := c.Fetch(context.Background(), FetchOptions{})
+	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 
@@ -79,10 +80,10 @@ func TestWordPressPublish(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	items, err := c.Fetch(context.Background(), FetchOptions{})
+	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
 	require.NoError(t, err)
 
-	err = c.Publish(context.Background(), items[:1], PublishOptions{})
+	err = c.Publish(context.Background(), items[:1], platconn.PublishOptions{})
 	require.NoError(t, err)
 }
 

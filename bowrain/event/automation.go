@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	platev "github.com/gokapi/gokapi/platform/event"
 )
 
 // MaxChainDepth is the default maximum causation chain depth before
@@ -28,27 +30,27 @@ type AutomationCondition struct {
 // AutomationRule defines an event-triggered automation.
 type AutomationRule struct {
 	Name       string
-	EventType  EventType
+	EventType  platev.EventType
 	Conditions []AutomationCondition
 	Actions    []AutomationAction
 }
 
 // ActionExecutor is called when an automation rule fires.
-type ActionExecutor func(action AutomationAction, event Event) error
+type ActionExecutor func(action AutomationAction, event platev.Event) error
 
 // AutomationEngine subscribes to events and evaluates automation rules.
 type AutomationEngine struct {
-	bus           EventBus
+	bus           platev.EventBus
 	rules         []AutomationRule
 	executor      ActionExecutor
 	maxChainDepth int
 	paused        atomic.Bool
-	sub           *Subscription
+	sub           *platev.Subscription
 	mu            sync.RWMutex
 }
 
 // NewAutomationEngine creates an automation engine.
-func NewAutomationEngine(bus EventBus, executor ActionExecutor) *AutomationEngine {
+func NewAutomationEngine(bus platev.EventBus, executor ActionExecutor) *AutomationEngine {
 	e := &AutomationEngine{
 		bus:           bus,
 		executor:      executor,
@@ -85,7 +87,7 @@ func (e *AutomationEngine) Close() {
 	}
 }
 
-func (e *AutomationEngine) handleEvent(event Event) {
+func (e *AutomationEngine) handleEvent(event platev.Event) {
 	if e.paused.Load() {
 		return
 	}
@@ -115,7 +117,7 @@ func (e *AutomationEngine) handleEvent(event Event) {
 	}
 }
 
-func matchConditions(conditions []AutomationCondition, event Event) bool {
+func matchConditions(conditions []AutomationCondition, event platev.Event) bool {
 	for _, cond := range conditions {
 		val, exists := event.Data[cond.Field]
 		switch cond.Operator {
@@ -155,7 +157,7 @@ func chainDepth(causationID string) int {
 }
 
 // NextCausationID increments the causation chain.
-func NextCausationID(event Event) string {
+func NextCausationID(event platev.Event) string {
 	depth := chainDepth(event.CausationID)
 	return fmt.Sprintf("%s:%d", event.ID, depth+1)
 }

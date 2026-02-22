@@ -92,21 +92,7 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 		return fmt.Errorf("plugin path is not a directory: %s", l.dir)
 	}
 
-	// Load Go binary plugins from the top-level directory (legacy flat layout).
 	l.manager = host.NewPluginManager(l.logger)
-	if err := l.manager.DiscoverAndRegister(l.dir, formatReg); err != nil {
-		l.logf("binary plugin discovery: %v", err)
-	}
-
-	// Collect binary plugin info.
-	for _, detail := range l.manager.PluginDetails() {
-		l.plugins = append(l.plugins, PluginInfo{
-			Name:    detail.Name,
-			Type:    "binary",
-			Source:  detail.Source,
-			Formats: []string{detail.Name},
-		})
-	}
 
 	// Load versioned plugins from {dir}/{name}/{version}/ structure.
 	all, err := pluginreg.ListAllInstalled(l.dir)

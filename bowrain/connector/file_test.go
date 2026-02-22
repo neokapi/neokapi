@@ -8,6 +8,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/registry"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,7 +29,7 @@ func setupFileConnector(t *testing.T, dir string) *FileConnector {
 func TestFileConnectorIdentity(t *testing.T) {
 	c := setupFileConnector(t, ".")
 	assert.Equal(t, "test-file", c.ID())
-	assert.Equal(t, CategoryFile, c.Category())
+	assert.Equal(t, platconn.CategoryFile, c.Category())
 	assert.NoError(t, c.Close())
 }
 
@@ -54,7 +55,7 @@ func TestFileConnectorFetch(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Fetch(context.Background(), FetchOptions{
+	items, err := c.Fetch(context.Background(), platconn.FetchOptions{
 		Paths: []string{"test.html"},
 	})
 	require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestFileConnectorFetchAll(t *testing.T) {
 	require.NoError(t, err)
 
 	c := setupFileConnector(t, dir)
-	items, err := c.Fetch(context.Background(), FetchOptions{})
+	items, err := c.Fetch(context.Background(), platconn.FetchOptions{})
 	require.NoError(t, err)
 	assert.Len(t, items, 2)
 }

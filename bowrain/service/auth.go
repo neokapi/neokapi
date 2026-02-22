@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/google/uuid"
 )
 
@@ -27,12 +28,12 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 // GetOrCreateUser finds a user by email, or creates one if not found.
 // Used during OIDC login to upsert the user record.
 // On first creation, a personal workspace is auto-created.
-func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL string) (*auth.User, error) {
+func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL string) (*platauth.User, error) {
 	u, err := s.store.GetUserByEmail(ctx, email)
 	if err == nil {
 		return u, nil
 	}
-	u = &auth.User{
+	u = &platauth.User{
 		Email:     email,
 		Name:      name,
 		AvatarURL: avatarURL,
@@ -51,10 +52,10 @@ func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarUR
 	if displayName == "" {
 		displayName = slug
 	}
-	w := &auth.Workspace{
+	w := &platauth.Workspace{
 		Name: displayName,
 		Slug: slug,
-		Type: auth.WorkspaceTypePersonal,
+		Type: platauth.WorkspaceTypePersonal,
 	}
 	if createErr := s.CreateWorkspaceWithOwner(ctx, w, u.ID); createErr != nil {
 		// Log but don't fail — user was created successfully.
@@ -87,16 +88,16 @@ func (s *AuthService) uniqueSlug(ctx context.Context, base string) (string, erro
 }
 
 // GenerateToken creates a JWT for the given user.
-func (s *AuthService) GenerateToken(user *auth.User, expiry time.Duration) (string, error) {
-	return auth.GenerateToken(user, s.jwtSecret, expiry)
+func (s *AuthService) GenerateToken(user *platauth.User, expiry time.Duration) (string, error) {
+	return platauth.GenerateToken(user, s.jwtSecret, expiry)
 }
 
 // CreateWorkspaceWithOwner creates a workspace and adds the user as owner.
-func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *auth.Workspace, ownerID string) error {
+func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *platauth.Workspace, ownerID string) error {
 	if err := s.store.CreateWorkspace(ctx, w); err != nil {
 		return fmt.Errorf("create workspace: %w", err)
 	}
-	if err := s.store.AddMember(ctx, w.ID, ownerID, auth.RoleOwner); err != nil {
+	if err := s.store.AddMember(ctx, w.ID, ownerID, platauth.RoleOwner); err != nil {
 		return fmt.Errorf("add owner: %w", err)
 	}
 	return nil
@@ -153,9 +154,9 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 		return "", "", fmt.Errorf("list workspaces: %w", err)
 	}
 
-	var personalWS *auth.Workspace
+	var personalWS *platauth.Workspace
 	for _, ws := range workspaces {
-		if ws.Type == auth.WorkspaceTypePersonal {
+		if ws.Type == platauth.WorkspaceTypePersonal {
 			personalWS = ws
 			break
 		}
@@ -173,13 +174,13 @@ func (s *AuthService) ClaimProject(ctx context.Context, userID, claimToken strin
 }
 
 // CreateInvite creates a workspace invitation.
-func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy string, role auth.Role, email string, maxUses int, ttl time.Duration) (*auth.Invite, error) {
+func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy string, role platauth.Role, email string, maxUses int, ttl time.Duration) (*platauth.Invite, error) {
 	codeBytes := make([]byte, 16)
 	if _, err := rand.Read(codeBytes); err != nil {
 		return nil, fmt.Errorf("generate invite code: %w", err)
 	}
 
-	inv := &auth.Invite{
+	inv := &platauth.Invite{
 		WorkspaceID: workspaceID,
 		Code:        hex.EncodeToString(codeBytes),
 		Email:       email,

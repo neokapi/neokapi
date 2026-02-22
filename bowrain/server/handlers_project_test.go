@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/bowrain/store"
+	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,13 +25,13 @@ func newTestServer(t *testing.T) (*Server, string) {
 	require.NotNil(t, s.AuthStore, "auth store should be initialized")
 
 	ctx := context.Background()
-	user := &auth.User{ID: "test-user", Email: "test@example.com", Name: "Test"}
+	user := &platauth.User{ID: "test-user", Email: "test@example.com", Name: "Test"}
 	require.NoError(t, s.AuthStore.CreateUser(ctx, user))
-	ws := &auth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: auth.WorkspaceTypePersonal}
+	ws := &platauth.Workspace{ID: "test-ws", Name: "Test", Slug: "test", Type: platauth.WorkspaceTypePersonal}
 	require.NoError(t, s.AuthStore.CreateWorkspace(ctx, ws))
-	require.NoError(t, s.AuthStore.AddMember(ctx, ws.ID, user.ID, auth.RoleOwner))
+	require.NoError(t, s.AuthStore.AddMember(ctx, ws.ID, user.ID, platauth.RoleOwner))
 
-	token, err := auth.GenerateToken(user, cfg.JWTSecret, 24*time.Hour)
+	token, err := platauth.GenerateToken(user, cfg.JWTSecret, 24*time.Hour)
 	require.NoError(t, err)
 	return s, token
 }

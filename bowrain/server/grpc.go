@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/bowrain/event"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
-	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/platform/connector"
+	platev "github.com/gokapi/gokapi/platform/event"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"
@@ -287,13 +287,13 @@ func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.GokapiService
 	}
 
 	// Determine which event types to listen for.
-	types := make([]event.EventType, len(req.EventTypes))
+	types := make([]platev.EventType, len(req.EventTypes))
 	for i, t := range req.EventTypes {
-		types[i] = event.EventType(t)
+		types[i] = platev.EventType(t)
 	}
 
 	// Subscribe to events.
-	handler := func(e event.Event) {
+	handler := func(e platev.Event) {
 		resp := &pb.EventResponse{
 			Id:        e.ID,
 			Type:      string(e.Type),
@@ -306,7 +306,7 @@ func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.GokapiService
 		_ = stream.Send(resp)
 	}
 
-	var sub *event.Subscription
+	var sub *platev.Subscription
 	if len(types) == 0 {
 		sub = g.srv.EventBus.SubscribeAll(handler)
 	} else {

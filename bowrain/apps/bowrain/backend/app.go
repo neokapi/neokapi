@@ -11,7 +11,7 @@ import (
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
-	"github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/locale"
@@ -22,6 +22,8 @@ import (
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/core/version"
 	"github.com/gokapi/gokapi/platform/config"
+	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -37,7 +39,7 @@ type App struct {
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	credentials  *credentials.Store
-	connectorReg *connector.Registry
+	connectorReg *platconn.Registry
 	eventBus     *event.ChannelEventBus
 
 	// Server connection (online mode).
@@ -76,7 +78,7 @@ func NewApp() *App {
 func NewAppWithoutPlugins() *App {
 	// Initialize persistent store.
 	storePath := defaultStorePath()
-	cs, err := store.NewSQLiteStore(storePath)
+	cs, err := bstore.NewSQLiteStore(storePath)
 	if err != nil {
 		log.Printf("bowrain: failed to open store at %s: %v", storePath, err)
 	}
@@ -92,7 +94,7 @@ func newAppWithStore(cs store.ContentStore) *App {
 	toolReg := registry.NewToolRegistry()
 	libtools.RegisterAll(toolReg)
 
-	connReg := connector.NewRegistry()
+	connReg := platconn.NewRegistry()
 	connector.RegisterAll(connReg, reg)
 
 	a := &App{

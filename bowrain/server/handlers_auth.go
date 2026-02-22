@@ -185,7 +185,7 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 
 	baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Request().Host)
 
-	return c.JSON(http.StatusOK, auth.DeviceAuthResponse{
+	return c.JSON(http.StatusOK, platformAuth.DeviceAuthResponse{
 		DeviceCode:      deviceCode,
 		UserCode:        userCode,
 		VerificationURI: baseURL + "/device/verify",
@@ -250,7 +250,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	delete(deviceCodes.entries, deviceCode)
 	deviceCodes.Unlock()
 
-	return c.JSON(http.StatusOK, auth.TokenResponse{
+	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  token,
 		TokenType:    "Bearer",
 		ExpiresIn:    86400,
@@ -379,8 +379,7 @@ func (s *Server) HandleAuthCallback(c echo.Context) error {
 		return s.handleOIDCCodeExchange(c, code, state)
 	}
 
-	// Redirect to web app's device verification page (backward compat for old URL).
-	return c.Redirect(http.StatusFound, "/device/verify")
+	return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "missing code, state, or user_code parameter"})
 }
 
 // HandleDesktopLogin initiates the authorization code + PKCE flow for the
@@ -1016,7 +1015,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	// Set cookies (for web clients) and return JSON (for CLI/desktop).
 	setSessionCookies(c, accessToken, newRefreshToken)
 
-	return c.JSON(http.StatusOK, auth.TokenResponse{
+	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
 		ExpiresIn:    86400,

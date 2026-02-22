@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,9 +31,9 @@ func TestWebhookDelivery(t *testing.T) {
 		Secret: "test-secret",
 	})
 
-	event := Event{
+	event := platev.Event{
 		ID:        "evt-1",
-		Type:      EventBlockCreated,
+		Type:      platev.EventBlockCreated,
 		Source:    "test",
 		ProjectID: "proj-1",
 		Data:      map[string]string{"block_id": "b1"},
@@ -48,7 +49,7 @@ func TestWebhookDelivery(t *testing.T) {
 	assert.True(t, VerifySignature(receivedBody, "test-secret", receivedSig))
 
 	// Verify payload.
-	var decoded Event
+	var decoded platev.Event
 	require.NoError(t, json.Unmarshal(receivedBody, &decoded))
 	assert.Equal(t, "evt-1", decoded.ID)
 }
@@ -68,7 +69,7 @@ func TestWebhookRetry(t *testing.T) {
 
 	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
 
-	err := wh.Deliver(Event{Type: EventBlockCreated})
+	err := wh.Deliver(platev.Event{Type: platev.EventBlockCreated})
 	require.NoError(t, err)
 	assert.Equal(t, int32(3), attempts.Load())
 }
@@ -81,7 +82,7 @@ func TestWebhookDeliveryFailure(t *testing.T) {
 
 	wh := NewWebhookDelivery(WebhookConfig{URL: srv.URL, Secret: "s"})
 
-	err := wh.Deliver(Event{Type: EventBlockCreated})
+	err := wh.Deliver(platev.Event{Type: platev.EventBlockCreated})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed after")
 }

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -42,12 +42,12 @@ func GRPCAuthStreamInterceptor(jwtSecret string) grpc.StreamServerInterceptor {
 }
 
 // GRPCUserFromContext retrieves the authenticated user claims from a gRPC context.
-func GRPCUserFromContext(ctx context.Context) (*auth.Claims, bool) {
-	claims, ok := ctx.Value(grpcUserKey{}).(*auth.Claims)
+func GRPCUserFromContext(ctx context.Context) (*platauth.Claims, bool) {
+	claims, ok := ctx.Value(grpcUserKey{}).(*platauth.Claims)
 	return claims, ok
 }
 
-func extractClaims(ctx context.Context, jwtSecret string) (*auth.Claims, error) {
+func extractClaims(ctx context.Context, jwtSecret string) (*platauth.Claims, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, status.Error(codes.Unauthenticated, "missing metadata")
@@ -63,7 +63,7 @@ func extractClaims(ctx context.Context, jwtSecret string) (*auth.Claims, error) 
 		return nil, status.Error(codes.Unauthenticated, "invalid authorization header format")
 	}
 
-	claims, err := auth.ValidateToken(token, jwtSecret)
+	claims, err := platauth.ValidateToken(token, jwtSecret)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
 	}

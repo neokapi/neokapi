@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
+	platconn "github.com/gokapi/gokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,5 +35,5 @@ func TestFigmaExtractTextNodes(t *testing.T) {
 
 func TestFigmaCategory(t *testing.T) {
 	c := &FigmaConnector{id: "test", config: map[string]string{}}
-	assert.Equal(t, CategoryDesign, c.Category())
+	assert.Equal(t, platconn.CategoryDesign, c.Category())
 }

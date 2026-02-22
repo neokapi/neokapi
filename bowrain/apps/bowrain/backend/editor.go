@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"

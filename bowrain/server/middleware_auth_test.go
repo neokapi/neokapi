@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,8 +15,8 @@ import (
 const testSecret = "test-jwt-secret-32-bytes-long!!!"
 
 func TestAuthMiddleware(t *testing.T) {
-	user := &auth.User{ID: "user-1", Email: "test@example.com", Name: "Test"}
-	token, err := auth.GenerateToken(user, testSecret, 1*time.Hour)
+	user := &platauth.User{ID: "user-1", Email: "test@example.com", Name: "Test"}
+	token, err := platauth.GenerateToken(user, testSecret, 1*time.Hour)
 	require.NoError(t, err)
 
 	mw := AuthMiddleware(testSecret)

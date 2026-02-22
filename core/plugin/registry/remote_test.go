@@ -525,34 +525,6 @@ func TestSearchPluginsAdvancedCombinedFilters(t *testing.T) {
 	assert.Equal(t, "okapi", results[0].Name)
 }
 
-func TestSearchPluginsAdvancedLegacyFallback(t *testing.T) {
-	index := RegistryIndex{
-		Version: 1,
-		Plugins: []PluginManifest{
-			// Legacy plugin with no capabilities — should match via PluginType.
-			{Name: "old-format", PluginType: "format-reader"},
-			// Plugin with capabilities — should match via capabilities only.
-			{
-				Name: "new-format",
-				Capabilities: []Capability{
-					{Type: "format", Name: "html"},
-				},
-			},
-		},
-	}
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		serveJSON(t, w, index)
-	}))
-	defer srv.Close()
-
-	reg := NewRemoteRegistry(srv.URL, t.TempDir())
-
-	results, err := reg.SearchPluginsAdvanced(SearchOptions{Type: "format"})
-	require.NoError(t, err)
-	assert.Len(t, results, 2)
-}
-
 func TestSearchPluginsAdvancedQueryMatchesCapabilities(t *testing.T) {
 	index := RegistryIndex{
 		Version: 1,

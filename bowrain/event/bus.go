@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/google/uuid"
 )
 
@@ -16,8 +17,8 @@ type ChannelEventBus struct {
 }
 
 type subscriber struct {
-	sub  *Subscription
-	ch   chan Event
+	sub  *platev.Subscription
+	ch   chan platev.Event
 	done chan struct{}
 }
 
@@ -29,12 +30,12 @@ func NewChannelEventBus() *ChannelEventBus {
 }
 
 // Publish sends an event to all matching subscribers.
-func (b *ChannelEventBus) Publish(event Event) {
-	if event.ID == "" {
-		event.ID = uuid.NewString()
+func (b *ChannelEventBus) Publish(ev platev.Event) {
+	if ev.ID == "" {
+		ev.ID = uuid.NewString()
 	}
-	if event.Timestamp.IsZero() {
-		event.Timestamp = time.Now().UTC()
+	if ev.Timestamp.IsZero() {
+		ev.Timestamp = time.Now().UTC()
 	}
 
 	b.mu.RLock()
@@ -45,9 +46,9 @@ func (b *ChannelEventBus) Publish(event Event) {
 	}
 
 	for _, s := range b.subscribers {
-		if s.sub.EventType == "" || s.sub.EventType == event.Type {
+		if s.sub.EventType == "" || s.sub.EventType == ev.Type {
 			select {
-			case s.ch <- event:
+			case s.ch <- ev:
 			default:
 				// Drop event if subscriber is too slow.
 			}
@@ -56,8 +57,8 @@ func (b *ChannelEventBus) Publish(event Event) {
 }
 
 // Subscribe registers a handler for a specific event type.
-func (b *ChannelEventBus) Subscribe(eventType EventType, handler EventHandler) *Subscription {
-	sub := &Subscription{
+func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.EventHandler) *platev.Subscription {
+	sub := &platev.Subscription{
 		ID:        uuid.NewString(),
 		EventType: eventType,
 		Handler:   handler,
@@ -67,8 +68,8 @@ func (b *ChannelEventBus) Subscribe(eventType EventType, handler EventHandler) *
 }
 
 // SubscribeAll registers a handler for all events.
-func (b *ChannelEventBus) SubscribeAll(handler EventHandler) *Subscription {
-	sub := &Subscription{
+func (b *ChannelEventBus) SubscribeAll(handler platev.EventHandler) *platev.Subscription {
+	sub := &platev.Subscription{
 		ID:      uuid.NewString(),
 		Handler: handler,
 	}
@@ -76,17 +77,17 @@ func (b *ChannelEventBus) SubscribeAll(handler EventHandler) *Subscription {
 	return sub
 }
 
-func (b *ChannelEventBus) addSubscriber(sub *Subscription) {
+func (b *ChannelEventBus) addSubscriber(sub *platev.Subscription) {
 	s := &subscriber{
 		sub:  sub,
-		ch:   make(chan Event, 64),
+		ch:   make(chan platev.Event, 64),
 		done: make(chan struct{}),
 	}
 
 	go func() {
 		defer close(s.done)
-		for event := range s.ch {
-			sub.Handler(event)
+		for ev := range s.ch {
+			sub.Handler(ev)
 		}
 	}()
 
@@ -96,7 +97,7 @@ func (b *ChannelEventBus) addSubscriber(sub *Subscription) {
 }
 
 // Unsubscribe removes a subscription and stops its goroutine.
-func (b *ChannelEventBus) Unsubscribe(sub *Subscription) {
+func (b *ChannelEventBus) Unsubscribe(sub *platev.Subscription) {
 	b.mu.Lock()
 	s, ok := b.subscribers[sub.ID]
 	if ok {
