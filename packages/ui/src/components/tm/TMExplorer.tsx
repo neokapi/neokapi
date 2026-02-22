@@ -6,6 +6,7 @@ import type { TMEntryInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import { CardContent, GlassCard } from "../ui/card";
 import { ArrowLeft } from "../icons";
 
 interface TMExplorerProps {
@@ -136,7 +137,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
 
       {/* Add entry form */}
       {showAddForm && (
-        <div className="mb-4 p-4 bg-card border border-border rounded-lg" data-testid="tm-add-form">
+        <GlassCard intensity="subtle" className="mb-4" data-testid="tm-add-form"><CardContent className="p-4">
           <div className="flex gap-2 flex-wrap">
             <Input type="text" placeholder="Source text" value={addSource} onChange={(e) => setAddSource(e.target.value)} className="flex-1" data-testid="tm-add-source-input" />
             <Input type="text" placeholder="Target text" value={addTarget} onChange={(e) => setAddTarget(e.target.value)} className="flex-1" data-testid="tm-add-target-input" />
@@ -149,7 +150,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
             <Button onClick={handleAdd} data-testid="tm-add-submit">Add</Button>
             <Button variant="outline" onClick={() => setShowAddForm(false)} data-testid="tm-add-cancel">Cancel</Button>
           </div>
-        </div>
+        </CardContent></GlassCard>
       )}
 
       {/* Search and filters */}
@@ -167,14 +168,16 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
 
       {/* Table */}
       {entries.length === 0 ? (
-        <div className="p-12 text-center text-muted-foreground bg-card rounded-lg border border-border" data-testid="tm-empty-state">
-          {query || sourceLocaleFilter || targetLocaleFilter
-            ? "No entries match your search."
-            : "No translation memory entries yet. Add entries to build your TM."}
-        </div>
+        <GlassCard intensity="subtle" data-testid="tm-empty-state">
+          <CardContent className="p-12 text-center text-muted-foreground">
+            {query || sourceLocaleFilter || targetLocaleFilter
+              ? "No entries match your search."
+              : "No translation memory entries yet. Add entries to build your TM."}
+          </CardContent>
+        </GlassCard>
       ) : (
-        <div>
-          <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
+        <GlassCard intensity="subtle" className="overflow-hidden">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Source</th>
@@ -215,13 +218,13 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
           </table>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4 mt-4 text-[13px] text-muted-foreground" data-testid="tm-pagination">
+            <div className="flex items-center justify-center gap-4 py-3 text-[13px] text-muted-foreground border-t border-border" data-testid="tm-pagination">
               <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} data-testid="tm-prev-page">Previous</Button>
               <span data-testid="tm-page-info">Page {page + 1} of {totalPages}</span>
               <Button size="sm" variant="outline" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} data-testid="tm-next-page">Next</Button>
             </div>
           )}
-        </div>
+        </GlassCard>
       )}
     </div>
   );

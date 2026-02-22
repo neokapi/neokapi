@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { TermExplorer, useWorkspace } from "@gokapi/ui";
+import { TermExplorer, useWorkspace, GlassCard, CardContent } from "@gokapi/ui";
 
 export function TermbaseRoute() {
   const navigate = useNavigate();
@@ -8,9 +8,11 @@ export function TermbaseRoute() {
 
   if (!activeWorkspace) {
     return (
-      <div className="mt-8 p-8 text-center text-muted-foreground text-sm rounded-lg border border-dashed border-border">
-        Select a workspace
-      </div>
+      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto">
+        <CardContent className="p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </CardContent>
+      </GlassCard>
     );
   }
 

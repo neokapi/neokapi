@@ -4,7 +4,7 @@ import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { Card, CardContent } from "./ui/card";
+import { Card, CardContent, GlassCard } from "./ui/card";
 import { OpenInDesktop } from "./OpenInDesktop";
 import {
   ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
@@ -107,56 +107,61 @@ export function ProjectView({
       </div>
 
       <div className="flex gap-4 mb-6">
-        <Card className="flex-1 text-center">
+        <GlassCard intensity="subtle" className="flex-1 text-center">
           <CardContent className="py-3">
             <div className="text-2xl font-bold">{items.length}</div>
             <div className="text-xs text-muted-foreground">Files</div>
           </CardContent>
-        </Card>
-        <Card className="flex-1 text-center">
+        </GlassCard>
+        <GlassCard intensity="subtle" className="flex-1 text-center">
           <CardContent className="py-3">
             <div className="text-2xl font-bold">{totalBlocks}</div>
             <div className="text-xs text-muted-foreground">Blocks</div>
           </CardContent>
-        </Card>
-        <Card className="flex-1 text-center">
+        </GlassCard>
+        <GlassCard intensity="subtle" className="flex-1 text-center">
           <CardContent className="py-3">
             <div className="text-2xl font-bold">{totalWords}</div>
             <div className="text-xs text-muted-foreground">Words</div>
           </CardContent>
-        </Card>
-        <Card className="flex-1 text-center">
+        </GlassCard>
+        <GlassCard intensity="subtle" className="flex-1 text-center">
           <CardContent className="py-3">
             <div className="text-sm font-semibold">
               {getDisplayName(project.source_locale)} <ArrowRight className="w-3.5 h-3.5 inline-block" /> {project.target_locales.map(l => getDisplayName(l)).join(", ")}
             </div>
             <div className="text-xs text-muted-foreground">Languages</div>
           </CardContent>
-        </Card>
+        </GlassCard>
       </div>
 
       {/* File drop zone */}
-      <div
-        className={`flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed rounded-lg bg-card ${dragOver ? "border-primary" : "border-border"}`}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
+      <GlassCard
+        intensity="subtle"
+        className={`${dragOver ? "ring-2 ring-primary" : ""}`}
         data-testid="file-drop-zone"
       >
-        <Package className="w-8 h-8 text-muted-foreground opacity-30" />
-        <span className="text-muted-foreground text-[13px]">
-          Drag and drop files here to add them to the project
-        </span>
-        <input ref={inputRef} type="file" multiple onChange={handleFileInputChange} className="hidden" />
-        <Button size="sm" className="mt-2" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
-          Add Files
-        </Button>
-      </div>
+        <div
+          className="flex flex-col items-center justify-center gap-2 p-8"
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={handleDrop}
+        >
+          <Package className="w-8 h-8 text-muted-foreground opacity-30" />
+          <span className="text-muted-foreground text-[13px]">
+            Drag and drop files here to add them to the project
+          </span>
+          <input ref={inputRef} type="file" multiple onChange={handleFileInputChange} className="hidden" />
+          <Button size="sm" className="mt-2" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
+            Add Files
+          </Button>
+        </div>
+      </GlassCard>
 
       {/* File list */}
       {items.length > 0 && (
-        <div className="mt-4">
-          <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
+        <GlassCard intensity="subtle" className="mt-4 overflow-hidden">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">File</th>
@@ -196,7 +201,7 @@ export function ProjectView({
               ))}
             </tbody>
           </table>
-        </div>
+        </GlassCard>
       )}
     </div>
   );

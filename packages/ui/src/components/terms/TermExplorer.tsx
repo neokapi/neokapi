@@ -6,6 +6,7 @@ import type { ConceptInfo, TermInfo } from "../../types/api";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Badge } from "../ui/badge";
+import { CardContent, GlassCard } from "../ui/card";
 import { ArrowLeft } from "../icons";
 
 interface TermExplorerProps {
@@ -225,7 +226,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       </div>
 
       {showAddForm && (
-        <div className="mb-4 p-4 bg-card border border-border rounded-lg" data-testid="term-add-form">
+        <GlassCard intensity="subtle" className="mb-4" data-testid="term-add-form"><CardContent className="p-4">
           <h4 className="font-semibold mb-2">New Concept</h4>
           <div className="flex gap-2 mb-2">
             <Input placeholder="Domain" value={newDomain} onChange={(e) => setNewDomain(e.target.value)} className="flex-1" data-testid="term-add-domain" />
@@ -250,11 +251,11 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
             <Button variant="outline" size="sm" onClick={() => setShowAddForm(false)} data-testid="term-add-cancel">Cancel</Button>
             <Button size="sm" onClick={handleAdd} data-testid="term-add-submit">Save</Button>
           </div>
-        </div>
+        </CardContent></GlassCard>
       )}
 
-      <div className="border border-border rounded-lg overflow-hidden">
-        <table className="w-full border-collapse bg-card text-[13px]">
+      <GlassCard intensity="subtle" className="overflow-hidden">
+        <table className="w-full border-collapse text-[13px]">
           <thead>
             <tr>
               <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Domain</th>
@@ -345,15 +346,15 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
             ))}
           </tbody>
         </table>
-      </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-4 mt-4 text-[13px] text-muted-foreground" data-testid="term-pagination">
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 py-3 text-[13px] text-muted-foreground border-t border-border" data-testid="term-pagination">
           <Button size="sm" variant="outline" onClick={() => setPage(Math.max(0, page - 1))} disabled={page === 0} data-testid="term-prev-page">Previous</Button>
           <span data-testid="term-page-info">Page {page + 1} of {totalPages}</span>
           <Button size="sm" variant="outline" onClick={() => setPage(Math.min(totalPages - 1, page + 1))} disabled={page >= totalPages - 1} data-testid="term-next-page">Next</Button>
-        </div>
-      )}
+          </div>
+        )}
+      </GlassCard>
     </div>
   );
 }

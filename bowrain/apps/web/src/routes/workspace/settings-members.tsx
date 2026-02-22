@@ -1,25 +1,29 @@
-import { useWorkspace } from "@gokapi/ui";
+import { useWorkspace, GlassCard, CardContent } from "@gokapi/ui";
 
 export function SettingsMembersRoute() {
   const { activeWorkspace } = useWorkspace();
 
   if (!activeWorkspace) {
     return (
-      <div className="mt-8 p-8 text-center text-muted-foreground text-sm rounded-lg border border-dashed border-border">
-        Select a workspace
-      </div>
+      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto">
+        <CardContent className="p-8 text-center text-muted-foreground text-sm">
+          Select a workspace
+        </CardContent>
+      </GlassCard>
     );
   }
 
   return (
     <div>
-      <div className="mb-2">
+      <div className="mb-4">
         <h2 className="text-xl font-semibold">Members</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">Manage workspace members</p>
       </div>
-      <div className="mt-4 text-sm text-muted-foreground">
-        Member management coming soon.
-      </div>
+      <GlassCard intensity="subtle" className="max-w-[480px]">
+        <CardContent className="p-6 text-sm text-muted-foreground">
+          Member management coming soon.
+        </CardContent>
+      </GlassCard>
     </div>
   );
 }
