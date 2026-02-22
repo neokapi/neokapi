@@ -9,8 +9,8 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+export function AuthProvider({ children, initialUser }: { children: ReactNode; initialUser?: User }) {
+  const [user, setUser] = useState<User | null>(initialUser ?? null);
 
   const value: AuthContextValue = {
     user,

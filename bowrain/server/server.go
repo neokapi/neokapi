@@ -332,6 +332,17 @@ func (s *Server) GetEcho() *echo.Echo {
 	return s.Echo
 }
 
+// requestBaseURL returns the base URL (scheme + host) for the current request,
+// respecting X-Forwarded-Host and X-Forwarded-Proto headers set by reverse
+// proxies. Falls back to the direct request host and scheme.
+func requestBaseURL(c echo.Context) string {
+	host := c.Request().Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request().Host
+	}
+	return fmt.Sprintf("%s://%s", c.Scheme(), host)
+}
+
 // serveEmbeddedUI serves static files from the embedded WebUIFS filesystem.
 // If the requested file is not found, it falls back to index.html for SPA routing.
 func (s *Server) serveEmbeddedUI(c echo.Context) error {

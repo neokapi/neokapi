@@ -1,46 +1,35 @@
-import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
-import { ProjectView, useApi, useWorkspace, type ProjectInfo } from "@gokapi/ui";
+import { useCallback } from "react";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { ProjectView, useApi } from "@gokapi/ui";
+import { projectQueryOptions } from "../../queries";
+import type { WorkspaceRouteContext } from "..";
 
 export function ProjectDetailRoute() {
   const navigate = useNavigate();
   const { workspace, projectId } = useParams({ strict: false });
   const adapter = useApi();
-  const { activeWorkspace } = useWorkspace();
-  const ws = activeWorkspace?.slug ?? "";
+  const queryClient = useQueryClient();
+  const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const ws = activeWorkspace.slug;
 
-  const [project, setProject] = useState<ProjectInfo | null>(null);
-
-  useEffect(() => {
-    if (!ws || !projectId) return;
-    adapter.getProject(ws, projectId).then(setProject).catch(() => setProject(null));
-  }, [ws, projectId, adapter]);
+  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
-      if (!project) return;
-      const updated = await adapter.uploadFiles(ws, project.id, files);
-      setProject(updated);
+      await adapter.uploadFiles(ws, project.id, files);
+      queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
-    [ws, adapter, project],
+    [ws, adapter, project.id, queryClient],
   );
 
   const handleRemoveFile = useCallback(
     async (fileName: string) => {
-      if (!project) return;
-      const updated = await adapter.removeFile(ws, project.id, fileName);
-      setProject(updated);
+      await adapter.removeFile(ws, project.id, fileName);
+      queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
-    [ws, adapter, project],
+    [ws, adapter, project.id, queryClient],
   );
-
-  if (!project) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        Loading project...
-      </div>
-    );
-  }
 
   return (
     <ProjectView

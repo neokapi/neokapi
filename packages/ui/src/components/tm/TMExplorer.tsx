@@ -17,7 +17,7 @@ const PAGE_SIZE = 50;
 
 export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerProps) {
   const { getDisplayName } = useLocales();
-  const tmApi = useTMApi();
+  const { getTMEntries, addTMEntry, updateTMEntry, deleteTMEntry } = useTMApi();
   const [entries, setEntries] = useState<TMEntryInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [query, setQuery] = useState("");
@@ -36,14 +36,14 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const fetchEntries = useCallback(
     async (q: string, srcLocale: string, tgtLocale: string, p: number) => {
       try {
-        const result = await tmApi.getTMEntries(q, srcLocale, tgtLocale, p * PAGE_SIZE, PAGE_SIZE);
+        const result = await getTMEntries(q, srcLocale, tgtLocale, p * PAGE_SIZE, PAGE_SIZE);
         setEntries(result.entries || []);
         setTotalCount(result.total_count);
       } catch (e) {
         console.error("Failed to fetch TM entries:", e);
       }
     },
-    [tmApi],
+    [getTMEntries],
   );
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const handleSaveEdit = useCallback(
     async (entry: TMEntryInfo) => {
       try {
-        await tmApi.updateTMEntry({
+        await updateTMEntry({
           project_id: "",
           entry_id: entry.id,
           source: entry.source,
@@ -80,7 +80,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
         console.error("Failed to update TM entry:", e);
       }
     },
-    [tmApi, editTarget, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page],
+    [updateTMEntry, editTarget, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page],
   );
 
   const handleCancelEdit = useCallback(() => {
@@ -90,19 +90,19 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const handleDelete = useCallback(
     async (entryId: string) => {
       try {
-        await tmApi.deleteTMEntry(entryId);
+        await deleteTMEntry(entryId);
         fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("Failed to delete TM entry:", e);
       }
     },
-    [tmApi, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page],
+    [deleteTMEntry, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page],
   );
 
   const handleAdd = useCallback(async () => {
     if (!addSource.trim() || !addTarget.trim()) return;
     try {
-      await tmApi.addTMEntry(addSource, addTarget, addSourceLocale, addTargetLocale);
+      await addTMEntry(addSource, addTarget, addSourceLocale, addTargetLocale);
       setAddSource("");
       setAddTarget("");
       setShowAddForm(false);
@@ -110,7 +110,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     } catch (e) {
       console.error("Failed to add TM entry:", e);
     }
-  }, [tmApi, addSource, addTarget, addSourceLocale, addTargetLocale, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [addTMEntry, addSource, addTarget, addSourceLocale, addTargetLocale, fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const allLocales = [sourceLocale, ...targetLocales];

@@ -57,7 +57,7 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 
 	// Send invite email asynchronously if email is provided and SMTP is configured.
 	if inv.Email != "" && s.EmailSender != nil {
-		baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Request().Host)
+		baseURL := requestBaseURL(c)
 		wsSlug := c.Param("ws")
 		go s.sendInviteEmail(context.Background(), inv, baseURL, wsSlug)
 	}

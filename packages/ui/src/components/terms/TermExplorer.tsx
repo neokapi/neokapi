@@ -19,7 +19,10 @@ const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprec
 
 export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack }: TermExplorerProps) {
   const { getDisplayName } = useLocales();
-  const termsApi = useTermsApi();
+  const {
+    getTerms, addConcept, updateConcept, deleteConcept,
+    importTermsCSV, importTermsJSON, exportTermsJSON,
+  } = useTermsApi();
   const [concepts, setConcepts] = useState<ConceptInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [query, setQuery] = useState("");
@@ -42,14 +45,14 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   const fetchConcepts = useCallback(
     async (q: string, srcLocale: string, tgtLocale: string, p: number) => {
       try {
-        const result = await termsApi.getTerms(q, srcLocale, tgtLocale, p * PAGE_SIZE, PAGE_SIZE);
+        const result = await getTerms(q, srcLocale, tgtLocale, p * PAGE_SIZE, PAGE_SIZE);
         setConcepts(result.concepts || []);
         setTotalCount(result.total_count);
       } catch (e) {
         console.error("Failed to fetch terms:", e);
       }
     },
-    [termsApi],
+    [getTerms],
   );
 
   useEffect(() => {
@@ -65,7 +68,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     const validTerms = newTerms.filter(t => t.text.trim() !== "");
     if (validTerms.length === 0) return;
     try {
-      await termsApi.addConcept({
+      await addConcept({
         project_id: "",
         domain: newDomain,
         definition: newDefinition,
@@ -82,7 +85,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     } catch (e) {
       console.error("Failed to add concept:", e);
     }
-  }, [termsApi, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [addConcept, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleEdit = useCallback((concept: ConceptInfo) => {
     setEditingId(concept.id);
@@ -92,7 +95,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   const handleSaveEdit = useCallback(async () => {
     if (!editConcept) return;
     try {
-      await termsApi.updateConcept({
+      await updateConcept({
         project_id: "",
         concept_id: editConcept.id,
         domain: editConcept.domain,
@@ -105,17 +108,17 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     } catch (e) {
       console.error("Failed to update concept:", e);
     }
-  }, [termsApi, editConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [updateConcept, editConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleDelete = useCallback(async (conceptId: string) => {
     try {
-      await termsApi.deleteConcept(conceptId);
+      await deleteConcept(conceptId);
       setDeleteConfirmId(null);
       fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
     } catch (e) {
       console.error("Failed to delete concept:", e);
     }
-  }, [termsApi, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [deleteConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleImportCSV = useCallback(async () => {
     const input = document.createElement("input");
@@ -126,7 +129,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       if (!file) return;
       const content = await file.text();
       try {
-        const count = await termsApi.importTermsCSV(content, sourceLocale, targetLocales[0] || "", "", true);
+        const count = await importTermsCSV(content, sourceLocale, targetLocales[0] || "", "", true);
         alert(`Imported ${count} concepts`);
         fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
@@ -134,7 +137,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       }
     };
     input.click();
-  }, [termsApi, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [importTermsCSV, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleImportJSON = useCallback(async () => {
     const input = document.createElement("input");
@@ -145,7 +148,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       if (!file) return;
       const content = await file.text();
       try {
-        const count = await termsApi.importTermsJSON(content);
+        const count = await importTermsJSON(content);
         alert(`Imported ${count} concepts`);
         fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
@@ -153,11 +156,11 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
       }
     };
     input.click();
-  }, [termsApi, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [importTermsJSON, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleExportJSON = useCallback(async () => {
     try {
-      const json = await termsApi.exportTermsJSON(projectName || "termbase");
+      const json = await exportTermsJSON(projectName || "termbase");
       const blob = new Blob([json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -168,7 +171,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     } catch (e) {
       console.error("Export failed:", e);
     }
-  }, [termsApi, projectName]);
+  }, [exportTermsJSON, projectName]);
 
   const statusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {

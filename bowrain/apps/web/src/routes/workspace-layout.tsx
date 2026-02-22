@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import { Outlet, useNavigate, useParams } from "@tanstack/react-router";
+import { useState, useCallback } from "react";
+import { Outlet, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
   AnimatedBackgroundGlass,
   AppSidebar,
   TopBar,
-  useAuth,
-  useWorkspace,
+  AuthProvider,
+  WorkspaceProvider,
   useApi,
   cn,
   Button,
@@ -17,11 +17,11 @@ import {
   CardTitle,
   type View,
   type Workspace,
-  type ConfigResponse,
 } from "@gokapi/ui";
+import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
-import { api } from "../api";
 import { viewFromPath } from "./view-from-path";
+import type { WorkspaceRouteContext } from ".";
 
 // ---------------------------------------------------------------------------
 // Create workspace dialog
@@ -38,6 +38,7 @@ function CreateWorkspaceDialog({
   const [slug, setSlug] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const adapter = useApi();
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -54,7 +55,7 @@ function CreateWorkspaceDialog({
     setCreating(true);
     setError("");
     try {
-      const ws = await api.createWorkspace(name.trim(), slug.trim());
+      const ws = await adapter.createWorkspace(name.trim(), slug.trim());
       onCreate(ws);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to create workspace");
@@ -116,16 +117,16 @@ function CreateWorkspaceDialog({
 export function WorkspaceLayout() {
   const navigate = useNavigate();
   const { workspace: workspaceSlug } = useParams({ strict: false });
-  const adapter = useApi();
-  const { user, setUser } = useAuth();
-  const { workspaces, setWorkspaces, activeWorkspace, setActiveWorkspace } = useWorkspace();
+  const queryClient = useQueryClient();
+
+  // Data from route beforeLoad — already fetched, no loading state needed.
+  const { serverMode, user, workspaces, activeWorkspace } =
+    useRouteContext({ strict: false }) as WorkspaceRouteContext;
 
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
   const setLastWorkspaceSlug = useUIStore((s) => s.setLastWorkspaceSlug);
 
-  const [serverMode, setServerMode] = useState<"standalone" | "server" | null>(null);
-  const [loading, setLoading] = useState(true);
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
 
@@ -134,50 +135,6 @@ export function WorkspaceLayout() {
     window.location.pathname,
     workspaceSlug ?? "",
   );
-
-  // -----------------------------------------------------------------------
-  // Initialization: detect server mode, authenticate, resolve workspace
-  // -----------------------------------------------------------------------
-  useEffect(() => {
-    (async () => {
-      try {
-        const config: ConfigResponse = await adapter.getConfig();
-        setServerMode(config.mode);
-
-        if (config.mode === "standalone") {
-          setUser({ id: "local", email: "", name: "Local User", avatar_url: "" });
-          const localWs: Workspace = {
-            id: "local", name: "Local", slug: "local",
-            description: "", logo_url: "", type: "personal", role: "owner",
-          };
-          setWorkspaces([localWs]);
-          setActiveWorkspace(localWs);
-        } else {
-          const currentUser = await adapter.getCurrentUser();
-          if (currentUser) {
-            setUser(currentUser);
-            const ws = (await adapter.listWorkspaces()) || [];
-            setWorkspaces(ws);
-            // Match workspace from URL slug.
-            const match = ws.find((w) => w.slug === workspaceSlug);
-            if (match) {
-              setActiveWorkspace(match);
-              setLastWorkspaceSlug(match.slug);
-            } else if (ws.length > 0) {
-              // URL workspace not found — redirect to first workspace.
-              setActiveWorkspace(ws[0]);
-              setLastWorkspaceSlug(ws[0].slug);
-              navigate({ to: "/$workspace", params: { workspace: ws[0].slug }, replace: true });
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Failed to initialize:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -189,11 +146,9 @@ export function WorkspaceLayout() {
     } catch {
       // Best-effort
     }
-    setUser(null);
-    setWorkspaces([]);
-    setActiveWorkspace(null);
+    queryClient.clear();
     setSignedOut(true);
-  }, [setUser, setWorkspaces, setActiveWorkspace]);
+  }, [queryClient]);
 
   const handleViewChange = useCallback(
     (view: View) => {
@@ -218,42 +173,29 @@ export function WorkspaceLayout() {
 
   const handleSelectWorkspace = useCallback(
     (ws: Workspace) => {
-      setActiveWorkspace(ws);
       setLastWorkspaceSlug(ws.slug);
       navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
-    [navigate, setActiveWorkspace, setLastWorkspaceSlug],
+    [navigate, setLastWorkspaceSlug],
   );
 
   const handleWorkspaceCreated = useCallback(
     (ws: Workspace) => {
-      setWorkspaces([...workspaces, ws]);
-      setActiveWorkspace(ws);
       setLastWorkspaceSlug(ws.slug);
       setShowCreateWs(false);
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
       navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
-    [workspaces, setWorkspaces, setActiveWorkspace, setLastWorkspaceSlug, navigate],
+    [setLastWorkspaceSlug, navigate, queryClient],
   );
 
   // -----------------------------------------------------------------------
   // Render
   // -----------------------------------------------------------------------
 
-  if (loading) {
-    return (
-      <>
-        <AnimatedBackgroundGlass />
-        <div className="relative z-10 flex items-center justify-center h-screen text-muted-foreground">
-          Loading...
-        </div>
-      </>
-    );
-  }
-
-  // Server mode without auth: show signed-out card or redirect to OIDC.
-  if (serverMode === "server" && !user) {
-    if (signedOut) {
+  // After sign-out: show signed-out card or redirect to OIDC.
+  if (signedOut) {
+    if (serverMode === "server") {
       return (
         <>
           <AnimatedBackgroundGlass />
@@ -279,52 +221,50 @@ export function WorkspaceLayout() {
         </>
       );
     }
-
-    // Auto-redirect to OIDC.
-    window.location.href = "/api/v1/auth/login";
-    return (
-      <>
-        <AnimatedBackgroundGlass />
-        <div className="relative z-10 flex items-center justify-center h-screen text-muted-foreground">
-          Redirecting to sign in...
-        </div>
-      </>
-    );
+    // Standalone: shouldn't happen, but reload to recover.
+    window.location.href = "/";
+    return null;
   }
 
   const isEditor = activeView === "translate";
 
   return (
-    <>
-      <AnimatedBackgroundGlass />
-      <div className="relative z-10 flex h-screen overflow-hidden">
-        <AppSidebar
-          workspaces={workspaces}
-          activeWorkspace={activeWorkspace}
-          onSelectWorkspace={handleSelectWorkspace}
-          onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-          activeView={activeView}
-          onViewChange={handleViewChange}
-          user={user}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-          collapsedWidth={60}
-          showThemeToggle={false}
-        />
-        <div className="flex-1 flex flex-col min-h-0">
-          <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
-          <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
-            <Outlet />
-          </main>
-        </div>
-
-        {showCreateWs && (
-          <CreateWorkspaceDialog
-            onClose={() => setShowCreateWs(false)}
-            onCreate={handleWorkspaceCreated}
+    <AuthProvider initialUser={user}>
+      <WorkspaceProvider
+        key={activeWorkspace.slug}
+        initialWorkspace={activeWorkspace}
+        initialWorkspaces={workspaces}
+      >
+        <AnimatedBackgroundGlass />
+        <div className="relative z-10 flex h-screen overflow-hidden">
+          <AppSidebar
+            workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
+            onSelectWorkspace={handleSelectWorkspace}
+            onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+            activeView={activeView}
+            onViewChange={handleViewChange}
+            user={user}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            collapsedWidth={60}
+            showThemeToggle={false}
           />
-        )}
-      </div>
-    </>
+          <div className="flex-1 flex flex-col min-h-0">
+            <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
+            <main className={cn("flex-1 p-6 flex flex-col min-h-0", isEditor ? "overflow-hidden" : "overflow-auto")}>
+              <Outlet />
+            </main>
+          </div>
+
+          {showCreateWs && (
+            <CreateWorkspaceDialog
+              onClose={() => setShowCreateWs(false)}
+              onCreate={handleWorkspaceCreated}
+            />
+          )}
+        </div>
+      </WorkspaceProvider>
+    </AuthProvider>
   );
 }

@@ -23,8 +23,8 @@ function StackedIcons({ active, other }: { active: Workspace; other: Workspace |
     <div className="relative" style={{ width: 40, height: 42 }}>
       {/* Back icon — offset to bottom-right, faded, slightly larger */}
       {other && (
-        <div className="absolute" style={{ top: 8, left: 6, opacity: 0.35 }}>
-          <WorkspaceIcon workspace={other} active={false} onClick={() => {}} size={34} />
+        <div className="absolute" style={{ top: 3, left: 2  , opacity: 0.35 }}>
+          <WorkspaceIcon workspace={other} active={false} onClick={() => {}} size={32} />
         </div>
       )}
       {/* Front icon */}

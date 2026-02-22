@@ -15,6 +15,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.StorePath = t.TempDir() + "/test.db"
+	cfg.JWTSecret = "test-secret"
+	srv := NewServer(cfg)
+	e := srv.GetEcho()
+
+	startForm := url.Values{"client_id": {"test-client"}}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/device/start",
+		strings.NewReader(startForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Forwarded-Host", "bowrain.mymac")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp platauth.DeviceAuthResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "https://bowrain.mymac/device/verify", resp.VerificationURI)
+
+	// Clean up.
+	deviceCodes.Lock()
+	for dc := range deviceCodes.entries {
+		delete(deviceCodes.entries, dc)
+	}
+	deviceCodes.Unlock()
+}
+
 func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	// No OIDC configured → uses direct authorization with form values.
 	cfg := DefaultServerConfig()

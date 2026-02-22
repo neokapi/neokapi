@@ -183,7 +183,7 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 	}
 	deviceCodes.Unlock()
 
-	baseURL := fmt.Sprintf("%s://%s", c.Scheme(), c.Request().Host)
+	baseURL := requestBaseURL(c)
 
 	return c.JSON(http.StatusOK, platformAuth.DeviceAuthResponse{
 		DeviceCode:      deviceCode,
@@ -323,7 +323,7 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
 	}
 
-	redirectURI := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
+	redirectURI := requestBaseURL(c) + "/api/v1/auth/callback"
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
@@ -429,7 +429,7 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 	}
 
 	// The server's own callback URL — the OIDC provider redirects here.
-	serverCallbackURI := fmt.Sprintf("%s://%s/api/v1/auth/desktop/callback", c.Scheme(), c.Request().Host)
+	serverCallbackURI := requestBaseURL(c) + "/api/v1/auth/desktop/callback"
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
@@ -499,7 +499,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	serverCallbackURI := fmt.Sprintf("%s://%s/api/v1/auth/desktop/callback", c.Scheme(), c.Request().Host)
+	serverCallbackURI := requestBaseURL(c) + "/api/v1/auth/desktop/callback"
 
 	// Exchange the authorization code with the OIDC provider.
 	oidcCtx := s.oidcContext(ctx)
@@ -634,7 +634,7 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 		authURL = strings.Replace(authURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
 	}
 
-	callbackURI := fmt.Sprintf("%s://%s/api/v1/auth/device/callback", c.Scheme(), c.Request().Host)
+	callbackURI := requestBaseURL(c) + "/api/v1/auth/device/callback"
 
 	ap, err := newOIDCAuthParams()
 	if err != nil {
@@ -730,7 +730,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	callbackURI := fmt.Sprintf("%s://%s/api/v1/auth/device/callback", c.Scheme(), c.Request().Host)
+	callbackURI := requestBaseURL(c) + "/api/v1/auth/device/callback"
 
 	// Exchange the authorization code with the OIDC provider.
 	oidcCtx := s.oidcContext(ctx)
@@ -866,7 +866,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 <h1>Invalid or Expired Session</h1><p>Please try signing in again.</p></body></html>`)
 	}
 
-	redirectURL := fmt.Sprintf("%s://%s/api/v1/auth/callback", c.Scheme(), c.Request().Host)
+	redirectURL := requestBaseURL(c) + "/api/v1/auth/callback"
 
 	// Use oidcContext to handle Docker URL mismatches (InsecureIssuerURL +
 	// HTTP client that rewrites public→internal URLs for JWKS fetching).

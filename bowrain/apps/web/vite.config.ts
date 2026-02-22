@@ -11,10 +11,12 @@ export default defineConfig({
     },
   },
   server: {
+    open: true,
     port: 5173,
     proxy: {
       "/api": "http://localhost:8080",
     },
+    allowedHosts: true,
   },
   build: {
     outDir: "dist",

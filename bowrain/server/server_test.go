@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -156,6 +157,59 @@ func TestConfigEndpointServerMode(t *testing.T) {
 	err := json.Unmarshal(rec.Body.Bytes(), &resp)
 	require.NoError(t, err)
 	assert.Equal(t, "server", resp.Mode)
+}
+
+func TestRequestBaseURL(t *testing.T) {
+	e := echo.New()
+
+	tests := []struct {
+		name           string
+		host           string
+		forwardedHost  string
+		forwardedProto string
+		want           string
+	}{
+		{
+			name: "no forwarded headers",
+			host: "localhost:8080",
+			want: "http://localhost:8080",
+		},
+		{
+			name:           "X-Forwarded-Host only",
+			host:           "localhost:8080",
+			forwardedHost:  "bowrain.mymac",
+			want:           "http://bowrain.mymac",
+		},
+		{
+			name:           "X-Forwarded-Host and X-Forwarded-Proto",
+			host:           "localhost:8080",
+			forwardedHost:  "bowrain.mymac",
+			forwardedProto: "https",
+			want:           "https://bowrain.mymac",
+		},
+		{
+			name:           "X-Forwarded-Proto only",
+			host:           "localhost:8080",
+			forwardedProto: "https",
+			want:           "https://localhost:8080",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req.Host = tt.host
+			if tt.forwardedHost != "" {
+				req.Header.Set("X-Forwarded-Host", tt.forwardedHost)
+			}
+			if tt.forwardedProto != "" {
+				req.Header.Set("X-Forwarded-Proto", tt.forwardedProto)
+			}
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			assert.Equal(t, tt.want, requestBaseURL(c))
+		})
+	}
 }
 
 func TestNewServerCreatesRegistries(t *testing.T) {

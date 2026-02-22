@@ -1,18 +1,12 @@
-import { Outlet } from "@tanstack/react-router";
+import { Outlet, useRouteContext } from "@tanstack/react-router";
 import { ThemeProvider, ApiProvider, AuthProvider, WorkspaceProvider } from "@gokapi/ui";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { api } from "../api";
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-    },
-  },
-});
+import type { RouterContext } from ".";
 
 export function RootLayout() {
+  const { queryClient } = useRouteContext({ strict: false }) as RouterContext;
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>

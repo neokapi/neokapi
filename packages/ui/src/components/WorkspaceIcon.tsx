@@ -31,7 +31,7 @@ export function WorkspaceIcon({ workspace, active, onClick, size = 40 }: Workspa
       style={{
         width: size,
         height: size,
-        borderRadius: active ? 12 : size / 2,
+        borderRadius: 10,
         border: "none",
         cursor: "pointer",
         display: "flex",

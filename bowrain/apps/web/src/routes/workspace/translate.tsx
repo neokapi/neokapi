@@ -1,29 +1,22 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   TranslationEditor,
   PresenceAvatars,
   useApi,
-  useAuth,
-  useWorkspace,
   useCollaboration,
-  type ProjectInfo,
 } from "@gokapi/ui";
+import { projectQueryOptions } from "../../queries";
+import type { WorkspaceRouteContext } from "..";
 
 export function TranslateRoute() {
   const navigate = useNavigate();
   const { workspace, projectId, fileName } = useParams({ strict: false });
   const adapter = useApi();
-  const { user } = useAuth();
-  const { activeWorkspace } = useWorkspace();
-  const ws = activeWorkspace?.slug ?? "";
+  const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const ws = activeWorkspace.slug;
 
-  const [project, setProject] = useState<ProjectInfo | null>(null);
-
-  useEffect(() => {
-    if (!ws || !projectId) return;
-    adapter.getProject(ws, projectId).then(setProject).catch(() => setProject(null));
-  }, [ws, projectId, adapter]);
+  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
 
   // Set up collaborative editing via WebSocket + Yjs.
   const { connectedUsers, connectionState } = useCollaboration({
@@ -31,27 +24,19 @@ export function TranslateRoute() {
     workspace: ws,
     projectId: projectId ?? "",
     fileName: fileName ?? "",
-    locale: project?.target_locales?.[0] ?? "",
+    locale: project.target_locales?.[0] ?? "",
     user: {
-      userId: user?.id ?? "anonymous",
-      name: user?.name ?? "Anonymous",
-      avatarUrl: user?.avatar_url,
+      userId: user.id,
+      name: user.name,
+      avatarUrl: user.avatar_url,
     },
-    enabled: !!project && !!fileName && !!ws,
+    enabled: !!fileName && !!ws,
   });
-
-  if (!project || !fileName) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        Loading editor...
-      </div>
-    );
-  }
 
   return (
     <TranslationEditor
       project={project}
-      fileName={fileName}
+      fileName={fileName!}
       onBack={() =>
         navigate({
           to: "/$workspace/project/$projectId",
@@ -62,7 +47,7 @@ export function TranslateRoute() {
         <div className="flex items-center gap-2">
           <PresenceAvatars
             users={connectedUsers}
-            currentUserId={user?.id}
+            currentUserId={user.id}
           />
           {connectionState === "connecting" && (
             <span className="text-xs text-muted-foreground">Connecting...</span>
