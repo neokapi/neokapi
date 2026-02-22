@@ -1131,6 +1131,7 @@ function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo
   return (
     <span
       title={tooltip}
+      data-testid="tag-warning"
       className={cn(
         "ml-1 cursor-help inline-flex",
         validation.errors.length > 0 ? "text-red-600" : "text-amber-700",

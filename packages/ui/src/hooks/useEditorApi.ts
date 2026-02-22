@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type {
@@ -76,7 +76,7 @@ export function useEditorApi() {
     [api, ws],
   );
 
-  return {
+  return useMemo(() => ({
     getFileBlocks,
     updateBlockTarget,
     updateBlockTargetCoded,
@@ -87,5 +87,16 @@ export function useEditorApi() {
     exportTranslatedFile,
     lookupTMForBlock,
     lookupTermsForBlock,
-  };
+  }), [
+    getFileBlocks,
+    updateBlockTarget,
+    updateBlockTargetCoded,
+    pseudoTranslateFile,
+    aiTranslateFile,
+    tmTranslateFile,
+    getWordCount,
+    exportTranslatedFile,
+    lookupTMForBlock,
+    lookupTermsForBlock,
+  ]);
 }

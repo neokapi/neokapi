@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   FormatInfo,
   ToolInfo,
@@ -366,7 +366,7 @@ export function useEditorApi() {
     [],
   );
 
-  return {
+  return useMemo(() => ({
     getFileBlocks,
     updateBlockTarget,
     updateBlockTargetCoded,
@@ -380,7 +380,21 @@ export function useEditorApi() {
     renderBlockHTML,
     lookupTMForBlock,
     lookupTermsForBlock,
-  };
+  }), [
+    getFileBlocks,
+    updateBlockTarget,
+    updateBlockTargetCoded,
+    pseudoTranslateFile,
+    aiTranslateFile,
+    tmTranslateFile,
+    getWordCount,
+    exportTranslatedFile,
+    openFileInOS,
+    renderDocumentPreview,
+    renderBlockHTML,
+    lookupTMForBlock,
+    lookupTermsForBlock,
+  ]);
 }
 
 // Provider config hooks

@@ -714,9 +714,7 @@ test.describe("Inline Codes — Target Cell Coded Display", () => {
 });
 
 test.describe("Inline Codes — Row Validation Warning", () => {
-  test("should show warning icon when target has mismatched tags", async ({ page }, testInfo) => {
-    // Skip in CI - validation timing is unreliable in CI environment
-    test.skip(!!process.env.CI, "Flaky in CI - validation timing issue");
+  test("should show warning icon when target has mismatched tags", async ({ page }) => {
     await openEditorWithInlineBlocks(page);
 
     // Edit block 1 and save with only one tag (partial)
@@ -739,10 +737,8 @@ test.describe("Inline Codes — Row Validation Warning", () => {
     await pressEnterInEditor(page);
     await page.waitForTimeout(500);
 
-    // Should show a warning character in the target cell area
-    // The \u26A0 (warning sign) should be visible
-    // Increased timeout as validation may take time in CI
-    const warningIcon = page.getByTestId("target-text-0").locator("text=\u26A0");
+    // Should show a warning icon (AlertTriangle SVG) in the target cell
+    const warningIcon = page.getByTestId("target-text-0").locator('[data-testid="tag-warning"]');
     await expect(warningIcon).toBeVisible({ timeout: 10000 });
   });
 
@@ -769,7 +765,7 @@ test.describe("Inline Codes — Row Validation Warning", () => {
     await page.waitForTimeout(500);
 
     // No warning icon should appear
-    const warningIcons = page.getByTestId("target-text-0").locator("text=\u26A0");
+    const warningIcons = page.getByTestId("target-text-0").locator('[data-testid="tag-warning"]');
     await expect(warningIcons).toHaveCount(0);
   });
 

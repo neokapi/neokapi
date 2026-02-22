@@ -185,9 +185,7 @@ test.describe("Context Panel", () => {
     await expect(page.getByTestId("context-panel")).toContainText("continue");
   });
 
-  test("should show empty state when no matches", async ({ page }, testInfo) => {
-    // Skip in CI - mock backend doesn't resolve loading state properly
-    test.skip(!!process.env.CI, "Flaky in CI - mock backend issue");
+  test("should show empty state when no matches", async ({ page }) => {
     await setupLocalApp(page);
 
     // Create project WITHOUT TM or terms
@@ -216,15 +214,16 @@ test.describe("Context Panel", () => {
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
+    // Select first block to stabilize selectedIndex before opening panel
+    await clickTestId(page, "block-row-0");
+    await page.waitForTimeout(200);
+
     // Open context panel
     await clickTestId(page, "context-panel-toggle");
     await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
 
-    // Wait for loading state to finish
-    await expect(page.getByTestId("context-panel")).not.toContainText("Loading...", { timeout: 10000 });
-
-    // Should show "no matches" messages
-    await expect(page.getByTestId("context-panel")).toContainText("No TM matches");
-    await expect(page.getByTestId("context-panel")).toContainText("No terms found");
+    // Wait for "no matches" messages directly (avoids race with loading state)
+    await expect(page.getByTestId("context-panel")).toContainText("No TM matches", { timeout: 10000 });
+    await expect(page.getByTestId("context-panel")).toContainText("No terms found", { timeout: 10000 });
   });
 });
