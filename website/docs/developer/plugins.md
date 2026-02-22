@@ -9,9 +9,26 @@ gokapi uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with g
 
 ## Plugin Types
 
-- **Format Reader Plugin** — implements `DataFormatReaderPlugin` gRPC service
-- **Format Writer Plugin** — implements `DataFormatWriterPlugin` gRPC service
-- **Tool Plugin** — implements `ToolPlugin` gRPC service
+Plugins are classified into three main types:
+
+- **Bundle** — a collection of formats and/or tools distributed as a single unit (e.g., the Okapi bridge with 40+ format filters)
+- **Format** — a standalone format reader/writer plugin implementing `DataFormatReaderPlugin` and/or `DataFormatWriterPlugin` gRPC services
+- **Tool** — a standalone tool plugin implementing `ToolPlugin` gRPC service
+
+### Bundles
+
+A bundle packages multiple formats and tools into one installable plugin. The Okapi bridge is the canonical example — it provides 40+ format filters (DOCX, XLSX, EPUB, HTML, etc.) and processing tools via a single Java bridge.
+
+Bundles are declared with `plugin_type: "bundle"` in the registry manifest and list their capabilities explicitly. This allows the CLI to search and filter by contained capability type:
+
+```bash
+kapi plugins search --bundle         # list all bundles
+kapi plugins search --format         # formats (including those inside bundles)
+kapi plugins search --tool           # tools (including those inside bundles)
+kapi plugins search --bundle --tool  # bundles that contain tool capabilities
+```
+
+When a bundle is installed, its individual capabilities (formats, tools) are registered separately into the core registries. This means flows and commands can reference individual formats from a bundle (e.g., `okapi-html`) without knowing they came from a bundle.
 
 ## Plugin Discovery
 
@@ -20,11 +37,11 @@ Plugins are discovered by scanning a directory for executables matching the nami
 - `gokapi-format-*` — format reader/writer plugins
 - `gokapi-tool-*` — tool plugins
 
-The host launches each plugin, performs a version handshake, queries capabilities via `Info()`, and registers into the appropriate registry.
+The host launches each plugin, performs a version handshake, queries capabilities via `Info()`, and registers into the appropriate registry. Bundles (like Java bridge plugins) are discovered via `*.bridge.json` descriptors and may register many capabilities at once.
 
 ## Multi-Version Support
 
-Multiple versions of the same plugin can be installed side-by-side:
+Multiple versions of the same plugin (or bundle) can be installed side-by-side:
 
 ```
 ~/.config/gokapi/plugins/
@@ -41,9 +58,9 @@ Multiple versions of the same plugin can be installed side-by-side:
 
 Formats register with versioned names (`okapi-html@1.46.0`) and bare aliases (`okapi-html`) pointing to the latest version.
 
-## Writing a Plugin
+## Writing a Format Plugin
 
-A plugin is a Go binary that serves one or more gRPC services:
+A format plugin is a Go binary that serves one or more gRPC services:
 
 ```go
 package main
@@ -65,6 +82,12 @@ func main() {
     })
 }
 ```
+
+## Writing a Bundle Plugin
+
+A bundle is typically distributed as a Java bridge (`.bridge.json` + JAR) but can also be a Go binary that registers multiple capabilities. Bridge-based bundles use NDJSON over stdin/stdout to communicate with the host. See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the bridge protocol details.
+
+For Go-based bundles, register multiple `format_reader`, `format_writer`, and `tool` services in the `ServeConfig.Plugins` map.
 
 ## gRPC Protocol
 

@@ -164,3 +164,68 @@ func TestGroupByNameSingleVersion(t *testing.T) {
 	assert.Equal(t, "1.47.0", groups[0].Latest.Version)
 	assert.Len(t, groups[0].Versions, 1)
 }
+
+func TestIsBundle(t *testing.T) {
+	tests := []struct {
+		name       string
+		pluginType string
+		want       bool
+	}{
+		{"bundle lowercase", "bundle", true},
+		{"bundle uppercase", "Bundle", true},
+		{"bundle mixed case", "BUNDLE", true},
+		{"format is not bundle", "format", false},
+		{"tool is not bundle", "tool", false},
+		{"empty is not bundle", "", false},
+		{"format-reader is not bundle", "format-reader", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &PluginManifest{PluginType: tt.pluginType}
+			assert.Equal(t, tt.want, m.IsBundle())
+		})
+	}
+}
+
+func TestPluginTypeConstants(t *testing.T) {
+	assert.Equal(t, "bundle", PluginTypeBundle)
+	assert.Equal(t, "format", PluginTypeFormat)
+	assert.Equal(t, "tool", PluginTypeTool)
+}
+
+func TestBundleWithMixedCapabilities(t *testing.T) {
+	m := PluginManifest{
+		Name:       "okapi",
+		PluginType: PluginTypeBundle,
+		Capabilities: []Capability{
+			{Type: "format", Name: "html", MimeTypes: []string{"text/html"}},
+			{Type: "format", Name: "openxml", MimeTypes: []string{"application/vnd.openxmlformats-officedocument.wordprocessingml.document"}},
+			{Type: "tool", Name: "segmentation"},
+		},
+	}
+
+	assert.True(t, m.IsBundle())
+	assert.True(t, m.HasCapabilityType("format"))
+	assert.True(t, m.HasCapabilityType("tool"))
+	assert.True(t, m.HasMimeType("text/html"))
+	assert.False(t, m.HasCapabilityType("connector"))
+}
+
+func TestGroupByNameIncludesBundles(t *testing.T) {
+	idx := &RegistryIndex{
+		Plugins: []PluginManifest{
+			{Name: "okapi", Version: "1.47.0", Platform: "darwin/arm64", PluginType: PluginTypeBundle},
+			{Name: "csv-format", Version: "1.0.0", Platform: "darwin/arm64", PluginType: PluginTypeFormat},
+			{Name: "qa-tool", Version: "2.0.0", Platform: "darwin/arm64", PluginType: PluginTypeTool},
+		},
+	}
+
+	groups := idx.GroupByName("darwin/arm64")
+	require.Len(t, groups, 3)
+
+	// Sorted alphabetically: csv-format, okapi, qa-tool.
+	assert.Equal(t, "csv-format", groups[0].Name)
+	assert.Equal(t, "okapi", groups[1].Name)
+	assert.Equal(t, "qa-tool", groups[2].Name)
+}

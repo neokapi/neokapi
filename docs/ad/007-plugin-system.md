@@ -40,10 +40,33 @@ into the appropriate registry.
 
 | Type | What it adds | Discovery | Example |
 |------|-------------|-----------|---------|
+| **Bundle** | Collection of formats and/or tools | varies | Okapi bridge (40+ formats) |
 | **Format** | Reader + Writer for a file format | `gokapi-format-*` | `gokapi-format-docx` |
 | **Tool** | Processing step in a flow | `gokapi-tool-*` | `gokapi-tool-terminology` |
 | **Connector** | Bidirectional system integration | `gokapi-connector-*` | `gokapi-connector-contentful` |
 | **Provider** | AI/LLM or MT backend | `gokapi-provider-*` | `gokapi-provider-deepl-v2` |
+
+### Bundles
+
+A **bundle** is a plugin that packages multiple formats and/or tools into a
+single distributable unit. The Okapi bridge is the canonical bundle — it provides
+40+ format filters and several processing tools in one JAR. Bundles are installed
+and versioned as a single unit, but their individual capabilities (formats, tools)
+are registered separately into the core registries.
+
+Bundles are declared with `PluginType: "bundle"` in the registry manifest.
+Each bundle lists its capabilities explicitly, allowing the CLI to search and
+filter by capability type:
+
+```bash
+kapi plugins search --bundle         # list all bundles
+kapi plugins search --format         # list formats (including those in bundles)
+kapi plugins search --tool           # list tools (including those in bundles)
+kapi plugins search --bundle --tool  # bundles that contain tools
+```
+
+The `--bundle`, `--format`, and `--tool` flags are combined with AND logic
+alongside existing `--type`, `--mime`, and `--ext` filters.
 
 The **connector** type enables community-built connectors for CMS platforms,
 design tools, and other systems that integrate with gokapi's connector-first
@@ -159,6 +182,10 @@ should be built-in.
 - All 40+ Okapi filters are accessible without Go rewrites via the Java bridge
 - JVM count is bounded by one `maxSize` regardless of plugin versions; different
   JARs share capacity fairly via eviction
+- Bundles package multiple formats and tools as a single installable unit,
+  simplifying distribution while allowing individual capability registration
+- The CLI searches both standalone plugins and bundles; `--bundle`, `--format`,
+  and `--tool` flags allow users to narrow results by plugin kind
 - Connector plugins extend gokapi's integration capabilities, enabling
   community-built connectors for CMS platforms and design tools
   ([AD-005](./005-connector-system.md))

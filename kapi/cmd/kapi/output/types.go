@@ -195,11 +195,12 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 
 // PluginInfo represents a single plugin entry.
 type PluginInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version,omitempty"`
-	Status  string `json:"status"`
-	Formats int    `json:"formats,omitempty"`
-	Path    string `json:"path,omitempty"`
+	Name       string `json:"name"`
+	Version    string `json:"version,omitempty"`
+	PluginType string `json:"plugin_type,omitempty"` // "bundle", "format", "tool", etc.
+	Status     string `json:"status"`
+	Formats    int    `json:"formats,omitempty"`
+	Path       string `json:"path,omitempty"`
 }
 
 // PluginsListOutput represents the list of plugins.
@@ -216,14 +217,18 @@ func (p PluginsListOutput) FormatText(w io.Writer) error {
 
 	fmt.Fprintln(w, "Installed plugins:")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-20s %-10s %-10s %-8s %s\n",
-		"NAME", "VERSION", "STATUS", "FORMATS", "PATH")
-	fmt.Fprintf(w, "  %-20s %-10s %-10s %-8s %s\n",
-		"----", "-------", "------", "-------", "----")
+	fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8s %s\n",
+		"NAME", "VERSION", "TYPE", "STATUS", "FORMATS", "PATH")
+	fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8s %s\n",
+		"----", "-------", "----", "------", "-------", "----")
 
 	for _, plugin := range p.Plugins {
-		fmt.Fprintf(w, "  %-20s %-10s %-10s %-8d %s\n",
-			plugin.Name, plugin.Version, plugin.Status, plugin.Formats, plugin.Path)
+		pluginType := plugin.PluginType
+		if pluginType == "" {
+			pluginType = "-"
+		}
+		fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8d %s\n",
+			plugin.Name, plugin.Version, pluginType, plugin.Status, plugin.Formats, plugin.Path)
 	}
 	fmt.Fprintf(w, "\nTotal: %d plugin(s)\n", p.Total)
 	return nil

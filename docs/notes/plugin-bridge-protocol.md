@@ -113,6 +113,44 @@ Each version directory contains a `version.json` manifest with name, version, an
 
 Semver comparison determines "latest". Bare-name aliases are registered only if no explicit bare-name registration exists, preventing conflicts.
 
+## Bundles
+
+A **bundle** is a plugin that provides multiple formats and/or tools as a single
+distributable unit. In the remote registry, bundles are declared with
+`plugin_type: "bundle"` and list their capabilities explicitly:
+
+```json
+{
+  "name": "okapi",
+  "version": "1.47.0",
+  "plugin_type": "bundle",
+  "install_type": "bridge",
+  "capabilities": [
+    {"type": "format", "name": "html", "display_name": "HTML", "mime_types": ["text/html"]},
+    {"type": "format", "name": "openxml", "display_name": "Microsoft Office (OpenXML)", "extensions": [".docx", ".xlsx", ".pptx"]},
+    {"type": "tool", "name": "segmentation", "display_name": "SRX Segmentation"}
+  ]
+}
+```
+
+The Okapi bridge is the canonical bundle example. Bridge-backed bundles use the
+same `*.bridge.json` descriptor and JVM subprocess protocol described above.
+Go binary bundles can also exist — they simply register multiple format readers,
+writers, and/or tools via the go-plugin handshake.
+
+### CLI Search and Filtering
+
+The `kapi plugins search` command provides flags for filtering by plugin kind:
+
+| Flag | Effect |
+|------|--------|
+| `--bundle` | Only show bundles |
+| `--format` | Only show plugins providing format capabilities (includes bundles with formats) |
+| `--tool` | Only show plugins providing tool capabilities (includes bundles with tools) |
+
+These flags combine with AND logic alongside `--type`, `--mime`, and `--ext`. For
+example, `--bundle --format` returns only bundles that contain format capabilities.
+
 ## Plugin Loader
 
 The `PluginLoader` (`plugin/loader/`) ties discovery together:
@@ -122,3 +160,4 @@ The `PluginLoader` (`plugin/loader/`) ties discovery together:
 - Loads Java bridge plugins via bridge descriptors (`*.bridge.json`)
 - Registers all discovered formats, tools, connectors, and providers into the core registries
 - Manages the shared bridge pool and plugin lifecycle
+- Bundles are loaded the same way as standalone plugins; their individual capabilities are registered separately into format and tool registries

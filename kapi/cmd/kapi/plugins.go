@@ -13,7 +13,7 @@ import (
 
 var pluginsCmd = &cobra.Command{
 	Use:   "plugins",
-	Short: "Manage plugins",
+	Short: "Manage plugins and bundles",
 }
 
 var availableFlag bool
@@ -48,8 +48,8 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 		fmt.Printf("No plugins installed.\n")
 		fmt.Printf("Plugin directory: %s\n", pluginLoader.Dir())
 		fmt.Println()
-		fmt.Println("Use 'kapi plugins search <query>' to find plugins,")
-		fmt.Println("or 'kapi plugins list -a' to see all available plugins.")
+		fmt.Println("Use 'kapi plugins search <query>' to find plugins and bundles,")
+		fmt.Println("or 'kapi plugins list -a' to see all available plugins and bundles.")
 		return nil
 	}
 
@@ -344,18 +344,28 @@ var pluginsRemoveCmd = &cobra.Command{
 }
 
 var (
-	searchType string
-	searchMime string
-	searchExt  string
+	searchType   string
+	searchMime   string
+	searchExt    string
+	searchBundle bool
+	searchFormat bool
+	searchTool   bool
 )
 
 var pluginsSearchCmd = &cobra.Command{
 	Use:   "search [query]",
-	Short: "Search for plugins",
-	Long: `Search for plugins by text query, capability type, MIME type, or file extension.
+	Short: "Search for plugins and bundles",
+	Long: `Search for plugins and bundles by text query, capability type, MIME type, or file extension.
 
-When --type, --mime, or --ext flags are provided, the query argument is optional.
-All filters are combined with AND logic.`,
+When --type, --mime, --ext, --bundle, --format, or --tool flags are provided,
+the query argument is optional. All filters are combined with AND logic.
+
+Examples:
+  kapi plugins search okapi           Search by name
+  kapi plugins search --bundle        List all bundles
+  kapi plugins search --format        List all format plugins and bundles with formats
+  kapi plugins search --tool          List all tool plugins and bundles with tools
+  kapi plugins search --ext .docx     Find plugins that handle .docx files`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var query string
@@ -363,9 +373,12 @@ All filters are combined with AND logic.`,
 			query = args[0]
 		}
 
+		hasFilter := searchType != "" || searchMime != "" || searchExt != "" ||
+			searchBundle || searchFormat || searchTool
+
 		// Require at least a query or one filter flag.
-		if query == "" && searchType == "" && searchMime == "" && searchExt == "" {
-			return fmt.Errorf("provide a search query or use --type, --mime, or --ext flags")
+		if query == "" && !hasFilter {
+			return fmt.Errorf("provide a search query or use --type, --mime, --ext, --bundle, --format, or --tool flags")
 		}
 
 		cfg := config.NewAppConfig()
@@ -373,7 +386,7 @@ All filters are combined with AND logic.`,
 		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
 		// Use advanced search when any flag is set.
-		if searchType != "" || searchMime != "" || searchExt != "" {
+		if hasFilter {
 			return searchPluginsAdvanced(reg, query)
 		}
 
@@ -403,10 +416,13 @@ All filters are combined with AND logic.`,
 
 func searchPluginsAdvanced(reg *registry.RemoteRegistry, query string) error {
 	opts := registry.SearchOptions{
-		Query:     query,
-		Type:      searchType,
-		MimeType:  searchMime,
-		Extension: searchExt,
+		Query:      query,
+		Type:       searchType,
+		MimeType:   searchMime,
+		Extension:  searchExt,
+		BundleOnly: searchBundle,
+		FormatOnly: searchFormat,
+		ToolOnly:   searchTool,
 	}
 
 	results, err := reg.SearchPluginsAdvanced(opts)
@@ -471,6 +487,9 @@ func init() {
 	pluginsSearchCmd.Flags().StringVar(&searchType, "type", "", "filter by capability type (e.g., format, tool)")
 	pluginsSearchCmd.Flags().StringVar(&searchMime, "mime", "", "filter by MIME type (e.g., text/html)")
 	pluginsSearchCmd.Flags().StringVar(&searchExt, "ext", "", "filter by file extension (e.g., .docx)")
+	pluginsSearchCmd.Flags().BoolVar(&searchBundle, "bundle", false, "show only bundles (collections of formats/tools)")
+	pluginsSearchCmd.Flags().BoolVar(&searchFormat, "format", false, "show only plugins providing format capabilities")
+	pluginsSearchCmd.Flags().BoolVar(&searchTool, "tool", false, "show only plugins providing tool capabilities")
 	pluginsCmd.AddCommand(pluginsListCmd)
 	pluginsCmd.AddCommand(pluginsInstallCmd)
 	pluginsCmd.AddCommand(pluginsUpdateCmd)

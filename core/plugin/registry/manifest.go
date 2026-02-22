@@ -8,6 +8,19 @@ import (
 	"strings"
 )
 
+// Plugin type constants for PluginManifest.PluginType.
+const (
+	// PluginTypeBundle denotes a plugin that bundles multiple formats and/or
+	// tools into a single distributable unit (e.g., the Okapi bridge).
+	PluginTypeBundle = "bundle"
+
+	// PluginTypeFormat denotes a standalone format reader/writer plugin.
+	PluginTypeFormat = "format"
+
+	// PluginTypeTool denotes a standalone tool plugin.
+	PluginTypeTool = "tool"
+)
+
 // Capability describes a specific format or tool provided by a plugin.
 type Capability struct {
 	// Type is "format" or "tool".
@@ -40,7 +53,10 @@ type PluginManifest struct {
 	// Description is a human-readable description of the plugin.
 	Description string `json:"description"`
 
-	// PluginType is the type of plugin: "format-reader", "format-writer", or "tool".
+	// PluginType classifies the plugin: "bundle", "format", "tool",
+	// or legacy values like "format-reader", "format-writer".
+	// Bundles provide multiple capabilities (formats and/or tools) in a
+	// single distributable unit — the Okapi bridge is the canonical example.
 	PluginType string `json:"plugin_type"`
 
 	// InstallType controls how the plugin is installed: "binary" (default) or "bridge".
@@ -61,7 +77,15 @@ type PluginManifest struct {
 	MinHostVersion string `json:"min_host_version,omitempty"`
 
 	// Capabilities lists the fine-grained capabilities this plugin provides.
+	// Bundles typically declare many capabilities; standalone format/tool
+	// plugins may declare one or none (falling back to PluginType).
 	Capabilities []Capability `json:"capabilities,omitempty"`
+}
+
+// IsBundle reports whether this plugin is a bundle (a collection of formats
+// and/or tools distributed as a single unit).
+func (m *PluginManifest) IsBundle() bool {
+	return strings.EqualFold(m.PluginType, PluginTypeBundle)
 }
 
 // HasMimeType reports whether any capability in this manifest handles the given MIME type.

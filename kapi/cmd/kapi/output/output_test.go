@@ -193,6 +193,68 @@ func TestPluginsListOutput_FormatText(t *testing.T) {
 		assert.Contains(t, buf.String(), "okapi-bridge")
 		assert.Contains(t, buf.String(), "1.5.0")
 	})
+
+	t.Run("TYPE column header present", func(t *testing.T) {
+		out := PluginsListOutput{
+			Plugins: []PluginInfo{
+				{Name: "my-plugin", Version: "1.0.0", Status: "installed"},
+			},
+			Total: 1,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), "TYPE")
+	})
+
+	t.Run("empty PluginType shows dash fallback", func(t *testing.T) {
+		out := PluginsListOutput{
+			Plugins: []PluginInfo{
+				{Name: "legacy-plugin", Version: "1.0.0", PluginType: "", Status: "installed"},
+			},
+			Total: 1,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		text := buf.String()
+		assert.Contains(t, text, "legacy-plugin")
+		// The TYPE column should show "-" when PluginType is empty.
+		assert.Contains(t, text, "-")
+	})
+
+	t.Run("bundle PluginType displayed correctly", func(t *testing.T) {
+		out := PluginsListOutput{
+			Plugins: []PluginInfo{
+				{Name: "okapi-bridge", Version: "1.5.0", PluginType: "bundle", Status: "installed", Formats: 46},
+			},
+			Total: 1,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		text := buf.String()
+		assert.Contains(t, text, "okapi-bridge")
+		assert.Contains(t, text, "bundle")
+	})
+
+	t.Run("multiple plugin types in same list", func(t *testing.T) {
+		out := PluginsListOutput{
+			Plugins: []PluginInfo{
+				{Name: "okapi-bridge", Version: "1.5.0", PluginType: "bundle", Status: "installed"},
+				{Name: "custom-format", Version: "0.1.0", PluginType: "format", Status: "installed"},
+				{Name: "legacy-tool", Version: "2.0.0", PluginType: "", Status: "installed"},
+			},
+			Total: 3,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		text := buf.String()
+		assert.Contains(t, text, "bundle")
+		assert.Contains(t, text, "format")
+		assert.Contains(t, text, "Total: 3 plugin(s)")
+	})
 }
 
 func TestToolsListOutput_FormatText(t *testing.T) {

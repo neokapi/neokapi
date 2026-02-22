@@ -739,3 +739,253 @@ func TestListAvailableGroupedEmpty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, groups)
 }
+
+func TestSearchPluginsAdvancedBundleOnly(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:       "okapi",
+				PluginType: PluginTypeBundle,
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+					{Type: "format", Name: "openxml"},
+					{Type: "tool", Name: "segmentation"},
+				},
+			},
+			{
+				Name:       "csv-format",
+				PluginType: PluginTypeFormat,
+				Capabilities: []Capability{
+					{Type: "format", Name: "csv"},
+				},
+			},
+			{
+				Name:       "qa-tool",
+				PluginType: PluginTypeTool,
+				Capabilities: []Capability{
+					{Type: "tool", Name: "qa-check"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --bundle: only bundles.
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{BundleOnly: true})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "okapi", results[0].Name)
+}
+
+func TestSearchPluginsAdvancedFormatOnly(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:       "okapi",
+				PluginType: PluginTypeBundle,
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+					{Type: "tool", Name: "segmentation"},
+				},
+			},
+			{
+				Name:       "csv-format",
+				PluginType: PluginTypeFormat,
+				Capabilities: []Capability{
+					{Type: "format", Name: "csv"},
+				},
+			},
+			{
+				Name:       "qa-tool",
+				PluginType: PluginTypeTool,
+				Capabilities: []Capability{
+					{Type: "tool", Name: "qa-check"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --format: plugins providing format capabilities (includes bundles with formats).
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{FormatOnly: true})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	assert.Equal(t, "okapi", results[0].Name)
+	assert.Equal(t, "csv-format", results[1].Name)
+}
+
+func TestSearchPluginsAdvancedToolOnly(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:       "okapi",
+				PluginType: PluginTypeBundle,
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+					{Type: "tool", Name: "segmentation"},
+				},
+			},
+			{
+				Name:       "csv-format",
+				PluginType: PluginTypeFormat,
+				Capabilities: []Capability{
+					{Type: "format", Name: "csv"},
+				},
+			},
+			{
+				Name:       "qa-tool",
+				PluginType: PluginTypeTool,
+				Capabilities: []Capability{
+					{Type: "tool", Name: "qa-check"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --tool: plugins providing tool capabilities (includes bundles with tools).
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{ToolOnly: true})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	assert.Equal(t, "okapi", results[0].Name)
+	assert.Equal(t, "qa-tool", results[1].Name)
+}
+
+func TestSearchPluginsAdvancedBundleAndFormatCombined(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:       "okapi",
+				PluginType: PluginTypeBundle,
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+					{Type: "tool", Name: "segmentation"},
+				},
+			},
+			{
+				Name:       "tool-bundle",
+				PluginType: PluginTypeBundle,
+				Capabilities: []Capability{
+					{Type: "tool", Name: "qa-check"},
+					{Type: "tool", Name: "word-count"},
+				},
+			},
+			{
+				Name:       "csv-format",
+				PluginType: PluginTypeFormat,
+				Capabilities: []Capability{
+					{Type: "format", Name: "csv"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --bundle + --format: only bundles that also have format capabilities.
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{BundleOnly: true, FormatOnly: true})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "okapi", results[0].Name)
+}
+
+func TestSearchPluginsAdvancedFormatOnlyLegacyFallback(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			// Legacy plugin with no capabilities.
+			{Name: "old-format", PluginType: "format-reader"},
+			// Modern plugin with capabilities.
+			{
+				Name:       "new-format",
+				PluginType: PluginTypeFormat,
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+				},
+			},
+			{
+				Name:       "tool-only",
+				PluginType: PluginTypeTool,
+				Capabilities: []Capability{
+					{Type: "tool", Name: "qa"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --format should match legacy "format-reader" and modern "format" plugins.
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{FormatOnly: true})
+	require.NoError(t, err)
+	assert.Len(t, results, 2)
+}
+
+func TestSearchPluginsAdvancedBundleWithQuery(t *testing.T) {
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:        "okapi",
+				PluginType:  PluginTypeBundle,
+				Description: "Okapi Framework bridge with 40+ format filters",
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+				},
+			},
+			{
+				Name:        "other-bundle",
+				PluginType:  PluginTypeBundle,
+				Description: "Another bundle",
+				Capabilities: []Capability{
+					{Type: "tool", Name: "custom"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serveJSON(t, w, index)
+	}))
+	defer srv.Close()
+
+	reg := NewRemoteRegistry(srv.URL, t.TempDir())
+
+	// --bundle + query: bundles matching the text query.
+	results, err := reg.SearchPluginsAdvanced(SearchOptions{BundleOnly: true, Query: "okapi"})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "okapi", results[0].Name)
+}

@@ -422,6 +422,17 @@ type SearchOptions struct {
 
 	// Extension filters by file extension across all capabilities (e.g., ".docx").
 	Extension string
+
+	// BundleOnly restricts results to bundle plugins when true.
+	BundleOnly bool
+
+	// FormatOnly restricts results to plugins providing format capabilities
+	// (including bundles that contain formats) when true.
+	FormatOnly bool
+
+	// ToolOnly restricts results to plugins providing tool capabilities
+	// (including bundles that contain tools) when true.
+	ToolOnly bool
 }
 
 // SearchPluginsAdvanced searches the registry using structured filters.
@@ -469,7 +480,46 @@ func matchesSearchOptions(m PluginManifest, opts SearchOptions) bool {
 		}
 	}
 
+	if opts.BundleOnly {
+		if !m.IsBundle() {
+			return false
+		}
+	}
+
+	if opts.FormatOnly {
+		if !matchesPluginKind(m, PluginTypeFormat) {
+			return false
+		}
+	}
+
+	if opts.ToolOnly {
+		if !matchesPluginKind(m, PluginTypeTool) {
+			return false
+		}
+	}
+
 	return true
+}
+
+// matchesPluginKind reports whether a plugin provides capabilities of the
+// given kind ("format" or "tool"). This matches:
+//   - standalone plugins whose PluginType equals kind
+//   - bundles that contain capabilities of that kind
+//   - legacy plugins whose PluginType contains the kind string
+func matchesPluginKind(m PluginManifest, kind string) bool {
+	// Check capabilities first (preferred).
+	if m.HasCapabilityType(kind) {
+		return true
+	}
+	// Exact PluginType match (e.g., PluginType=="format" for a standalone format plugin).
+	if strings.EqualFold(m.PluginType, kind) {
+		return true
+	}
+	// Legacy fallback: PluginType contains kind (e.g., "format-reader" contains "format").
+	if len(m.Capabilities) == 0 && strings.Contains(strings.ToLower(m.PluginType), strings.ToLower(kind)) {
+		return true
+	}
+	return false
 }
 
 // matchesTextQuery checks name, description, and capability names/display names.
