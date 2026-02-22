@@ -1,4 +1,5 @@
 import { WifiOff } from "lucide-react";
+import { cn } from "@gokapi/ui";
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
@@ -26,12 +27,11 @@ export function Header({ sidebarCollapsed, connectionState, pendingChanges }: He
 
   return (
     <header
-      className="h-12 border-b border-border flex items-center justify-between glass-surface"
+      className={cn(
+        "h-12 border-b border-border flex items-center justify-between glass-surface bg-card/80 pr-5",
+        sidebarCollapsed ? "pl-20" : "pl-5",
+      )}
       style={{
-        padding: sidebarCollapsed ? "0 20px 0 80px" : "0 20px",
-        background: "var(--glass-bg-medium, var(--semantic-surface, hsl(var(--card))))",
-        borderColor: "var(--semantic-border, hsl(var(--border)))",
-        // Wails: draggable title bar region
         // @ts-expect-error non-standard CSS property for Wails
         "--wails-draggable": "drag",
       }}

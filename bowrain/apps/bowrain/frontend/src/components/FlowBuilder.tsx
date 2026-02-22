@@ -17,6 +17,7 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { Button, Input, Badge, cn } from "@gokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
 
@@ -33,22 +34,12 @@ function ReaderNode({ data }: NodeProps) {
   return (
     <div
       data-testid={`flow-node-${data.nodeId}`}
-      style={{
-        padding: "10px 16px",
-        borderRadius: 8,
-        border: `2px solid ${colors.border}`,
-        background: colors.bg,
-        minWidth: 140,
-        textAlign: "center",
-        fontSize: 13,
-        color: colors.text,
-      }}
+      className="px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]"
+      style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
-      <div style={{ fontSize: 10, color: colors.border, fontWeight: 600, marginBottom: 2 }}>
-        INPUT
-      </div>
-      <div style={{ fontWeight: 600 }}>{(data.label as string) || "Reader"}</div>
-      <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{data.formatName as string}</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>INPUT</div>
+      <div className="font-semibold">{(data.label as string) || "Reader"}</div>
+      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.formatName as string}</div>
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
   );
@@ -59,23 +50,13 @@ function WriterNode({ data }: NodeProps) {
   return (
     <div
       data-testid={`flow-node-${data.nodeId}`}
-      style={{
-        padding: "10px 16px",
-        borderRadius: 8,
-        border: `2px solid ${colors.border}`,
-        background: colors.bg,
-        minWidth: 140,
-        textAlign: "center",
-        fontSize: 13,
-        color: colors.text,
-      }}
+      className="px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]"
+      style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <div style={{ fontSize: 10, color: colors.border, fontWeight: 600, marginBottom: 2 }}>
-        OUTPUT
-      </div>
-      <div style={{ fontWeight: 600 }}>{(data.label as string) || "Writer"}</div>
-      <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{data.formatName as string}</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>OUTPUT</div>
+      <div className="font-semibold">{(data.label as string) || "Writer"}</div>
+      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.formatName as string}</div>
     </div>
   );
 }
@@ -85,25 +66,21 @@ function ToolNode({ data, selected }: NodeProps) {
   return (
     <div
       data-testid={`flow-node-${data.nodeId}`}
+      className={cn(
+        "px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]",
+        selected && "ring-2 ring-primary/30",
+      )}
       style={{
-        padding: "10px 16px",
-        borderRadius: 8,
         border: `2px solid ${selected ? "var(--accent, #6366f1)" : colors.border}`,
         background: selected ? "rgba(99, 102, 241, 0.15)" : colors.bg,
-        minWidth: 140,
-        textAlign: "center",
-        fontSize: 13,
         color: colors.text,
-        boxShadow: selected ? "0 0 0 2px rgba(99,102,241,0.3)" : "none",
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <div style={{ fontSize: 10, color: colors.sub, fontWeight: 600, marginBottom: 2 }}>
-        TOOL
-      </div>
-      <div style={{ fontWeight: 600 }}>{(data.label as string) || (data.toolName as string)}</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.sub }}>TOOL</div>
+      <div className="font-semibold">{(data.label as string) || (data.toolName as string)}</div>
       {data.description ? (
-        <div style={{ fontSize: 11, color: colors.sub, marginTop: 2 }}>{String(data.description)}</div>
+        <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{String(data.description)}</div>
       ) : null}
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
@@ -172,37 +149,19 @@ function reactFlowToDef(
 
 function ToolPalette({ tools, onAddTool }: { tools: ToolInfo[]; onAddTool: (tool: ToolInfo) => void }) {
   return (
-    <div
-      data-testid="tool-palette"
-      style={{
-        padding: 12,
-        borderBottom: "1px solid var(--border, #2e3039)",
-        display: "flex",
-        gap: 8,
-        flexWrap: "wrap",
-        alignItems: "center",
-      }}
-    >
-      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-secondary, #a1a1aa)" }}>
-        Add Tool:
-      </span>
+    <div data-testid="tool-palette" className="p-3 border-b border-border flex gap-2 flex-wrap items-center">
+      <span className="text-xs font-semibold text-muted-foreground">Add Tool:</span>
       {tools.map((tool) => (
-        <button
+        <Button
           key={tool.name}
           data-testid={`add-tool-${tool.name}`}
           onClick={() => onAddTool(tool)}
-          style={{
-            padding: "4px 10px",
-            fontSize: 12,
-            border: "1px solid var(--border, #2e3039)",
-            borderRadius: 6,
-            background: "var(--bg-secondary, #1a1d27)",
-            color: "var(--text-primary, #e4e4e7)",
-            cursor: "pointer",
-          }}
+          variant="outline"
+          size="sm"
+          className="text-xs"
         >
           {tool.name}
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -222,62 +181,28 @@ function FlowList({
   onNew: () => void;
 }) {
   return (
-    <div
-      data-testid="flow-list"
-      style={{
-        width: 240,
-        borderRight: "1px solid var(--border, #2e3039)",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid var(--border, #2e3039)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text-primary, #e4e4e7)" }}>Flows</span>
-        <button
-          data-testid="new-flow-btn"
-          onClick={onNew}
-          style={{
-            padding: "4px 10px",
-            fontSize: 12,
-            border: "none",
-            borderRadius: 6,
-            background: "var(--accent, #6366f1)",
-            color: "#fff",
-            cursor: "pointer",
-          }}
-        >
+    <div data-testid="flow-list" className="w-60 border-r border-border flex flex-col overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex justify-between items-center">
+        <span className="font-semibold text-sm text-foreground">Flows</span>
+        <Button data-testid="new-flow-btn" onClick={onNew} size="sm">
           + New
-        </button>
+        </Button>
       </div>
-      <div style={{ flex: 1, overflow: "auto", padding: "4px 0" }}>
+      <div className="flex-1 overflow-auto py-1">
         {definitions.map((def) => (
           <button
             key={def.id}
             data-testid={`flow-item-${def.id}`}
             onClick={() => onSelect(def)}
-            style={{
-              width: "100%",
-              padding: "10px 16px",
-              textAlign: "left",
-              border: "none",
-              borderLeft: activeId === def.id ? "3px solid var(--accent, #6366f1)" : "3px solid transparent",
-              background: activeId === def.id ? "var(--bg-tertiary, #252830)" : "transparent",
-              color: "var(--text-primary, #e4e4e7)",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
+            className={cn(
+              "w-full px-4 py-2.5 text-left border-none cursor-pointer text-[13px] text-foreground",
+              activeId === def.id
+                ? "border-l-[3px] border-l-primary bg-accent"
+                : "border-l-[3px] border-l-transparent bg-transparent hover:bg-accent/50",
+            )}
           >
-            <div style={{ fontWeight: 500 }}>{def.name}</div>
-            <div style={{ fontSize: 11, color: "var(--text-secondary, #a1a1aa)", marginTop: 2 }}>
+            <div className="font-medium">{def.name}</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">
               {def.source} &middot; {def.nodes.filter((n) => n.type === "tool").length} tool(s)
             </div>
           </button>
@@ -352,7 +277,6 @@ export function FlowBuilder() {
     (tool: ToolInfo) => {
       nodeCounter.current++;
       const id = `tool-${nodeCounter.current}-${Date.now()}`;
-      // Place new tool roughly in the middle
       const maxX = nodes.reduce((max, n) => Math.max(max, n.position.x), 0);
       const newNode: Node = {
         id,
@@ -428,113 +352,68 @@ export function FlowBuilder() {
   );
 
   return (
-    <div data-testid="flow-builder" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: 8, border: "1px solid var(--border, #2e3039)", overflow: "hidden" }}>
+    <div data-testid="flow-builder" className="flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden">
       <FlowList
         definitions={definitions}
         activeId={activeDef?.id || null}
         onSelect={handleSelect}
         onNew={handleNew}
       />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+      <div className="flex-1 flex flex-col min-h-0">
         {activeDef ? (
           <>
             {/* Toolbar */}
-            <div
-              data-testid="flow-toolbar"
-              style={{
-                padding: "8px 16px",
-                borderBottom: "1px solid var(--border, #2e3039)",
-                display: "flex",
-                gap: 12,
-                alignItems: "center",
-              }}
-            >
-              <input
+            <div data-testid="flow-toolbar" className="px-4 py-2 border-b border-border flex gap-3 items-center">
+              <Input
                 data-testid="flow-name-input"
                 value={editName}
                 onChange={(e) => { setEditName(e.target.value); setDirty(true); }}
                 disabled={isBuiltIn}
-                style={{
-                  fontWeight: 600,
-                  fontSize: 16,
-                  border: isBuiltIn ? "none" : "1px solid var(--border, #2e3039)",
-                  borderRadius: 4,
-                  padding: "4px 8px",
-                  background: isBuiltIn ? "transparent" : "var(--bg-secondary, #1a1d27)",
-                  color: "var(--text-primary, #e4e4e7)",
-                  flex: 1,
-                  maxWidth: 300,
-                }}
+                className={cn(
+                  "font-semibold text-base flex-1 max-w-[300px]",
+                  isBuiltIn && "border-none bg-transparent",
+                )}
               />
-              <input
+              <Input
                 data-testid="flow-description-input"
                 value={editDescription}
                 onChange={(e) => { setEditDescription(e.target.value); setDirty(true); }}
                 placeholder="Description..."
                 disabled={isBuiltIn}
-                style={{
-                  fontSize: 13,
-                  border: isBuiltIn ? "none" : "1px solid var(--border, #2e3039)",
-                  borderRadius: 4,
-                  padding: "4px 8px",
-                  background: isBuiltIn ? "transparent" : "var(--bg-secondary, #1a1d27)",
-                  flex: 1,
-                  color: "var(--text-secondary, #a1a1aa)",
-                }}
+                className={cn(
+                  "text-sm flex-1",
+                  isBuiltIn && "border-none bg-transparent",
+                )}
               />
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  background: isBuiltIn ? "rgba(96, 165, 250, 0.15)" : "rgba(34, 197, 94, 0.15)",
-                  color: isBuiltIn ? "#60a5fa" : "#4ade80",
-                  fontWeight: 600,
-                }}
-              >
+              <Badge variant={isBuiltIn ? "secondary" : "default"}>
                 {activeDef.source}
-              </span>
+              </Badge>
               {!isBuiltIn && (
                 <>
-                  <button
+                  <Button
                     data-testid="save-flow-btn"
                     onClick={handleSave}
                     disabled={!dirty}
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      border: "none",
-                      borderRadius: 6,
-                      background: dirty ? "var(--accent, #6366f1)" : "#3e4047",
-                      color: dirty ? "#fff" : "#71717a",
-                      cursor: dirty ? "pointer" : "default",
-                    }}
+                    size="sm"
                   >
                     Save
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     data-testid="delete-flow-btn"
                     onClick={handleDelete}
-                    style={{
-                      padding: "6px 14px",
-                      fontSize: 13,
-                      border: "1px solid #ef4444",
-                      borderRadius: 6,
-                      background: "transparent",
-                      color: "#ef4444",
-                      cursor: "pointer",
-                    }}
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
                   >
                     Delete
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
             {/* Tool palette (only for editable flows) */}
             {!isBuiltIn && <ToolPalette tools={tools} onAddTool={handleAddTool} />}
             {/* React Flow canvas */}
-            <div style={{ flex: 1, minHeight: 0 }}>
+            <div className="flex-1 min-h-0">
               <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -548,13 +427,14 @@ export function FlowBuilder() {
                 elementsSelectable={!isBuiltIn}
                 deleteKeyCode={isBuiltIn ? null : "Backspace"}
                 proOptions={{ hideAttribution: true }}
-                style={{ background: "var(--bg-primary, #0f1117)" }}
+                className="bg-background"
               >
                 <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#3e4047" />
                 <Controls />
                 <MiniMap
                   nodeColor={miniMapNodeColor}
-                  style={{ height: 80, background: "var(--bg-secondary, #1a1d27)" }}
+                  className="!bg-card"
+                  style={{ height: 80 }}
                   maskColor="rgba(0, 0, 0, 0.4)"
                 />
               </ReactFlow>
@@ -563,14 +443,7 @@ export function FlowBuilder() {
         ) : (
           <div
             data-testid="flow-empty-state"
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--text-secondary, #a1a1aa)",
-              fontSize: 14,
-            }}
+            className="flex-1 flex items-center justify-center text-muted-foreground text-sm"
           >
             Select a flow from the list or create a new one
           </div>
