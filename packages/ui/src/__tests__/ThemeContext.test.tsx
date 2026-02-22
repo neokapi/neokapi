@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
-import { ThemeProvider, useTheme, type Theme } from "../context/ThemeContext";
+import { ThemeProvider, useTheme, type Theme, getCookieDomain, getThemeCookie, setThemeCookie } from "../context/ThemeContext";
 
 // Helper component that exposes theme state for assertions
 function ThemeDisplay() {
@@ -15,9 +15,15 @@ function ThemeDisplay() {
   );
 }
 
+/** Clear the gokapi-theme cookie (set max-age=0). */
+function clearThemeCookie() {
+  document.cookie = "gokapi-theme=;path=/;max-age=0";
+}
+
 describe("ThemeContext", () => {
   beforeEach(() => {
     localStorage.clear();
+    clearThemeCookie();
     document.documentElement.classList.remove("dark");
   });
 
@@ -139,5 +145,105 @@ describe("ThemeContext", () => {
     expect(() => render(<ThemeDisplay />)).toThrow(
       "useTheme must be used within ThemeProvider",
     );
+  });
+
+  // -- Cookie sync --
+
+  it("reads initial theme from cookie when localStorage is empty", () => {
+    document.cookie = "gokapi-theme=dark;path=/";
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme").textContent).toBe("dark");
+    expect(document.documentElement.classList.contains("dark")).toBe(true);
+  });
+
+  it("prefers cookie over localStorage", () => {
+    document.cookie = "gokapi-theme=light;path=/";
+    localStorage.setItem("gokapi-theme", "dark");
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme").textContent).toBe("light");
+  });
+
+  it("writes theme to cookie when setTheme is called", () => {
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    );
+
+    act(() => screen.getByTestId("set-dark").click());
+    expect(getThemeCookie()).toBe("dark");
+
+    act(() => screen.getByTestId("set-light").click());
+    expect(getThemeCookie()).toBe("light");
+  });
+
+  it("syncs cookie value to localStorage on mount", () => {
+    document.cookie = "gokapi-theme=dark;path=/";
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    );
+    expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+  });
+
+  it("migrates legacy cookie value", () => {
+    document.cookie = "gokapi-theme=glass;path=/";
+    render(
+      <ThemeProvider>
+        <ThemeDisplay />
+      </ThemeProvider>,
+    );
+    expect(screen.getByTestId("theme").textContent).toBe("dark");
+  });
+});
+
+describe("getCookieDomain", () => {
+  const originalHostname = window.location.hostname;
+  afterEach(() => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, hostname: originalHostname },
+      writable: true,
+    });
+  });
+
+  it("returns undefined for localhost", () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, hostname: "localhost" },
+      writable: true,
+    });
+    expect(getCookieDomain()).toBeUndefined();
+  });
+
+  it("returns undefined for IP addresses", () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, hostname: "127.0.0.1" },
+      writable: true,
+    });
+    expect(getCookieDomain()).toBeUndefined();
+  });
+
+  it("returns parent domain for subdomain hostnames", () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, hostname: "auth.bowrain.mymac" },
+      writable: true,
+    });
+    expect(getCookieDomain()).toBe(".bowrain.mymac");
+  });
+
+  it("returns dotted hostname for two-part hostnames", () => {
+    Object.defineProperty(window, "location", {
+      value: { ...window.location, hostname: "bowrain.mymac" },
+      writable: true,
+    });
+    expect(getCookieDomain()).toBe(".bowrain.mymac");
   });
 });

@@ -28,6 +28,7 @@ function renderSidebar(props: Partial<Parameters<typeof MainSidebar>[0]> = {}) {
 describe("MainSidebar", () => {
   beforeEach(() => {
     localStorage.clear();
+    document.cookie = "gokapi-theme=;path=/;max-age=0";
     document.documentElement.classList.remove("dark");
   });
 
