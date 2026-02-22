@@ -11,7 +11,15 @@ http:
     # API requests → bowrain-server on host:8080
     bowrain-api:
       rule: "Host(`bowrain.mymac`) && PathPrefix(`/api`)"
-      service: bowrain-api
+      service: bowrain
+      tls: {}
+      priority: 100
+
+    # gRPC requests → bowrain-server on host:8080 (via h2c)
+    # gRPC paths follow /<package>.<service>/<method> convention.
+    bowrain-grpc:
+      rule: "Host(`bowrain.mymac`) && PathPrefix(`/gokapi.`)"
+      service: bowrain
       tls: {}
       priority: 100
 
@@ -29,10 +37,12 @@ http:
       tls: {}
 
   services:
-    bowrain-api:
+    # h2c:// tells Traefik to use cleartext HTTP/2 for the backend,
+    # which is required for gRPC and works fine for regular HTTP too.
+    bowrain:
       loadBalancer:
         servers:
-          - url: "http://host.docker.internal:8080"
+          - url: "h2c://host.docker.internal:8080"
 
     bowrain-app:
       loadBalancer:
