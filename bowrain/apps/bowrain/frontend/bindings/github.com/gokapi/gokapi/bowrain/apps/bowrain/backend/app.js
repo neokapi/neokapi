@@ -14,13 +14,10 @@ import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Cr
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as store$0 from "../../../store/models.js";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore: Unused imports
 import * as locale$0 from "../../../../core/locale/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import * as store$1 from "../../../../platform/store/models.js";
+import * as store$0 from "../../../../platform/store/models.js";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
 import * as application$0 from "../../../../../../wailsapp/wails/v3/pkg/application/models.js";
@@ -1030,7 +1027,7 @@ const $$createType8 = $models.PluginUpdateInfo.createFrom;
 const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = $models.ConnectorInfo.createFrom;
 const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = store$1.Version.createFrom;
+const $$createType12 = store$0.Version.createFrom;
 const $$createType13 = $Create.Nullable($$createType12);
 const $$createType14 = $models.ContentItemInfo.createFrom;
 const $$createType15 = $Create.Array($$createType14);
@@ -1068,7 +1065,7 @@ const $$createType46 = $Create.Array($$createType45);
 const $$createType47 = $Create.Array($$createType4);
 const $$createType48 = $models.ProviderConfigInfo.createFrom;
 const $$createType49 = $Create.Array($$createType48);
-const $$createType50 = store$1.Project.createFrom;
+const $$createType50 = store$0.Project.createFrom;
 const $$createType51 = $Create.Nullable($$createType50);
 const $$createType52 = $Create.Array($$createType51);
 const $$createType53 = $Create.Array($$createType13);
