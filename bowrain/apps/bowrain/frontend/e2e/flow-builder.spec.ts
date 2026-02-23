@@ -51,14 +51,28 @@ test("should display flow nodes in the canvas", async ({ page }) => {
   await expect(page.getByTestId("flow-node-writer")).toBeVisible();
 });
 
-test("should create a new flow", async ({ page }) => {
+/** Helper: open the New Flow dialog, fill name/description, and click Create. */
+async function createNewFlow(page: any, name = "New Flow", description = "") {
   await page.getByTestId("new-flow-btn").click();
+  // Dialog appears — fill in name
+  const nameInput = page.getByTestId("new-flow-name");
+  await expect(nameInput).toBeVisible();
+  await nameInput.fill(name);
+  if (description) {
+    await page.getByTestId("new-flow-description").fill(description);
+  }
+  // Click Create button in dialog
+  await page.getByRole("button", { name: /create/i }).click();
+}
 
-  // Should show editable toolbar
+test("should create a new flow", async ({ page }) => {
+  await createNewFlow(page, "My Test Flow");
+
+  // Should show editable toolbar with the flow name
   const nameInput = page.getByTestId("flow-name-input");
   await expect(nameInput).toBeVisible();
   await expect(nameInput).not.toBeDisabled();
-  await expect(nameInput).toHaveValue("New Flow");
+  await expect(nameInput).toHaveValue("My Test Flow");
 
   // Save button should be visible
   await expect(page.getByTestId("save-flow-btn")).toBeVisible();
@@ -66,7 +80,7 @@ test("should create a new flow", async ({ page }) => {
 });
 
 test("should show tool palette for editable flows", async ({ page }) => {
-  await page.getByTestId("new-flow-btn").click();
+  await createNewFlow(page);
 
   const palette = page.getByTestId("tool-palette");
   await expect(palette).toBeVisible();
@@ -79,7 +93,7 @@ test("should not show tool palette for built-in flows", async ({ page }) => {
 });
 
 test("should add a tool to a new flow", async ({ page }) => {
-  await page.getByTestId("new-flow-btn").click();
+  await createNewFlow(page);
 
   // Click add tool for ai-translate
   await page.getByTestId("add-tool-ai-translate").click();
@@ -91,18 +105,12 @@ test("should add a tool to a new flow", async ({ page }) => {
 });
 
 test("should save a custom flow", async ({ page }) => {
-  await page.getByTestId("new-flow-btn").click();
-
-  // Edit the name
-  const nameInput = page.getByTestId("flow-name-input");
-  await nameInput.clear();
-  await nameInput.fill("My Custom Flow");
+  await createNewFlow(page, "My Custom Flow");
 
   // Save
   await page.getByTestId("save-flow-btn").click();
 
   // Flow should appear in the list
-  // The new flow should now have a list item (it has a dynamic ID)
   const listItems = page.locator("[data-testid^='flow-item-']");
   // Built-in (2) + new custom (1) = 3
   await expect(listItems).toHaveCount(3);

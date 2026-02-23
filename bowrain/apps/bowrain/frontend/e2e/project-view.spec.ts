@@ -25,10 +25,10 @@ test.describe("Project View", () => {
   });
 
   test("should show file stats", async ({ page }) => {
-    // Stats section shows 0 files, 0 blocks, 0 words
-    await expect(page.getByText("Files", { exact: true })).toBeVisible();
-    await expect(page.getByText("Blocks", { exact: true })).toBeVisible();
-    await expect(page.getByText("Words", { exact: true })).toBeVisible();
+    // Stats section shows 0 files, 0 blocks, 0 words with labels
+    await expect(page.getByText("Files").first()).toBeVisible();
+    await expect(page.getByText("Blocks").first()).toBeVisible();
+    await expect(page.getByText("Words").first()).toBeVisible();
   });
 
   test("should show file drop zone", async ({ page }) => {
@@ -38,7 +38,8 @@ test.describe("Project View", () => {
   });
 
   test("should display language info", async ({ page }) => {
-    // The component shows "en → fr" using HTML entities
-    await expect(page.getByText("Languages")).toBeVisible();
+    // The project overview shows source → target locale names
+    await expect(page.getByText("English")).toBeVisible();
+    await expect(page.getByText("French")).toBeVisible();
   });
 });

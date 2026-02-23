@@ -39,9 +39,18 @@ function UserAvatar({ user, size = 28 }: { user: User; size?: number }) {
   );
 }
 
+const statusLabels: Record<AvatarStatus, string> = {
+  online: "Connected",
+  away: "Offline",
+  busy: "Connecting",
+  offline: "Disconnected",
+};
+
 function StatusDot({ status }: { status: AvatarStatus }) {
   return (
     <span
+      title={statusLabels[status]}
+      data-testid="connection-status"
       className={cn(
         "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background",
         status === "online" && "bg-green-500",
