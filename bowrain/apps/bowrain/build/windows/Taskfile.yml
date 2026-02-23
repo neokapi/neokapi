@@ -14,6 +14,15 @@ vars:
   # Docker image for cross-compilation with CGO (used when CGO_ENABLED=1 on non-Windows)
   CROSS_IMAGE: wails-cross
 
+  # Version info injected at build time (mirrors Makefile LDFLAGS)
+  VERSION_PKG: github.com/gokapi/gokapi/core/version
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  GIT_BUILD_DATE:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+
 tasks:
   build:
     summary: Builds the application for Windows
@@ -47,7 +56,7 @@ tasks:
       - cmd: rm -f *.syso
         platforms: [linux, darwin]
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
     env:
       GOOS: windows
       CGO_ENABLED: '{{.CGO_ENABLED | default "0"}}'

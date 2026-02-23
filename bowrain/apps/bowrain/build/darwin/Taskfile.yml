@@ -12,6 +12,15 @@ vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
 
+  # Version info injected at build time (mirrors Makefile LDFLAGS)
+  VERSION_PKG: github.com/gokapi/gokapi/core/version
+  GIT_VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  GIT_BUILD_DATE:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+
 tasks:
   build:
     summary: Builds the application
@@ -40,7 +49,7 @@ tasks:
     cmds:
       - go build {{.BUILD_FLAGS}} -o {{.OUTPUT}}
     vars:
-      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s"{{end}}'
+      BUILD_FLAGS: '{{if eq .DEV "true"}}-buildvcs=false -gcflags=all="-l"{{else}}-tags production -trimpath -buildvcs=false -ldflags="-w -s -X {{.VERSION_PKG}}.Version={{.GIT_VERSION}} -X {{.VERSION_PKG}}.Commit={{.GIT_COMMIT}} -X {{.VERSION_PKG}}.BuildDate={{.GIT_BUILD_DATE}}"{{end}}'
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
     env:
@@ -143,6 +152,9 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
       - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
+      # Inject git version into the plist so macOS About dialog shows real version
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_COMMIT}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Info.plist"
       - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
 
   codesign:adhoc:
@@ -164,6 +176,9 @@ tasks:
       - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Resources"
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"
       - cp "build/darwin/Info.dev.plist" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      # Inject git version into the plist so macOS About dialog shows real version
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString {{.GIT_VERSION}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
+      - /usr/libexec/PlistBuddy -c "Set :CFBundleVersion {{.GIT_COMMIT}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/Info.plist"
       - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       # Register the .app bundle with Launch Services so macOS recognises the
       # bowrain:// URL scheme handler during development.
