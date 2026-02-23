@@ -180,7 +180,7 @@ function AIProvidersTab() {
                 <Input
                   type="text"
                   value={editing.name}
-                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, name: e.target.value })}
                   className={cn(submitted && missingName && "border-destructive")}
                   data-testid="provider-name"
                   placeholder="My Provider"
@@ -207,7 +207,7 @@ function AIProvidersTab() {
                 <Input
                   type="password"
                   value={editing.api_key}
-                  onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, api_key: e.target.value })}
                   className={cn(submitted && missingApiKey && "border-destructive")}
                   data-testid="provider-api-key"
                   placeholder={editing.id ? "Enter new key or leave blank to keep current" : "Enter API key"}
@@ -218,7 +218,7 @@ function AIProvidersTab() {
                 <Input
                   type="text"
                   value={editing.model}
-                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, model: e.target.value })}
                   data-testid="provider-model"
                   placeholder={defaults.model}
                 />
@@ -228,7 +228,7 @@ function AIProvidersTab() {
                 <Input
                   type="text"
                   value={editing.base_url}
-                  onChange={(e) => setEditing({ ...editing, base_url: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, base_url: e.target.value })}
                   data-testid="provider-base-url"
                   placeholder={defaults.baseUrl}
                 />

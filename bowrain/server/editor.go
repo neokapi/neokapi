@@ -15,7 +15,6 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
-	"github.com/gokapi/gokapi/platform/store"
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/editor"
@@ -24,6 +23,7 @@ import (
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/platform/store"
 )
 
 // ---------------------------------------------------------------------------

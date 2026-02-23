@@ -101,7 +101,7 @@ frontend-dev: ## Start frontend dev server
 	@printf '\033]0;🍦 Bowrain Frontend\007'
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
-frontend-build: ui-deps frontend-deps ## Build frontend for production
+frontend-build: ui-build frontend-deps ## Build frontend for production
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
 build-ui: build-server frontend-build ## Build server + frontend
@@ -111,13 +111,15 @@ build-ui: build-server frontend-build ## Build server + frontend
 ui-deps: ## Install shared UI package dependencies
 	cd packages/ui && $(NPM) install
 
+ui-build: ui-deps ## Build shared UI declarations
+	cd packages/ui && npx tsc
+
 # ── Kapi Web UI (kapi serve) ───────────────────────────────────────────────
 
 kapi-web-deps: ## Install kapi web UI dependencies
 	cd $(KAPI_WEB_DIR) && $(NPM) install
 
-kapi-web-build: ui-deps kapi-web-deps ## Build kapi web UI for production
-	cd packages/ui && npx tsc
+kapi-web-build: ui-build kapi-web-deps ## Build kapi web UI for production
 	cd $(KAPI_WEB_DIR) && $(NPM) run build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
@@ -125,8 +127,7 @@ kapi-web-build: ui-deps kapi-web-deps ## Build kapi web UI for production
 web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
-web-build: ui-deps web-deps ## Build SaaS web UI for production
-	cd packages/ui && npx tsc
+web-build: ui-build web-deps ## Build SaaS web UI for production
 	cd $(WEB_DIR) && $(NPM) run build
 
 # ── Keycloak Theme ─────────────────────────────────────────────────────────

@@ -175,10 +175,10 @@ func TestRequestBaseURL(t *testing.T) {
 			want: "http://localhost:8080",
 		},
 		{
-			name:           "X-Forwarded-Host only",
-			host:           "localhost:8080",
-			forwardedHost:  "bowrain.mymac",
-			want:           "http://bowrain.mymac",
+			name:          "X-Forwarded-Host only",
+			host:          "localhost:8080",
+			forwardedHost: "bowrain.mymac",
+			want:          "http://bowrain.mymac",
 		},
 		{
 			name:           "X-Forwarded-Host and X-Forwarded-Proto",

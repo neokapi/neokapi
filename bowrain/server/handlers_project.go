@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/gokapi/gokapi/core/model"
+	platauth "github.com/gokapi/gokapi/platform/auth"
 	apiclient "github.com/gokapi/gokapi/platform/client"
 	"github.com/gokapi/gokapi/platform/store"
 	"github.com/labstack/echo/v4"

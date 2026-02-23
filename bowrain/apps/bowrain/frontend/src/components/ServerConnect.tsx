@@ -154,8 +154,8 @@ export function ServerConnect({
                   <Input
                     placeholder={defaultURL}
                     value={serverURL}
-                    onChange={(e) => setServerURL(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setServerURL(e.target.value)}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleConnect()}
                     disabled={loading}
                   />
                 </div>

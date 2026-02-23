@@ -247,9 +247,6 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---
-  async addFilesDialog(projectId: string): Promise<ProjectInfo | null> {
-    return Backend.AddItemsDialog(projectId) as Promise<ProjectInfo | null>;
-  }
   async openFileInOS(path: string): Promise<void> {
     return Backend.OpenFileInOS(path);
   }

@@ -46,8 +46,8 @@ func NewFileConnector(formatReg *registry.FormatRegistry, config map[string]stri
 	}, nil
 }
 
-func (c *FileConnector) ID() string         { return c.id }
-func (c *FileConnector) Name() string       { return c.name }
+func (c *FileConnector) ID() string                  { return c.id }
+func (c *FileConnector) Name() string                { return c.name }
 func (c *FileConnector) Category() platconn.Category { return platconn.CategoryFile }
 
 func (c *FileConnector) Configure(config map[string]string) error {

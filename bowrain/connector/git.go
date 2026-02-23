@@ -63,8 +63,8 @@ func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]strin
 	}, nil
 }
 
-func (c *GitConnector) ID() string         { return c.id }
-func (c *GitConnector) Name() string       { return c.name }
+func (c *GitConnector) ID() string                  { return c.id }
+func (c *GitConnector) Name() string                { return c.name }
 func (c *GitConnector) Category() platconn.Category { return platconn.CategoryCode }
 
 func (c *GitConnector) Configure(config map[string]string) error {

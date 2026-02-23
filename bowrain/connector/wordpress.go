@@ -63,8 +63,8 @@ func NewWordPressConnector(config map[string]string) (*WordPressConnector, error
 	}, nil
 }
 
-func (c *WordPressConnector) ID() string         { return c.id }
-func (c *WordPressConnector) Name() string       { return c.connName }
+func (c *WordPressConnector) ID() string                  { return c.id }
+func (c *WordPressConnector) Name() string                { return c.connName }
 func (c *WordPressConnector) Category() platconn.Category { return platconn.CategoryCMS }
 
 func (c *WordPressConnector) Configure(config map[string]string) error {

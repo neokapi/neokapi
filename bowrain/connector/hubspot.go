@@ -58,8 +58,8 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 	}, nil
 }
 
-func (c *HubSpotConnector) ID() string         { return c.id }
-func (c *HubSpotConnector) Name() string       { return c.connName }
+func (c *HubSpotConnector) ID() string                  { return c.id }
+func (c *HubSpotConnector) Name() string                { return c.connName }
 func (c *HubSpotConnector) Category() platconn.Category { return platconn.CategoryMarketing }
 
 func (c *HubSpotConnector) Configure(config map[string]string) error {

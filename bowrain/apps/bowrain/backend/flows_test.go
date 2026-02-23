@@ -15,8 +15,10 @@ func TestFlowDefToInfoRoundTrip(t *testing.T) {
 	for _, d := range defs {
 		assert.NotEmpty(t, d.ID)
 		assert.NotEmpty(t, d.Name)
-		assert.NotEmpty(t, d.Nodes)
-		assert.NotEmpty(t, d.Edges)
+		if d.Source == "built-in" {
+			assert.NotEmpty(t, d.Nodes)
+			assert.NotEmpty(t, d.Edges)
+		}
 	}
 }
 

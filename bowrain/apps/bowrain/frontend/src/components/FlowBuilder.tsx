@@ -394,7 +394,7 @@ export function FlowBuilder() {
               <Label className="text-muted-foreground">Name</Label>
               <Input
                 value={newFlowName}
-                onChange={(e) => setNewFlowName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFlowName(e.target.value)}
                 placeholder="My Flow"
                 data-testid="new-flow-name"
                 autoFocus
@@ -404,7 +404,7 @@ export function FlowBuilder() {
               <Label className="text-muted-foreground">Description (optional)</Label>
               <Input
                 value={newFlowDescription}
-                onChange={(e) => setNewFlowDescription(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFlowDescription(e.target.value)}
                 placeholder="What this flow does..."
                 data-testid="new-flow-description"
               />
@@ -428,7 +428,7 @@ export function FlowBuilder() {
               <Input
                 data-testid="flow-name-input"
                 value={editName}
-                onChange={(e) => { setEditName(e.target.value); setDirty(true); }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setEditName(e.target.value); setDirty(true); }}
                 disabled={isBuiltIn}
                 className={cn(
                   "font-semibold text-base flex-1 max-w-[300px]",
@@ -438,7 +438,7 @@ export function FlowBuilder() {
               <Input
                 data-testid="flow-description-input"
                 value={editDescription}
-                onChange={(e) => { setEditDescription(e.target.value); setDirty(true); }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setEditDescription(e.target.value); setDirty(true); }}
                 placeholder="Description..."
                 disabled={isBuiltIn}
                 className={cn(

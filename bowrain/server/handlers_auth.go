@@ -1130,11 +1130,11 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 	}
 
 	keySet := provider.Verifier(&oidc.Config{
-		ClientID:                    s.Config.OIDCClientID,
-		SkipExpiryCheck:             false,
-		SkipIssuerCheck:             false,
-		InsecureSkipSignatureCheck:  false,
-		Now:                         time.Now,
+		ClientID:                   s.Config.OIDCClientID,
+		SkipExpiryCheck:            false,
+		SkipIssuerCheck:            false,
+		InsecureSkipSignatureCheck: false,
+		Now:                        time.Now,
 	})
 
 	// Verify signature and standard claims (iss, aud, exp).

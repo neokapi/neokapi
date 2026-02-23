@@ -70,8 +70,8 @@ func NewFigmaConnector(config map[string]string) (*FigmaConnector, error) {
 	}, nil
 }
 
-func (c *FigmaConnector) ID() string         { return c.id }
-func (c *FigmaConnector) Name() string       { return c.connName }
+func (c *FigmaConnector) ID() string                  { return c.id }
+func (c *FigmaConnector) Name() string                { return c.connName }
 func (c *FigmaConnector) Category() platconn.Category { return platconn.CategoryDesign }
 
 func (c *FigmaConnector) Configure(config map[string]string) error {

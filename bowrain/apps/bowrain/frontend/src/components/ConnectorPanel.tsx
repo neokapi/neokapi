@@ -157,7 +157,7 @@ export function ConnectorPanel() {
               <Input
                 type="text"
                 value={configPath}
-                onChange={(e) => setConfigPath(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfigPath(e.target.value)}
                 placeholder="/path/to/content"
               />
             </div>
@@ -166,7 +166,7 @@ export function ConnectorPanel() {
               <Input
                 type="text"
                 value={configFormat}
-                onChange={(e) => setConfigFormat(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfigFormat(e.target.value)}
                 placeholder="json, html..."
               />
             </div>

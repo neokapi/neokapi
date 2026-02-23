@@ -257,20 +257,12 @@ export function useProjectApi() {
     [],
   );
 
-  const addFilesDialog = useCallback(
-    async (projectID: string): Promise<ProjectInfo | null> => {
-      return Backend.AddItemsDialog(projectID) as Promise<ProjectInfo | null>;
-    },
-    [],
-  );
-
   return {
     createProject,
     listProjects,
     closeProject,
     addFiles,
     removeFile,
-    addFilesDialog,
   };
 }
 
