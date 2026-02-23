@@ -66,6 +66,7 @@ website/static/img/bowrain/
 website/static/img/web-app/
 website/static/video/
 bowrain/apps/bowrain/frontend/recordings-output/
+bowrain/website/
 website/tapes/output/
 website/tapes/out/
 website/tapes/.server-token

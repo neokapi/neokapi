@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../website/static/img/bowrain");
+const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../../website/static/img/bowrain");
 
 /** Helper: apply theme to the page. */
 async function setTheme(page: any, theme: "dark" | "light") {
