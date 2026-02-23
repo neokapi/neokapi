@@ -43,25 +43,6 @@ export function WorkspaceSwitcher({
 }: WorkspaceSwitcherProps) {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const hasMultiple = workspaces.length > 1 || !!onCreateWorkspace;
-
-  // Static label when single workspace and no create action
-  if (!hasMultiple) {
-    return (
-      <div
-        className={collapsed ? "flex justify-center py-3" : "flex items-center gap-2 px-3 py-2.5 text-sidebar-foreground"}
-      >
-        {activeWorkspace && (
-          <WorkspaceIcon workspace={activeWorkspace} active={false} onClick={() => {}} size={collapsed ? 32 : 28} />
-        )}
-        {!collapsed && (
-          <span className="text-sm font-semibold truncate">
-            {activeWorkspace?.name || "No workspace"}
-          </span>
-        )}
-      </div>
-    );
-  }
 
   // Find a second workspace to show behind the active one
   const otherWs = workspaces.find((ws) => ws.id !== activeWorkspace?.id) ?? null;

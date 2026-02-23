@@ -112,9 +112,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
   // Register breadcrumb in the top bar area
   const breadcrumbNode = useMemo(() => (
-    <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-project">
-      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> {project.name}
-    </Button>
+    <button onClick={onBack} data-testid="back-to-project" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0">
+      <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
+    </button>
   ), [onBack, project.name]);
   useSetBreadcrumb(breadcrumbNode);
 

@@ -40,9 +40,9 @@ export function ProjectView({
 
   // Register breadcrumb in the top bar area
   const breadcrumbNode = useMemo(() => (
-    <Button variant="outline" size="sm" onClick={onBack} data-testid="back-to-projects">
-      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Projects
-    </Button>
+    <button onClick={onBack} data-testid="back-to-projects" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0">
+      <ArrowLeft className="w-3.5 h-3.5" /> Projects
+    </button>
   ), [onBack]);
   useSetBreadcrumb(breadcrumbNode);
 

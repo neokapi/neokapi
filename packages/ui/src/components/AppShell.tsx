@@ -16,6 +16,8 @@ export interface AppShellProps<V extends string = string>
   children: ReactNode;
   /** Extra className on the content area. */
   contentClassName?: string;
+  /** Show a full-width top bar above the sidebar+content row (desktop / macOS). */
+  topBar?: boolean;
 }
 
 function HeaderBar({ headerSlot }: { headerSlot?: ReactNode }) {
@@ -37,9 +39,9 @@ export function AppShell<V extends string = string>({
   headerSlot,
   children,
   contentClassName,
+  topBar: hasTopBar = false,
   ...sidebarProps
 }: AppShellProps<V>) {
-  const hasTopBar = (sidebarProps.topSpacer ?? 0) > 0;
 
   return (
     <>
@@ -65,7 +67,7 @@ export function AppShell<V extends string = string>({
               >
                 <div
                   className="shrink-0 transition-[width] duration-300 ease-in-out"
-                  style={{ width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)" }}
+                  style={{ width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)", minWidth: 78 }}
                 />
                 <div className="flex-1 min-w-0">
                   <HeaderBar headerSlot={headerSlot} />
@@ -76,7 +78,6 @@ export function AppShell<V extends string = string>({
               <AppSidebar
                 collapsed={collapsed}
                 onCollapsedChange={onCollapsedChange}
-                topSpacer={hasTopBar ? 0 : sidebarProps.topSpacer}
                 {...sidebarProps}
               />
               <SidebarGlass.Inset className="bg-transparent min-h-0">

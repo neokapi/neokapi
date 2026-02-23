@@ -7,6 +7,7 @@ import {
   WorkspaceProvider,
   ThemeProvider,
   AppShell,
+  CreateWorkspaceDialog,
   ProjectDashboard,
   ProjectView,
   TranslationEditor,
@@ -63,6 +64,7 @@ function App() {
   const [showTMExplorer, setShowTMExplorer] = useState(false);
   const [showTermExplorer, setShowTermExplorer] = useState(false);
   const [pendingChanges, setPendingChanges] = useState(0);
+  const [showCreateWs, setShowCreateWs] = useState(false);
 
   // Listen for connection state changes from the backend (e.g. going offline).
   useEffect(() => {
@@ -174,6 +176,22 @@ function App() {
   }, [connection]);
 
   const handleSelectWorkspace = useCallback(async (ws: Workspace) => {
+    if (isServerMode) {
+      await connection.selectWorkspace(ws.slug);
+    }
+    setWorkspace(ws);
+    setActiveProject(null);
+    setActiveFile(null);
+    setShowTMExplorer(false);
+    setShowTermExplorer(false);
+    Backend.ListProjects()
+      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
+      .catch(() => setProjects([]));
+  }, [connection, isServerMode]);
+
+  const handleWorkspaceCreated = useCallback(async (ws: Workspace) => {
+    setShowCreateWs(false);
+    setAllWorkspaces((prev) => [...prev, ws]);
     if (isServerMode) {
       await connection.selectWorkspace(ws.slug);
     }
@@ -439,6 +457,7 @@ function App() {
             workspaces={allWorkspaces}
             activeWorkspace={workspace}
             onSelectWorkspace={handleSelectWorkspace}
+            onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
             activeView={activeView}
             onViewChange={handleViewChange}
             extraNavItems={desktopNavItems}
@@ -446,7 +465,7 @@ function App() {
             onSignOut={isServerMode ? handleSignOut : undefined}
             collapsed={sidebarCollapsed}
             onCollapsedChange={setSidebarCollapsed}
-            topSpacer={38}
+            topBar
             connectionState={connectionState}
             pendingChanges={pendingChanges}
             showThemeToggle={false}
@@ -464,6 +483,12 @@ function App() {
           >
             {renderView()}
           </AppShell>
+
+          <CreateWorkspaceDialog
+            open={showCreateWs}
+            onOpenChange={setShowCreateWs}
+            onCreate={handleWorkspaceCreated}
+          />
         </WorkspaceProvider>
       </ApiProvider>
     </ThemeProvider>

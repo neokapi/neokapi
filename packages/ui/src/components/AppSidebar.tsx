@@ -26,7 +26,6 @@ export interface AppSidebarProps<V extends string = string> {
   onSignOut?: () => void;
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-  topSpacer?: number;
   collapsedWidth?: number;
   connectionState?: ConnectionState;
   pendingChanges?: number;
@@ -51,7 +50,6 @@ export function AppSidebar<V extends string = string>({
   extraNavItems = [],
   collapsed,
   onCollapsedChange,
-  topSpacer = 0,
 }: AppSidebarProps<V>) {
   const [hovered, setHovered] = useState(false);
   const { state } = useSidebar();
@@ -81,9 +79,6 @@ export function AppSidebar<V extends string = string>({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Top spacer (e.g. macOS traffic lights) */}
-      {topSpacer > 0 && <div style={{ height: topSpacer }} className="shrink-0" />}
-
       {/* Workspace switcher */}
       <div className="shrink-0 px-3 py-2.5">
         <WorkspaceSwitcher

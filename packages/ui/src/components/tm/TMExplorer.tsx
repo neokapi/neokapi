@@ -25,9 +25,9 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const { getDisplayName } = useLocales();
 
   const breadcrumbNode = useMemo(() => (
-    <Button variant="outline" size="sm" onClick={onBack} data-testid="tm-back-btn">
-      <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back
-    </Button>
+    <button onClick={onBack} data-testid="tm-back-btn" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0">
+      <ArrowLeft className="w-3.5 h-3.5" /> Back
+    </button>
   ), [onBack]);
   useSetBreadcrumb(breadcrumbNode);
   const { getTMEntries, addTMEntry, updateTMEntry, deleteTMEntry } = useTMApi();
