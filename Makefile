@@ -98,6 +98,7 @@ frontend-deps: ## Install frontend dependencies
 	cd $(FRONTEND_DIR) && $(NPM) install
 
 frontend-dev: ## Start frontend dev server
+	@printf '\033]0;🍦 Bowrain Frontend\007'
 	cd $(FRONTEND_DIR) && $(NPM) run dev
 
 frontend-build: ui-deps frontend-deps ## Build frontend for production
@@ -145,12 +146,14 @@ docker-push: ## Push Docker image to GHCR
 	docker push $(DOCKER_IMAGE):latest
 
 dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
+	@printf '\033]0;🍦 Dev Dependencies\007'
 	docker compose up -d --wait
 
 dev-deps-down: ## Stop dev dependencies
 	docker compose down -v
 
 bowrain-dev: ## Launch Bowrain desktop app in dev mode (hot reload)
+	@printf '\033]0;🍦 Bowrain Desktop\007'
 	cd bowrain/apps/bowrain && wails3 dev
 
 certs: ## Generate mkcert TLS certificates for *.bowrain.mymac
@@ -159,6 +162,7 @@ certs: ## Generate mkcert TLS certificates for *.bowrain.mymac
 		"*.bowrain.mymac" "bowrain.mymac"
 
 dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
+	@printf '\033]0;🍦 Bowrain Server\007'
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-server ./cmd/bowrain-server
 	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
@@ -171,6 +175,7 @@ dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
 	bin/bowrain-server
 
 dev-web: ## Run web UI dev server with HMR (proxy → localhost:8080)
+	@printf '\033]0;🍦 Web UI\007'
 	cd bowrain/apps/web && $(NPM) run dev
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
@@ -342,6 +347,7 @@ docs-deps: ## Install docs site dependencies
 	cd $(WEBSITE_DIR) && $(NPM) ci
 
 docs-dev: ## Start docs dev server
+	@printf '\033]0;🍦 Docs\007'
 	cd $(WEBSITE_DIR) && $(NPM) start
 
 docs-build: ## Build docs for production
