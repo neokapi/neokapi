@@ -43,7 +43,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <ApiProvider adapter={createMockAdapter()}>{children}</ApiProvider>;
 }
 
-/* ── LocaleSelect ── */
+/* ── LocaleSelect (backed by ComboBoxGlass) ── */
 
 describe("LocaleSelect", () => {
   it("renders the trigger with display value", async () => {
@@ -55,7 +55,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("src-trigger")).toHaveTextContent("English (en)");
+      expect(screen.getByRole("combobox")).toHaveTextContent("English (en)");
     });
   });
 
@@ -69,11 +69,11 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("src-trigger")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveTextContent("English");
     });
 
-    await user.click(screen.getByTestId("src-trigger"));
-    expect(screen.getByTestId("src-option-fr")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox"));
+    expect(screen.getByRole("option", { name: /French \(fr\)/ })).toBeInTheDocument();
   });
 
   it("selects a locale and closes dropdown", async () => {
@@ -86,15 +86,15 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("src-trigger")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveTextContent("English");
     });
 
-    await user.click(screen.getByTestId("src-trigger"));
-    await user.click(screen.getByTestId("src-option-fr"));
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: /French \(fr\)/ }));
 
     expect(onChange).toHaveBeenCalledWith("fr");
     // Dropdown should be closed
-    expect(screen.queryByTestId("src-option-fr")).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /French/ })).not.toBeInTheDocument();
   });
 
   it("filters locales by search", async () => {
@@ -107,14 +107,14 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("src-trigger")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveTextContent("English");
     });
 
-    await user.click(screen.getByTestId("src-trigger"));
-    await user.type(screen.getByTestId("src-search"), "Ger");
+    await user.click(screen.getByRole("combobox"));
+    await user.type(screen.getByPlaceholderText("Search locales..."), "Ger");
 
-    expect(screen.getByTestId("src-option-de")).toBeInTheDocument();
-    expect(screen.queryByTestId("src-option-fr")).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /German \(de\)/ })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /French/ })).not.toBeInTheDocument();
   });
 
   it("works correctly inside a <label> element", async () => {
@@ -130,11 +130,11 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("src-trigger")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveTextContent("English");
     });
 
-    await user.click(screen.getByTestId("src-trigger"));
-    await user.click(screen.getByTestId("src-option-de"));
+    await user.click(screen.getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: /German \(de\)/ }));
 
     expect(onChange).toHaveBeenCalledWith("de");
     expect(onChange).toHaveBeenCalledTimes(1);
