@@ -1,8 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { Header } from "./components/Header";
+import { TopBar } from "@gokapi/ui";
 import { ServerConnect } from "./components/ServerConnect";
-import { WorkspaceSelector } from "./components/WorkspaceSelector";
-import type { WorkspaceOption } from "./components/WorkspaceSelector";
 import { SettingsPage } from "./components/SettingsPage";
 import {
   ApiProvider,
@@ -31,7 +29,11 @@ import { Events } from "@wailsio/runtime";
 import * as Backend from "../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
 
 type AppView = View | "flows" | "connectors";
-type AppMode = "loading" | "connecting" | "workspace-select" | "ready";
+type AppMode = "loading" | "connecting" | "ready";
+
+function toWorkspace(ws: { id: string; slug: string; name: string; description: string; role: string }): Workspace {
+  return { ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" };
+}
 
 const desktopNavItems: NavItem[] = [
   { id: "flows", label: "Flows", icon: <Shuffle className="w-4 h-4" /> },
@@ -47,6 +49,7 @@ function App() {
   // Connection flow state
   const [mode, setMode] = useState<AppMode>("loading");
   const [workspace, setWorkspace] = useState<Workspace>(localWorkspace);
+  const [allWorkspaces, setAllWorkspaces] = useState<Workspace[]>([localWorkspace]);
   const [isServerMode, setIsServerMode] = useState(false);
 
   // App state
@@ -105,27 +108,28 @@ function App() {
   // --- Connection flow ---
 
   useEffect(() => {
-    connection.refresh().then((ci) => {
-      if (ci.state === "connected" && ci.workspace) {
-        connection.getServerWorkspaces().then((wsList) => {
-          const ws = wsList.find((w) => w.slug === ci.workspace);
-          if (ws) {
-            setWorkspace({ ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" });
-          } else {
-            setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", type: "team" as const, role: "owner" });
-          }
-          setIsServerMode(true);
-          setMode("ready");
-        }).catch(() => {
-          setIsServerMode(true);
-          setWorkspace({ id: ci.workspace!, name: ci.workspace!, slug: ci.workspace!, description: "", logo_url: "", type: "team" as const, role: "owner" });
-          setMode("ready");
-        });
-      } else if (ci.state === "connected") {
+    connection.refresh().then(async (ci) => {
+      if (ci.state === "connected") {
         setIsServerMode(true);
-        setMode("workspace-select");
+        try {
+          const wsList = await connection.getServerWorkspaces();
+          const mapped = wsList.map(toWorkspace);
+          setAllWorkspaces(mapped);
+          if (ci.workspace) {
+            const ws = mapped.find((w) => w.slug === ci.workspace);
+            setWorkspace(ws ?? toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
+          } else if (mapped.length > 0) {
+            await connection.selectWorkspace(mapped[0].slug);
+            setWorkspace(mapped[0]);
+          }
+        } catch {
+          if (ci.workspace) {
+            setWorkspace(toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
+          }
+        }
+        setMode("ready");
       } else if (ci.state === "offline" && ci.workspace) {
-        setWorkspace({ id: ci.workspace, name: ci.workspace, slug: ci.workspace, description: "", logo_url: "", type: "team" as const, role: "owner" });
+        setWorkspace(toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
         setIsServerMode(true);
         setMode("ready");
         Backend.GetPendingChangesCount?.()
@@ -155,22 +159,39 @@ function App() {
     const ci = await connection.connect(serverURL);
     if (ci.state === "connected") {
       setIsServerMode(true);
-      setMode("workspace-select");
+      try {
+        const wsList = await connection.getServerWorkspaces();
+        const mapped = wsList.map(toWorkspace);
+        setAllWorkspaces(mapped);
+        if (mapped.length > 0) {
+          await connection.selectWorkspace(mapped[0].slug);
+          setWorkspace(mapped[0]);
+        }
+      } catch { /* ignore */ }
+      setMode("ready");
     }
     return ci;
   }, [connection]);
 
-  const handleSelectWorkspace = useCallback(async (ws: WorkspaceOption) => {
-    await connection.selectWorkspace(ws.slug);
-    setWorkspace({ ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" });
-    setIsServerMode(true);
-    setMode("ready");
-  }, [connection]);
+  const handleSelectWorkspace = useCallback(async (ws: Workspace) => {
+    if (isServerMode) {
+      await connection.selectWorkspace(ws.slug);
+    }
+    setWorkspace(ws);
+    setActiveProject(null);
+    setActiveFile(null);
+    setShowTMExplorer(false);
+    setShowTermExplorer(false);
+    Backend.ListProjects()
+      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
+      .catch(() => setProjects([]));
+  }, [connection, isServerMode]);
 
   const handleSignOut = useCallback(async () => {
     await connection.logout();
     setIsServerMode(false);
     setWorkspace(localWorkspace);
+    setAllWorkspaces([localWorkspace]);
     setActiveProject(null);
     setActiveFile(null);
     setProjects([]);
@@ -335,32 +356,6 @@ function App() {
     );
   }
 
-  if (mode === "workspace-select") {
-    return (
-      <ThemeProvider>
-        <div className="h-screen bg-background flex flex-col">
-          <div
-            className="h-10 shrink-0"
-            style={{
-              // @ts-expect-error non-standard CSS property for Wails
-              "--wails-draggable": "drag",
-            }}
-          />
-          <WorkspaceSelector
-            userName={connection.info.user_name}
-            onSelect={handleSelectWorkspace}
-            onBack={() => {
-              connection.disconnect();
-              setIsServerMode(false);
-              setMode("connecting");
-            }}
-            getWorkspaces={connection.getServerWorkspaces}
-          />
-        </div>
-      </ThemeProvider>
-    );
-  }
-
   // --- Main app (mode === "ready") ---
 
   const renderView = () => {
@@ -441,9 +436,9 @@ function App() {
       <ApiProvider adapter={wailsAdapter}>
         <WorkspaceProvider initialWorkspace={workspace}>
           <AppShell
-            workspaces={[workspace]}
+            workspaces={allWorkspaces}
             activeWorkspace={workspace}
-            onSelectWorkspace={() => {}}
+            onSelectWorkspace={handleSelectWorkspace}
             activeView={activeView}
             onViewChange={handleViewChange}
             extraNavItems={desktopNavItems}
@@ -456,9 +451,10 @@ function App() {
             pendingChanges={pendingChanges}
             showThemeToggle={false}
             headerSlot={
-              <Header
-                sidebarCollapsed={sidebarCollapsed}
-                connectionState={isServerMode ? connection.info.state : "disconnected"}
+              <TopBar
+                user={sidebarUser}
+                onSignOut={isServerMode ? handleSignOut : undefined}
+                connectionState={isServerMode ? connection.info.state as "disconnected" | "connecting" | "connected" | "offline" : undefined}
                 pendingChanges={pendingChanges}
               />
             }

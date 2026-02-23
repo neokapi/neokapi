@@ -39,6 +39,8 @@ export function AppShell<V extends string = string>({
   contentClassName,
   ...sidebarProps
 }: AppShellProps<V>) {
+  const hasTopBar = (sidebarProps.topSpacer ?? 0) > 0;
+
   return (
     <>
       <AnimatedBackgroundGlass />
@@ -50,19 +52,40 @@ export function AppShell<V extends string = string>({
       >
         <BreadcrumbProvider>
           <div
-            className="relative z-10 flex h-screen overflow-hidden"
+            className="relative z-10 flex flex-col h-screen overflow-hidden"
             style={{
               "--sidebar-width": "220px",
               "--sidebar-width-icon": "60px",
             } as React.CSSProperties}
           >
-            <AppSidebar collapsed={collapsed} onCollapsedChange={onCollapsedChange} {...sidebarProps} />
-            <SidebarGlass.Inset className="bg-transparent min-h-0">
-              <HeaderBar headerSlot={headerSlot} />
-              <div className={cn("flex-1 p-6 flex flex-col min-h-0", contentClassName)}>
-                {children}
+            {hasTopBar && (
+              <div
+                className="shrink-0 flex items-center h-12 border-b border-border glass-surface bg-card/80"
+                style={{ "--wails-draggable": "drag" } as React.CSSProperties}
+              >
+                <div
+                  className="shrink-0 transition-[width] duration-300 ease-in-out"
+                  style={{ width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)" }}
+                />
+                <div className="flex-1 min-w-0">
+                  <HeaderBar headerSlot={headerSlot} />
+                </div>
               </div>
-            </SidebarGlass.Inset>
+            )}
+            <div className="flex flex-1 min-h-0 overflow-hidden">
+              <AppSidebar
+                collapsed={collapsed}
+                onCollapsedChange={onCollapsedChange}
+                topSpacer={hasTopBar ? 0 : sidebarProps.topSpacer}
+                {...sidebarProps}
+              />
+              <SidebarGlass.Inset className="bg-transparent min-h-0">
+                {!hasTopBar && <HeaderBar headerSlot={headerSlot} />}
+                <div className={cn("flex-1 p-6 flex flex-col min-h-0", contentClassName)}>
+                  {children}
+                </div>
+              </SidebarGlass.Inset>
+            </div>
           </div>
         </BreadcrumbProvider>
       </SidebarGlass.Provider>

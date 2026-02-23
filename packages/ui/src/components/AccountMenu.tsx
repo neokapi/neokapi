@@ -1,4 +1,5 @@
 import type { User } from "../types/api";
+import { cn } from "../lib/utils";
 import { LogOut, Settings } from "./icons";
 import {
   DropdownMenu,
@@ -9,12 +10,16 @@ import {
   DropdownMenuLabel,
 } from "./ui/dropdown-menu";
 
+type AvatarStatus = "online" | "offline" | "away" | "busy";
+
 interface AccountMenuProps {
   user: User;
   onSignOut: () => void;
   variant?: "default" | "sidebar" | "icon";
   onSettings?: () => void;
   collapsed?: boolean;
+  /** Status indicator dot on the avatar (icon variant only). */
+  status?: AvatarStatus;
 }
 
 function UserAvatar({ user, size = 28 }: { user: User; size?: number }) {
@@ -34,7 +39,21 @@ function UserAvatar({ user, size = 28 }: { user: User; size?: number }) {
   );
 }
 
-export function AccountMenu({ user, onSignOut, variant = "default", onSettings, collapsed = false }: AccountMenuProps) {
+function StatusDot({ status }: { status: AvatarStatus }) {
+  return (
+    <span
+      className={cn(
+        "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background",
+        status === "online" && "bg-green-500",
+        status === "away" && "bg-amber-500",
+        status === "busy" && "bg-red-500",
+        status === "offline" && "bg-muted-foreground/40",
+      )}
+    />
+  );
+}
+
+export function AccountMenu({ user, onSignOut, variant = "default", onSettings, collapsed = false, status }: AccountMenuProps) {
   if (variant === "sidebar") {
     return (
       <DropdownMenu>
@@ -80,7 +99,10 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
         <DropdownMenuTrigger
           className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-opacity outline-none opacity-60 hover:opacity-100"
         >
-          <UserAvatar user={user} size={24} />
+          <span className="relative inline-flex">
+            <UserAvatar user={user} size={24} />
+            {status && <StatusDot status={status} />}
+          </span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
