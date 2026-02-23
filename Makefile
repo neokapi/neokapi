@@ -294,6 +294,9 @@ endif
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
+setup-remote: ## Install dependencies for Claude Code cloud environments
+	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
+
 tools: ## Install development tools
 	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 	$(GO) install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
