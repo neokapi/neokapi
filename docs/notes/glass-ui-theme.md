@@ -1,10 +1,10 @@
 ---
 sidebar_position: 9
-title: "Glass UI Theme System"
+title: "Theme System"
 ---
-# Glass UI Theme System
+# Theme System
 
-This note documents the glassmorphism-based theme system used across all four frontend projects. The design system builds on `shadcn-glass-ui` and Tailwind CSS v4, with an OKLCH-based token hierarchy and three named themes.
+This note documents the theme system used across all four frontend projects. The design system builds on `shadcn-glass-ui` and Tailwind CSS v4, with an OKLCH-based token hierarchy and two active themes: **Aurora** (dark) and **Light**.
 
 ## shadcn-glass-ui Integration
 
@@ -40,7 +40,7 @@ The global stylesheet imports shadcn-glass-ui styles first, then Tailwind:
 @import "tailwindcss";
 ```
 
-## OKLCH Glassmorphism Token System
+## OKLCH Token System
 
 The design system uses a three-tier token architecture, all defined in CSS custom properties:
 
@@ -50,22 +50,23 @@ Low-level color values using the OKLCH color space for perceptual uniformity. Th
 
 ```css
 --oklch-white-8: oklch(100% 0 0 / 0.08);
---oklch-purple-500: oklch(66.6% .159 303);
+--oklch-copper-500: oklch(62% .16 48);
+--oklch-slate-800: oklch(27.9% .041 260);
 --oklch-slate-900: oklch(20.8% .042 265);
 ```
 
-The full set covers white opacity variants (3% through 90%), black variants, and color ramps for purple, violet, slate, rose, emerald, blue, and amber.
+The full set covers white opacity variants (3% through 90%), black variants, and color ramps for copper, bronze, slate, rose, emerald, blue, and amber.
 
 ### 2. Semantic Tokens
 
-Mid-level tokens that map primitives to UI roles. These are theme-aware and provide the vocabulary for component tokens:
+Mid-level tokens that map primitives to UI roles. These are theme-aware and provide the vocabulary for component tokens. Aurora uses slate-tinted surfaces and borders rather than white-opacity overlays:
 
 ```css
---semantic-primary: var(--oklch-purple-500);
---semantic-surface: var(--oklch-white-8);
---semantic-border: var(--oklch-white-15);
+--semantic-primary: var(--oklch-copper-500);
+--semantic-surface: var(--oklch-slate-800-40);
+--semantic-border: var(--oklch-slate-700-40);
 --semantic-text: var(--oklch-white-90);
---semantic-glass-bg: var(--oklch-white-5);
+--semantic-glass-bg: var(--oklch-slate-800-40);
 ```
 
 Semantic tokens cover surfaces (`surface`, `surface-muted`, `surface-elevated`, `surface-overlay`), borders (`border`, `border-muted`, `border-strong`), text (`text`, `text-muted`, `text-subtle`, `text-disabled`), and status colors (success, warning, error, info), each with base, muted, subtle, and text variants.
@@ -95,60 +96,46 @@ Blur, glow, and animation tokens provide the glassmorphism visual layer:
 ```css
 --blur: 16px;
 --blur-glass: calc(var(--blur) * 1.5);
---glow-primary: 0 0 30px var(--oklch-purple-500-60);
---glow-neutral: 0 4px 15px var(--oklch-black-20);
+--glow-primary: 0 0 25px var(--oklch-copper-500-40);
+--glow-neutral: 0 4px 12px var(--oklch-black-15);
 
-/* Background gradient orbs */
---bg-from: var(--oklch-slate-900);
---bg-via: var(--oklch-purple-700);
---bg-to: var(--oklch-slate-900);
---orb-1: var(--oklch-purple-500-30);
---orb-2: var(--oklch-blue-500-20);
+/* Background gradient orbs (aurora: subtle slate-to-slate gradient) */
+--bg-from: var(--oklch-slate-950);
+--bg-via: var(--oklch-slate-900);
+--bg-to: var(--oklch-slate-950);
+--orb-1: var(--oklch-blue-500-20);
+--orb-2: var(--oklch-copper-600-20);
 ```
 
 ## Theme Definitions
 
-Three themes are defined in `packages/ui/src/styles/globals.css` using HSL CSS variables for shadcn/ui compatibility and `data-theme` attribute selectors:
+Two active themes are defined. The HSL tokens in `packages/ui/src/styles/globals.css` provide shadcn/ui compatibility; the `data-theme` attribute activates the OKLCH semantic layer from shadcn-glass-ui.
 
-### Glass (default, dark)
-
-```css
-:root,
-[data-theme="glass"] {
-  --background: 222 47% 11%;
-  --primary: 271 91% 65%;
-  --card: 222 84% 5% / 0.6;
-  --border: 0 0% 100% / 0.12;
-}
-```
-
-Dark navy background with purple accents. Cards and surfaces use alpha transparency for backdrop-filter glassmorphism effects.
-
-### Light
+### Light (default for `:root`)
 
 ```css
-[data-theme="light"] {
+:root {
   --background: 0 0% 100%;
-  --primary: 263 70% 50%;
+  --primary: 22 75% 50%;
   --card: 0 0% 100%;
   --border: 214 32% 91%;
 }
 ```
 
-Clean white background with violet accents. No alpha transparency on surfaces; solid backgrounds replace glassmorphism blur.
+Clean white background with copper accents. No alpha transparency on surfaces; solid backgrounds replace glassmorphism blur.
 
 ### Aurora (dark)
 
 ```css
-[data-theme="aurora"] {
+.dark {
   --background: 222 84% 5%;
-  --primary: 263 70% 50%;
-  --card: 222 47% 11% / 0.5;
-  --border: 0 0% 100% / 0.1;
+  --primary: 22 75% 50%;
+  --card: 222 47% 11%;
+  --border: 217 33% 17%;
 }
 ```
 
-Deeper dark with violet/purple glow effects. Lower alpha values on surfaces for a more transparent, ethereal appearance compared to Glass.
+Deep dark with copper/bronze glow effects and slate-tinted surfaces. Aurora uses opaque HSL base values; transparency is managed at the OKLCH semantic layer through `--oklch-slate-800-*` tokens.
 
 A shared `.glass-surface` utility class applies backdrop-filter blur to any layout element:
 
@@ -159,44 +146,46 @@ A shared `.glass-surface` utility class applies backdrop-filter blur to any layo
 }
 ```
 
-## ThemeProvider and Theme Cycling
+## ThemeProvider
 
 The `ThemeProvider` in `packages/ui/src/context/ThemeContext.tsx` manages theme state:
 
 ```tsx
-export type Theme = "glass" | "light" | "aurora";
+export type Theme = "dark" | "light" | "system";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem("gokapi-theme");
-    return stored && isValidTheme(stored) ? stored : "glass";
+    const raw = getThemeCookie() ?? localStorage.getItem(STORAGE_KEY);
+    return raw ? migrateTheme(raw) : "system";
   });
 
   useEffect(() => {
-    const isDark = theme !== "light";
+    const isDark = theme === "dark" || (theme === "system" && prefersDark);
     document.documentElement.classList.toggle("dark", isDark);
-    document.documentElement.dataset.theme = theme;
+    document.documentElement.setAttribute("data-theme", isDark ? "aurora" : "light");
   }, [theme]);
   // ...
 }
 ```
 
 Key behaviors:
-- Persists to `localStorage` under the key `gokapi-theme`
-- Defaults to `"glass"` when no stored preference exists
-- Sets `data-theme` attribute on `<html>` for CSS variable resolution
-- Toggles `dark` class for Tailwind dark-mode utilities (Glass and Aurora are dark-based)
+- Persists to `localStorage` and HTTP cookie under the key `gokapi-theme`
+- Defaults to `"system"` when no stored preference exists
+- Sets `data-theme="aurora"` for dark mode, `data-theme="light"` for light mode
+- Toggles `dark` class for Tailwind dark-mode utilities
+- Cookie shared across subdomains for cross-app consistency
+- Legacy `"glass"` and `"aurora"` string values migrated to `"dark"`
 
-Theme selection UI lives in the Bowrain desktop app's Settings page (`SettingsPage.tsx`), which renders toggle buttons for Glass, Light, and Aurora.
+Theme selection UI lives in the Bowrain desktop app's Settings page (`SettingsPage.tsx`), which renders toggle buttons for Light, Dark, and System.
 
 ## AnimatedBackgroundGlass
 
-The `AnimatedBackgroundGlass` component (`packages/ui/src/components/ui/animated-background.tsx`) renders the glassmorphism background layer with animated floating orbs:
+The `AnimatedBackgroundGlass` component (`packages/ui/src/components/ui/animated-background.tsx`) renders the background layer with animated floating orbs:
 
 ```tsx
 export function AnimatedBackgroundGlass({ className, showCenterOrb }: AnimatedBackgroundProps) {
   const { theme } = useTheme();
-  const shouldShowCenterOrb = showCenterOrb ?? theme === "glass";
+  const shouldShowCenterOrb = showCenterOrb ?? theme === "dark";
 
   return (
     <div style={{ background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))" }}>
@@ -206,7 +195,7 @@ export function AnimatedBackgroundGlass({ className, showCenterOrb }: AnimatedBa
 }
 ```
 
-The orbs use `--orb-1` through `--orb-5` CSS variables with large blur filters (60-100px) and the `orb-float` keyframe animation. The center orb is conditionally shown based on the active theme.
+The orbs use `--orb-1` through `--orb-5` CSS variables with large blur filters (60-100px) and the `orb-float` keyframe animation. Aurora uses blue/copper/cyan orbs with a subtle slate gradient background (no center orb by default since `--orb-5` is transparent).
 
 ## Cross-Project Theme Application
 

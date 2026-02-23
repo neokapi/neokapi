@@ -83,7 +83,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       }
       document.documentElement.classList.toggle("dark", isDark);
       // Activate shadcn-glass-ui semantic tokens (--semantic-*, --orb-*, --bg-*, --sidebar-*).
-      document.documentElement.setAttribute("data-theme", isDark ? "glass" : "light");
+      document.documentElement.setAttribute("data-theme", isDark ? "aurora" : "light");
     };
 
     applyTheme();

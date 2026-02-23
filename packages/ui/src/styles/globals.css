@@ -39,7 +39,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* Light theme (default) — clean white with violet accents */
+/* Light theme (default) — clean white with copper accents */
 :root {
   --background: 0 0% 100%;
   --foreground: 222 47% 11%;
@@ -47,7 +47,7 @@
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
-  --primary: 263 70% 50%;
+  --primary: 22 75% 50%;
   --primary-foreground: 210 40% 98%;
   --secondary: 210 40% 96%;
   --secondary-foreground: 222 47% 11%;
@@ -59,37 +59,36 @@
   --destructive-foreground: 210 40% 98%;
   --border: 214 32% 91%;
   --input: 214 32% 91%;
-  --ring: 263 70% 50%;
+  --ring: 22 75% 50%;
   --success: 142 76% 36%;
   --warning: 43 74% 49%;
 
   --radius: 1rem;
 }
 
-/* Dark theme — deep navy with violet/purple glow effects */
+/* Dark theme (aurora) — deep navy with copper/bronze glow, slate-tinted surfaces */
 .dark {
   --background: 222 84% 5%;
   --foreground: 210 40% 98%;
-  --card: 222 47% 11% / 0.5;
+  --card: 222 47% 11%;
   --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11% / 0.5;
+  --popover: 222 47% 11%;
   --popover-foreground: 210 40% 98%;
-  --primary: 263 70% 50%;
+  --primary: 22 75% 50%;
   --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17% / 0.4;
+  --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17% / 0.4;
+  --muted: 217 33% 17%;
   --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17% / 0.4;
+  --accent: 217 33% 17%;
   --accent-foreground: 210 40% 98%;
   --destructive: 0 84% 60%;
   --destructive-foreground: 210 40% 98%;
-  --border: 0 0% 100% / 0.1;
-  --input: 0 0% 100% / 0.1;
-  --ring: 263 70% 50%;
+  --border: 217 33% 17%;
+  --input: 217 33% 17%;
+  --ring: 22 75% 50%;
   --success: 158 64% 52%;
   --warning: 43 96% 56%;
-
 }
 
 @layer base {
@@ -106,4 +105,50 @@
 .glass-surface {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Copper primary color overrides ─────────────────────── */
+
+/* Shared copper OKLCH primitives */
+:root {
+  --oklch-copper-300: oklch(78% .10 48);
+  --oklch-copper-400: oklch(70% .14 48);
+  --oklch-copper-500: oklch(62% .16 48);
+  --oklch-copper-500-10: oklch(62% .16 48 / 0.10);
+  --oklch-copper-500-15: oklch(62% .16 48 / 0.15);
+  --oklch-copper-500-20: oklch(62% .16 48 / 0.20);
+  --oklch-copper-500-25: oklch(62% .16 48 / 0.25);
+  --oklch-copper-500-30: oklch(62% .16 48 / 0.30);
+  --oklch-copper-500-40: oklch(62% .16 48 / 0.40);
+  --oklch-copper-500-60: oklch(62% .16 48 / 0.60);
+  --oklch-copper-600-15: oklch(54% .16 46 / 0.15);
+  --oklch-copper-600-20: oklch(54% .16 46 / 0.20);
+  --oklch-bronze-500: oklch(58% .14 35);
+  --oklch-bronze-500-20: oklch(58% .14 35 / 0.20);
+}
+
+/* Aurora (dark) semantic overrides */
+[data-theme="aurora"] {
+  --semantic-primary: var(--oklch-copper-500);
+  --semantic-primary-hover: var(--oklch-copper-400);
+  --semantic-primary-muted: var(--oklch-copper-500-25);
+  --semantic-primary-subtle: var(--oklch-copper-500-15);
+  --semantic-primary-text: var(--oklch-copper-400);
+  --semantic-secondary: var(--oklch-bronze-500);
+  --semantic-secondary-muted: var(--oklch-bronze-500-20);
+  --glow-primary: 0 0 25px var(--oklch-copper-500-40);
+  --glow-violet: 0 0 18px var(--oklch-copper-500-30);
+  --orb-2: var(--oklch-copper-600-20);
+  --orb-4: var(--oklch-copper-600-15);
+}
+
+/* Light theme semantic overrides */
+[data-theme="light"] {
+  --semantic-primary: var(--oklch-copper-500);
+  --semantic-primary-hover: var(--oklch-copper-400);
+  --semantic-primary-muted: var(--oklch-copper-500-25);
+  --semantic-primary-subtle: var(--oklch-copper-500-15);
+  --semantic-primary-text: var(--oklch-copper-400);
+  --semantic-secondary: var(--oklch-bronze-500);
+  --semantic-secondary-muted: var(--oklch-bronze-500-20);
 }

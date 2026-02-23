@@ -81,7 +81,7 @@ function termStatusClass(status: string): string {
   const colors: Record<string, string> = {
     preferred: "text-green-500 bg-green-500/[0.08]",
     approved: "text-blue-500 bg-blue-500/[0.08]",
-    admitted: "text-violet-500 bg-violet-500/[0.08]",
+    admitted: "text-orange-600 bg-orange-600/[0.08]",
     deprecated: "text-red-500 bg-red-500/[0.08]",
   };
   return colors[status] || "text-muted-foreground bg-muted";
@@ -1177,7 +1177,7 @@ function HighlightedSource({ text, termMatches }: { text: string; termMatches: B
     parts.push(
       <span
         key={`h-${m.start}`}
-        className="underline decoration-dotted decoration-violet-500 underline-offset-2 cursor-help"
+        className="underline decoration-dotted decoration-orange-600 underline-offset-2 cursor-help"
         title={`${m.source_term} \u2192 ${m.target_terms?.join(", ") || "?"} (${m.status})`}
       >
         {text.slice(m.start, m.end)}

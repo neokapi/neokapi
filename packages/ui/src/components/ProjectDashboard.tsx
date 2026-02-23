@@ -79,7 +79,7 @@ export function ProjectDashboard({
                 key={p.id}
                 intensity="medium"
                 hover
-                glow="violet"
+                glow="primary"
                 onClick={() => onOpenProject(p)}
                 className="cursor-pointer transition-all"
                 data-testid={`project-card-${p.id}`}
