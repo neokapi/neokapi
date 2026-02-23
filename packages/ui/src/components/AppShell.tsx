@@ -62,8 +62,8 @@ export function AppShell<V extends string = string>({
           >
             {hasTopBar && (
               <div
-                className="shrink-0 flex items-center h-12 border-b border-border glass-surface bg-card/80"
-                style={{ "--wails-draggable": "drag" } as React.CSSProperties}
+                className="shrink-0 flex items-center h-12 glass-surface bg-card/80"
+                style={{ "--wails-draggable": "drag", borderBottom: "1px solid var(--sidebar-border)" } as React.CSSProperties}
               >
                 <div
                   className="shrink-0 transition-[width] duration-300 ease-in-out"
