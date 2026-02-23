@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Button, Input, Badge, cn } from "@gokapi/ui";
+import { Button, Input, Badge, cn, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@gokapi/ui";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
@@ -28,6 +28,7 @@ interface SyncStatus {
 export function ConnectorPanel() {
   const [connectorTypes, setConnectorTypes] = useState<string[]>([]);
   const [activeConnectors, setActiveConnectors] = useState<ConnectorInfo[]>([]);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [selectedType, setSelectedType] = useState("");
   const [configPath, setConfigPath] = useState("");
   const [configFormat, setConfigFormat] = useState("");
@@ -70,10 +71,20 @@ export function ConnectorPanel() {
       setSelectedType("");
       setConfigPath("");
       setConfigFormat("");
+      setShowAddDialog(false);
       loadActiveConnectors();
     } catch (e) {
       setError(String(e));
     }
+  };
+
+  const handleAddDialogClose = (open: boolean) => {
+    if (!open) {
+      setSelectedType("");
+      setConfigPath("");
+      setConfigFormat("");
+    }
+    setShowAddDialog(open);
   };
 
   const handleRemoveConnector = async (id: string) => {
@@ -109,7 +120,12 @@ export function ConnectorPanel() {
 
   return (
     <div className="p-6 max-w-3xl">
-      <h2 className="text-foreground text-xl font-semibold mb-6">Connectors</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-foreground text-xl font-semibold">Connectors</h2>
+        <Button onClick={() => setShowAddDialog(true)} data-testid="add-connector-btn">
+          Add Connector
+        </Button>
+      </div>
 
       {error && (
         <div className="p-3 bg-destructive/10 rounded-lg mb-4 text-destructive text-sm">
@@ -117,52 +133,54 @@ export function ConnectorPanel() {
         </div>
       )}
 
-      {/* Add connector form */}
-      <div className="p-4 bg-card rounded-lg border border-border mb-6">
-        <h3 className="text-foreground font-medium mb-3">Add Connector</h3>
-        <div className="flex gap-2 items-end flex-wrap">
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Type</label>
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 rounded-md border border-border bg-background text-foreground text-sm"
-            >
-              <option value="">Select type...</option>
-              {connectorTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+      <Dialog open={showAddDialog} onOpenChange={handleAddDialogClose}>
+        <DialogContent size="sm" data-testid="connector-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Add Connector</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground">Type</Label>
+              <Select value={selectedType} onValueChange={setSelectedType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {connectorTypes.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground">Path</Label>
+              <Input
+                type="text"
+                value={configPath}
+                onChange={(e) => setConfigPath(e.target.value)}
+                placeholder="/path/to/content"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground">Format</Label>
+              <Input
+                type="text"
+                value={configFormat}
+                onChange={(e) => setConfigFormat(e.target.value)}
+                placeholder="json, html..."
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Path</label>
-            <Input
-              type="text"
-              value={configPath}
-              onChange={(e) => setConfigPath(e.target.value)}
-              placeholder="/path/to/content"
-              className="w-[200px]"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1">Format</label>
-            <Input
-              type="text"
-              value={configFormat}
-              onChange={(e) => setConfigFormat(e.target.value)}
-              placeholder="json, html..."
-              className="w-[120px]"
-            />
-          </div>
-          <Button
-            onClick={handleAddConnector}
-            disabled={!selectedType}
-            size="sm"
-          >
-            Add
-          </Button>
-        </div>
-      </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleAddDialogClose(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddConnector} disabled={!selectedType}>
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Active connectors */}
       <div className="flex gap-4">

@@ -17,7 +17,7 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Button, Input, Badge, cn } from "@gokapi/ui";
+import { Button, Input, Badge, cn, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@gokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
 
@@ -223,6 +223,9 @@ export function FlowBuilder() {
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [showNewFlowDialog, setShowNewFlowDialog] = useState(false);
+  const [newFlowName, setNewFlowName] = useState("");
+  const [newFlowDescription, setNewFlowDescription] = useState("");
   const nodeCounter = useRef(0);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
@@ -251,12 +254,12 @@ export function FlowBuilder() {
     [setNodes, setEdges],
   );
 
-  const handleNew = useCallback(() => {
+  const handleNew = useCallback((name: string, description: string) => {
     const id = `custom-flow-${Date.now()}`;
     const def: FlowDefinitionInfo = {
       id,
-      name: "New Flow",
-      description: "",
+      name,
+      description,
       source: "user",
       nodes: [
         { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
@@ -266,12 +269,34 @@ export function FlowBuilder() {
     };
     setActiveDef(def);
     setEditName(def.name);
-    setEditDescription("");
+    setEditDescription(description);
     const { nodes: n, edges: e } = defToReactFlow(def);
     setNodes(n);
     setEdges(e);
     setDirty(true);
   }, [setNodes, setEdges]);
+
+  const handleNewFlowDialogOpen = useCallback(() => {
+    setNewFlowName("");
+    setNewFlowDescription("");
+    setShowNewFlowDialog(true);
+  }, []);
+
+  const handleNewFlowDialogClose = useCallback((open: boolean) => {
+    if (!open) {
+      setNewFlowName("");
+      setNewFlowDescription("");
+    }
+    setShowNewFlowDialog(open);
+  }, []);
+
+  const handleNewFlowCreate = useCallback(() => {
+    if (!newFlowName.trim()) return;
+    handleNew(newFlowName.trim(), newFlowDescription.trim());
+    setShowNewFlowDialog(false);
+    setNewFlowName("");
+    setNewFlowDescription("");
+  }, [newFlowName, newFlowDescription, handleNew]);
 
   const handleAddTool = useCallback(
     (tool: ToolInfo) => {
@@ -357,8 +382,44 @@ export function FlowBuilder() {
         definitions={definitions}
         activeId={activeDef?.id || null}
         onSelect={handleSelect}
-        onNew={handleNew}
+        onNew={handleNewFlowDialogOpen}
       />
+      <Dialog open={showNewFlowDialog} onOpenChange={handleNewFlowDialogClose}>
+        <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>New Flow</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground">Name</Label>
+              <Input
+                value={newFlowName}
+                onChange={(e) => setNewFlowName(e.target.value)}
+                placeholder="My Flow"
+                data-testid="new-flow-name"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground">Description (optional)</Label>
+              <Input
+                value={newFlowDescription}
+                onChange={(e) => setNewFlowDescription(e.target.value)}
+                placeholder="What this flow does..."
+                data-testid="new-flow-description"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => handleNewFlowDialogClose(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleNewFlowCreate} disabled={!newFlowName.trim()}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex-1 flex flex-col min-h-0">
         {activeDef ? (
           <>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@gokapi/ui";
+import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@gokapi/ui";
 import { useFormats, useTools, useFlows, usePlugins, useVersion, useProviderConfigs, useProviderApi } from "../hooks/useApi";
 import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
 
@@ -154,107 +154,118 @@ function AIProvidersTab() {
     setEditing({ ...editing, provider_type: type });
   };
 
-  if (editing) {
-    const defaults = providerTypeDefaults[editing.provider_type] || { model: "", baseUrl: "" };
-    return (
-      <div data-testid="settings-ai-providers">
-        <div data-testid="provider-form" className="flex flex-col gap-4 max-w-[500px] glass-surface bg-card rounded-lg p-4">
-          <h3>{editing.id ? "Edit Provider" : "Add Provider"}</h3>
-          <div className="flex flex-col gap-1">
-            <Label className="text-muted-foreground">
-              Name {submitted && missingName && <span className="text-destructive text-xs ml-1">Required</span>}
-            </Label>
-            <Input
-              type="text"
-              value={editing.name}
-              onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-              className={cn(submitted && missingName && "border-destructive")}
-              data-testid="provider-name"
-              placeholder="My Provider"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-muted-foreground">Type</Label>
-            <Select value={editing.provider_type} onValueChange={handleTypeChange}>
-              <SelectTrigger data-testid="provider-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="anthropic">Anthropic</SelectItem>
-                <SelectItem value="openai">OpenAI</SelectItem>
-                <SelectItem value="ollama">Ollama</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-muted-foreground">
-              API Key {submitted && missingApiKey && <span className="text-destructive text-xs ml-1">Required</span>}
-            </Label>
-            <Input
-              type="password"
-              value={editing.api_key}
-              onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
-              className={cn(submitted && missingApiKey && "border-destructive")}
-              data-testid="provider-api-key"
-              placeholder={editing.id ? "Enter new key or leave blank to keep current" : "Enter API key"}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-muted-foreground">Model</Label>
-            <Input
-              type="text"
-              value={editing.model}
-              onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-              data-testid="provider-model"
-              placeholder={defaults.model}
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <Label className="text-muted-foreground">Base URL (optional)</Label>
-            <Input
-              type="text"
-              value={editing.base_url}
-              onChange={(e) => setEditing({ ...editing, base_url: e.target.value })}
-              data-testid="provider-base-url"
-              placeholder={defaults.baseUrl}
-            />
-          </div>
-          {testStatus && (
-            <div
-              data-testid="provider-test-status"
-              className={cn(
-                "px-3 py-2 rounded-md text-[13px]",
-                testStatus.includes("successful") && "bg-green-500/10 text-green-600 dark:text-green-400",
-                testStatus === "Testing..." && "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-                !testStatus.includes("successful") && testStatus !== "Testing..." && "bg-destructive/10 text-destructive",
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      setEditing(null);
+      setTestStatus(null);
+      setSubmitted(false);
+    }
+  };
+
+  const defaults = editing ? (providerTypeDefaults[editing.provider_type] || { model: "", baseUrl: "" }) : { model: "", baseUrl: "" };
+
+  return (
+    <div data-testid="settings-ai-providers">
+      <Dialog open={!!editing} onOpenChange={handleDialogClose}>
+        <DialogContent size="md" data-testid="provider-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>{editing?.id ? "Edit Provider" : "Add Provider"}</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">
+                  Name {submitted && missingName && <span className="text-destructive text-xs ml-1">Required</span>}
+                </Label>
+                <Input
+                  type="text"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  className={cn(submitted && missingName && "border-destructive")}
+                  data-testid="provider-name"
+                  placeholder="My Provider"
+                  autoFocus
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">Type</Label>
+                <Select value={editing.provider_type} onValueChange={handleTypeChange}>
+                  <SelectTrigger data-testid="provider-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="anthropic">Anthropic</SelectItem>
+                    <SelectItem value="openai">OpenAI</SelectItem>
+                    <SelectItem value="ollama">Ollama</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">
+                  API Key {submitted && missingApiKey && <span className="text-destructive text-xs ml-1">Required</span>}
+                </Label>
+                <Input
+                  type="password"
+                  value={editing.api_key}
+                  onChange={(e) => setEditing({ ...editing, api_key: e.target.value })}
+                  className={cn(submitted && missingApiKey && "border-destructive")}
+                  data-testid="provider-api-key"
+                  placeholder={editing.id ? "Enter new key or leave blank to keep current" : "Enter API key"}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">Model</Label>
+                <Input
+                  type="text"
+                  value={editing.model}
+                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  data-testid="provider-model"
+                  placeholder={defaults.model}
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground">Base URL (optional)</Label>
+                <Input
+                  type="text"
+                  value={editing.base_url}
+                  onChange={(e) => setEditing({ ...editing, base_url: e.target.value })}
+                  data-testid="provider-base-url"
+                  placeholder={defaults.baseUrl}
+                />
+              </div>
+              {testStatus && (
+                <div
+                  data-testid="provider-test-status"
+                  className={cn(
+                    "px-3 py-2 rounded-md text-[13px]",
+                    testStatus.includes("successful") && "bg-green-500/10 text-green-600 dark:text-green-400",
+                    testStatus === "Testing..." && "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+                    !testStatus.includes("successful") && testStatus !== "Testing..." && "bg-destructive/10 text-destructive",
+                  )}
+                >
+                  {testStatus}
+                </div>
               )}
-            >
-              {testStatus}
+              {submitted && hasErrors && (
+                <div className="text-[13px] text-destructive" data-testid="provider-validation-error">
+                  Please fill in all required fields.
+                </div>
+              )}
             </div>
           )}
-          {submitted && hasErrors && (
-            <div className="text-[13px] text-destructive" data-testid="provider-validation-error">
-              Please fill in all required fields.
-            </div>
-          )}
-          <div className="flex gap-2">
+          <DialogFooter>
             <Button variant="outline" size="sm" onClick={handleTest} data-testid="provider-test-btn">
               Test Connection
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => handleDialogClose(false)} data-testid="provider-cancel-btn">
+              Cancel
             </Button>
             <Button size="sm" onClick={handleSave} disabled={saving} data-testid="provider-save-btn">
               {saving ? "Saving..." : "Save"}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setEditing(null)} data-testid="provider-cancel-btn">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div data-testid="settings-ai-providers">
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <div className="flex justify-between items-center mb-4">
         <p className="text-muted-foreground text-[13px]">
           Manage AI provider credentials. API keys are stored securely in the OS keychain.
