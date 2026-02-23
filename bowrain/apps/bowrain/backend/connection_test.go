@@ -12,6 +12,26 @@ import (
 	"github.com/zalando/go-keyring"
 )
 
+// --- GetDefaultServerURL tests ---
+
+func TestGetDefaultServerURLDefault(t *testing.T) {
+	app := newTestApp(t)
+	t.Setenv("BOWRAIN_SERVER_URL", "")
+	assert.Equal(t, DefaultServerURL, app.GetDefaultServerURL())
+}
+
+func TestGetDefaultServerURLEnvOverride(t *testing.T) {
+	app := newTestApp(t)
+	t.Setenv("BOWRAIN_SERVER_URL", "https://bowrain.mymac")
+	assert.Equal(t, "https://bowrain.mymac", app.GetDefaultServerURL())
+}
+
+func TestGetDefaultServerURLTrimsTrailingSlash(t *testing.T) {
+	app := newTestApp(t)
+	t.Setenv("BOWRAIN_SERVER_URL", "https://bowrain.mymac/")
+	assert.Equal(t, "https://bowrain.mymac", app.GetDefaultServerURL())
+}
+
 // --- parseServerURL tests ---
 
 func TestParseServerURLHTTP(t *testing.T) {

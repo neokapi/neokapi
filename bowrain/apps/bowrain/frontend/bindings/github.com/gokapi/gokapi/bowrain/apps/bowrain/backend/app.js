@@ -271,6 +271,16 @@ export function GetCurrentWorkspace() {
 }
 
 /**
+ * GetDefaultServerURL returns the default server URL for the desktop app.
+ * It checks the BOWRAIN_SERVER_URL environment variable first, falling back
+ * to the Bowrain SaaS instance URL.
+ * @returns {$CancellablePromise<string>}
+ */
+export function GetDefaultServerURL() {
+    return $Call.ByID(2295048915);
+}
+
+/**
  * GetFlowDefinition returns a specific flow definition by ID.
  * @param {string} id
  * @returns {$CancellablePromise<$models.FlowDefinitionInfo | null>}

@@ -6,17 +6,17 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
-test("should show server connect screen on startup", async ({ page }) => {
-  // App starts in connecting mode when disconnected.
-  await expect(page.getByText("Connect to Server")).toBeVisible();
-  await expect(page.getByPlaceholder(/bowrain/i)).toBeVisible();
+test("should show welcome screen on startup", async ({ page }) => {
+  // App starts in disconnected mode — shows welcome screen.
+  await expect(page.getByText("Welcome to Bowrain")).toBeVisible();
   await expect(page.getByRole("button", { name: /sign in/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /sign in/i })).toBeEnabled();
+  // URL input should not be visible by default (collapsed).
+  await expect(page.getByPlaceholder(/localhost/i)).not.toBeVisible();
 });
 
 test("should start PKCE auth flow when signing in", async ({ page }) => {
-  // Enter a server URL and sign in.
-  const urlInput = page.getByPlaceholder(/bowrain/i);
-  await urlInput.fill("http://localhost:8080");
+  // Click Sign In directly — uses default server URL from mock.
   await page.getByRole("button", { name: /sign in/i }).click();
 
   // The mock's ConnectToServer throws "not authenticated", so it
@@ -28,8 +28,6 @@ test("should start PKCE auth flow when signing in", async ({ page }) => {
 });
 
 test("should select workspace and enter main app", async ({ page }) => {
-  const urlInput = page.getByPlaceholder(/bowrain/i);
-  await urlInput.fill("http://localhost:8080");
   await page.getByRole("button", { name: /sign in/i }).click();
 
   // Wait for workspace selector.

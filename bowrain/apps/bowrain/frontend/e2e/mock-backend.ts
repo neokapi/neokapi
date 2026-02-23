@@ -154,6 +154,7 @@ export async function injectMockBackend(page: Page) {
       ExportTranslatedItem: 4125088179,
       FetchContent: 22013833,
       GetConnectionState: 3987796829,
+      GetDefaultServerURL: 2295048915,
       GetConnectorStatus: 1829045277,
       GetCurrentWorkspace: 904108310,
       GetFlowDefinition: 3175563113,
@@ -1081,6 +1082,8 @@ export async function injectMockBackend(page: Page) {
         workspace: workspace,
       };
     };
+
+    mock[IDS.GetDefaultServerURL] = () => "http://localhost:8080";
 
     mock[IDS.TryAutoConnect] = () => {
       // No stored auth in mock — stays disconnected.

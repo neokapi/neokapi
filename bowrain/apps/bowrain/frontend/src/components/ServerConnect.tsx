@@ -1,7 +1,18 @@
-import { useState } from "react";
-import { Button, Input } from "@gokapi/ui";
-import { Loader2, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Button,
+  Input,
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@gokapi/ui";
+import { Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import type { ConnectionInfo } from "../hooks/useApi";
+
+// @ts-ignore – generated .js bindings outside the TS project root
+import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
+
+const FALLBACK_DEFAULT_URL = "https://bowrain.mymac";
 
 interface ServerConnectProps {
   info: ConnectionInfo;
@@ -21,17 +32,50 @@ export function ServerConnect({
   onCancelLogin,
 }: ServerConnectProps) {
   const [stage, setStage] = useState<Stage>("url");
+  const [defaultURL, setDefaultURL] = useState(FALLBACK_DEFAULT_URL);
   const [serverURL, setServerURL] = useState(info.server_url || "");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Has the user customised the URL away from the default?
+  const isCustomServer = serverURL !== "" && serverURL !== defaultURL;
+  const [serverOptionsOpen, setServerOptionsOpen] = useState(isCustomServer);
+
+  // Fetch the default server URL from the backend on mount.
+  useEffect(() => {
+    Backend.GetDefaultServerURL()
+      .then((url: string) => {
+        if (url) {
+          setDefaultURL(url);
+          // Pre-fill the URL field if not already set by stored info.
+          if (!info.server_url) {
+            setServerURL(url);
+          }
+        }
+      })
+      .catch(() => {
+        // Fall back to hardcoded default.
+        if (!info.server_url) {
+          setServerURL(FALLBACK_DEFAULT_URL);
+        }
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-expand server options if returning user has a custom server.
+  useEffect(() => {
+    if (info.server_url && defaultURL && info.server_url !== defaultURL) {
+      setServerOptionsOpen(true);
+    }
+  }, [info.server_url, defaultURL]);
+
+  const effectiveURL = serverURL.trim() || defaultURL;
+
   // Try connecting with stored auth first, then start PKCE login.
   const handleConnect = async () => {
-    if (!serverURL.trim()) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await onConnect(serverURL.trim());
+      const result = await onConnect(effectiveURL);
       if (result.state === "connected") {
         // Success — App.tsx will handle navigation to workspace selector.
         return;
@@ -41,7 +85,7 @@ export function ServerConnect({
     }
     // Start PKCE auth — opens browser automatically.
     try {
-      await onStartLogin(serverURL.trim());
+      await onStartLogin(effectiveURL);
       setStage("waiting");
       setLoading(false);
       // Wait for the PKCE callback.
@@ -49,7 +93,7 @@ export function ServerConnect({
         const authorized = await onWaitForLogin();
         if (authorized) {
           // Try connecting now that we have tokens.
-          await onConnect(serverURL.trim());
+          await onConnect(effectiveURL);
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -70,41 +114,53 @@ export function ServerConnect({
   return (
     <div className="flex flex-col items-center justify-center h-full gap-8">
       <div className="text-center">
-        <Globe className="w-12 h-12 text-primary mx-auto mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Connect to Server</h2>
+        <h2 className="text-2xl font-semibold mb-2">Welcome to Bowrain</h2>
         <p className="text-muted-foreground text-sm max-w-md">
-          Connect to a Bowrain Server to collaborate with your team on translation projects.
+          Sign in to collaborate with your team on translation projects.
         </p>
       </div>
 
       <div className="w-full max-w-md space-y-4">
         {stage === "url" && (
           <>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Server URL</label>
-              <Input
-                placeholder="https://bowrain.example.com"
-                value={serverURL}
-                onChange={(e) => setServerURL(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleConnect()}
-                disabled={loading}
-              />
-            </div>
-
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
 
-            <div className="flex gap-3">
-              <Button
-                className="flex-1"
-                onClick={handleConnect}
-                disabled={!serverURL.trim() || loading}
-              >
-                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Sign In
-              </Button>
-            </div>
+            <Button
+              className="w-full"
+              onClick={handleConnect}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Sign In
+            </Button>
+
+            <Collapsible
+              open={serverOptionsOpen}
+              onOpenChange={setServerOptionsOpen}
+            >
+              <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
+                {serverOptionsOpen ? (
+                  <ChevronDown className="w-3 h-3" />
+                ) : (
+                  <ChevronRight className="w-3 h-3" />
+                )}
+                Server options
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Server URL</label>
+                  <Input
+                    placeholder={defaultURL}
+                    value={serverURL}
+                    onChange={(e) => setServerURL(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+                    disabled={loading}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </>
         )}
 
