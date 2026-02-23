@@ -28,15 +28,22 @@ func NewAuthService(store auth.AuthStore, jwtSecret string) *AuthService {
 // GetOrCreateUser finds a user by email, or creates one if not found.
 // Used during OIDC login to upsert the user record.
 // On first creation, a personal workspace is auto-created.
-func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL string) (*platauth.User, error) {
+// If oidcSub is provided and the existing user lacks one, it is backfilled.
+func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarURL, oidcSub string) (*platauth.User, error) {
 	u, err := s.store.GetUserByEmail(ctx, email)
 	if err == nil {
+		// Backfill OIDC subject if not yet stored.
+		if oidcSub != "" && u.OIDCSub == "" {
+			u.OIDCSub = oidcSub
+			_ = s.store.UpdateUser(ctx, u)
+		}
 		return u, nil
 	}
 	u = &platauth.User{
 		Email:     email,
 		Name:      name,
 		AvatarURL: avatarURL,
+		OIDCSub:   oidcSub,
 	}
 	if err := s.store.CreateUser(ctx, u); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)

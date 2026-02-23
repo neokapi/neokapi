@@ -40,7 +40,10 @@
       "protocol": "openid-connect",
       "attributes": {
         "oauth2.device.authorization.grant.enabled": "true",
-        "oauth2.device.polling.interval": "5"
+        "oauth2.device.polling.interval": "5",
+        "backchannel.logout.url": "http://host.docker.internal:8080/api/v1/auth/backchannel-logout",
+        "backchannel.logout.session.required": "false",
+        "backchannel.logout.revoke.offline.tokens": "true"
       }
     }
   ],

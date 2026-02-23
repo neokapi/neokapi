@@ -13,6 +13,7 @@ type AuthStore interface {
 	CreateUser(ctx context.Context, u *platauth.User) error
 	GetUser(ctx context.Context, id string) (*platauth.User, error)
 	GetUserByEmail(ctx context.Context, email string) (*platauth.User, error)
+	GetUserByOIDCSub(ctx context.Context, sub string) (*platauth.User, error)
 	UpdateUser(ctx context.Context, u *platauth.User) error
 
 	// Workspaces

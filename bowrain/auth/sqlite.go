@@ -106,6 +106,14 @@ var authMigrations = []storage.Migration{
 			CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 		`,
 	},
+	{
+		Version:     8,
+		Description: "add oidc_sub column to users",
+		SQL: `
+			ALTER TABLE users ADD COLUMN oidc_sub TEXT NOT NULL DEFAULT '';
+			CREATE INDEX idx_users_oidc_sub ON users(oidc_sub);
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -153,8 +161,8 @@ func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *platauth.User) erro
 		u.CreatedAt = time.Now().UTC()
 	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO users (id, email, name, avatar_url, created_at) VALUES (?, ?, ?, ?, ?)`,
-		u.ID, u.Email, u.Name, u.AvatarURL, u.CreatedAt.Format(time.RFC3339))
+		`INSERT INTO users (id, email, name, avatar_url, oidc_sub, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		u.ID, u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.CreatedAt.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert user: %w", err)
 	}
@@ -163,20 +171,26 @@ func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *platauth.User) erro
 
 func (s *SQLiteAuthStore) GetUser(ctx context.Context, id string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, avatar_url, created_at FROM users WHERE id = ?`, id)
+		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE id = ?`, id)
 	return scanUser(row)
 }
 
 func (s *SQLiteAuthStore) GetUserByEmail(ctx context.Context, email string) (*platauth.User, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, email, name, avatar_url, created_at FROM users WHERE email = ?`, email)
+		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE email = ?`, email)
+	return scanUser(row)
+}
+
+func (s *SQLiteAuthStore) GetUserByOIDCSub(ctx context.Context, sub string) (*platauth.User, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users WHERE oidc_sub = ?`, sub)
 	return scanUser(row)
 }
 
 func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *platauth.User) error {
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE users SET email=?, name=?, avatar_url=? WHERE id=?`,
-		u.Email, u.Name, u.AvatarURL, u.ID)
+		`UPDATE users SET email=?, name=?, avatar_url=?, oidc_sub=? WHERE id=?`,
+		u.Email, u.Name, u.AvatarURL, u.OIDCSub, u.ID)
 	if err != nil {
 		return fmt.Errorf("update user: %w", err)
 	}
@@ -368,7 +382,7 @@ type scanner interface {
 func scanUser(row scanner) (*platauth.User, error) {
 	var u platauth.User
 	var createdStr string
-	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &createdStr)
+	err := row.Scan(&u.ID, &u.Email, &u.Name, &u.AvatarURL, &u.OIDCSub, &createdStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan user: %w", err)
 	}

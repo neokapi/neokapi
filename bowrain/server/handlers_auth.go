@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -28,6 +30,7 @@ type deviceCodeEntry struct {
 	Authorized bool // set to true when user approves via callback
 	UserEmail  string
 	UserName   string
+	OIDCSub    string // OIDC subject identifier (Keycloak UUID)
 }
 
 // deviceCodeStore is an in-memory store for pending device codes.
@@ -227,12 +230,12 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 
 	// User authorized — create or retrieve user and generate token.
 	ctx := c.Request().Context()
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "")
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 
-	token, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
 	}
@@ -253,7 +256,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  token,
 		TokenType:    "Bearer",
-		ExpiresIn:    86400,
+		ExpiresIn:    900,
 		RefreshToken: refreshToken,
 	})
 }
@@ -547,12 +550,12 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "")
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 
-	token, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
 	}
@@ -784,6 +787,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		dce.Authorized = true
 		dce.UserEmail = claims.Email
 		dce.UserName = claims.Name
+		dce.OIDCSub = idToken.Subject
 	}
 	deviceCodes.Unlock()
 
@@ -800,7 +804,7 @@ func setSessionCookies(c echo.Context, accessToken, refreshToken string) {
 		Name:     sessionCookieName,
 		Value:    accessToken,
 		Path:     "/api/",
-		MaxAge:   86400, // 24h
+		MaxAge:   900, // 15 minutes — matches access token lifetime
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
@@ -917,12 +921,12 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "extract claims: " + err.Error()})
 	}
 
-	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "")
+	user, err := s.Services.Auth.GetOrCreateUser(ctx, claims.Email, claims.Name, "", idToken.Subject)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
 
-	token, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate token: " + err.Error()})
 	}
@@ -997,7 +1001,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	}
 
 	// Generate new access token.
-	accessToken, err := s.Services.Auth.GenerateToken(user, 24*time.Hour)
+	accessToken, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to generate token"})
 	}
@@ -1018,7 +1022,7 @@ func (s *Server) HandleTokenRefresh(c echo.Context) error {
 	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  accessToken,
 		TokenType:    "Bearer",
-		ExpiresIn:    86400,
+		ExpiresIn:    900,
 		RefreshToken: newRefreshToken,
 	})
 }
@@ -1043,8 +1047,150 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// HandleAuthLogout invalidates the current session by clearing cookies.
+// HandleAuthLogout invalidates the current session by revoking all refresh
+// tokens, clearing cookies, and returning the OIDC end_session_url so the
+// frontend can terminate the Keycloak SSO session.
 func (s *Server) HandleAuthLogout(c echo.Context) error {
+	ctx := c.Request().Context()
+
+	// Revoke all refresh tokens for this user so the session cannot be resumed.
+	if userID, ok := c.Get("user_id").(string); ok && userID != "" && s.AuthStore != nil {
+		_ = s.AuthStore.RevokeUserRefreshTokens(ctx, userID)
+	}
+
 	clearSessionCookies(c)
-	return c.JSON(http.StatusOK, map[string]string{"status": "logged out"})
+
+	resp := map[string]string{"status": "logged out"}
+
+	// Discover the OIDC end_session_endpoint for RP-Initiated Logout.
+	if endSessionURL := s.discoverEndSessionEndpoint(ctx); endSessionURL != "" {
+		resp["end_session_url"] = endSessionURL
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+// discoverEndSessionEndpoint fetches the OIDC provider's end_session_endpoint
+// from the discovery document. Returns "" if OIDC is not configured or the
+// endpoint is not advertised.
+func (s *Server) discoverEndSessionEndpoint(ctx context.Context) string {
+	if s.Config.OIDCIssuerURL == "" {
+		return ""
+	}
+
+	oidcCtx := s.oidcContext(ctx)
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		return ""
+	}
+
+	var providerClaims struct {
+		EndSessionEndpoint string `json:"end_session_endpoint"`
+	}
+	if err := provider.Claims(&providerClaims); err != nil || providerClaims.EndSessionEndpoint == "" {
+		return ""
+	}
+
+	endSessionURL := providerClaims.EndSessionEndpoint
+	// When OIDCPublicURL differs from OIDCIssuerURL (Docker), rewrite
+	// the internal URL to the browser-reachable public URL.
+	if s.Config.OIDCPublicURL != "" && s.Config.OIDCPublicURL != s.Config.OIDCIssuerURL {
+		endSessionURL = strings.Replace(endSessionURL, s.Config.OIDCIssuerURL, s.Config.OIDCPublicURL, 1)
+	}
+
+	return endSessionURL
+}
+
+// HandleBackChannelLogout handles OIDC Back-Channel Logout requests from
+// the identity provider (Keycloak). When Keycloak terminates a session
+// (admin action, timeout, logout from another app), it POSTs a logout_token
+// to this endpoint. We verify the JWT, look up the user by OIDC subject,
+// and revoke all their refresh tokens.
+//
+// Spec: https://openid.net/specs/openid-connect-backchannel-1_0.html
+func (s *Server) HandleBackChannelLogout(c echo.Context) error {
+	if s.Config.OIDCIssuerURL == "" || s.AuthStore == nil {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
+	// The logout_token is delivered as application/x-www-form-urlencoded.
+	rawLogoutToken := c.FormValue("logout_token")
+	if rawLogoutToken == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "logout_token required"})
+	}
+
+	ctx := c.Request().Context()
+	oidcCtx := s.oidcContext(ctx)
+
+	// Create a remote keyset to verify the JWT signature against Keycloak's JWKS.
+	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
+	if err != nil {
+		log.Printf("back-channel logout: OIDC discovery failed: %v", err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "OIDC discovery failed"})
+	}
+
+	keySet := provider.Verifier(&oidc.Config{
+		ClientID:                    s.Config.OIDCClientID,
+		SkipExpiryCheck:             false,
+		SkipIssuerCheck:             false,
+		InsecureSkipSignatureCheck:  false,
+		Now:                         time.Now,
+	})
+
+	// Verify signature and standard claims (iss, aud, exp).
+	idToken, err := keySet.Verify(oidcCtx, rawLogoutToken)
+	if err != nil {
+		log.Printf("back-channel logout: token verification failed: %v", err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid logout_token"})
+	}
+
+	// Extract and validate back-channel logout specific claims.
+	var logoutClaims struct {
+		Events json.RawMessage `json:"events"`
+		Nonce  *string         `json:"nonce"`
+		Sub    string          `json:"sub"`
+		Sid    string          `json:"sid"`
+	}
+	if err := idToken.Claims(&logoutClaims); err != nil {
+		log.Printf("back-channel logout: failed to extract claims: %v", err)
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid claims"})
+	}
+
+	// Spec: logout token MUST contain the back-channel logout event.
+	var events map[string]json.RawMessage
+	if err := json.Unmarshal(logoutClaims.Events, &events); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid events claim"})
+	}
+	if _, ok := events["http://schemas.openid.net/event/backchannel-logout"]; !ok {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "missing backchannel-logout event"})
+	}
+
+	// Spec: logout token MUST NOT contain a nonce claim.
+	if logoutClaims.Nonce != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "logout_token must not contain nonce"})
+	}
+
+	// Spec: must have sub and/or sid.
+	if logoutClaims.Sub == "" && logoutClaims.Sid == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "logout_token must contain sub or sid"})
+	}
+
+	// Look up user by OIDC subject and revoke their tokens.
+	if logoutClaims.Sub != "" {
+		user, err := s.AuthStore.GetUserByOIDCSub(ctx, logoutClaims.Sub)
+		if err != nil {
+			// User not found — nothing to revoke. Still return 200 per spec.
+			log.Printf("back-channel logout: no user found for sub %s", logoutClaims.Sub)
+			return c.NoContent(http.StatusOK)
+		}
+
+		if err := s.AuthStore.RevokeUserRefreshTokens(ctx, user.ID); err != nil {
+			log.Printf("back-channel logout: failed to revoke tokens for user %s: %v", user.ID, err)
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to revoke tokens"})
+		}
+
+		log.Printf("back-channel logout: revoked tokens for user %s (sub: %s)", user.Email, logoutClaims.Sub)
+	}
+
+	return c.NoContent(http.StatusOK)
 }

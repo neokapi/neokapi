@@ -179,6 +179,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		})
 		authGroup.GET("/device/callback", s.HandleDeviceAuthCallback)
 
+		// Back-channel logout (called server-to-server by Keycloak, unauthenticated)
+		authGroup.POST("/backchannel-logout", s.HandleBackChannelLogout)
+
 		// Protected auth routes (require valid token)
 		authProtected := authGroup.Group("")
 		authProtected.Use(AuthMiddleware(s.Config.JWTSecret))

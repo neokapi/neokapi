@@ -53,7 +53,20 @@ export function WorkspaceLayout() {
 
   const handleSignOut = useCallback(async () => {
     try {
-      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+      const resp = await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+      if (resp.ok) {
+        const data = await resp.json();
+        // If the server returned an OIDC end_session_url, redirect the browser
+        // to Keycloak to terminate the SSO session. Keycloak redirects back to
+        // our origin after logout.
+        if (data.end_session_url) {
+          const endSessionUrl = new URL(data.end_session_url);
+          endSessionUrl.searchParams.set("post_logout_redirect_uri", window.location.origin + "/");
+          queryClient.clear();
+          window.location.href = endSessionUrl.toString();
+          return;
+        }
+      }
     } catch {
       // Best-effort
     }
