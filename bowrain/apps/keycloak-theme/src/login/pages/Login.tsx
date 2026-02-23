@@ -2,6 +2,7 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
 import { Mail, Lock, User } from "lucide-react";
+import logoUrl from "../assets/logo.png";
 import {
     Card,
     CardHeader,
@@ -221,28 +222,12 @@ function SocialIcon({ alias }: { alias: string }) {
 
 function BowrainLogo() {
     return (
-        <svg
+        <img
+            src={logoUrl}
             width="48"
             height="48"
-            viewBox="0 0 48 48"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-label="Bowrain"
-        >
-            <rect width="48" height="48" rx="12" fill="hsl(271 91% 65% / 0.15)" />
-            <rect
-                x="0.5"
-                y="0.5"
-                width="47"
-                height="47"
-                rx="11.5"
-                stroke="hsl(271 91% 65% / 0.3)"
-            />
-            <path
-                d="M14 16h6c3.3 0 6 2.7 6 6s-2.7 6-6 6h-2v4h-4V16zm4 8h2c1.1 0 2-0.9 2-2s-0.9-2-2-2h-2v4z"
-                fill="hsl(271 91% 65%)"
-            />
-            <circle cx="32" cy="24" r="6" stroke="hsl(271 91% 65%)" strokeWidth="3" fill="none" />
-        </svg>
+            alt="Bowrain"
+            className="rounded-xl"
+        />
     );
 }

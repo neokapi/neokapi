@@ -73,6 +73,10 @@ const config: Config = {
   themeConfig: {
     navbar: {
       title: 'gokapi',
+      logo: {
+        alt: 'gokapi',
+        src: 'img/logo.png',
+      },
       items: [
         {
           type: 'docSidebar',

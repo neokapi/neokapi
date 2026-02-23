@@ -13,6 +13,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var appIcon []byte
+
 func main() {
 	// Create the backend without plugins first so the window can appear
 	// immediately. Plugin loading (which may start a JVM subprocess) is
@@ -21,6 +24,7 @@ func main() {
 
 	app := application.New(application.Options{
 		Name: "Bowrain",
+		Icon: appIcon,
 		Services: []application.Service{
 			application.NewService(appService),
 		},
