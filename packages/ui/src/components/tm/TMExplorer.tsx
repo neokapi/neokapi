@@ -145,7 +145,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold">Translation Memory</h2>
-            <p className="text-[13px] text-muted-foreground mt-1">
+            <p className="text-[13px] text-muted-foreground mt-1" data-testid="tm-count-badge">
               {totalCount} {totalCount === 1 ? "entry" : "entries"}
             </p>
           </div>

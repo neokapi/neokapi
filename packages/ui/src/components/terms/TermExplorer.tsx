@@ -227,7 +227,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold">Terminology</h2>
-            <p className="text-[13px] text-muted-foreground mt-1">{totalCount} concepts</p>
+            <p className="text-[13px] text-muted-foreground mt-1" data-testid="term-count-badge">{totalCount} {totalCount === 1 ? "concept" : "concepts"}</p>
           </div>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={handleImportCSV} data-testid="term-import-csv-btn">Import CSV</Button>
