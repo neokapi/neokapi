@@ -15,7 +15,7 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const SCREENSHOT_BASE = path.resolve(__dirname, "../../../website/static/img/web-app");
+const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../website/static/img/web-app");
 
 const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 

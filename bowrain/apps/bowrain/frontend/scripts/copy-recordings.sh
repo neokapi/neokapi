@@ -14,7 +14,7 @@ THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="$(dirname "$SCRIPT_DIR")"
 RECORDINGS_DIR="$FRONTEND_DIR/recordings-output"
-OUTPUT_DIR="$FRONTEND_DIR/../../../website/static/video/bowrain/$THEME"
+OUTPUT_DIR="$FRONTEND_DIR/../../../../website/static/video/bowrain/$THEME"
 
 # Known recording names (must match test names in recordings.spec.ts)
 KNOWN_NAMES=(

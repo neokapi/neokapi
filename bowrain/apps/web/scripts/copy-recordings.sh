@@ -12,7 +12,7 @@ THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 RECORDINGS_DIR="$WEB_DIR/recordings-output"
-OUTPUT_DIR="$WEB_DIR/../../website/static/video/web-app/$THEME"
+OUTPUT_DIR="$WEB_DIR/../../../website/static/video/web-app/$THEME"
 
 # Known recording names (must match test names in recordings.spec.ts)
 KNOWN_RECORDINGS=(

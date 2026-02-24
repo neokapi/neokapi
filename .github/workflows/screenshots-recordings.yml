@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write  # Needed to create/update releases
+  actions: write   # Needed to trigger docs redeploy workflow
 
 jobs:
   # ── Bowrain Screenshots & Recordings (self-contained) ───────────────────────
