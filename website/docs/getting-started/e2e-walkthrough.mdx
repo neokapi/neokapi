@@ -76,6 +76,10 @@ Next steps:
 
 Use `--json` for machine-readable output in CI/CD pipelines.
 
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/walkthrough-init.webm" type="video/webm" />
+</video>
+
 :::tip
 The server URL is resolved from `KAPI_SERVER_URL` environment variable or existing
 auth state. Set it once and `kapi init` picks it up automatically.
@@ -105,6 +109,10 @@ npm run serve
 You'll see text like `[!!! Hëëëröööö Tîîîtlëëë !!!]` in the UI — any
 truncation or layout issues become immediately visible.
 
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/walkthrough-pseudo.webm" type="video/webm" />
+</video>
+
 ---
 
 ## Step 3: Push to Bowrain
@@ -132,6 +140,10 @@ Pushing to http://localhost:8080...
 Done. 74 blocks pushed.
 ```
 
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/walkthrough-push.webm" type="video/webm" />
+</video>
+
 ---
 
 ## Step 4: Claim the Project
@@ -156,6 +168,10 @@ workspace and the CLI remembers the association for future `kapi push` and
 `kapi pull` commands.
 :::
 
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/web-app/dark/login-and-workspace.webm" type="video/webm" />
+</video>
+
 ---
 
 ## Step 5: Invite a Translator
@@ -178,6 +194,10 @@ curl -X POST http://localhost:8080/api/v1/workspaces/acme/invites \
   -H "Content-Type: application/json" \
   -d '{"email": "translator@example.com", "role": "member", "ttl_days": 7}'
 ```
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/web-app/dark/invite-workflow.webm" type="video/webm" />
+</video>
 
 ---
 
@@ -209,6 +229,10 @@ The desktop app supports **offline editing**. Translations are synced
 automatically when the connection is restored.
 :::
 
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/web-app/dark/translation-editor.webm" type="video/webm" />
+</video>
+
 ---
 
 ## Step 7: Pull Translations
@@ -237,6 +261,10 @@ Build the translated site to verify:
 npm run build -- --locale nb
 npm run serve
 ```
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/walkthrough-pull.webm" type="video/webm" />
+</video>
 
 ---
 
