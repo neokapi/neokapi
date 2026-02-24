@@ -57,23 +57,19 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 		return nil
 	}
 
-	// Build lookup from loaded plugins (has format list and type).
-	type loadedInfo struct {
-		formats    int
-		pluginType string
+	// Build lookup from installed versions (has metadata from bundled manifest.json).
+	type installedInfo struct {
+		installType string
+		pluginType  string
+		formats     int
 	}
-	loadedByKey := make(map[string]loadedInfo)
-	for _, p := range plugins {
-		loadedByKey[p.Name+"/"+p.Version] = loadedInfo{
-			formats:    len(p.Formats),
-			pluginType: p.Type,
-		}
-	}
-
-	// Build lookup from installed versions (has install type).
-	installTypeByKey := make(map[string]string)
+	installedByKey := make(map[string]installedInfo)
 	for _, iv := range installed {
-		installTypeByKey[iv.Name+"/"+iv.Version] = iv.InstallType
+		installedByKey[iv.Name+"/"+iv.Version] = installedInfo{
+			installType: iv.InstallType,
+			pluginType:  iv.PluginType,
+			formats:     iv.FormatCount(),
+		}
 	}
 
 	// Group installed versions by name.
@@ -114,13 +110,12 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 				Status:  "installed",
 				Path:    pluginLoader.Dir(),
 			}
-			key := name + "/" + v
-			if li, ok := loadedByKey[key]; ok {
-				info.Formats = li.formats
-				info.PluginType = li.pluginType
-			}
-			if it, ok := installTypeByKey[key]; ok && info.PluginType == "" {
-				info.PluginType = it
+			if ii, ok := installedByKey[name+"/"+v]; ok {
+				info.PluginType = ii.pluginType
+				info.Formats = ii.formats
+				if info.PluginType == "" {
+					info.PluginType = ii.installType
+				}
 			}
 			pluginInfos = append(pluginInfos, info)
 		}

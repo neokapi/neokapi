@@ -189,21 +189,40 @@ func (w *countWriter) Write(p []byte) (int, error) {
 }
 
 func TestInstallPluginBridge(t *testing.T) {
+	// Bundled manifest.json in the archive — this is the authoritative source.
+	bundledManifest := `{
+		"name": "okapi-bridge",
+		"version": "1.0.0",
+		"plugin_type": "bundle",
+		"capabilities": [
+			{"type": "format", "name": "html", "display_name": "HTML Filter", "extensions": [".html"]},
+			{"type": "format", "name": "openxml", "display_name": "OpenXML Filter", "extensions": [".docx"]},
+			{"type": "format", "name": "xml", "display_name": "XML Filter", "extensions": [".xml"]},
+			{"type": "tool", "name": "segmentation"}
+		]
+	}`
+
 	archive := makeTarGz(t, map[string][]byte{
 		"gokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
 		"okapi.bridge.json":                       []byte(`{"name":"okapi","type":"bridge"}`),
+		"manifest.json":                           []byte(bundledManifest),
 		"schemas/okf_html.schema.json":            []byte(`{"x-filter":{"id":"okf_html"}}`),
 	})
 
+	// Registry has FEWER capabilities than the bundled manifest — the bundled
+	// manifest should win since it's the authoritative source.
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
 			{
-				Name:        "okapi",
+				Name:        "okapi-bridge",
 				Version:     "1.0.0",
 				PluginType:  "bridge",
 				InstallType: "bridge",
 				Checksum:    checksum(archive),
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+				},
 			},
 		},
 	}
@@ -225,27 +244,82 @@ func TestInstallPluginBridge(t *testing.T) {
 	dir := t.TempDir()
 	reg := NewRemoteRegistry(srv.URL, dir)
 
-	result, err := reg.InstallPlugin(PluginRef{Name: "okapi"})
+	result, err := reg.InstallPlugin(PluginRef{Name: "okapi-bridge"})
 	require.NoError(t, err)
-	assert.Equal(t, "okapi", result.Name)
+	assert.Equal(t, "okapi-bridge", result.Name)
 	assert.Equal(t, "bridge", result.InstallType)
-	assert.Len(t, result.Files, 3)
+	assert.Len(t, result.Files, 4) // jar + bridge.json + manifest.json + schema
 
 	// Verify extracted files exist in versioned directory.
-	versionDir := VersionedPluginDir(dir, "okapi", "1.0.0")
+	versionDir := VersionedPluginDir(dir, "okapi-bridge", "1.0.0")
 	_, err = os.Stat(filepath.Join(versionDir, "gokapi-bridge-jar-with-dependencies.jar"))
 	assert.NoError(t, err)
-	_, err = os.Stat(filepath.Join(versionDir, "okapi.bridge.json"))
+	_, err = os.Stat(filepath.Join(versionDir, "manifest.json"))
 	assert.NoError(t, err)
 
 	// Verify schemas subdirectory is preserved (not flattened).
 	_, err = os.Stat(filepath.Join(versionDir, "schemas", "okf_html.schema.json"))
 	assert.NoError(t, err)
 
-	// Version file should be written.
-	vf, err := ReadVersionFile(dir, "okapi", "1.0.0")
+	// Version file should use the BUNDLED manifest (4 caps), not registry (1 cap).
+	vf, err := ReadVersionFile(dir, "okapi-bridge", "1.0.0")
 	require.NoError(t, err)
 	assert.Equal(t, "bridge", vf.InstallType)
+	assert.Equal(t, "bundle", vf.PluginType)
+	assert.Len(t, vf.Capabilities, 4)
+	assert.Equal(t, 3, vf.FormatCount())
+}
+
+func TestInstallPluginBridgeWithoutBundledManifest(t *testing.T) {
+	// Archive WITHOUT manifest.json — should fall back to registry metadata.
+	archive := makeTarGz(t, map[string][]byte{
+		"fake-bridge.jar":   []byte("fake-jar"),
+		"okapi.bridge.json": []byte(`{"name":"okapi","type":"bridge"}`),
+	})
+
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:        "okapi",
+				Version:     "1.0.0",
+				PluginType:  "bundle",
+				InstallType: "bridge",
+				Checksum:    checksum(archive),
+				Capabilities: []Capability{
+					{Type: "format", Name: "html"},
+					{Type: "format", Name: "openxml"},
+				},
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			serveJSON(t, w, index)
+		case "/download/bridge":
+			serveBytes(t, w, archive)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	index.Plugins[0].DownloadURL = srv.URL + "/download/bridge"
+
+	dir := t.TempDir()
+	reg := NewRemoteRegistry(srv.URL, dir)
+
+	_, err := reg.InstallPlugin(PluginRef{Name: "okapi"})
+	require.NoError(t, err)
+
+	// Should fall back to registry capabilities.
+	vf, err := ReadVersionFile(dir, "okapi", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, "bundle", vf.PluginType)
+	assert.Len(t, vf.Capabilities, 2)
+	assert.Equal(t, 2, vf.FormatCount())
 }
 
 func TestInstallPluginExactVersion(t *testing.T) {

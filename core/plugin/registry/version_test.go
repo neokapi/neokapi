@@ -16,6 +16,12 @@ func TestWriteAndReadVersionFile(t *testing.T) {
 		Name:        "okapi",
 		Version:     "1.0.0",
 		InstallType: "bridge",
+		PluginType:  "bundle",
+		Capabilities: []Capability{
+			{Type: "format", Name: "html"},
+			{Type: "format", Name: "openxml"},
+			{Type: "tool", Name: "segmentation"},
+		},
 		InstalledAt: "2025-01-15T10:00:00Z",
 		Checksum:    "abc123",
 	}
@@ -32,8 +38,28 @@ func TestWriteAndReadVersionFile(t *testing.T) {
 	assert.Equal(t, vf.Name, got.Name)
 	assert.Equal(t, vf.Version, got.Version)
 	assert.Equal(t, vf.InstallType, got.InstallType)
+	assert.Equal(t, vf.PluginType, got.PluginType)
+	assert.Len(t, got.Capabilities, 3)
+	assert.Equal(t, 2, got.FormatCount())
 	assert.Equal(t, vf.InstalledAt, got.InstalledAt)
 	assert.Equal(t, vf.Checksum, got.Checksum)
+}
+
+func TestReadVersionFileBackwardsCompatible(t *testing.T) {
+	// Old version.json files without plugin_type/capabilities should still parse.
+	dir := t.TempDir()
+	vf := &VersionFile{
+		Name:        "old-plugin",
+		Version:     "1.0.0",
+		InstallType: "binary",
+	}
+	require.NoError(t, WriteVersionFile(dir, "old-plugin", "1.0.0", vf))
+
+	got, err := ReadVersionFile(dir, "old-plugin", "1.0.0")
+	require.NoError(t, err)
+	assert.Equal(t, "", got.PluginType)
+	assert.Empty(t, got.Capabilities)
+	assert.Equal(t, 0, got.FormatCount())
 }
 
 func TestReadVersionFileNotFound(t *testing.T) {

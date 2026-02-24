@@ -225,13 +225,24 @@ func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
 		return nil, err
 	}
 
+	// Read bundled manifest.json from the extracted plugin (authoritative source).
+	// Falls back to registry manifest metadata if the plugin doesn't ship one.
+	pluginType := manifest.PluginType
+	capabilities := manifest.Capabilities
+	if bm, err := ReadBundledManifest(destDir); err == nil && bm != nil {
+		pluginType = bm.PluginType
+		capabilities = bm.Capabilities
+	}
+
 	// Write version tracking file.
 	vf := &VersionFile{
-		Name:        manifest.Name,
-		Version:     manifest.Version,
-		InstallType: installType,
-		InstalledAt: time.Now().UTC().Format(time.RFC3339),
-		Checksum:    manifest.Checksum,
+		Name:         manifest.Name,
+		Version:      manifest.Version,
+		InstallType:  installType,
+		PluginType:   pluginType,
+		Capabilities: capabilities,
+		InstalledAt:  time.Now().UTC().Format(time.RFC3339),
+		Checksum:     manifest.Checksum,
 	}
 	if err := WriteVersionFile(r.DownloadDir, manifest.Name, manifest.Version, vf); err != nil {
 		return nil, fmt.Errorf("writing version file: %w", err)

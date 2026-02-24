@@ -9,11 +9,24 @@ import (
 
 // VersionFile tracks metadata about an installed plugin.
 type VersionFile struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	InstallType string `json:"install_type"`
-	InstalledAt string `json:"installed_at"`
-	Checksum    string `json:"checksum"`
+	Name         string       `json:"name"`
+	Version      string       `json:"version"`
+	InstallType  string       `json:"install_type"`
+	PluginType   string       `json:"plugin_type,omitempty"`
+	Capabilities []Capability `json:"capabilities,omitempty"`
+	InstalledAt  string       `json:"installed_at"`
+	Checksum     string       `json:"checksum"`
+}
+
+// FormatCount returns the number of format capabilities in this version file.
+func (vf *VersionFile) FormatCount() int {
+	n := 0
+	for _, c := range vf.Capabilities {
+		if c.Type == "format" {
+			n++
+		}
+	}
+	return n
 }
 
 // InstalledVersion pairs a VersionFile with its directory on disk.
@@ -116,6 +129,35 @@ func ListAllInstalled(baseDir string) (map[string][]InstalledVersion, error) {
 		}
 	}
 	return result, nil
+}
+
+// BundledManifest is the manifest.json file bundled inside a plugin archive.
+// It declares the plugin's capabilities so they can be stored at install time
+// without starting the plugin runtime (e.g., Java bridge).
+type BundledManifest struct {
+	Name         string       `json:"name"`
+	Version      string       `json:"version"`
+	PluginType   string       `json:"plugin_type"`
+	Description  string       `json:"description,omitempty"`
+	Capabilities []Capability `json:"capabilities"`
+}
+
+// ReadBundledManifest reads a manifest.json from the given directory.
+// Returns nil (not an error) if the file does not exist.
+func ReadBundledManifest(dir string) (*BundledManifest, error) {
+	path := filepath.Join(dir, "manifest.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("reading manifest: %w", err)
+	}
+	var m BundledManifest
+	if err := json.Unmarshal(data, &m); err != nil {
+		return nil, fmt.Errorf("parsing manifest: %w", err)
+	}
+	return &m, nil
 }
 
 // LatestInstalledVersion returns the installed version with the highest
