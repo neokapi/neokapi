@@ -27,6 +27,11 @@ type RemoteRegistry struct {
 
 	// HTTPClient is the HTTP client used for requests. If nil, http.DefaultClient is used.
 	HTTPClient *http.Client
+
+	// OnProgress is called before a download starts with the total byte count
+	// (from Content-Length; -1 if unknown). It returns an io.Writer that receives
+	// the raw downloaded bytes for progress tracking. If nil, no progress is reported.
+	OnProgress func(totalBytes int64) io.Writer
 }
 
 // NewRemoteRegistry creates a new RemoteRegistry.
@@ -135,8 +140,15 @@ func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
 		return "", fmt.Errorf("download returned status %d for %s", resp.StatusCode, manifest.Name)
 	}
 
-	// Read the entire body for checksum verification.
-	data, err := io.ReadAll(resp.Body)
+	// Read the entire body for checksum verification, with optional progress.
+	var reader io.Reader = resp.Body
+	if r.OnProgress != nil {
+		if pw := r.OnProgress(resp.ContentLength); pw != nil {
+			reader = io.TeeReader(resp.Body, pw)
+		}
+	}
+
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return "", fmt.Errorf("reading plugin binary: %w", err)
 	}
@@ -246,7 +258,15 @@ func (r *RemoteRegistry) installBridge(manifest *PluginManifest) ([]string, erro
 		return nil, fmt.Errorf("download returned status %d for %s", resp.StatusCode, manifest.Name)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	// Read the entire body for checksum verification, with optional progress.
+	var reader io.Reader = resp.Body
+	if r.OnProgress != nil {
+		if pw := r.OnProgress(resp.ContentLength); pw != nil {
+			reader = io.TeeReader(resp.Body, pw)
+		}
+	}
+
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("reading bridge archive: %w", err)
 	}

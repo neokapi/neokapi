@@ -7,6 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -126,6 +128,64 @@ func TestInstallPluginBinary(t *testing.T) {
 	assert.Equal(t, "my-tool", vf.Name)
 	assert.Equal(t, "2.0.0", vf.Version)
 	assert.Equal(t, "binary", vf.InstallType)
+}
+
+func TestDownloadProgressCallback(t *testing.T) {
+	binaryContent := []byte("fake-binary-content-for-progress")
+
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:        "prog-tool",
+				Version:     "1.0.0",
+				PluginType:  "tool",
+				InstallType: "binary",
+				Checksum:    checksum(binaryContent),
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			serveJSON(t, w, index)
+		case "/download/prog":
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(binaryContent)))
+			serveBytes(t, w, binaryContent)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	index.Plugins[0].DownloadURL = srv.URL + "/download/prog"
+
+	dir := t.TempDir()
+	reg := NewRemoteRegistry(srv.URL, dir)
+
+	var reportedTotal int64
+	var bytesWritten int
+	reg.OnProgress = func(totalBytes int64) io.Writer {
+		reportedTotal = totalBytes
+		return &countWriter{written: &bytesWritten}
+	}
+
+	result, err := reg.InstallPlugin(PluginRef{Name: "prog-tool"})
+	require.NoError(t, err)
+	assert.Equal(t, "prog-tool", result.Name)
+	assert.Equal(t, int64(len(binaryContent)), reportedTotal)
+	assert.Equal(t, len(binaryContent), bytesWritten)
+}
+
+// countWriter is a test io.Writer that counts bytes written.
+type countWriter struct {
+	written *int
+}
+
+func (w *countWriter) Write(p []byte) (int, error) {
+	*w.written += len(p)
+	return len(p), nil
 }
 
 func TestInstallPluginBridge(t *testing.T) {

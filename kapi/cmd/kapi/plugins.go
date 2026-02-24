@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/spf13/cobra"
+	"github.com/vbauerster/mpb/v8"
+	"github.com/vbauerster/mpb/v8/decor"
 )
 
 var pluginsCmd = &cobra.Command{
@@ -230,6 +234,59 @@ func formatColumns(items []string) string {
 	return sb.String()
 }
 
+// barWriter adapts an mpb.Bar to io.Writer for use with io.TeeReader.
+type barWriter struct {
+	bar *mpb.Bar
+}
+
+func (w *barWriter) Write(p []byte) (int, error) {
+	w.bar.IncrBy(len(p))
+	return len(p), nil
+}
+
+// newProgressRegistry creates a RemoteRegistry with a download progress bar
+// wired up (unless --quiet is set). The returned cleanup function must be called
+// to finalize the progress bar display.
+func newProgressRegistry(registryURL, pluginDir string) (reg *registry.RemoteRegistry, cleanup func()) {
+	reg = registry.NewRemoteRegistry(registryURL, pluginDir)
+	cleanup = func() {}
+
+	if quiet {
+		return reg, cleanup
+	}
+
+	var progress *mpb.Progress
+	var bar *mpb.Bar
+
+	reg.OnProgress = func(totalBytes int64) io.Writer {
+		progress = mpb.New(mpb.WithOutput(os.Stderr))
+		if totalBytes > 0 {
+			bar = progress.New(totalBytes,
+				mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+				mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "%.1f / %.1f")),
+				mpb.AppendDecorators(decor.EwmaSpeed(decor.SizeB1024(0), "% .1f", 30)),
+			)
+		} else {
+			bar = progress.New(0,
+				mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
+				mpb.PrependDecorators(decor.Counters(decor.SizeB1024(0), "%.1f")),
+			)
+		}
+		return &barWriter{bar: bar}
+	}
+
+	cleanup = func() {
+		if progress != nil {
+			if bar != nil {
+				bar.Abort(false)
+			}
+			progress.Wait()
+		}
+	}
+
+	return reg, cleanup
+}
+
 var pluginsInstallCmd = &cobra.Command{
 	Use:   "install <name[@version]>",
 	Short: "Install a plugin",
@@ -239,10 +296,12 @@ var pluginsInstallCmd = &cobra.Command{
 
 		cfg := config.NewAppConfig()
 		_ = cfg.Load()
-		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
+
+		reg, cleanup := newProgressRegistry(cfg.RegistryURL(), pluginLoader.Dir())
+		defer cleanup()
 
 		if !quiet {
-			fmt.Printf("Installing plugin: %s\n", ref)
+			fmt.Fprintf(os.Stderr, "Installing plugin: %s\n", ref)
 		}
 
 		result, err := reg.InstallPlugin(ref)
@@ -251,9 +310,9 @@ var pluginsInstallCmd = &cobra.Command{
 		}
 
 		if !quiet {
-			fmt.Printf("Installed %s v%s (%s)\n", result.Name, result.Version, result.InstallType)
+			fmt.Fprintf(os.Stderr, "Installed %s v%s (%s)\n", result.Name, result.Version, result.InstallType)
 			for _, f := range result.Files {
-				fmt.Printf("  \u2192 %s\n", f)
+				fmt.Fprintf(os.Stderr, "  \u2192 %s\n", f)
 			}
 		}
 		return nil
@@ -267,19 +326,21 @@ var pluginsUpdateCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg := config.NewAppConfig()
 		_ = cfg.Load()
-		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
+
+		reg, cleanup := newProgressRegistry(cfg.RegistryURL(), pluginLoader.Dir())
+		defer cleanup()
 
 		if len(args) == 1 {
 			// Update a specific plugin (installs latest side-by-side).
 			ref := registry.ParsePluginRef(args[0])
 			if !quiet {
-				fmt.Printf("Updating plugin: %s\n", ref)
+				fmt.Fprintf(os.Stderr, "Updating plugin: %s\n", ref)
 			}
 			result, err := reg.InstallPlugin(ref)
 			if err != nil {
 				return fmt.Errorf("updating %s: %w", ref, err)
 			}
-			fmt.Printf("Updated %s to v%s\n", result.Name, result.Version)
+			fmt.Fprintf(os.Stderr, "Updated %s to v%s\n", result.Name, result.Version)
 			return nil
 		}
 
@@ -296,14 +357,14 @@ var pluginsUpdateCmd = &cobra.Command{
 
 		for _, u := range updates {
 			if !quiet {
-				fmt.Printf("Updating %s: %s \u2192 %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
+				fmt.Fprintf(os.Stderr, "Updating %s: %s \u2192 %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
 			}
 			result, err := reg.InstallPlugin(registry.PluginRef{Name: u.Name})
 			if err != nil {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to update %s: %v\n", u.Name, err)
 				continue
 			}
-			fmt.Printf("Updated %s to v%s\n", result.Name, result.Version)
+			fmt.Fprintf(os.Stderr, "Updated %s to v%s\n", result.Name, result.Version)
 		}
 		return nil
 	},
