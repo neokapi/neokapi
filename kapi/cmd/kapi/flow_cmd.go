@@ -13,9 +13,12 @@ import (
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	kapipreset "github.com/gokapi/gokapi/kapi/preset"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -79,9 +82,45 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 		fmtName = detected
 	}
 
-	reader, err := formatReg.NewReader(fmtName)
+	// Parse format reference for preset/version
+	ref := pluginreg.ParseFormatRef(fmtName)
+	resolvedFmtName := ref.Name
+
+	// Resolve format config if preset or project overrides are specified
+	var mergedConfig map[string]any
+	if ref.IsPreset() || hasProjectOverrides(resolvedFmtName) {
+		presetReg := pluginLoader.Presets()
+		kapipreset.RegisterBuiltins(presetReg)
+
+		resolver := preset.NewConfigResolver(presetReg, pluginLoader.Schemas())
+
+		localPresets := getLocalPresets()
+
+		var err error
+		mergedConfig, err = resolver.ResolveFormatConfig(
+			resolvedFmtName, ref.Preset, localPresets, nil,
+		)
+		if err != nil {
+			return fmt.Errorf("resolve format config: %w", err)
+		}
+	}
+
+	reader, err := formatReg.NewReader(resolvedFmtName)
 	if err != nil {
-		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
+		// Fall back to full fmtName (might be versioned)
+		reader, err = formatReg.NewReader(fmtName)
+		if err != nil {
+			return fmt.Errorf("no reader for format %q: %w", fmtName, err)
+		}
+	}
+
+	// Apply merged config if available
+	if len(mergedConfig) > 0 {
+		if cfg := reader.Config(); cfg != nil {
+			if err := cfg.ApplyMap(mergedConfig); err != nil {
+				return fmt.Errorf("apply format config: %w", err)
+			}
+		}
 	}
 
 	inputContent, err := os.ReadFile(inputPath)
@@ -146,9 +185,13 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 	}
 
-	writer, err := formatReg.NewWriter(fmtName)
+	writer, err := formatReg.NewWriter(resolvedFmtName)
 	if err != nil {
-		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+		// Fall back to full fmtName (might be versioned)
+		writer, err = formatReg.NewWriter(fmtName)
+		if err != nil {
+			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+		}
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {
@@ -419,6 +462,34 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 	default:
 		return nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
+}
+
+func getLocalPresets() map[string]preset.LocalFormatPreset {
+	proj, err := findProject()
+	if err != nil {
+		return nil
+	}
+	if len(proj.Config.FormatPresets) == 0 {
+		return nil
+	}
+	result := make(map[string]preset.LocalFormatPreset, len(proj.Config.FormatPresets))
+	for name, lp := range proj.Config.FormatPresets {
+		result[name] = preset.LocalFormatPreset{
+			Description: lp.Description,
+			Base:        lp.Base,
+			Config:      lp.Config,
+		}
+	}
+	return result
+}
+
+func hasProjectOverrides(formatName string) bool {
+	proj, err := findProject()
+	if err != nil {
+		return false
+	}
+	_, ok := proj.Config.FormatPresets[formatName]
+	return ok
 }
 
 func getProvider() provider.LLMProvider {

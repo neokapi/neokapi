@@ -142,6 +142,15 @@ type Config struct {
 	// Server connection (optional)
 	Server *ServerConfig `yaml:"server,omitempty"`
 
+	// Plugin configuration
+	Plugins *PluginsConfig `yaml:"plugins,omitempty"`
+
+	// Framework preset name (e.g., "nextjs")
+	Preset string `yaml:"preset,omitempty"`
+
+	// Local format preset definitions
+	FormatPresets map[string]LocalFormatPreset `yaml:"format_presets,omitempty"`
+
 	// File mappings
 	Mappings []Mapping `yaml:"mappings,omitempty"`
 
@@ -171,12 +180,26 @@ type ServerConfig struct {
 	// Auth token comes from kapi auth login (stored separately)
 }
 
+// PluginsConfig specifies plugin dependencies.
+type PluginsConfig struct {
+	Framework []string `yaml:"framework,omitempty"` // e.g. ["okapi@1.48.0"]
+	Presets   []string `yaml:"presets,omitempty"`    // e.g. ["okapi-presets@1.48.0"]
+}
+
+// LocalFormatPreset defines a user-defined format preset in config.yaml.
+type LocalFormatPreset struct {
+	Description string         `yaml:"description,omitempty"`
+	Base        string         `yaml:"base,omitempty"` // base format ID
+	Config      map[string]any `yaml:"config"`
+}
+
 // Mapping defines a local - remote file mapping.
 type Mapping struct {
-	Local      string `yaml:"local"`                 // Glob pattern
-	Remote     string `yaml:"remote"`                // Template with {path}, {filename}, {basename}
-	Format     string `yaml:"format"`                // Format ID (json, html, etc.)
-	TargetPath string `yaml:"target_path,omitempty"` // Target locale template (e.g. "locales/{locale}.json")
+	Local      string         `yaml:"local"`                 // Glob pattern
+	Remote     string         `yaml:"remote"`                // Template with {path}, {filename}, {basename}
+	Format     string         `yaml:"format"`                // Format ID (json, html, etc.)
+	TargetPath string         `yaml:"target_path,omitempty"` // Target locale template (e.g. "locales/{locale}.json")
+	Overrides  map[string]any `yaml:"overrides,omitempty"`   // Layer 3: per-mapping config overrides
 }
 
 // DefaultConfig returns a default configuration.

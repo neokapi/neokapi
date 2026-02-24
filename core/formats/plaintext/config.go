@@ -1,5 +1,7 @@
 package plaintext
 
+import "fmt"
+
 // Config holds configuration for the plain text format.
 type Config struct {
 	// SegmentByLine if true, each line is a Block. If false, paragraphs
@@ -17,3 +19,20 @@ func (c *Config) Reset() {
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ApplyMap applies configuration values from a map.
+func (c *Config) ApplyMap(values map[string]any) error {
+	for key, val := range values {
+		switch key {
+		case "segmentByLine":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("segmentByLine: expected bool, got %T", val)
+			}
+			c.SegmentByLine = b
+		default:
+			return fmt.Errorf("plaintext: unknown parameter: %s", key)
+		}
+	}
+	return nil
+}

@@ -413,6 +413,144 @@ type LsOutput struct {
 	HasDirty bool      `json:"-"`
 }
 
+// PresetEntry represents a single preset in the list output.
+type PresetEntry struct {
+	Name        string         `json:"name"`
+	Type        string         `json:"type"`                  // "format" or "framework"
+	Description string         `json:"description,omitempty"`
+	Format      string         `json:"format,omitempty"`      // target format (format presets only)
+	Source      string         `json:"source,omitempty"`
+	IsDefault   bool           `json:"is_default,omitempty"`
+	Config      map[string]any `json:"config,omitempty"`      // parameter values (format presets only)
+	Mappings    []MappingEntry `json:"mappings,omitempty"`    // framework presets only
+	Exclude     []string       `json:"exclude,omitempty"`     // framework presets only
+}
+
+// MappingEntry represents a mapping in a framework preset.
+type MappingEntry struct {
+	Local      string `json:"local"`
+	Format     string `json:"format,omitempty"`
+	TargetPath string `json:"target_path,omitempty"`
+}
+
+// PresetsListOutput represents the list of presets.
+type PresetsListOutput struct {
+	Presets []PresetEntry `json:"presets"`
+	Total   int           `json:"total"`
+}
+
+func (p PresetsListOutput) FormatText(w io.Writer) error {
+	if len(p.Presets) == 0 {
+		fmt.Fprintln(w, "No presets available.")
+		return nil
+	}
+
+	// Separate framework and format presets.
+	var fwPresets, fmtPresets []PresetEntry
+	for _, e := range p.Presets {
+		switch e.Type {
+		case "framework":
+			fwPresets = append(fwPresets, e)
+		default:
+			fmtPresets = append(fmtPresets, e)
+		}
+	}
+
+	if len(fwPresets) > 0 {
+		fmt.Fprintln(w, "Framework Presets:")
+		for _, p := range fwPresets {
+			fmt.Fprintf(w, "  %-20s %s [%s]\n", p.Name, p.Description, p.Source)
+		}
+		fmt.Fprintln(w)
+	}
+
+	if len(fmtPresets) > 0 {
+		fmt.Fprintln(w, "Format Presets:")
+		for _, p := range fmtPresets {
+			def := ""
+			if p.IsDefault {
+				def = " (default)"
+			}
+			fmt.Fprintf(w, "  %-20s %s → %s [%s]%s\n", p.Name, p.Description, p.Format, p.Source, def)
+		}
+	}
+
+	fmt.Fprintf(w, "\nTotal: %d preset(s)\n", p.Total)
+	return nil
+}
+
+// PresetShowOutput represents the details of a single preset.
+type PresetShowOutput struct {
+	Name        string         `json:"name"`
+	Type        string         `json:"type"`                  // "format" or "framework"
+	Description string         `json:"description,omitempty"`
+	Format      string         `json:"format,omitempty"`
+	Source      string         `json:"source,omitempty"`
+	IsDefault   bool           `json:"is_default,omitempty"`
+	Config      map[string]any `json:"config,omitempty"`
+	Mappings    []MappingEntry `json:"mappings,omitempty"`
+	Exclude     []string       `json:"exclude,omitempty"`
+}
+
+func (p PresetShowOutput) FormatText(w io.Writer) error {
+	switch p.Type {
+	case "framework":
+		fmt.Fprintf(w, "Framework Preset: %s\n", p.Name)
+		fmt.Fprintf(w, "Description: %s\n", p.Description)
+		fmt.Fprintf(w, "Source: %s\n", p.Source)
+		if len(p.Mappings) > 0 {
+			fmt.Fprintln(w, "\nMappings:")
+			for _, m := range p.Mappings {
+				fmt.Fprintf(w, "  local: %s\n", m.Local)
+				fmt.Fprintf(w, "  format: %s\n", m.Format)
+				if m.TargetPath != "" {
+					fmt.Fprintf(w, "  target_path: %s\n", m.TargetPath)
+				}
+				fmt.Fprintln(w)
+			}
+		}
+		if len(p.Exclude) > 0 {
+			fmt.Fprintf(w, "Exclude: %s\n", strings.Join(p.Exclude, ", "))
+		}
+	default:
+		displayName := p.Name
+		if p.Format != "" {
+			displayName = p.Format + "@" + p.Name
+		}
+		fmt.Fprintf(w, "Format Preset: %s\n", displayName)
+		fmt.Fprintf(w, "Description: %s\n", p.Description)
+		fmt.Fprintf(w, "Source: %s\n", p.Source)
+		if p.IsDefault {
+			fmt.Fprintln(w, "Default: yes")
+		}
+		if len(p.Config) > 0 {
+			fmt.Fprintln(w, "\nConfiguration:")
+			for k, v := range p.Config {
+				fmt.Fprintf(w, "  %s: %v\n", k, v)
+			}
+		}
+	}
+	return nil
+}
+
+// PresetsValidateOutput represents the result of preset validation.
+type PresetsValidateOutput struct {
+	Valid  bool     `json:"valid"`
+	Errors []string `json:"errors,omitempty"`
+}
+
+func (p PresetsValidateOutput) FormatText(w io.Writer) error {
+	if p.Valid {
+		fmt.Fprintln(w, "All presets and overrides are valid.")
+		return nil
+	}
+	fmt.Fprintf(w, "Found %d validation error(s):\n", len(p.Errors))
+	for _, e := range p.Errors {
+		fmt.Fprintf(w, "  - %s\n", e)
+	}
+	return nil
+}
+
 func (o LsOutput) FormatText(w io.Writer) error {
 	if len(o.Files) == 0 {
 		fmt.Fprintln(w, "No tracked files.")

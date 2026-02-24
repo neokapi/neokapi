@@ -32,25 +32,35 @@ func (r PluginRef) IsVersioned() bool {
 	return r.Version != ""
 }
 
-// FormatRef identifies a format, optionally pinned to a specific version.
+// FormatRef identifies a format, optionally pinned to a specific version or preset.
 // The name part is a format name (e.g. "okapi-html"), not a pack name.
 type FormatRef struct {
 	Name    string // e.g. "okapi-html"
-	Version string // e.g. "1.46.0", empty = latest
+	Version string // e.g. "1.46.0" (semver suffix)
+	Preset  string // e.g. "wellFormed" (non-semver suffix)
 }
 
-// ParseFormatRef parses a string like "okapi-html@1.46.0" or "okapi-html" into a FormatRef.
+// ParseFormatRef parses a string like "okapi-html@1.46.0" or "okapi-html@wellFormed"
+// into a FormatRef. If the suffix after @ consists solely of digits and dots
+// (e.g. "1.46.0"), it is treated as a version; otherwise it is treated as a preset.
 func ParseFormatRef(s string) FormatRef {
 	if i := strings.LastIndex(s, "@"); i > 0 {
-		return FormatRef{Name: s[:i], Version: s[i+1:]}
+		suffix := s[i+1:]
+		if isSemver(suffix) {
+			return FormatRef{Name: s[:i], Version: suffix}
+		}
+		return FormatRef{Name: s[:i], Preset: suffix}
 	}
 	return FormatRef{Name: s}
 }
 
-// String returns "name@version" if versioned, or just "name".
+// String returns "name@version" if versioned, "name@preset" if a preset, or just "name".
 func (r FormatRef) String() string {
 	if r.Version != "" {
 		return r.Name + "@" + r.Version
+	}
+	if r.Preset != "" {
+		return r.Name + "@" + r.Preset
 	}
 	return r.Name
 }
@@ -58,6 +68,25 @@ func (r FormatRef) String() string {
 // IsVersioned reports whether this ref specifies an explicit version.
 func (r FormatRef) IsVersioned() bool {
 	return r.Version != ""
+}
+
+// IsPreset reports whether this ref specifies a preset.
+func (r FormatRef) IsPreset() bool {
+	return r.Preset != ""
+}
+
+// isSemver reports whether s looks like a semver string: consists solely of
+// digits and dots, starts with a digit, and ends with a digit.
+func isSemver(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, c := range s {
+		if c != '.' && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return s[0] >= '0' && s[0] <= '9' && s[len(s)-1] >= '0' && s[len(s)-1] <= '9'
 }
 
 // CompareSemver compares two semantic version strings (major.minor.patch).

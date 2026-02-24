@@ -10,4 +10,8 @@ type DataFormatConfig interface {
 
 	// Validate checks configuration validity.
 	Validate() error
+
+	// ApplyMap applies configuration values from a map.
+	// Unknown keys or type mismatches return an error.
+	ApplyMap(values map[string]any) error
 }

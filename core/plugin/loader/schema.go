@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/gokapi/gokapi/core/preset"
 )
 
 // FilterSchema represents a JSON Schema for a filter's parameters.
@@ -32,10 +34,22 @@ type FilterSchema struct {
 
 // FilterSchemaMeta contains filter identification metadata.
 type FilterSchemaMeta struct {
-	ID         string   `json:"id"`
-	Class      string   `json:"class"`
-	Extensions []string `json:"extensions"`
-	MimeTypes  []string `json:"mimeTypes"`
+	ID             string                `json:"id"`
+	Class          string                `json:"class"`
+	Extensions     []string              `json:"extensions"`
+	MimeTypes      []string              `json:"mimeTypes"`
+	Configurations []FilterConfiguration `json:"configurations,omitempty"`
+}
+
+// FilterConfiguration represents a named configuration from x-filter.configurations.
+type FilterConfiguration struct {
+	ConfigID    string         `json:"configId"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	MimeType    string         `json:"mimeType"`
+	Extensions  string         `json:"extensions"`
+	Parameters  map[string]any `json:"parameters"`
+	IsDefault   bool           `json:"isDefault"`
 }
 
 // ParameterGroup defines a UI grouping of parameters.
@@ -284,4 +298,29 @@ func validateType(paramName string, value any, expectedType string) error {
 	}
 
 	return nil
+}
+
+// ExtractPresets extracts format presets from x-filter.configurations in loaded schemas.
+// For each configuration, it strips the format prefix from configId to get the preset name.
+// E.g., "okf_html-wellFormed" → format "okf_html", preset name "wellFormed".
+func (r *SchemaRegistry) ExtractPresets(reg *preset.PresetRegistry) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for filterID, schema := range r.schemas {
+		for _, cfg := range schema.FilterMeta.Configurations {
+			presetName := cfg.ConfigID
+			// Strip format prefix: "okf_html-wellFormed" → "wellFormed"
+			if strings.HasPrefix(cfg.ConfigID, filterID+"-") {
+				presetName = cfg.ConfigID[len(filterID)+1:]
+			}
+			reg.RegisterFormatPreset(filterID, presetName, &preset.FormatPreset{
+				Name:        presetName,
+				Description: cfg.Description,
+				Format:      filterID,
+				Config:      cfg.Parameters,
+				Source:      "bridge",
+				IsDefault:   cfg.IsDefault,
+			})
+		}
+	}
 }

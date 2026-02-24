@@ -667,3 +667,212 @@ func TestLsOutput_JSON(t *testing.T) {
 	assert.Equal(t, 10, parsed.Files[0].Blocks)
 	assert.Equal(t, 2, parsed.Files[0].Dirty)
 }
+
+func TestPresetsListOutput_FormatText(t *testing.T) {
+	t.Run("empty list", func(t *testing.T) {
+		out := PresetsListOutput{Presets: []PresetEntry{}, Total: 0}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), "No presets available.")
+	})
+
+	t.Run("mixed presets", func(t *testing.T) {
+		out := PresetsListOutput{
+			Presets: []PresetEntry{
+				{Name: "nextjs", Type: "framework", Description: "Next.js App Router", Source: "built-in"},
+				{Name: "okf_html@wellFormed", Type: "format", Description: "Strict XHTML", Format: "okf_html", Source: "bridge", IsDefault: false},
+				{Name: "okf_html@default", Type: "format", Description: "Default HTML", Format: "okf_html", Source: "bridge", IsDefault: true},
+			},
+			Total: 3,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Framework Presets:")
+		assert.Contains(t, text, "nextjs")
+		assert.Contains(t, text, "Format Presets:")
+		assert.Contains(t, text, "okf_html@wellFormed")
+		assert.Contains(t, text, "(default)")
+		assert.Contains(t, text, "Total: 3 preset(s)")
+	})
+
+	t.Run("framework only", func(t *testing.T) {
+		out := PresetsListOutput{
+			Presets: []PresetEntry{
+				{Name: "nextjs", Type: "framework", Description: "Next.js", Source: "built-in"},
+			},
+			Total: 1,
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Framework Presets:")
+		assert.NotContains(t, text, "Format Presets:")
+	})
+}
+
+func TestPresetsListOutput_JSON(t *testing.T) {
+	out := PresetsListOutput{
+		Presets: []PresetEntry{
+			{
+				Name:        "nextjs",
+				Type:        "framework",
+				Description: "Next.js App Router",
+				Source:      "built-in",
+				Mappings:    []MappingEntry{{Local: "messages/*.json", Format: "json", TargetPath: "messages/{locale}.json"}},
+				Exclude:     []string{"node_modules/**"},
+			},
+			{
+				Name:        "okf_html@wellFormed",
+				Type:        "format",
+				Description: "Strict XHTML",
+				Format:      "okf_html",
+				Source:      "bridge",
+				IsDefault:   false,
+				Config:      map[string]any{"assumeWellformed": true},
+			},
+		},
+		Total: 2,
+	}
+
+	var buf bytes.Buffer
+	err := PrintTo(&buf, FormatJSON, out)
+	require.NoError(t, err)
+
+	var parsed PresetsListOutput
+	err = json.Unmarshal(buf.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	assert.Equal(t, 2, parsed.Total)
+	assert.Equal(t, "nextjs", parsed.Presets[0].Name)
+	assert.Equal(t, "framework", parsed.Presets[0].Type)
+	assert.Equal(t, 1, len(parsed.Presets[0].Mappings))
+	assert.Equal(t, "messages/*.json", parsed.Presets[0].Mappings[0].Local)
+	assert.Equal(t, []string{"node_modules/**"}, parsed.Presets[0].Exclude)
+
+	assert.Equal(t, "okf_html@wellFormed", parsed.Presets[1].Name)
+	assert.Equal(t, "format", parsed.Presets[1].Type)
+	assert.Equal(t, "okf_html", parsed.Presets[1].Format)
+	assert.Equal(t, true, parsed.Presets[1].Config["assumeWellformed"])
+}
+
+func TestPresetShowOutput_FormatText(t *testing.T) {
+	t.Run("framework preset", func(t *testing.T) {
+		out := PresetShowOutput{
+			Name:        "nextjs",
+			Type:        "framework",
+			Description: "Next.js App Router",
+			Source:      "built-in",
+			Mappings:    []MappingEntry{{Local: "messages/*.json", Format: "json", TargetPath: "messages/{locale}.json"}},
+			Exclude:     []string{"node_modules/**", ".next/**"},
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Framework Preset: nextjs")
+		assert.Contains(t, text, "Description: Next.js App Router")
+		assert.Contains(t, text, "Source: built-in")
+		assert.Contains(t, text, "Mappings:")
+		assert.Contains(t, text, "local: messages/*.json")
+		assert.Contains(t, text, "Exclude: node_modules/**, .next/**")
+	})
+
+	t.Run("format preset", func(t *testing.T) {
+		out := PresetShowOutput{
+			Name:        "wellFormed",
+			Type:        "format",
+			Description: "Strict XHTML",
+			Format:      "okf_html",
+			Source:      "bridge",
+			IsDefault:   true,
+			Config:      map[string]any{"assumeWellformed": true},
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Format Preset: okf_html@wellFormed")
+		assert.Contains(t, text, "Description: Strict XHTML")
+		assert.Contains(t, text, "Default: yes")
+		assert.Contains(t, text, "Configuration:")
+		assert.Contains(t, text, "assumeWellformed: true")
+	})
+}
+
+func TestPresetShowOutput_JSON(t *testing.T) {
+	out := PresetShowOutput{
+		Name:        "wellFormed",
+		Type:        "format",
+		Description: "Strict XHTML",
+		Format:      "okf_html",
+		Source:      "bridge",
+		IsDefault:   true,
+		Config:      map[string]any{"assumeWellformed": true},
+	}
+
+	var buf bytes.Buffer
+	err := PrintTo(&buf, FormatJSON, out)
+	require.NoError(t, err)
+
+	var parsed PresetShowOutput
+	err = json.Unmarshal(buf.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	assert.Equal(t, "wellFormed", parsed.Name)
+	assert.Equal(t, "format", parsed.Type)
+	assert.Equal(t, "okf_html", parsed.Format)
+	assert.True(t, parsed.IsDefault)
+	assert.Equal(t, true, parsed.Config["assumeWellformed"])
+}
+
+func TestPresetsValidateOutput_FormatText(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		out := PresetsValidateOutput{Valid: true}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+		assert.Contains(t, buf.String(), "All presets and overrides are valid.")
+	})
+
+	t.Run("with errors", func(t *testing.T) {
+		out := PresetsValidateOutput{
+			Valid:  false,
+			Errors: []string{"okf_html: unknown parameter: preservWhitespace", "json: expected boolean, got string"},
+		}
+		var buf bytes.Buffer
+		err := out.FormatText(&buf)
+		require.NoError(t, err)
+
+		text := buf.String()
+		assert.Contains(t, text, "Found 2 validation error(s):")
+		assert.Contains(t, text, "preservWhitespace")
+		assert.Contains(t, text, "expected boolean")
+	})
+}
+
+func TestPresetsValidateOutput_JSON(t *testing.T) {
+	out := PresetsValidateOutput{
+		Valid:  false,
+		Errors: []string{"bad param", "wrong type"},
+	}
+
+	var buf bytes.Buffer
+	err := PrintTo(&buf, FormatJSON, out)
+	require.NoError(t, err)
+
+	var parsed PresetsValidateOutput
+	err = json.Unmarshal(buf.Bytes(), &parsed)
+	require.NoError(t, err)
+
+	assert.False(t, parsed.Valid)
+	assert.Equal(t, 2, len(parsed.Errors))
+	assert.Equal(t, "bad param", parsed.Errors[0])
+}

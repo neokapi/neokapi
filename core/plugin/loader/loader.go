@@ -20,6 +20,7 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/bridge"
 	"github.com/gokapi/gokapi/core/plugin/host"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/registry"
 )
 
@@ -53,7 +54,8 @@ type PluginLoader struct {
 	pool    *bridge.BridgePool // single shared pool for all bridge plugins
 	bridges []*managedBridge
 	plugins []PluginInfo
-	schemas *SchemaRegistry // filter parameter schemas
+	schemas *SchemaRegistry        // filter parameter schemas
+	presets *preset.PresetRegistry  // format and framework presets
 	logger  *log.Logger
 }
 
@@ -62,6 +64,7 @@ func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 	return &PluginLoader{
 		dir:     dir,
 		schemas: NewSchemaRegistry(),
+		presets: preset.NewPresetRegistry(),
 		logger:  logger,
 	}
 }
@@ -203,6 +206,21 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 		}
 	}
 
+	// Extract bridge configuration presets from loaded schemas.
+	l.schemas.ExtractPresets(l.presets)
+
+	// Scan version directories for presets.yaml files.
+	for _, versions := range all {
+		for _, iv := range versions {
+			presetsPath := filepath.Join(iv.Dir, "presets.yaml")
+			if _, err := os.Stat(presetsPath); err == nil {
+				if err := LoadPresetsFromFile(presetsPath, l.presets, iv.Dir); err != nil {
+					l.logf("loading presets from %s: %v", presetsPath, err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -304,6 +322,11 @@ func (l *PluginLoader) Dir() string {
 // Schemas returns the schema registry for filter parameters.
 func (l *PluginLoader) Schemas() *SchemaRegistry {
 	return l.schemas
+}
+
+// Presets returns the preset registry.
+func (l *PluginLoader) Presets() *preset.PresetRegistry {
+	return l.presets
 }
 
 // Shutdown stops all plugin processes.

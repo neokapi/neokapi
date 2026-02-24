@@ -129,6 +129,63 @@ Plugins declare their configuration parameters via the `Info()` RPC response usi
 
 See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the ParameterDescriptor struct and configuration examples.
 
+### Presets
+
+**Presets** are named configuration bundles that simplify format and project setup.
+They provide reusable parameter sets without requiring users to manually specify
+every format option.
+
+#### Format Presets
+
+A **format preset** is a named parameter configuration for a specific format. Three
+sources supply format presets:
+
+- **Bridge configurations**: Auto-surfaced from `x-filter.configurations` in
+  composite schemas. For example, `okf_html-wellFormed` becomes preset `wellFormed`
+  for format `okf_html`.
+- **Plugin presets**: Defined in `presets.yaml` within plugin version directories.
+  Plugins can ship presets for any format they provide.
+- **Local presets**: Defined in `.kapi/config.yaml` under `format_presets:`.
+  Users create project-specific configurations.
+
+#### Framework Presets
+
+A **framework preset** is a project setup template providing mappings, format
+configs, exclude patterns, and flow defaults. Built-in templates (Next.js,
+react-intl, Angular) ship with kapi; plugins can add more.
+
+Framework presets are applied via `kapi init --preset nextjs` and set the `preset:`
+field in `config.yaml` for documentation.
+
+#### Configuration Layering
+
+Configuration resolution follows a three-layer model:
+
+```
+Format defaults → Preset config → Local overrides
+```
+
+Deep map merge at each layer: maps merge recursively; scalar values replace.
+This lets presets provide comprehensive defaults while users override specific
+values per mapping.
+
+#### @-Notation
+
+The `format@suffix` syntax in mapping format fields serves dual purpose:
+
+- If the suffix matches semver (digits and dots only): **version pin**
+  (`okf_html@1.46.0`)
+- Otherwise: **preset reference** (`okf_html@wellFormed`)
+
+Preset names must not consist solely of digits and dots, ensuring unambiguous
+parsing.
+
+#### Design Principle
+
+Presets are a **capability**, not a plugin type. Existing plugin types (bundles,
+formats) can declare preset capabilities via `presets.yaml` files. No additional
+plugin type is needed.
+
 ### Plugin Governance
 
 **Protocol stability.** The v1 protocol (defined in `plugin/proto/v1/gokapi.proto`)

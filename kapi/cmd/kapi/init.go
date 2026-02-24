@@ -10,6 +10,7 @@ import (
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	kapipreset "github.com/gokapi/gokapi/kapi/preset"
 	"github.com/gokapi/gokapi/platform/client"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
@@ -25,6 +26,7 @@ var (
 	initTargets     string
 	initAnonymous   bool
 	initEmail       string
+	initPreset      string
 )
 
 var initCmd = &cobra.Command{
@@ -600,6 +602,13 @@ func localeInput(title string, value *string) huh.Field {
 }
 
 func finishInit(cwd string, cfg *project.Config) (*output.InitOutput, error) {
+	// Apply framework preset if specified.
+	if initPreset != "" {
+		if err := applyFrameworkPreset(cfg, initPreset); err != nil {
+			return nil, err
+		}
+	}
+
 	proj, err := project.InitProject(cwd, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("initialize project: %w", err)
@@ -647,6 +656,58 @@ steps:
 	return nil
 }
 
+func applyFrameworkPreset(cfg *project.Config, presetName string) error {
+	reg := pluginLoader.Presets()
+	kapipreset.RegisterBuiltins(reg)
+
+	fp := reg.GetFrameworkPreset(presetName)
+	if fp == nil {
+		available := reg.ListFrameworkPresets()
+		names := make([]string, len(available))
+		for i, p := range available {
+			names[i] = p.Name
+		}
+		return fmt.Errorf("unknown framework preset %q (available: %s)", presetName, strings.Join(names, ", "))
+	}
+
+	cfg.Preset = presetName
+
+	// Apply mappings.
+	for _, m := range fp.Mappings {
+		cfg.Mappings = append(cfg.Mappings, project.Mapping{
+			Local:      m.Local,
+			Remote:     m.Remote,
+			Format:     m.Format,
+			TargetPath: m.TargetPath,
+		})
+	}
+
+	// Apply exclude patterns.
+	cfg.Exclude = append(cfg.Exclude, fp.Exclude...)
+
+	// Apply format preset overrides as local presets.
+	if len(fp.FormatPresets) > 0 && cfg.FormatPresets == nil {
+		cfg.FormatPresets = make(map[string]project.LocalFormatPreset)
+	}
+	for format, config := range fp.FormatPresets {
+		cfg.FormatPresets[format] = project.LocalFormatPreset{
+			Config: config,
+		}
+	}
+
+	// Apply flow defaults.
+	if len(fp.Flows) > 0 {
+		if cfg.Flows == nil {
+			cfg.Flows = make(map[string]map[string]any)
+		}
+		for flow, config := range fp.Flows {
+			cfg.Flows[flow] = config
+		}
+	}
+
+	return nil
+}
+
 func init() {
 	output.AddFlags(initCmd)
 	initCmd.Flags().StringVar(&initServerURL, "server", "", "server URL")
@@ -656,6 +717,7 @@ func init() {
 	initCmd.Flags().StringVar(&initTargets, "targets", "", "Target locales, comma-separated (e.g., nb,fr)")
 	initCmd.Flags().BoolVar(&initAnonymous, "anonymous", false, "Create a project without signing in")
 	initCmd.Flags().StringVar(&initEmail, "email", "", "Create a project and email a link to claim it")
+	initCmd.Flags().StringVar(&initPreset, "preset", "", "apply a framework preset (e.g., nextjs, react-intl, angular)")
 
 	rootCmd.AddCommand(initCmd)
 }

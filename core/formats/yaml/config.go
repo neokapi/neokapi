@@ -1,5 +1,7 @@
 package yaml
 
+import "fmt"
+
 // Config holds configuration for the YAML format.
 type Config struct{}
 
@@ -11,3 +13,11 @@ func (c *Config) Reset() {}
 
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
+
+// ApplyMap applies configuration values from a map.
+func (c *Config) ApplyMap(values map[string]any) error {
+	for key := range values {
+		return fmt.Errorf("yaml: unknown parameter: %s", key)
+	}
+	return nil
+}
