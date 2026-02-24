@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -208,4 +209,180 @@ func TestSchemaRegistry_ListFilters(t *testing.T) {
 
 	filters := reg.ListFilters()
 	assert.Len(t, filters, 2)
+}
+
+// TestSchemaRegistry_LoadCompositeSchemas verifies loading schemas in the
+// composite format that okapi-bridge produces — with x-filter metadata,
+// configurations, and multiple properties.
+func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
+	dir := t.TempDir()
+
+	// Simulate a composite schema like those produced by okapi-bridge's
+	// SchemaGenerator: includes x-filter with class/extensions/mimeTypes,
+	// multiple property types, and x-groups for UI.
+	htmlSchema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"$id": "https://gokapi.dev/schemas/filters/okf_html.schema.json",
+		"$version": "1.47.0",
+		"title": "HTML Filter",
+		"description": "Configuration for the Okapi HTML Filter",
+		"type": "object",
+		"x-filter": {
+			"id": "okf_html",
+			"class": "net.sf.okapi.filters.html.HtmlFilter",
+			"extensions": [".html", ".htm"],
+			"mimeTypes": ["text/html"]
+		},
+		"x-groups": [
+			{
+				"id": "general",
+				"label": "General Settings",
+				"fields": ["assumeWellformed", "useCodeFinder"]
+			}
+		],
+		"properties": {
+			"assumeWellformed": {
+				"type": "boolean",
+				"default": false,
+				"description": "Assume well-formed HTML"
+			},
+			"useCodeFinder": {
+				"type": "boolean",
+				"default": true
+			},
+			"codeFinderRules": {
+				"type": "string",
+				"default": "",
+				"x-widget": "regexBuilder"
+			}
+		}
+	}`
+
+	xmlSchema := `{
+		"$schema": "http://json-schema.org/draft-07/schema#",
+		"$id": "https://gokapi.dev/schemas/filters/okf_xml.schema.json",
+		"$version": "1.47.0",
+		"title": "XML Filter",
+		"description": "Configuration for the Okapi XML Filter",
+		"type": "object",
+		"x-filter": {
+			"id": "okf_xml",
+			"class": "net.sf.okapi.filters.xml.XMLFilter",
+			"extensions": [".xml"],
+			"mimeTypes": ["application/xml", "text/xml"]
+		},
+		"properties": {
+			"preserveWhitespace": {
+				"type": "boolean",
+				"default": false
+			}
+		}
+	}`
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "okf_html.schema.json"), []byte(htmlSchema), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "okf_xml.schema.json"), []byte(xmlSchema), 0644))
+
+	reg := NewSchemaRegistry()
+	require.NoError(t, reg.LoadFromDirectory(dir))
+
+	assert.Equal(t, 2, reg.Count())
+
+	// Verify HTML schema metadata
+	html, ok := reg.GetSchema("okf_html")
+	require.True(t, ok)
+	assert.Equal(t, "HTML Filter", html.Title)
+	assert.Equal(t, "1.47.0", html.Version)
+	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", html.FilterMeta.Class)
+	assert.Contains(t, html.FilterMeta.Extensions, ".html")
+	assert.Contains(t, html.FilterMeta.Extensions, ".htm")
+	assert.Contains(t, html.FilterMeta.MimeTypes, "text/html")
+	assert.Len(t, html.Properties, 3)
+	assert.Len(t, html.Groups, 1)
+
+	// Verify XML schema
+	xml, ok := reg.GetSchema("okf_xml")
+	require.True(t, ok)
+	assert.Equal(t, "net.sf.okapi.filters.xml.XMLFilter", xml.FilterMeta.Class)
+	assert.Contains(t, xml.FilterMeta.MimeTypes, "application/xml")
+
+	// Verify configuration extraction: ValidateParams should accept valid params
+	err := reg.ValidateParams("okf_html", map[string]any{
+		"assumeWellformed": true,
+		"useCodeFinder":    false,
+	})
+	assert.NoError(t, err)
+}
+
+// TestSchemaRegistry_ExtractPresets verifies that filter configurations
+// in x-filter.configurations are correctly extracted into the PresetRegistry.
+func TestSchemaRegistry_ExtractPresets(t *testing.T) {
+	dir := t.TempDir()
+
+	schema := `{
+		"$version": "1.47.0",
+		"title": "HTML Filter",
+		"type": "object",
+		"x-filter": {
+			"id": "okf_html",
+			"class": "net.sf.okapi.filters.html.HtmlFilter",
+			"extensions": [".html"],
+			"mimeTypes": ["text/html"],
+			"configurations": [
+				{
+					"configId": "okf_html-wellFormed",
+					"name": "Well-Formed HTML",
+					"description": "Assumes well-formed XHTML input",
+					"mimeType": "text/html",
+					"extensions": ".html;.htm",
+					"parameters": {
+						"assumeWellformed": true,
+						"useCodeFinder": false
+					},
+					"isDefault": false
+				},
+				{
+					"configId": "okf_html",
+					"name": "Default HTML",
+					"description": "Standard HTML configuration",
+					"mimeType": "text/html",
+					"extensions": ".html;.htm",
+					"parameters": {},
+					"isDefault": true
+				}
+			]
+		},
+		"properties": {
+			"assumeWellformed": { "type": "boolean", "default": false },
+			"useCodeFinder": { "type": "boolean", "default": true }
+		}
+	}`
+
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "okf_html.schema.json"), []byte(schema), 0644))
+
+	schemaReg := NewSchemaRegistry()
+	require.NoError(t, schemaReg.LoadFromDirectory(dir))
+
+	presetReg := preset.NewPresetRegistry()
+	schemaReg.ExtractPresets(presetReg)
+
+	// Should have registered presets for okf_html.
+	presets := presetReg.ListFormatPresets("okf_html")
+	require.Len(t, presets, 2)
+
+	// Verify the "wellFormed" preset (prefix stripped from "okf_html-wellFormed").
+	wf := presetReg.GetFormatPreset("okf_html", "wellFormed")
+	require.NotNil(t, wf)
+	assert.Equal(t, "wellFormed", wf.Name)
+	assert.Equal(t, "Assumes well-formed XHTML input", wf.Description)
+	assert.Equal(t, "okf_html", wf.Format)
+	assert.Equal(t, "bridge", wf.Source)
+	assert.False(t, wf.IsDefault)
+	assert.Equal(t, true, wf.Config["assumeWellformed"])
+	assert.Equal(t, false, wf.Config["useCodeFinder"])
+
+	// Verify the default preset (configId matches filterID exactly, no stripping).
+	def := presetReg.GetFormatPreset("okf_html", "okf_html")
+	require.NotNil(t, def)
+	assert.True(t, def.IsDefault)
+	assert.Equal(t, "bridge", def.Source)
 }

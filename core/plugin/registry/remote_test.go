@@ -132,6 +132,7 @@ func TestInstallPluginBridge(t *testing.T) {
 	archive := makeTarGz(t, map[string][]byte{
 		"gokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
 		"okapi.bridge.json":                       []byte(`{"name":"okapi","type":"bridge"}`),
+		"schemas/okf_html.schema.json":            []byte(`{"x-filter":{"id":"okf_html"}}`),
 	})
 
 	index := RegistryIndex{
@@ -168,13 +169,17 @@ func TestInstallPluginBridge(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "okapi", result.Name)
 	assert.Equal(t, "bridge", result.InstallType)
-	assert.Len(t, result.Files, 2)
+	assert.Len(t, result.Files, 3)
 
 	// Verify extracted files exist in versioned directory.
 	versionDir := VersionedPluginDir(dir, "okapi", "1.0.0")
 	_, err = os.Stat(filepath.Join(versionDir, "gokapi-bridge-jar-with-dependencies.jar"))
 	assert.NoError(t, err)
 	_, err = os.Stat(filepath.Join(versionDir, "okapi.bridge.json"))
+	assert.NoError(t, err)
+
+	// Verify schemas subdirectory is preserved (not flattened).
+	_, err = os.Stat(filepath.Join(versionDir, "schemas", "okf_html.schema.json"))
 	assert.NoError(t, err)
 
 	// Version file should be written.
@@ -582,8 +587,8 @@ func TestSearchPluginsAdvancedNoFilters(t *testing.T) {
 
 func TestExtractTarGz(t *testing.T) {
 	archive := makeTarGz(t, map[string][]byte{
-		"subdir/file.txt": []byte("hello"),
 		"root.txt":        []byte("world"),
+		"schemas/bar.json": []byte(`{"id":"bar"}`),
 	})
 
 	dir := t.TempDir()
@@ -591,14 +596,53 @@ func TestExtractTarGz(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, files, 2)
 
-	// Files should be extracted flat.
-	data, err := os.ReadFile(filepath.Join(dir, "file.txt"))
-	require.NoError(t, err)
-	assert.Equal(t, "hello", string(data))
-
-	data, err = os.ReadFile(filepath.Join(dir, "root.txt"))
+	// Root file preserved.
+	data, err := os.ReadFile(filepath.Join(dir, "root.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "world", string(data))
+
+	// Subdirectory file preserved at relative path.
+	data, err = os.ReadFile(filepath.Join(dir, "schemas", "bar.json"))
+	require.NoError(t, err)
+	assert.Equal(t, `{"id":"bar"}`, string(data))
+}
+
+func TestExtractTarGzPathTraversal(t *testing.T) {
+	// Create archive with path traversal entry — should be skipped.
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+
+	// Legit file.
+	legit := []byte("ok")
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: "safe.txt", Size: int64(len(legit)), Mode: 0o644,
+	}))
+	_, err := tw.Write(legit)
+	require.NoError(t, err)
+
+	// Malicious entry with path traversal.
+	evil := []byte("evil")
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: "../../../etc/passwd", Size: int64(len(evil)), Mode: 0o644,
+	}))
+	_, err = tw.Write(evil)
+	require.NoError(t, err)
+
+	require.NoError(t, tw.Close())
+	require.NoError(t, gw.Close())
+
+	dir := t.TempDir()
+	files, err := extractTarGz(bytes.NewReader(buf.Bytes()), dir)
+	require.NoError(t, err)
+
+	// Only the safe file should be extracted.
+	assert.Len(t, files, 1)
+	assert.Contains(t, files[0], "safe.txt")
+
+	// The malicious file should NOT exist outside destDir.
+	_, err = os.Stat(filepath.Join(dir, "..", "..", "..", "etc", "passwd"))
+	assert.True(t, os.IsNotExist(err))
 }
 
 func TestInstallPluginChecksumMismatch(t *testing.T) {

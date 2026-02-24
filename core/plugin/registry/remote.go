@@ -265,9 +265,8 @@ func (r *RemoteRegistry) installBridge(manifest *PluginManifest) ([]string, erro
 	return extractTarGz(bytes.NewReader(data), destDir)
 }
 
-// extractTarGz extracts a tar.gz archive into destDir, writing files flat
-// (ignoring directory paths in the archive). Returns the list of extracted
-// file paths.
+// extractTarGz extracts a tar.gz archive into destDir, preserving relative
+// directory paths from the archive. Returns the list of extracted file paths.
 func extractTarGz(r io.Reader, destDir string) ([]string, error) {
 	gr, err := gzip.NewReader(r)
 	if err != nil {
@@ -291,34 +290,39 @@ func extractTarGz(r io.Reader, destDir string) ([]string, error) {
 			return nil, fmt.Errorf("reading tar: %w", err)
 		}
 
-		// Skip directories — we extract flat.
-		if hdr.Typeflag == tar.TypeDir {
-			continue
-		}
-		if hdr.Typeflag != tar.TypeReg {
-			continue
-		}
-
-		// Use only the base name to extract flat into destDir.
-		name := filepath.Base(hdr.Name)
-		if name == "." || name == ".." {
+		name := filepath.Clean(hdr.Name)
+		// Path traversal protection.
+		if strings.Contains(name, "..") {
 			continue
 		}
 
 		destPath := filepath.Join(destDir, name)
-		data, err := io.ReadAll(tr)
-		if err != nil {
-			return nil, fmt.Errorf("reading tar entry %s: %w", name, err)
-		}
 
-		perm := os.FileMode(0o644)
-		if hdr.Mode&0o111 != 0 {
-			perm = 0o755
+		switch hdr.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(destPath, 0o755); err != nil {
+				return nil, fmt.Errorf("creating directory %s: %w", name, err)
+			}
+		case tar.TypeReg:
+			// Ensure parent directory exists.
+			if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+				return nil, fmt.Errorf("creating parent directory for %s: %w", name, err)
+			}
+
+			data, err := io.ReadAll(tr)
+			if err != nil {
+				return nil, fmt.Errorf("reading tar entry %s: %w", name, err)
+			}
+
+			perm := os.FileMode(0o644)
+			if hdr.Mode&0o111 != 0 {
+				perm = 0o755
+			}
+			if err := os.WriteFile(destPath, data, perm); err != nil {
+				return nil, fmt.Errorf("writing %s: %w", name, err)
+			}
+			files = append(files, destPath)
 		}
-		if err := os.WriteFile(destPath, data, perm); err != nil {
-			return nil, fmt.Errorf("writing %s: %w", name, err)
-		}
-		files = append(files, destPath)
 	}
 
 	return files, nil
