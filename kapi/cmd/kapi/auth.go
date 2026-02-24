@@ -39,14 +39,14 @@ Server URL is resolved from (first match wins):
 		if serverURL == "" {
 			return fmt.Errorf("server URL not configured — set KAPI_SERVER_URL or use --server")
 		}
-		_, err := performLogin(serverURL)
+		_, err := performLogin(cmd, serverURL)
 		return err
 	},
 }
 
 // performLogin runs the device authorization flow for the given server URL.
 // On success, stores the credentials and returns the stored auth info.
-func performLogin(serverURL string) (*config.StoredAuth, error) {
+func performLogin(cmd *cobra.Command, serverURL string) (*config.StoredAuth, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
@@ -56,15 +56,15 @@ func performLogin(serverURL string) (*config.StoredAuth, error) {
 		ClientID:      "kapi-cli",
 	}
 
-	fmt.Println("Starting device authorization flow...")
+	fmt.Fprintln(os.Stderr, "Starting device authorization flow...")
 	resp, err := client.StartDeviceAuth(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("device auth start failed: %w", err)
 	}
 
-	fmt.Printf("\nOpen the following URL in your browser:\n\n  %s\n\n", resp.VerificationURI)
-	fmt.Printf("Enter code: %s\n\n", resp.UserCode)
-	fmt.Println("Waiting for authorization...")
+	fmt.Fprintf(os.Stderr, "\nOpen the following URL in your browser:\n\n  %s\n\n", resp.VerificationURI)
+	fmt.Fprintf(os.Stderr, "Enter code: %s\n\n", resp.UserCode)
+	fmt.Fprintln(os.Stderr, "Waiting for authorization...")
 
 	token, err := client.PollForToken(ctx, resp.DeviceCode, resp.Interval)
 	if err != nil {
@@ -87,10 +87,11 @@ func performLogin(serverURL string) (*config.StoredAuth, error) {
 		return nil, fmt.Errorf("save token: %w", err)
 	}
 
-	if stored.User.Email != "" {
-		fmt.Printf("Logged in as %s\n", stored.User.Email)
-	} else {
-		fmt.Println("Login successful! Token saved.")
+	if err := output.Print(cmd, output.AuthLoginOutput{
+		Server: serverURL,
+		User:   stored.User.Email,
+	}); err != nil {
+		return nil, err
 	}
 	return &stored, nil
 }
@@ -102,13 +103,11 @@ var authLogoutCmd = &cobra.Command{
 		path := authFilePath()
 		if err := os.Remove(path); err != nil {
 			if os.IsNotExist(err) {
-				fmt.Println("No stored token found.")
-				return nil
+				return output.Print(cmd, output.AuthLogoutOutput{WasLoggedIn: false})
 			}
 			return fmt.Errorf("remove token: %w", err)
 		}
-		fmt.Println("Logged out. Token removed.")
-		return nil
+		return output.Print(cmd, output.AuthLogoutOutput{WasLoggedIn: true})
 	},
 }
 
@@ -205,13 +204,14 @@ Requires authentication (run 'kapi auth login' first).`,
 			proj.Config.Server.ProjectID = result.ProjectID
 			proj.Config.Server.Workspace = result.WorkspaceSlug
 			if saveErr := project.SaveConfig(proj.KapiDir, proj.Config); saveErr != nil {
-				fmt.Printf("Warning: could not update .kapi/config.yaml: %v\n", saveErr)
+				fmt.Fprintf(os.Stderr, "Warning: could not update .kapi/config.yaml: %v\n", saveErr)
 			}
 		}
 
-		fmt.Printf("Project claimed into workspace %q\n", result.WorkspaceSlug)
-		fmt.Printf("Project ID: %s\n", result.ProjectID)
-		return nil
+		return output.Print(cmd, output.AuthClaimOutput{
+			ProjectID:     result.ProjectID,
+			WorkspaceSlug: result.WorkspaceSlug,
+		})
 	},
 }
 

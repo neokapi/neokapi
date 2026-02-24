@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -35,15 +36,17 @@ Examples:
 
 func runConfig(cmd *cobra.Command, args []string) error {
 	if configGlobal {
-		return runConfigGlobal(args)
+		return runConfigGlobal(cmd, args)
 	}
-	return runConfigProject(args)
+	return runConfigProject(cmd, args)
 }
 
-func runConfigGlobal(args []string) error {
+func runConfigGlobal(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
-		fmt.Println(config.GlobalConfigFilePath())
-		return nil
+		return output.Print(cmd, output.ConfigOutput{
+			Path:   config.GlobalConfigFilePath(),
+			Action: "path",
+		})
 	}
 
 	key := args[0]
@@ -55,19 +58,26 @@ func runConfigGlobal(args []string) error {
 		if val == "" {
 			return fmt.Errorf("key %q is not set", key)
 		}
-		fmt.Println(val)
-		return nil
+		return output.Print(cmd, output.ConfigOutput{
+			Key:    key,
+			Value:  val,
+			Action: "get",
+		})
 	}
 
 	value := args[1]
 	if err := config.SetGlobalConfig(key, value); err != nil {
 		return fmt.Errorf("set config: %w", err)
 	}
-	fmt.Printf("Set %s = %s in %s\n", key, value, config.GlobalConfigFilePath())
-	return nil
+	return output.Print(cmd, output.ConfigOutput{
+		Path:   config.GlobalConfigFilePath(),
+		Key:    key,
+		Value:  value,
+		Action: "set",
+	})
 }
 
-func runConfigProject(args []string) error {
+func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
 		return fmt.Errorf("no .kapi/ project found (run 'kapi init' first, or use --global)")
@@ -76,8 +86,10 @@ func runConfigProject(args []string) error {
 	configPath := filepath.Join(proj.KapiDir, project.ConfigFile)
 
 	if len(args) == 0 {
-		fmt.Println(configPath)
-		return nil
+		return output.Print(cmd, output.ConfigOutput{
+			Path:   configPath,
+			Action: "path",
+		})
 	}
 
 	key := args[0]
@@ -87,16 +99,23 @@ func runConfigProject(args []string) error {
 		if val == "" {
 			return fmt.Errorf("key %q is not set in %s", key, configPath)
 		}
-		fmt.Println(val)
-		return nil
+		return output.Print(cmd, output.ConfigOutput{
+			Key:    key,
+			Value:  val,
+			Action: "get",
+		})
 	}
 
 	value := args[1]
 	if err := project.SetConfigValue(proj.KapiDir, key, value); err != nil {
 		return fmt.Errorf("set config: %w", err)
 	}
-	fmt.Printf("Set %s = %s in %s\n", key, value, configPath)
-	return nil
+	return output.Print(cmd, output.ConfigOutput{
+		Path:   configPath,
+		Key:    key,
+		Value:  value,
+		Action: "set",
+	})
 }
 
 func init() {

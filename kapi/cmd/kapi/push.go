@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -43,18 +42,18 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	out := output.PushOutput{
+		BlocksPushed: result.BlocksPushed,
+		WordCount:    result.WordCount,
+		FilesScanned: result.FilesScanned,
+	}
 	if pushDryRun {
-		fmt.Printf("Would push %d blocks, %d words (scanned %d files)\n", result.BlocksPushed, result.WordCount, result.FilesScanned)
-		return nil
+		out.DryRun = true
+	} else if result.BlocksPushed == 0 {
+		out.UpToDate = true
 	}
 
-	if result.BlocksPushed == 0 {
-		fmt.Println("Already up to date.")
-		return nil
-	}
-
-	fmt.Printf("Pushed %d blocks, %d words (scanned %d files)\n", result.BlocksPushed, result.WordCount, result.FilesScanned)
-	return nil
+	return output.Print(cmd, out)
 }
 
 func init() {

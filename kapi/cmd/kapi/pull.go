@@ -1,9 +1,8 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -50,21 +49,18 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	out := output.PullOutput{
+		BlocksPulled: result.BlocksPulled,
+		LocalesCount: result.LocalesCount,
+		FilesWritten: result.FilesWritten,
+	}
 	if pullDryRun {
-		fmt.Printf("Would pull %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
-		return nil
+		out.DryRun = true
+	} else if result.BlocksPulled == 0 {
+		out.UpToDate = true
 	}
 
-	if result.BlocksPulled == 0 {
-		fmt.Println("Already up to date.")
-		return nil
-	}
-
-	fmt.Printf("Pulled %d blocks for %d locales\n", result.BlocksPulled, result.LocalesCount)
-	if result.FilesWritten > 0 {
-		fmt.Printf("Updated %d file(s)\n", result.FilesWritten)
-	}
-	return nil
+	return output.Print(cmd, out)
 }
 
 func init() {
