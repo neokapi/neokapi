@@ -37,6 +37,12 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
       - name: Install Playwright browsers
         working-directory: bowrain/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
@@ -130,6 +136,12 @@ jobs:
           done
           echo "Server failed to become healthy"
           exit 1
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright
         working-directory: bowrain/apps/web

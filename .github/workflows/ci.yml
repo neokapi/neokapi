@@ -7,28 +7,54 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Test
+  # ── Detect which modules changed ──────────────────────────────────────────
+  changes:
+    name: Detect Changes
     runs-on: ubuntu-latest
+    outputs:
+      framework: ${{ github.event_name == 'push' || steps.filter.outputs.framework }}
+      platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
+      kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
+      bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
+      frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
+      - uses: dorny/paths-filter@v3
+        if: github.event_name == 'pull_request'
+        id: filter
         with:
-          go-version: "1.26.0"
+          filters: |
+            framework:
+              - 'core/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'go.work'
+              - '.github/workflows/ci.yml'
+            platform:
+              - 'platform/**'
+            kapi:
+              - 'kapi/**'
+            bowrain:
+              - 'bowrain/**'
+              - '!bowrain/apps/web/**'
+              - '!bowrain/apps/kapi-web/**'
+              - '!bowrain/apps/bowrain/frontend/**'
+            frontend:
+              - 'packages/ui/**'
+              - 'bowrain/apps/web/**'
+              - 'bowrain/apps/kapi-web/**'
+              - 'bowrain/apps/bowrain/frontend/**'
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Build shared UI package
-        working-directory: packages/ui
-        run: npx tsc
+  # ── Frontend builds ───────────────────────────────────────────────────────
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.any_go == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-ui
 
       - name: Run UI unit tests
         working-directory: packages/ui
@@ -42,34 +68,112 @@ jobs:
         working-directory: bowrain/apps/kapi-web
         run: npm run build
 
-      - name: Download modules
-        run: |
-          go mod download && go mod verify
-          cd platform && go mod download && go mod verify
-          cd ../kapi && go mod download && go mod verify
-          cd ../bowrain && go mod download && go mod verify
-
-      - name: Create Bowrain frontend placeholder
-        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+  # ── Go tests (parallel per module) ────────────────────────────────────────
+  test-framework:
+    name: Test (framework)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && needs.changes.outputs.framework == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
 
       - name: Run framework tests
         run: go test -race -coverprofile=framework.out -covermode=atomic ./...
 
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-framework
+          path: framework.out
+          retention-days: 1
+
+  test-platform:
+    name: Test (platform)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
       - name: Run platform tests
         run: cd platform && go test -race -coverprofile=platform.out -covermode=atomic ./...
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-platform
+          path: platform/platform.out
+          retention-days: 1
+
+  test-kapi:
+    name: Test (kapi)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.kapi == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
 
       - name: Run kapi tests
         run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic ./...
 
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-kapi
+          path: kapi/kapi.out
+          retention-days: 1
+
+  test-bowrain:
+    name: Test (bowrain)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
       - name: Run bowrain tests
         run: cd bowrain && go test -race -coverprofile=bowrain.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
 
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-bowrain
+          path: bowrain/bowrain.out
+          retention-days: 1
+
+  # ── Merge coverage from all test jobs ─────────────────────────────────────
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: [test-framework, test-platform, test-kapi, test-bowrain]
+    if: always() && !cancelled()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          merge-multiple: true
+
       - name: Merge coverage
         run: |
-          cat framework.out > coverage.out
-          tail -n +2 platform/platform.out >> coverage.out
-          tail -n +2 kapi/kapi.out >> coverage.out
-          tail -n +2 bowrain/bowrain.out >> coverage.out
+          # Start with framework coverage (has the header line)
+          if [ -f framework.out ]; then
+            cp framework.out coverage.out
+          else
+            echo "mode: atomic" > coverage.out
+          fi
+          # Append remaining files (skip header line)
+          for f in platform.out kapi.out bowrain.out; do
+            if [ -f "$f" ]; then
+              tail -n +2 "$f" >> coverage.out
+            fi
+          done
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
@@ -78,9 +182,12 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # ── Lint ──────────────────────────────────────────────────────────────────
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.any_go == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -88,7 +195,7 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - name: Create web UI placeholders for embed
+      - name: Create embed placeholders
         run: |
           mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
           mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
@@ -130,29 +237,16 @@ jobs:
           working-directory: bowrain
           args: --timeout=5m ./...
 
+  # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [test, lint]
+    needs: changes
+    if: needs.changes.outputs.any_go == 'true'
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Build shared UI package
-        working-directory: packages/ui
-        run: npx tsc
+      - uses: ./.github/actions/setup-node-ui
+      - uses: ./.github/actions/setup-go-modules
 
       - name: Build SaaS web UI
         working-directory: bowrain/apps/web
@@ -181,24 +275,21 @@ jobs:
         run: |
           cd kapi && GOWORK=off go list -m all | grep -iE 'sqlite|wails|echo|oidc|keyring' && exit 1 || true
 
+  # ── Playwright E2E ────────────────────────────────────────────────────────
   playwright:
     name: Playwright E2E
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-node-ui
 
-      - uses: actions/setup-node@v4
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
         with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Build shared UI package
-        working-directory: packages/ui
-        run: npx tsc
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
         working-directory: bowrain/apps/bowrain/frontend
@@ -217,30 +308,15 @@ jobs:
           path: bowrain/apps/bowrain/frontend/playwright-report/
           retention-days: 30
 
+  # ── E2E (Docker) ──────────────────────────────────────────────────────────
   e2e:
     name: E2E (Docker)
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [test, lint]
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Build shared UI package
-        working-directory: packages/ui
-        run: npx tsc
+      - uses: ./.github/actions/setup-node-ui
+      - uses: ./.github/actions/setup-go-modules
 
       - name: Build SaaS web UI
         working-directory: bowrain/apps/web
@@ -257,6 +333,12 @@ jobs:
         run: go test -tags=e2e -count=1 -v ./e2e/
         timeout-minutes: 5
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+
       - name: Install Playwright browsers
         working-directory: bowrain/apps/web
         run: npx playwright install --with-deps chromium
@@ -269,4 +351,3 @@ jobs:
       - name: Tear down e2e stack
         if: always()
         run: bash e2e/teardown.sh
-

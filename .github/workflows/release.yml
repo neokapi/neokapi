@@ -57,18 +57,6 @@ jobs:
           cd ../kapi && go mod download && go mod verify
           cd ../bowrain && go mod download && go mod verify
 
-      - name: Run framework tests
-        run: go test ./...
-
-      - name: Run platform tests
-        run: cd platform && go test ./...
-
-      - name: Run kapi tests
-        run: cd kapi && go test ./...
-
-      - name: Run bowrain tests
-        run: cd bowrain && go test $(go list ./... | grep -v '/apps/bowrain')
-
       - name: Reset go.work.sum
         run: git checkout -- go.work.sum
 
@@ -114,7 +102,6 @@ jobs:
 
   build-bowrain:
     name: Build Bowrain (${{ matrix.build.platform }})
-    needs: goreleaser
     strategy:
       fail-fast: false
       matrix:

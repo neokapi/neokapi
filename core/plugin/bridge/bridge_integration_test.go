@@ -45,6 +45,9 @@ func bridgeSchemasDir(t *testing.T, jar string) string {
 }
 
 func TestIntegrationListFilters(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping bridge integration test in short mode")
+	}
 	jar := bridgeJAR(t)
 
 	b := bridge.NewJavaBridge(bridge.BridgeConfig{
@@ -73,6 +76,9 @@ func TestIntegrationListFilters(t *testing.T) {
 }
 
 func TestIntegrationFilterParamsApplied(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping bridge integration test in short mode")
+	}
 	jar := bridgeJAR(t)
 
 	b := bridge.NewJavaBridge(bridge.BridgeConfig{
@@ -94,9 +100,9 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 		ContentBase64: encoded,
 		MimeType:      "application/json",
 		FilterParams: map[string]any{
-			"extractAllPairs":  true,
-			"useFullKeyPath":   true,
-			"useCodeFinder":    false,
+			"extractAllPairs": true,
+			"useFullKeyPath":  true,
+			"useCodeFinder":   false,
 		},
 	})
 	require.NoError(t, err)
@@ -114,6 +120,9 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 }
 
 func TestIntegrationSchemaLoading(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping bridge integration test in short mode")
+	}
 	jar := bridgeJAR(t)
 	schemasDir := bridgeSchemasDir(t, jar)
 
@@ -154,6 +163,9 @@ func TestIntegrationSchemaLoading(t *testing.T) {
 }
 
 func TestIntegrationExtractPresets(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping bridge integration test in short mode")
+	}
 	jar := bridgeJAR(t)
 	schemasDir := bridgeSchemasDir(t, jar)
 

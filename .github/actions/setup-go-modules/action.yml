@@ -1,0 +1,30 @@
+name: Setup Go & Modules
+description: Install Go, download modules for all four modules, and create embed placeholders
+
+inputs:
+  go-version:
+    description: Go version to install
+    required: false
+    default: "1.26.0"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Download modules
+      shell: bash
+      run: |
+        go mod download && go mod verify
+        cd platform && go mod download && go mod verify
+        cd ../kapi && go mod download && go mod verify
+        cd ../bowrain && go mod download && go mod verify
+
+    - name: Create embed placeholders
+      shell: bash
+      run: |
+        mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
+        mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
+        mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html

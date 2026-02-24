@@ -43,7 +43,7 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-server build-bowrain build-all build-frontend test test-unit test-integration \
+.PHONY: all build build-server build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
         test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
@@ -208,6 +208,19 @@ test: ## Run all tests (all four modules)
 	cd platform && $(GOTEST) ./... -count=1
 	cd kapi && $(GOTEST) ./... -count=1
 	cd bowrain && $(GOTEST) ./... -count=1
+
+test-fast: ## Run all tests with caching (fast local iteration)
+	$(GOTEST) ./...
+	cd platform && $(GOTEST) ./...
+	cd kapi && $(GOTEST) ./...
+	cd bowrain && $(GOTEST) ./...
+
+test-parallel: ## Run all tests in parallel (all four modules concurrently)
+	@$(GOTEST) ./... -count=1 & \
+	(cd platform && $(GOTEST) ./... -count=1) & \
+	(cd kapi && $(GOTEST) ./... -count=1) & \
+	(cd bowrain && $(GOTEST) ./... -count=1) & \
+	wait
 
 test-unit: ## Run unit tests only (exclude integration)
 	$(GOTEST) ./... -count=1 -short
