@@ -215,14 +215,13 @@ jobs:
           cp build/darwin/icons.icns bin/Bowrain.app/Contents/Resources
           cp bin/Bowrain bin/Bowrain.app/Contents/MacOS
           cp build/darwin/Info.plist bin/Bowrain.app/Contents
-          codesign --force --deep --sign - bin/Bowrain.app
 
       - name: Extract version
         id: version
         shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # macOS: Install CLI launcher into .app bundle and create DMG
+      # macOS: Install CLI launcher into .app bundle
       - name: Install CLI launcher
         if: runner.os == 'macOS'
         working-directory: bowrain/apps/bowrain
@@ -231,24 +230,117 @@ jobs:
           cp resources/bowrain-launcher.sh bin/Bowrain.app/Contents/Resources/bin/bowrain
           chmod +x bin/Bowrain.app/Contents/Resources/bin/bowrain
 
-      - name: Re-sign after adding launcher
+      # macOS: Import Developer ID certificate for code signing
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE_BASE64" ]; then
+            echo "No signing certificate configured — will use ad-hoc signing"
+            exit 0
+          fi
+          # Decode certificate
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > /tmp/certificate.p12
+
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          security import /tmp/certificate.p12 -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+
+          # Clean up certificate file
+          rm /tmp/certificate.p12
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      # macOS: Sign with Developer ID or ad-hoc fallback
+      - name: Sign macOS app bundle
         if: runner.os == 'macOS'
         working-directory: bowrain/apps/bowrain
-        run: codesign --force --deep --sign - bin/Bowrain.app
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          if [ -n "$APPLE_SIGN_IDENTITY" ]; then
+            echo "Signing with Developer ID: $APPLE_SIGN_IDENTITY"
+            codesign --force --deep --options runtime \
+              --entitlements build/darwin/entitlements.plist \
+              --sign "$APPLE_SIGN_IDENTITY" \
+              bin/Bowrain.app
+          else
+            echo "No APPLE_SIGN_IDENTITY set — using ad-hoc signing"
+            codesign --force --deep --sign - bin/Bowrain.app
+          fi
 
+      # macOS: Create DMG (output to repo root for upload step)
       - name: Create DMG
         if: runner.os == 'macOS'
         working-directory: bowrain/apps/bowrain
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           mkdir -p dmg
           cp -R bin/Bowrain.app dmg/
           ln -s /Applications dmg/Applications
           hdiutil create \
-            -volname "Bowrain v${{ steps.version.outputs.VERSION }}" \
+            -volname "Bowrain v${VERSION}" \
             -srcfolder dmg \
             -ov \
             -format UDZO \
-            "../../bowrain-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
+            "../../../bowrain-${VERSION}-macOS-universal.dmg"
+
+      # macOS: Sign DMG with Developer ID if available
+      - name: Sign DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          DMG="bowrain-${VERSION}-macOS-universal.dmg"
+          if [ -n "$APPLE_SIGN_IDENTITY" ]; then
+            codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
+          fi
+
+      # macOS: Notarize DMG with Apple
+      - name: Notarize DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          if [ -z "$APPLE_ID" ]; then
+            echo "No APPLE_ID set — skipping notarization"
+            exit 0
+          fi
+          DMG="bowrain-${VERSION}-macOS-universal.dmg"
+          echo "Submitting $DMG for notarization..."
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 10m
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$DMG"
+
+      # macOS: Clean up keychain
+      - name: Clean up signing keychain
+        if: always() && runner.os == 'macOS'
+        env:
+          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
 
       - name: Upload DMG to release
         if: runner.os == 'macOS'

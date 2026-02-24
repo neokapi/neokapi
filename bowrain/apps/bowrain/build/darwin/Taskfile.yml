@@ -4,10 +4,11 @@ includes:
   common: ../Taskfile.yml
 
 vars:
-  # Signing configuration - edit these values for your project
-  # SIGN_IDENTITY: "Developer ID Application: Your Company (TEAMID)"
-  # KEYCHAIN_PROFILE: "my-notarize-profile"
-  # ENTITLEMENTS: "build/darwin/entitlements.plist"
+  # Signing configuration — set via environment or edit here.
+  # SIGN_IDENTITY can be set via APPLE_SIGN_IDENTITY env var.
+  SIGN_IDENTITY: '{{.SIGN_IDENTITY | default (env "APPLE_SIGN_IDENTITY")}}'
+  KEYCHAIN_PROFILE: '{{.KEYCHAIN_PROFILE | default (env "APPLE_KEYCHAIN_PROFILE")}}'
+  ENTITLEMENTS: "build/darwin/entitlements.plist"
 
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
