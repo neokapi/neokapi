@@ -40,14 +40,52 @@ mkdir -p output
 # Tapes that need a running server
 SERVER_TAPES="workspaces walkthrough-init walkthrough-push walkthrough-pull"
 
-# Check if server-backed recordings are possible
+# Check if server-backed recordings are possible.
+# In CI the workflow starts a server before running this script, so detect it
+# before trying to start a second one via Docker.
 SERVER_AVAILABLE=false
-if command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
+STARTED_SERVER=false
+KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
+
+if curl -sf "${KAPI_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
+  echo ""
+  echo "Server already running at $KAPI_SERVER_URL"
+  SERVER_AVAILABLE=true
+  export KAPI_SERVER_URL
+
+  # Obtain auth token for server-backed tapes if not already provided.
+  if [ -z "${BOWRAIN_TOKEN:-}" ]; then
+    echo "  Acquiring auth token..."
+    START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
+      "${KAPI_SERVER_URL}/api/v1/auth/device/start") || true
+    if [ -n "$START_RESP" ]; then
+      DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
+      USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
+      curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
+        "${KAPI_SERVER_URL}/api/v1/auth/device/verify" > /dev/null
+      TOKEN_RESP=$(curl -sf -X POST \
+        -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+        "${KAPI_SERVER_URL}/api/v1/auth/device/poll")
+      export BOWRAIN_TOKEN
+      BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+      # Create default workspace for demos.
+      curl -sf -X POST \
+        -H "Authorization: Bearer $BOWRAIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"Personal","slug":"personal"}' \
+        "${KAPI_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
+      echo "  Token obtained."
+    else
+      echo "  Warning: could not acquire auth token."
+    fi
+  fi
+elif command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
   echo ""
   echo "Starting server for live recordings..."
   if bash "$SCRIPT_DIR/start-server.sh"; then
     source "$SCRIPT_DIR/.server-token" 2>/dev/null || true
     SERVER_AVAILABLE=true
+    STARTED_SERVER=true
   else
     echo "  Could not start server. Server-backed tapes will be skipped."
   fi
@@ -122,8 +160,8 @@ for tape in *.tape; do
   fi
 done
 
-# Stop server if we started it
-if [ "$SERVER_AVAILABLE" = true ]; then
+# Stop server only if we started it ourselves (not when reusing an external one).
+if [ "$STARTED_SERVER" = true ]; then
   echo ""
   echo "Stopping server..."
   bash "$SCRIPT_DIR/stop-server.sh" || true

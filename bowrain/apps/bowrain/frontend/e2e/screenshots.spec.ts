@@ -48,7 +48,7 @@ async function seedDashboard(page: any) {
   const projectDefs = [
     { name: "Website Redesign", targets: "fr, de, ja" },
     { name: "Mobile App v2.0", targets: "es, pt-BR" },
-    { name: "API Documentation", targets: "zh-CN, ko" },
+    { name: "API Documentation", targets: "zh-Hans, ko" },
   ];
 
   for (const def of projectDefs) {

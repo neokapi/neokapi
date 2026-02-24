@@ -6,9 +6,7 @@
 #   THEME=light  ./copy-recordings.sh   # copy to website/static/video/bowrain/light/
 #   ./copy-recordings.sh                # copy to website/static/video/bowrain/dark/ (default)
 
-set -uo pipefail
-# Temporarily disabled -e to debug CI issues
-# set -euo pipefail
+set -euo pipefail
 
 THEME="${THEME:-dark}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
