@@ -212,6 +212,43 @@ func TestRequestBaseURL(t *testing.T) {
 	}
 }
 
+func TestIsAssetPath(t *testing.T) {
+	tests := []struct {
+		path string
+		want bool
+	}{
+		// Static asset extensions → true
+		{"/assets/index-abc.js", true},
+		{"/assets/style-abc.css", true},
+		{"/favicon.ico", true},
+		{"/logo.png", true},
+		{"/logo.svg", true},
+		{"/font.woff2", true},
+		{"/video.webm", true},
+		{"/bundle.mjs", true},
+		{"/index.js.map", true},
+
+		// SPA navigation routes → false
+		{"acme/project/123/translate/release-notes.md", false},
+		{"acme/project/123/translate/app-strings.json", false},
+		{"acme/project/123/translate/about-us.html", false},
+		{"acme/project/123/translate/strings.yaml", false},
+		{"acme/project/123/translate/messages.po", false},
+		{"acme/project/123/translate/subs.srt", false},
+		{"acme/settings", false},
+		{"acme/memory", false},
+		{"acme/termbase", false},
+		{"", false},
+		{"acme/", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			assert.Equal(t, tt.want, isAssetPath(tt.path))
+		})
+	}
+}
+
 func TestNewServerCreatesRegistries(t *testing.T) {
 	srv := NewServer(DefaultServerConfig())
 	assert.NotNil(t, srv.FormatRegistry)

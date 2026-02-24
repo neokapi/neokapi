@@ -432,8 +432,18 @@ func (s *Server) serveEmbeddedUI(c echo.Context) error {
 }
 
 // isAssetPath returns true if the path looks like a static asset request
-// (has a file extension like .js, .css, .png) rather than an SPA route.
+// (e.g. .js, .css, .png, .woff2) rather than an SPA route. SPA routes may
+// contain file-like segments (e.g. /translate/release-notes.md) so we use a
+// whitelist of known static asset extensions instead of treating every
+// extension as an asset.
 func isAssetPath(p string) bool {
-	ext := path.Ext(p)
-	return ext != "" && ext != ".html" && !strings.HasSuffix(p, "/")
+	switch path.Ext(p) {
+	case ".js", ".mjs", ".css", ".map",
+		".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".avif",
+		".woff", ".woff2", ".ttf", ".eot",
+		".webm", ".mp4", ".ogg", ".mp3", ".wav":
+		return true
+	default:
+		return false
+	}
 }
