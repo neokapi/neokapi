@@ -49,11 +49,11 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 		if output.GetFormat(cmd) == output.FormatJSON {
 			return output.Print(cmd, out)
 		}
-		fmt.Printf("No plugins installed.\n")
-		fmt.Printf("Plugin directory: %s\n", pluginLoader.Dir())
-		fmt.Println()
-		fmt.Println("Use 'kapi plugins search <query>' to find plugins and bundles,")
-		fmt.Println("or 'kapi plugins list -a' to see all available plugins and bundles.")
+		fmt.Fprintf(os.Stderr, "No plugins installed.\n")
+		fmt.Fprintf(os.Stderr, "Plugin directory: %s\n", pluginLoader.Dir())
+		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(os.Stderr, "Use 'kapi plugins search <query>' to find plugins and bundles,")
+		fmt.Fprintln(os.Stderr, "or 'kapi plugins list -a' to see all available plugins and bundles.")
 		return nil
 	}
 
@@ -103,28 +103,7 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 		Total:   len(pluginInfos),
 	}
 
-	if output.GetFormat(cmd) == output.FormatJSON {
-		return output.Print(cmd, out)
-	}
-
-	// Text output: original column format
-	var items []string
-	for _, name := range nameOrder {
-		versions := byName[name]
-		sort.Slice(versions, func(i, j int) bool {
-			return registry.CompareSemver(versions[i], versions[j]) > 0
-		})
-		// Latest version shown as bare name.
-		items = append(items, name+" \u2714")
-		// Older versions shown as name@version.
-		for _, v := range versions[1:] {
-			items = append(items, name+"@"+v+" \u2714")
-		}
-	}
-
-	fmt.Print(formatColumns(items))
-	fmt.Printf("\nPlugin directory: %s\n", pluginLoader.Dir())
-	return nil
+	return output.Print(cmd, out)
 }
 
 func listAvailablePlugins(cmd *cobra.Command) error {
@@ -138,11 +117,11 @@ func listAvailablePlugins(cmd *cobra.Command) error {
 	}
 
 	if len(groups) == 0 {
-		if output.GetFormat(cmd) == output.FormatJSON {
-			return output.Print(cmd, output.PluginsListOutput{})
+		out := output.PluginsListOutput{
+			Plugins: []output.PluginInfo{},
+			Total:   0,
 		}
-		fmt.Println("No plugins available in the registry.")
-		return nil
+		return output.Print(cmd, out)
 	}
 
 	// Build installed version set.
@@ -173,65 +152,7 @@ func listAvailablePlugins(cmd *cobra.Command) error {
 		Total:   len(pluginInfos),
 	}
 
-	if output.GetFormat(cmd) == output.FormatJSON {
-		return output.Print(cmd, out)
-	}
-
-	// Text output: original column format
-	var items []string
-	for _, g := range groups {
-		label := g.Name
-		if installedSet[g.Name+"/"+g.Latest.Version] {
-			label += " \u2714"
-		}
-		items = append(items, label)
-
-		for _, v := range g.Versions[1:] {
-			vLabel := g.Name + "@" + v.Version
-			if installedSet[g.Name+"/"+v.Version] {
-				vLabel += " \u2714"
-			}
-			items = append(items, vLabel)
-		}
-	}
-
-	fmt.Print(formatColumns(items))
-	return nil
-}
-
-// formatColumns arranges items in a multi-column grid layout, similar to
-// homebrew's search output. Returns the formatted string.
-func formatColumns(items []string) string {
-	if len(items) == 0 {
-		return ""
-	}
-
-	const termWidth = 80
-
-	maxWidth := 0
-	for _, item := range items {
-		w := len([]rune(item))
-		if w > maxWidth {
-			maxWidth = w
-		}
-	}
-
-	colWidth := maxWidth + 2
-	cols := max(termWidth/colWidth, 1)
-
-	var sb strings.Builder
-	for i, item := range items {
-		if i > 0 && i%cols == 0 {
-			sb.WriteByte('\n')
-		}
-		sb.WriteString(item)
-		pad := colWidth - len([]rune(item))
-		if pad > 0 {
-			sb.WriteString(strings.Repeat(" ", pad))
-		}
-	}
-	sb.WriteByte('\n')
-	return sb.String()
+	return output.Print(cmd, out)
 }
 
 // barWriter adapts an mpb.Bar to io.Writer for use with io.TeeReader.
@@ -309,13 +230,13 @@ var pluginsInstallCmd = &cobra.Command{
 			return fmt.Errorf("installing %s: %w", ref, err)
 		}
 
-		if !quiet {
-			fmt.Fprintf(os.Stderr, "Installed %s v%s (%s)\n", result.Name, result.Version, result.InstallType)
-			for _, f := range result.Files {
-				fmt.Fprintf(os.Stderr, "  \u2192 %s\n", f)
-			}
+		out := output.PluginInstallOutput{
+			Name:        result.Name,
+			Version:     result.Version,
+			InstallType: result.InstallType,
+			Files:       result.Files,
 		}
-		return nil
+		return output.Print(cmd, out)
 	},
 }
 
@@ -340,8 +261,12 @@ var pluginsUpdateCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("updating %s: %w", ref, err)
 			}
-			fmt.Fprintf(os.Stderr, "Updated %s to v%s\n", result.Name, result.Version)
-			return nil
+			out := output.PluginUpdateOutput{
+				Updated: []output.PluginUpdateEntry{
+					{Name: result.Name, NewVersion: result.Version},
+				},
+			}
+			return output.Print(cmd, out)
 		}
 
 		// Check for all updates.
@@ -351,10 +276,11 @@ var pluginsUpdateCmd = &cobra.Command{
 		}
 
 		if len(updates) == 0 {
-			fmt.Println("All plugins are up to date.")
-			return nil
+			out := output.PluginUpdateOutput{UpToDate: true}
+			return output.Print(cmd, out)
 		}
 
+		var entries []output.PluginUpdateEntry
 		for _, u := range updates {
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "Updating %s: %s \u2192 %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
@@ -364,9 +290,15 @@ var pluginsUpdateCmd = &cobra.Command{
 				fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to update %s: %v\n", u.Name, err)
 				continue
 			}
-			fmt.Fprintf(os.Stderr, "Updated %s to v%s\n", result.Name, result.Version)
+			entries = append(entries, output.PluginUpdateEntry{
+				Name:       result.Name,
+				OldVersion: u.InstalledVersion,
+				NewVersion: result.Version,
+			})
 		}
-		return nil
+
+		out := output.PluginUpdateOutput{Updated: entries}
+		return output.Print(cmd, out)
 	},
 }
 
@@ -387,9 +319,9 @@ var pluginsRemoveCmd = &cobra.Command{
 
 		if !quiet {
 			if ref.IsVersioned() {
-				fmt.Printf("Removing plugin: %s\n", ref)
+				fmt.Fprintf(os.Stderr, "Removing plugin: %s\n", ref)
 			} else {
-				fmt.Printf("Removing all versions of plugin: %s\n", ref.Name)
+				fmt.Fprintf(os.Stderr, "Removing all versions of plugin: %s\n", ref.Name)
 			}
 		}
 
@@ -397,10 +329,11 @@ var pluginsRemoveCmd = &cobra.Command{
 			return fmt.Errorf("removing %s: %w", ref, err)
 		}
 
-		if !quiet {
-			fmt.Printf("Removed %s\n", ref)
+		out := output.PluginRemoveOutput{
+			Name:    ref.Name,
+			Version: ref.Version,
 		}
-		return nil
+		return output.Print(cmd, out)
 	},
 }
 
@@ -448,7 +381,7 @@ Examples:
 
 		// Use advanced search when any flag is set.
 		if hasFilter {
-			return searchPluginsAdvanced(reg, query)
+			return searchPluginsAdvanced(cmd, reg, query)
 		}
 
 		results, err := reg.SearchPlugins(query)
@@ -456,26 +389,29 @@ Examples:
 			return fmt.Errorf("searching plugins: %w", err)
 		}
 
-		if len(results) == 0 {
-			fmt.Printf("No plugins found matching %q.\n", query)
-			return nil
-		}
-
-		fmt.Printf("  %-25s %-10s %-10s %s\n", "NAME", "VERSION", "TYPE", "DESCRIPTION")
-		fmt.Printf("  %-25s %-10s %-10s %s\n", "----", "-------", "----", "-----------")
+		var entries []output.PluginSearchEntry
 		for _, m := range results {
 			desc := m.Description
 			if len(desc) > 50 {
 				desc = desc[:47] + "..."
 			}
-			fmt.Printf("  %-25s %-10s %-10s %s\n", m.Name, m.Version, m.PluginType, desc)
+			entries = append(entries, output.PluginSearchEntry{
+				Name:        m.Name,
+				Version:     m.Version,
+				PluginType:  m.PluginType,
+				Description: desc,
+			})
 		}
-		fmt.Printf("\n%d plugin(s) found\n", len(results))
-		return nil
+
+		out := output.PluginSearchOutput{
+			Plugins: entries,
+			Total:   len(entries),
+		}
+		return output.Print(cmd, out)
 	},
 }
 
-func searchPluginsAdvanced(reg *registry.RemoteRegistry, query string) error {
+func searchPluginsAdvanced(cmd *cobra.Command, reg *registry.RemoteRegistry, query string) error {
 	opts := registry.SearchOptions{
 		Query:      query,
 		Type:       searchType,
@@ -491,13 +427,7 @@ func searchPluginsAdvanced(reg *registry.RemoteRegistry, query string) error {
 		return fmt.Errorf("searching plugins: %w", err)
 	}
 
-	if len(results) == 0 {
-		fmt.Println("No plugins found matching the given criteria.")
-		return nil
-	}
-
-	fmt.Printf("  %-25s %-10s %-10s %s\n", "NAME", "VERSION", "TYPE", "DESCRIPTION")
-	fmt.Printf("  %-25s %-10s %-10s %s\n", "----", "-------", "----", "-----------")
+	var entries []output.PluginSearchEntry
 	for _, m := range results {
 		desc := m.Description
 		if len(desc) > 50 {
@@ -510,10 +440,19 @@ func searchPluginsAdvanced(reg *registry.RemoteRegistry, query string) error {
 			desc = capInfo
 		}
 
-		fmt.Printf("  %-25s %-10s %-10s %s\n", m.Name, m.Version, m.PluginType, desc)
+		entries = append(entries, output.PluginSearchEntry{
+			Name:        m.Name,
+			Version:     m.Version,
+			PluginType:  m.PluginType,
+			Description: desc,
+		})
 	}
-	fmt.Printf("\n%d plugin(s) found\n", len(results))
-	return nil
+
+	out := output.PluginSearchOutput{
+		Plugins: entries,
+		Total:   len(entries),
+	}
+	return output.Print(cmd, out)
 }
 
 // matchingCapabilities returns a summary of capabilities that match the active filters.

@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/plugin/loader"
@@ -106,7 +105,7 @@ Examples:
   kapi formats info html           Show HTML filter parameters
   kapi formats info okapi-json     Show bridge format info`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		filterID := args[0]
 
 		// Try to find format info
@@ -119,141 +118,101 @@ Examples:
 		}
 
 		if info == nil && schema == nil {
-			fmt.Fprintf(os.Stderr, "Format not found: %s\n", filterID)
-			os.Exit(1)
+			return fmt.Errorf("format not found: %s", filterID)
 		}
 
-		// Print header
-		title := filterID
-		if schema != nil && schema.Title != "" {
-			title = schema.Title
-		} else if info != nil && info.DisplayName != "" {
-			title = info.DisplayName
+		out := output.FormatInfoOutput{
+			Name: filterID,
 		}
-		fmt.Printf("%s\n", title)
-		fmt.Println(strings.Repeat("=", len(title)))
-		fmt.Println()
 
-		// Print schema metadata if available
 		if schema != nil {
-			fmt.Printf("Filter ID:      %s\n", schema.FilterMeta.ID)
-			fmt.Printf("Java Class:     %s\n", schema.FilterMeta.Class)
-			fmt.Printf("Schema Version: %s\n", schema.Version)
-			if len(schema.FilterMeta.Extensions) > 0 {
-				fmt.Printf("Extensions:     %s\n", strings.Join(schema.FilterMeta.Extensions, ", "))
-			}
-			if len(schema.FilterMeta.MimeTypes) > 0 {
-				fmt.Printf("MIME Types:     %s\n", strings.Join(schema.FilterMeta.MimeTypes, ", "))
-			}
-			fmt.Println()
+			// Populate from schema metadata
+			out.DisplayName = schema.Title
+			out.FilterID = schema.FilterMeta.ID
+			out.Class = schema.FilterMeta.Class
+			out.Version = schema.Version
+			out.HasSchema = true
+			out.Extensions = schema.FilterMeta.Extensions
+			out.MimeTypes = schema.FilterMeta.MimeTypes
 
-			// Print parameters grouped by category
+			// Build parameter groups
 			if len(schema.Groups) > 0 {
+				groupedFields := make(map[string]bool)
 				for _, group := range schema.Groups {
-					fmt.Printf("%s\n", group.Label)
-					fmt.Println(strings.Repeat("-", len(group.Label)))
-					if group.Description != "" {
-						fmt.Printf("  %s\n\n", group.Description)
+					g := output.FormatInfoGroup{
+						Label:       group.Label,
+						Description: group.Description,
 					}
-
 					for _, fieldName := range group.Fields {
+						groupedFields[fieldName] = true
 						prop, ok := schema.Properties[fieldName]
 						if !ok {
 							continue
 						}
-						printParameter(fieldName, prop)
+						g.Parameters = append(g.Parameters, toFormatInfoParam(fieldName, prop))
 					}
-					fmt.Println()
+					out.Groups = append(out.Groups, g)
 				}
 
-				// Print ungrouped parameters
-				groupedFields := make(map[string]bool)
-				for _, group := range schema.Groups {
-					for _, field := range group.Fields {
-						groupedFields[field] = true
-					}
-				}
-
-				var ungrouped []string
-				for name := range schema.Properties {
+				// Collect ungrouped parameters
+				var ungroupedParams []output.FormatInfoParam
+				for name, prop := range schema.Properties {
 					if !groupedFields[name] {
-						ungrouped = append(ungrouped, name)
+						ungroupedParams = append(ungroupedParams, toFormatInfoParam(name, prop))
 					}
 				}
-
-				if len(ungrouped) > 0 {
-					fmt.Println("Other Parameters")
-					fmt.Println("----------------")
-					for _, name := range ungrouped {
-						printParameter(name, schema.Properties[name])
-					}
+				if len(ungroupedParams) > 0 {
+					out.Groups = append(out.Groups, output.FormatInfoGroup{
+						Label:      "Other Parameters",
+						Parameters: ungroupedParams,
+					})
 				}
 			} else {
-				// No groups - print all parameters
-				fmt.Println("Parameters")
-				fmt.Println("----------")
+				// No groups - put all parameters in a single group
+				var params []output.FormatInfoParam
 				for name, prop := range schema.Properties {
-					printParameter(name, prop)
+					params = append(params, toFormatInfoParam(name, prop))
+				}
+				if len(params) > 0 {
+					out.Groups = append(out.Groups, output.FormatInfoGroup{
+						Label:      "Parameters",
+						Parameters: params,
+					})
 				}
 			}
-		} else if info != nil {
-			// No schema - print basic info
-			fmt.Printf("Format:     %s\n", info.Name)
-			if info.DisplayName != "" {
-				fmt.Printf("Display:    %s\n", info.DisplayName)
-			}
-			if info.Source != "" {
-				fmt.Printf("Source:     %s\n", info.Source)
-			}
-			fmt.Printf("Has Reader: %v\n", info.HasReader)
-			fmt.Printf("Has Writer: %v\n", info.HasWriter)
-			if len(info.Extensions) > 0 {
-				fmt.Printf("Extensions: %s\n", strings.Join(info.Extensions, ", "))
-			}
-			if len(info.MimeTypes) > 0 {
-				fmt.Printf("MIME Types: %s\n", strings.Join(info.MimeTypes, ", "))
-			}
-			fmt.Println()
-			fmt.Println("No parameter schema available for this format.")
 		}
+
+		if info != nil {
+			// Fill in fields from format info (schema fields take precedence if set)
+			if out.DisplayName == "" {
+				out.DisplayName = info.DisplayName
+			}
+			out.Source = info.Source
+			out.HasReader = info.HasReader
+			out.HasWriter = info.HasWriter
+			if len(out.Extensions) == 0 {
+				out.Extensions = info.Extensions
+			}
+			if len(out.MimeTypes) == 0 {
+				out.MimeTypes = info.MimeTypes
+			}
+		}
+
+		return output.Print(cmd, out)
 	},
 }
 
-// printParameter prints a single parameter with its metadata
-func printParameter(name string, prop loader.PropertySchema) {
+// toFormatInfoParam converts a loader.PropertySchema to an output.FormatInfoParam.
+func toFormatInfoParam(name string, prop loader.PropertySchema) output.FormatInfoParam {
 	typeStr := prop.Type
 	if prop.OkapiFormat != "" {
 		typeStr = prop.OkapiFormat
 	}
-
-	defaultStr := ""
-	if prop.Default != nil {
-		switch v := prop.Default.(type) {
-		case bool:
-			defaultStr = fmt.Sprintf(" (default: %v)", v)
-		case string:
-			if v != "" {
-				defaultStr = fmt.Sprintf(" (default: %q)", v)
-			}
-		case float64:
-			if v == float64(int(v)) {
-				defaultStr = fmt.Sprintf(" (default: %d)", int(v))
-			} else {
-				defaultStr = fmt.Sprintf(" (default: %v)", v)
-			}
-		}
-	}
-
-	fmt.Printf("  %-24s %-10s%s\n", name, typeStr, defaultStr)
-	if prop.Description != "" {
-		// Word-wrap description at 60 chars
-		desc := prop.Description
-		indent := "                            "
-		if len(desc) > 60 {
-			fmt.Printf("%s%s\n", indent, desc)
-		} else {
-			fmt.Printf("%s%s\n", indent, desc)
-		}
+	return output.FormatInfoParam{
+		Name:        name,
+		Type:        typeStr,
+		Default:     prop.Default,
+		Description: prop.Description,
 	}
 }
 
@@ -268,19 +227,16 @@ Examples:
   kapi formats schema okf_json > okf_json.schema.json
   kapi formats schema html | jq .properties`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		filterID := args[0]
 
 		if pluginLoader == nil {
-			fmt.Fprintf(os.Stderr, "No plugins loaded - schema not available\n")
-			os.Exit(1)
+			return fmt.Errorf("no plugins loaded - schema not available")
 		}
 
 		rawJSON, ok := pluginLoader.Schemas().GetSchemaJSON(filterID)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "Schema not found for format: %s\n", filterID)
-			fmt.Fprintf(os.Stderr, "Use 'kapi formats' to list available formats.\n")
-			os.Exit(1)
+			return fmt.Errorf("schema not found for format: %s\nUse 'kapi formats' to list available formats", filterID)
 		}
 
 		// Pretty-print the JSON
@@ -288,14 +244,15 @@ Examples:
 		if err := json.Unmarshal(rawJSON, &prettyJSON); err != nil {
 			// Fall back to raw output
 			fmt.Println(string(rawJSON))
-			return
+			return nil
 		}
 
-		output, err := json.MarshalIndent(prettyJSON, "", "  ")
+		prettyOut, err := json.MarshalIndent(prettyJSON, "", "  ")
 		if err != nil {
 			fmt.Println(string(rawJSON))
-			return
+			return nil
 		}
-		fmt.Println(string(output))
+		fmt.Println(string(prettyOut))
+		return nil
 	},
 }

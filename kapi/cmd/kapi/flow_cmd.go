@@ -216,13 +216,17 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 	writer.Close()
 
 	if !quiet {
-		fmt.Printf("Flow %q completed: %s → %s\n", flowName, inputPath, outputPath)
+		return output.Print(cmd, output.FlowRunOutput{
+			FlowName:   flowName,
+			InputPath:  inputPath,
+			OutputPath: outputPath,
+		})
 	}
 	return nil
 }
 
 // runMultipleFiles processes multiple input files in parallel using tool factories.
-func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, inputPaths []string, concurrency int) error {
+func runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, inputPaths []string, concurrency int) error {
 	// Build FlowItems for each input path.
 	items := make([]*flow.FlowItem, len(inputPaths))
 	for i, p := range inputPaths {
@@ -258,7 +262,10 @@ func runMultipleFiles(ctx context.Context, _ *cobra.Command, flowName string, in
 	}
 
 	if !quiet {
-		fmt.Printf("Flow %q completed: processed %d files\n", flowName, len(inputPaths))
+		return output.Print(cmd, output.FlowRunOutput{
+			FlowName:       flowName,
+			FilesProcessed: len(inputPaths),
+		})
 	}
 
 	return nil

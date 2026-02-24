@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/spf13/cobra"
 )
 
@@ -118,10 +118,14 @@ func runTermbaseImport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("save termbase: %w", err)
 	}
 
-	if !quiet {
-		fmt.Printf("Imported %d concepts into %s (total: %d)\n", count, dbPath, tb.Count())
+	if quiet {
+		return nil
 	}
-	return nil
+	return output.Print(cmd, output.TermbaseImportOutput{
+		Imported: count,
+		DBPath:   dbPath,
+		Total:    tb.Count(),
+	})
 }
 
 // --- export ---
@@ -135,7 +139,7 @@ var tbExportCmd = &cobra.Command{
 func runTermbaseExport(cmd *cobra.Command, args []string) error {
 	dbPath, _ := cmd.Flags().GetString("db")
 	format, _ := cmd.Flags().GetString("format")
-	output, _ := cmd.Flags().GetString("output")
+	outputPath, _ := cmd.Flags().GetString("output")
 	srcLocale, _ := cmd.Flags().GetString("source-locale")
 	tgtLocale, _ := cmd.Flags().GetString("target-locale")
 	name, _ := cmd.Flags().GetString("name")
@@ -146,8 +150,8 @@ func runTermbaseExport(cmd *cobra.Command, args []string) error {
 	}
 
 	w := os.Stdout
-	if output != "" {
-		w, err = os.Create(output)
+	if outputPath != "" {
+		w, err = os.Create(outputPath)
 		if err != nil {
 			return fmt.Errorf("create output: %w", err)
 		}
@@ -170,8 +174,11 @@ func runTermbaseExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("export: %w", err)
 	}
 
-	if !quiet && output != "" {
-		fmt.Printf("Exported %d concepts to %s\n", tb.Count(), output)
+	if !quiet && outputPath != "" {
+		return output.Print(cmd, output.TermbaseExportOutput{
+			Count:      tb.Count(),
+			OutputPath: outputPath,
+		})
 	}
 	return nil
 }
@@ -219,29 +226,34 @@ func runTermbaseLookup(cmd *cobra.Command, args []string) error {
 	}
 
 	matches := tb.Lookup(args[0], opts)
-	if len(matches) == 0 {
-		fmt.Println("No matches found.")
-		return nil
-	}
 
-	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintf(tw, "TERM\tLOCALE\tSTATUS\tMATCH\tSCORE\tCONCEPT\tDOMAIN\n")
-	for _, m := range matches {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%.0f%%\t%s\t%s\n",
-			m.Term.Text, m.Term.Locale, m.Term.Status,
-			m.MatchType, m.Score*100,
-			m.Concept.ID, m.Concept.Domain)
-
-		// Show target terms.
+	entries := make([]output.TermbaseLookupEntry, len(matches))
+	for i, m := range matches {
+		entry := output.TermbaseLookupEntry{
+			Term:      m.Term.Text,
+			Locale:    string(m.Term.Locale),
+			Status:    string(m.Term.Status),
+			MatchType: string(m.MatchType),
+			Score:     m.Score,
+			ConceptID: m.Concept.ID,
+			Domain:    m.Concept.Domain,
+		}
 		if !model.LocaleID(tgtLocale).IsEmpty() {
 			for _, tt := range m.Concept.TargetTerms(model.LocaleID(tgtLocale)) {
-				fmt.Fprintf(tw, "  -> %s\t%s\t%s\t\t\t\t\n",
-					tt.Text, tt.Locale, tt.Status)
+				entry.Targets = append(entry.Targets, output.TermbaseLookupTarget{
+					Text:   tt.Text,
+					Locale: string(tt.Locale),
+					Status: string(tt.Status),
+				})
 			}
 		}
+		entries[i] = entry
 	}
-	tw.Flush()
-	return nil
+
+	return output.Print(cmd, output.TermbaseLookupOutput{
+		Matches: entries,
+		Total:   len(entries),
+	})
 }
 
 // --- search ---
@@ -266,31 +278,28 @@ func runTermbaseSearch(cmd *cobra.Command, args []string) error {
 
 	results, total := tb.Search(args[0], srcLocale, tgtLocale, 0, limit)
 
-	if total == 0 {
-		fmt.Println("No concepts found.")
-		return nil
+	entries := make([]output.TermbaseSearchEntry, len(results))
+	for i, c := range results {
+		terms := make([]output.TermbaseSearchTerm, len(c.Terms))
+		for j, t := range c.Terms {
+			terms[j] = output.TermbaseSearchTerm{
+				Text:   t.Text,
+				Locale: string(t.Locale),
+			}
+		}
+		entries[i] = output.TermbaseSearchEntry{
+			ID:         c.ID,
+			Domain:     c.Domain,
+			Definition: c.Definition,
+			Terms:      terms,
+		}
 	}
 
-	tw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	fmt.Fprintf(tw, "CONCEPT\tDOMAIN\tTERMS\tDEFINITION\n")
-	for _, c := range results {
-		var termParts []string
-		for _, t := range c.Terms {
-			termParts = append(termParts, fmt.Sprintf("%s [%s]", t.Text, t.Locale))
-		}
-		def := c.Definition
-		if len(def) > 50 {
-			def = def[:47] + "..."
-		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			c.ID, c.Domain, strings.Join(termParts, ", "), def)
-	}
-	tw.Flush()
-
-	if total > len(results) {
-		fmt.Printf("\nShowing %d of %d results. Use --limit to see more.\n", len(results), total)
-	}
-	return nil
+	return output.Print(cmd, output.TermbaseSearchOutput{
+		Concepts: entries,
+		Total:    total,
+		Shown:    len(entries),
+	})
 }
 
 // --- stats ---
@@ -310,51 +319,35 @@ func runTermbaseStats(cmd *cobra.Command, args []string) error {
 	}
 
 	concepts := tb.Concepts()
-	totalConcepts := len(concepts)
 	totalTerms := 0
 	locales := make(map[string]int)
 	domains := make(map[string]int)
-	statuses := make(map[model.TermStatus]int)
+	statusCounts := make(map[model.TermStatus]int)
 
 	for _, c := range concepts {
 		for _, t := range c.Terms {
 			totalTerms++
 			locales[string(t.Locale)]++
-			statuses[t.Status]++
+			statusCounts[t.Status]++
 		}
 		if c.Domain != "" {
 			domains[c.Domain]++
 		}
 	}
 
-	fmt.Printf("Termbase: %s\n\n", dbPath)
-	fmt.Printf("  Concepts:  %d\n", totalConcepts)
-	fmt.Printf("  Terms:     %d\n\n", totalTerms)
-
-	if len(locales) > 0 {
-		fmt.Println("  Locales:")
-		for loc, count := range locales {
-			fmt.Printf("    %-10s %d terms\n", loc, count)
-		}
-		fmt.Println()
+	statuses := make(map[string]int, len(statusCounts))
+	for status, count := range statusCounts {
+		statuses[string(status)] = count
 	}
 
-	if len(domains) > 0 {
-		fmt.Println("  Domains:")
-		for dom, count := range domains {
-			fmt.Printf("    %-20s %d concepts\n", dom, count)
-		}
-		fmt.Println()
-	}
-
-	if len(statuses) > 0 {
-		fmt.Println("  Term statuses:")
-		for status, count := range statuses {
-			fmt.Printf("    %-12s %d\n", status, count)
-		}
-	}
-
-	return nil
+	return output.Print(cmd, output.TermbaseStatsOutput{
+		DBPath:   dbPath,
+		Concepts: len(concepts),
+		Terms:    totalTerms,
+		Locales:  locales,
+		Domains:  domains,
+		Statuses: statuses,
+	})
 }
 
 func init() {

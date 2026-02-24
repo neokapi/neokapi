@@ -68,7 +68,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	if initAnonymous || initEmail != "" || initServerURL != "" || initProjectID != "" || !isTTY() {
 		result, err = runInitNonInteractive(cwd)
 	} else {
-		result, err = runInitInteractive(cwd)
+		result, err = runInitInteractive(cmd, cwd)
 	}
 	if err != nil {
 		return err
@@ -166,7 +166,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	return runInitCreateAuthenticated(cwd, cfg, auth, "")
 }
 
-func runInitInteractive(cwd string) (*output.InitOutput, error) {
+func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, error) {
 	// Check if already logged in.
 	stored, authErr := loadAuth()
 	serverURL := resolveServerURL()
@@ -236,7 +236,7 @@ func runInitInteractive(cwd string) (*output.InitOutput, error) {
 
 	switch choice {
 	case "signin":
-		return runInitSignIn(cwd, serverURL)
+		return runInitSignIn(cmd, cwd, serverURL)
 	case "email":
 		return runInitEmailClaim(cwd, serverURL)
 	case "anonymous":
@@ -249,8 +249,8 @@ func runInitInteractive(cwd string) (*output.InitOutput, error) {
 }
 
 // runInitSignIn performs the device auth flow, then creates the project.
-func runInitSignIn(cwd, serverURL string) (*output.InitOutput, error) {
-	stored, err := performLogin(serverURL)
+func runInitSignIn(cmd *cobra.Command, cwd, serverURL string) (*output.InitOutput, error) {
+	stored, err := performLogin(cmd, serverURL)
 	if err != nil {
 		return nil, err
 	}
