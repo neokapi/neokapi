@@ -287,19 +287,19 @@ func TestBridgeTimeout(t *testing.T) {
 func TestConfigWithDefaults(t *testing.T) {
 	cfg := BridgeConfig{}
 	cfg = cfg.withDefaults()
-	assert.Equal(t, "java", cfg.JavaPath)
+	assert.Equal(t, "java", cfg.Command)
 	assert.Equal(t, DefaultStartupTimeout, cfg.StartupTimeout)
 	assert.Equal(t, DefaultCommandTimeout, cfg.CommandTimeout)
 }
 
 func TestConfigPreservesValues(t *testing.T) {
 	cfg := BridgeConfig{
-		JavaPath:       "/usr/local/bin/java",
+		Command:        "/usr/local/bin/java",
 		StartupTimeout: 10 * time.Second,
 		CommandTimeout: 30 * time.Second,
 	}
 	cfg = cfg.withDefaults()
-	assert.Equal(t, "/usr/local/bin/java", cfg.JavaPath)
+	assert.Equal(t, "/usr/local/bin/java", cfg.Command)
 	assert.Equal(t, 10*time.Second, cfg.StartupTimeout)
 	assert.Equal(t, 30*time.Second, cfg.CommandTimeout)
 }

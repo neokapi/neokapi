@@ -42,10 +42,10 @@ func TestLoadAllEmptyDirString(t *testing.T) {
 	assert.Empty(t, l.Plugins())
 }
 
-func TestLoadAllInvalidDescriptorLogged(t *testing.T) {
+func TestLoadAllMissingManifestLogged(t *testing.T) {
 	dir := t.TempDir()
 
-	// Create a versioned directory structure with an invalid bridge descriptor.
+	// Create a versioned directory structure without a manifest.json.
 	vDir := filepath.Join(dir, "bad-bridge", "1.0.0")
 	require.NoError(t, os.MkdirAll(vDir, 0755))
 
@@ -56,18 +56,13 @@ func TestLoadAllInvalidDescriptorLogged(t *testing.T) {
 		"install_type": "bridge"
 	}`), 0644))
 
-	// Write an invalid bridge descriptor (bad type).
-	require.NoError(t, os.WriteFile(filepath.Join(vDir, "bad.bridge.json"), []byte(`{
-		"name": "bad",
-		"type": "not-bridge",
-		"jar": "x.jar"
-	}`), 0644))
+	// No manifest.json — loader should log and skip.
 
 	logger := log.New(os.Stderr, "[test] ", log.LstdFlags)
 	l := NewPluginLoader(dir, logger)
 	reg := registry.NewFormatRegistry()
 
-	// Should not return error — invalid descriptors are logged and skipped.
+	// Should not return error — missing manifest is logged and skipped.
 	err := l.LoadAll(reg, nil)
 	assert.NoError(t, err)
 }
@@ -77,7 +72,7 @@ func TestPluginsReturnsCorrectInfo(t *testing.T) {
 	// Manually set plugins for testing.
 	l.plugins = []PluginInfo{
 		{Name: "test-plugin", Type: "binary", Source: "/path/to/plugin", Formats: []string{"csv"}},
-		{Name: "okapi", Version: "1.46.0", Type: "bridge", Source: "/path/to/okapi.bridge.json", Formats: []string{"okapi-openxml@1.46.0", "okapi-html@1.46.0"}},
+		{Name: "okapi", Version: "1.46.0", Type: "bridge", Source: "/path/to/okapi/1.46.0", Formats: []string{"okapi-openxml@1.46.0", "okapi-html@1.46.0"}},
 	}
 	plugins := l.Plugins()
 	assert.Len(t, plugins, 2)

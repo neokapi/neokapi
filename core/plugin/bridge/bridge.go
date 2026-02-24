@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -49,8 +50,13 @@ func (b *JavaBridge) Start() error {
 		return fmt.Errorf("bridge already running")
 	}
 
-	args := append(b.cfg.JVMArgs, "-jar", b.cfg.JARPath)
-	b.cmd = exec.Command(b.cfg.JavaPath, args...)
+	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...)
+	if len(b.cfg.Env) > 0 {
+		b.cmd.Env = os.Environ()
+		for k, v := range b.cfg.Env {
+			b.cmd.Env = append(b.cmd.Env, k+"="+v)
+		}
+	}
 
 	var err error
 	b.stdin, err = b.cmd.StdinPipe()

@@ -194,6 +194,9 @@ func TestInstallPluginBridge(t *testing.T) {
 		"name": "okapi-bridge",
 		"version": "1.0.0",
 		"plugin_type": "bundle",
+		"install_type": "bridge",
+		"command": "java",
+		"args": ["-jar", "gokapi-bridge-jar-with-dependencies.jar"],
 		"capabilities": [
 			{"type": "format", "name": "html", "display_name": "HTML Filter", "extensions": [".html"]},
 			{"type": "format", "name": "openxml", "display_name": "OpenXML Filter", "extensions": [".docx"]},
@@ -204,7 +207,6 @@ func TestInstallPluginBridge(t *testing.T) {
 
 	archive := makeTarGz(t, map[string][]byte{
 		"gokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
-		"okapi.bridge.json":                       []byte(`{"name":"okapi","type":"bridge"}`),
 		"manifest.json":                           []byte(bundledManifest),
 		"schemas/okf_html.schema.json":            []byte(`{"x-filter":{"id":"okf_html"}}`),
 	})
@@ -248,7 +250,7 @@ func TestInstallPluginBridge(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "okapi-bridge", result.Name)
 	assert.Equal(t, "bridge", result.InstallType)
-	assert.Len(t, result.Files, 4) // jar + bridge.json + manifest.json + schema
+	assert.Len(t, result.Files, 3) // jar + manifest.json + schema
 
 	// Verify extracted files exist in versioned directory.
 	versionDir := VersionedPluginDir(dir, "okapi-bridge", "1.0.0")
@@ -273,8 +275,7 @@ func TestInstallPluginBridge(t *testing.T) {
 func TestInstallPluginBridgeWithoutBundledManifest(t *testing.T) {
 	// Archive WITHOUT manifest.json — should fall back to registry metadata.
 	archive := makeTarGz(t, map[string][]byte{
-		"fake-bridge.jar":   []byte("fake-jar"),
-		"okapi.bridge.json": []byte(`{"name":"okapi","type":"bridge"}`),
+		"fake-bridge.jar": []byte("fake-jar"),
 	})
 
 	index := RegistryIndex{

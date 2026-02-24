@@ -61,7 +61,7 @@ type PluginManifest struct {
 
 	// InstallType controls how the plugin is installed: "binary" (default) or "bridge".
 	// Binary plugins are standalone executables. Bridge plugins are tar.gz archives
-	// containing a JAR and a .bridge.json descriptor.
+	// containing a JAR and a manifest.json with runtime configuration.
 	InstallType string `json:"install_type,omitempty"`
 
 	// Platform is the target platform in GOOS/GOARCH format (e.g., "linux/amd64").

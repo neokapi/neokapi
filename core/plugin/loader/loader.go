@@ -1,10 +1,10 @@
 // Package loader discovers and loads gokapi plugins from a directory.
 // It supports both Go binary plugins (via host.PluginManager) and
-// Java bridge plugins (via bridge.JavaBridge) described by *.bridge.json files.
+// bridge plugins (via bridge.JavaBridge) described by manifest.json files.
 //
 // The directory layout uses versioned subdirectories:
 //
-//	{dir}/{packName}/{version}/  — contains bridge descriptors, JARs, or binaries
+//	{dir}/{packName}/{version}/  — contains manifest, JARs, or binaries
 package loader
 
 import (
@@ -15,6 +15,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/plugin/bridge"
@@ -39,12 +40,12 @@ type PluginInfo struct {
 	Formats []string
 }
 
-// managedBridge tracks a loaded Java bridge descriptor.
+// managedBridge tracks a loaded bridge plugin.
 type managedBridge struct {
-	cfg        bridge.BridgeConfig
-	descriptor *ParsedBridgeDescriptor
-	version    string
-	formats    []string
+	cfg      bridge.BridgeConfig
+	manifest *pluginreg.BundledManifest
+	version  string
+	formats  []string
 }
 
 // PluginLoader discovers and loads plugins from a directory.
@@ -71,7 +72,7 @@ func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 
 // LoadAll discovers and loads all plugins from the configured directory.
 // It scans for versioned subdirectories ({dir}/{name}/{version}/) and loads
-// bridge descriptors and binary plugins from each version directory.
+// bridge manifests and binary plugins from each version directory.
 // For each plugin name, both versioned format names (e.g., "okapi-html@1.46.0")
 // and bare aliases (pointing to the latest version) are registered.
 // If the directory does not exist, this is a no-op.
@@ -122,29 +123,31 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 			vDir := iv.Dir
 			switch iv.InstallType {
 			case "bridge":
-				// Look for *.bridge.json descriptors in the version directory.
-				descriptors, err := filepath.Glob(filepath.Join(vDir, "*.bridge.json"))
+				// Read the bundled manifest.json from the version directory.
+				manifest, err := pluginreg.ReadBundledManifest(vDir)
 				if err != nil {
-					l.logf("scanning bridge descriptors in %s: %v", vDir, err)
+					l.logf("reading manifest in %s: %v", vDir, err)
 					continue
 				}
-				for _, descPath := range descriptors {
-					formats, err := l.loadBridge(descPath, vDir, iv.Version, formatReg)
-					if err != nil {
-						l.logf("loading bridge %s: %v", descPath, err)
-						continue
+				if manifest == nil {
+					l.logf("no manifest.json in %s", vDir)
+					continue
+				}
+				formats, err := l.loadBridge(manifest, vDir, iv.Version, formatReg)
+				if err != nil {
+					l.logf("loading bridge %s: %v", vDir, err)
+					continue
+				}
+				for _, fmtName := range formats {
+					// Extract base name from versioned name.
+					baseName := fmtName
+					if idx := strings.LastIndex(fmtName, "@"); idx > 0 {
+						baseName = fmtName[:idx]
 					}
-					for _, fmtName := range formats {
-						// Extract base name from versioned name.
-						baseName := fmtName
-						if idx := strings.LastIndex(fmtName, "@"); idx > 0 {
-							baseName = fmtName[:idx]
-						}
-						bareNameCandidates[baseName] = append(bareNameCandidates[baseName], versionedFormat{
-							version: iv.Version,
-							name:    fmtName,
-						})
-					}
+					bareNameCandidates[baseName] = append(bareNameCandidates[baseName], versionedFormat{
+						version: iv.Version,
+						name:    fmtName,
+					})
 				}
 
 			case "binary":
@@ -224,18 +227,43 @@ func (l *PluginLoader) LoadAll(formatReg *registry.FormatRegistry, toolReg *regi
 	return nil
 }
 
-func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
-	parsed, err := ParseBridgeDescriptor(descPath, versionDir)
-	if err != nil {
-		return nil, err
+func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
+	// Build BridgeConfig from manifest fields.
+	command := manifest.Command
+	if command == "" {
+		command = "java"
+	}
+
+	// Resolve relative paths in args against the version directory.
+	args := make([]string, len(manifest.Args))
+	for i, arg := range manifest.Args {
+		if !filepath.IsAbs(arg) && (strings.HasSuffix(arg, ".jar") || strings.HasSuffix(arg, ".exe")) {
+			args[i] = filepath.Join(versionDir, arg)
+		} else {
+			args[i] = arg
+		}
+	}
+
+	// Parse timeouts with defaults.
+	startupTimeout := bridge.DefaultStartupTimeout
+	if manifest.StartupTimeout != "" {
+		if d, err := time.ParseDuration(manifest.StartupTimeout); err == nil {
+			startupTimeout = d
+		}
+	}
+	commandTimeout := bridge.DefaultCommandTimeout
+	if manifest.CommandTimeout != "" {
+		if d, err := time.ParseDuration(manifest.CommandTimeout); err == nil {
+			commandTimeout = d
+		}
 	}
 
 	cfg := bridge.BridgeConfig{
-		JavaPath:       parsed.Java,
-		JARPath:        parsed.ResolvedJARPath,
-		JVMArgs:        parsed.JVMArgs,
-		StartupTimeout: parsed.ResolvedStartupTimeout,
-		CommandTimeout: parsed.ResolvedCommandTimeout,
+		Command:        command,
+		Args:           args,
+		Env:            manifest.Env,
+		StartupTimeout: startupTimeout,
+		CommandTimeout: commandTimeout,
 	}
 
 	// Load schemas from the schemas/ subdirectory (NO Java needed).
@@ -255,21 +283,21 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 	// Start the first bridge for filter discovery, then seed it into the shared pool.
 	b := bridge.NewJavaBridge(cfg, l.logger)
 	if err := b.Start(); err != nil {
-		return nil, fmt.Errorf("starting bridge %q: %w", parsed.Name, err)
+		return nil, fmt.Errorf("starting bridge %q: %w", manifest.Name, err)
 	}
 
 	filters, err := b.ListFilters()
 	if err != nil {
 		_ = b.Stop()
-		return nil, fmt.Errorf("listing filters from bridge %q: %w", parsed.Name, err)
+		return nil, fmt.Errorf("listing filters from bridge %q: %w", manifest.Name, err)
 	}
 
 	l.pool.Seed(b)
 
 	mb := &managedBridge{
-		cfg:        cfg,
-		descriptor: parsed,
-		version:    version,
+		cfg:      cfg,
+		manifest: manifest,
+		version:  version,
 	}
 
 	sharedPool := l.pool
@@ -277,7 +305,7 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 
 	var formats []string
 	for _, f := range filters.Filters {
-		baseFmtName := parsed.Name + "-" + sanitizeFilterName(f.Name)
+		baseFmtName := manifest.Name + "-" + sanitizeFilterName(f.Name)
 		versionedName := baseFmtName + "@" + version
 		mb.formats = append(mb.formats, versionedName)
 		formats = append(formats, versionedName)
@@ -291,7 +319,7 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 			formatReg.RegisterWriter(versionedName, func() format.DataFormatWriter {
 				return bridge.NewBridgeFormatWriter(sharedPool, bridgeCfg, filterClass)
 			})
-			formatReg.SetFormatSource(versionedName, parsed.Name)
+			formatReg.SetFormatSource(versionedName, manifest.Name)
 		}
 
 		l.logf("registered bridge format: %s (filter: %s)", versionedName, filterClass)
@@ -299,10 +327,10 @@ func (l *PluginLoader) loadBridge(descPath, versionDir, version string, formatRe
 
 	l.bridges = append(l.bridges, mb)
 	l.plugins = append(l.plugins, PluginInfo{
-		Name:    parsed.Name,
+		Name:    manifest.Name,
 		Version: version,
 		Type:    "bridge",
-		Source:  parsed.SourcePath,
+		Source:  versionDir,
 		Formats: mb.formats,
 	})
 

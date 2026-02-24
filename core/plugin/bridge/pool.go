@@ -7,14 +7,15 @@ import (
 )
 
 // BridgePool manages a process-wide pool of JavaBridge instances, keyed by
-// JARPath. Different plugin versions (different JARs) share one global
-// concurrency budget: the total number of running JVMs never exceeds maxSize.
+// their process configuration (command + args). Different plugin versions share
+// one global concurrency budget: the total number of running subprocesses never
+// exceeds maxSize.
 //
-// Idle bridges are bucketed by JARPath. When a caller requests a bridge for a
-// JAR that has no idle instances and the pool is at capacity, the pool evicts
-// an idle bridge from a different JAR bucket (stopping it and starting a new
-// one for the requested JAR). If no idle bridges exist anywhere, the caller
-// blocks until one is released.
+// Idle bridges are bucketed by PoolKey. When a caller requests a bridge for a
+// configuration that has no idle instances and the pool is at capacity, the pool
+// evicts an idle bridge from a different bucket (stopping it and starting a new
+// one for the requested configuration). If no idle bridges exist anywhere, the
+// caller blocks until one is released.
 type BridgePool struct {
 	mu      sync.Mutex
 	cond    *sync.Cond
@@ -22,19 +23,19 @@ type BridgePool struct {
 	active  int // total running bridges (idle + in-use)
 	closed  bool
 	logger  *log.Logger
-	idle    map[string][]*JavaBridge // keyed by JARPath
+	idle    map[string][]*JavaBridge // keyed by PoolKey
 }
 
 // PoolStats is a snapshot of pool state for debugging and logging.
 type PoolStats struct {
-	MaxSize   int
-	Active    int
-	InUse     int
-	IdleByJAR map[string]int
+	MaxSize    int
+	Active     int
+	InUse      int
+	IdleByKey  map[string]int
 }
 
 // NewBridgePool creates a process-wide pool that manages up to maxSize
-// JavaBridge instances across all JAR paths.
+// JavaBridge instances across all configurations.
 func NewBridgePool(maxSize int, logger *log.Logger) *BridgePool {
 	if maxSize < 1 {
 		maxSize = 1
@@ -51,7 +52,7 @@ func NewBridgePool(maxSize int, logger *log.Logger) *BridgePool {
 // Seed donates an already-started bridge into the pool (e.g. the discovery
 // bridge used for ListFilters). The bridge counts toward the active total.
 func (p *BridgePool) Seed(b *JavaBridge) {
-	key := b.cfg.JARPath
+	key := b.cfg.PoolKey()
 	p.mu.Lock()
 	p.idle[key] = append(p.idle[key], b)
 	p.active++
@@ -59,21 +60,20 @@ func (p *BridgePool) Seed(b *JavaBridge) {
 	p.cond.Broadcast()
 }
 
-// Acquire returns an idle bridge matching cfg.JARPath, or starts a new one if
+// Acquire returns an idle bridge matching cfg's PoolKey, or starts a new one if
 // the pool has capacity. If the pool is at capacity but idle bridges exist for
-// a different JAR, one is evicted (stopped) to make room. If all bridges are
-// in-use with none idle anywhere, the caller blocks until one is released.
+// a different configuration, one is evicted (stopped) to make room. If all
+// bridges are in-use with none idle anywhere, the caller blocks until one is
+// released.
 func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 	p.mu.Lock()
 	for {
-		// Step 2: pool closed?
 		if p.closed {
 			p.mu.Unlock()
 			return nil, fmt.Errorf("bridge pool is shut down")
 		}
 
-		// Step 3: idle bridge for this JAR?
-		key := cfg.JARPath
+		key := cfg.PoolKey()
 		if list := p.idle[key]; len(list) > 0 {
 			b := list[len(list)-1] // LIFO for cache warmth
 			p.idle[key] = list[:len(list)-1]
@@ -84,7 +84,7 @@ func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 			return b, nil
 		}
 
-		// Step 4: capacity available — create new bridge.
+		// Capacity available — create new bridge.
 		if p.active < p.maxSize {
 			p.active++
 			p.mu.Unlock()
@@ -100,7 +100,7 @@ func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 			return b, nil
 		}
 
-		// Step 5: evict an idle bridge from a different JAR bucket.
+		// Evict an idle bridge from a different bucket.
 		var victim *JavaBridge
 		for otherKey, list := range p.idle {
 			if len(list) > 0 {
@@ -129,7 +129,7 @@ func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 			return b, nil
 		}
 
-		// Step 6: all bridges in-use, none idle — wait.
+		// All bridges in-use, none idle — wait.
 		p.cond.Wait()
 	}
 }
@@ -137,7 +137,7 @@ func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 // Release returns a bridge to the pool for reuse. If the pool has been shut
 // down, the bridge is stopped instead.
 func (p *BridgePool) Release(b *JavaBridge) {
-	key := b.cfg.JARPath
+	key := b.cfg.PoolKey()
 	p.mu.Lock()
 	if p.closed {
 		p.active--
@@ -185,15 +185,15 @@ func (p *BridgePool) Stats() PoolStats {
 	defer p.mu.Unlock()
 
 	totalIdle := 0
-	byJAR := make(map[string]int, len(p.idle))
+	byKey := make(map[string]int, len(p.idle))
 	for key, list := range p.idle {
-		byJAR[key] = len(list)
+		byKey[key] = len(list)
 		totalIdle += len(list)
 	}
 	return PoolStats{
 		MaxSize:   p.maxSize,
 		Active:    p.active,
 		InUse:     p.active - totalIdle,
-		IdleByJAR: byJAR,
+		IdleByKey: byKey,
 	}
 }

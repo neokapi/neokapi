@@ -28,7 +28,8 @@ func mockBridgeForAdapter(t *testing.T) (*JavaBridge, io.ReadCloser, io.WriteClo
 
 	b := &JavaBridge{
 		cfg: BridgeConfig{
-			JARPath:        "/mock/test.jar",
+			Command:        "java",
+			Args:           []string{"-jar", "/mock/test.jar"},
 			CommandTimeout: 5 * time.Second,
 			StartupTimeout: 5 * time.Second,
 		},

@@ -132,14 +132,20 @@ func ListAllInstalled(baseDir string) (map[string][]InstalledVersion, error) {
 }
 
 // BundledManifest is the manifest.json file bundled inside a plugin archive.
-// It declares the plugin's capabilities so they can be stored at install time
-// without starting the plugin runtime (e.g., Java bridge).
+// It declares the plugin's capabilities and runtime configuration so they can
+// be stored at install time without starting the plugin runtime.
 type BundledManifest struct {
-	Name         string       `json:"name"`
-	Version      string       `json:"version"`
-	PluginType   string       `json:"plugin_type"`
-	Description  string       `json:"description,omitempty"`
-	Capabilities []Capability `json:"capabilities"`
+	Name           string            `json:"name"`
+	Version        string            `json:"version"`
+	PluginType     string            `json:"plugin_type"`
+	InstallType    string            `json:"install_type,omitempty"`
+	Description    string            `json:"description,omitempty"`
+	Command        string            `json:"command,omitempty"`
+	Args           []string          `json:"args,omitempty"`
+	Env            map[string]string `json:"env,omitempty"`
+	StartupTimeout string            `json:"startup_timeout,omitempty"`
+	CommandTimeout string            `json:"command_timeout,omitempty"`
+	Capabilities   []Capability      `json:"capabilities"`
 }
 
 // ReadBundledManifest reads a manifest.json from the given directory.

@@ -232,6 +232,9 @@ func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
 	if bm, err := ReadBundledManifest(destDir); err == nil && bm != nil {
 		pluginType = bm.PluginType
 		capabilities = bm.Capabilities
+		if bm.InstallType != "" {
+			installType = bm.InstallType
+		}
 	}
 
 	// Write version tracking file.

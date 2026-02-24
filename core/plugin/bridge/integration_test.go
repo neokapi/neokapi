@@ -40,7 +40,8 @@ func TestIntegrationBridgeStartStop(t *testing.T) {
 	jarPath := skipIfNoJAR(t)
 
 	bridge := NewJavaBridge(BridgeConfig{
-		JARPath: jarPath,
+		Command: "java",
+		Args:    []string{"-jar", jarPath},
 	}, log.Default())
 
 	require.NoError(t, bridge.Start())
@@ -52,7 +53,8 @@ func TestIntegrationListFilters(t *testing.T) {
 	jarPath := skipIfNoJAR(t)
 
 	bridge := NewJavaBridge(BridgeConfig{
-		JARPath: jarPath,
+		Command: "java",
+		Args:    []string{"-jar", jarPath},
 	}, log.Default())
 
 	require.NoError(t, bridge.Start())
@@ -79,7 +81,8 @@ func TestIntegrationReadHTML(t *testing.T) {
 	jarPath := skipIfNoJAR(t)
 
 	cfg := BridgeConfig{
-		JARPath: jarPath,
+		Command: "java",
+		Args:    []string{"-jar", jarPath},
 	}
 	b := NewJavaBridge(cfg, log.Default())
 	require.NoError(t, b.Start())
@@ -146,7 +149,8 @@ func TestIntegrationReadDOCX(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := BridgeConfig{
-		JARPath: jarPath,
+		Command: "java",
+		Args:    []string{"-jar", jarPath},
 	}
 	b := NewJavaBridge(cfg, log.Default())
 	require.NoError(t, b.Start())

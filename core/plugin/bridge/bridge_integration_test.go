@@ -51,8 +51,8 @@ func TestIntegrationListFilters(t *testing.T) {
 	jar := bridgeJAR(t)
 
 	b := bridge.NewJavaBridge(bridge.BridgeConfig{
-		JARPath:  jar,
-		JavaPath: javaPath(t),
+		Command: javaPath(t),
+		Args:    []string{"-jar", jar},
 	}, nil)
 	require.NoError(t, b.Start())
 	defer func() { _ = b.Stop() }()
@@ -82,8 +82,8 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 	jar := bridgeJAR(t)
 
 	b := bridge.NewJavaBridge(bridge.BridgeConfig{
-		JARPath:  jar,
-		JavaPath: javaPath(t),
+		Command: javaPath(t),
+		Args:    []string{"-jar", jar},
 	}, nil)
 	require.NoError(t, b.Start())
 	defer func() { _ = b.Stop() }()

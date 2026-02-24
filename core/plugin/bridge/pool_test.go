@@ -14,7 +14,7 @@ import (
 
 // newMockBridge creates a JavaBridge backed by pipes (no real JVM).
 // The stdin reader side is closed so that Stop() doesn't block on writes.
-func newMockBridge(t *testing.T, jarPath string) *JavaBridge {
+func newMockBridge(t *testing.T, args ...string) *JavaBridge {
 	t.Helper()
 	goStdinR, goStdinW := io.Pipe()
 	javaStdoutR, _ := io.Pipe()
@@ -24,7 +24,8 @@ func newMockBridge(t *testing.T, jarPath string) *JavaBridge {
 
 	b := &JavaBridge{
 		cfg: BridgeConfig{
-			JARPath:        jarPath,
+			Command:        "java",
+			Args:           args,
 			CommandTimeout: 5 * time.Second,
 			StartupTimeout: 5 * time.Second,
 		},
@@ -43,7 +44,7 @@ func TestNewBridgePoolMinSize(t *testing.T) {
 }
 
 func TestPoolSeedAndAcquire(t *testing.T) {
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(2, nil)
 	pool.Seed(b)
 
@@ -53,7 +54,7 @@ func TestPoolSeedAndAcquire(t *testing.T) {
 }
 
 func TestPoolReleaseThenAcquire(t *testing.T) {
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(1, nil)
 	pool.Seed(b)
 
@@ -68,7 +69,7 @@ func TestPoolReleaseThenAcquire(t *testing.T) {
 }
 
 func TestPoolBlocksWhenFull(t *testing.T) {
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(1, nil)
 	pool.Seed(b)
 
@@ -103,7 +104,7 @@ func TestPoolBlocksWhenFull(t *testing.T) {
 }
 
 func TestPoolShutdown(t *testing.T) {
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(2, nil)
 	pool.Seed(b)
 
@@ -121,7 +122,7 @@ func TestPoolShutdownIdempotent(t *testing.T) {
 }
 
 func TestPoolReleaseAfterShutdown(t *testing.T) {
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(1, nil)
 	pool.Seed(b)
 
@@ -135,8 +136,8 @@ func TestPoolReleaseAfterShutdown(t *testing.T) {
 }
 
 func TestPoolConcurrentAcquireRelease(t *testing.T) {
-	b1 := newMockBridge(t, "/path/to/a.jar")
-	b2 := newMockBridge(t, "/path/to/a.jar")
+	b1 := newMockBridge(t, "-jar", "/path/to/a.jar")
+	b2 := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool := NewBridgePool(2, nil)
 	pool.Seed(b1)
 	pool.Seed(b2)
@@ -155,41 +156,42 @@ func TestPoolConcurrentAcquireRelease(t *testing.T) {
 	wg.Wait()
 }
 
-func TestPoolMultiJARAcquire(t *testing.T) {
-	bA := newMockBridge(t, "/path/to/a.jar")
-	bB := newMockBridge(t, "/path/to/b.jar")
+func TestPoolMultiConfigAcquire(t *testing.T) {
+	bA := newMockBridge(t, "-jar", "/path/to/a.jar")
+	bB := newMockBridge(t, "-jar", "/path/to/b.jar")
 	pool := NewBridgePool(4, nil)
 	pool.Seed(bA)
 	pool.Seed(bB)
 
 	gotA, err := pool.Acquire(bA.cfg)
 	require.NoError(t, err)
-	assert.Equal(t, "/path/to/a.jar", gotA.cfg.JARPath)
+	assert.Equal(t, []string{"-jar", "/path/to/a.jar"}, gotA.cfg.Args)
 
 	gotB, err := pool.Acquire(bB.cfg)
 	require.NoError(t, err)
-	assert.Equal(t, "/path/to/b.jar", gotB.cfg.JARPath)
+	assert.Equal(t, []string{"-jar", "/path/to/b.jar"}, gotB.cfg.Args)
 
 	pool.Release(gotA)
 	pool.Release(gotB)
 }
 
-func TestPoolEvictsIdleBridgeForDifferentJAR(t *testing.T) {
-	// Fill the pool entirely with JAR-A bridges.
+func TestPoolEvictsIdleBridgeForDifferentConfig(t *testing.T) {
+	// Fill the pool entirely with config-A bridges.
 	pool := NewBridgePool(2, nil)
-	bA1 := newMockBridge(t, "/path/to/a.jar")
-	bA2 := newMockBridge(t, "/path/to/a.jar")
+	bA1 := newMockBridge(t, "-jar", "/path/to/a.jar")
+	bA2 := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool.Seed(bA1)
 	pool.Seed(bA2)
 
-	// Acquire one and release it so we have: 1 in-use, 1 idle (both JAR-A).
+	// Acquire one and release it so we have: 1 in-use, 1 idle (both config-A).
 	inUse, err := pool.Acquire(bA1.cfg)
 	require.NoError(t, err)
 
-	// Now request JAR-B. Pool is at capacity (2 active), but there's an idle
-	// JAR-A bridge. It should be evicted to make room.
+	// Now request config-B. Pool is at capacity (2 active), but there's an idle
+	// config-A bridge. It should be evicted to make room.
 	cfgB := BridgeConfig{
-		JARPath:        "/path/to/b.jar",
+		Command:        "java",
+		Args:           []string{"-jar", "/path/to/b.jar"},
 		CommandTimeout: 5 * time.Second,
 		StartupTimeout: 5 * time.Second,
 	}
@@ -203,7 +205,7 @@ func TestPoolEvictsIdleBridgeForDifferentJAR(t *testing.T) {
 
 	// The evicted bridge reduced active count, so stats should reflect that.
 	stats := pool.Stats()
-	assert.Equal(t, 1, stats.Active) // only the in-use JAR-A bridge remains
+	assert.Equal(t, 1, stats.Active) // only the in-use config-A bridge remains
 
 	pool.Release(inUse)
 }
@@ -211,9 +213,9 @@ func TestPoolEvictsIdleBridgeForDifferentJAR(t *testing.T) {
 func TestPoolSharedCapacity(t *testing.T) {
 	pool := NewBridgePool(3, nil)
 
-	bA := newMockBridge(t, "/path/to/a.jar")
-	bB := newMockBridge(t, "/path/to/b.jar")
-	bC := newMockBridge(t, "/path/to/c.jar")
+	bA := newMockBridge(t, "-jar", "/path/to/a.jar")
+	bB := newMockBridge(t, "-jar", "/path/to/b.jar")
+	bC := newMockBridge(t, "-jar", "/path/to/c.jar")
 	pool.Seed(bA)
 	pool.Seed(bB)
 	pool.Seed(bC)
@@ -242,15 +244,15 @@ func TestPoolSharedCapacity(t *testing.T) {
 
 func TestPoolBlocksWhenAllActiveNoIdle(t *testing.T) {
 	pool := NewBridgePool(1, nil)
-	b := newMockBridge(t, "/path/to/a.jar")
+	b := newMockBridge(t, "-jar", "/path/to/a.jar")
 	pool.Seed(b)
 
 	// Acquire the only bridge.
 	got, err := pool.Acquire(b.cfg)
 	require.NoError(t, err)
 
-	// Request a different JAR — no idle bridges at all, should block.
-	cfgB := BridgeConfig{JARPath: "/path/to/b.jar", CommandTimeout: 5 * time.Second}
+	// Request a different config — no idle bridges at all, should block.
+	cfgB := BridgeConfig{Command: "java", Args: []string{"-jar", "/path/to/b.jar"}, CommandTimeout: 5 * time.Second}
 	acquired := make(chan struct{}, 1)
 	go func() {
 		// This will block since all bridges are in-use.
@@ -266,7 +268,7 @@ func TestPoolBlocksWhenAllActiveNoIdle(t *testing.T) {
 	}
 
 	// Release makes a bridge idle, which unblocks the waiter.
-	// The waiter will try to evict the idle JAR-A bridge and start JAR-B,
+	// The waiter will try to evict the idle config-A bridge and start config-B,
 	// which will fail (no java), but it unblocks.
 	pool.Release(got)
 
@@ -281,29 +283,32 @@ func TestPoolBlocksWhenAllActiveNoIdle(t *testing.T) {
 func TestPoolStats(t *testing.T) {
 	pool := NewBridgePool(4, nil)
 
-	bA1 := newMockBridge(t, "/path/to/a.jar")
-	bA2 := newMockBridge(t, "/path/to/a.jar")
-	bB := newMockBridge(t, "/path/to/b.jar")
+	bA1 := newMockBridge(t, "-jar", "/path/to/a.jar")
+	bA2 := newMockBridge(t, "-jar", "/path/to/a.jar")
+	bB := newMockBridge(t, "-jar", "/path/to/b.jar")
 	pool.Seed(bA1)
 	pool.Seed(bA2)
 	pool.Seed(bB)
+
+	keyA := bA1.cfg.PoolKey()
+	keyB := bB.cfg.PoolKey()
 
 	stats := pool.Stats()
 	assert.Equal(t, 4, stats.MaxSize)
 	assert.Equal(t, 3, stats.Active)
 	assert.Equal(t, 0, stats.InUse)
-	assert.Equal(t, 2, stats.IdleByJAR["/path/to/a.jar"])
-	assert.Equal(t, 1, stats.IdleByJAR["/path/to/b.jar"])
+	assert.Equal(t, 2, stats.IdleByKey[keyA])
+	assert.Equal(t, 1, stats.IdleByKey[keyB])
 
-	// Acquire one JAR-A bridge.
+	// Acquire one config-A bridge.
 	gotA, err := pool.Acquire(bA1.cfg)
 	require.NoError(t, err)
 
 	stats = pool.Stats()
 	assert.Equal(t, 3, stats.Active)
 	assert.Equal(t, 1, stats.InUse)
-	assert.Equal(t, 1, stats.IdleByJAR["/path/to/a.jar"])
-	assert.Equal(t, 1, stats.IdleByJAR["/path/to/b.jar"])
+	assert.Equal(t, 1, stats.IdleByKey[keyA])
+	assert.Equal(t, 1, stats.IdleByKey[keyB])
 
 	pool.Release(gotA)
 
