@@ -640,9 +640,12 @@ func TestExtractTarGzPathTraversal(t *testing.T) {
 	assert.Len(t, files, 1)
 	assert.Contains(t, files[0], "safe.txt")
 
-	// The malicious file should NOT exist outside destDir.
-	_, err = os.Stat(filepath.Join(dir, "..", "..", "..", "etc", "passwd"))
-	assert.True(t, os.IsNotExist(err))
+	// Verify no "passwd" file was written inside the destDir.
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.NotEqual(t, "passwd", e.Name(), "path traversal entry should not be extracted")
+	}
 }
 
 func TestInstallPluginChecksumMismatch(t *testing.T) {

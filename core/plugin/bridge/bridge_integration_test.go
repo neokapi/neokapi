@@ -52,7 +52,7 @@ func TestIntegrationListFilters(t *testing.T) {
 		JavaPath: javaPath(t),
 	}, nil)
 	require.NoError(t, b.Start())
-	defer b.Stop()
+	defer func() { _ = b.Stop() }()
 
 	lf, err := b.ListFilters()
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 		JavaPath: javaPath(t),
 	}, nil)
 	require.NoError(t, b.Start())
-	defer b.Stop()
+	defer func() { _ = b.Stop() }()
 
 	// Use a JSON document with filter_params to test parameter application.
 	jsonDoc := `{"greeting": "Hello World", "count": 42}`
