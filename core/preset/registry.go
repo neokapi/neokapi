@@ -7,15 +7,15 @@ import (
 
 // PresetRegistry is a thread-safe registry for format and framework presets.
 type PresetRegistry struct {
-	mu              sync.RWMutex
-	formatPresets   map[string]map[string]*FormatPreset // format -> presetName -> preset
+	mu               sync.RWMutex
+	formatPresets    map[string]map[string]*FormatPreset // format -> presetName -> preset
 	frameworkPresets map[string]*FrameworkPreset         // name -> preset
 }
 
 // NewPresetRegistry creates an empty PresetRegistry.
 func NewPresetRegistry() *PresetRegistry {
 	return &PresetRegistry{
-		formatPresets:   make(map[string]map[string]*FormatPreset),
+		formatPresets:    make(map[string]map[string]*FormatPreset),
 		frameworkPresets: make(map[string]*FrameworkPreset),
 	}
 }

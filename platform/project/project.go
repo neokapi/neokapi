@@ -183,7 +183,7 @@ type ServerConfig struct {
 // PluginsConfig specifies plugin dependencies.
 type PluginsConfig struct {
 	Framework []string `yaml:"framework,omitempty"` // e.g. ["okapi@1.48.0"]
-	Presets   []string `yaml:"presets,omitempty"`    // e.g. ["okapi-presets@1.48.0"]
+	Presets   []string `yaml:"presets,omitempty"`   // e.g. ["okapi-presets@1.48.0"]
 }
 
 // LocalFormatPreset defines a user-defined format preset in config.yaml.

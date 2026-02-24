@@ -55,7 +55,7 @@ type PluginLoader struct {
 	bridges []*managedBridge
 	plugins []PluginInfo
 	schemas *SchemaRegistry        // filter parameter schemas
-	presets *preset.PresetRegistry  // format and framework presets
+	presets *preset.PresetRegistry // format and framework presets
 	logger  *log.Logger
 }
 

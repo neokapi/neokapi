@@ -10,13 +10,13 @@ import (
 
 // presetManifest is the YAML structure for presets.yaml files.
 type presetManifest struct {
-	Kind            string                         `yaml:"kind"`
-	FormatPresets   map[string]formatPresetEntry    `yaml:"format_presets,omitempty"`
+	Kind             string                          `yaml:"kind"`
+	FormatPresets    map[string]formatPresetEntry    `yaml:"format_presets,omitempty"`
 	FrameworkPresets map[string]frameworkPresetEntry `yaml:"framework_presets,omitempty"`
 }
 
 type formatPresetEntry struct {
-	Description string                   `yaml:"description"`
+	Description string                    `yaml:"description"`
 	Formats     []formatPresetFormatEntry `yaml:"formats"`
 }
 
@@ -27,7 +27,7 @@ type formatPresetFormatEntry struct {
 
 type frameworkPresetEntry struct {
 	Description   string                    `yaml:"description"`
-	Mappings      []frameworkMappingEntry    `yaml:"mappings,omitempty"`
+	Mappings      []frameworkMappingEntry   `yaml:"mappings,omitempty"`
 	Exclude       []string                  `yaml:"exclude,omitempty"`
 	FormatPresets map[string]map[string]any `yaml:"format_presets,omitempty"`
 	Flows         map[string]map[string]any `yaml:"flows,omitempty"`

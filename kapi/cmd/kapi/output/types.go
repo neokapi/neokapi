@@ -416,14 +416,14 @@ type LsOutput struct {
 // PresetEntry represents a single preset in the list output.
 type PresetEntry struct {
 	Name        string         `json:"name"`
-	Type        string         `json:"type"`                  // "format" or "framework"
+	Type        string         `json:"type"` // "format" or "framework"
 	Description string         `json:"description,omitempty"`
-	Format      string         `json:"format,omitempty"`      // target format (format presets only)
+	Format      string         `json:"format,omitempty"` // target format (format presets only)
 	Source      string         `json:"source,omitempty"`
 	IsDefault   bool           `json:"is_default,omitempty"`
-	Config      map[string]any `json:"config,omitempty"`      // parameter values (format presets only)
-	Mappings    []MappingEntry `json:"mappings,omitempty"`    // framework presets only
-	Exclude     []string       `json:"exclude,omitempty"`     // framework presets only
+	Config      map[string]any `json:"config,omitempty"`   // parameter values (format presets only)
+	Mappings    []MappingEntry `json:"mappings,omitempty"` // framework presets only
+	Exclude     []string       `json:"exclude,omitempty"`  // framework presets only
 }
 
 // MappingEntry represents a mapping in a framework preset.
@@ -482,7 +482,7 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 // PresetShowOutput represents the details of a single preset.
 type PresetShowOutput struct {
 	Name        string         `json:"name"`
-	Type        string         `json:"type"`                  // "format" or "framework"
+	Type        string         `json:"type"` // "format" or "framework"
 	Description string         `json:"description,omitempty"`
 	Format      string         `json:"format,omitempty"`
 	Source      string         `json:"source,omitempty"`

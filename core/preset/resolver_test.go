@@ -48,7 +48,7 @@ func TestResolveFormatConfig_RegistryPreset(t *testing.T) {
 		Name:   "wellFormed",
 		Format: "okf_html",
 		Config: map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 	})
@@ -85,7 +85,7 @@ func TestResolveFormatConfig_OverridesApplied(t *testing.T) {
 		Name:   "wellFormed",
 		Format: "okf_html",
 		Config: map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 	})

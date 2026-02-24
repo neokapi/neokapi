@@ -587,7 +587,7 @@ func TestSearchPluginsAdvancedNoFilters(t *testing.T) {
 
 func TestExtractTarGz(t *testing.T) {
 	archive := makeTarGz(t, map[string][]byte{
-		"root.txt":        []byte("world"),
+		"root.txt":         []byte("world"),
 		"schemas/bar.json": []byte(`{"id":"bar"}`),
 	})
 
