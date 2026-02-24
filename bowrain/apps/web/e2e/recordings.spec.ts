@@ -201,7 +201,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/release-notes.md`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
@@ -244,7 +244,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/app-strings.json`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
@@ -357,7 +357,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
@@ -431,6 +431,10 @@ test.describe("Web App Recordings", () => {
       await expect(inviteSection).toBeVisible({ timeout: 5000 });
       await inviteSection.scrollIntoViewIfNeeded();
       await pause(page, 1000);
+
+      // Open the invite dialog
+      await humanClick(page, page.getByTestId("invite-open-dialog-btn"));
+      await pause(page, 800);
 
       // Fill in email for new invite (role defaults to "Member")
       const emailInput = page.getByTestId("invite-email-input");

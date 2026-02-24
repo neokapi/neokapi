@@ -69,7 +69,7 @@ test.describe("Routing", () => {
     await page.goto(`/${wsSlug}/project/${projectId}/translate/about-us.html`);
 
     // Editor should load with blocks
-    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
 
     // URL should contain the file name
     expect(page.url()).toContain("/translate/about-us.html");

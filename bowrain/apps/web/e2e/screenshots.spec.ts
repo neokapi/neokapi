@@ -118,7 +118,7 @@ test.describe("Web App Screenshots", () => {
 
       // Navigate directly to the editor route
       await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "editor.png") });

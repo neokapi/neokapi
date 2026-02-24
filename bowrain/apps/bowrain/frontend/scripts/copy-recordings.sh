@@ -106,7 +106,7 @@ for dir in "$RECORDINGS_DIR"/*/; do
   cp "$video_file" "$OUTPUT_DIR/${matched}.webm"
   size=$(du -h "$video_file" | cut -f1)
   echo "  ✓ ${matched}.webm (${size}) -> $THEME/"
-  ((copied++))
+  copied=$((copied + 1))
 done
 
 if [ $copied -eq 0 ]; then
