@@ -57,6 +57,25 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 		return nil
 	}
 
+	// Build lookup from loaded plugins (has format list and type).
+	type loadedInfo struct {
+		formats    int
+		pluginType string
+	}
+	loadedByKey := make(map[string]loadedInfo)
+	for _, p := range plugins {
+		loadedByKey[p.Name+"/"+p.Version] = loadedInfo{
+			formats:    len(p.Formats),
+			pluginType: p.Type,
+		}
+	}
+
+	// Build lookup from installed versions (has install type).
+	installTypeByKey := make(map[string]string)
+	for _, iv := range installed {
+		installTypeByKey[iv.Name+"/"+iv.Version] = iv.InstallType
+	}
+
 	// Group installed versions by name.
 	byName := make(map[string][]string)
 	var nameOrder []string
@@ -89,12 +108,21 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 			return registry.CompareSemver(versions[i], versions[j]) > 0
 		})
 		for _, v := range versions {
-			pluginInfos = append(pluginInfos, output.PluginInfo{
+			info := output.PluginInfo{
 				Name:    name,
 				Version: v,
 				Status:  "installed",
 				Path:    pluginLoader.Dir(),
-			})
+			}
+			key := name + "/" + v
+			if li, ok := loadedByKey[key]; ok {
+				info.Formats = li.formats
+				info.PluginType = li.pluginType
+			}
+			if it, ok := installTypeByKey[key]; ok && info.PluginType == "" {
+				info.PluginType = it
+			}
+			pluginInfos = append(pluginInfos, info)
 		}
 	}
 
@@ -139,10 +167,18 @@ func listAvailablePlugins(cmd *cobra.Command) error {
 			if installedSet[g.Name+"/"+v.Version] {
 				status = "installed"
 			}
+			var formatCount int
+			for _, cap := range v.Capabilities {
+				if cap.Type == "format" {
+					formatCount++
+				}
+			}
 			pluginInfos = append(pluginInfos, output.PluginInfo{
-				Name:    g.Name,
-				Version: v.Version,
-				Status:  status,
+				Name:       g.Name,
+				Version:    v.Version,
+				PluginType: v.PluginType,
+				Status:     status,
+				Formats:    formatCount,
 			})
 		}
 	}
