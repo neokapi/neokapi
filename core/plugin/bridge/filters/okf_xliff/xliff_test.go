@@ -246,6 +246,40 @@ func TestExtract_MultipleFiles(t *testing.T) {
 	assert.Contains(t, texts, "From file 2")
 }
 
+func TestExtract_NoteWithPriority(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+        <note priority="1" from="developer" annotates="source">Important note</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	require.NotNil(t, b.Annotations)
+
+	noteAnn, ok := b.Annotations["note"]
+	require.True(t, ok)
+
+	note := noteAnn.(*model.NoteAnnotation)
+	assert.Equal(t, "Important note", note.Text)
+	assert.Equal(t, "developer", note.From)
+	assert.Equal(t, 1, note.Priority)
+	assert.Equal(t, "source", note.Annotates)
+}
+
 func TestExtract_PreserveWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
