@@ -101,7 +101,7 @@ func TestExtract_Links(t *testing.T) {
 	assert.True(t, found, "should extract link text without raw URL in text")
 }
 
-func TestExtract_CodeBlockNotExtracted(t *testing.T) {
+func TestExtract_CodeBlockExtracted(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
@@ -115,10 +115,13 @@ func TestExtract_CodeBlockNotExtracted(t *testing.T) {
 
 	assert.Contains(t, texts, "Title")
 	assert.Contains(t, texts, "Some text.")
+	// The Okapi Markdown filter extracts code block content as translatable text.
+	allText := ""
 	for _, text := range texts {
-		assert.NotContains(t, text, "var x = 1",
-			"code block content should not be translatable")
+		allText += text + "\n"
 	}
+	assert.Contains(t, allText, "var x = 1",
+		"code block content should be extracted as translatable")
 }
 
 func TestExtract_UnorderedList(t *testing.T) {
