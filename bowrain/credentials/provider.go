@@ -36,6 +36,8 @@ func NewProviderFromConfig(cfg ProviderConfig, apiKey string) provider.LLMProvid
 		return provider.NewAnthropicProvider(pcfg)
 	case "openai":
 		return provider.NewOpenAIProvider(pcfg)
+	case "azureopenai":
+		return provider.NewAzureOpenAIProvider(pcfg)
 	case "ollama":
 		return provider.NewOllamaProvider(pcfg)
 	case "azure_openai":

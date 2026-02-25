@@ -41,9 +41,12 @@ RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=go-builder /bowrain-server /usr/local/bin/bowrain-server
 
-# Default data directory for SQLite databases.
+# Default data directory (SQLite databases when not using PostgreSQL).
 VOLUME /data
 ENV BOWRAIN_STORE=/data/bowrain.db
+
+# Default mode: api server. Set BOWRAIN_MODE=worker for async job processing.
+ENV BOWRAIN_MODE=api
 
 EXPOSE 8080
 ENTRYPOINT ["bowrain-server"]

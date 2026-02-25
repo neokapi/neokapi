@@ -1,0 +1,164 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'bowrain/**'
+      - 'core/**'
+      - 'platform/**'
+      - 'deploy/**'
+      - 'Dockerfile'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP_DEV: bowrain-dev-rg
+  AZURE_RESOURCE_GROUP_PROD: bowrain-prod-rg
+
+jobs:
+  build:
+    name: Build & Push Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine image tag
+        id: meta
+        env:
+          GH_SHA: ${{ github.sha }}
+          GH_EVENT: ${{ github.event_name }}
+          DEPLOY_ENV: ${{ github.event.inputs.environment || 'dev' }}
+        run: |
+          if [ "$GH_EVENT" = "workflow_dispatch" ]; then
+            TAG="${GH_SHA}-${DEPLOY_ENV}"
+          else
+            TAG="${GH_SHA}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR login server
+        id: acr
+        env:
+          DEPLOY_ENV: ${{ github.event.inputs.environment || 'dev' }}
+          RG_DEV: ${{ env.AZURE_RESOURCE_GROUP_DEV }}
+          RG_PROD: ${{ env.AZURE_RESOURCE_GROUP_PROD }}
+        run: |
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            RG="$RG_PROD"
+          else
+            RG="$RG_DEV"
+          fi
+          ACR_NAME=$(az acr list --resource-group "$RG" --query "[0].name" -o tsv)
+          LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
+          echo "login-server=${LOGIN_SERVER}" >> "$GITHUB_OUTPUT"
+          echo "name=${ACR_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: ACR Login
+        env:
+          ACR_NAME: ${{ steps.acr.outputs.name }}
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build and push Docker image
+        env:
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login-server }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          IMAGE="${ACR_LOGIN_SERVER}/bowrain-server:${IMAGE_TAG}"
+          docker build \
+            --build-arg VERSION="${IMAGE_TAG}" \
+            --build-arg COMMIT="${GH_SHA}" \
+            -t "$IMAGE" \
+            -t "${ACR_LOGIN_SERVER}/bowrain-server:latest" \
+            -f Dockerfile .
+          docker push "$IMAGE"
+          docker push "${ACR_LOGIN_SERVER}/bowrain-server:latest"
+
+  deploy:
+    name: Deploy Infrastructure & App
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set resource group
+        id: rg
+        env:
+          DEPLOY_ENV: ${{ github.event.inputs.environment || 'dev' }}
+          RG_DEV: ${{ env.AZURE_RESOURCE_GROUP_DEV }}
+          RG_PROD: ${{ env.AZURE_RESOURCE_GROUP_PROD }}
+        run: |
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            echo "name=${RG_PROD}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${RG_DEV}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy Bicep
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: ${{ steps.rg.outputs.name }}
+          template: deploy/azure/main.bicep
+          parameters: >-
+            deploy/azure/parameters/${{ env.ENVIRONMENT }}.bicepparam
+            imageTag=${{ needs.build.outputs.image-tag }}
+            postgresAdminLogin=${{ secrets.POSTGRES_ADMIN_LOGIN }}
+            postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+            jwtSecret=${{ secrets.JWT_SECRET }}
+            oidcClientSecret=${{ secrets.OIDC_CLIENT_SECRET }}
+            keycloakAdminPassword=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+
+      - name: Update API container revision
+        env:
+          RG: ${{ steps.rg.outputs.name }}
+          APP_NAME: bowrain-${{ env.ENVIRONMENT }}-api
+          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+        run: |
+          az containerapp update \
+            --name "$APP_NAME" \
+            --resource-group "$RG" \
+            --image "$IMAGE_TAG"
+
+      - name: Update Worker container revision
+        env:
+          RG: ${{ steps.rg.outputs.name }}
+          APP_NAME: bowrain-${{ env.ENVIRONMENT }}-worker
+          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+        run: |
+          az containerapp update \
+            --name "$APP_NAME" \
+            --resource-group "$RG" \
+            --image "$IMAGE_TAG"

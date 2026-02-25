@@ -16,6 +16,7 @@ import (
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
+	"github.com/gokapi/gokapi/bowrain/jobs"
 	"github.com/gokapi/gokapi/bowrain/service"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/formats"
@@ -55,6 +56,12 @@ type Server struct {
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
 
+	// JobStore persists translation job state. Nil when job system is not configured.
+	JobStore jobs.JobStore
+
+	// JobQueue enqueues and dequeues translation job IDs. Nil when job system is not configured.
+	JobQueue jobs.Queue
+
 	// GRPCServer is an optional gRPC server multiplexed on the same port.
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
@@ -93,27 +100,48 @@ func NewServer(cfg ServerConfig) *Server {
 		s.EmailSender = &SMTPSender{Host: cfg.SMTPHost, From: cfg.SMTPFrom}
 	}
 
-	// Initialize content store if a store path is configured.
-	if cfg.StorePath != "" {
-		cs, err := bstore.NewSQLiteStore(cfg.StorePath)
+	// Initialize stores based on DatabaseURL or StorePath.
+	dbURL := cfg.DatabaseURL
+	if dbURL == "" && cfg.StorePath != "" {
+		dbURL = "sqlite:///" + cfg.StorePath
+	}
+
+	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
+		cs, as, err := openPostgresStores(dbURL)
 		if err != nil {
-			log.Printf("WARNING: failed to open content store at %s: %v", cfg.StorePath, err)
+			log.Printf("WARNING: failed to open PostgreSQL stores: %v", err)
+		} else {
+			s.ContentStore = cs
+			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
+			if cfg.JWTSecret != "" {
+				s.AuthStore = as
+				s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
+			}
+		}
+	} else if cfg.StorePath != "" || strings.HasPrefix(dbURL, "sqlite:///") {
+		storePath := cfg.StorePath
+		if storePath == "" {
+			storePath = strings.TrimPrefix(dbURL, "sqlite:///")
+		}
+		cs, err := bstore.NewSQLiteStore(storePath)
+		if err != nil {
+			log.Printf("WARNING: failed to open content store at %s: %v", storePath, err)
 		} else {
 			s.ContentStore = cs
 			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
 		}
-	}
 
-	// Initialize auth store when authentication is configured.
-	if cfg.JWTSecret != "" && cfg.StorePath != "" {
-		authDBPath := cfg.StorePath + ".auth"
-		as, err := auth.NewSQLiteAuthStore(authDBPath)
-		if err != nil {
-			log.Printf("WARNING: failed to open auth store at %s: %v", authDBPath, err)
-		} else {
-			s.AuthStore = as
-			if s.Services != nil {
-				s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
+		// Initialize auth store when authentication is configured.
+		if cfg.JWTSecret != "" {
+			authDBPath := storePath + ".auth"
+			as, err := auth.NewSQLiteAuthStore(authDBPath)
+			if err != nil {
+				log.Printf("WARNING: failed to open auth store at %s: %v", authDBPath, err)
+			} else {
+				s.AuthStore = as
+				if s.Services != nil {
+					s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
+				}
 			}
 		}
 	}
@@ -332,6 +360,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/providers", s.HandleSaveProviderConfig)
 	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
 	g.POST("/providers/test", s.HandleTestProviderConfig)
+
+	// Translation jobs (async)
+	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
+	g.GET("/jobs", s.HandleListJobs)
+	g.GET("/jobs/:id", s.HandleGetJob)
+	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 }
 
 // Start initializes the Echo server and starts listening.

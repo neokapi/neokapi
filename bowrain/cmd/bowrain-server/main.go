@@ -43,6 +43,12 @@ func main() {
 	if envStore := os.Getenv("BOWRAIN_STORE"); envStore != "" {
 		cfg.StorePath = envStore
 	}
+	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
+		cfg.DatabaseURL = envDBURL
+	}
+	if envMode := os.Getenv("BOWRAIN_MODE"); envMode != "" {
+		cfg.Mode = envMode
+	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
 	}
@@ -63,6 +69,18 @@ func main() {
 	}
 	if envSMTPFrom := os.Getenv("BOWRAIN_SMTP_FROM"); envSMTPFrom != "" {
 		cfg.SMTPFrom = envSMTPFrom
+	}
+	if envSB := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION"); envSB != "" {
+		cfg.ServiceBusConnection = envSB
+	}
+	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
+		cfg.RedisURL = envRedis
+	}
+
+	// Worker mode: run the async job processing loop instead of the API server.
+	if cfg.Mode == "worker" {
+		runWorker(cfg)
+		return
 	}
 
 	srv := server.NewServer(cfg)
