@@ -392,3 +392,46 @@ func TestExtract_DataParts(t *testing.T) {
 	}
 	assert.Greater(t, dataCount, 0, "should have at least one Data part from HTML structure")
 }
+
+func TestExtract_BlockSkeleton(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello world</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// HTML blocks should have skeleton data that preserves the surrounding markup.
+	var found *model.Block
+	for _, b := range blocks {
+		if b.Skeleton != nil && len(b.Skeleton.Parts) > 0 {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "at least one block should have a skeleton")
+	assert.Greater(t, len(found.Skeleton.Parts), 0, "skeleton should have parts")
+}
+
+func TestExtract_DataSkeleton(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello</p><hr/><p>World</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	// Data parts (from non-translatable structure like <hr/>) should also
+	// carry skeleton data.
+	var dataWithSkeleton int
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Skeleton != nil && len(data.Skeleton.Parts) > 0 {
+				dataWithSkeleton++
+			}
+		}
+	}
+	assert.Greater(t, dataWithSkeleton, 0, "some Data parts should have skeletons")
+}
