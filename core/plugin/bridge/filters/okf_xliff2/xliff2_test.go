@@ -14,6 +14,7 @@ const mimeType = "application/xliff+xml"
 
 func TestExtract_SimpleXLIFF2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	xliff2 := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">

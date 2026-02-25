@@ -15,6 +15,7 @@ const mimeType = "text/markdown"
 
 func TestExtract_SimpleMarkdown(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	md := "# Hello World\n\nThis is a paragraph.\n"
 

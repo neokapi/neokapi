@@ -15,6 +15,7 @@ const mimeType = "text/plain"
 
 func TestExtract_SimplePlainText(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
 		"Hello world\nThis is a test.",

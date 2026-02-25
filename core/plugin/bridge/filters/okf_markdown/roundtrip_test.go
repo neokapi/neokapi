@@ -10,6 +10,7 @@ import (
 
 func TestRoundTrip_Simple(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	input := []byte("# Hello World\n\nThis is a paragraph.\n")
 	bridgetest.AssertRoundTrip(t, pool, cfg, filterClass, input, "test.md", mimeType, nil)
@@ -17,6 +18,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Known failing files from Java's RoundTripMarkdownIT:

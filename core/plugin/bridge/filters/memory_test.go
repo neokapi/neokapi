@@ -37,11 +37,11 @@ var memoryTestFilters = []memoryTestEntry{
 		mimeType:    "application/json",
 	},
 	{
-		name:        "plaintext",
-		filterClass: "net.sf.okapi.filters.plaintext.PlainTextFilter",
-		content:     "Hello world\nThis is a test.",
-		uri:         "test.txt",
-		mimeType:    "text/plain",
+		name:        "properties",
+		filterClass: "net.sf.okapi.filters.properties.PropertiesFilter",
+		content:     "greeting=Hello World\nfarewell=Goodbye\n",
+		uri:         "test.properties",
+		mimeType:    "text/x-java-properties",
 	},
 }
 
