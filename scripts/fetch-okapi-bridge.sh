@@ -12,7 +12,7 @@
 #   GITHUB_TOKEN         — GitHub token for authenticated requests (required;
 #                          must have access to gokapi/okapi-bridge).
 #   GH_TOKEN             — Alternative token variable (used by gh CLI).
-#   OKAPI_BRIDGE_VERSION — Bridge version tag (default: v1.8.0).
+#   OKAPI_BRIDGE_VERSION — Bridge version tag (default: v1.8.1).
 #   OKAPI_VERSION        — Okapi Framework version suffix (default: 1.48.0).
 #   FORCE_FETCH          — If set (e.g. FORCE_FETCH=1), re-download even when
 #                          the JAR already exists.
@@ -20,7 +20,7 @@
 set -euo pipefail
 
 REPO="gokapi/okapi-bridge"
-BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v1.8.0}"
+BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v1.8.1}"
 OKAPI_VERSION="${OKAPI_VERSION:-1.48.0}"
 ASSET_NAME="okapi-bridge-${BRIDGE_VERSION}-okapi${OKAPI_VERSION}.tar.gz"
 

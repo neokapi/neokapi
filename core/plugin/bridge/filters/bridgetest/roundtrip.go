@@ -61,6 +61,8 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 		writer.SetFilterParams(filterParams)
 	}
 	writer.SetOriginalContent(content)
+	writer.SetEncoding("UTF-8")
+	writer.SetLocale("fr")
 	require.NoError(t, writer.SetOutputWriter(&output))
 
 	partsCh := make(chan *model.Part, len(parts))
