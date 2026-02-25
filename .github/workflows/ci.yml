@@ -20,6 +20,8 @@ jobs:
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: dorny/paths-filter@v3
         if: github.event_name == 'pull_request'
         id: filter
