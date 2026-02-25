@@ -5,19 +5,21 @@ import "strings"
 // Block is the primary translatable content unit.
 // Source and target segments live directly on the Block.
 type Block struct {
-	ID           string
-	Name         string
-	Type         string
-	MimeType     string
-	Translatable bool
-	Skeleton     *Skeleton
-	Source       []*Segment
-	Targets      map[LocaleID][]*Segment
-	Properties   map[string]string
-	Annotations  map[string]Annotation
-	Identity     *BlockIdentity // Content-addressable hash for deduplication
-	ContentRef   *ContentRef    // Link to external connector source
-	DisplayHint  *DisplayHint   // UI rendering guidance
+	ID                 string
+	Name               string
+	Type               string
+	MimeType           string
+	Translatable       bool
+	Skeleton           *Skeleton
+	Source             []*Segment
+	Targets            map[LocaleID][]*Segment
+	Properties         map[string]string
+	Annotations        map[string]Annotation
+	Identity           *BlockIdentity // Content-addressable hash for deduplication
+	ContentRef         *ContentRef    // Link to external connector source
+	DisplayHint        *DisplayHint   // UI rendering guidance
+	PreserveWhitespace bool           // Whether whitespace is significant in this block
+	IsReferent         bool           // Whether this block is referenced by a skeleton
 }
 
 // ResourceID returns the Block's unique identifier.

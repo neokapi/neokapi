@@ -2,9 +2,10 @@ package model
 
 // GroupStart signals the beginning of a structural group within a Layer.
 type GroupStart struct {
-	ID   string
-	Name string
-	Type string
+	ID         string
+	Name       string
+	Type       string
+	Properties map[string]string
 }
 
 // ResourceID returns the GroupStart's unique identifier.

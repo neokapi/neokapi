@@ -33,6 +33,7 @@ func (st *SkeletonText) isSkeletonPart() {}
 type SkeletonRef struct {
 	ResourceID string
 	Property   string // Which property to reference (e.g., "target", "source")
+	Locale     string // Target locale for locale-specific references
 }
 
 func (sr *SkeletonRef) isSkeletonPart() {}

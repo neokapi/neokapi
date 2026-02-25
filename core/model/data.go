@@ -6,6 +6,7 @@ type Data struct {
 	Name       string
 	Skeleton   *Skeleton
 	Properties map[string]string
+	IsReferent bool // Whether this data is referenced by a skeleton
 }
 
 // ResourceID returns the Data's unique identifier.
