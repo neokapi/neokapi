@@ -40,6 +40,7 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	doc := &model.RawDocument{
 		URI:          uri,
 		SourceLocale: "en",
+		TargetLocale: "fr",
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
@@ -153,7 +154,7 @@ func AssertRoundTripEvents(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bri
 }
 
 // compareParts performs event-level comparison of two part lists.
-// It compares part types, and for blocks: ID, source text, and translatable flag.
+// It compares part types, and for each part type: IDs, key fields, and content.
 func compareParts(t *testing.T, expected, actual []*model.Part) {
 	t.Helper()
 
@@ -176,16 +177,115 @@ func compareParts(t *testing.T, expected, actual []*model.Part) {
 
 		assert.Equal(t, ep.Type, ap.Type, "%s: type mismatch", prefix)
 
-		if ep.Type == model.PartBlock && ap.Type == model.PartBlock {
-			eb, _ := ep.Resource.(*model.Block)
-			ab, _ := ap.Resource.(*model.Block)
-			if eb != nil && ab != nil {
-				assert.Equal(t, eb.ID, ab.ID, "%s: block ID", prefix)
-				assert.Equal(t, eb.SourceText(), ab.SourceText(), "%s: source text", prefix)
-				assert.Equal(t, eb.Translatable, ab.Translatable, "%s: translatable", prefix)
-			}
+		switch ep.Type {
+		case model.PartBlock:
+			compareBlocks(t, prefix, ep, ap)
+		case model.PartLayerStart, model.PartLayerEnd:
+			compareLayers(t, prefix, ep, ap)
+		case model.PartData:
+			compareData(t, prefix, ep, ap)
+		case model.PartGroupStart:
+			compareGroupStart(t, prefix, ep, ap)
+		case model.PartGroupEnd:
+			compareGroupEnd(t, prefix, ep, ap)
 		}
 	}
+}
+
+func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
+	t.Helper()
+	eb, _ := ep.Resource.(*model.Block)
+	ab, _ := ap.Resource.(*model.Block)
+	if eb == nil || ab == nil {
+		return
+	}
+	assert.Equal(t, eb.ID, ab.ID, "%s: block ID", prefix)
+	assert.Equal(t, eb.SourceText(), ab.SourceText(), "%s: source text", prefix)
+	assert.Equal(t, eb.Translatable, ab.Translatable, "%s: translatable", prefix)
+	assert.Equal(t, eb.Name, ab.Name, "%s: block name", prefix)
+	assert.Equal(t, eb.Type, ab.Type, "%s: block type", prefix)
+	assert.Equal(t, eb.PreserveWhitespace, ab.PreserveWhitespace, "%s: preserve whitespace", prefix)
+
+	// Compare source segments in detail.
+	if assert.Equal(t, len(eb.Source), len(ab.Source), "%s: source segment count", prefix) {
+		for j := range eb.Source {
+			sp := fmt.Sprintf("%s.source[%d]", prefix, j)
+			assert.Equal(t, eb.Source[j].ID, ab.Source[j].ID, "%s: segment ID", sp)
+			compareFragments(t, sp, eb.Source[j].Content, ab.Source[j].Content)
+		}
+	}
+}
+
+func compareFragments(t *testing.T, prefix string, ef, af *model.Fragment) {
+	t.Helper()
+	if ef == nil && af == nil {
+		return
+	}
+	if ef == nil || af == nil {
+		t.Errorf("%s: fragment nil mismatch (expected=%v actual=%v)", prefix, ef == nil, af == nil)
+		return
+	}
+	assert.Equal(t, ef.Text(), af.Text(), "%s: fragment text", prefix)
+	assert.Equal(t, len(ef.Spans), len(af.Spans), "%s: span count", prefix)
+
+	n := len(ef.Spans)
+	if len(af.Spans) < n {
+		n = len(af.Spans)
+	}
+	for k := range n {
+		sp := fmt.Sprintf("%s.span[%d]", prefix, k)
+		es, as := ef.Spans[k], af.Spans[k]
+		assert.Equal(t, es.SpanType, as.SpanType, "%s: span type", sp)
+		assert.Equal(t, es.ID, as.ID, "%s: span ID", sp)
+		assert.Equal(t, es.Data, as.Data, "%s: span data", sp)
+		assert.Equal(t, es.Type, as.Type, "%s: span semantic type", sp)
+	}
+}
+
+func compareLayers(t *testing.T, prefix string, ep, ap *model.Part) {
+	t.Helper()
+	el, _ := ep.Resource.(*model.Layer)
+	al, _ := ap.Resource.(*model.Layer)
+	if el == nil || al == nil {
+		return
+	}
+	// Layer ID and Name are derived from the temp file URI on the Java side,
+	// so they differ between reads. Encoding may also change (the write phase
+	// normalizes to UTF-8). Compare only the stable mime type field.
+	assert.Equal(t, el.MimeType, al.MimeType, "%s: layer mime type", prefix)
+}
+
+func compareData(t *testing.T, prefix string, ep, ap *model.Part) {
+	t.Helper()
+	ed, _ := ep.Resource.(*model.Data)
+	ad, _ := ap.Resource.(*model.Data)
+	if ed == nil || ad == nil {
+		return
+	}
+	assert.Equal(t, ed.ID, ad.ID, "%s: data ID", prefix)
+	assert.Equal(t, ed.Name, ad.Name, "%s: data name", prefix)
+}
+
+func compareGroupStart(t *testing.T, prefix string, ep, ap *model.Part) {
+	t.Helper()
+	eg, _ := ep.Resource.(*model.GroupStart)
+	ag, _ := ap.Resource.(*model.GroupStart)
+	if eg == nil || ag == nil {
+		return
+	}
+	assert.Equal(t, eg.ID, ag.ID, "%s: group ID", prefix)
+	assert.Equal(t, eg.Name, ag.Name, "%s: group name", prefix)
+	assert.Equal(t, eg.Type, ag.Type, "%s: group type", prefix)
+}
+
+func compareGroupEnd(t *testing.T, prefix string, ep, ap *model.Part) {
+	t.Helper()
+	eg, _ := ep.Resource.(*model.GroupEnd)
+	ag, _ := ap.Resource.(*model.GroupEnd)
+	if eg == nil || ag == nil {
+		return
+	}
+	assert.Equal(t, eg.ID, ag.ID, "%s: group end ID", prefix)
 }
 
 // partSummary returns a short description of a part for debug logging.

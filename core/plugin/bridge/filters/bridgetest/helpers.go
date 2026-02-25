@@ -22,10 +22,12 @@ import (
 // sharedBridge holds the singleton bridge pool used across all filter tests
 // within a single test binary invocation.
 var (
-	sharedOnce sync.Once
-	sharedPool *bridge.BridgePool
-	sharedCfg  bridge.BridgeConfig
-	sharedErr  error
+	sharedOnce    sync.Once
+	sharedPool    *bridge.BridgePool
+	sharedCfg     bridge.BridgeConfig
+	sharedErr     error
+	availableOnce sync.Once
+	availableSet  map[string]bool
 )
 
 // SharedBridge returns a shared BridgePool and BridgeConfig for integration tests.
@@ -69,6 +71,35 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	return sharedPool, sharedCfg
 }
 
+// RequireFilter skips the test if the given filter class is not available in
+// the bridge JAR. This allows tests for optional filters (e.g. PlainTextFilter,
+// MarkdownFilter, XLIFF2Filter) to gracefully skip when the filter is missing.
+func RequireFilter(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string) {
+	t.Helper()
+
+	availableOnce.Do(func() {
+		b, err := pool.Acquire(cfg)
+		if err != nil {
+			return
+		}
+		defer pool.Release(b)
+
+		lf, err := b.ListFilters()
+		if err != nil {
+			return
+		}
+
+		availableSet = make(map[string]bool, len(lf.Filters))
+		for _, f := range lf.Filters {
+			availableSet[f.FilterClass] = true
+		}
+	})
+
+	if !availableSet[filterClass] {
+		t.Skipf("filter %s not available in bridge JAR", filterClass)
+	}
+}
+
 // javaCommand returns the java binary path, respecting JAVA_HOME.
 func javaCommand() string {
 	if home := os.Getenv("JAVA_HOME"); home != "" {
@@ -97,6 +128,7 @@ func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	doc := &model.RawDocument{
 		URI:          uri,
 		SourceLocale: "en",
+		TargetLocale: "fr",
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
