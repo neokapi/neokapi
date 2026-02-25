@@ -25,7 +25,7 @@ Migrate all Java Okapi filter tests into Go bridge integration tests so every fi
 
 Test data files are stored in a GitHub release (`okapi-testdata`) to avoid bloating the repository.
 
-- **Release**: `gh release` in gokapi/gokapi tagged `okapi-testdata-v1.48.0`
+- **Release**: `gh release` in gokapi/gokapi tagged `okapi-testdata-v1`
 - **Fetch script**: `scripts/fetch-okapi-testdata.sh` downloads and extracts to `./okapi-testdata/`
 - **Gitignored**: `okapi-testdata/` is in `.gitignore`
 - **CI**: The fetch script runs before integration tests in CI

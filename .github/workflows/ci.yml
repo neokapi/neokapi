@@ -316,7 +316,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: okapi-testdata/
-          key: okapi-testdata-v1.48.0
+          key: okapi-testdata-v1
 
       - name: Fetch okapi test data
         run: bash scripts/fetch-okapi-testdata.sh
