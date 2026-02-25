@@ -303,31 +303,17 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/gokapi/bridge/
-          key: okapi-bridge-${{ runner.os }}-v1.5.0
+          key: okapi-bridge-v1.8.0
 
       - name: Fetch okapi-bridge JAR
         run: |
-          BRIDGE_VERSION="v1.5.0"
-          BRIDGE_DIR="$HOME/.cache/gokapi/bridge"
-          JAR_PATH="$BRIDGE_DIR/okapi-bridge.jar"
-          if [ ! -f "$JAR_PATH" ]; then
-            mkdir -p "$BRIDGE_DIR"
-            gh release download "$BRIDGE_VERSION" --repo gokapi/okapi-bridge --pattern "okapi-bridge-*.jar" --dir "$BRIDGE_DIR" || true
-            # Rename to stable path
-            for f in "$BRIDGE_DIR"/okapi-bridge-*.jar; do
-              [ -f "$f" ] && mv "$f" "$JAR_PATH" && break
-            done
-          fi
-          if [ -f "$JAR_PATH" ]; then
-            echo "GOKAPI_BRIDGE_JAR=$JAR_PATH" >> "$GITHUB_ENV"
-          else
-            echo "::warning::okapi-bridge JAR not found — bridge filter tests will be skipped"
-          fi
+          bash scripts/fetch-okapi-bridge.sh
+          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
 
       - name: Fetch okapi test data
-        run: bash scripts/fetch-okapi-testdata.sh || echo "::warning::okapi-testdata not available — testdata-dependent tests will be skipped"
+        run: bash scripts/fetch-okapi-testdata.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
 

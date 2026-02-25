@@ -30,18 +30,18 @@ var (
 
 // SharedBridge returns a shared BridgePool and BridgeConfig for integration tests.
 // It starts a single JVM process and reuses it across all tests in the binary.
-// If Java or the bridge JAR is unavailable, it calls t.Skip.
+// If Java or the bridge JAR is unavailable, it fails the test.
 func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	t.Helper()
 
 	sharedOnce.Do(func() {
 		jar := os.Getenv("GOKAPI_BRIDGE_JAR")
 		if jar == "" {
-			sharedErr = errSkip("GOKAPI_BRIDGE_JAR not set")
+			sharedErr = errFatal("GOKAPI_BRIDGE_JAR not set — run scripts/fetch-okapi-bridge.sh")
 			return
 		}
 		if _, err := os.Stat(jar); os.IsNotExist(err) {
-			sharedErr = errSkipf("JAR not found at %s", jar)
+			sharedErr = errFatalf("JAR not found at %s", jar)
 			return
 		}
 
@@ -54,7 +54,7 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 
 		b := bridge.NewJavaBridge(sharedCfg, log.Default())
 		if err := b.Start(); err != nil {
-			sharedErr = errSkipf("failed to start bridge: %v", err)
+			sharedErr = errFatalf("failed to start bridge: %v", err)
 			return
 		}
 
@@ -63,7 +63,7 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	})
 
 	if sharedErr != nil {
-		t.Skip(sharedErr.Error())
+		t.Fatal(sharedErr.Error())
 	}
 
 	return sharedPool, sharedCfg
@@ -164,7 +164,7 @@ func TranslatableBlocks(parts []*model.Part) []*model.Block {
 }
 
 // TestdataDir returns the path to the okapi-testdata directory at the repo root.
-// It skips the test if the directory doesn't exist (hasn't been fetched).
+// It fails the test if the directory doesn't exist (hasn't been fetched).
 func TestdataDir(t *testing.T) string {
 	t.Helper()
 
@@ -175,20 +175,20 @@ func TestdataDir(t *testing.T) string {
 
 	tdDir := filepath.Join(dir, "okapi-testdata")
 	if _, err := os.Stat(tdDir); os.IsNotExist(err) {
-		t.Skip("okapi-testdata/ not found — run scripts/fetch-okapi-testdata.sh")
+		t.Fatal("okapi-testdata/ not found — run scripts/fetch-okapi-testdata.sh to fetch test data")
 	}
 	return tdDir
 }
 
 // TestdataFile returns the full path to a file within the okapi-testdata directory.
-// It skips the test if the testdata directory or the specific file doesn't exist.
+// It fails the test if the testdata directory or the specific file doesn't exist.
 func TestdataFile(t *testing.T, relPath string) string {
 	t.Helper()
 
 	dir := TestdataDir(t)
 	full := filepath.Join(dir, relPath)
 	if _, err := os.Stat(full); os.IsNotExist(err) {
-		t.Skipf("testdata file not found: %s", relPath)
+		t.Fatalf("testdata file not found: %s", relPath)
 	}
 	return full
 }
@@ -211,17 +211,17 @@ func findRepoRoot() (string, error) {
 	}
 }
 
-// skipError is used internally to convey skip reasons through sync.Once.
-type skipError struct {
+// fatalError is used internally to convey fatal reasons through sync.Once.
+type fatalError struct {
 	msg string
 }
 
-func (e *skipError) Error() string { return e.msg }
+func (e *fatalError) Error() string { return e.msg }
 
-func errSkip(msg string) error {
-	return &skipError{msg: msg}
+func errFatal(msg string) error {
+	return &fatalError{msg: msg}
 }
 
-func errSkipf(format string, args ...any) error {
-	return &skipError{msg: fmt.Sprintf(format, args...)}
+func errFatalf(format string, args ...any) error {
+	return &fatalError{msg: fmt.Sprintf(format, args...)}
 }
