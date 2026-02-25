@@ -1,0 +1,270 @@
+syntax = "proto3";
+
+package gokapi.bridge.v2;
+
+option go_package = "github.com/gokapi/gokapi/core/plugin/proto/v2;bridgev2";
+
+// BridgeService is the unified gRPC service for the Okapi bridge.
+// It replaces the NDJSON stdin/stdout protocol with streaming RPCs.
+service BridgeService {
+  // Info returns metadata about a specific filter.
+  rpc Info(InfoRequest) returns (InfoResponse);
+
+  // ListFilters returns all available Okapi filters.
+  rpc ListFilters(ListFiltersRequest) returns (ListFiltersResponse);
+
+  // Open opens a document with a filter for reading.
+  rpc Open(OpenRequest) returns (OpenResponse);
+
+  // Read streams extracted parts from an opened document.
+  rpc Read(ReadRequest) returns (stream PartMessage);
+
+  // Write receives a stream of parts and reconstructs the document.
+  rpc Write(stream WriteChunk) returns (WriteResponse);
+
+  // Close releases the current filter resources.
+  rpc Close(CloseRequest) returns (CloseResponse);
+
+  // Shutdown gracefully shuts down the bridge server.
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Annotations
+// ────────────────────────────────────────────────────────────────────────────
+
+// AnnotationEntry is a typed annotation with a JSON-encoded payload.
+message AnnotationEntry {
+  string type = 1;    // "note", "alt-translation", "its-lqi", "generic", etc.
+  bytes data = 2;     // JSON-encoded type-specific payload
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Inline Markup
+// ────────────────────────────────────────────────────────────────────────────
+
+// SpanMessage represents an inline markup element within a Fragment.
+message SpanMessage {
+  int32 span_type = 1;     // 0=Opening, 1=Closing, 2=Placeholder
+  string type = 2;          // Semantic type (e.g., "bold", "link")
+  string id = 3;
+  string data = 4;          // Original markup (e.g., "<b>")
+  string outer_data = 5;
+  bool deletable = 6;
+  bool cloneable = 7;
+  string original_id = 8;   // Original ID before merging/splitting
+  string display_text = 9;  // Human-readable display text
+  int32 flags = 10;         // Bitfield of span flags
+  string equiv_text = 11;   // Equivalent text representation
+  bool can_reorder = 12;    // Whether code can be reordered
+  map<string, AnnotationEntry> annotations = 13;
+}
+
+// FragmentMessage represents text content with inline Spans.
+message FragmentMessage {
+  string coded_text = 1;
+  repeated SpanMessage spans = 2;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Segments & Targets
+// ────────────────────────────────────────────────────────────────────────────
+
+// SegmentMessage represents a single segment within a Block.
+message SegmentMessage {
+  string id = 1;
+  FragmentMessage content = 2;
+  map<string, string> properties = 3;
+}
+
+// TargetEntry maps a locale to its target segments.
+message TargetEntry {
+  string locale = 1;
+  repeated SegmentMessage segments = 2;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Skeleton
+// ────────────────────────────────────────────────────────────────────────────
+
+// SkeletonMessage preserves non-translatable structure for reconstruction.
+message SkeletonMessage {
+  int32 strategy = 1;                   // 0=FragmentBased, 1=Reparse
+  repeated SkeletonPartMessage parts = 2;
+  string source_uri = 3;
+}
+
+// SkeletonPartMessage is either a text fragment or a resource reference.
+message SkeletonPartMessage {
+  string text = 1;         // Literal text (set for text parts)
+  string resource_id = 2;  // Resource ID (set for reference parts)
+  string property = 3;     // Property to reference (e.g., "target", "source")
+  string locale = 4;       // Target locale for locale-specific references
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Display Hints
+// ────────────────────────────────────────────────────────────────────────────
+
+// DisplayHintMessage provides rendering guidance for UI tools.
+message DisplayHintMessage {
+  int32 max_length = 1;     // Maximum character count (0 = unlimited)
+  string content_type = 2;  // Content type hint (e.g., "heading", "button")
+  string context = 3;       // Description of where this block appears
+  string preview = 4;       // Short preview of surrounding context
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Content Units
+// ────────────────────────────────────────────────────────────────────────────
+
+// BlockMessage represents a translatable content unit.
+message BlockMessage {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string mime_type = 4;
+  bool translatable = 5;
+  repeated SegmentMessage source = 6;
+  repeated TargetEntry targets = 7;
+  map<string, string> properties = 8;
+  map<string, AnnotationEntry> annotations = 9;
+  DisplayHintMessage display_hint = 10;
+  SkeletonMessage skeleton = 11;
+  bool preserve_whitespace = 12;
+  bool is_referent = 13;
+}
+
+// LayerMessage represents a structural layer.
+message LayerMessage {
+  string id = 1;
+  string name = 2;
+  string format = 3;
+  string locale = 4;
+  string encoding = 5;
+  string mime_type = 6;
+  string line_break = 7;
+  bool is_multilingual = 8;
+  string parent_id = 9;
+  map<string, string> properties = 10;
+  bool has_bom = 11;
+}
+
+// DataMessage represents non-translatable document structure.
+message DataMessage {
+  string id = 1;
+  string name = 2;
+  map<string, string> properties = 3;
+  SkeletonMessage skeleton = 4;
+  bool is_referent = 5;
+}
+
+// GroupStartMessage signals the beginning of a structural group.
+message GroupStartMessage {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  map<string, string> properties = 4;
+}
+
+// GroupEndMessage signals the end of a structural group.
+message GroupEndMessage {
+  string id = 1;
+}
+
+// MediaMessage holds binary or media content.
+message MediaMessage {
+  string id = 1;
+  string mime_type = 2;
+  bytes data = 3;
+  string uri = 4;
+  string alt_text = 5;
+  map<string, string> properties = 6;
+}
+
+// PartMessage is the fundamental unit flowing through the bridge.
+message PartMessage {
+  int32 part_type = 1;
+  // Only one of these is set, based on part_type.
+  BlockMessage block = 2;
+  LayerMessage layer = 3;
+  DataMessage data = 4;
+  GroupStartMessage group_start = 5;
+  GroupEndMessage group_end = 6;
+  MediaMessage media = 7;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Service RPCs
+// ────────────────────────────────────────────────────────────────────────────
+
+message InfoRequest {
+  string filter_class = 1;
+}
+
+message InfoResponse {
+  string name = 1;
+  string display_name = 2;
+  repeated string mime_types = 3;
+  repeated string extensions = 4;
+}
+
+message ListFiltersRequest {}
+
+message FilterEntry {
+  string filter_class = 1;
+  string name = 2;
+  string display_name = 3;
+  repeated string mime_types = 4;
+  repeated string extensions = 5;
+}
+
+message ListFiltersResponse {
+  repeated FilterEntry filters = 1;
+}
+
+message OpenRequest {
+  string filter_class = 1;
+  string uri = 2;
+  string source_locale = 3;
+  string encoding = 4;
+  bytes content = 5;
+  string mime_type = 6;
+  map<string, string> filter_params = 7;
+}
+
+message OpenResponse {
+  string error = 1;
+}
+
+message ReadRequest {}
+
+// WriteChunk is sent as a client stream for the Write RPC.
+message WriteChunk {
+  oneof chunk {
+    WriteHeader header = 1;
+    PartMessage part = 2;
+  }
+}
+
+// WriteHeader is the first message in a Write stream.
+message WriteHeader {
+  string filter_class = 1;
+  string locale = 2;
+  string encoding = 3;
+  bytes original_content = 4;
+  map<string, string> filter_params = 5;
+}
+
+message WriteResponse {
+  bytes output = 1;
+  string error = 2;
+}
+
+message CloseRequest {}
+message CloseResponse {
+  string error = 1;
+}
+
+message ShutdownRequest {}
+message ShutdownResponse {}

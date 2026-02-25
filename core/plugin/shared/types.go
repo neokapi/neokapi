@@ -1,17 +1,33 @@
 // Package shared defines serializable types for the gokapi plugin RPC protocol.
 // These types mirror the core model types but are JSON-serializable and free
-// of interfaces, channels, and io.Readers, making them safe for net/rpc transport.
+// of interfaces, channels, and io.Readers, making them safe for wire transport.
+//
+// The v2 bridge uses gRPC with proto-generated types. These DTO types remain
+// for backward compatibility with the net/rpc plugin system and are also used
+// as an intermediate representation when converting between model and proto.
 package shared
 
 // SpanDTO is the wire representation of model.Span.
 type SpanDTO struct {
-	SpanType  int    `json:"span_type"`
-	Type      string `json:"type"`
-	ID        string `json:"id"`
-	Data      string `json:"data"`
-	OuterData string `json:"outer_data"`
-	Deletable bool   `json:"deletable"`
-	Cloneable bool   `json:"cloneable"`
+	SpanType    int                       `json:"span_type"`
+	Type        string                    `json:"type"`
+	ID          string                    `json:"id"`
+	Data        string                    `json:"data"`
+	OuterData   string                    `json:"outer_data"`
+	Deletable   bool                      `json:"deletable"`
+	Cloneable   bool                      `json:"cloneable"`
+	OriginalID  string                    `json:"original_id,omitempty"`
+	DisplayText string                    `json:"display_text,omitempty"`
+	Flags       int                       `json:"flags,omitempty"`
+	EquivText   string                    `json:"equiv_text,omitempty"`
+	CanReorder  bool                      `json:"can_reorder,omitempty"`
+	Annotations map[string]AnnotationDTO  `json:"annotations,omitempty"`
+}
+
+// AnnotationDTO is a typed annotation with a JSON-encoded payload.
+type AnnotationDTO struct {
+	Type string `json:"type"`
+	Data []byte `json:"data"` // JSON-encoded type-specific payload
 }
 
 // FragmentDTO is the wire representation of model.Fragment.
@@ -22,8 +38,9 @@ type FragmentDTO struct {
 
 // SegmentDTO is the wire representation of model.Segment.
 type SegmentDTO struct {
-	ID      string      `json:"id"`
-	Content FragmentDTO `json:"content"`
+	ID         string            `json:"id"`
+	Content    FragmentDTO       `json:"content"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // TargetDTO maps a locale to its target segments.
@@ -32,16 +49,44 @@ type TargetDTO struct {
 	Segments []SegmentDTO `json:"segments"`
 }
 
+// SkeletonPartDTO is the wire representation of a skeleton part.
+type SkeletonPartDTO struct {
+	Text       string `json:"text,omitempty"`
+	ResourceID string `json:"resource_id,omitempty"`
+	Property   string `json:"property,omitempty"`
+	Locale     string `json:"locale,omitempty"`
+}
+
+// SkeletonDTO is the wire representation of model.Skeleton.
+type SkeletonDTO struct {
+	Strategy  int               `json:"strategy"`
+	Parts     []SkeletonPartDTO `json:"parts,omitempty"`
+	SourceURI string            `json:"source_uri,omitempty"`
+}
+
+// DisplayHintDTO is the wire representation of model.DisplayHint.
+type DisplayHintDTO struct {
+	MaxLength   int    `json:"max_length,omitempty"`
+	ContentType string `json:"content_type,omitempty"`
+	Context     string `json:"context,omitempty"`
+	Preview     string `json:"preview,omitempty"`
+}
+
 // BlockDTO is the wire representation of model.Block.
 type BlockDTO struct {
-	ID           string            `json:"id"`
-	Name         string            `json:"name"`
-	Type         string            `json:"type"`
-	MimeType     string            `json:"mime_type"`
-	Translatable bool              `json:"translatable"`
-	Source       []SegmentDTO      `json:"source"`
-	Targets      []TargetDTO       `json:"targets,omitempty"`
-	Properties   map[string]string `json:"properties,omitempty"`
+	ID                 string                    `json:"id"`
+	Name               string                    `json:"name"`
+	Type               string                    `json:"type"`
+	MimeType           string                    `json:"mime_type"`
+	Translatable       bool                      `json:"translatable"`
+	Source             []SegmentDTO              `json:"source"`
+	Targets            []TargetDTO               `json:"targets,omitempty"`
+	Properties         map[string]string         `json:"properties,omitempty"`
+	Annotations        map[string]AnnotationDTO  `json:"annotations,omitempty"`
+	DisplayHint        *DisplayHintDTO           `json:"display_hint,omitempty"`
+	Skeleton           *SkeletonDTO              `json:"skeleton,omitempty"`
+	PreserveWhitespace bool                      `json:"preserve_whitespace,omitempty"`
+	IsReferent         bool                      `json:"is_referent,omitempty"`
 }
 
 // LayerDTO is the wire representation of model.Layer.
@@ -56,6 +101,7 @@ type LayerDTO struct {
 	IsMultilingual bool              `json:"is_multilingual"`
 	ParentID       string            `json:"parent_id"`
 	Properties     map[string]string `json:"properties,omitempty"`
+	HasBOM         bool              `json:"has_bom,omitempty"`
 }
 
 // DataDTO is the wire representation of model.Data.
@@ -63,13 +109,16 @@ type DataDTO struct {
 	ID         string            `json:"id"`
 	Name       string            `json:"name"`
 	Properties map[string]string `json:"properties,omitempty"`
+	Skeleton   *SkeletonDTO      `json:"skeleton,omitempty"`
+	IsReferent bool              `json:"is_referent,omitempty"`
 }
 
 // GroupStartDTO is the wire representation of model.GroupStart.
 type GroupStartDTO struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Type string `json:"type"`
+	ID         string            `json:"id"`
+	Name       string            `json:"name"`
+	Type       string            `json:"type"`
+	Properties map[string]string `json:"properties,omitempty"`
 }
 
 // GroupEndDTO is the wire representation of model.GroupEnd.
