@@ -76,6 +76,7 @@ const providerTypeDefaults: Record<string, { model: string; baseUrl: string }> =
   anthropic: { model: "claude-sonnet-4-20250514", baseUrl: "https://api.anthropic.com" },
   openai: { model: "gpt-4o", baseUrl: "https://api.openai.com" },
   ollama: { model: "llama3", baseUrl: "http://localhost:11434" },
+  azure_openai: { model: "gpt-4o", baseUrl: "" },
 };
 
 function AIProvidersTab() {
@@ -197,6 +198,7 @@ function AIProvidersTab() {
                     <SelectItem value="anthropic">Anthropic</SelectItem>
                     <SelectItem value="openai">OpenAI</SelectItem>
                     <SelectItem value="ollama">Ollama</SelectItem>
+                    <SelectItem value="azure_openai">Azure OpenAI</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
