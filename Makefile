@@ -27,9 +27,7 @@ VERSION_PKG := $(MODULE)/core/version
 LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 BIN_DIR     := bin
 COVER_DIR   := coverage
-PROTO_DIR        := core/plugin/proto/v1
 BRIDGE_PROTO_DIR := core/plugin/proto/v2
-PROTO_FILES      := $(wildcard $(PROTO_DIR)/*.proto)
 SERVER_PROTO_DIR := bowrain/proto/v1
 CERT_DIR     := docker/traefik/certs
 FRONTEND_DIR := bowrain/apps/bowrain/frontend
@@ -317,9 +315,6 @@ endif
 ifndef PROTOC_GEN_GO
 	$(error "protoc-gen-go not found. Run 'make tools' to install.")
 endif
-	protoc --go_out=. --go_opt=paths=source_relative \
-		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		$(PROTO_DIR)/*.proto
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(BRIDGE_PROTO_DIR)/*.proto
