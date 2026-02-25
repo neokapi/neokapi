@@ -239,6 +239,12 @@ func compareFragments(t *testing.T, prefix string, ef, af *model.Fragment) {
 		assert.Equal(t, es.ID, as.ID, "%s: span ID", sp)
 		assert.Equal(t, es.Data, as.Data, "%s: span data", sp)
 		assert.Equal(t, es.Type, as.Type, "%s: span semantic type", sp)
+		assert.Equal(t, es.OuterData, as.OuterData, "%s: span outer data", sp)
+		assert.Equal(t, es.DisplayText, as.DisplayText, "%s: span display text", sp)
+		assert.Equal(t, es.OriginalID, as.OriginalID, "%s: span original ID", sp)
+		assert.Equal(t, es.Flags, as.Flags, "%s: span flags", sp)
+		assert.Equal(t, es.Deletable, as.Deletable, "%s: span deletable", sp)
+		assert.Equal(t, es.Cloneable, as.Cloneable, "%s: span cloneable", sp)
 	}
 }
 
@@ -276,6 +282,7 @@ func compareGroupStart(t *testing.T, prefix string, ep, ap *model.Part) {
 	assert.Equal(t, eg.ID, ag.ID, "%s: group ID", prefix)
 	assert.Equal(t, eg.Name, ag.Name, "%s: group name", prefix)
 	assert.Equal(t, eg.Type, ag.Type, "%s: group type", prefix)
+	assert.Equal(t, eg.Properties, ag.Properties, "%s: group properties", prefix)
 }
 
 func compareGroupEnd(t *testing.T, prefix string, ep, ap *model.Part) {
