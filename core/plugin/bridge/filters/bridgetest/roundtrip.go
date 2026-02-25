@@ -46,13 +46,18 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	ctx := context.Background()
 	require.NoError(t, reader.Open(ctx, doc))
+	t.Cleanup(func() { _ = reader.Close() })
 
 	var parts []*model.Part
+	var readErr error
 	for pr := range reader.Read(ctx) {
-		require.NoError(t, pr.Error, "roundtrip read phase")
+		if pr.Error != nil {
+			readErr = pr.Error
+			break
+		}
 		parts = append(parts, pr.Part)
 	}
-	require.NoError(t, reader.Close())
+	require.NoError(t, readErr, "roundtrip read phase")
 
 	// --- Write phase ---
 	var output bytes.Buffer
