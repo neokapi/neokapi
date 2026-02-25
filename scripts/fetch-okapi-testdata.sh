@@ -10,9 +10,11 @@
 # repository root.
 #
 # Environment:
-#   GITHUB_TOKEN  — Optional GitHub token for authenticated requests
-#                   (avoids rate limits in CI).
+#   GITHUB_TOKEN       — Optional GitHub token for authenticated requests
+#                        (avoids rate limits in CI).
 #   OKAPI_TESTDATA_TAG — Override the release tag (default: okapi-testdata-v1).
+#   FORCE_FETCH        — If set (e.g. FORCE_FETCH=1), re-download even when
+#                        ./okapi-testdata/ already exists.
 
 set -euo pipefail
 
