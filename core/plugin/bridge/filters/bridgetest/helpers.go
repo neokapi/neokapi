@@ -116,7 +116,7 @@ func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 }
 
 // ReadFile reads testdata from disk and extracts parts using the specified filter.
-// The path is relative to the testdata root (see TestdataDir).
+// The path must be an absolute path (use TestdataFile to resolve relative paths).
 // Fails the test on any error.
 func ReadFile(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any) []*model.Part {
 	t.Helper()

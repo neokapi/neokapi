@@ -303,17 +303,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/gokapi/bridge/
-          key: okapi-bridge-${{ runner.os }}-${{ hashFiles('scripts/fetch-okapi-testdata.sh') }}
+          key: okapi-bridge-${{ runner.os }}-v1.5.0
 
       - name: Fetch okapi-bridge JAR
         run: |
-          # The bridge JAR is installed via the plugin system. For CI, we
-          # download it from the latest okapi-bridge release.
+          BRIDGE_VERSION="v1.5.0"
           BRIDGE_DIR="$HOME/.cache/gokapi/bridge"
           JAR_PATH="$BRIDGE_DIR/okapi-bridge.jar"
           if [ ! -f "$JAR_PATH" ]; then
             mkdir -p "$BRIDGE_DIR"
-            gh release download --repo gokapi/okapi-bridge --pattern "okapi-bridge-*.jar" --dir "$BRIDGE_DIR" || true
+            gh release download "$BRIDGE_VERSION" --repo gokapi/okapi-bridge --pattern "okapi-bridge-*.jar" --dir "$BRIDGE_DIR" || true
             # Rename to stable path
             for f in "$BRIDGE_DIR"/okapi-bridge-*.jar; do
               [ -f "$f" ] && mv "$f" "$JAR_PATH" && break

@@ -51,7 +51,7 @@ CURL_AUTH_ARGS=()
 if [ -n "${GITHUB_TOKEN:-}" ]; then
     AUTH_HEADER_FILE="$TMPDIR/github_auth_header"
     printf 'Authorization: token %s\n' "$GITHUB_TOKEN" > "$AUTH_HEADER_FILE"
-    chmod 600 "$AUTH_HEADER_FILE" 2>/dev/null || true
+    chmod 600 "$AUTH_HEADER_FILE"
     CURL_AUTH_ARGS=(-H "@$AUTH_HEADER_FILE")
 fi
 

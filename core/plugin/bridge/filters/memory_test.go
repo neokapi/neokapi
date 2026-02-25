@@ -73,6 +73,7 @@ func TestMemoryStress(t *testing.T) {
 
 			// Allow up to 50MB growth over iterations — this is a sanity check
 			// for catastrophic leaks, not a precision measurement.
+			// Use signed arithmetic since HeapAlloc can decrease after GC.
 			var growth int64
 			if after.HeapAlloc >= baseline.HeapAlloc {
 				growth = int64(after.HeapAlloc - baseline.HeapAlloc)
