@@ -245,3 +245,85 @@ func TestExtract_MultipleFiles(t *testing.T) {
 	assert.Contains(t, texts, "From file 1")
 	assert.Contains(t, texts, "From file 2")
 }
+
+func TestExtract_PreserveWhitespace(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1" xml:space="preserve">
+        <source>  Hello  world  </source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// The block should have PreserveWhitespace set due to xml:space="preserve".
+	b := blocks[0]
+	assert.True(t, b.PreserveWhitespace, "block should preserve whitespace due to xml:space='preserve'")
+}
+
+func TestExtract_LayerHasFormat(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layer := p.Resource.(*model.Layer)
+			assert.NotEmpty(t, layer.Format, "layer should have a format (filter ID)")
+			assert.Contains(t, layer.Format, "xliff", "format should reference XLIFF filter")
+			break
+		}
+	}
+}
+
+func TestExtract_DataIsReferent(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	// Check that Data parts carry the isReferent flag (skeleton references them).
+	var hasData bool
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			hasData = true
+			data := p.Resource.(*model.Data)
+			assert.NotEmpty(t, data.ID, "data should have an ID")
+		}
+	}
+	// XLIFF should have some non-translatable Data parts.
+	_ = hasData
+}

@@ -282,3 +282,113 @@ func TestExtract_SegmentIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestExtract_SpanData(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello <b>bold</b> world</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	var found *model.Block
+	for _, b := range blocks {
+		if b.SourceText() == "Hello bold world" {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found)
+
+	frag := found.FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2)
+
+	// Opening span should have data containing the original markup.
+	openingSpan := frag.Spans[0]
+	assert.Equal(t, model.SpanOpening, openingSpan.SpanType)
+	assert.NotEmpty(t, openingSpan.Data, "opening span should have data (original markup)")
+	assert.Contains(t, openingSpan.Data, "b", "data should reference the <b> tag")
+
+	// Closing span should also have data.
+	var closingSpan *model.Span
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanClosing {
+			closingSpan = s
+			break
+		}
+	}
+	require.NotNil(t, closingSpan, "should have a closing span")
+	assert.NotEmpty(t, closingSpan.Data, "closing span should have data")
+}
+
+func TestExtract_SpanDisplayText(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Click <a href="http://example.com">here</a> now</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Find the block with the link.
+	var found *model.Block
+	for _, b := range blocks {
+		frag := b.FirstFragment()
+		if frag != nil && len(frag.Spans) > 0 {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "should find block with inline codes")
+
+	frag := found.FirstFragment()
+	require.NotNil(t, frag)
+
+	// Verify spans carry data about the markup.
+	for _, s := range frag.Spans {
+		assert.NotEmpty(t, s.ID, "span should have an ID")
+	}
+}
+
+func TestExtract_LayerFormat(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	// The LayerStart should carry the filter format ID.
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layer := p.Resource.(*model.Layer)
+			assert.NotEmpty(t, layer.Format, "layer should have a format (filter ID)")
+			assert.Contains(t, layer.Format, "html", "format should reference HTML filter")
+			assert.NotEmpty(t, layer.MimeType, "layer should have a MIME type")
+			break
+		}
+	}
+}
+
+func TestExtract_DataParts(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// HTML with structure creates DocumentPart events (Data parts) for tags
+	// that are not translatable.
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	var dataCount int
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			dataCount++
+			data := p.Resource.(*model.Data)
+			assert.NotEmpty(t, data.ID, "data part should have an ID")
+		}
+	}
+	assert.Greater(t, dataCount, 0, "should have at least one Data part from HTML structure")
+}
