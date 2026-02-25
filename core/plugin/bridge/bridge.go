@@ -210,6 +210,7 @@ func (b *JavaBridge) Open(params OpenParams) error {
 		FilterClass:  params.FilterClass,
 		Uri:          params.URI,
 		SourceLocale: params.SourceLocale,
+		TargetLocale: params.TargetLocale,
 		Encoding:     params.Encoding,
 		Content:      params.Content,
 		MimeType:     params.MimeType,

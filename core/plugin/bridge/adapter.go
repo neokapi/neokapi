@@ -83,6 +83,7 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		FilterClass:  r.filterClass,
 		URI:          doc.URI,
 		SourceLocale: string(doc.SourceLocale),
+		TargetLocale: string(doc.TargetLocale),
 		Encoding:     doc.Encoding,
 		Content:      content,
 		MimeType:     doc.MimeType,

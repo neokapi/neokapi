@@ -28,6 +28,7 @@ LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).
 BIN_DIR     := bin
 COVER_DIR   := coverage
 PROTO_DIR        := core/plugin/proto/v1
+BRIDGE_PROTO_DIR := core/plugin/proto/v2
 PROTO_FILES      := $(wildcard $(PROTO_DIR)/*.proto)
 SERVER_PROTO_DIR := bowrain/proto/v1
 CERT_DIR     := docker/traefik/certs
@@ -319,6 +320,9 @@ endif
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(PROTO_DIR)/*.proto
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		$(BRIDGE_PROTO_DIR)/*.proto
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
 		$(SERVER_PROTO_DIR)/*.proto

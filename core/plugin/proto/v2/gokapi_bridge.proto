@@ -233,6 +233,7 @@ message OpenRequest {
   bytes content = 5;
   string mime_type = 6;
   map<string, string> filter_params = 7;
+  string target_locale = 8;
 }
 
 message OpenResponse {

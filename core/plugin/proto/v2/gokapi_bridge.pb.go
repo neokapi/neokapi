@@ -1494,6 +1494,7 @@ type OpenRequest struct {
 	Content       []byte                 `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
 	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
 	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	TargetLocale  string                 `protobuf:"bytes,8,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1575,6 +1576,13 @@ func (x *OpenRequest) GetFilterParams() map[string]string {
 		return x.FilterParams
 	}
 	return nil
+}
+
+func (x *OpenRequest) GetTargetLocale() string {
+	if x != nil {
+		return x.TargetLocale
+	}
+	return ""
 }
 
 type OpenResponse struct {
@@ -2193,7 +2201,7 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"extensions\x18\x05 \x03(\tR\n" +
 	"extensions\"N\n" +
 	"\x13ListFiltersResponse\x127\n" +
-	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\xd1\x02\n" +
+	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\xf6\x02\n" +
 	"\vOpenRequest\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
@@ -2201,7 +2209,8 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\bencoding\x18\x04 \x01(\tR\bencoding\x12\x18\n" +
 	"\acontent\x18\x05 \x01(\fR\acontent\x12\x1b\n" +
 	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12T\n" +
-	"\rfilter_params\x18\a \x03(\v2/.gokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x1a?\n" +
+	"\rfilter_params\x18\a \x03(\v2/.gokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
+	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
@@ -2237,7 +2246,8 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\x04Read\x12\x1d.gokapi.bridge.v2.ReadRequest\x1a\x1d.gokapi.bridge.v2.PartMessage0\x01\x12H\n" +
 	"\x05Write\x12\x1c.gokapi.bridge.v2.WriteChunk\x1a\x1f.gokapi.bridge.v2.WriteResponse(\x01\x12H\n" +
 	"\x05Close\x12\x1e.gokapi.bridge.v2.CloseRequest\x1a\x1f.gokapi.bridge.v2.CloseResponse\x12Q\n" +
-	"\bShutdown\x12!.gokapi.bridge.v2.ShutdownRequest\x1a\".gokapi.bridge.v2.ShutdownResponseB8Z6github.com/gokapi/gokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
+	"\bShutdown\x12!.gokapi.bridge.v2.ShutdownRequest\x1a\".gokapi.bridge.v2.ShutdownResponseBS\n" +
+	"\x17com.gokapi.bridge.protoP\x01Z6github.com/gokapi/gokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
 
 var (
 	file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescOnce sync.Once

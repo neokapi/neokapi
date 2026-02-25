@@ -15,6 +15,7 @@ type OpenParams struct {
 	FilterClass  string
 	URI          string
 	SourceLocale string
+	TargetLocale string
 	Encoding     string
 	Content      []byte // Raw document bytes
 	MimeType     string
