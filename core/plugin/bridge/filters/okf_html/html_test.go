@@ -435,3 +435,135 @@ func TestExtract_DataSkeleton(t *testing.T) {
 	}
 	assert.Greater(t, dataWithSkeleton, 0, "some Data parts should have skeletons")
 }
+
+func TestExtract_Headings(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<h1>Main Title</h1>
+		<h2>Subtitle</h2>
+		<h3>Section</h3>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Main Title")
+	assert.Contains(t, texts, "Subtitle")
+	assert.Contains(t, texts, "Section")
+}
+
+func TestExtract_List(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<ul>
+			<li>Item one</li>
+			<li>Item two</li>
+			<li>Item three</li>
+		</ul>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Item one")
+	assert.Contains(t, texts, "Item two")
+	assert.Contains(t, texts, "Item three")
+}
+
+func TestExtract_MetaNotTranslatable(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html>
+		<head>
+			<meta charset="UTF-8">
+			<meta name="viewport" content="width=device-width">
+		</head>
+		<body><p>Body text</p></body>
+	</html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Body text")
+	for _, text := range texts {
+		assert.NotContains(t, text, "width=device-width",
+			"meta viewport content should not be extracted")
+	}
+}
+
+func TestExtract_UnicodeContent(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>こんにちは世界</p><p>مرحبا بالعالم</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "こんにちは世界")
+	assert.Contains(t, texts, "مرحبا بالعالم")
+}
+
+func TestExtract_PartSequenceIntegrity(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	require.NotEmpty(t, parts)
+
+	// First part should be LayerStart, last should be LayerEnd.
+	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type, "last part should be LayerEnd")
+
+	// Layer balance: starts == ends.
+	var starts, ends int
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			starts++
+		}
+		if p.Type == model.PartLayerEnd {
+			ends++
+		}
+	}
+	assert.Equal(t, starts, ends, "layer starts and ends should be balanced")
+}
+
+func TestExtract_MultipleInlineTags(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello <em>emphasized</em> and <strong>strong</strong> text</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	var found *model.Block
+	for _, b := range blocks {
+		if b.SourceText() == "Hello emphasized and strong text" {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "should find block with multiple inline tags")
+
+	frag := found.FirstFragment()
+	require.NotNil(t, frag)
+	// Should have spans for <em></em> and <strong></strong> (4 spans minimum).
+	assert.GreaterOrEqual(t, len(frag.Spans), 4,
+		"should have spans for <em></em> and <strong></strong>")
+}
