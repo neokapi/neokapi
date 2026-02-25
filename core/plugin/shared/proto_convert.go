@@ -29,7 +29,16 @@ func ProtoToAnnotation(e *pb.AnnotationEntry) model.Annotation {
 			Fields: jsonToMap(e.Data),
 		}
 	}
-	_ = json.Unmarshal(e.Data, a)
+	if err := json.Unmarshal(e.Data, a); err != nil {
+		// Structured unmarshal can fail when the wire format uses simpler
+		// types than the Go model (e.g., the bridge sends Source/Target as
+		// plain strings but the Go AltTranslation expects *Fragment).
+		// Fall back to map-based population.
+		m := jsonToMap(e.Data)
+		if m != nil {
+			return populateAnnotation(e.Type, a, m)
+		}
+	}
 	return a
 }
 
@@ -55,6 +64,57 @@ func ProtoToAnnotations(entries map[string]*pb.AnnotationEntry) map[string]model
 		result[key] = ProtoToAnnotation(e)
 	}
 	return result
+}
+
+// populateAnnotation fills a typed annotation from a raw map.
+// This is used as a fallback when json.Unmarshal fails due to type mismatches
+// (e.g., the bridge sends Source/Target as strings but Go expects *Fragment).
+func populateAnnotation(typeName string, a model.Annotation, m map[string]any) model.Annotation {
+	switch v := a.(type) {
+	case *model.NoteAnnotation:
+		v.Text, _ = m["text"].(string)
+		v.From, _ = m["from"].(string)
+		if p, ok := m["priority"].(float64); ok {
+			v.Priority = int(p)
+		}
+		v.Annotates, _ = m["annotates"].(string)
+		return v
+
+	case *model.AltTranslation:
+		// Source/Target come as plain text strings from the bridge.
+		if s, ok := m["source"].(string); ok && s != "" {
+			v.Source = model.NewFragment(s)
+		}
+		if s, ok := m["target"].(string); ok && s != "" {
+			v.Target = model.NewFragment(s)
+		}
+		if loc, ok := m["locale"].(string); ok {
+			v.Locale = model.LocaleID(loc)
+		}
+		v.Origin, _ = m["origin"].(string)
+		if f, ok := m["combined_score"].(float64); ok {
+			v.CombinedScore = f
+		}
+		if f, ok := m["fuzzy_score"].(float64); ok {
+			v.FuzzyScore = f
+		}
+		if f, ok := m["quality_score"].(float64); ok {
+			v.QualityScore = f
+		}
+		v.Engine, _ = m["engine"].(string)
+		v.MatchType, _ = m["match_type"].(string)
+		v.ToolID, _ = m["tool_id"].(string)
+		v.AltTransType, _ = m["alt_trans_type"].(string)
+		v.FromOriginal, _ = m["from_original"].(bool)
+		return v
+
+	default:
+		// Unknown type — wrap as GenericAnnotation.
+		return &model.GenericAnnotation{
+			Type_:  typeName,
+			Fields: m,
+		}
+	}
 }
 
 // ────────────────────────────────────────────────────────────────────────────

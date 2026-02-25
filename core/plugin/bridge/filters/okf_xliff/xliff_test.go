@@ -327,3 +327,120 @@ func TestExtract_DataIsReferent(t *testing.T) {
 	// XLIFF should have some non-translatable Data parts.
 	_ = hasData
 }
+
+func TestExtract_NoteAnnotation(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+        <note>This is a developer note</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	require.NotNil(t, b.Annotations, "block should have annotations")
+
+	// Should have at least one note annotation.
+	noteAnn, ok := b.Annotations["note"]
+	require.True(t, ok, "should have a 'note' annotation key")
+	assert.Equal(t, "note", noteAnn.AnnotationType())
+
+	note, ok := noteAnn.(*model.NoteAnnotation)
+	require.True(t, ok, "annotation should be *model.NoteAnnotation")
+	assert.Equal(t, "This is a developer note", note.Text)
+}
+
+func TestExtract_MultipleNotes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+        <note>First note</note>
+        <note from="developer">Second note</note>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	require.NotNil(t, b.Annotations, "block should have annotations")
+
+	// First note keyed as "note", second as "note-1".
+	note0, ok := b.Annotations["note"]
+	require.True(t, ok, "should have 'note' annotation")
+	n0 := note0.(*model.NoteAnnotation)
+	assert.Equal(t, "First note", n0.Text)
+
+	note1, ok := b.Annotations["note-1"]
+	require.True(t, ok, "should have 'note-1' annotation")
+	n1 := note1.(*model.NoteAnnotation)
+	assert.Equal(t, "Second note", n1.Text)
+	assert.Equal(t, "developer", n1.From)
+}
+
+func TestExtract_AltTranslation(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+        <target>Bonjour</target>
+        <alt-trans match-quality="95" origin="TM">
+          <source>Hello</source>
+          <target xml:lang="fr">Salut</target>
+        </alt-trans>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+
+	require.NotNil(t, b.Annotations, "block should have annotations for alt-trans")
+
+	altAnn, ok := b.Annotations["alt-translation"]
+	require.True(t, ok, "should have 'alt-translation' annotation key")
+	assert.Equal(t, "alt-translation", altAnn.AnnotationType())
+
+	alt, ok := altAnn.(*model.AltTranslation)
+	require.True(t, ok, "annotation should be *model.AltTranslation, got %T", altAnn)
+	assert.Equal(t, "TM", alt.Origin)
+	assert.Equal(t, 95.0, alt.CombinedScore)
+	assert.Equal(t, "FUZZY", alt.MatchType)
+	// Source and target text should be preserved as fragments.
+	require.NotNil(t, alt.Source, "alt-trans source should not be nil")
+	assert.Equal(t, "Hello", alt.Source.Text())
+	require.NotNil(t, alt.Target, "alt-trans target should not be nil")
+	assert.Equal(t, "Salut", alt.Target.Text())
+}

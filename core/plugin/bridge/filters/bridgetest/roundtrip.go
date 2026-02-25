@@ -206,6 +206,16 @@ func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
 	assert.Equal(t, eb.Type, ab.Type, "%s: block type", prefix)
 	assert.Equal(t, eb.PreserveWhitespace, ab.PreserveWhitespace, "%s: preserve whitespace", prefix)
 
+	// Compare annotation keys (annotations may differ in detail after roundtrip
+	// but the key set should be preserved).
+	if len(eb.Annotations) > 0 || len(ab.Annotations) > 0 {
+		assert.Equal(t, len(eb.Annotations), len(ab.Annotations), "%s: annotation count", prefix)
+		for key := range eb.Annotations {
+			_, ok := ab.Annotations[key]
+			assert.True(t, ok, "%s: missing annotation key %q", prefix, key)
+		}
+	}
+
 	// Compare source segments in detail.
 	if assert.Equal(t, len(eb.Source), len(ab.Source), "%s: source segment count", prefix) {
 		for j := range eb.Source {
