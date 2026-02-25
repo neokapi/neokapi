@@ -22,31 +22,37 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: dorny/paths-filter@v3
-        if: github.event_name == 'pull_request'
+      - name: Detect changed paths
         id: filter
-        with:
-          filters: |
-            framework:
-              - 'core/**'
-              - 'go.mod'
-              - 'go.sum'
-              - 'go.work'
-              - '.github/workflows/ci.yml'
-            platform:
-              - 'platform/**'
-            kapi:
-              - 'kapi/**'
-            bowrain:
-              - 'bowrain/**'
-              - '!bowrain/apps/web/**'
-              - '!bowrain/apps/kapi-web/**'
-              - '!bowrain/apps/bowrain/frontend/**'
-            frontend:
-              - 'packages/ui/**'
-              - 'bowrain/apps/web/**'
-              - 'bowrain/apps/kapi-web/**'
-              - 'bowrain/apps/bowrain/frontend/**'
+        if: github.event_name == 'pull_request'
+        run: |
+          BASE_SHA=${{ github.event.pull_request.base.sha }}
+          HEAD_SHA=${{ github.event.pull_request.head.sha }}
+          CHANGED=$(git diff --name-only "$BASE_SHA"..."$HEAD_SHA")
+
+          check_paths() {
+            local label="$1"; shift
+            for pattern in "$@"; do
+              # Support negation patterns (prefixed with !)
+              if [[ "$pattern" == !* ]]; then continue; fi
+              if echo "$CHANGED" | grep -qE "$pattern"; then
+                echo "${label}=true" >> "$GITHUB_OUTPUT"
+                return
+              fi
+            done
+            echo "${label}=false" >> "$GITHUB_OUTPUT"
+          }
+
+          check_paths framework '^core/' '^go\.(mod|sum|work)$' '^\.github/workflows/ci\.yml$'
+          check_paths platform  '^platform/'
+          check_paths kapi      '^kapi/'
+          # bowrain: anything under bowrain/ except the frontend app dirs
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/apps/(web|kapi-web|bowrain/frontend)/' | grep -q .; then
+            echo "bowrain=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "bowrain=false" >> "$GITHUB_OUTPUT"
+          fi
+          check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
   frontend:
