@@ -15,6 +15,20 @@ func TestRoundTrip_Simple(t *testing.T) {
 	bridgetest.AssertRoundTrip(t, pool, cfg, filterClass, input, "test.json", mimeType, nil)
 }
 
+func TestRoundTrip_NestedObjects(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	input := []byte(`{"page":{"title":"Welcome","body":"Hello World"}}`)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.json", mimeType, nil)
+}
+
+func TestRoundTrip_MultipleKeys(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	input := []byte(`{"a":"First","b":"Second","c":"Third"}`)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.json", mimeType, nil)
+}
+
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
