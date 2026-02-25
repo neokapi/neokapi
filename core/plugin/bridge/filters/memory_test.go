@@ -73,9 +73,14 @@ func TestMemoryStress(t *testing.T) {
 
 			// Allow up to 50MB growth over iterations — this is a sanity check
 			// for catastrophic leaks, not a precision measurement.
-			growth := after.HeapAlloc - baseline.HeapAlloc
-			const maxGrowthBytes = 50 * 1024 * 1024
-			assert.LessOrEqual(t, growth, uint64(maxGrowthBytes),
+			var growth int64
+			if after.HeapAlloc >= baseline.HeapAlloc {
+				growth = int64(after.HeapAlloc - baseline.HeapAlloc)
+			} else {
+				growth = -int64(baseline.HeapAlloc - after.HeapAlloc)
+			}
+			const maxGrowthBytes int64 = 50 * 1024 * 1024
+			assert.LessOrEqual(t, growth, maxGrowthBytes,
 				"memory growth of %d bytes over %d iterations exceeds %d byte threshold",
 				growth, iterations, maxGrowthBytes)
 		})
