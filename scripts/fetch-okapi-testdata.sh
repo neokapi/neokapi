@@ -6,20 +6,20 @@
 #   ./scripts/fetch-okapi-testdata.sh
 #
 # The script downloads the okapi-testdata tarball from the GitHub release
-# tagged "okapi-testdata-v1" and extracts it to ./okapi-testdata/ at the
+# tagged "okapi-testdata-v1.48.0" and extracts it to ./okapi-testdata/ at the
 # repository root.
 #
 # Environment:
 #   GITHUB_TOKEN       — Optional GitHub token for authenticated requests
 #                        (avoids rate limits in CI).
-#   OKAPI_TESTDATA_TAG — Override the release tag (default: okapi-testdata-v1).
+#   OKAPI_TESTDATA_TAG — Override the release tag (default: okapi-testdata-v1.48.0).
 #   FORCE_FETCH        — If set (e.g. FORCE_FETCH=1), re-download even when
 #                        ./okapi-testdata/ already exists.
 
 set -euo pipefail
 
 REPO="gokapi/gokapi"
-TAG="${OKAPI_TESTDATA_TAG:-okapi-testdata-v1}"
+TAG="${OKAPI_TESTDATA_TAG:-okapi-testdata-v1.48.0}"
 ASSET_NAME="okapi-testdata.tar.gz"
 
 # Find repo root (directory containing go.work).

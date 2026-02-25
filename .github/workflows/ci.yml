@@ -303,7 +303,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/gokapi/bridge/
-          key: okapi-bridge-v1.8.0
+          key: okapi-bridge-v1.8.0-okapi1.48.0
 
       - name: Fetch okapi-bridge JAR
         run: |
@@ -311,6 +311,12 @@ jobs:
           echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
           GITHUB_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+
+      - name: Cache okapi test data
+        uses: actions/cache@v4
+        with:
+          path: okapi-testdata/
+          key: okapi-testdata-v1.48.0
 
       - name: Fetch okapi test data
         run: bash scripts/fetch-okapi-testdata.sh
