@@ -40,22 +40,27 @@ fi
 
 echo "Fetching $ASSET_NAME from release $TAG..."
 
-# Build auth header if token is available.
-AUTH_HEADER=()
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-    AUTH_HEADER=(-H "Authorization: token $GITHUB_TOKEN")
-fi
-
 # Create a temporary directory for the download.
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
+
+# Build auth header arguments if token is available, without exposing the token
+# on the process command line. The header is written to a temp file and passed
+# to curl via -H "@file".
+CURL_AUTH_ARGS=()
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    AUTH_HEADER_FILE="$TMPDIR/github_auth_header"
+    printf 'Authorization: token %s\n' "$GITHUB_TOKEN" > "$AUTH_HEADER_FILE"
+    chmod 600 "$AUTH_HEADER_FILE" 2>/dev/null || true
+    CURL_AUTH_ARGS=(-H "@$AUTH_HEADER_FILE")
+fi
 
 # Download the release asset via the GitHub API.
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/$TAG/$ASSET_NAME"
 echo "  URL: $DOWNLOAD_URL"
 
 HTTP_CODE=$(curl -sL -w "%{http_code}" \
-    "${AUTH_HEADER[@]}" \
+    "${CURL_AUTH_ARGS[@]}" \
     -o "$TMPDIR/$ASSET_NAME" \
     "$DOWNLOAD_URL")
 
