@@ -163,21 +163,43 @@ func TranslatableBlocks(parts []*model.Part) []*model.Block {
 	return blocks
 }
 
-// TestdataDir returns the path to the okapi-testdata directory at the repo root.
-// It fails the test if the directory doesn't exist (hasn't been fetched).
+// TestdataDir returns the path to the versioned okapi-testdata directory at
+// the repo root (e.g. okapi-testdata/1.48.0-v2/). It finds the most recent
+// version subdirectory automatically. Fails the test if no version has been
+// fetched.
 func TestdataDir(t *testing.T) string {
 	t.Helper()
 
 	// Walk up from the test binary's working directory to find the repo root.
-	// The testdata lives at <repo-root>/okapi-testdata/.
+	// The testdata lives at <repo-root>/okapi-testdata/<version>/.
 	dir, err := findRepoRoot()
 	require.NoError(t, err, "finding repo root")
 
-	tdDir := filepath.Join(dir, "okapi-testdata")
-	if _, err := os.Stat(tdDir); os.IsNotExist(err) {
+	baseDir := filepath.Join(dir, "okapi-testdata")
+	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
 		t.Fatal("okapi-testdata/ not found — run scripts/fetch-okapi-testdata.sh to fetch test data")
 	}
-	return tdDir
+
+	// Find version subdirectories (contain okf_* filter dirs).
+	entries, err := os.ReadDir(baseDir)
+	require.NoError(t, err, "reading okapi-testdata/")
+
+	// Pick the last version lexicographically (highest version).
+	var latest string
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		// Verify it looks like a testdata version (contains filter subdirs).
+		if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), "okf_html")); serr == nil {
+			latest = e.Name()
+		}
+	}
+	if latest == "" {
+		t.Fatal("okapi-testdata/ has no version subdirectories — run scripts/fetch-okapi-testdata.sh to fetch test data")
+	}
+
+	return filepath.Join(baseDir, latest)
 }
 
 // TestdataFile returns the full path to a file within the okapi-testdata directory.

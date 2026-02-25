@@ -207,8 +207,8 @@ func TestInstallPluginBridge(t *testing.T) {
 
 	archive := makeTarGz(t, map[string][]byte{
 		"gokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
-		"manifest.json":                           []byte(bundledManifest),
-		"schemas/okf_html.schema.json":            []byte(`{"x-filter":{"id":"okf_html"}}`),
+		"manifest.json":                []byte(bundledManifest),
+		"schemas/okf_html.schema.json": []byte(`{"x-filter":{"id":"okf_html"}}`),
 	})
 
 	// Registry has FEWER capabilities than the bundled manifest — the bundled

@@ -28,10 +28,10 @@ type BridgePool struct {
 
 // PoolStats is a snapshot of pool state for debugging and logging.
 type PoolStats struct {
-	MaxSize    int
-	Active     int
-	InUse      int
-	IdleByKey  map[string]int
+	MaxSize   int
+	Active    int
+	InUse     int
+	IdleByKey map[string]int
 }
 
 // NewBridgePool creates a process-wide pool that manages up to maxSize

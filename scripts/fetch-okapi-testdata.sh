@@ -5,21 +5,24 @@
 # Usage:
 #   ./scripts/fetch-okapi-testdata.sh
 #
-# The script downloads the okapi-testdata tarball from the GitHub release
-# tagged "okapi-testdata-1.48.0" and extracts it to ./okapi-testdata/ at the
-# repository root.
+# Downloads the okapi-testdata tarball from a GitHub release and extracts it
+# to ./okapi-testdata/<version>/ at the repository root. The versioned directory
+# makes updates idempotent: bumping TESTDATA_VERSION automatically picks up
+# new data without needing FORCE_FETCH.
 #
 # Environment:
-#   GITHUB_TOKEN       — Optional GitHub token for authenticated requests
-#                        (avoids rate limits in CI).
-#   OKAPI_TESTDATA_TAG — Override the release tag (default: okapi-testdata-1.48.0).
-#   FORCE_FETCH        — If set (e.g. FORCE_FETCH=1), re-download even when
-#                        ./okapi-testdata/ already exists.
+#   GITHUB_TOKEN         — Optional GitHub token for authenticated requests
+#                          (avoids rate limits in CI).
+#   OKAPI_TESTDATA_TAG   — Override the release tag (default: okapi-testdata-1.48.0).
+#   TESTDATA_VERSION     — Override the local directory version (default: 1.48.0-v2).
+#   FORCE_FETCH          — If set (e.g. FORCE_FETCH=1), re-download even when
+#                          the versioned directory already exists.
 
 set -euo pipefail
 
 REPO="gokapi/gokapi"
 TAG="${OKAPI_TESTDATA_TAG:-okapi-testdata-1.48.0}"
+VERSION="${TESTDATA_VERSION:-1.48.0-v2}"
 ASSET_NAME="okapi-testdata.tar.gz"
 
 # Find repo root (directory containing go.work).
@@ -30,15 +33,15 @@ if [ ! -f "$REPO_ROOT/go.work" ]; then
     exit 1
 fi
 
-TARGET_DIR="$REPO_ROOT/okapi-testdata"
+TARGET_DIR="$REPO_ROOT/okapi-testdata/$VERSION"
 
 # Skip if already present and not forced.
 if [ -d "$TARGET_DIR" ] && [ "${FORCE_FETCH:-}" = "" ]; then
-    echo "okapi-testdata/ already exists. Set FORCE_FETCH=1 to re-download."
+    echo "okapi-testdata/$VERSION/ already exists. Set FORCE_FETCH=1 to re-download."
     exit 0
 fi
 
-echo "Fetching $ASSET_NAME from release $TAG..."
+echo "Fetching $ASSET_NAME from release $TAG → okapi-testdata/$VERSION/..."
 
 # Create a temporary directory for the download.
 TMPDIR="$(mktemp -d)"
@@ -101,12 +104,12 @@ if [ "$HTTP_CODE" != "200" ]; then
     exit 1
 fi
 
-# Extract to target directory.
-echo "Extracting to $TARGET_DIR..."
+# Extract to versioned target directory.
+echo "Extracting to okapi-testdata/$VERSION/..."
 rm -rf "$TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 tar -xzf "$TMPDIR/$ASSET_NAME" -C "$TARGET_DIR" --strip-components=1 2>/dev/null \
     || tar -xzf "$TMPDIR/$ASSET_NAME" -C "$TARGET_DIR"
 
 FILE_COUNT=$(find "$TARGET_DIR" -type f | wc -l | tr -d ' ')
-echo "Done. Extracted $FILE_COUNT files to okapi-testdata/"
+echo "Done. Extracted $FILE_COUNT files to okapi-testdata/$VERSION/"
