@@ -5,6 +5,7 @@ package okf_html
 import (
 	"testing"
 
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,4 +26,259 @@ func TestExtract_SimpleHTML(t *testing.T) {
 
 	texts := bridgetest.BlockTexts(blocks)
 	assert.Contains(t, texts, "Hello world")
+}
+
+func TestExtract_InlineCodes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello <b>bold</b> world</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Find the block containing "bold"
+	var found *model.Block
+	for _, b := range blocks {
+		if b.SourceText() == "Hello bold world" {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "should find block with 'Hello bold world'")
+
+	// The block should have spans (inline codes) for <b> and </b>
+	frag := found.FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2, "should have at least opening and closing spans for <b>")
+
+	// Check span types
+	hasOpening := false
+	hasClosing := false
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening {
+			hasOpening = true
+		}
+		if s.SpanType == model.SpanClosing {
+			hasClosing = true
+		}
+	}
+	assert.True(t, hasOpening, "should have an opening span")
+	assert.True(t, hasClosing, "should have a closing span")
+}
+
+func TestExtract_MultipleBlocks(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<h1>Title</h1>
+		<p>First paragraph</p>
+		<p>Second paragraph</p>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.GreaterOrEqual(t, len(blocks), 3, "should extract title and two paragraphs")
+
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "Title")
+	assert.Contains(t, texts, "First paragraph")
+	assert.Contains(t, texts, "Second paragraph")
+}
+
+func TestExtract_NonTranslatable(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<p>Translatable text</p>
+		<script>var x = 1;</script>
+		<style>.foo { color: red; }</style>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	// Script and style content should NOT appear in translatable blocks.
+	assert.Contains(t, texts, "Translatable text")
+	for _, text := range texts {
+		assert.NotContains(t, text, "var x = 1")
+		assert.NotContains(t, text, "color: red")
+	}
+}
+
+func TestExtract_LayerStructure(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	// Should have at least one LayerStart and one LayerEnd
+	var hasLayerStart, hasLayerEnd bool
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			hasLayerStart = true
+		}
+		if p.Type == model.PartLayerEnd {
+			hasLayerEnd = true
+		}
+	}
+	assert.True(t, hasLayerStart, "should have a LayerStart part")
+	assert.True(t, hasLayerEnd, "should have a LayerEnd part")
+}
+
+func TestExtract_NestedInlineCodes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello <b><i>bold italic</i></b> text</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Find the block with nested codes
+	var found *model.Block
+	for _, b := range blocks {
+		if b.SourceText() == "Hello bold italic text" {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "should find block with nested codes")
+
+	frag := found.FirstFragment()
+	require.NotNil(t, frag)
+	// Should have 4 spans: <b>, <i>, </i>, </b>
+	assert.GreaterOrEqual(t, len(frag.Spans), 4, "should have spans for nested <b><i>...</i></b>")
+}
+
+func TestExtract_SelfClosingTags(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Line one<br/>Line two</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Find block with <br/>
+	var found *model.Block
+	for _, b := range blocks {
+		frag := b.FirstFragment()
+		if frag != nil {
+			for _, s := range frag.Spans {
+				if s.SpanType == model.SpanPlaceholder {
+					found = b
+					break
+				}
+			}
+		}
+	}
+	assert.NotNil(t, found, "should find a block with a placeholder span for <br/>")
+}
+
+func TestExtract_Entities(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Price: &lt;$10 &amp; &gt;$5</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	texts := bridgetest.BlockTexts(blocks)
+	// Entities should be decoded in the extracted text.
+	assert.Contains(t, texts, "Price: <$10 & >$5")
+}
+
+func TestExtract_Attributes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<img src="photo.jpg" alt="A beautiful sunset" title="Sunset photo"/>
+		<p>Some text</p>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	// The alt and title attributes should be extracted as translatable content.
+	assert.Contains(t, texts, "A beautiful sunset")
+	assert.Contains(t, texts, "Sunset photo")
+}
+
+func TestExtract_Table(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<table>
+			<tr><th>Header 1</th><th>Header 2</th></tr>
+			<tr><td>Cell A</td><td>Cell B</td></tr>
+		</table>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Header 1")
+	assert.Contains(t, texts, "Header 2")
+	assert.Contains(t, texts, "Cell A")
+	assert.Contains(t, texts, "Cell B")
+}
+
+func TestExtract_BlockIDs(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<p>First</p>
+		<p>Second</p>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.GreaterOrEqual(t, len(blocks), 2)
+
+	// Each block should have a unique, non-empty ID.
+	ids := make(map[string]bool)
+	for _, b := range blocks {
+		assert.NotEmpty(t, b.ID, "block should have an ID")
+		assert.False(t, ids[b.ID], "block IDs should be unique, got duplicate: %s", b.ID)
+		ids[b.ID] = true
+	}
+}
+
+func TestExtract_SegmentIDs(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<html><body><p>Hello world</p></body></html>`,
+		"test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	for _, b := range blocks {
+		require.NotEmpty(t, b.Source, "block should have source segments")
+		for _, seg := range b.Source {
+			assert.NotEmpty(t, seg.ID, "segment should have an ID")
+			assert.NotNil(t, seg.Content, "segment should have content")
+		}
+	}
 }
