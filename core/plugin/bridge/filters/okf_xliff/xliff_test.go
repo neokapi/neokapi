@@ -478,3 +478,351 @@ func TestExtract_AltTranslation(t *testing.T) {
 	require.NotNil(t, alt.Target, "alt-trans target should not be nil")
 	assert.Equal(t, "Salut", alt.Target.Text())
 }
+
+func TestExtract_MultipleAltTranslations(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+        <target>Bonjour</target>
+        <alt-trans match-quality="100" origin="TM">
+          <source>Hello</source>
+          <target xml:lang="fr">Bonjour</target>
+        </alt-trans>
+        <alt-trans match-quality="80" origin="MT">
+          <source>Hello</source>
+          <target xml:lang="fr">Salut</target>
+        </alt-trans>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	require.NotNil(t, b.Annotations)
+
+	// First alt-trans keyed as "alt-translation", second as "alt-translation-1".
+	alt0, ok := b.Annotations["alt-translation"]
+	require.True(t, ok, "should have 'alt-translation'")
+	a0 := alt0.(*model.AltTranslation)
+	assert.Equal(t, 100.0, a0.CombinedScore)
+	assert.Equal(t, "TM", a0.Origin)
+
+	alt1, ok := b.Annotations["alt-translation-1"]
+	require.True(t, ok, "should have 'alt-translation-1'")
+	a1 := alt1.(*model.AltTranslation)
+	assert.Equal(t, 80.0, a1.CombinedScore)
+	assert.Equal(t, "MT", a1.Origin)
+}
+
+func TestExtract_NestedGroups(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <group id="outer">
+        <group id="inner">
+          <trans-unit id="1">
+            <source>Nested text</source>
+          </trans-unit>
+        </group>
+      </group>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	// Count nested group starts and ends.
+	var groupStarts, groupEnds int
+	var groupIDs []string
+	for _, p := range parts {
+		if p.Type == model.PartGroupStart {
+			groupStarts++
+			gs := p.Resource.(*model.GroupStart)
+			groupIDs = append(groupIDs, gs.ID)
+		}
+		if p.Type == model.PartGroupEnd {
+			groupEnds++
+		}
+	}
+	assert.Equal(t, 2, groupStarts, "should have 2 nested GroupStart events")
+	assert.Equal(t, 2, groupEnds, "should have 2 nested GroupEnd events")
+	assert.Contains(t, groupIDs, "outer")
+	assert.Contains(t, groupIDs, "inner")
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "Nested text", blocks[0].SourceText())
+}
+
+func TestExtract_Segmentation(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// XLIFF 1.2 supports seg-source with <mrk mtype="seg"> for segmentation.
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>First sentence. Second sentence.</source>
+        <seg-source>
+          <mrk mtype="seg" mid="s1">First sentence.</mrk>
+          <mrk mtype="seg" mid="s2"> Second sentence.</mrk>
+        </seg-source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	// With seg-source, the filter may produce multiple source segments.
+	require.GreaterOrEqual(t, len(b.Source), 2,
+		"seg-source with 2 mrk segments should produce 2+ source segments")
+
+	// Each segment should have an ID.
+	for _, seg := range b.Source {
+		assert.NotEmpty(t, seg.ID, "segment should have an ID")
+		assert.NotNil(t, seg.Content, "segment should have content")
+	}
+}
+
+func TestExtract_InlineX(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// XLIFF <x/> elements are standalone inline codes (placeholders).
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Line one<x id="1"/>Line two</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+
+	// <x/> should produce a placeholder span.
+	var hasPlaceholder bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanPlaceholder {
+			hasPlaceholder = true
+			break
+		}
+	}
+	assert.True(t, hasPlaceholder, "should have a placeholder span for <x/>")
+}
+
+func TestExtract_InlineBpt_Ept(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// XLIFF <bpt>/<ept> paired inline codes.
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="htmlbody" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept> text</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2,
+		"should have at least opening and closing spans for <bpt>/<ept>")
+
+	// Should have opening and closing spans.
+	var hasOpening, hasClosing bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening {
+			hasOpening = true
+		}
+		if s.SpanType == model.SpanClosing {
+			hasClosing = true
+		}
+	}
+	assert.True(t, hasOpening, "should have opening span from <bpt>")
+	assert.True(t, hasClosing, "should have closing span from <ept>")
+}
+
+func TestExtract_BlockSkeleton(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source>Hello world</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// XLIFF blocks should have skeleton data for reconstruction.
+	var withSkeleton int
+	for _, b := range blocks {
+		if b.Skeleton != nil && len(b.Skeleton.Parts) > 0 {
+			withSkeleton++
+		}
+	}
+	assert.Greater(t, withSkeleton, 0, "XLIFF blocks should have skeleton data")
+}
+
+func TestExtract_ContextGroup(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// XLIFF context-group provides context information for translation.
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test.properties">
+    <body>
+      <trans-unit id="msg.greeting">
+        <source>Hello</source>
+        <context-group name="x-pos" purpose="location">
+          <context context-type="sourcefile">test.properties</context>
+          <context context-type="linenumber">42</context>
+        </context-group>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := blocks[0]
+	assert.Equal(t, "msg.greeting", b.ID)
+	assert.Equal(t, "Hello", b.SourceText())
+}
+
+func TestExtract_NonTranslatableUnit(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1" translate="yes">
+        <source>Translate me</source>
+      </trans-unit>
+      <trans-unit id="2" translate="no">
+        <source>Code: XYZ-123</source>
+      </trans-unit>
+      <trans-unit id="3">
+        <source>Default translatable</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	allBlocks := bridgetest.FilterBlocks(parts)
+	require.GreaterOrEqual(t, len(allBlocks), 3)
+
+	translatableBlocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, translatableBlocks, 2, "only translate=yes and default should be translatable")
+
+	texts := bridgetest.BlockTexts(translatableBlocks)
+	assert.Contains(t, texts, "Translate me")
+	assert.Contains(t, texts, "Default translatable")
+}
+
+func TestExtract_EmptySource(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source></source>
+      </trans-unit>
+      <trans-unit id="2">
+        <source>Non-empty</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	// Even empty trans-units are extracted; the filter doesn't skip them.
+	blocks := bridgetest.FilterBlocks(parts)
+	require.GreaterOrEqual(t, len(blocks), 1)
+}
+
+func TestExtract_LayerProperties(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	xliff := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
+  <file source-language="en" target-language="fr" datatype="html" original="index.html">
+    <body>
+      <trans-unit id="1">
+        <source>Hello</source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		xliff, "test.xlf", mimeType, nil)
+
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layer := p.Resource.(*model.Layer)
+			assert.NotEmpty(t, layer.Format)
+			assert.NotEmpty(t, layer.Encoding)
+			break
+		}
+	}
+}

@@ -175,3 +175,164 @@ func TestExtract_UniqueBlockIDs(t *testing.T) {
 		ids[b.ID] = true
 	}
 }
+
+func TestExtract_NumbersNotExtracted(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"name": "John", "age": 30, "active": true, "score": 9.5}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	// By default, only string values are extracted.
+	assert.Contains(t, texts, "John")
+	for _, text := range texts {
+		assert.NotEqual(t, "30", text, "numbers should not be extracted")
+		assert.NotEqual(t, "true", text, "booleans should not be extracted")
+		assert.NotEqual(t, "9.5", text, "floats should not be extracted")
+	}
+}
+
+func TestExtract_DeepNesting(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{
+		"level1": {
+			"level2": {
+				"level3": {
+					"deep": "Deep value"
+				}
+			}
+		}
+	}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "Deep value")
+}
+
+func TestExtract_EmptyStrings(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"empty": "", "notempty": "has content"}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "has content")
+}
+
+func TestExtract_SpecialCharacters(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"msg": "Hello \"world\" & <friends>"}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "Hello \"world\" & <friends>")
+}
+
+func TestExtract_UnicodeContent(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"greeting": "こんにちは世界", "emoji": "Hello 🌍"}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "こんにちは世界")
+	assert.Contains(t, texts, "Hello 🌍")
+}
+
+func TestExtract_DataParts(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"key": "value"}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	var dataCount int
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			dataCount++
+			data := p.Resource.(*model.Data)
+			assert.NotEmpty(t, data.ID, "data part should have an ID")
+		}
+	}
+	assert.Greater(t, dataCount, 0, "JSON should have Data parts for structure")
+}
+
+func TestExtract_DataSkeleton(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{"a": "First", "b": "Second"}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	var dataWithSkeleton int
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Skeleton != nil && len(data.Skeleton.Parts) > 0 {
+				dataWithSkeleton++
+			}
+		}
+	}
+	assert.Greater(t, dataWithSkeleton, 0, "some JSON Data parts should have skeleton data")
+}
+
+func TestExtract_ArrayOfStringsNotExtracted(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// Okapi's JSON filter does NOT extract bare string array values by default.
+	// Only key-value pairs in objects are extracted.
+	json := `{
+		"colors": ["Red", "Green", "Blue"],
+		"label": "Color list"
+	}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	// Only the key-value pair should be extracted.
+	assert.Contains(t, texts, "Color list")
+	assert.NotContains(t, texts, "Red", "bare array strings should not be extracted by default")
+}
+
+func TestExtract_MultipleKeys(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	json := `{
+		"title": "My App",
+		"description": "A great application",
+		"version": "1.0.0"
+	}`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		json, "test.json", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "My App")
+	assert.Contains(t, texts, "A great application")
+	assert.Contains(t, texts, "1.0.0")
+}
