@@ -483,3 +483,228 @@ func TestExtract_SpanData(t *testing.T) {
 		return // Found a block with spans, test passes.
 	}
 }
+
+// --- DOCX edge case tests ---
+
+func TestExtract_DocxSoftLineBreaks(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/Document-with-soft-linebreaks.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with soft line breaks should produce blocks")
+}
+
+func TestExtract_DocxTextBoxes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/TextBoxes.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with text boxes should produce blocks")
+}
+
+func TestExtract_DocxSmartArt(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/smart_art.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with SmartArt should produce blocks")
+}
+
+func TestExtract_DocxWatermark(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	// Watermarks are typically non-translatable — verify document still processes.
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/watermark.docx", mimeType, nil)
+
+	require.NotEmpty(t, parts, "DOCX with watermark should produce parts")
+
+	var hasLayerStart bool
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			hasLayerStart = true
+			break
+		}
+	}
+	assert.True(t, hasLayerStart, "watermark DOCX should have layer structure")
+}
+
+func TestExtract_DocxSpecialCharsAndLinebreaks(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/special-chars-and-linebreaks.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with special chars should produce blocks")
+}
+
+func TestExtract_DocxNotes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/1413-notes.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with footnotes/endnotes should produce blocks")
+
+	// Document with notes should produce multiple layers (main doc + notes).
+	var layerCount int
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layerCount++
+		}
+	}
+	assert.Greater(t, layerCount, 1, "footnotes/endnotes should create additional layers")
+}
+
+func TestExtract_DocxExternalHyperlink(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/external_hyperlink.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with external hyperlinks should produce blocks")
+}
+
+func TestExtract_DocxNestedTables(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/848-nested-tables.docx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "DOCX with nested tables should produce blocks")
+}
+
+// --- XLSX edge case tests ---
+
+func TestExtract_XlsxEmptyCells(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/894-empty-cells-and-rows.xlsx", mimeType, nil)
+
+	require.NotEmpty(t, parts, "XLSX with empty cells should produce parts")
+}
+
+func TestExtract_XlsxSmartArt(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/smartart.xlsx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "XLSX with SmartArt should produce blocks")
+}
+
+func TestExtract_XlsxSharedStringsAndComments(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/972-shared-strings-and-comments.xlsx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "XLSX with shared strings and comments should produce blocks")
+}
+
+// --- PPTX edge case tests ---
+
+func TestExtract_PptxSmartArt(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/SmartArt.pptx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with SmartArt should produce blocks")
+}
+
+func TestExtract_PptxComments(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/Comments.pptx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with comments should produce blocks")
+}
+
+func TestExtract_PptxHiddenSlides(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/1010-slide1-hidden-slide2-hidden.pptx", mimeType, nil)
+
+	// Hidden slides should still be processed (content may be translatable).
+	require.NotEmpty(t, parts, "PPTX with hidden slides should produce parts")
+}
+
+func TestExtract_PptxSlideLayouts(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/slideLayouts.pptx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with multiple slide layouts should produce blocks")
+
+	// Multiple layouts → multiple layers.
+	var layerCount int
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layerCount++
+		}
+	}
+	assert.Greater(t, layerCount, 1,
+		"PPTX with slide layouts should produce multiple layers")
+}
+
+func TestExtract_PptxFormattedHyperlink(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_openxml/FormattedHyperlink.pptx", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with formatted hyperlinks should produce blocks")
+}

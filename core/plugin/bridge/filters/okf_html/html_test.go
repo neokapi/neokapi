@@ -567,3 +567,184 @@ func TestExtract_MultipleInlineTags(t *testing.T) {
 	assert.GreaterOrEqual(t, len(frag.Spans), 4,
 		"should have spans for <em></em> and <strong></strong>")
 }
+
+// --- Testdata file tests ---
+
+func TestExtract_FormElements(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_html/form.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "form.html should produce translatable blocks")
+}
+
+func TestExtract_UTF8WithBOM(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_html/UTF8WithBOM.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "UTF-8 with BOM should produce translatable blocks")
+}
+
+func TestExtract_RubyAnnotation(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_html/ruby.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "ruby annotation HTML should produce translatable blocks")
+}
+
+func TestExtract_Emoji(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_html/emoji1.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "emoji HTML should produce translatable blocks")
+}
+
+func TestExtract_SimpleLink(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		tdDir+"/okf_html/simple_link.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Links should produce blocks with inline code spans.
+	var hasSpans bool
+	for _, b := range blocks {
+		frag := b.FirstFragment()
+		if frag != nil && len(frag.Spans) > 0 {
+			hasSpans = true
+			break
+		}
+	}
+	assert.True(t, hasSpans, "simple_link.html should have blocks with inline code spans")
+}
+
+func TestExtract_PreformattedText(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<pre>  Preformatted  text  </pre>
+		<p>Normal text</p>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "Normal text")
+
+	// Pre-formatted text should be extracted with whitespace preserved.
+	var hasPreText bool
+	for _, text := range texts {
+		if text == "  Preformatted  text  " {
+			hasPreText = true
+			break
+		}
+	}
+	assert.True(t, hasPreText, "pre-formatted text should preserve whitespace")
+}
+
+func TestExtract_ImageAltAndTitle(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<img src="photo.jpg" alt="Mountain landscape" title="Beautiful mountains"/>
+		<img src="icon.svg" alt=""/>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Mountain landscape")
+	assert.Contains(t, texts, "Beautiful mountains")
+}
+
+func TestExtract_DefinitionList(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<dl>
+			<dt>Term One</dt>
+			<dd>Definition one</dd>
+			<dt>Term Two</dt>
+			<dd>Definition two</dd>
+		</dl>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Term One")
+	assert.Contains(t, texts, "Definition one")
+	assert.Contains(t, texts, "Term Two")
+	assert.Contains(t, texts, "Definition two")
+}
+
+func TestExtract_WhitespaceInMixedContent(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body><p>Hello   <b>  bold  </b>   world</p></body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// The extracted text should combine the inline content.
+	var found *model.Block
+	for _, b := range blocks {
+		text := b.SourceText()
+		if text == "Hello bold world" || text == "Hello   bold   world" || text == "Hello  bold  world" {
+			found = b
+			break
+		}
+	}
+	require.NotNil(t, found, "should find block with mixed content text")
+}
+
+func TestExtract_NestedDivs(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<html><body>
+		<div>
+			<div>
+				<p>Nested paragraph</p>
+			</div>
+		</div>
+	</body></html>`
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		html, "test.html", mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+
+	assert.Contains(t, texts, "Nested paragraph")
+}
