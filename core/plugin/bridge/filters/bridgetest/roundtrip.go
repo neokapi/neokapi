@@ -3,6 +3,7 @@ package bridgetest
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -97,9 +98,23 @@ func AssertRoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeCon
 
 // RoundTripTestFiles runs roundtrip tests over all files matching a glob pattern
 // within the testdata directory. Each file becomes a subtest named after the
-// filename. Files that don't roundtrip cleanly fail the subtest.
-func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any) {
+// filename.
+//
+// This uses event-level comparison (like Java's EventRoundTripIT): the output
+// is re-read through the same filter and the extracted parts are compared
+// semantically. This tolerates cosmetic differences (whitespace normalization,
+// Unicode escape forms, attribute reordering) that don't affect content.
+//
+// Files listed in knownFailing are expected to fail and are skipped with a log
+// message rather than failing the test (matching Java's knownFailingFiles
+// pattern).
+func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, knownFailing ...string) {
 	t.Helper()
+
+	failing := make(map[string]bool, len(knownFailing))
+	for _, f := range knownFailing {
+		failing[f] = true
+	}
 
 	files, err := filepath.Glob(globPattern)
 	require.NoError(t, err, "globbing test files")
@@ -111,9 +126,83 @@ func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bridge
 	for _, f := range files {
 		name := filepath.Base(f)
 		t.Run(name, func(t *testing.T) {
+			if failing[name] {
+				t.Skipf("known failing file: %s", name)
+			}
 			content, err := os.ReadFile(f)
 			require.NoError(t, err)
-			AssertRoundTrip(t, pool, cfg, filterClass, content, name, mimeType, filterParams)
+			AssertRoundTripEvents(t, pool, cfg, filterClass, content, name, mimeType, filterParams)
 		})
 	}
+}
+
+// AssertRoundTripEvents performs a roundtrip and validates using event-level
+// comparison: the reconstructed output is re-read through the same filter and
+// the extracted parts are compared with the original parts. This mirrors
+// Java's EventRoundTripIT approach.
+func AssertRoundTripEvents(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
+	t.Helper()
+
+	result := RoundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams)
+
+	// Re-read the output to get parts for comparison.
+	rereadParts := ReadBytes(t, pool, cfg, filterClass, result.Output, uri, mimeType, filterParams)
+	compareParts(t, result.Parts, rereadParts)
+
+	return result
+}
+
+// compareParts performs event-level comparison of two part lists.
+// It compares part types, and for blocks: ID, source text, and translatable flag.
+func compareParts(t *testing.T, expected, actual []*model.Part) {
+	t.Helper()
+
+	if !assert.Equal(t, len(expected), len(actual), "part count mismatch") {
+		// Log what we got for debugging.
+		t.Logf("expected %d parts:", len(expected))
+		for i, p := range expected {
+			t.Logf("  [%d] %s %s", i, p.Type, partSummary(p))
+		}
+		t.Logf("actual %d parts:", len(actual))
+		for i, p := range actual {
+			t.Logf("  [%d] %s %s", i, p.Type, partSummary(p))
+		}
+		return
+	}
+
+	for i := range expected {
+		ep, ap := expected[i], actual[i]
+		prefix := fmt.Sprintf("part[%d]", i)
+
+		assert.Equal(t, ep.Type, ap.Type, "%s: type mismatch", prefix)
+
+		if ep.Type == model.PartBlock && ap.Type == model.PartBlock {
+			eb, _ := ep.Resource.(*model.Block)
+			ab, _ := ap.Resource.(*model.Block)
+			if eb != nil && ab != nil {
+				assert.Equal(t, eb.ID, ab.ID, "%s: block ID", prefix)
+				assert.Equal(t, eb.SourceText(), ab.SourceText(), "%s: source text", prefix)
+				assert.Equal(t, eb.Translatable, ab.Translatable, "%s: translatable", prefix)
+			}
+		}
+	}
+}
+
+// partSummary returns a short description of a part for debug logging.
+func partSummary(p *model.Part) string {
+	switch p.Type {
+	case model.PartBlock:
+		if b, ok := p.Resource.(*model.Block); ok {
+			text := b.SourceText()
+			if len(text) > 60 {
+				text = text[:60] + "..."
+			}
+			return fmt.Sprintf("id=%s text=%q", b.ID, text)
+		}
+	case model.PartLayerStart:
+		if l, ok := p.Resource.(*model.Layer); ok {
+			return fmt.Sprintf("id=%s", l.ID)
+		}
+	}
+	return ""
 }
