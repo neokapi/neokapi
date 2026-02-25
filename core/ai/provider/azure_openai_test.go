@@ -52,7 +52,7 @@ func TestAzureOpenAIProvider_Chat(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -88,7 +88,7 @@ func TestAzureOpenAIProvider_Chat(t *testing.T) {
 func TestAzureOpenAIProvider_ChatError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"error":{"message":"invalid key"}}`))
+		_, _ = w.Write([]byte(`{"error":{"message":"invalid key"}}`))
 	}))
 	defer srv.Close()
 
@@ -108,7 +108,7 @@ func TestAzureOpenAIProvider_ChatError(t *testing.T) {
 func TestAzureOpenAIProvider_Translate(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body openaiRequest
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 
 		// Verify the prompt contains source and target locale
 		content := body.Messages[0].Content
@@ -123,7 +123,7 @@ func TestAzureOpenAIProvider_Translate(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -148,7 +148,7 @@ func TestAzureOpenAIProvider_NoChoices(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := openaiResponse{Model: "gpt-4o", Choices: []openaiChoice{}}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
