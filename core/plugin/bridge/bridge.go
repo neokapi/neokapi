@@ -2,29 +2,34 @@ package bridge
 
 import (
 	"bufio"
-	"encoding/json"
+	"context"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
+
+	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-// JavaBridge manages a JVM subprocess that runs the Okapi bridge server.
-// Communication is synchronous NDJSON over stdin/stdout.
+// JavaBridge manages a JVM subprocess that runs the Okapi bridge gRPC server.
+// The subprocess prints its socket address to stdout on startup, and the Go
+// side connects as a gRPC client.
 //
 // The JVM is stateful: Open sets the active filter, and Read/Close operate on
 // it. Concurrent access is handled by BridgePool, which leases each bridge
 // exclusively to one goroutine for the full Open→Read→Close lifecycle.
-// The per-command mu serializes individual NDJSON round-trips.
 type JavaBridge struct {
 	cfg     BridgeConfig
 	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	scanner *bufio.Scanner
-	mu      sync.Mutex // per-command serialization
+	conn    *grpc.ClientConn
+	client  pb.BridgeServiceClient
+	mu      sync.Mutex
 	logger  *log.Logger
 	running bool
 }
@@ -41,7 +46,8 @@ func NewJavaBridge(cfg BridgeConfig, logger *log.Logger) *JavaBridge {
 	}
 }
 
-// Start launches the JVM subprocess and waits for the ready signal.
+// Start launches the JVM subprocess, reads the gRPC address from stdout,
+// and establishes a gRPC client connection.
 func (b *JavaBridge) Start() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -58,12 +64,6 @@ func (b *JavaBridge) Start() error {
 		}
 	}
 
-	var err error
-	b.stdin, err = b.cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("creating stdin pipe: %w", err)
-	}
-
 	stdout, err := b.cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("creating stdout pipe: %w", err)
@@ -72,54 +72,71 @@ func (b *JavaBridge) Start() error {
 	// Stderr goes to logger.
 	b.cmd.Stderr = &logWriter{logger: b.logger}
 
-	b.scanner = bufio.NewScanner(stdout)
-	b.scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024) // 10MB max line
-
 	if err := b.cmd.Start(); err != nil {
 		return fmt.Errorf("starting JVM: %w", err)
 	}
 
-	// Wait for the ready signal.
-	readyCh := make(chan error, 1)
+	// Read the gRPC address from the first line of stdout.
+	addrCh := make(chan addrResult, 1)
 	go func() {
-		if !b.scanner.Scan() {
-			if err := b.scanner.Err(); err != nil {
-				readyCh <- fmt.Errorf("reading ready signal: %w", err)
+		scanner := bufio.NewScanner(stdout)
+		if !scanner.Scan() {
+			if err := scanner.Err(); err != nil {
+				addrCh <- addrResult{err: fmt.Errorf("reading address: %w", err)}
 			} else {
-				readyCh <- fmt.Errorf("JVM closed stdout before sending ready signal")
+				addrCh <- addrResult{err: fmt.Errorf("JVM closed stdout before sending address")}
 			}
 			return
 		}
-		var resp Response
-		if err := json.Unmarshal(b.scanner.Bytes(), &resp); err != nil {
-			readyCh <- fmt.Errorf("parsing ready signal: %w", err)
-			return
+		addrCh <- addrResult{addr: strings.TrimSpace(scanner.Text())}
+		// Drain remaining stdout to prevent blocking.
+		for scanner.Scan() {
 		}
-		if !resp.IsOK() {
-			readyCh <- fmt.Errorf("JVM startup failed: %s", resp.Error)
-			return
-		}
-		var ready ReadyData
-		if err := json.Unmarshal(resp.Data, &ready); err != nil || !ready.Ready {
-			readyCh <- fmt.Errorf("unexpected ready data: %s", string(resp.Data))
-			return
-		}
-		readyCh <- nil
 	}()
 
+	var addr string
 	select {
-	case err := <-readyCh:
-		if err != nil {
+	case result := <-addrCh:
+		if result.err != nil {
 			_ = b.cmd.Process.Kill()
-			return err
+			return result.err
 		}
+		addr = result.addr
 	case <-time.After(b.cfg.StartupTimeout):
 		_ = b.cmd.Process.Kill()
 		return fmt.Errorf("JVM startup timed out after %s", b.cfg.StartupTimeout)
 	}
 
+	if addr == "" {
+		_ = b.cmd.Process.Kill()
+		return fmt.Errorf("JVM sent empty address")
+	}
+
+	b.logger.Printf("[bridge] connecting to %s", addr)
+
+	// Establish gRPC connection.
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.StartupTimeout)
+	defer cancel()
+
+	conn, err := grpc.DialContext(ctx, addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
+	)
+	if err != nil {
+		_ = b.cmd.Process.Kill()
+		return fmt.Errorf("connecting to bridge gRPC: %w", err)
+	}
+
+	b.conn = conn
+	b.client = pb.NewBridgeServiceClient(conn)
 	b.running = true
 	return nil
+}
+
+type addrResult struct {
+	addr string
+	err  error
 }
 
 // Stop gracefully shuts down the JVM subprocess.
@@ -132,14 +149,17 @@ func (b *JavaBridge) Stop() error {
 	}
 	b.running = false
 
-	// Send shutdown command (no response expected).
-	cmd := Command{Command: "shutdown"}
-	data, err := json.Marshal(cmd)
-	if err == nil {
-		data = append(data, '\n')
-		_, _ = b.stdin.Write(data)
+	// Send shutdown RPC.
+	if b.client != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, _ = b.client.Shutdown(ctx, &pb.ShutdownRequest{})
+		cancel()
 	}
-	_ = b.stdin.Close()
+
+	// Close gRPC connection.
+	if b.conn != nil {
+		_ = b.conn.Close()
+	}
 
 	if b.cmd == nil {
 		return nil
@@ -158,74 +178,24 @@ func (b *JavaBridge) Stop() error {
 	return nil
 }
 
-// sendCommand sends a command and returns the response. Must be called with mu held externally
-// only via the public methods which acquire the lock.
-func (b *JavaBridge) sendCommand(cmd Command) (*Response, error) {
-	data, err := json.Marshal(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling command: %w", err)
-	}
-	data = append(data, '\n')
-
-	if _, err := b.stdin.Write(data); err != nil {
-		return nil, fmt.Errorf("writing command: %w", err)
-	}
-
-	respCh := make(chan *scanResult, 1)
-	go func() {
-		if b.scanner.Scan() {
-			respCh <- &scanResult{data: b.scanner.Bytes()}
-		} else {
-			respCh <- &scanResult{err: b.scanner.Err()}
-		}
-	}()
-
-	var sr *scanResult
-	select {
-	case sr = <-respCh:
-	case <-time.After(b.cfg.CommandTimeout):
-		return nil, fmt.Errorf("command %q timed out after %s", cmd.Command, b.cfg.CommandTimeout)
-	}
-
-	if sr.err != nil {
-		return nil, fmt.Errorf("reading response: %w", sr.err)
-	}
-	if sr.data == nil {
-		return nil, fmt.Errorf("JVM closed stdout unexpectedly")
-	}
-
-	var resp Response
-	if err := json.Unmarshal(sr.data, &resp); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
-	}
-	return &resp, nil
-}
-
-type scanResult struct {
-	data []byte
-	err  error
-}
-
 // Info queries filter metadata.
 func (b *JavaBridge) Info(filterClass string) (*InfoData, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{
-		Command: "info",
-		Params:  InfoParams{FilterClass: filterClass},
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	resp, err := b.client.Info(ctx, &pb.InfoRequest{FilterClass: filterClass})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("info: %w", err)
 	}
-	if !resp.IsOK() {
-		return nil, fmt.Errorf("info: %s", resp.Error)
-	}
-	var info InfoData
-	if err := json.Unmarshal(resp.Data, &info); err != nil {
-		return nil, fmt.Errorf("parsing info data: %w", err)
-	}
-	return &info, nil
+	return &InfoData{
+		Name:        resp.Name,
+		DisplayName: resp.DisplayName,
+		MimeTypes:   resp.MimeTypes,
+		Extensions:  resp.Extensions,
+	}, nil
 }
 
 // Open opens a document for reading via the Java bridge.
@@ -233,58 +203,100 @@ func (b *JavaBridge) Open(params OpenParams) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{
-		Command: "open",
-		Params:  params,
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	resp, err := b.client.Open(ctx, &pb.OpenRequest{
+		FilterClass:  params.FilterClass,
+		Uri:          params.URI,
+		SourceLocale: params.SourceLocale,
+		Encoding:     params.Encoding,
+		Content:      params.Content,
+		MimeType:     params.MimeType,
+		FilterParams: encodeFilterParams(params.FilterParams),
 	})
 	if err != nil {
-		return err
+		return fmt.Errorf("open: %w", err)
 	}
-	if !resp.IsOK() {
+	if resp.Error != "" {
 		return fmt.Errorf("open: %s", resp.Error)
 	}
 	return nil
 }
 
-// Read reads all parts from an opened document.
-func (b *JavaBridge) Read() (*ReadData, error) {
+// Read streams all parts from an opened document.
+func (b *JavaBridge) Read() ([]*pb.PartMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{Command: "read"})
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	stream, err := b.client.Read(ctx, &pb.ReadRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read: %w", err)
 	}
-	if !resp.IsOK() {
-		return nil, fmt.Errorf("read: %s", resp.Error)
+
+	var parts []*pb.PartMessage
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("read stream: %w", err)
+		}
+		parts = append(parts, msg)
 	}
-	var rd ReadData
-	if err := json.Unmarshal(resp.Data, &rd); err != nil {
-		return nil, fmt.Errorf("parsing read data: %w", err)
-	}
-	return &rd, nil
+	return parts, nil
 }
 
 // Write sends translated parts and receives the reconstructed document.
-func (b *JavaBridge) Write(params WriteParams) (*WriteData, error) {
+func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{
-		Command: "write",
-		Params:  params,
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	stream, err := b.client.Write(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("write: %w", err)
 	}
-	if !resp.IsOK() {
+
+	// Send header first.
+	if err := stream.Send(&pb.WriteChunk{
+		Chunk: &pb.WriteChunk_Header{
+			Header: &pb.WriteHeader{
+				FilterClass:     params.FilterClass,
+				Locale:          params.Locale,
+				Encoding:        params.Encoding,
+				OriginalContent: params.OriginalContent,
+				FilterParams:    encodeFilterParams(params.FilterParams),
+			},
+		},
+	}); err != nil {
+		return nil, fmt.Errorf("write header: %w", err)
+	}
+
+	// Send parts.
+	for _, part := range params.Parts {
+		if err := stream.Send(&pb.WriteChunk{
+			Chunk: &pb.WriteChunk_Part{Part: part},
+		}); err != nil {
+			return nil, fmt.Errorf("write part: %w", err)
+		}
+	}
+
+	// Close and receive response.
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		return nil, fmt.Errorf("write close: %w", err)
+	}
+	if resp.Error != "" {
 		return nil, fmt.Errorf("write: %s", resp.Error)
 	}
-	var wd WriteData
-	if err := json.Unmarshal(resp.Data, &wd); err != nil {
-		return nil, fmt.Errorf("parsing write data: %w", err)
-	}
-	return &wd, nil
+	return resp.Output, nil
 }
 
 // CloseFilter releases the current filter resources in the JVM.
@@ -292,11 +304,14 @@ func (b *JavaBridge) CloseFilter() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{Command: "close"})
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	resp, err := b.client.Close(ctx, &pb.CloseRequest{})
 	if err != nil {
-		return err
+		return fmt.Errorf("close: %w", err)
 	}
-	if !resp.IsOK() {
+	if resp.Error != "" {
 		return fmt.Errorf("close: %s", resp.Error)
 	}
 	return nil
@@ -307,18 +322,25 @@ func (b *JavaBridge) ListFilters() (*ListFiltersData, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	resp, err := b.sendCommand(Command{Command: "list_filters"})
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	defer cancel()
+
+	resp, err := b.client.ListFilters(ctx, &pb.ListFiltersRequest{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list_filters: %w", err)
 	}
-	if !resp.IsOK() {
-		return nil, fmt.Errorf("list_filters: %s", resp.Error)
+
+	var filters []FilterEntry
+	for _, f := range resp.Filters {
+		filters = append(filters, FilterEntry{
+			FilterClass: f.FilterClass,
+			Name:        f.Name,
+			DisplayName: f.DisplayName,
+			MimeTypes:   f.MimeTypes,
+			Extensions:  f.Extensions,
+		})
 	}
-	var lf ListFiltersData
-	if err := json.Unmarshal(resp.Data, &lf); err != nil {
-		return nil, fmt.Errorf("parsing list_filters data: %w", err)
-	}
-	return &lf, nil
+	return &ListFiltersData{Filters: filters}, nil
 }
 
 // logWriter adapts a *log.Logger to io.Writer for stderr capture.

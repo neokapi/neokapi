@@ -1,7 +1,6 @@
 package bridge
 
 import (
-	"bufio"
 	"io"
 	"log"
 	"sync"
@@ -12,30 +11,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// newMockBridge creates a JavaBridge backed by pipes (no real JVM).
-// The stdin reader side is closed so that Stop() doesn't block on writes.
+// newMockBridge creates a JavaBridge with no real JVM process (for pool tests).
+// It's marked as running so pool operations work, but has no gRPC connection.
 func newMockBridge(t *testing.T, args ...string) *JavaBridge {
 	t.Helper()
-	goStdinR, goStdinW := io.Pipe()
-	javaStdoutR, _ := io.Pipe()
-
-	// Close the reader so writes to stdin fail immediately (unblocks Stop).
-	goStdinR.Close()
-
-	b := &JavaBridge{
+	return &JavaBridge{
 		cfg: BridgeConfig{
 			Command:        "java",
 			Args:           args,
 			CommandTimeout: 5 * time.Second,
 			StartupTimeout: 5 * time.Second,
 		},
-		stdin:   goStdinW,
-		scanner: bufio.NewScanner(javaStdoutR),
 		logger:  log.New(io.Discard, "", 0),
 		running: true,
 	}
-	b.scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
-	return b
 }
 
 func TestNewBridgePoolMinSize(t *testing.T) {
@@ -268,8 +257,6 @@ func TestPoolBlocksWhenAllActiveNoIdle(t *testing.T) {
 	}
 
 	// Release makes a bridge idle, which unblocks the waiter.
-	// The waiter will try to evict the idle config-A bridge and start config-B,
-	// which will fail (no java), but it unblocks.
 	pool.Release(got)
 
 	select {

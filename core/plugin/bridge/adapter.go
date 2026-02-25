@@ -3,8 +3,6 @@ package bridge
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 
@@ -25,7 +23,7 @@ type BridgeFormatReader struct {
 	filterClass  string
 	filterParams map[string]any // optional filter parameters
 	info         *InfoData
-	content      []byte // raw document content for base64 encoding
+	content      []byte // raw document content
 }
 
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
@@ -82,13 +80,13 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 	r.content = content
 
 	if err := r.bridge.Open(OpenParams{
-		FilterClass:   r.filterClass,
-		URI:           doc.URI,
-		SourceLocale:  string(doc.SourceLocale),
-		Encoding:      doc.Encoding,
-		ContentBase64: base64.StdEncoding.EncodeToString(content),
-		MimeType:      doc.MimeType,
-		FilterParams:  r.filterParams,
+		FilterClass:  r.filterClass,
+		URI:          doc.URI,
+		SourceLocale: string(doc.SourceLocale),
+		Encoding:     doc.Encoding,
+		Content:      content,
+		MimeType:     doc.MimeType,
+		FilterParams: r.filterParams,
 	}); err != nil {
 		r.pool.Release(b)
 		r.bridge = nil
@@ -103,20 +101,14 @@ func (r *BridgeFormatReader) Read(ctx context.Context) <-chan model.PartResult {
 	go func() {
 		defer close(ch)
 
-		rd, err := r.bridge.Read()
+		msgs, err := r.bridge.Read()
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("bridge read: %w", err)}
 			return
 		}
 
-		var dtos []shared.PartDTO
-		if err := json.Unmarshal(rd.Parts, &dtos); err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("parsing parts: %w", err)}
-			return
-		}
-
-		for _, dto := range dtos {
-			part := shared.DTOToPart(dto)
+		for _, msg := range msgs {
+			part := shared.ProtoToPart(msg)
 			select {
 			case ch <- model.PartResult{Part: part}:
 			case <-ctx.Done():
@@ -215,7 +207,7 @@ func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part
 	}
 
 send:
-	dtos := shared.PartsToDTO(collected)
+	protoMsgs := shared.PartsToProto(collected)
 
 	b, err := w.pool.Acquire(w.cfg)
 	if err != nil {
@@ -223,21 +215,16 @@ send:
 	}
 	defer w.pool.Release(b)
 
-	wd, err := b.Write(WriteParams{
-		FilterClass:           w.filterClass,
-		Parts:                 dtos,
-		Locale:                string(w.Locale),
-		Encoding:              w.Encoding,
-		OriginalContentBase64: base64.StdEncoding.EncodeToString(w.originalContent),
-		FilterParams:          w.filterParams,
+	output, err := b.Write(WriteParams{
+		FilterClass:     w.filterClass,
+		Parts:           protoMsgs,
+		Locale:          string(w.Locale),
+		Encoding:        w.Encoding,
+		OriginalContent: w.originalContent,
+		FilterParams:    w.filterParams,
 	})
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)
-	}
-
-	output, err := base64.StdEncoding.DecodeString(wd.OutputBase64)
-	if err != nil {
-		return fmt.Errorf("decoding output: %w", err)
 	}
 
 	if w.Output != nil {

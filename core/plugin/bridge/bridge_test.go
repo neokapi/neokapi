@@ -1,287 +1,234 @@
 package bridge
 
 import (
-	"bufio"
-	"encoding/json"
+	"context"
 	"io"
 	"log"
-	"sync"
+	"net"
 	"testing"
 	"time"
 
+	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-// mockBridge creates a JavaBridge with piped stdin/stdout for testing
-// without a real JVM process.
-func mockBridge(t *testing.T) (*JavaBridge, io.ReadCloser, io.WriteCloser) {
+// mockBridgeServer implements the gRPC BridgeService for testing.
+type mockBridgeServer struct {
+	pb.UnimplementedBridgeServiceServer
+
+	infoResp        *pb.InfoResponse
+	openResp        *pb.OpenResponse
+	readParts       []*pb.PartMessage
+	writeOutput     []byte
+	closeResp       *pb.CloseResponse
+	listFiltersResp *pb.ListFiltersResponse
+	infoErr         error
+	openErr         error
+	readErr         error
+	writeErr        error
+}
+
+func (s *mockBridgeServer) Info(_ context.Context, _ *pb.InfoRequest) (*pb.InfoResponse, error) {
+	if s.infoErr != nil {
+		return nil, s.infoErr
+	}
+	return s.infoResp, nil
+}
+
+func (s *mockBridgeServer) Open(_ context.Context, _ *pb.OpenRequest) (*pb.OpenResponse, error) {
+	if s.openErr != nil {
+		return nil, s.openErr
+	}
+	return s.openResp, nil
+}
+
+func (s *mockBridgeServer) Read(_ *pb.ReadRequest, stream pb.BridgeService_ReadServer) error {
+	if s.readErr != nil {
+		return s.readErr
+	}
+	for _, part := range s.readParts {
+		if err := stream.Send(part); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *mockBridgeServer) Write(stream pb.BridgeService_WriteServer) error {
+	if s.writeErr != nil {
+		return s.writeErr
+	}
+	// Drain all chunks.
+	for {
+		_, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return stream.SendAndClose(&pb.WriteResponse{Output: s.writeOutput})
+}
+
+func (s *mockBridgeServer) Close(_ context.Context, _ *pb.CloseRequest) (*pb.CloseResponse, error) {
+	if s.closeResp != nil {
+		return s.closeResp, nil
+	}
+	return &pb.CloseResponse{}, nil
+}
+
+func (s *mockBridgeServer) ListFilters(_ context.Context, _ *pb.ListFiltersRequest) (*pb.ListFiltersResponse, error) {
+	return s.listFiltersResp, nil
+}
+
+func (s *mockBridgeServer) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
+	return &pb.ShutdownResponse{}, nil
+}
+
+// startMockServer starts a gRPC server with the mock service on a random port.
+// Returns the server, address, and a cleanup function.
+func startMockServer(t *testing.T, srv *mockBridgeServer) (string, func()) {
 	t.Helper()
+	lis, err := net.Listen("tcp", "localhost:0")
+	require.NoError(t, err)
 
-	// goStdinR is what the bridge writes to (its stdin pipe).
-	// goStdinW is the read end we use to see what bridge sent.
-	goStdinR, goStdinW := io.Pipe()
+	s := grpc.NewServer()
+	pb.RegisterBridgeServiceServer(s, srv)
 
-	// javaStdoutR is what the bridge reads from.
-	// javaStdoutW is the write end we use to simulate JVM responses.
-	javaStdoutR, javaStdoutW := io.Pipe()
+	go func() { _ = s.Serve(lis) }()
+
+	return lis.Addr().String(), func() {
+		s.GracefulStop()
+	}
+}
+
+// newTestBridge creates a JavaBridge connected to a mock gRPC server.
+func newTestBridge(t *testing.T, srv *mockBridgeServer) *JavaBridge {
+	t.Helper()
+	addr, cleanup := startMockServer(t, srv)
+	t.Cleanup(cleanup)
 
 	b := &JavaBridge{
 		cfg: BridgeConfig{
 			CommandTimeout: 5 * time.Second,
 			StartupTimeout: 5 * time.Second,
 		},
-		stdin:   goStdinW,
-		scanner: bufio.NewScanner(javaStdoutR),
-		logger:  log.Default(),
+		logger:  log.New(io.Discard, "", 0),
 		running: true,
 	}
-	b.scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
 
-	return b, goStdinR, javaStdoutW
-}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-// respondJSON writes a JSON response line to the mock stdout.
-func respondJSON(t *testing.T, w io.Writer, resp Response) {
-	t.Helper()
-	data, err := json.Marshal(resp)
+	conn, err := grpc.DialContext(ctx, addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
 	require.NoError(t, err)
-	data = append(data, '\n')
-	_, err = w.Write(data)
-	require.NoError(t, err)
-}
+	t.Cleanup(func() { _ = conn.Close() })
 
-// readCommand reads and parses a command from the bridge stdin pipe.
-func readCommand(t *testing.T, r io.Reader) Command {
-	t.Helper()
-	scanner := bufio.NewScanner(r)
-	require.True(t, scanner.Scan(), "expected to read a command")
-	var cmd Command
-	require.NoError(t, json.Unmarshal(scanner.Bytes(), &cmd))
-	return cmd
+	b.conn = conn
+	b.client = pb.NewBridgeServiceClient(conn)
+	return b
 }
 
 func TestBridgeInfo(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
+	srv := &mockBridgeServer{
+		infoResp: &pb.InfoResponse{
+			Name:        "html",
+			DisplayName: "HTML Filter",
+			MimeTypes:   []string{"text/html"},
+			Extensions:  []string{".html", ".htm"},
+		},
+	}
+	b := newTestBridge(t, srv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	var info *InfoData
-	var infoErr error
-
-	go func() {
-		defer wg.Done()
-		info, infoErr = b.Info("net.sf.okapi.filters.html.HtmlFilter")
-	}()
-
-	// Read the command the bridge sent.
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "info", cmd.Command)
-
-	// Respond.
-	infoData, _ := json.Marshal(InfoData{
-		Name:        "html",
-		DisplayName: "HTML Filter",
-		MimeTypes:   []string{"text/html"},
-		Extensions:  []string{".html", ".htm"},
-	})
-	respondJSON(t, stdoutW, Response{
-		Status: "ok",
-		Data:   infoData,
-	})
-
-	wg.Wait()
-	require.NoError(t, infoErr)
+	info, err := b.Info("net.sf.okapi.filters.html.HtmlFilter")
+	require.NoError(t, err)
 	assert.Equal(t, "html", info.Name)
 	assert.Equal(t, "HTML Filter", info.DisplayName)
 	assert.Contains(t, info.Extensions, ".html")
 }
 
 func TestBridgeOpen(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
+	srv := &mockBridgeServer{
+		openResp: &pb.OpenResponse{},
+	}
+	b := newTestBridge(t, srv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var openErr error
-
-	go func() {
-		defer wg.Done()
-		openErr = b.Open(OpenParams{
-			FilterClass:   "net.sf.okapi.filters.html.HtmlFilter",
-			URI:           "test.html",
-			SourceLocale:  "en",
-			Encoding:      "UTF-8",
-			ContentBase64: "PGh0bWw+PC9odG1sPg==",
-			MimeType:      "text/html",
-		})
-	}()
-
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "open", cmd.Command)
-
-	respondJSON(t, stdoutW, Response{Status: "ok"})
-
-	wg.Wait()
-	require.NoError(t, openErr)
+	err := b.Open(OpenParams{
+		FilterClass:  "net.sf.okapi.filters.html.HtmlFilter",
+		URI:          "test.html",
+		SourceLocale: "en",
+		Encoding:     "UTF-8",
+		Content:      []byte("<html></html>"),
+		MimeType:     "text/html",
+	})
+	require.NoError(t, err)
 }
 
 func TestBridgeRead(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
+	srv := &mockBridgeServer{
+		readParts: []*pb.PartMessage{
+			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
+			{PartType: 4, Block: &pb.BlockMessage{Id: "tu1", Translatable: true, Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}}}},
+			{PartType: 1, Layer: &pb.LayerMessage{Id: "doc1"}},
+		},
+	}
+	b := newTestBridge(t, srv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var readData *ReadData
-	var readErr error
-
-	go func() {
-		defer wg.Done()
-		readData, readErr = b.Read()
-	}()
-
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "read", cmd.Command)
-
-	parts := `[{"part_type":0,"layer":{"id":"doc1","name":"test.html","format":"html"}}]`
-	respData, _ := json.Marshal(map[string]json.RawMessage{
-		"parts": json.RawMessage(parts),
-	})
-	respondJSON(t, stdoutW, Response{
-		Status: "ok",
-		Data:   respData,
-	})
-
-	wg.Wait()
-	require.NoError(t, readErr)
-	require.NotNil(t, readData)
-	assert.NotEmpty(t, readData.Parts)
+	parts, err := b.Read()
+	require.NoError(t, err)
+	require.Len(t, parts, 3)
+	assert.Equal(t, int32(0), parts[0].PartType)
+	assert.Equal(t, "doc1", parts[0].Layer.Id)
 }
 
 func TestBridgeWrite(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
+	srv := &mockBridgeServer{
+		writeOutput: []byte("translated"),
+	}
+	b := newTestBridge(t, srv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var writeData *WriteData
-	var writeErr error
-
-	go func() {
-		defer wg.Done()
-		writeData, writeErr = b.Write(WriteParams{
-			FilterClass:           "net.sf.okapi.filters.html.HtmlFilter",
-			Parts:                 []map[string]any{{"part_type": 0}},
-			Locale:                "fr",
-			Encoding:              "UTF-8",
-			OriginalContentBase64: "PGh0bWw+PC9odG1sPg==",
-		})
-	}()
-
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "write", cmd.Command)
-
-	wd, _ := json.Marshal(WriteData{OutputBase64: "dHJhbnNsYXRlZA=="})
-	respondJSON(t, stdoutW, Response{
-		Status: "ok",
-		Data:   wd,
+	output, err := b.Write(WriteParams{
+		FilterClass:     "net.sf.okapi.filters.html.HtmlFilter",
+		Parts:           []*pb.PartMessage{{PartType: 0}},
+		Locale:          "fr",
+		Encoding:        "UTF-8",
+		OriginalContent: []byte("<html></html>"),
 	})
-
-	wg.Wait()
-	require.NoError(t, writeErr)
-	assert.Equal(t, "dHJhbnNsYXRlZA==", writeData.OutputBase64)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("translated"), output)
 }
 
 func TestBridgeCloseFilter(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
+	srv := &mockBridgeServer{
+		closeResp: &pb.CloseResponse{},
+	}
+	b := newTestBridge(t, srv)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var closeErr error
-
-	go func() {
-		defer wg.Done()
-		closeErr = b.CloseFilter()
-	}()
-
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "close", cmd.Command)
-	respondJSON(t, stdoutW, Response{Status: "ok"})
-
-	wg.Wait()
-	require.NoError(t, closeErr)
+	err := b.CloseFilter()
+	require.NoError(t, err)
 }
 
 func TestBridgeListFilters(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var lf *ListFiltersData
-	var lfErr error
-
-	go func() {
-		defer wg.Done()
-		lf, lfErr = b.ListFilters()
-	}()
-
-	cmd := readCommand(t, stdinR)
-	assert.Equal(t, "list_filters", cmd.Command)
-
-	lfData, _ := json.Marshal(ListFiltersData{
-		Filters: []FilterEntry{
-			{FilterClass: "net.sf.okapi.filters.html.HtmlFilter", Name: "html", DisplayName: "HTML"},
+	srv := &mockBridgeServer{
+		listFiltersResp: &pb.ListFiltersResponse{
+			Filters: []*pb.FilterEntry{
+				{FilterClass: "net.sf.okapi.filters.html.HtmlFilter", Name: "html", DisplayName: "HTML"},
+			},
 		},
-	})
-	respondJSON(t, stdoutW, Response{Status: "ok", Data: lfData})
+	}
+	b := newTestBridge(t, srv)
 
-	wg.Wait()
-	require.NoError(t, lfErr)
+	lf, err := b.ListFilters()
+	require.NoError(t, err)
 	require.Len(t, lf.Filters, 1)
 	assert.Equal(t, "html", lf.Filters[0].Name)
-}
-
-func TestBridgeErrorResponse(t *testing.T) {
-	b, stdinR, stdoutW := mockBridge(t)
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	var infoErr error
-
-	go func() {
-		defer wg.Done()
-		_, infoErr = b.Info("nonexistent.Filter")
-	}()
-
-	_ = readCommand(t, stdinR)
-	respondJSON(t, stdoutW, Response{
-		Status: "error",
-		Error:  "filter class not found: nonexistent.Filter",
-	})
-
-	wg.Wait()
-	require.Error(t, infoErr)
-	assert.Contains(t, infoErr.Error(), "filter class not found")
-}
-
-func TestBridgeTimeout(t *testing.T) {
-	// Use a very short timeout.
-	b, stdinR, stdoutW := mockBridge(t)
-	b.cfg.CommandTimeout = 50 * time.Millisecond
-
-	// Drain stdin so the write doesn't block.
-	go func() {
-		scanner := bufio.NewScanner(stdinR)
-		for scanner.Scan() {
-		}
-	}()
-
-	// No response will be sent, so this should time out.
-	_, err := b.Info("some.Filter")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
-
-	// Close pipes to unblock any leaked goroutines.
-	stdinR.Close()
-	stdoutW.Close()
 }
 
 func TestConfigWithDefaults(t *testing.T) {

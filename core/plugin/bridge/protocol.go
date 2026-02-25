@@ -1,91 +1,79 @@
 // Package bridge implements a JVM subprocess manager that wraps Okapi Framework
 // Java filters as gokapi DataFormatReader/DataFormatWriter implementations.
-// Communication uses newline-delimited JSON (NDJSON) over stdin/stdout.
+// Communication uses gRPC with proto-generated types.
 package bridge
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
 
-// Command is the NDJSON envelope sent from Go to the Java bridge.
-type Command struct {
-	Command string `json:"command"`
-	Params  any    `json:"params,omitempty"`
-}
+	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+)
 
-// Response is the NDJSON envelope received from the Java bridge.
-type Response struct {
-	Status string          `json:"status"`
-	Data   json.RawMessage `json:"data,omitempty"`
-	Error  string          `json:"error,omitempty"`
-}
-
-// IsOK returns true if the response status is "ok".
-func (r *Response) IsOK() bool {
-	return r.Status == "ok"
-}
-
-// --- Command parameter types ---
-
-// OpenParams are sent with the "open" command.
+// OpenParams are sent with the Open RPC.
 type OpenParams struct {
-	FilterClass   string         `json:"filter_class"`
-	URI           string         `json:"uri"`
-	SourceLocale  string         `json:"source_locale"`
-	Encoding      string         `json:"encoding"`
-	ContentBase64 string         `json:"content_base64"`
-	MimeType      string         `json:"mime_type"`
-	FilterParams  map[string]any `json:"filter_params,omitempty"`
+	FilterClass  string
+	URI          string
+	SourceLocale string
+	Encoding     string
+	Content      []byte // Raw document bytes
+	MimeType     string
+	FilterParams map[string]any
 }
 
-// InfoParams are sent with the "info" command.
-type InfoParams struct {
-	FilterClass string `json:"filter_class"`
-}
-
-// WriteParams are sent with the "write" command.
+// WriteParams are sent with the Write RPC.
 type WriteParams struct {
-	FilterClass           string         `json:"filter_class"`
-	Parts                 any            `json:"parts"`
-	Locale                string         `json:"locale"`
-	Encoding              string         `json:"encoding"`
-	OriginalContentBase64 string         `json:"original_content_base64"`
-	FilterParams          map[string]any `json:"filter_params,omitempty"`
+	FilterClass     string
+	Parts           []*pb.PartMessage
+	Locale          string
+	Encoding        string
+	OriginalContent []byte
+	FilterParams    map[string]any
 }
 
 // --- Response data types ---
 
-// ReadyData is returned by the Java bridge on startup.
-type ReadyData struct {
-	Ready bool `json:"ready"`
-}
-
-// ReadData is returned by the "read" command.
-type ReadData struct {
-	Parts json.RawMessage `json:"parts"`
-}
-
-// WriteData is returned by the "write" command.
-type WriteData struct {
-	OutputBase64 string `json:"output_base64"`
-}
-
-// InfoData is returned by the "info" command.
+// InfoData is returned by the Info RPC.
 type InfoData struct {
-	Name        string   `json:"name"`
-	DisplayName string   `json:"display_name"`
-	MimeTypes   []string `json:"mime_types"`
-	Extensions  []string `json:"extensions"`
+	Name        string
+	DisplayName string
+	MimeTypes   []string
+	Extensions  []string
 }
 
 // FilterEntry describes a single available Okapi filter.
 type FilterEntry struct {
-	FilterClass string   `json:"filter_class"`
-	Name        string   `json:"name"`
-	DisplayName string   `json:"display_name"`
-	MimeTypes   []string `json:"mime_types"`
-	Extensions  []string `json:"extensions"`
+	FilterClass string
+	Name        string
+	DisplayName string
+	MimeTypes   []string
+	Extensions  []string
 }
 
-// ListFiltersData is returned by the "list_filters" command.
+// ListFiltersData is returned by the ListFilters RPC.
 type ListFiltersData struct {
-	Filters []FilterEntry `json:"filters"`
+	Filters []FilterEntry
+}
+
+// encodeFilterParams converts map[string]any to map[string]string for proto.
+// Complex values are JSON-encoded.
+func encodeFilterParams(params map[string]any) map[string]string {
+	if len(params) == 0 {
+		return nil
+	}
+	result := make(map[string]string, len(params))
+	for k, v := range params {
+		switch val := v.(type) {
+		case string:
+			result[k] = val
+		default:
+			data, err := json.Marshal(val)
+			if err != nil {
+				result[k] = fmt.Sprintf("%v", val)
+			} else {
+				result[k] = string(data)
+			}
+		}
+	}
+	return result
 }

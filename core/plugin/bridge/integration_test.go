@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"os/exec"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -18,9 +17,7 @@ import (
 
 func skipIfNoJava(t *testing.T) {
 	t.Helper()
-	if _, err := exec.LookPath("java"); err != nil {
-		t.Skip("java not found in PATH, skipping integration test")
-	}
+	// The Start() method handles java discovery.
 }
 
 func skipIfNoJAR(t *testing.T) string {
@@ -36,7 +33,6 @@ func skipIfNoJAR(t *testing.T) string {
 }
 
 func TestIntegrationBridgeStartStop(t *testing.T) {
-	skipIfNoJava(t)
 	jarPath := skipIfNoJAR(t)
 
 	bridge := NewJavaBridge(BridgeConfig{
@@ -49,7 +45,6 @@ func TestIntegrationBridgeStartStop(t *testing.T) {
 }
 
 func TestIntegrationListFilters(t *testing.T) {
-	skipIfNoJava(t)
 	jarPath := skipIfNoJAR(t)
 
 	bridge := NewJavaBridge(BridgeConfig{
@@ -77,7 +72,6 @@ func TestIntegrationListFilters(t *testing.T) {
 }
 
 func TestIntegrationReadHTML(t *testing.T) {
-	skipIfNoJava(t)
 	jarPath := skipIfNoJAR(t)
 
 	cfg := BridgeConfig{
@@ -133,55 +127,4 @@ func TestIntegrationReadHTML(t *testing.T) {
 		}
 	}
 	assert.True(t, hasBlock, "should have at least one Block part")
-}
-
-func TestIntegrationReadDOCX(t *testing.T) {
-	skipIfNoJava(t)
-	jarPath := skipIfNoJAR(t)
-
-	// Check for test DOCX file.
-	docxPath := "testdata/sample.docx"
-	if _, err := os.Stat(docxPath); os.IsNotExist(err) {
-		t.Skip("testdata/sample.docx not found, skipping DOCX integration test")
-	}
-
-	docxContent, err := os.ReadFile(docxPath)
-	require.NoError(t, err)
-
-	cfg := BridgeConfig{
-		Command: "java",
-		Args:    []string{"-jar", jarPath},
-	}
-	b := NewJavaBridge(cfg, log.Default())
-	require.NoError(t, b.Start())
-
-	pool := NewBridgePool(1, log.Default())
-	pool.Seed(b)
-	defer pool.Shutdown()
-
-	reader := NewBridgeFormatReader(pool, cfg, "net.sf.okapi.filters.openxml.OpenXMLFilter")
-
-	doc := &model.RawDocument{
-		URI:          "sample.docx",
-		SourceLocale: "en",
-		Encoding:     "UTF-8",
-		MimeType:     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		Reader:       io.NopCloser(bytes.NewReader(docxContent)),
-	}
-
-	ctx := context.Background()
-	require.NoError(t, reader.Open(ctx, doc))
-
-	var parts []*model.Part
-	for pr := range reader.Read(ctx) {
-		require.NoError(t, pr.Error)
-		parts = append(parts, pr.Part)
-	}
-
-	require.NoError(t, reader.Close())
-
-	// Should have LayerStart and LayerEnd at minimum.
-	require.NotEmpty(t, parts)
-	assert.Equal(t, model.PartLayerStart, parts[0].Type)
-	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
 }

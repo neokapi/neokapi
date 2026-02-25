@@ -1,8 +1,6 @@
 package bridge_test
 
 import (
-	"encoding/base64"
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,15 +88,14 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 
 	// Use a JSON document with filter_params to test parameter application.
 	jsonDoc := `{"greeting": "Hello World", "count": 42}`
-	encoded := base64.StdEncoding.EncodeToString([]byte(jsonDoc))
 
 	err := b.Open(bridge.OpenParams{
-		FilterClass:   "net.sf.okapi.filters.json.JSONFilter",
-		URI:           "test.json",
-		SourceLocale:  "en",
-		Encoding:      "UTF-8",
-		ContentBase64: encoded,
-		MimeType:      "application/json",
+		FilterClass:  "net.sf.okapi.filters.json.JSONFilter",
+		URI:          "test.json",
+		SourceLocale: "en",
+		Encoding:     "UTF-8",
+		Content:      []byte(jsonDoc),
+		MimeType:     "application/json",
 		FilterParams: map[string]any{
 			"extractAllPairs": true,
 			"useFullKeyPath":  true,
@@ -107,13 +104,8 @@ func TestIntegrationFilterParamsApplied(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	rd, err := b.Read()
+	parts, err := b.Read()
 	require.NoError(t, err)
-	assert.NotEmpty(t, rd.Parts)
-
-	// Verify parts contain extracted text.
-	var parts []json.RawMessage
-	require.NoError(t, json.Unmarshal(rd.Parts, &parts))
 	assert.NotEmpty(t, parts, "should have extracted parts from JSON")
 
 	require.NoError(t, b.CloseFilter())
@@ -175,16 +167,9 @@ func TestIntegrationExtractPresets(t *testing.T) {
 	presetReg := preset.NewPresetRegistry()
 	schemaReg.ExtractPresets(presetReg)
 
-	// Note: the current okapi-bridge schemas (v1.5.0) may not yet have
-	// x-filter.configurations populated. If they do, verify extraction.
-	// If not, this test documents that presets come from schemas only
-	// when configurations are present.
 	formats := presetReg.FormatNames()
 	t.Logf("Extracted presets for %d formats: %v", len(formats), formats)
 
-	// Even without configurations, the SchemaRegistry should load cleanly
-	// and ExtractPresets should not error. This verifies the integration
-	// path is wired correctly for when configurations are added.
 	assert.GreaterOrEqual(t, schemaReg.Count(), 40,
 		"schemas loaded correctly for preset extraction pipeline")
 }
