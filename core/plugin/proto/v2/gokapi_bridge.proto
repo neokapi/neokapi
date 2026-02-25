@@ -3,6 +3,8 @@ syntax = "proto3";
 package gokapi.bridge.v2;
 
 option go_package = "github.com/gokapi/gokapi/core/plugin/proto/v2;bridgev2";
+option java_package = "com.gokapi.bridge.proto";
+option java_multiple_files = true;
 
 // BridgeService is the unified gRPC service for the Okapi bridge.
 // It replaces the NDJSON stdin/stdout protocol with streaming RPCs.

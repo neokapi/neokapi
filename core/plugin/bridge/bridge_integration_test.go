@@ -58,9 +58,9 @@ func TestIntegrationListFilters(t *testing.T) {
 	lf, err := b.ListFilters()
 	require.NoError(t, err)
 
-	// okapi-bridge v1.5.0 discovers 56-57 filters per Okapi version.
-	assert.GreaterOrEqual(t, len(lf.Filters), 45,
-		"expected at least 45 filters, got %d", len(lf.Filters))
+	// The shaded JAR includes 9 filter JARs producing ~10 filter classes.
+	assert.GreaterOrEqual(t, len(lf.Filters), 8,
+		"expected at least 8 filters, got %d", len(lf.Filters))
 
 	// Spot-check a few well-known filters.
 	filterNames := make(map[string]bool)
