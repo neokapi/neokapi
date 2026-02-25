@@ -275,6 +275,59 @@ jobs:
         run: |
           cd kapi && GOWORK=off go list -m all | grep -iE 'sqlite|wails|echo|oidc|keyring' && exit 1 || true
 
+  # ── Bridge filter integration tests ──────────────────────────────────────
+  test-bridge-filters:
+    name: Test (bridge filters)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && needs.changes.outputs.framework == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache okapi-bridge JAR
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/gokapi/bridge/
+          key: okapi-bridge-${{ runner.os }}-${{ hashFiles('scripts/fetch-okapi-testdata.sh') }}
+
+      - name: Fetch okapi-bridge JAR
+        run: |
+          # The bridge JAR is installed via the plugin system. For CI, we
+          # download it from the latest okapi-bridge release.
+          BRIDGE_DIR="$HOME/.cache/gokapi/bridge"
+          JAR_PATH="$BRIDGE_DIR/okapi-bridge.jar"
+          if [ ! -f "$JAR_PATH" ]; then
+            mkdir -p "$BRIDGE_DIR"
+            gh release download --repo gokapi/okapi-bridge --pattern "okapi-bridge-*.jar" --dir "$BRIDGE_DIR" || true
+            # Rename to stable path
+            for f in "$BRIDGE_DIR"/okapi-bridge-*.jar; do
+              [ -f "$f" ] && mv "$f" "$JAR_PATH" && break
+            done
+          fi
+          if [ -f "$JAR_PATH" ]; then
+            echo "GOKAPI_BRIDGE_JAR=$JAR_PATH" >> "$GITHUB_ENV"
+          else
+            echo "::warning::okapi-bridge JAR not found — bridge filter tests will be skipped"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Fetch okapi test data
+        run: bash scripts/fetch-okapi-testdata.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Run bridge filter integration tests
+        run: go test -race -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+        timeout-minutes: 15
+
   # ── Playwright E2E ────────────────────────────────────────────────────────
   playwright:
     name: Playwright E2E

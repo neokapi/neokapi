@@ -20,6 +20,9 @@ vendor/
 gokapi-plugin-*
 *.exe
 
+# Okapi filter test data (fetched from GitHub release)
+okapi-testdata/
+
 # Frontend
 node_modules/
 dist/

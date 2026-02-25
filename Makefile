@@ -44,7 +44,7 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-server build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
+        test-bridge-filters test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
@@ -249,6 +249,9 @@ test-bowrain: ## Run bowrain tests only
 test-integration: ## Run integration tests
 	$(GOTEST) ./... -count=1 -tags=integration -run Integration
 	cd bowrain && $(GOTEST) ./... -count=1 -tags=integration -run Integration
+
+test-bridge-filters: ## Run bridge filter integration tests (requires Java + GOKAPI_BRIDGE_JAR)
+	$(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
 
 test-e2e: ## Run end-to-end tests against Docker stack
 	bash e2e/run.sh
