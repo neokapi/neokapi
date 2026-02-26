@@ -16,8 +16,8 @@ param tags object = {
   environment: environment
 }
 
-@description('Name of the existing DNS zone for samarb.ai')
-param dnsZoneName string = 'samarb.ai'
+@description('Name of the existing DNS zone for bowrain.cloud')
+param dnsZoneName string = 'bowrain.cloud'
 
 @description('Resource group containing the DNS zone')
 param dnsZoneResourceGroup string
@@ -183,8 +183,8 @@ module containerAppApi 'modules/containerapp-api.bicep' = {
     redisHost: redis.outputs.hostname
     serviceBusConnectionString: servicebus.outputs.connectionString
     keyVaultUri: keyvault.outputs.uri
-    keycloakIssuerUrl: 'https://auth.bowrain.samarb.ai/realms/bowrain'
-    customDomain: environment == 'prod' ? 'bowrain.samarb.ai' : 'bowrain-dev.samarb.ai'
+    keycloakIssuerUrl: environment == 'prod' ? 'https://auth.bowrain.cloud/realms/bowrain' : 'https://auth.dev.bowrain.cloud/realms/bowrain'
+    customDomain: environment == 'prod' ? 'bowrain.cloud' : 'dev.bowrain.cloud'
   }
 }
 
@@ -227,7 +227,7 @@ module containerAppKeycloak 'modules/containerapp-keycloak.bicep' = {
     postgresAdminLogin: postgresAdminLogin
     postgresAdminPassword: postgresAdminPassword
     keycloakAdminPassword: keycloakAdminPassword
-    customDomain: environment == 'prod' ? 'auth.bowrain.samarb.ai' : 'auth.bowrain-dev.samarb.ai'
+    customDomain: environment == 'prod' ? 'auth.bowrain.cloud' : 'auth.dev.bowrain.cloud'
   }
 }
 

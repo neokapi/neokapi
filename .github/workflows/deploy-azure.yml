@@ -29,23 +29,32 @@ env:
   AZURE_RESOURCE_GROUP_PROD: rg-bowrain-p-weu
 
 jobs:
-  build:
-    name: Build Images
-    uses: ./.github/workflows/build-images.yml
-    with:
-      environment: ${{ github.event.inputs.environment || 'dev' }}
-      image-tag: ${{ github.event_name == 'workflow_dispatch' && format('{0}-{1}', github.sha, github.event.inputs.environment) || github.sha }}
-    secrets: inherit
-
-  deploy:
-    name: Deploy Infrastructure & App
+  # Step 1: Deploy infrastructure via Bicep (creates ACR, databases, etc.)
+  deploy-infra:
+    name: Deploy Infrastructure
     runs-on: ubuntu-latest
-    needs: build
     environment: ${{ github.event.inputs.environment || 'dev' }}
+    outputs:
+      rg-name: ${{ steps.rg.outputs.name }}
+      env-abbr: ${{ steps.rg.outputs.env-abbr }}
+      image-tag: ${{ steps.tag.outputs.value }}
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=${GH_SHA}-${INPUT_ENV}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Azure Login
         uses: azure/login@v2
@@ -81,7 +90,7 @@ jobs:
           parameters-file: deploy/azure/parameters/${{ env.ENVIRONMENT }}.bicepparam
           parameters: >
             {
-              "imageTag": "${{ needs.build.outputs.image-tag }}",
+              "imageTag": "${{ steps.tag.outputs.value }}",
               "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
               "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
               "jwtSecret": "${{ secrets.JWT_SECRET }}",
@@ -89,35 +98,63 @@ jobs:
               "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}"
             }
 
+  # Step 2: Build and push container images (ACR now exists from Bicep)
+  build:
+    name: Build Images
+    needs: deploy-infra
+    uses: ./.github/workflows/build-images.yml
+    with:
+      environment: ${{ github.event.inputs.environment || 'dev' }}
+      image-tag: ${{ needs.deploy-infra.outputs.image-tag }}
+    secrets: inherit
+
+  # Step 3: Update container app revisions with new images
+  update-apps:
+    name: Update Container Apps
+    runs-on: ubuntu-latest
+    needs: [deploy-infra, build]
+    env:
+      AZURE_REGION: weu
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
       - name: Update API container revision
         env:
-          RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: ca-bowrain-api-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
-          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+          RG: ${{ needs.deploy-infra.outputs.rg-name }}
+          APP_NAME: ca-bowrain-api-${{ needs.deploy-infra.outputs.env-abbr }}-weu
+          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
+          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
         run: |
           az containerapp update \
             --name "$APP_NAME" \
             --resource-group "$RG" \
-            --image "$IMAGE_TAG"
+            --image "${ACR_LOGIN_SERVER}/bowrain-server:${IMAGE_TAG}"
 
       - name: Update Worker container revision
         env:
-          RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: ca-bowrain-worker-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
-          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+          RG: ${{ needs.deploy-infra.outputs.rg-name }}
+          APP_NAME: ca-bowrain-worker-${{ needs.deploy-infra.outputs.env-abbr }}-weu
+          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
+          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
         run: |
           az containerapp update \
             --name "$APP_NAME" \
             --resource-group "$RG" \
-            --image "$IMAGE_TAG"
+            --image "${ACR_LOGIN_SERVER}/bowrain-worker:${IMAGE_TAG}"
 
       - name: Update Keycloak container revision
         env:
-          RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: ca-bowrain-keycloak-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
-          IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
+          RG: ${{ needs.deploy-infra.outputs.rg-name }}
+          APP_NAME: ca-bowrain-keycloak-${{ needs.deploy-infra.outputs.env-abbr }}-weu
+          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
+          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
         run: |
           az containerapp update \
             --name "$APP_NAME" \
             --resource-group "$RG" \
-            --image "$IMAGE_TAG"
+            --image "${ACR_LOGIN_SERVER}/bowrain-keycloak:${IMAGE_TAG}"

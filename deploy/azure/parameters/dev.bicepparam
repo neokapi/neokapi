@@ -2,7 +2,7 @@ using '../main.bicep'
 
 param environment = 'dev'
 param location = 'northeurope'
-param dnsZoneResourceGroup = 'samarb-dns-rg'
+param dnsZoneResourceGroup = 'bowrain-dns-rg'
 param imageTag = 'latest'
 
 // Sensitive parameters must be provided via CLI or environment:

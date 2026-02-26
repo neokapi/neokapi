@@ -1,4 +1,4 @@
-// DNS records in existing samarb.ai zone for Bowrain custom domains.
+// DNS records in existing bowrain.cloud zone for Bowrain custom domains.
 
 param dnsZoneName string
 param dnsZoneResourceGroup string
@@ -6,8 +6,11 @@ param environment string
 param apiAppFqdn string
 param keycloakAppFqdn string
 
-var apiSubdomain = environment == 'prod' ? 'bowrain' : 'bowrain-dev'
-var authSubdomain = environment == 'prod' ? 'auth.bowrain' : 'auth.bowrain-dev'
+// Prod API uses the zone apex (bowrain.cloud); dev uses the 'dev' subdomain.
+// Note: The apex CNAME is only created for dev. For prod, configure an ALIAS
+// record or Azure Front Door — see docs/azure-deployment.md.
+var apiSubdomain = environment == 'prod' ? '@' : 'dev'
+var authSubdomain = environment == 'prod' ? 'auth' : 'auth.dev'
 
 // Reference the existing DNS zone in its resource group.
 resource dnsZone 'Microsoft.Network/dnsZones@2023-07-01-preview' existing = {
@@ -15,8 +18,10 @@ resource dnsZone 'Microsoft.Network/dnsZones@2023-07-01-preview' existing = {
   scope: resourceGroup(dnsZoneResourceGroup)
 }
 
-// CNAME: bowrain.samarb.ai → bowrain-api container app FQDN.
-module apiCname 'dns-record.bicep' = {
+// CNAME: dev.bowrain.cloud → API container app FQDN (dev only).
+// The prod apex domain (bowrain.cloud) cannot use a CNAME; it requires
+// an ALIAS record or Azure Front Door configured outside of Bicep.
+module apiCname 'dns-record.bicep' = if (environment != 'prod') {
   name: 'dns-api-cname'
   scope: resourceGroup(dnsZoneResourceGroup)
   params: {
@@ -26,7 +31,7 @@ module apiCname 'dns-record.bicep' = {
   }
 }
 
-// CNAME: auth.bowrain.samarb.ai → keycloak container app FQDN.
+// CNAME: auth[.dev].bowrain.cloud → keycloak container app FQDN.
 module authCname 'dns-record.bicep' = {
   name: 'dns-auth-cname'
   scope: resourceGroup(dnsZoneResourceGroup)
