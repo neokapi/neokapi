@@ -48,7 +48,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
-        docker-build docker-push certs \
+        docker-base docker-build docker-push certs \
         storybook storybook-dev storybook-build \
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
@@ -151,15 +151,17 @@ keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
-DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
-
-DOCKER_WORKER_IMAGE := ghcr.io/gokapi/bowrain-worker
-
+DOCKER_BASE_IMAGE    := bowrain-base
+DOCKER_IMAGE         := ghcr.io/gokapi/bowrain-server
+DOCKER_WORKER_IMAGE  := ghcr.io/gokapi/bowrain-worker
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
 
-docker-build: ## Build Docker images for server, worker, and keycloak
-	docker build -f docker/bowrain-server/Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
-	docker build -f docker/bowrain-worker/Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+docker-base: ## Build the shared base image (Go binaries + web UI)
+	docker build -f docker/bowrain-base/Dockerfile -t $(DOCKER_BASE_IMAGE):latest .
+
+docker-build: docker-base ## Build Docker images for server, worker, and keycloak
+	docker build -f docker/bowrain-server/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f docker/bowrain-worker/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest .
 
 docker-push: ## Push Docker images to GHCR

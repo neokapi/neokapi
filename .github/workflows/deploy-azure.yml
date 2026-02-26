@@ -84,29 +84,40 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Build the shared base image containing both compiled binaries.
+      # This is never pushed — it's only used as a build context for
+      # the server and worker images below.
+      - name: Build base image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-base/Dockerfile
+          load: true
+          tags: bowrain-base:latest
+          cache-from: type=gha,scope=bowrain-base
+          cache-to: type=gha,mode=max,scope=bowrain-base
+
       - name: Build and push server image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/bowrain-server/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
           push: true
           tags: |
             ${{ steps.acr.outputs.login-server }}/bowrain-server:${{ steps.meta.outputs.tag }}
             ${{ steps.acr.outputs.login-server }}/bowrain-server:latest
-          cache-from: type=gha,scope=bowrain-server
-          cache-to: type=gha,mode=max,scope=bowrain-server
 
       - name: Build and push worker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/bowrain-worker/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
           push: true
           tags: |
             ${{ steps.acr.outputs.login-server }}/bowrain-worker:${{ steps.meta.outputs.tag }}
             ${{ steps.acr.outputs.login-server }}/bowrain-worker:latest
-          cache-from: type=gha,scope=bowrain-worker
-          cache-to: type=gha,mode=max,scope=bowrain-worker
 
       - name: Build and push keycloak image
         uses: docker/build-push-action@v6
