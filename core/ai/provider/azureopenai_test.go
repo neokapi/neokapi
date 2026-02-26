@@ -36,7 +36,7 @@ func TestAzureOpenAIProviderChat(t *testing.T) {
 			Model:   "gpt-4o",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
@@ -61,7 +61,7 @@ func TestAzureOpenAIProviderTranslate(t *testing.T) {
 			Model:   "gpt-4o",
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 	defer srv.Close()
 
