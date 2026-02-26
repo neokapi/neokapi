@@ -5,7 +5,11 @@
  * the most common scenario in the translation editor.
  */
 
-import type { SpanInfo, BlockInfo, ProjectInfo } from "../types/api";
+import type {
+  SpanInfo, BlockInfo, ProjectInfo,
+  TMMatchInfo, BlockTermMatch, QAIssue, FileQAResult,
+  BlockNote, BlockHistoryEntry,
+} from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Spans (inline markup tags)
@@ -129,6 +133,163 @@ export const sampleBlocks: BlockInfo[] = [
     translatable: true,
     has_spans: true,
     properties: { "state": "draft" },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Project fixture
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// TM Match samples
+// ---------------------------------------------------------------------------
+
+export const sampleTMMatches: TMMatchInfo[] = [
+  {
+    source: "Welcome to Gokapi",
+    target: "Bienvenue sur Gokapi",
+    score: 1.0,
+    match_type: "exact",
+  },
+  {
+    source: "Welcome to the application",
+    target: "Bienvenue dans l'application",
+    score: 0.87,
+    match_type: "fuzzy",
+  },
+  {
+    source: "Welcome back",
+    target: "Bon retour",
+    score: 0.65,
+    match_type: "fuzzy",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Term match samples
+// ---------------------------------------------------------------------------
+
+export const sampleTermMatches: BlockTermMatch[] = [
+  {
+    source_term: "localization",
+    target_terms: ["localisation", "adaptation"],
+    domain: "i18n",
+    status: "preferred",
+    start: 0,
+    end: 12,
+  },
+  {
+    source_term: "translation memory",
+    target_terms: ["m\u00e9moire de traduction"],
+    domain: "i18n",
+    status: "approved",
+    start: 20,
+    end: 38,
+  },
+  {
+    source_term: "term",
+    target_terms: ["terme"],
+    domain: "linguistics",
+    status: "admitted",
+    start: 44,
+    end: 48,
+  },
+];
+
+export const deprecatedTermMatch: BlockTermMatch = {
+  source_term: "internationalization",
+  target_terms: [],
+  domain: "i18n",
+  status: "deprecated",
+  start: 0,
+  end: 20,
+};
+
+// ---------------------------------------------------------------------------
+// QA Issue samples
+// ---------------------------------------------------------------------------
+
+export const sampleQAIssues: QAIssue[] = [
+  { type: "missing-tag", severity: "error", message: 'Missing closing <b> tag in target' },
+  { type: "terminology", severity: "warning", message: '"localization" should be translated as "localisation"' },
+  { type: "whitespace", severity: "warning", message: "Leading whitespace in target differs from source" },
+];
+
+export const sampleFileQAResults: FileQAResult[] = [
+  {
+    blockId: "blk-2",
+    issues: [
+      { type: "missing-tag", severity: "error", message: 'Missing closing <b> tag in target' },
+      { type: "terminology", severity: "warning", message: '"localization" should be translated as "localisation"' },
+    ],
+  },
+  {
+    blockId: "blk-3",
+    issues: [
+      { type: "whitespace", severity: "warning", message: "Leading whitespace in target differs from source" },
+    ],
+  },
+  {
+    blockId: "blk-6",
+    issues: [
+      { type: "placeholder", severity: "error", message: "Missing placeholder {count} in target" },
+      { type: "punctuation", severity: "error", message: 'Target ends with "." but source does not' },
+    ],
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Block note samples
+// ---------------------------------------------------------------------------
+
+export const sampleBlockNotes: BlockNote[] = [
+  {
+    id: "note-1",
+    blockId: "blk-1",
+    author: "translator@example.com",
+    text: "This greeting is used on the landing page hero section.",
+    createdAt: "2026-02-20T10:30:00Z",
+  },
+  {
+    id: "note-2",
+    blockId: "blk-1",
+    author: "reviewer@example.com",
+    text: "Consider using a more formal tone for the German translation.",
+    createdAt: "2026-02-21T15:45:00Z",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Block history samples
+// ---------------------------------------------------------------------------
+
+export const sampleBlockHistory: BlockHistoryEntry[] = [
+  {
+    seq: 3,
+    change_type: "update",
+    text: "Bienvenue sur Gokapi",
+    coded_text: "Bienvenue sur Gokapi",
+    author: "translator@example.com",
+    origin: "human",
+    timestamp: "2026-02-22T14:20:00Z",
+  },
+  {
+    seq: 2,
+    change_type: "update",
+    text: "Bienvenue chez Gokapi",
+    coded_text: "Bienvenue chez Gokapi",
+    author: "ai-translate",
+    origin: "machine",
+    timestamp: "2026-02-21T09:00:00Z",
+  },
+  {
+    seq: 1,
+    change_type: "create",
+    text: "Bienvenue \u00e0 Gokapi",
+    coded_text: "Bienvenue \u00e0 Gokapi",
+    author: "pseudo-translate",
+    origin: "pseudo",
+    timestamp: "2026-02-20T08:00:00Z",
   },
 ];
 

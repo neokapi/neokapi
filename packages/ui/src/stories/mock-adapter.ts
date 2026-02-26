@@ -9,9 +9,14 @@
 import type { ApiAdapter } from "../api/adapter";
 import type {
   BlockInfo, TranslationStats, WordCountResult,
-  TMMatchInfo, BlockTermMatch,
+  TMMatchInfo, BlockTermMatch, BlockNote, BlockHistoryEntry,
+  QAIssue, FileQAResult,
 } from "../types/api";
-import { sampleBlocks, sampleProject } from "./fixtures";
+import {
+  sampleBlocks, sampleProject,
+  sampleBlockNotes, sampleBlockHistory,
+  sampleQAIssues, sampleFileQAResults,
+} from "./fixtures";
 
 export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
   // Mutable copy so updates are reflected in subsequent reads
@@ -126,6 +131,29 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     lookupTermsForBlock: async (): Promise<BlockTermMatch[]> => [
       { source_term: "localization", target_terms: ["localisation"], domain: "i18n", status: "preferred", start: 0, end: 12 },
     ],
+
+    // --- Block notes ----------------------------------------------------
+    addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({
+      id: `note-${Date.now()}`, blockId, author: "translator@example.com", text, createdAt: new Date().toISOString(),
+    }),
+    listBlockNotes: async (): Promise<BlockNote[]> => sampleBlockNotes,
+    deleteBlockNote: async () => {},
+
+    // --- Block history ---------------------------------------------------
+    getBlockHistory: async (): Promise<BlockHistoryEntry[]> => sampleBlockHistory,
+
+    // --- QA --------------------------------------------------------------
+    runQACheck: async (): Promise<QAIssue[]> => sampleQAIssues,
+    runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
+
+    // --- Preview ---------------------------------------------------------
+    renderDocumentPreview: async (): Promise<string> =>
+      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:24px;">
+        <h1><kat-block data-block-id="blk-1">Welcome to Gokapi</kat-block></h1>
+        <p><kat-block data-block-id="blk-2">Click <b>here</b> to continue</kat-block></p>
+        <p><kat-block data-block-id="blk-3">Visit our website for more info</kat-block></p>
+      </body></html>`,
+    renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> => "<span>rendered block</span>",
 
     // --- TM -------------------------------------------------------------
     getTMEntries: async () => ({ entries: [], total_count: 0 }),
