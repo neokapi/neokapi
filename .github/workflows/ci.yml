@@ -17,7 +17,6 @@ jobs:
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
-      deploy: ${{ github.event_name == 'push' || steps.filter.outputs.deploy }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain }}
     steps:
@@ -55,7 +54,6 @@ jobs:
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
-          check_paths deploy    '^deploy/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
@@ -251,27 +249,6 @@ jobs:
           version: latest
           working-directory: bowrain
           args: --timeout=5m ./...
-
-  # ── Bicep Lint ───────────────────────────────────────────────────────────
-  bicep-lint:
-    name: Bicep Lint
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.deploy == 'true'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Bicep CLI
-        run: az bicep install
-
-      - name: Lint Bicep files
-        run: |
-          fail=0
-          for f in deploy/azure/*.bicep deploy/azure/modules/*.bicep; do
-            echo "Linting $f..."
-            az bicep lint --file "$f" || fail=1
-          done
-          exit $fail
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
   gha-lint:

@@ -17,29 +17,25 @@ The deployment creates a full Bowrain stack on Azure Container Apps:
 | Secrets | Azure Key Vault | RBAC | RBAC |
 | Images | Azure Container Registry | managed identity | managed identity |
 
-Infrastructure is defined in Bicep (`deploy/azure/`) and deployed via GitHub Actions.
+Infrastructure is defined in Bicep in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo and deployed via GitHub Actions.
 
 ## Workflow structure
 
 The `deploy-azure.yml` workflow runs three jobs in sequence:
 
 ```
-deploy-core  →  build  →  deploy-apps
+lookup  →  build  →  deploy-apps
 ```
 
-1. **deploy-core** — deploys core infrastructure via Bicep (identity, networking, databases, caches, ACR, Key Vault) and exports outputs
-2. **build** — builds Docker images and pushes them to the ACR created in step 1
-3. **deploy-apps** — deploys Container Apps and DNS records via Bicep, using core outputs and the newly built image tag
+1. **lookup** — reads infrastructure values from GitHub environment variables (set by bowrain-infra's sync script) and computes the image tag
+2. **build** — builds Docker images and pushes them to ACR
+3. **deploy-apps** — checks out bowrain-infra repo, deploys Container Apps and DNS records via `apps.bicep`, using infra values from environment variables and the newly built image tag
 
-This two-layer split ensures:
-- The ACR exists before images are pushed
-- Images exist before Container Apps reference them (no chicken-and-egg on first deploy)
-- Core infrastructure changes are isolated from app rollouts
-- Faster deploys when only app config changes
+Core infrastructure (identity, networking, databases, caches, ACR, Key Vault) is managed entirely in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo. After deploying core infrastructure, bowrain-infra runs `sync-vars.sh` to push outputs to this repo's GitHub environment variables.
 
 ### Triggers
 
-- **Push to `main`** on paths `bowrain/`, `core/`, `platform/`, `deploy/`, `docker/` → deploys to `dev`
+- **Push to `main`** on paths `bowrain/`, `core/`, `platform/`, `docker/` → deploys to `dev`
 - **Manual dispatch** (`workflow_dispatch`) → choose `dev` or `prod`
 
 ## Pre-deployment setup
@@ -148,6 +144,7 @@ Go to **Settings → Secrets and variables → Actions** and create these reposi
 | `JWT_SECRET` | Generated base64 JWT secret |
 | `OIDC_CLIENT_SECRET` | Generated base64 OIDC secret |
 | `KEYCLOAK_ADMIN_PASSWORD` | Generated Keycloak password |
+| `GH_PAT` | GitHub PAT with permission to read bowrain-infra repo |
 
 ### 7. GitHub environments
 
@@ -158,11 +155,11 @@ Go to **Settings → Environments** and create:
 
 ## First deployment
 
-With the two-layer split, the first deployment works cleanly:
+With the two-repo split, the first deployment works cleanly:
 
-1. **`deploy-core`** creates all infrastructure including ACR — no Container App references yet, so nothing can fail due to missing images.
-2. **`build`** pushes images to the now-existing ACR.
-3. **`deploy-apps`** creates Container Apps with the correct image tags — images already exist in ACR.
+1. Deploy core infrastructure from bowrain-infra repo (creates ACR, databases, etc.)
+2. Run `sync-vars.sh` from bowrain-infra to push outputs to this repo's GitHub environment
+3. Trigger the deploy workflow here — **`lookup`** reads infra values, **`build`** pushes images, **`deploy-apps`** creates Container Apps
 
 No bootstrapping workaround is needed. All three jobs succeed on first deploy.
 
@@ -185,16 +182,16 @@ az containerapp logs show \
 
 ## Environment configuration
 
-Bicep parameters are split into core and apps files in `deploy/azure/parameters/`:
+Bicep parameters live in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo under `environments/{dev,prod}/`:
 
 | File | Layer | Environment | Notes |
 |---|---|---|---|
-| `core-dev.bicepparam` | Core | dev | Identity, networking, databases, caches, ACR |
-| `core-prod.bicepparam` | Core | prod | Identity, networking, databases, caches, ACR |
-| `apps-dev.bicepparam` | Apps | dev | Container Apps, DNS |
-| `apps-prod.bicepparam` | Apps | prod | Container Apps, DNS |
+| `environments/dev/core.bicepparam` | Core | dev | Identity, networking, databases, caches, ACR |
+| `environments/prod/core.bicepparam` | Core | prod | Identity, networking, databases, caches, ACR |
+| `environments/dev/apps.bicepparam` | Apps | dev | Container Apps, DNS |
+| `environments/prod/apps.bicepparam` | Apps | prod | Container Apps, DNS |
 
-Sensitive parameters (database credentials, JWT secret, etc.) are passed via GitHub secrets at deploy time and never stored in parameter files. Core infrastructure outputs (managed identity ID, ACR login server, etc.) are passed from the `deploy-core` job to the `deploy-apps` job automatically.
+Sensitive parameters (database credentials, JWT secret, etc.) are passed via GitHub secrets at deploy time and never stored in parameter files. Core infrastructure outputs (managed identity ID, ACR login server, etc.) are synced to this repo's GitHub environment variables by bowrain-infra's `sync-vars.sh` script.
 
 ## Custom domains
 
@@ -207,7 +204,7 @@ TLS certificates are automatically provisioned and managed by Azure Container Ap
 
 ## Infrastructure modules
 
-All Bicep modules are under `deploy/azure/modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
+All Bicep modules live in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo under `modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
 
 | Module | Layer | Resources |
 |---|---|---|
@@ -227,8 +224,7 @@ All Bicep modules are under `deploy/azure/modules/`. The two orchestrator files 
 ## Linting
 
 ```bash
-make bicep-lint   # Lint all Bicep files (requires az CLI)
 make gha-lint     # Lint GitHub Actions workflows (requires actionlint)
 ```
 
-Both linters also run in CI on relevant path changes.
+Bicep linting is handled in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo (`make lint`).
