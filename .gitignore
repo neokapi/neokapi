@@ -49,6 +49,9 @@ bowrain-dev.db*
 bowrain-e2e.db*
 bowrain-ci.db*
 
+# Storybook
+storybook-static/
+
 # Playwright
 test-results/
 playwright-report/

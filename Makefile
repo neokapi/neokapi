@@ -113,6 +113,12 @@ ui-deps: ## Install shared UI package dependencies
 ui-build: ui-deps ## Build shared UI declarations
 	cd packages/ui && npx tsc
 
+storybook: ui-deps ## Launch Storybook dev server (port 6006)
+	cd packages/ui && $(NPM) run storybook
+
+storybook-build: ui-deps ## Build Storybook static site → packages/ui/storybook-static/
+	cd packages/ui && $(NPM) run storybook:build
+
 # ── Kapi Web UI (kapi serve) ───────────────────────────────────────────────
 
 kapi-web-deps: ## Install kapi web UI dependencies
@@ -339,6 +345,7 @@ tools: ## Install development tools
 clean: ## Remove build artifacts
 	rm -rf $(BIN_DIR)
 	rm -rf $(COVER_DIR)
+	rm -rf packages/ui/storybook-static
 	rm -rf packages/ui/node_modules
 	rm -rf $(FRONTEND_DIR)/dist
 	rm -rf $(FRONTEND_DIR)/node_modules

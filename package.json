@@ -5,5 +5,8 @@
     "bowrain/apps/web",
     "bowrain/apps/kapi-web",
     "bowrain/apps/bowrain/frontend"
-  ]
+  ],
+  "devDependencies": {
+    "storybook": "^8.6.14"
+  }
 }
