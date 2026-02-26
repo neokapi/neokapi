@@ -91,6 +91,11 @@ const config: Config = {
           label: 'For Developers',
         },
         {
+          href: '/storybook/',
+          label: 'Storybook',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/gokapi/gokapi',
           label: 'GitHub',
           position: 'right',
