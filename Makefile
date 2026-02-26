@@ -155,15 +155,20 @@ DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
 
 DOCKER_WORKER_IMAGE := ghcr.io/gokapi/bowrain-worker
 
-docker-build: ## Build Docker images for server and worker
-	docker build -f bowrain/docker/bowrain-server.Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
-	docker build -f bowrain/docker/bowrain-worker.Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
+
+docker-build: ## Build Docker images for server, worker, and keycloak
+	docker build -f docker/bowrain-server/Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f docker/bowrain-worker/Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest .
 
 docker-push: ## Push Docker images to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
 	docker push $(DOCKER_WORKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_WORKER_IMAGE):latest
+	docker push $(DOCKER_KEYCLOAK_IMAGE):$(VERSION)
+	docker push $(DOCKER_KEYCLOAK_IMAGE):latest
 
 dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
 	@printf '\033]0;🍦 Dev Dependencies\007'

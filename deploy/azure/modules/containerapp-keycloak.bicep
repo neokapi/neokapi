@@ -5,6 +5,8 @@ param location string
 param tags object
 param containerAppEnvId string
 param managedIdentityId string
+param acrLoginServer string
+param imageTag string
 param environment string
 param postgresHost string
 param postgresDbName string
@@ -36,6 +38,12 @@ resource keycloakApp 'Microsoft.App/containerApps@2024-03-01' = {
     managedEnvironmentId: containerAppEnvId
     configuration: {
       activeRevisionsMode: 'Single'
+      registries: [
+        {
+          server: acrLoginServer
+          identity: managedIdentityId
+        }
+      ]
       ingress: {
         external: true
         targetPort: 8080
@@ -63,7 +71,7 @@ resource keycloakApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'keycloak'
-          image: 'quay.io/keycloak/keycloak:26.1'
+          image: '${acrLoginServer}/bowrain-keycloak:${imageTag}'
           command: ['start']
           resources: {
             cpu: json('0.5')

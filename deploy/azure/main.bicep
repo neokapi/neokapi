@@ -219,6 +219,8 @@ module containerAppKeycloak 'modules/containerapp-keycloak.bicep' = {
     tags: tags
     containerAppEnvId: containerAppEnv.outputs.id
     managedIdentityId: identity.outputs.id
+    acrLoginServer: acr.outputs.loginServer
+    imageTag: imageTag
     environment: environment
     postgresHost: postgres.outputs.fqdn
     postgresDbName: 'keycloak'
