@@ -89,7 +89,6 @@ jobs:
         run: |
           IMAGE="${ACR_LOGIN_SERVER}/bowrain-server:${IMAGE_TAG}"
           docker build \
-            --target server \
             --build-arg VERSION="${IMAGE_TAG}" \
             --build-arg COMMIT="${GH_SHA}" \
             -t "$IMAGE" \
@@ -106,12 +105,11 @@ jobs:
         run: |
           IMAGE="${ACR_LOGIN_SERVER}/bowrain-worker:${IMAGE_TAG}"
           docker build \
-            --target worker \
             --build-arg VERSION="${IMAGE_TAG}" \
             --build-arg COMMIT="${GH_SHA}" \
             -t "$IMAGE" \
             -t "${ACR_LOGIN_SERVER}/bowrain-worker:latest" \
-            -f Dockerfile .
+            -f Dockerfile.worker .
           docker push "$IMAGE"
           docker push "${ACR_LOGIN_SERVER}/bowrain-worker:latest"
 

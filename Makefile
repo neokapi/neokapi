@@ -153,12 +153,17 @@ keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 
 DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
 
-docker-build: ## Build Docker image for bowrain-server
-	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+DOCKER_WORKER_IMAGE := ghcr.io/gokapi/bowrain-worker
 
-docker-push: ## Push Docker image to GHCR
+docker-build: ## Build Docker images for server and worker
+	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f Dockerfile.worker -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+
+docker-push: ## Push Docker images to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
+	docker push $(DOCKER_WORKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_WORKER_IMAGE):latest
 
 dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
 	@printf '\033]0;🍦 Dev Dependencies\007'
