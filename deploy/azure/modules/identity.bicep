@@ -4,7 +4,7 @@ param prefix string
 param location string
 param tags object
 
-resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+resource managedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
   name: '${prefix}-id'
   location: location
   tags: tags

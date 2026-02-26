@@ -333,6 +333,20 @@ else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
 
+bicep-lint: ## Lint Bicep files
+	@command -v az >/dev/null 2>&1 || { echo "az CLI not installed."; exit 1; }
+	@az bicep version >/dev/null 2>&1 || { echo "Bicep CLI not available. Run 'az bicep install'."; exit 1; }
+	@echo "Linting Bicep files..."
+	@fail=0; \
+	for f in deploy/azure/*.bicep deploy/azure/modules/*.bicep; do \
+		az bicep lint --file "$$f" --diagnostics-format sarif 2>&1 || fail=1; \
+	done; \
+	exit $$fail
+
+gha-lint: ## Lint GitHub Actions workflow files
+	@command -v actionlint >/dev/null 2>&1 || { echo "actionlint not installed. Run 'brew install actionlint' or 'go install github.com/rhysd/actionlint/cmd/actionlint@latest'."; exit 1; }
+	actionlint
+
 check: fmt vet lint ## Run all code quality checks
 
 # ── Protobuf ─────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ param prefix string
 param location string
 param tags object
 
-resource vnet 'Microsoft.Network/virtualNetworks@2023-11-01' = {
+resource vnet 'Microsoft.Network/virtualNetworks@2025-05-01' = {
   name: '${prefix}-vnet'
   location: location
   tags: tags

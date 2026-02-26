@@ -10,7 +10,7 @@ param environment string
 var skuName = environment == 'prod' ? 'Standard' : 'Basic'
 var capacity = environment == 'prod' ? 1 : 0
 
-resource redisCache 'Microsoft.Cache/redis@2024-03-01' = {
+resource redisCache 'Microsoft.Cache/redis@2024-11-01' = {
   name: '${prefix}-redis'
   location: location
   tags: tags
@@ -26,7 +26,7 @@ resource redisCache 'Microsoft.Cache/redis@2024-03-01' = {
   }
 }
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
   name: '${prefix}-redis-pe'
   location: location
   tags: tags
@@ -46,7 +46,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2023-11-01' = {
   }
 }
 
-resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2023-11-01' = {
+resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
   parent: privateEndpoint
   name: 'default'
   properties: {

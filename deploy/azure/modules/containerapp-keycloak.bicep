@@ -24,7 +24,7 @@ param keycloakAdminPassword string
 var minReplicas = environment == 'prod' ? 2 : 1
 var maxReplicas = environment == 'prod' ? 2 : 1
 
-resource keycloakApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource keycloakApp 'Microsoft.App/containerApps@2025-07-01' = {
   name: '${prefix}-keycloak'
   location: location
   tags: tags

@@ -17,6 +17,8 @@ jobs:
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
+      deploy: ${{ github.event_name == 'push' || steps.filter.outputs.deploy }}
+      workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +55,8 @@ jobs:
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
+          check_paths deploy    '^deploy/'
+          check_paths workflows '^\.github/workflows/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
   frontend:
@@ -144,7 +148,10 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run bowrain tests
-        run: cd bowrain && go test -race -coverprofile=bowrain.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
+        run: |
+          cd bowrain
+          # shellcheck disable=SC2046
+          go test -race -coverprofile=bowrain.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -244,6 +251,42 @@ jobs:
           version: latest
           working-directory: bowrain
           args: --timeout=5m ./...
+
+  # ── Bicep Lint ───────────────────────────────────────────────────────────
+  bicep-lint:
+    name: Bicep Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bicep CLI
+        run: az bicep install
+
+      - name: Lint Bicep files
+        run: |
+          fail=0
+          for f in deploy/azure/*.bicep deploy/azure/modules/*.bicep; do
+            echo "Linting $f..."
+            az bicep lint --file "$f" || fail=1
+          done
+          exit $fail
+
+  # ── GitHub Actions Lint ──────────────────────────────────────────────────
+  gha-lint:
+    name: Actions Lint
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.workflows == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      - name: Lint workflow files
+        run: ./actionlint
 
   # ── Build (runs in parallel with test/lint) ───────────────────────────────
   build:

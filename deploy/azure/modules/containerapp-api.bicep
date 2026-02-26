@@ -19,7 +19,7 @@ param customDomain string
 var minReplicas = environment == 'prod' ? 2 : 1
 var maxReplicas = environment == 'prod' ? 10 : 3
 
-resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
+resource apiApp 'Microsoft.App/containerApps@2025-07-01' = {
   name: '${prefix}-api'
   location: location
   tags: tags
