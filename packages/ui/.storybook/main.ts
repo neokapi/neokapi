@@ -26,6 +26,10 @@ const config: StorybookConfig = {
   viteFinal(config) {
     config.plugins = config.plugins || [];
     config.plugins.push(tailwindcss());
+    // When building for GitHub Pages, serve from /storybook/ subpath.
+    if (process.env.STORYBOOK_BASE_PATH) {
+      config.base = process.env.STORYBOOK_BASE_PATH;
+    }
     return config;
   },
 };
