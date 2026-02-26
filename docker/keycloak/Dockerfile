@@ -23,7 +23,11 @@ COPY --from=theme-builder /src/bowrain/apps/keycloak-theme/dist_keycloak/keycloa
 # Seed realm configuration for initial import.
 COPY docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
 
+# Entrypoint wrapper that substitutes OIDC_CLIENT_SECRET in realm.json before starting Keycloak.
+COPY docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
+RUN chmod +x /opt/keycloak/docker-entrypoint.sh
+
 ENV KC_HEALTH_ENABLED=true
 
-ENTRYPOINT ["/opt/keycloak/bin/kc.sh"]
-CMD ["start"]
+ENTRYPOINT ["/opt/keycloak/docker-entrypoint.sh"]
+CMD ["start", "--import-realm"]
