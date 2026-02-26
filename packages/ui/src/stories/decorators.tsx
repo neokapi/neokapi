@@ -8,7 +8,7 @@ import type { Decorator } from "@storybook/react";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
-import type { Workspace } from "../types/api";
+import type { BlockInfo, Workspace } from "../types/api";
 import { createMockAdapter } from "./mock-adapter";
 
 const mockWorkspace: Workspace = {
@@ -22,15 +22,23 @@ const mockWorkspace: Workspace = {
 };
 
 /**
- * Wraps a story with ApiProvider + WorkspaceProvider + BreadcrumbProvider
- * using an in-memory mock adapter.
+ * Creates a decorator that wraps stories with ApiProvider + WorkspaceProvider
+ * + BreadcrumbProvider. Pass custom blocks to seed the mock adapter.
  */
-export const withProviders: Decorator = (Story) => (
-  <ApiProvider adapter={createMockAdapter()}>
-    <WorkspaceProvider initialWorkspace={mockWorkspace}>
-      <BreadcrumbProvider>
-        <Story />
-      </BreadcrumbProvider>
-    </WorkspaceProvider>
-  </ApiProvider>
-);
+export function createProvidersDecorator(blocks?: BlockInfo[]): Decorator {
+  const adapter = createMockAdapter(blocks);
+  return (Story) => (
+    <ApiProvider adapter={adapter}>
+      <WorkspaceProvider initialWorkspace={mockWorkspace}>
+        <BreadcrumbProvider>
+          <Story />
+        </BreadcrumbProvider>
+      </WorkspaceProvider>
+    </ApiProvider>
+  );
+}
+
+/**
+ * Default providers decorator using sampleBlocks.
+ */
+export const withProviders: Decorator = createProvidersDecorator();

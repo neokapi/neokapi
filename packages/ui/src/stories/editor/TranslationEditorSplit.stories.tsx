@@ -4,8 +4,8 @@
  * This demonstrates the renderPreview prop that the desktop app (Bowrain)
  * uses to embed a live document preview alongside the translation grid.
  */
-import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import { TranslationEditor } from "../../components/TranslationEditor";
 import type { BlockInfo } from "../../types/api";
 import { sampleProject } from "../fixtures";

@@ -336,7 +336,13 @@ export function VisualEditorLayout({
       </div>
 
       {/* ── Preview + inline card container ───────────────────────── */}
-      <div className="relative" style={{ marginRight: showTermSidebar ? 260 : 0 }}>
+      <div
+        className="relative"
+        style={{
+          marginRight: showTermSidebar ? 260 : 0,
+          minHeight: cardHeight > 0 ? spacerY + cardHeight + 96 : undefined,
+        }}
+      >
         <DocumentPreview
           projectId={project.id}
           itemName={fileName}

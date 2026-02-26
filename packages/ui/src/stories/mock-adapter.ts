@@ -18,6 +18,114 @@ import {
   sampleQAIssues, sampleFileQAResults,
 } from "./fixtures";
 
+// ---------------------------------------------------------------------------
+// Preview HTML generation — turns a blocks array into a fully interactive
+// iframe document with the kat-block postMessage protocol.
+// ---------------------------------------------------------------------------
+
+/** Convert a block's coded text back to display HTML using span data. */
+function sourceToDisplayHTML(b: BlockInfo): string {
+  const spans = b.source_spans ?? [];
+  if (!b.has_spans || !b.source_coded || spans.length === 0) {
+    return b.source.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  let result = "";
+  let spanIdx = 0;
+  for (const ch of b.source_coded) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
+      const span = spans[spanIdx++];
+      if (span) result += span.data;
+    } else if (ch === "&") {
+      result += "&amp;";
+    } else if (ch === "<") {
+      result += "&lt;";
+    } else if (ch === ">") {
+      result += "&gt;";
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
+
+function generatePreviewHTML(blocks: BlockInfo[]): string {
+  let isFirstHeading = true;
+  const bodyLines = blocks.map((b) => {
+    const displayHTML = sourceToDisplayHTML(b);
+    const inner = `<kat-block data-block-id="${b.id}">${displayHTML}</kat-block>`;
+    const isShort = b.source.length < 45 && !b.has_spans;
+    if (isShort) {
+      if (isFirstHeading) { isFirstHeading = false; return `  <h1>${inner}</h1>`; }
+      return `  <h2>${inner}</h2>`;
+    }
+    return `  <p>${inner}</p>`;
+  });
+
+  // The script handles the kat-block postMessage protocol:
+  // - kat-iframe-ready: signals the iframe is ready
+  // - kat-select-block: highlights the selected block
+  // - kat-insert-spacer: inserts a gap after the block for the editor card
+  // - kat-remove-spacer: removes the spacer
+  // - kat-update-block: updates block content (target preview)
+  // - kat-content-height / kat-spacer-position: reports dimensions
+  // - kat-block-click: notifies parent of block clicks
+  const script = `<script>
+(function(){
+var spacer=null;
+function rh(){parent.postMessage({type:"kat-content-height",height:document.documentElement.scrollHeight},"*")}
+function sel(id){document.querySelectorAll("kat-block").forEach(function(el){el.classList.toggle("kat-selected",el.dataset.blockId===id)})}
+function ins(bid,h){
+  rem();
+  var b=document.querySelector('kat-block[data-block-id="'+bid+'"]');
+  if(!b)return;
+  var w=b.closest("h1,h2,h3,p,div,li,td,th")||b.parentElement;
+  spacer=document.createElement("div");spacer.className="kat-spacer";spacer.style.height=h+"px";
+  w.parentNode.insertBefore(spacer,w.nextSibling);
+  var r=spacer.getBoundingClientRect();
+  parent.postMessage({type:"kat-spacer-position",y:r.top+window.scrollY,contentHeight:document.documentElement.scrollHeight},"*");
+}
+function rem(){if(spacer&&spacer.parentNode){spacer.parentNode.removeChild(spacer);spacer=null}rh()}
+document.addEventListener("click",function(e){var b=e.target.closest?e.target.closest("kat-block"):null;if(b)parent.postMessage({type:"kat-block-click",blockId:b.dataset.blockId},"*")});
+window.addEventListener("message",function(e){
+  var d=e.data;if(!d||!d.type)return;
+  if(d.type==="kat-select-block")sel(d.blockId);
+  if(d.type==="kat-insert-spacer")ins(d.blockId,d.height);
+  if(d.type==="kat-remove-spacer")rem();
+  if(d.type==="kat-update-block"){
+    var el=document.querySelector('kat-block[data-block-id="'+d.blockId+'"]');
+    if(el){el.textContent=d.html;rh()}
+  }
+});
+parent.postMessage({type:"kat-iframe-ready"},"*");setTimeout(rh,0);
+})();
+<\/script>`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<style>
+*{box-sizing:border-box}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:40px 56px 80px;line-height:1.7;color:#1e293b;background:#fff}
+kat-block{display:inline;cursor:pointer;border-radius:3px;transition:background .15s ease,outline-color .15s ease;outline:2px solid transparent;outline-offset:2px}
+kat-block:hover{background:rgba(99,102,241,.06)}
+kat-block.kat-selected{background:rgba(99,102,241,.1);outline-color:rgba(99,102,241,.4)}
+.kat-spacer{display:block;transition:height .25s ease}
+h1{font-size:32px;font-weight:700;margin:0 0 12px;line-height:1.3}
+h2{font-size:22px;font-weight:600;margin:32px 0 8px;line-height:1.3;color:#334155}
+p{margin:0 0 16px;font-size:16px}
+code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:14px;font-family:ui-monospace,monospace}
+b{font-weight:600}
+a{color:#6366f1;text-decoration:underline}
+</style>
+</head>
+<body>
+${bodyLines.join("\n")}
+${script}
+</body>
+</html>`;
+}
+
 export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
   // Mutable copy so updates are reflected in subsequent reads
   const _blocks: BlockInfo[] = blocks
@@ -147,12 +255,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     runFileQACheck: async (): Promise<FileQAResult[]> => sampleFileQAResults,
 
     // --- Preview ---------------------------------------------------------
-    renderDocumentPreview: async (): Promise<string> =>
-      `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:24px;">
-        <h1><kat-block data-block-id="blk-1">Welcome to Gokapi</kat-block></h1>
-        <p><kat-block data-block-id="blk-2">Click <b>here</b> to continue</kat-block></p>
-        <p><kat-block data-block-id="blk-3">Visit our website for more info</kat-block></p>
-      </body></html>`,
+    renderDocumentPreview: async (): Promise<string> => generatePreviewHTML(_blocks),
     renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> => "<span>rendered block</span>",
 
     // --- TM -------------------------------------------------------------

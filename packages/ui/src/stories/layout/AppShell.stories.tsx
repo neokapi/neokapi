@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { AppShell } from "../../components/AppShell";
 import { ThemeProvider } from "../../context/ThemeContext";
 import { ApiProvider } from "../../context/ApiContext";

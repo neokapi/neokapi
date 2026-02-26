@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TagValidationBar } from "../../components/editor/TagValidationBar";
 import type { TagValidationResult } from "../../components/editor/tagSemantics";
 

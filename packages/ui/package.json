@@ -20,11 +20,10 @@
   },
   "devDependencies": {
     "@lexical/react": "^0.39.0",
-    "@storybook/addon-essentials": "^8.6.14",
-    "@storybook/addon-themes": "^8.6.14",
+    "@storybook/addon-themes": "^10.2.13",
     "@storybook/blocks": "^8.6.14",
-    "@storybook/react": "^8.6.14",
-    "@storybook/react-vite": "^8.6.14",
+    "@storybook/react": "^10.2.13",
+    "@storybook/react-vite": "^10.2.13",
     "@storybook/test": "^8.6.14",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -35,9 +34,10 @@
     "lexical": "^0.39.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "storybook": "^8.6.14",
+    "storybook": "^10.2.13",
     "typescript": "^5.8.0",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "@storybook/addon-docs": "^10.2.13"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

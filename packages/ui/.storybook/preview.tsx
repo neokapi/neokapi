@@ -1,4 +1,4 @@
-import type { Preview, ReactRenderer } from "@storybook/react";
+import type { Preview, ReactRenderer } from "@storybook/react-vite";
 import { withThemeByClassName } from "@storybook/addon-themes";
 import React, { useEffect } from "react";
 import "../src/styles/globals.css";
@@ -41,7 +41,7 @@ const preview: Preview = {
       },
     },
     layout: "centered",
-    backgrounds: { disable: true },
+    backgrounds: { disabled: true },
   },
   decorators: [
     ThemeSyncDecorator,

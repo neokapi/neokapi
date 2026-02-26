@@ -1,5 +1,5 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import { DocumentPreview } from "../../components/editor/DocumentPreview";
 import { sampleBlocks } from "../fixtures";
 import { withProviders } from "../decorators";

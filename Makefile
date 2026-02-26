@@ -48,6 +48,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
         docker-build docker-push certs \
+        storybook storybook-dev storybook-build \
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
 
@@ -114,7 +115,10 @@ ui-build: ui-deps ## Build shared UI declarations
 	cd packages/ui && npx tsc
 
 storybook: ui-deps ## Launch Storybook dev server (port 6006)
+	@printf '\033]0;🍦 Storybook\007'
 	cd packages/ui && $(NPM) run storybook
+
+storybook-dev: storybook ## Alias for storybook
 
 storybook-build: ui-deps ## Build Storybook static site → packages/ui/storybook-static/
 	cd packages/ui && $(NPM) run storybook:build

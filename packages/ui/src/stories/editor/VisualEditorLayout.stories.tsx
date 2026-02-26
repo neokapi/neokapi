@@ -1,13 +1,17 @@
-import type { Meta, StoryObj } from "@storybook/react";
-import { fn } from "@storybook/test";
+import { useState, useCallback } from "react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
+import { fn } from "storybook/test";
 import { VisualEditorLayout } from "../../components/editor/VisualEditorLayout";
+import type { VisualEditorMode, PreviewContentMode } from "../../components/editor/visual-editor-types";
+import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks, sampleProject,
   sampleTMMatches, sampleTermMatches,
   sampleQAIssues, sampleFileQAResults,
   sampleBlockNotes, sampleBlockHistory,
+  navigationBlocks,
 } from "../fixtures";
-import { withProviders } from "../decorators";
+import { withProviders, createProvidersDecorator } from "../decorators";
 
 const meta: Meta<typeof VisualEditorLayout> = {
   title: "Editor/VisualEditorLayout",
@@ -139,4 +143,81 @@ export const FullFeatured: Story = {
       </div>
     ),
   },
+};
+
+// ---------------------------------------------------------------------------
+// Navigation — interactive story for testing keyboard navigation
+// ---------------------------------------------------------------------------
+
+function NavigationDemo() {
+  const blocks = navigationBlocks;
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
+  const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
+
+  const handleNavigate = useCallback((idx: number) => {
+    setSelectedIndex(idx);
+    setEditingIndex(null);
+  }, []);
+
+  const handleStartEditing = useCallback(() => {
+    setEditingIndex(selectedIndex);
+  }, [selectedIndex]);
+
+  const handleSave = useCallback((_codedText: string, _spans: SpanInfo[]) => {
+    setEditingIndex(null);
+    setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
+  }, [blocks.length]);
+
+  const handleCancelEditing = useCallback(() => {
+    setEditingIndex(null);
+  }, []);
+
+  return (
+    <VisualEditorLayout
+      project={sampleProject}
+      fileName="getting-started.md"
+      blocks={blocks}
+      selectedIndex={selectedIndex}
+      editingIndex={editingIndex}
+      targetLocale="fr-FR"
+      editorMode={editorMode}
+      onEditorModeChange={setEditorMode}
+      previewContentMode={previewContentMode}
+      onPreviewContentModeChange={setPreviewContentMode}
+      onNavigate={handleNavigate}
+      onStartEditing={handleStartEditing}
+      onSave={handleSave}
+      onCancelEditing={handleCancelEditing}
+      onApprove={() => setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1))}
+      onReject={() => {}}
+      tmMatches={[]}
+      termMatches={[]}
+      onApplyTM={() => {}}
+      onInsertTerm={() => {}}
+    />
+  );
+}
+
+/**
+ * Interactive navigation story — use keyboard shortcuts to move between blocks:
+ * - **j / ArrowDown** — next block
+ * - **k / ArrowUp** — previous block
+ * - **Enter** — start editing
+ * - **Escape** — cancel editing
+ * - **n / N** — next / previous untranslated block
+ *
+ * Click blocks in the preview to jump directly.
+ */
+export const Navigation: Story = {
+  decorators: [
+    createProvidersDecorator(navigationBlocks),
+    (Story) => (
+      <div style={{ width: "100vw", height: "100vh", overflow: "auto" }}>
+        <Story />
+      </div>
+    ),
+  ],
+  render: () => <NavigationDemo />,
 };

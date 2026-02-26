@@ -7,6 +7,6 @@
     "bowrain/apps/bowrain/frontend"
   ],
   "devDependencies": {
-    "storybook": "^8.6.14"
+    "storybook": "^10.2.13"
   }
 }

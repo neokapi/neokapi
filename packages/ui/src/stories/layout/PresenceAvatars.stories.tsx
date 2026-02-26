@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PresenceAvatars } from "../../components/PresenceAvatars";
 import type { CollabUser } from "../../hooks/useCollaboration";
 
