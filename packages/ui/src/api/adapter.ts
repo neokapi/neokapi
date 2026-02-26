@@ -5,8 +5,9 @@ import type {
   ProviderConfig, ProviderConfigWithKey,
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
-  BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  QAIssue, FileQAResult,
 } from "../types/api";
 
 /**
@@ -66,6 +67,22 @@ export interface ApiAdapter {
   exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<Blob>;
   lookupTMForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<TMMatchInfo[]>;
   lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]>;
+
+  // Block notes
+  addBlockNote(workspaceSlug: string, projectId: string, blockId: string, text: string): Promise<BlockNote>;
+  listBlockNotes(workspaceSlug: string, projectId: string, blockId: string): Promise<BlockNote[]>;
+  deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void>;
+
+  // Block history
+  getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]>;
+
+  // QA
+  runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string): Promise<QAIssue[]>;
+  runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string): Promise<FileQAResult[]>;
+
+  // Preview
+  renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<string>;
+  renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string): Promise<string>;
 
   // Translation Memory
   getTMEntries(workspaceSlug: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number): Promise<TMSearchResult>;

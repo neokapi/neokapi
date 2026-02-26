@@ -36,6 +36,14 @@ type ContentStore interface {
 	ListVersions(ctx context.Context, projectID string) ([]*Version, error)
 	Diff(ctx context.Context, fromVersion, toVersion string) (*VersionDiff, error)
 
+	// Block notes
+	AddBlockNote(ctx context.Context, projectID, blockID string, note model.BlockNote) error
+	ListBlockNotes(ctx context.Context, projectID, blockID string) ([]model.BlockNote, error)
+	DeleteBlockNote(ctx context.Context, projectID, noteID string) error
+
+	// Block history
+	GetBlockHistory(ctx context.Context, projectID, blockID string, locale string, limit int) ([]BlockHistoryEntry, error)
+
 	// Change log (incremental sync)
 	GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*ChangeSet, error)
 	LatestCursor(ctx context.Context, projectID string) (int64, error)

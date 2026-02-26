@@ -287,6 +287,18 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/editor/projects/:pid/files/:fname/wordcount", s.HandleGetWordCount)
 	g.POST("/editor/projects/:pid/files/:fname/export", s.HandleExportTranslatedFile)
 
+	// QA checks
+	g.POST("/editor/projects/:pid/blocks/:bid/qa-check", s.HandleQACheckBlock)
+	g.POST("/editor/projects/:pid/files/:fname/qa-check", s.HandleQACheckFile)
+
+	// Block history
+	g.GET("/editor/projects/:pid/blocks/:bid/history", s.HandleGetBlockHistory)
+
+	// Block notes
+	g.POST("/editor/projects/:pid/blocks/:bid/notes", s.HandleAddBlockNote)
+	g.GET("/editor/projects/:pid/blocks/:bid/notes", s.HandleListBlockNotes)
+	g.DELETE("/editor/projects/:pid/blocks/:bid/notes/:nid", s.HandleDeleteBlockNote)
+
 	// Block-level TM and term lookup
 	g.GET("/editor/projects/:pid/blocks/:bid/tm-lookup", s.HandleLookupTMForBlock)
 	g.GET("/editor/projects/:pid/blocks/:bid/term-lookup", s.HandleLookupTermsForBlock)
@@ -307,6 +319,10 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/terms/import/csv", s.HandleImportTermsCSV)
 	g.POST("/terms/import/json", s.HandleImportTermsJSON)
 	g.GET("/terms/export/json", s.HandleExportTermsJSON)
+
+	// Preview rendering
+	g.GET("/editor/projects/:pid/files/:fname/preview", s.HandleRenderDocumentPreview)
+	g.GET("/editor/projects/:pid/blocks/:bid/html", s.HandleRenderBlockHTML)
 
 	// Collaborative editing WebSocket
 	g.GET("/editor/projects/:pid/collab/:fname", s.HandleCollabWebSocket)

@@ -1185,5 +1185,435 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
     await pause(page, 1000);
   });
+
+  test(`record visual editor workflow [${theme}]`, async ({ page }) => {
+    // Hero demo: Visual translation editor with rich HTML preview,
+    // keyboard navigation, inline codes, TM matches, terms, reference locales, review mode
+    await setupRecording(page, "Bowrain — Visual Editor", theme);
+
+    // Unicode markers matching the Go model
+    const mo = "\uE001"; // opening
+    const mc = "\uE002"; // closing
+    const mp = "\uE003"; // placeholder
+
+    // Create project with Norwegian + Swedish targets
+    await page.getByTestId("new-project-btn").click();
+    await page.getByTestId("project-name-input").fill("Help Center");
+    await setMultiLocales(page, "target-langs-input", ["nb", "sv"]);
+    await page.getByTestId("create-project-submit").click();
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible();
+
+    // Set up rich HTML file with inline codes, TM entries, and terminology
+    await page.evaluate(async ({ mo, mc, mp }: { mo: string; mc: string; mp: string }) => {
+      const backend = (window as any).__wailsMock;
+      const IDS = (window as any).__wailsIDs;
+      const byName = (window as any).__wailsMockByName;
+      const projects = await backend[IDS.ListProjects]();
+      const projectId = projects[0]?.id;
+      if (!projectId) return;
+
+      const p = projects[0];
+      p.items.push({
+        name: "help-center.html",
+        format: "html",
+        type: "file",
+        size: 12288,
+        block_count: 11,
+        word_count: 198,
+      });
+
+      // Rich HTML blocks with inline codes
+      const blocks = [
+        {
+          id: "block-h1", source: "CloudSync Pro Help Center",
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: false,
+          properties: { element: "h1" },
+        },
+        {
+          id: "block-p1", source: "Welcome to the CloudSync Pro documentation and support portal.",
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: false,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-p2",
+          source: "Learn how to sync your files securely across all your devices.",
+          source_coded: `Learn how to ${mo}sync${mc} your files ${mo}securely${mc} across all your devices.`,
+          source_spans: [
+            { span_type: "opening", type: "b", id: "b1", data: "<b>" },
+            { span_type: "closing", type: "b", id: "b1", data: "</b>" },
+            { span_type: "opening", type: "i", id: "i1", data: "<i>" },
+            { span_type: "closing", type: "i", id: "i1", data: "</i>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-h2a", source: "Getting Started",
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: false,
+          properties: { element: "h2" },
+        },
+        {
+          id: "block-p3",
+          source: "Download and install the CloudSync Pro application on your device.",
+          source_coded: `Download and install the ${mo}CloudSync Pro${mc} application on your device.`,
+          source_spans: [
+            { span_type: "opening", type: "a", id: "a1", data: '<a href="#">' },
+            { span_type: "closing", type: "a", id: "a1", data: "</a>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-p4",
+          source: "Create your account and configure your synchronization preferences.",
+          source_coded: `Create your account and configure your ${mo}synchronization${mc} preferences.`,
+          source_spans: [
+            { span_type: "opening", type: "code", id: "code1", data: "<code>" },
+            { span_type: "closing", type: "code", id: "code1", data: "</code>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-h2b", source: "Security & Privacy",
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: false,
+          properties: { element: "h2" },
+        },
+        {
+          id: "block-p5",
+          source: "All data is encrypted with AES-256 encryption during transfer. Your privacy is our priority.",
+          source_coded: `All data is encrypted with ${mo}AES-256${mc} encryption during transfer.${mp} Your privacy is our priority.`,
+          source_spans: [
+            { span_type: "opening", type: "b", id: "b2", data: "<b>" },
+            { span_type: "closing", type: "b", id: "b2", data: "</b>" },
+            { span_type: "placeholder", type: "br", id: "br1", data: "<br/>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-p6",
+          source: "Your files are stored securely in our certified data centers.",
+          source_coded: `Your files are stored securely in our ${mo}certified data centers${mc}.`,
+          source_spans: [
+            { span_type: "opening", type: "a", id: "a2", data: '<a href="/security">' },
+            { span_type: "closing", type: "a", id: "a2", data: "</a>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-p7",
+          source: "Contact our support team for any questions or concerns.",
+          source_coded: `Contact our ${mo}support team${mc} for any questions or concerns.`,
+          source_spans: [
+            { span_type: "opening", type: "b", id: "b3", data: "<b>" },
+            { span_type: "closing", type: "b", id: "b3", data: "</b>" },
+          ],
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: true,
+          properties: { element: "p" },
+        },
+        {
+          id: "block-link", source: "Visit our community forum for tips and discussions",
+          targets: {} as Record<string, string>, targets_coded: {} as Record<string, string>,
+          translatable: true, has_spans: false,
+          properties: { element: "a" },
+        },
+      ];
+
+      // Pre-seed Swedish translations for reference locale demo
+      blocks[0].targets["sv"] = "CloudSync Pro Hjälpcenter";
+      blocks[1].targets["sv"] = "Välkommen till CloudSync Pros dokumentation och supportportal.";
+      blocks[2].targets["sv"] = "Lär dig hur du synkroniserar dina filer säkert på alla enheter.";
+      blocks[3].targets["sv"] = "Kom igång";
+      blocks[4].targets["sv"] = "Ladda ner och installera CloudSync Pro-applikationen på din enhet.";
+
+      // Store blocks for our file
+      if (!(window as any).__projectFiles) (window as any).__projectFiles = {};
+      if (!(window as any).__projectFiles[projectId]) (window as any).__projectFiles[projectId] = {};
+      (window as any).__projectFiles[projectId]["help-center.html"] = blocks;
+
+      // Patch GetItemBlocks
+      const origGetItemBlocks = backend[IDS.GetItemBlocks];
+      backend[IDS.GetItemBlocks] = (pid: string, fileName: string) => {
+        const customBlocks = (window as any).__projectFiles?.[pid]?.[fileName];
+        if (customBlocks) return customBlocks.map((b: any) => ({
+          ...b,
+          targets: { ...b.targets },
+          targets_coded: b.targets_coded ? { ...b.targets_coded } : undefined,
+          source_spans: b.source_spans ? [...b.source_spans] : undefined,
+        }));
+        return origGetItemBlocks(pid, fileName);
+      };
+
+      // Patch UpdateBlockTarget
+      const origUpdateTarget = backend[IDS.UpdateBlockTarget];
+      backend[IDS.UpdateBlockTarget] = (req: any) => {
+        const itemName = req.item_name || req.file_name;
+        const customBlocks = (window as any).__projectFiles?.[req.project_id]?.[itemName];
+        if (customBlocks) {
+          const block = customBlocks.find((b: any) => b.id === req.block_id);
+          if (block) block.targets[req.target_locale] = req.text;
+          return;
+        }
+        return origUpdateTarget(req);
+      };
+
+      // Patch UpdateBlockTargetCoded
+      const origUpdateCoded = backend[IDS.UpdateBlockTargetCoded];
+      backend[IDS.UpdateBlockTargetCoded] = (req: any) => {
+        const itemName = req.item_name || req.file_name;
+        const customBlocks = (window as any).__projectFiles?.[req.project_id]?.[itemName];
+        if (customBlocks) {
+          const block = customBlocks.find((b: any) => b.id === req.block_id);
+          if (block) {
+            const plain = req.coded_text.replace(/[\uE001-\uE003]/g, "");
+            block.targets[req.target_locale] = plain;
+            if (!block.targets_coded) block.targets_coded = {};
+            block.targets_coded[req.target_locale] = req.coded_text;
+          }
+          return;
+        }
+        if (origUpdateCoded) return origUpdateCoded(req);
+      };
+
+      // Patch RenderDocumentPreview with styled HTML
+      // NOTE: This is a mock-only preview string for e2e recordings.
+      // The content is hardcoded test data, not user-supplied input.
+      backend[IDS.RenderDocumentPreview] = (_projectID: string, _itemName: string, targetLocale: string) => {
+        const b = (window as any).__projectFiles?.[projectId]?.["help-center.html"] || [];
+        const gc = (block: any) => block.targets[targetLocale] || block.source;
+        const bodyParts = [
+          '<h1><kat-block id="block-h1">' + gc(b[0]) + '</kat-block></h1>',
+          '<p><kat-block id="block-p1">' + gc(b[1]) + '</kat-block></p>',
+          '<p><kat-block id="block-p2">Learn how to <b>sync</b> your files <i>securely</i> across all your devices.</kat-block></p>',
+          '<h2><kat-block id="block-h2a">' + gc(b[3]) + '</kat-block></h2>',
+          '<p><kat-block id="block-p3">Download and install the <a href="#">CloudSync Pro</a> application on your device.</kat-block></p>',
+          '<p><kat-block id="block-p4">Create your account and configure your <code>synchronization</code> preferences.</kat-block></p>',
+          '<h2><kat-block id="block-h2b">' + gc(b[6]) + '</kat-block></h2>',
+          '<p><kat-block id="block-p5">All data is encrypted with <b>AES-256</b> encryption during transfer.<br/>Your privacy is our priority.</kat-block></p>',
+          '<p><kat-block id="block-p6">Your files are stored securely in our <a href="/security">certified data centers</a>.</kat-block></p>',
+          '<p><kat-block id="block-p7">Contact our <b>support team</b> for any questions or concerns.</kat-block></p>',
+          '<p><a href="#"><kat-block id="block-link">' + gc(b[10]) + '</kat-block></a></p>',
+        ];
+        const styles = [
+          'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 32px; line-height: 1.7; color: #1a1a1a; max-width: 640px; }',
+          'h1 { font-size: 28px; margin-bottom: 16px; color: #111; font-weight: 700; }',
+          'h2 { font-size: 20px; margin-top: 28px; margin-bottom: 12px; color: #333; font-weight: 600; }',
+          'p { margin-bottom: 14px; color: #444; }',
+          'a { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }',
+          'b, strong { font-weight: 600; }',
+          'i, em { font-style: italic; }',
+          'code { font-family: "SF Mono", monospace; font-size: 0.9em; background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; }',
+          'kat-block { cursor: pointer; border-radius: 3px; display: inline; transition: background 0.15s, outline 0.15s; }',
+          'kat-block:hover { background-color: rgba(59,130,246,0.12); }',
+          'kat-block.kat-selected { background-color: rgba(59,130,246,0.18); outline: 2px solid #3b82f6; outline-offset: 2px; }',
+        ].join('\n');
+        const script = [
+          'document.querySelectorAll("kat-block").forEach(function(el) {',
+          '  el.addEventListener("click", function() { window.parent.postMessage({ type: "kat-block-click", blockId: el.id }, "*"); });',
+          '});',
+          'window.addEventListener("message", function(e) {',
+          '  if (e.data && e.data.type === "kat-select-block") {',
+          '    var prev = document.querySelector(".kat-selected"); if (prev) prev.classList.remove("kat-selected");',
+          '    var next = document.getElementById(e.data.blockId); if (next) next.classList.add("kat-selected");',
+          '  }',
+          '  if (e.data && e.data.type === "kat-update-block") {',
+          '    var el2 = document.getElementById(e.data.blockId); if (el2) el2.textContent = e.data.html;',
+          '  }',
+          '});',
+          'window.parent.postMessage({ type: "kat-iframe-ready" }, "*");',
+        ].join('\n');
+        return '<!DOCTYPE html><html><head><style>' + styles + '</style></head><body>'
+          + bodyParts.join('\n') + '<script>' + script + '</' + 'script></body></html>';
+      };
+
+      // Seed TM entries for Norwegian
+      byName.AddTMEntry(projectId, "Welcome to the CloudSync Pro documentation and support portal.", "Velkommen til CloudSync Pro-dokumentasjonen og støtteportalen.", "en", "nb");
+      byName.AddTMEntry(projectId, "Getting Started", "Kom i gang", "en", "nb");
+      byName.AddTMEntry(projectId, "Security & Privacy", "Sikkerhet og personvern", "en", "nb");
+
+      // Seed terminology concepts
+      byName.AddConcept({
+        project_id: projectId, domain: "Security",
+        definition: "Converting data to prevent unauthorized access",
+        terms: [
+          { text: "encryption", locale: "en", status: "preferred" },
+          { text: "kryptering", locale: "nb", status: "preferred" },
+        ],
+      });
+      byName.AddConcept({
+        project_id: projectId, domain: "Technology",
+        definition: "The process of keeping files in sync across devices",
+        terms: [
+          { text: "synchronization", locale: "en", status: "preferred" },
+          { text: "synkronisering", locale: "nb", status: "preferred" },
+        ],
+      });
+    }, { mo, mc, mp });
+
+    // Refresh to show the file
+    await page.getByTestId("nav-settings").click();
+    await page.waitForTimeout(100);
+    await page.getByTestId("nav-translate").click();
+    await page.waitForTimeout(200);
+    await humanClick(page, page.getByText("Help Center").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Open the HTML file in editor (grid view)
+    await expect(page.getByTestId("open-file-help-center.html")).toBeVisible({ timeout: 5000 });
+    await humanClick(page, page.getByTestId("open-file-help-center.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // === Switch to Visual mode ===
+    await humanClick(page, page.getByTestId("layout-visual"));
+    await expect(page.getByTestId("visual-editor-layout")).toBeVisible({ timeout: 5000 });
+    await pause(page, 1000);
+
+    // === Navigate blocks with keyboard (j/k) ===
+    await page.keyboard.press("j"); // → block 1
+    await pause(page, 500);
+    await page.keyboard.press("j"); // → block 2
+    await pause(page, 500);
+    await page.keyboard.press("j"); // → block 3 (h2: Getting Started)
+    await pause(page, 500);
+    await page.keyboard.press("k"); // → back to block 2
+    await pause(page, 500);
+
+    // === Block 2 has inline codes (<b>sync</b>, <i>securely</i>) ===
+    // Enter editing mode
+    await page.keyboard.press("Enter");
+    await pause(page, 600);
+
+    // Type Norwegian translation in Lexical editor
+    // Focus the contenteditable and type via execCommand (same pattern as inline-codes.spec.ts)
+    await page.evaluate(() => {
+      const el = document.querySelector('[contenteditable="true"]');
+      if (el) {
+        (el as HTMLElement).focus();
+        document.execCommand("insertText", false, "Lær hvordan du synkroniserer filene dine sikkert.");
+      }
+    });
+    await pause(page, 800);
+
+    // Save with Ctrl+Enter
+    await page.evaluate(() => {
+      const el = document.querySelector('[contenteditable="true"]');
+      if (el) {
+        el.dispatchEvent(new KeyboardEvent("keydown", {
+          key: "Enter", code: "Enter", keyCode: 13, ctrlKey: true, bubbles: true, cancelable: true,
+        }));
+      }
+    });
+    await pause(page, 600);
+
+    // === Navigate to a block with TM match (block 3: "Getting Started") ===
+    // We should be on block 3 now after save+advance
+    await pause(page, 600);
+
+    // TM matches should appear for "Getting Started" → "Kom i gang"
+    // Toggle TM section if not expanded
+    const tmToggle = page.getByTestId("tm-toggle");
+    if (await tmToggle.isVisible()) {
+      await humanClick(page, tmToggle);
+      await pause(page, 600);
+    }
+
+    // Apply TM match
+    const tmApply = page.getByTestId("tm-apply-0");
+    if (await tmApply.isVisible()) {
+      await humanClick(page, tmApply);
+      await pause(page, 600);
+    }
+
+    // === Toggle preview content mode: Source → Target → Pseudo → Source ===
+    // Click "Target" tab in the preview mode switcher
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll('[data-testid="visual-editor-layout"] [role="tab"]');
+      // Find the top-right tabs (Source/Target/Pseudo)
+      const targetTab = Array.from(tabs).find(t => t.textContent?.trim() === "Target");
+      if (targetTab) (targetTab as HTMLElement).click();
+    });
+    await pause(page, 700);
+
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll('[data-testid="visual-editor-layout"] [role="tab"]');
+      const pseudoTab = Array.from(tabs).find(t => t.textContent?.trim() === "Pseudo");
+      if (pseudoTab) (pseudoTab as HTMLElement).click();
+    });
+    await pause(page, 700);
+
+    await page.evaluate(() => {
+      const tabs = document.querySelectorAll('[data-testid="visual-editor-layout"] [role="tab"]');
+      const sourceTab = Array.from(tabs).find(t => t.textContent?.trim() === "Source");
+      if (sourceTab) (sourceTab as HTMLElement).click();
+    });
+    await pause(page, 500);
+
+    // === Reference locale picker ===
+    await humanClick(page, page.getByTestId("ref-locale-toggle"));
+    await pause(page, 400);
+    await humanClick(page, page.getByTestId("ref-locale-sv"));
+    await pause(page, 800);
+
+    // Close ref picker by clicking toggle again
+    await humanClick(page, page.getByTestId("ref-locale-toggle"));
+    await pause(page, 400);
+
+    // === Navigate to see term matches ===
+    // Navigate to block 5 (has "synchronization" term match)
+    await page.keyboard.press("j"); // → block 4
+    await pause(page, 400);
+    await page.keyboard.press("j"); // → block 5 (has <code>synchronization</code>)
+    await pause(page, 800);
+
+    // Term sidebar should appear if terms are matched
+    await pause(page, 500);
+
+    // === Switch to Review mode, approve a block ===
+    // Click the "Review" tab on the editor card
+    await page.evaluate(() => {
+      const cardTabs = document.querySelectorAll('[data-testid="visual-editor-card"] [role="tab"]');
+      const reviewTab = Array.from(cardTabs).find(t => t.textContent?.trim() === "Review");
+      if (reviewTab) (reviewTab as HTMLElement).click();
+    });
+    await pause(page, 500);
+
+    // Approve the block
+    const approveBtn = page.getByTestId("approve-btn");
+    if (await approveBtn.isVisible()) {
+      await humanClick(page, approveBtn);
+      await pause(page, 600);
+    }
+
+    // === Switch back to Translate mode ===
+    await page.evaluate(() => {
+      const cardTabs = document.querySelectorAll('[data-testid="visual-editor-card"] [role="tab"]');
+      const translateTab = Array.from(cardTabs).find(t => t.textContent?.trim() === "Translate");
+      if (translateTab) (translateTab as HTMLElement).click();
+    });
+    await pause(page, 400);
+
+    // === Navigate back up to show the full visual editor in its glory ===
+    await page.keyboard.press("k");
+    await pause(page, 400);
+    await page.keyboard.press("k");
+    await pause(page, 400);
+    await page.keyboard.press("k");
+    await pause(page, 2000);
+  });
+
   } // end for (theme)
 });

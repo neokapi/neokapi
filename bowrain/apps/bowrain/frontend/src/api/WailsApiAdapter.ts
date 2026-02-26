@@ -6,8 +6,9 @@ import type {
   ProviderConfig, ProviderConfigWithKey,
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
-  BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  QAIssue, FileQAResult,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -246,23 +247,50 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.ListTools() as Promise<ToolInfo[]>;
   }
 
-  // --- Desktop-specific helpers (not in ApiAdapter) ---
-  async openFileInOS(path: string): Promise<void> {
-    return Backend.OpenFileInOS(path);
+  // --- Block history (desktop: not yet backed by Wails bindings) ---
+  async getBlockHistory(_ws: string, _projectId: string, _blockId: string, _locale: string, _limit?: number): Promise<BlockHistoryEntry[]> {
+    return [];
   }
+
+  // --- Block notes (desktop: not yet backed by Wails bindings) ---
+  async addBlockNote(_ws: string, _projectId: string, _blockId: string, _text: string): Promise<BlockNote> {
+    throw new Error("Block notes not yet supported in desktop mode");
+  }
+  async listBlockNotes(_ws: string, _projectId: string, _blockId: string): Promise<BlockNote[]> {
+    return [];
+  }
+  async deleteBlockNote(_ws: string, _projectId: string, _noteId: string): Promise<void> {
+    throw new Error("Block notes not yet supported in desktop mode");
+  }
+
+  // --- QA (desktop: not yet backed by Wails bindings) ---
+  async runQACheck(_ws: string, _projectId: string, _blockId: string, _locale: string): Promise<QAIssue[]> {
+    return [];
+  }
+  async runFileQACheck(_ws: string, _projectId: string, _fileName: string, _locale: string): Promise<FileQAResult[]> {
+    return [];
+  }
+
+  // --- Preview ---
   async renderDocumentPreview(
+    _ws: string,
     projectId: string,
-    itemName: string,
+    fileName: string,
     targetLocale: string,
   ): Promise<string> {
-    return Backend.RenderDocumentPreview(projectId, itemName, targetLocale);
+    return Backend.RenderDocumentPreview(projectId, fileName, targetLocale);
   }
   async renderBlockHTML(
+    _ws: string,
     projectId: string,
-    itemName: string,
     blockId: string,
     targetLocale: string,
   ): Promise<string> {
-    return Backend.RenderBlockHTML(projectId, itemName, blockId, targetLocale);
+    return Backend.RenderBlockHTML(projectId, "", blockId, targetLocale);
+  }
+
+  // --- Desktop-specific helpers (not in ApiAdapter) ---
+  async openFileInOS(path: string): Promise<void> {
+    return Backend.OpenFileInOS(path);
   }
 }

@@ -61,6 +61,8 @@ export { TagChipComponent } from "./components/editor/TagChipComponent";
 export { TagPalette } from "./components/editor/TagPalette";
 export { TagValidationBar } from "./components/editor/TagValidationBar";
 export { InlinePreview } from "./components/editor/InlinePreview";
+export { DocumentPreview } from "./components/editor/DocumentPreview";
+export type { PreviewContentMode } from "./components/editor/visual-editor-types";
 
 // Editor utilities
 export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
@@ -111,6 +113,7 @@ export type {
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   TermInfo, ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, TermEnforceResult,
+  BlockNote, BlockHistoryEntry, QAIssue, FileQAResult,
   LocaleInfo, FormatInfo, ToolInfo,
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,

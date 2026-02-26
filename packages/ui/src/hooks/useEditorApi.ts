@@ -10,6 +10,10 @@ import type {
   WordCountResult,
   TMMatchInfo,
   BlockTermMatch,
+  BlockNote,
+  BlockHistoryEntry,
+  QAIssue,
+  FileQAResult,
 } from "../types/api";
 
 export function useEditorApi() {
@@ -76,6 +80,54 @@ export function useEditorApi() {
     [api, ws],
   );
 
+  const getBlockHistory = useCallback(
+    async (projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]> =>
+      api.getBlockHistory(ws, projectId, blockId, locale, limit),
+    [api, ws],
+  );
+
+  const addBlockNote = useCallback(
+    async (projectId: string, blockId: string, text: string): Promise<BlockNote> =>
+      api.addBlockNote(ws, projectId, blockId, text),
+    [api, ws],
+  );
+
+  const listBlockNotes = useCallback(
+    async (projectId: string, blockId: string): Promise<BlockNote[]> =>
+      api.listBlockNotes(ws, projectId, blockId),
+    [api, ws],
+  );
+
+  const deleteBlockNote = useCallback(
+    async (projectId: string, noteId: string): Promise<void> =>
+      api.deleteBlockNote(ws, projectId, noteId),
+    [api, ws],
+  );
+
+  const runQACheck = useCallback(
+    async (projectId: string, blockId: string, locale: string): Promise<QAIssue[]> =>
+      api.runQACheck(ws, projectId, blockId, locale),
+    [api, ws],
+  );
+
+  const runFileQACheck = useCallback(
+    async (projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> =>
+      api.runFileQACheck(ws, projectId, fileName, locale),
+    [api, ws],
+  );
+
+  const renderDocumentPreview = useCallback(
+    async (projectId: string, fileName: string, targetLocale: string): Promise<string> =>
+      api.renderDocumentPreview(ws, projectId, fileName, targetLocale),
+    [api, ws],
+  );
+
+  const renderBlockHTML = useCallback(
+    async (projectId: string, blockId: string, targetLocale: string): Promise<string> =>
+      api.renderBlockHTML(ws, projectId, blockId, targetLocale),
+    [api, ws],
+  );
+
   return useMemo(() => ({
     getFileBlocks,
     updateBlockTarget,
@@ -87,6 +139,14 @@ export function useEditorApi() {
     exportTranslatedFile,
     lookupTMForBlock,
     lookupTermsForBlock,
+    getBlockHistory,
+    addBlockNote,
+    listBlockNotes,
+    deleteBlockNote,
+    runQACheck,
+    runFileQACheck,
+    renderDocumentPreview,
+    renderBlockHTML,
   }), [
     getFileBlocks,
     updateBlockTarget,
@@ -98,5 +158,13 @@ export function useEditorApi() {
     exportTranslatedFile,
     lookupTMForBlock,
     lookupTermsForBlock,
+    getBlockHistory,
+    addBlockNote,
+    listBlockNotes,
+    deleteBlockNote,
+    runQACheck,
+    runFileQACheck,
+    renderDocumentPreview,
+    renderBlockHTML,
   ]);
 }

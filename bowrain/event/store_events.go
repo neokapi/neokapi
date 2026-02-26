@@ -158,6 +158,22 @@ func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.
 	return s.inner.Diff(ctx, from, to)
 }
 
+func (s *EventEmittingStore) AddBlockNote(ctx context.Context, projectID, blockID string, note model.BlockNote) error {
+	return s.inner.AddBlockNote(ctx, projectID, blockID, note)
+}
+
+func (s *EventEmittingStore) ListBlockNotes(ctx context.Context, projectID, blockID string) ([]model.BlockNote, error) {
+	return s.inner.ListBlockNotes(ctx, projectID, blockID)
+}
+
+func (s *EventEmittingStore) DeleteBlockNote(ctx context.Context, projectID, noteID string) error {
+	return s.inner.DeleteBlockNote(ctx, projectID, noteID)
+}
+
+func (s *EventEmittingStore) GetBlockHistory(ctx context.Context, projectID, blockID string, locale string, limit int) ([]store.BlockHistoryEntry, error) {
+	return s.inner.GetBlockHistory(ctx, projectID, blockID, locale, limit)
+}
+
 func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
 	return s.inner.GetChanges(ctx, projectID, sinceCursor, locales, limit)
 }

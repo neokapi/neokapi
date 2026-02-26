@@ -24,7 +24,9 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
     updateBlockTarget: vi.fn(), updateBlockTargetCoded: vi.fn(),
     pseudoTranslateFile: vi.fn(), aiTranslateFile: vi.fn(), tmTranslateFile: vi.fn(),
     getWordCount: vi.fn(), exportTranslatedFile: vi.fn(), lookupTMForBlock: vi.fn(),
-    lookupTermsForBlock: vi.fn(), getTMEntries: vi.fn(), getTMCount: vi.fn(),
+    lookupTermsForBlock: vi.fn(), runQACheck: vi.fn(), runFileQACheck: vi.fn(),
+    renderDocumentPreview: vi.fn(), renderBlockHTML: vi.fn(),
+    getTMEntries: vi.fn(), getTMCount: vi.fn(),
     addTMEntry: vi.fn(), updateTMEntry: vi.fn(), deleteTMEntry: vi.fn(),
     getTerms: vi.fn(), getTermCount: vi.fn(), addConcept: vi.fn(),
     updateConcept: vi.fn(), deleteConcept: vi.fn(), importTermsCSV: vi.fn(),
@@ -34,6 +36,8 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
     listInvites: vi.fn(), createInvite: vi.fn(), deleteInvite: vi.fn(),
     acceptInvite: vi.fn(),
     claimProject: vi.fn(),
+    getBlockHistory: vi.fn(),
+    addBlockNote: vi.fn(), listBlockNotes: vi.fn(), deleteBlockNote: vi.fn(),
   } as ApiAdapter;
 }
 

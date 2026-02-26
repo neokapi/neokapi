@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import type { ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch } from "../types/api";
+import type {
+  ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch,
+  BlockNote, QAIssue, BlockHistoryEntry, FileQAResult, AddConceptRequest,
+} from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
+import { useApi } from "../context/ApiContext";
+import { useWorkspace } from "../context/WorkspaceContext";
 import { useProviderConfigs } from "../hooks/useProviderApi";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
@@ -9,6 +14,10 @@ import { TargetCellEditor } from "./editor/TargetCellEditor";
 import { parseCodedSegments } from "./editor/codedText";
 import { TagChipComponent } from "./editor/TagChipComponent";
 import { buildPairs, validateTags } from "./editor/tagSemantics";
+import { HighlightedSource } from "./editor/HighlightedSource";
+import { VisualEditorLayout } from "./editor/VisualEditorLayout";
+import { DocumentPreview } from "./editor/DocumentPreview";
+import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
 import { Button } from "./ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { AlertGlass, AlertGlassDescription } from "./ui/alert";
@@ -34,7 +43,7 @@ interface TranslationEditorProps {
   presenceSlot?: React.ReactNode;
 }
 
-type LayoutMode = "grid" | "focus" | "split-h" | "split-v";
+type LayoutMode = "grid" | "focus" | "split-h" | "split-v" | "visual";
 type BlockStatus = "not-started" | "draft" | "translated" | "reviewed";
 
 function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
@@ -99,6 +108,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("grid");
+  const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
+  const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
   const [focusEditValue, setFocusEditValue] = useState("");
 
   // Context panel state
@@ -108,7 +119,17 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const [contextLoading, setContextLoading] = useState(false);
   const [appliedTMIndex, setAppliedTMIndex] = useState<number | null>(null);
 
+  // Visual editor extended state (QA, history, notes)
+  const [blockQAIssues, setBlockQAIssues] = useState<QAIssue[]>([]);
+  const [fileQAResults, setFileQAResults] = useState<FileQAResult[] | undefined>(undefined);
+  const [qaLoading, setQaLoading] = useState(false);
+  const [blockHistory, setBlockHistory] = useState<BlockHistoryEntry[]>([]);
+  const [blockNotes, setBlockNotes] = useState<BlockNote[]>([]);
+
   const { getDisplayName } = useLocales();
+  const fullApi = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const wsSlug = activeWorkspace?.slug ?? "";
 
   // Register breadcrumb in the top bar area
   const breadcrumbNode = useMemo(() => (
@@ -194,6 +215,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (layoutMode === "visual") return;
       if (editingIndex !== null) {
         if (e.key === "Escape") {
           setEditingIndex(null);
@@ -219,7 +241,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingIndex, selectedIndex, filteredBlocks.length]);
+  }, [editingIndex, selectedIndex, filteredBlocks.length, layoutMode]);
 
   // Scroll selected block into view
   useEffect(() => {
@@ -238,9 +260,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     }
   }, [editingIndex]);
 
-  // Load TM and term matches when selected block changes (only if panel open)
+  // Load TM and term matches when selected block changes (if panel open or visual mode)
   useEffect(() => {
-    if (!showContextPanel) return;
+    if (!showContextPanel && layoutMode !== "visual") return;
     const block = filteredBlocks[selectedIndex];
     if (!block || !block.translatable) {
       setTmMatches([]);
@@ -258,7 +280,26 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
     Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
-  }, [showContextPanel, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
+  }, [showContextPanel, layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
+
+  // Load QA issues, history, and notes for current block in visual mode
+  useEffect(() => {
+    if (layoutMode !== "visual") return;
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    // QA: run per-block check
+    api.runQACheck(project.id, block.id, targetLocale)
+      .then((issues) => setBlockQAIssues(issues || []))
+      .catch(() => setBlockQAIssues([]));
+    // History
+    api.getBlockHistory(project.id, block.id, targetLocale, 20)
+      .then((h) => setBlockHistory(h || []))
+      .catch(() => setBlockHistory([]));
+    // Notes (enrich mode loads these)
+    api.listBlockNotes(project.id, block.id)
+      .then((n) => setBlockNotes(n || []))
+      .catch(() => setBlockNotes([]));
+  }, [layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, api]);
 
   // Update focusEditValue when selectedIndex changes and we're in focus mode
   useEffect(() => {
@@ -515,13 +556,156 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     }
   };
 
+  // Visual mode handlers
+  const handleVisualSave = useCallback(async (codedText: string, spans: SpanInfo[]) => {
+    if (editingIndex === null) return;
+    const block = filteredBlocks[editingIndex];
+    if (!block) return;
+
+    if (block.has_spans) {
+      await handleSaveCodedEdit(codedText, spans);
+    } else {
+      // For non-coded blocks, codedText is plain text
+      const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
+      try {
+        await api.updateBlockTarget({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          text: plainText,
+        });
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id
+              ? { ...b, targets: { ...b.targets, [targetLocale]: plainText } }
+              : b,
+          ),
+        );
+        const nextIndex = editingIndex + 1;
+        setEditingIndex(null);
+        if (nextIndex < filteredBlocks.length) {
+          setSelectedIndex(nextIndex);
+        }
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to save");
+      }
+    }
+  }, [editingIndex, filteredBlocks, handleSaveCodedEdit, api, project.id, fileName, targetLocale]);
+
+  const handleVisualApprove = useCallback(() => {
+    handleMarkReviewed();
+    // Advance to next block
+    if (selectedIndex < filteredBlocks.length - 1) {
+      setSelectedIndex(selectedIndex + 1);
+    }
+  }, [selectedIndex, filteredBlocks.length]);
+
+  const handleVisualReject = useCallback(() => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    setBlocks((prev) =>
+      prev.map((b) =>
+        b.id === block.id
+          ? { ...b, properties: { ...b.properties, "translation-status": "draft" } }
+          : b,
+      ),
+    );
+  }, [selectedIndex, filteredBlocks]);
+
+  const handleVisualApplyTM = useCallback((index: number) => {
+    const match = tmMatches[index];
+    const block = filteredBlocks[selectedIndex];
+    if (!match || !block || !block.translatable) return;
+    api.updateBlockTarget({
+      project_id: project.id,
+      item_name: fileName,
+      block_id: block.id,
+      target_locale: targetLocale,
+      text: match.target,
+    }).then(() => {
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? {
+                ...b,
+                targets: { ...b.targets, [targetLocale]: match.target },
+                properties: { ...b.properties, "translation-origin": "tm" },
+              }
+            : b,
+        ),
+      );
+      setAppliedTMIndex(index);
+    });
+  }, [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale]);
+
+  const handleVisualInsertTerm = useCallback((_text: string) => {
+    // Term insertion is handled by the VisualEditorCard's TargetCellEditor
+  }, []);
+
+  const handleRunFileQA = useCallback(() => {
+    setQaLoading(true);
+    api.runFileQACheck(project.id, fileName, targetLocale)
+      .then((results) => setFileQAResults(results || []))
+      .catch(() => setFileQAResults([]))
+      .finally(() => setQaLoading(false));
+  }, [api, project.id, fileName, targetLocale]);
+
+  const handleRevertHistory = useCallback((entry: BlockHistoryEntry) => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    api.updateBlockTarget({
+      project_id: project.id,
+      item_name: fileName,
+      block_id: block.id,
+      target_locale: targetLocale,
+      text: entry.text,
+    }).then(() => {
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...b, targets: { ...b.targets, [targetLocale]: entry.text } }
+            : b,
+        ),
+      );
+    }).catch((e) => setError(e instanceof Error ? e.message : "Failed to revert"));
+  }, [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale]);
+
+  const handleAddNote = useCallback((text: string) => {
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    api.addBlockNote(project.id, block.id, text)
+      .then((note) => setBlockNotes((prev) => [...prev, note]))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to add note"));
+  }, [filteredBlocks, selectedIndex, api, project.id]);
+
+  const handleDeleteNote = useCallback((noteId: string) => {
+    api.deleteBlockNote(project.id, noteId)
+      .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to delete note"));
+  }, [api, project.id]);
+
+  const handleTermCreate = useCallback(async (req: AddConceptRequest) => {
+    try {
+      await fullApi.addConcept(wsSlug, req);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create term");
+    }
+  }, [fullApi, wsSlug]);
+
+  const handleVisualNavigate = useCallback((index: number) => {
+    setSelectedIndex(index);
+    setEditingIndex(null);
+  }, []);
+
   // Current block for focus view
   const currentBlock = filteredBlocks[selectedIndex] || null;
 
   // Available layout modes depend on whether preview is available
+  // Visual mode is always available regardless of renderPreview
   const availableLayouts: LayoutMode[] = renderPreview
-    ? ["grid", "focus", "split-h", "split-v"]
-    : ["grid", "focus"];
+    ? ["grid", "focus", "split-h", "split-v", "visual"]
+    : ["grid", "focus", "visual"];
 
   const blockGrid = (
     <div ref={blockListRef} className="flex-1 overflow-auto border border-border rounded-lg bg-card" data-testid="block-grid">
@@ -789,6 +973,103 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
   if (statusCounts["not-started"] > 0) progressBreakdown.push(`${statusCounts["not-started"]} pending`);
 
+  // Split mode fallback preview: use DocumentPreview when renderPreview is not provided
+  const splitPreview = previewComponent ?? (
+    <DocumentPreview
+      projectId={project.id}
+      itemName={fileName}
+      targetLocale={targetLocale}
+      selectedBlockId={selectedBlockId}
+      onBlockSelect={handlePreviewBlockSelect}
+      blocks={blocks}
+    />
+  );
+
+  // In visual mode, render the full-screen visual editor layout
+  if (layoutMode === "visual") {
+    return (
+      <div className="flex flex-col flex-1 min-h-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-base font-semibold flex-1">{fileName}</span>
+          {/* Layout mode switcher */}
+          <div className="flex gap-0.5 bg-muted rounded-md p-0.5" data-testid="layout-switcher">
+            {availableLayouts.map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setLayoutMode(mode)}
+                data-testid={`layout-${mode}`}
+                className={cn(
+                  "px-2 py-1 border-none rounded text-[11px] cursor-pointer",
+                  layoutMode === mode
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "bg-transparent text-muted-foreground font-normal",
+                )}
+                title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : mode === "split-v" ? "Vertical Split" : "Visual Mode"}
+              >
+                {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : mode === "split-v" ? "V-Split" : "Visual"}
+              </button>
+            ))}
+          </div>
+          <Select value={targetLocale} onValueChange={setTargetLocale}>
+            <SelectTrigger className="w-[180px]" data-testid="locale-selector">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {project.target_locales.map((l) => (
+                <SelectItem key={l} value={l}>{getDisplayName(l)} ({l})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Messages */}
+        {error && (
+          <AlertGlass variant="destructive" dismissible onDismiss={() => setError(null)} className="mb-2">
+            <AlertGlassDescription>{error}</AlertGlassDescription>
+          </AlertGlass>
+        )}
+
+        {/* Visual Editor Layout */}
+        <div className="flex-1 min-h-0 relative">
+          <VisualEditorLayout
+            project={project}
+            fileName={fileName}
+            blocks={filteredBlocks}
+            selectedIndex={selectedIndex}
+            editingIndex={editingIndex}
+            targetLocale={targetLocale}
+            editorMode={editorMode}
+            onEditorModeChange={setEditorMode}
+            previewContentMode={previewContentMode}
+            onPreviewContentModeChange={setPreviewContentMode}
+            onNavigate={handleVisualNavigate}
+            onStartEditing={() => startEditing(selectedIndex)}
+            onSave={handleVisualSave}
+            onCancelEditing={() => setEditingIndex(null)}
+            onApprove={handleVisualApprove}
+            onReject={handleVisualReject}
+            tmMatches={tmMatches}
+            termMatches={termMatches}
+            onApplyTM={handleVisualApplyTM}
+            onInsertTerm={handleVisualInsertTerm}
+            presenceSlot={presenceSlot}
+            qaIssues={blockQAIssues}
+            fileQAResults={fileQAResults}
+            qaLoading={qaLoading}
+            onRunFileQA={handleRunFileQA}
+            history={blockHistory}
+            onRevertHistory={handleRevertHistory}
+            notes={blockNotes}
+            onAddNote={handleAddNote}
+            onDeleteNote={handleDeleteNote}
+            onTermCreate={handleTermCreate}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
@@ -808,9 +1089,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                   ? "bg-primary text-primary-foreground font-semibold"
                   : "bg-transparent text-muted-foreground font-normal",
               )}
-              title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : "Vertical Split"}
+              title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : mode === "split-v" ? "Vertical Split" : "Visual Mode"}
             >
-              {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : "V-Split"}
+              {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : mode === "split-v" ? "V-Split" : "Visual"}
             </button>
           ))}
         </div>
@@ -918,28 +1199,26 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         <div className="flex-1 flex flex-col overflow-hidden min-h-0">
           {layoutMode === "grid" && blockGrid}
           {layoutMode === "focus" && focusView}
-          {layoutMode === "split-h" && previewComponent && (
+          {layoutMode === "split-h" && (
             <div className="flex flex-col flex-1 gap-3 overflow-hidden">
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {blockGrid}
               </div>
               <div className="h-[40%] min-h-[200px] overflow-hidden" data-testid="split-h-preview">
-                {previewComponent}
+                {splitPreview}
               </div>
             </div>
           )}
-          {layoutMode === "split-h" && !previewComponent && blockGrid}
-          {layoutMode === "split-v" && previewComponent && (
+          {layoutMode === "split-v" && (
             <div className="flex flex-1 gap-3 overflow-hidden" data-testid="split-layout">
               <div className="flex-1 min-w-0 overflow-hidden">
-                {previewComponent}
+                {splitPreview}
               </div>
               <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
                 {blockGrid}
               </div>
             </div>
           )}
-          {layoutMode === "split-v" && !previewComponent && blockGrid}
         </div>
 
         {/* Context Panel - TM & Terminology */}
@@ -1156,37 +1435,4 @@ function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo
       <AlertTriangle className="w-3.5 h-3.5" />
     </span>
   );
-}
-
-/** Highlights matched terminology in source text with underline styling. */
-function HighlightedSource({ text, termMatches }: { text: string; termMatches: BlockTermMatch[] }) {
-  if (termMatches.length === 0) return <>{text}</>;
-
-  const sorted = [...termMatches]
-    .filter(m => m.start >= 0 && m.end > m.start && m.end <= text.length)
-    .sort((a, b) => a.start - b.start);
-
-  const parts: React.ReactNode[] = [];
-  let lastEnd = 0;
-
-  for (const m of sorted) {
-    if (m.start < lastEnd) continue;
-    if (m.start > lastEnd) {
-      parts.push(<span key={`t-${lastEnd}`}>{text.slice(lastEnd, m.start)}</span>);
-    }
-    parts.push(
-      <span
-        key={`h-${m.start}`}
-        className="underline decoration-dotted decoration-orange-600 underline-offset-2 cursor-help"
-        title={`${m.source_term} \u2192 ${m.target_terms?.join(", ") || "?"} (${m.status})`}
-      >
-        {text.slice(m.start, m.end)}
-      </span>,
-    );
-    lastEnd = m.end;
-  }
-  if (lastEnd < text.length) {
-    parts.push(<span key={`t-${lastEnd}`}>{text.slice(lastEnd)}</span>);
-  }
-  return <>{parts}</>;
 }

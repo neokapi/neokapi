@@ -805,6 +805,32 @@ func (s *Server) HandleTestProviderConfig(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+// HandleGetBlockHistory returns the history of changes for a block.
+func (s *Server) HandleGetBlockHistory(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	bid := c.Param("bid")
+	locale := c.QueryParam("locale")
+	if locale == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale query parameter is required"})
+	}
+
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 {
+		limit = 20
+	}
+
+	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, bid, locale, limit)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, entries)
+}
+
 // HandleGetKnownLocales returns a curated list of BCP-47 locales.
 func (s *Server) HandleGetKnownLocales(c echo.Context) error {
 	locales := locale.WellKnownLocales()

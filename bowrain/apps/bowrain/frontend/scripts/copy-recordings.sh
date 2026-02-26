@@ -29,6 +29,7 @@ KNOWN_NAMES=(
   "account-and-authentication"
   "workspace-project-management"
   "settings-configuration"
+  "visual-editor-workflow"
 )
 
 if [ ! -d "$RECORDINGS_DIR" ]; then

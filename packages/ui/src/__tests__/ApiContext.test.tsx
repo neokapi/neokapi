@@ -37,6 +37,10 @@ function createMockAdapter(): ApiAdapter {
     exportTranslatedFile: vi.fn(),
     lookupTMForBlock: vi.fn(),
     lookupTermsForBlock: vi.fn(),
+    runQACheck: vi.fn(),
+    runFileQACheck: vi.fn(),
+    renderDocumentPreview: vi.fn(),
+    renderBlockHTML: vi.fn(),
     getTMEntries: vi.fn(),
     getTMCount: vi.fn(),
     addTMEntry: vi.fn(),
@@ -62,6 +66,10 @@ function createMockAdapter(): ApiAdapter {
     deleteInvite: vi.fn(),
     acceptInvite: vi.fn(),
     claimProject: vi.fn(),
+    getBlockHistory: vi.fn(),
+    addBlockNote: vi.fn(),
+    listBlockNotes: vi.fn(),
+    deleteBlockNote: vi.fn(),
   } as ApiAdapter;
 }
 

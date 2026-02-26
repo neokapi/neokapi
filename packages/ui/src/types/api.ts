@@ -279,6 +279,47 @@ export interface TermEnforceResult {
 }
 
 // ---------------------------------------------------------------------------
+// Block note types
+// ---------------------------------------------------------------------------
+
+/** A user note attached to a block */
+export interface BlockNote {
+  id: string;
+  blockId: string;
+  author: string;
+  text: string;
+  createdAt: string;
+}
+
+// ---------------------------------------------------------------------------
+// QA types
+// ---------------------------------------------------------------------------
+
+/** A single block history entry */
+export interface BlockHistoryEntry {
+  seq: number;
+  change_type: string;
+  text: string;
+  coded_text: string;
+  origin: string;
+  author: string;
+  timestamp: string;
+}
+
+/** A single QA check finding */
+export interface QAIssue {
+  type: string;
+  severity: "error" | "warning";
+  message: string;
+}
+
+/** QA results for a single block within a file */
+export interface FileQAResult {
+  blockId: string;
+  issues: QAIssue[];
+}
+
+// ---------------------------------------------------------------------------
 // Format & Tool types
 // ---------------------------------------------------------------------------
 

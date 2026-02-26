@@ -107,6 +107,25 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
+/* Visual Editor */
+.visual-editor-card {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: hsl(var(--card) / 0.92);
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.dark .visual-editor-card {
+  background: hsl(var(--card) / 0.82);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.visual-editor-source {
+  background: hsl(var(--success) / 0.08);
+  border-left: 3px solid hsl(var(--success));
+}
+
 /* ── Copper primary color overrides ─────────────────────── */
 
 /* Shared copper OKLCH primitives */

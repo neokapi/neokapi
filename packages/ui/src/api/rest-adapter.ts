@@ -6,8 +6,9 @@ import type {
   ProviderConfig, ProviderConfigWithKey,
   TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
-  BlockTermMatch, LocaleInfo, FormatInfo, ToolInfo,
+  BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  QAIssue, FileQAResult,
 } from "../types/api";
 
 /**
@@ -124,6 +125,38 @@ export class RestApiAdapter implements ApiAdapter {
       throw new Error(`${resp.status}: ${body}`);
     }
     return resp.blob();
+  }
+
+  private async fetchText(path: string, init?: RequestInit): Promise<string> {
+    const resp = await fetch(`${this.baseUrl}${path}`, {
+      ...init,
+      headers: { ...this.headers(), ...init?.headers },
+      credentials: "same-origin",
+    });
+    if (resp.status === 401) {
+      if (!this.refreshPromise) {
+        this.refreshPromise = this.tryRefresh().finally(() => { this.refreshPromise = null; });
+      }
+      const refreshed = await this.refreshPromise;
+      if (refreshed) {
+        const retry = await fetch(`${this.baseUrl}${path}`, {
+          ...init,
+          headers: { ...this.headers(), ...init?.headers },
+          credentials: "same-origin",
+        });
+        if (!retry.ok) {
+          const body = await retry.text();
+          throw new Error(`${retry.status}: ${body}`);
+        }
+        return retry.text();
+      }
+      this.onSessionExpired?.();
+    }
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`${resp.status}: ${body}`);
+    }
+    return resp.text();
   }
 
   // ── Config ──────────────────────────────────────────────────────────────
@@ -348,6 +381,70 @@ export class RestApiAdapter implements ApiAdapter {
   async lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]> {
     return this.fetchJSON(
       `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/term-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
+    );
+  }
+
+  // ── Block History ────────────────────────────────────────────────────────
+
+  async getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]> {
+    const params = new URLSearchParams({ locale });
+    if (limit) params.set("limit", String(limit));
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/history?${params}`,
+    );
+  }
+
+  // ── Block Notes ──────────────────────────────────────────────────────────
+
+  async addBlockNote(workspaceSlug: string, projectId: string, blockId: string, text: string): Promise<BlockNote> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/notes`,
+      { method: "POST", body: JSON.stringify({ text }) },
+    );
+  }
+
+  async listBlockNotes(workspaceSlug: string, projectId: string, blockId: string): Promise<BlockNote[]> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/notes`,
+    );
+  }
+
+  async deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void> {
+    // Note: the route includes block ID in the path, but for deletion we use a
+    // placeholder since the server only needs project ID and note ID.
+    await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/_/notes/${noteId}`,
+      { method: "DELETE" },
+    );
+  }
+
+  // ── QA ─────────────────────────────────────────────────────────────────
+
+  async runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string): Promise<QAIssue[]> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/qa-check?locale=${locale}`,
+      { method: "POST" },
+    );
+  }
+
+  async runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/qa-check?locale=${locale}`,
+      { method: "POST" },
+    );
+  }
+
+  // ── Preview ────────────────────────────────────────────────────────────
+
+  async renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<string> {
+    return this.fetchText(
+      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/preview?locale=${targetLocale}`,
+    );
+  }
+
+  async renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string): Promise<string> {
+    return this.fetchText(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/html?locale=${targetLocale}`,
     );
   }
 

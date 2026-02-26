@@ -284,6 +284,14 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 		err := hashStmt.QueryRowContext(ctx, projectID, itemName, b.ID).Scan(&existingHash)
 		isNew := err == sql.ErrNoRows
 
+		// Record target history before overwriting.
+		if !isNew && len(b.Targets) > 0 {
+			oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, b.ID)
+			if loadErr == nil && oldTargets != nil {
+				_ = recordTargetHistory(ctx, tx, projectID, b.ID, oldTargets, b.Targets)
+			}
+		}
+
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
 			return fmt.Errorf("marshal source for block %s: %w", b.ID, err)

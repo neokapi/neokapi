@@ -1,0 +1,280 @@
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useEditorApi } from "../../hooks/useEditorApi";
+import type { BlockInfo } from "../../types/api";
+import type { PreviewContentMode } from "./visual-editor-types";
+
+interface DocumentPreviewProps {
+  projectId: string;
+  itemName: string;
+  targetLocale: string;
+  selectedBlockId?: string;
+  onBlockSelect: (blockId: string) => void;
+  blocks?: BlockInfo[];
+  previewContentMode?: PreviewContentMode;
+  // Inline mode props
+  spacerHeight?: number;
+  onContentHeight?: (h: number) => void;
+  onSpacerPosition?: (y: number) => void;
+}
+
+export function DocumentPreview({
+  projectId,
+  itemName,
+  targetLocale,
+  selectedBlockId,
+  onBlockSelect,
+  blocks = [],
+  previewContentMode,
+  spacerHeight,
+  onContentHeight,
+  onSpacerPosition,
+}: DocumentPreviewProps) {
+  const [previewHTML, setPreviewHTML] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [iframeReady, setIframeReady] = useState(false);
+  const [internalMode, setInternalMode] = useState<"source" | "target">("source");
+  const [hovered, setHovered] = useState(false);
+  const [iframeContentHeight, setIframeContentHeight] = useState<number>(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { renderDocumentPreview, renderBlockHTML } = useEditorApi();
+
+  // Inline mode: spacerHeight prop is provided
+  const inlineMode = spacerHeight !== undefined;
+
+  // Determine effective mode: controlled via prop, or internal toggle
+  const isControlled = previewContentMode !== undefined;
+  const showTarget = isControlled
+    ? previewContentMode === "target" || previewContentMode === "pseudo"
+    : internalMode === "target";
+
+  // Use refs for callback props to avoid re-running effects when they change
+  const onBlockSelectRef = useRef(onBlockSelect);
+  onBlockSelectRef.current = onBlockSelect;
+  const onContentHeightRef = useRef(onContentHeight);
+  onContentHeightRef.current = onContentHeight;
+  const onSpacerPositionRef = useRef(onSpacerPosition);
+  onSpacerPositionRef.current = onSpacerPosition;
+
+  // Load preview HTML
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setIframeReady(false);
+    renderDocumentPreview(projectId, itemName, targetLocale).then((html) => {
+      if (!cancelled) {
+        setPreviewHTML(html);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [renderDocumentPreview, projectId, itemName, targetLocale]);
+
+  // Listen for block clicks, iframe ready signal, and content height / spacer position
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (e.data?.type === "kat-block-click" && e.data.blockId) {
+        onBlockSelectRef.current(e.data.blockId);
+      }
+      if (e.data?.type === "kat-iframe-ready") {
+        setIframeReady(true);
+      }
+      if (e.data?.type === "kat-content-height" && typeof e.data.height === "number") {
+        setIframeContentHeight(e.data.height);
+        onContentHeightRef.current?.(e.data.height);
+      }
+      if (e.data?.type === "kat-spacer-position" && typeof e.data.y === "number") {
+        onSpacerPositionRef.current?.(e.data.y);
+        if (typeof e.data.contentHeight === "number") {
+          setIframeContentHeight(e.data.contentHeight);
+          onContentHeightRef.current?.(e.data.contentHeight);
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // Fallback: mark ready on iframe load (for previews without kat-iframe-ready)
+  const handleIframeLoad = useCallback(() => {
+    setTimeout(() => setIframeReady(true), 50);
+  }, []);
+
+  // Send selection to iframe when selectedBlockId changes
+  useEffect(() => {
+    if (!iframeRef.current?.contentWindow || !selectedBlockId || !iframeReady) return;
+    iframeRef.current.contentWindow.postMessage(
+      { type: "kat-select-block", blockId: selectedBlockId },
+      "*",
+    );
+  }, [selectedBlockId, iframeReady]);
+
+  // Send spacer insert/remove messages in inline mode
+  useEffect(() => {
+    const cw = iframeRef.current?.contentWindow;
+    if (!cw || !iframeReady) return;
+
+    if (inlineMode && selectedBlockId && spacerHeight > 0) {
+      cw.postMessage(
+        { type: "kat-insert-spacer", blockId: selectedBlockId, height: spacerHeight },
+        "*",
+      );
+    } else {
+      cw.postMessage({ type: "kat-remove-spacer" }, "*");
+    }
+  }, [selectedBlockId, spacerHeight, iframeReady, inlineMode]);
+
+  // Push target/source text into the iframe when showTarget or blocks change
+  useEffect(() => {
+    const cw = iframeRef.current?.contentWindow;
+    if (!cw || !iframeReady) return;
+
+    for (const block of blocks) {
+      const html = showTarget && block.targets[targetLocale]
+        ? block.targets[targetLocale]
+        : block.source;
+      cw.postMessage(
+        { type: "kat-update-block", blockId: block.id, html },
+        "*",
+      );
+    }
+  }, [showTarget, blocks, targetLocale, iframeReady]);
+
+  // Use renderBlockHTML for richer block content when available
+  useEffect(() => {
+    const cw = iframeRef.current?.contentWindow;
+    if (!cw || !iframeReady || !showTarget || !renderBlockHTML) return;
+
+    let cancelled = false;
+    for (const block of blocks) {
+      if (block.targets[targetLocale]) {
+        renderBlockHTML(projectId, block.id, targetLocale).then((html) => {
+          if (!cancelled) {
+            cw.postMessage(
+              { type: "kat-update-block", blockId: block.id, html },
+              "*",
+            );
+          }
+        }).catch(() => { /* fall back to plain text already sent */ });
+      }
+    }
+    return () => { cancelled = true; };
+  }, [showTarget, blocks, targetLocale, iframeReady, renderBlockHTML, projectId]);
+
+  if (loading) {
+    return (
+      <div style={loadingStyle} data-testid="preview-loading">
+        Loading preview...
+      </div>
+    );
+  }
+
+  if (!previewHTML) {
+    return (
+      <div style={emptyStyle} data-testid="preview-empty">
+        No preview available
+      </div>
+    );
+  }
+
+  // In inline mode, iframe expands to full content height (no internal scrollbar)
+  const effectiveIframeStyle: React.CSSProperties = inlineMode
+    ? { ...iframeStyle, height: iframeContentHeight > 0 ? iframeContentHeight : "100%" }
+    : iframeStyle;
+
+  const effectiveContainerStyle: React.CSSProperties = inlineMode
+    ? { ...containerStyle, height: "auto" }
+    : containerStyle;
+
+  return (
+    <div
+      style={effectiveContainerStyle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <iframe
+        ref={iframeRef}
+        srcDoc={previewHTML}
+        style={effectiveIframeStyle}
+        sandbox="allow-scripts"
+        title="Document Preview"
+        data-testid="preview-iframe"
+        onLoad={handleIframeLoad}
+      />
+      {!isControlled && (
+        <div
+          style={{
+            ...overlayStyle,
+            opacity: hovered ? 1 : 0,
+            pointerEvents: hovered ? "auto" : "none",
+          }}
+          data-testid="preview-overlay"
+        >
+          <button
+            onClick={() => setInternalMode(internalMode === "source" ? "target" : "source")}
+            style={{
+              ...toggleBtnStyle,
+              backgroundColor: internalMode === "target" ? "var(--accent)" : "rgba(30,30,46,0.85)",
+            }}
+            data-testid="preview-target-toggle"
+          >
+            {internalMode === "target" ? "Target" : "Source"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const containerStyle: React.CSSProperties = {
+  position: "relative",
+  width: "100%",
+  height: "100%",
+};
+
+const iframeStyle: React.CSSProperties = {
+  width: "100%",
+  height: "100%",
+  border: "1px solid var(--border)",
+  borderRadius: 8,
+  backgroundColor: "#fff",
+};
+
+const overlayStyle: React.CSSProperties = {
+  position: "absolute",
+  top: 8,
+  right: 8,
+  transition: "opacity 0.2s ease",
+  display: "flex",
+  gap: 4,
+};
+
+const toggleBtnStyle: React.CSSProperties = {
+  padding: "4px 12px",
+  color: "#fff",
+  border: "none",
+  borderRadius: 4,
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
+};
+
+const loadingStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "100%",
+  color: "var(--text-secondary)",
+  fontSize: 14,
+};
+
+const emptyStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  height: "100%",
+  color: "var(--text-secondary)",
+  fontSize: 14,
+};

@@ -151,4 +151,38 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_blocks_item ON blocks(project_id, item_name);
 		`,
 	},
+	{
+		Version:     9,
+		Description: "create block_history table",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS block_history (
+				id          INTEGER PRIMARY KEY AUTOINCREMENT,
+				project_id  TEXT NOT NULL,
+				block_id    TEXT NOT NULL,
+				locale      TEXT NOT NULL,
+				change_type TEXT NOT NULL,
+				text        TEXT NOT NULL DEFAULT '',
+				coded_text  TEXT NOT NULL DEFAULT '',
+				origin      TEXT NOT NULL DEFAULT '',
+				author      TEXT NOT NULL DEFAULT '',
+				created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE INDEX IF NOT EXISTS idx_block_history_lookup ON block_history(project_id, block_id, locale);
+		`,
+	},
+	{
+		Version:     10,
+		Description: "create block_notes table",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS block_notes (
+				id         TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				block_id   TEXT NOT NULL,
+				author     TEXT NOT NULL DEFAULT '',
+				text       TEXT NOT NULL,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			);
+			CREATE INDEX IF NOT EXISTS idx_block_notes_lookup ON block_notes(project_id, block_id);
+		`,
+	},
 }

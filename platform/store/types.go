@@ -103,6 +103,17 @@ type BlockChange struct {
 // Change Log (incremental sync)
 // ---------------------------------------------------------------------------
 
+// BlockHistoryEntry represents a single historical change to a block's translation.
+type BlockHistoryEntry struct {
+	Seq        int64     `json:"seq"`
+	ChangeType string    `json:"changeType"`
+	Text       string    `json:"text"`
+	CodedText  string    `json:"codedText"`
+	Origin     string    `json:"origin"`
+	Author     string    `json:"author"`
+	Timestamp  time.Time `json:"timestamp"`
+}
+
 // ChangeEntry represents a single entry in the append-only change log.
 type ChangeEntry struct {
 	Seq         int64     `json:"seq"`
