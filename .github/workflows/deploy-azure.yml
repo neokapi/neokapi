@@ -29,15 +29,22 @@ env:
   AZURE_RESOURCE_GROUP_PROD: rg-bowrain-p-weu
 
 jobs:
-  # Step 1: Deploy infrastructure via Bicep (creates ACR, databases, etc.)
-  deploy-infra:
-    name: Deploy Infrastructure
+  # Step 1: Deploy core infrastructure (identity, networking, databases, caches, ACR)
+  deploy-core:
+    name: Deploy Core Infrastructure
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
     outputs:
       rg-name: ${{ steps.rg.outputs.name }}
       env-abbr: ${{ steps.rg.outputs.env-abbr }}
       image-tag: ${{ steps.tag.outputs.value }}
+      managed-identity-id: ${{ steps.core-out.outputs.managed-identity-id }}
+      acr-login-server: ${{ steps.core-out.outputs.acr-login-server }}
+      container-app-env-id: ${{ steps.core-out.outputs.container-app-env-id }}
+      postgres-fqdn: ${{ steps.core-out.outputs.postgres-fqdn }}
+      redis-hostname: ${{ steps.core-out.outputs.redis-hostname }}
+      service-bus-connection-string: ${{ steps.core-out.outputs.service-bus-connection-string }}
+      key-vault-uri: ${{ steps.core-out.outputs.key-vault-uri }}
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
     steps:
@@ -78,7 +85,7 @@ jobs:
             echo "env-abbr=d" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy Bicep
+      - name: Deploy core infrastructure
         uses: azure/bicep-deploy@v2
         with:
           type: deployment
@@ -86,36 +93,52 @@ jobs:
           scope: resourceGroup
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resource-group-name: ${{ steps.rg.outputs.name }}
-          template-file: deploy/azure/main.bicep
-          parameters-file: deploy/azure/parameters/${{ env.ENVIRONMENT }}.bicepparam
+          template-file: deploy/azure/core.bicep
+          parameters-file: deploy/azure/parameters/core-${{ env.ENVIRONMENT }}.bicepparam
           parameters: >
             {
-              "imageTag": "${{ steps.tag.outputs.value }}",
               "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
               "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
               "jwtSecret": "${{ secrets.JWT_SECRET }}",
-              "oidcClientSecret": "${{ secrets.OIDC_CLIENT_SECRET }}",
-              "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}"
+              "oidcClientSecret": "${{ secrets.OIDC_CLIENT_SECRET }}"
             }
+          outputs-to: CORE_OUTPUTS
 
-  # Step 2: Build and push container images (ACR now exists from Bicep)
+      - name: Export core outputs
+        id: core-out
+        run: |
+          SB_CONN=$(echo "$CORE_OUTPUTS" | jq -r '.serviceBusConnectionString.value')
+          echo "::add-mask::${SB_CONN}"
+          {
+            echo "managed-identity-id=$(echo "$CORE_OUTPUTS" | jq -r '.managedIdentityId.value')"
+            echo "acr-login-server=$(echo "$CORE_OUTPUTS" | jq -r '.acrLoginServer.value')"
+            echo "container-app-env-id=$(echo "$CORE_OUTPUTS" | jq -r '.containerAppEnvId.value')"
+            echo "postgres-fqdn=$(echo "$CORE_OUTPUTS" | jq -r '.postgresFqdn.value')"
+            echo "redis-hostname=$(echo "$CORE_OUTPUTS" | jq -r '.redisHostname.value')"
+            echo "service-bus-connection-string=${SB_CONN}"
+            echo "key-vault-uri=$(echo "$CORE_OUTPUTS" | jq -r '.keyVaultUri.value')"
+          } >> "$GITHUB_OUTPUT"
+
+  # Step 2: Build and push container images (ACR now exists from core)
   build:
     name: Build Images
-    needs: deploy-infra
+    needs: deploy-core
     uses: ./.github/workflows/build-images.yml
     with:
       environment: ${{ github.event.inputs.environment || 'dev' }}
-      image-tag: ${{ needs.deploy-infra.outputs.image-tag }}
+      image-tag: ${{ needs.deploy-core.outputs.image-tag }}
     secrets: inherit
 
-  # Step 3: Update container app revisions with new images
-  update-apps:
-    name: Update Container Apps
+  # Step 3: Deploy apps layer (Container Apps + DNS) with the newly built images
+  deploy-apps:
+    name: Deploy Apps
     runs-on: ubuntu-latest
-    needs: [deploy-infra, build]
+    needs: [deploy-core, build]
     env:
-      AZURE_REGION: weu
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -123,38 +146,27 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Update API container revision
-        env:
-          RG: ${{ needs.deploy-infra.outputs.rg-name }}
-          APP_NAME: ca-bowrain-api-${{ needs.deploy-infra.outputs.env-abbr }}-weu
-          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
-          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
-        run: |
-          az containerapp update \
-            --name "$APP_NAME" \
-            --resource-group "$RG" \
-            --image "${ACR_LOGIN_SERVER}/bowrain-server:${IMAGE_TAG}"
-
-      - name: Update Worker container revision
-        env:
-          RG: ${{ needs.deploy-infra.outputs.rg-name }}
-          APP_NAME: ca-bowrain-worker-${{ needs.deploy-infra.outputs.env-abbr }}-weu
-          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
-          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
-        run: |
-          az containerapp update \
-            --name "$APP_NAME" \
-            --resource-group "$RG" \
-            --image "${ACR_LOGIN_SERVER}/bowrain-worker:${IMAGE_TAG}"
-
-      - name: Update Keycloak container revision
-        env:
-          RG: ${{ needs.deploy-infra.outputs.rg-name }}
-          APP_NAME: ca-bowrain-keycloak-${{ needs.deploy-infra.outputs.env-abbr }}-weu
-          ACR_LOGIN_SERVER: ${{ needs.build.outputs.acr-login-server }}
-          IMAGE_TAG: ${{ needs.deploy-infra.outputs.image-tag }}
-        run: |
-          az containerapp update \
-            --name "$APP_NAME" \
-            --resource-group "$RG" \
-            --image "${ACR_LOGIN_SERVER}/bowrain-keycloak:${IMAGE_TAG}"
+      - name: Deploy apps
+        uses: azure/bicep-deploy@v2
+        with:
+          type: deployment
+          operation: create
+          scope: resourceGroup
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group-name: ${{ needs.deploy-core.outputs.rg-name }}
+          template-file: deploy/azure/apps.bicep
+          parameters-file: deploy/azure/parameters/apps-${{ env.ENVIRONMENT }}.bicepparam
+          parameters: >
+            {
+              "imageTag": "${{ needs.deploy-core.outputs.image-tag }}",
+              "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
+              "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
+              "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
+              "managedIdentityId": "${{ needs.deploy-core.outputs.managed-identity-id }}",
+              "acrLoginServer": "${{ needs.deploy-core.outputs.acr-login-server }}",
+              "containerAppEnvId": "${{ needs.deploy-core.outputs.container-app-env-id }}",
+              "postgresFqdn": "${{ needs.deploy-core.outputs.postgres-fqdn }}",
+              "redisHostname": "${{ needs.deploy-core.outputs.redis-hostname }}",
+              "serviceBusConnectionString": "${{ needs.deploy-core.outputs.service-bus-connection-string }}",
+              "keyVaultUri": "${{ needs.deploy-core.outputs.key-vault-uri }}"
+            }

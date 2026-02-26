@@ -26,7 +26,7 @@ resource redisCache 'Microsoft.Cache/redis@2024-11-01' = {
   }
 }
 
-resource privateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
+resource privateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   name: '${prefix}-redis-pe'
   location: location
   tags: tags
@@ -46,7 +46,7 @@ resource privateEndpoint 'Microsoft.Network/privateEndpoints@2025-05-01' = {
   }
 }
 
-resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2025-05-01' = {
+resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
   parent: privateEndpoint
   name: 'default'
   properties: {
@@ -62,5 +62,6 @@ resource privateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneG
 }
 
 output hostname string = redisCache.properties.hostName
+#disable-next-line outputs-should-not-contain-secrets // consumed by keyvault module
 output primaryKey string = redisCache.listKeys().primaryKey
 output sslPort int = redisCache.properties.sslPort

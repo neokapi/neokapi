@@ -12,12 +12,6 @@ param keycloakAppFqdn string
 var apiSubdomain = environment == 'prod' ? '@' : 'dev'
 var authSubdomain = environment == 'prod' ? 'auth' : 'auth.dev'
 
-// Reference the existing DNS zone in its resource group.
-resource dnsZone 'Microsoft.Network/dnsZones@2023-07-01-preview' existing = {
-  name: dnsZoneName
-  scope: resourceGroup(dnsZoneResourceGroup)
-}
-
 // CNAME: dev.bowrain.cloud → API container app FQDN (dev only).
 // The prod apex domain (bowrain.cloud) cannot use a CNAME; it requires
 // an ALIAS record or Azure Front Door configured outside of Bicep.

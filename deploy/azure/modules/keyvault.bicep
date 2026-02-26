@@ -14,7 +14,7 @@ param oidcClientSecret string
 @secure()
 param redisAccessKey string
 
-resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: '${prefix}-kv'
   location: location
   tags: tags
@@ -30,7 +30,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2025-05-01' = {
   }
 }
 
-resource jwtSecretEntry 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
+resource jwtSecretEntry 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'jwt-secret'
   properties: {
@@ -38,7 +38,7 @@ resource jwtSecretEntry 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   }
 }
 
-resource oidcSecretEntry 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
+resource oidcSecretEntry 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'oidc-client-secret'
   properties: {
@@ -46,7 +46,7 @@ resource oidcSecretEntry 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
   }
 }
 
-resource redisKeyEntry 'Microsoft.KeyVault/vaults/secrets@2025-05-01' = {
+resource redisKeyEntry 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   parent: keyVault
   name: 'redis-access-key'
   properties: {

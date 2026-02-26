@@ -1,9 +1,7 @@
-using '../main.bicep'
+using '../core.bicep'
 
 param environment = 'prod'
 param location = 'northeurope'
-param dnsZoneResourceGroup = 'bowrain-dns-rg'
-param imageTag = 'latest'
 
 param tags = {
   project: 'bowrain'
@@ -16,4 +14,3 @@ param tags = {
 //   --parameters postgresAdminPassword=<value>
 //   --parameters jwtSecret=<value>
 //   --parameters oidcClientSecret=<value>
-//   --parameters keycloakAdminPassword=<value>

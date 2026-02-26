@@ -1,13 +1,10 @@
-using '../main.bicep'
+using '../core.bicep'
 
 param environment = 'dev'
 param location = 'northeurope'
-param dnsZoneResourceGroup = 'bowrain-dns-rg'
-param imageTag = 'latest'
 
 // Sensitive parameters must be provided via CLI or environment:
 //   --parameters postgresAdminLogin=<value>
 //   --parameters postgresAdminPassword=<value>
 //   --parameters jwtSecret=<value>
 //   --parameters oidcClientSecret=<value>
-//   --parameters keycloakAdminPassword=<value>

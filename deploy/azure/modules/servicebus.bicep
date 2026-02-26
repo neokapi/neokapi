@@ -36,5 +36,6 @@ resource kedaAuthRule 'Microsoft.ServiceBus/namespaces/AuthorizationRules@2024-0
 }
 
 output namespaceName string = serviceBusNamespace.name
+#disable-next-line outputs-should-not-contain-secrets // consumed by container app modules
 output connectionString string = kedaAuthRule.listKeys().primaryConnectionString
 output queueName string = translationJobsQueue.name

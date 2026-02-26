@@ -8,7 +8,7 @@ param principalId string
 // ACR names must be alphanumeric.
 var acrName = replace('${prefix}acr', '-', '')
 
-resource acr 'Microsoft.ContainerRegistry/registries@2025-11-01' = {
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   name: acrName
   location: location
   tags: tags

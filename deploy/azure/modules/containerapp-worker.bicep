@@ -11,13 +11,14 @@ param environment string
 param postgresHost string
 param postgresDbName string
 param redisHost string
+@secure()
 param serviceBusConnectionString string
 param keyVaultUri string
 
 var minReplicas = environment == 'prod' ? 1 : 0
 var maxReplicas = environment == 'prod' ? 20 : 5
 
-resource workerApp 'Microsoft.App/containerApps@2025-07-01' = {
+resource workerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: '${prefix}-worker'
   location: location
   tags: tags

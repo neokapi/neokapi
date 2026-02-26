@@ -24,14 +24,18 @@ Infrastructure is defined in Bicep (`deploy/azure/`) and deployed via GitHub Act
 The `deploy-azure.yml` workflow runs three jobs in sequence:
 
 ```
-deploy-infra  →  build  →  update-apps
+deploy-core  →  build  →  deploy-apps
 ```
 
-1. **deploy-infra** — runs Bicep to create/update all Azure resources (including ACR)
+1. **deploy-core** — deploys core infrastructure via Bicep (identity, networking, databases, caches, ACR, Key Vault) and exports outputs
 2. **build** — builds Docker images and pushes them to the ACR created in step 1
-3. **update-apps** — updates Container App revisions to use the newly built images
+3. **deploy-apps** — deploys Container Apps and DNS records via Bicep, using core outputs and the newly built image tag
 
-This ordering ensures the ACR exists before images are pushed.
+This two-layer split ensures:
+- The ACR exists before images are pushed
+- Images exist before Container Apps reference them (no chicken-and-egg on first deploy)
+- Core infrastructure changes are isolated from app rollouts
+- Faster deploys when only app config changes
 
 ### Triggers
 
@@ -154,17 +158,13 @@ Go to **Settings → Environments** and create:
 
 ## First deployment
 
-The first deployment has a bootstrapping constraint: Bicep creates Container Apps that reference images in ACR, but those images don't exist yet (the build job runs after infrastructure deployment).
+With the two-layer split, the first deployment works cleanly:
 
-### Bootstrap procedure
+1. **`deploy-core`** creates all infrastructure including ACR — no Container App references yet, so nothing can fail due to missing images.
+2. **`build`** pushes images to the now-existing ACR.
+3. **`deploy-apps`** creates Container Apps with the correct image tags — images already exist in ACR.
 
-1. **Run the workflow** — trigger a manual `workflow_dispatch` to `dev`. The `deploy-infra` job will create all infrastructure including ACR. Container Apps may fail to start (image not found) — this is expected.
-
-2. **The `build` job will succeed** — it pushes images to the now-existing ACR.
-
-3. **The `update-apps` job will succeed** — it updates Container App revisions to use the real images, and containers will start.
-
-On subsequent deployments, the Container Apps already have valid images from the previous deployment, so all three jobs succeed without issues.
+No bootstrapping workaround is needed. All three jobs succeed on first deploy.
 
 ### Verify the deployment
 
@@ -185,14 +185,16 @@ az containerapp logs show \
 
 ## Environment configuration
 
-Bicep parameters are in `deploy/azure/parameters/`:
+Bicep parameters are split into core and apps files in `deploy/azure/parameters/`:
 
-| File | Environment | Scaling | Notes |
+| File | Layer | Environment | Notes |
 |---|---|---|---|
-| `dev.bicepparam` | dev | 1–3 replicas | Auto-deploys on push to main |
-| `prod.bicepparam` | prod | 2–10 replicas | Manual dispatch with approval |
+| `core-dev.bicepparam` | Core | dev | Identity, networking, databases, caches, ACR |
+| `core-prod.bicepparam` | Core | prod | Identity, networking, databases, caches, ACR |
+| `apps-dev.bicepparam` | Apps | dev | Container Apps, DNS |
+| `apps-prod.bicepparam` | Apps | prod | Container Apps, DNS |
 
-Sensitive parameters (database credentials, JWT secret, etc.) are passed via GitHub secrets at deploy time and never stored in parameter files.
+Sensitive parameters (database credentials, JWT secret, etc.) are passed via GitHub secrets at deploy time and never stored in parameter files. Core infrastructure outputs (managed identity ID, ACR login server, etc.) are passed from the `deploy-core` job to the `deploy-apps` job automatically.
 
 ## Custom domains
 
@@ -205,22 +207,22 @@ TLS certificates are automatically provisioned and managed by Azure Container Ap
 
 ## Infrastructure modules
 
-All Bicep modules are under `deploy/azure/modules/`:
+All Bicep modules are under `deploy/azure/modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
 
-| Module | Resources |
-|---|---|
-| `identity.bicep` | User-assigned managed identity, RBAC role assignments |
-| `network.bicep` | VNet, subnets, private DNS zones |
-| `acr.bicep` | Container Registry, AcrPull role assignment |
-| `keyvault.bicep` | Key Vault, secrets (JWT, OIDC, Redis key) |
-| `postgres.bicep` | PostgreSQL Flexible Server, PgBouncer config, databases |
-| `redis.bicep` | Redis Cache, private endpoint |
-| `servicebus.bicep` | Service Bus namespace |
-| `containerapp-env.bicep` | Container Apps Environment, Log Analytics |
-| `containerapp-api.bicep` | API server Container App |
-| `containerapp-worker.bicep` | Worker Container App (KEDA Service Bus scaler) |
-| `containerapp-keycloak.bicep` | Keycloak Container App |
-| `dns.bicep` | CNAME and TXT records in bowrain.cloud zone |
+| Module | Layer | Resources |
+|---|---|---|
+| `identity.bicep` | Core | User-assigned managed identity, RBAC role assignments |
+| `network.bicep` | Core | VNet, subnets, private DNS zones |
+| `acr.bicep` | Core | Container Registry, AcrPull role assignment |
+| `keyvault.bicep` | Core | Key Vault, secrets (JWT, OIDC, Redis key) |
+| `postgres.bicep` | Core | PostgreSQL Flexible Server, PgBouncer config, databases |
+| `redis.bicep` | Core | Redis Cache, private endpoint |
+| `servicebus.bicep` | Core | Service Bus namespace |
+| `containerapp-env.bicep` | Core | Container Apps Environment, Log Analytics |
+| `containerapp-api.bicep` | Apps | API server Container App |
+| `containerapp-worker.bicep` | Apps | Worker Container App (KEDA Service Bus scaler) |
+| `containerapp-keycloak.bicep` | Apps | Keycloak Container App |
+| `dns.bicep` | Apps | CNAME and TXT records in bowrain.cloud zone |
 
 ## Linting
 

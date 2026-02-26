@@ -5,7 +5,7 @@ param location string
 param tags object
 param subnetId string
 
-resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
+resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: '${prefix}-logs'
   location: location
   tags: tags
@@ -17,7 +17,7 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2025-07-01' = {
   }
 }
 
-resource containerAppEnv 'Microsoft.App/managedEnvironments@2025-07-01' = {
+resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${prefix}-cae'
   location: location
   tags: tags
