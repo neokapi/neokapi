@@ -301,7 +301,9 @@ jobs:
 
       - name: Verify kapi has no heavy deps
         run: |
-          cd kapi && GOWORK=off go list -m all | grep -iE 'sqlite|wails|echo|oidc|keyring' && exit 1 || true
+          if cd kapi && GOWORK=off go list -m all | grep -iE 'sqlite|wails|echo|oidc|keyring'; then
+            exit 1
+          fi
 
   # ── Bridge filter integration tests ──────────────────────────────────────
   test-bridge-filters:
