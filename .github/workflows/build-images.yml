@@ -1,0 +1,122 @@
+name: Build & Push Images
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target environment (dev or prod)'
+        required: true
+        type: string
+      image-tag:
+        description: 'Image tag (defaults to github.sha if empty)'
+        required: false
+        type: string
+    outputs:
+      image-tag:
+        description: 'The tag that was built and pushed'
+        value: ${{ jobs.build.outputs.image-tag }}
+      acr-login-server:
+        description: 'The ACR login server URL'
+        value: ${{ jobs.build.outputs.acr-login-server }}
+
+env:
+  AZURE_RESOURCE_GROUP_DEV: bowrain-dev-rg
+  AZURE_RESOURCE_GROUP_PROD: bowrain-prod-rg
+
+jobs:
+  build:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+      acr-login-server: ${{ steps.acr.outputs.login-server }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image tag
+        id: meta
+        env:
+          INPUT_TAG: ${{ inputs.image-tag }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          TAG="${INPUT_TAG:-$GH_SHA}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR login server
+        id: acr
+        env:
+          DEPLOY_ENV: ${{ inputs.environment }}
+          RG_DEV: ${{ env.AZURE_RESOURCE_GROUP_DEV }}
+          RG_PROD: ${{ env.AZURE_RESOURCE_GROUP_PROD }}
+        run: |
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            RG="$RG_PROD"
+          else
+            RG="$RG_DEV"
+          fi
+          ACR_NAME=$(az acr list --resource-group "$RG" --query "[0].name" -o tsv)
+          LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
+          echo "login-server=${LOGIN_SERVER}" >> "$GITHUB_OUTPUT"
+          echo "name=${ACR_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: ACR Login
+        env:
+          ACR_NAME: ${{ steps.acr.outputs.name }}
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build the shared base image containing both compiled binaries.
+      # This is never pushed — it's only used as a build context for
+      # the server and worker images below.
+      - name: Build base image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-base/Dockerfile
+          load: true
+          tags: bowrain-base:latest
+          cache-from: type=gha,scope=bowrain-base
+          cache-to: type=gha,mode=max,scope=bowrain-base
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-server/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
+          push: true
+          tags: |
+            ${{ steps.acr.outputs.login-server }}/bowrain-server:${{ steps.meta.outputs.tag }}
+            ${{ steps.acr.outputs.login-server }}/bowrain-server:latest
+
+      - name: Build and push worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-worker/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
+          push: true
+          tags: |
+            ${{ steps.acr.outputs.login-server }}/bowrain-worker:${{ steps.meta.outputs.tag }}
+            ${{ steps.acr.outputs.login-server }}/bowrain-worker:latest
+
+      - name: Build and push keycloak image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/keycloak/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.acr.outputs.login-server }}/bowrain-keycloak:${{ steps.meta.outputs.tag }}
+            ${{ steps.acr.outputs.login-server }}/bowrain-keycloak:latest
+          cache-from: type=gha,scope=bowrain-keycloak
+          cache-to: type=gha,mode=max,scope=bowrain-keycloak
