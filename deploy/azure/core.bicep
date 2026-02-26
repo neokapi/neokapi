@@ -140,6 +140,19 @@ module containerAppEnv 'modules/containerapp-env.bicep' = {
   }
 }
 
+// ── Storage (Web UI) ──────────────────────────────────────────────────────────
+
+module storageWeb 'modules/storage-web.bicep' = {
+  name: '${prefix}-storage-web'
+  params: {
+    prefix: prefix
+    location: location
+    tags: tags
+    managedIdentityId: identity.outputs.id
+    managedIdentityPrincipalId: identity.outputs.principalId
+  }
+}
+
 // ── Outputs (consumed by apps layer) ─────────────────────────────────────────
 
 output managedIdentityId string = identity.outputs.id
@@ -149,3 +162,5 @@ output postgresFqdn string = postgres.outputs.fqdn
 output redisHostname string = redis.outputs.hostname
 output serviceBusConnectionString string = servicebus.outputs.connectionString
 output keyVaultUri string = keyvault.outputs.uri
+output storageAccountName string = storageWeb.outputs.storageAccountName
+output webHostname string = storageWeb.outputs.webHostname

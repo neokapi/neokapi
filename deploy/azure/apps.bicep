@@ -62,6 +62,12 @@ param serviceBusConnectionString string
 @description('Key Vault URI')
 param keyVaultUri string
 
+@description('Storage Account static website hostname (from core layer)')
+param storageWebHostname string
+
+@description('Storage Account name (from core layer)')
+param storageAccountName string
+
 // ── Naming convention ────────────────────────────────────────────────────────
 
 var prefix = 'bowrain-${environment}'
@@ -85,7 +91,6 @@ module containerAppApi 'modules/containerapp-api.bicep' = {
     serviceBusConnectionString: serviceBusConnectionString
     keyVaultUri: keyVaultUri
     keycloakIssuerUrl: environment == 'prod' ? 'https://auth.bowrain.cloud/realms/bowrain' : 'https://auth.dev.bowrain.cloud/realms/bowrain'
-    customDomain: environment == 'prod' ? 'bowrain.cloud' : 'dev.bowrain.cloud'
   }
 }
 
@@ -132,6 +137,21 @@ module containerAppKeycloak 'modules/containerapp-keycloak.bicep' = {
   }
 }
 
+// ── Front Door ───────────────────────────────────────────────────────────────
+
+module frontdoor 'modules/frontdoor.bicep' = {
+  name: '${prefix}-frontdoor'
+  params: {
+    prefix: prefix
+    tags: tags
+    customDomain: environment == 'prod' ? 'bowrain.cloud' : 'dev.bowrain.cloud'
+    apiBackendFqdn: containerAppApi.outputs.fqdn
+    webBackendHostname: storageWebHostname
+    dnsZoneName: dnsZoneName
+    dnsZoneResourceGroup: dnsZoneResourceGroup
+  }
+}
+
 // ── DNS ──────────────────────────────────────────────────────────────────────
 
 module dns 'modules/dns.bicep' = {
@@ -140,7 +160,7 @@ module dns 'modules/dns.bicep' = {
     dnsZoneName: dnsZoneName
     dnsZoneResourceGroup: dnsZoneResourceGroup
     environment: environment
-    apiAppFqdn: containerAppApi.outputs.fqdn
+    frontDoorFqdn: frontdoor.outputs.frontDoorFqdn
     keycloakAppFqdn: containerAppKeycloak.outputs.fqdn
   }
 }
@@ -149,3 +169,5 @@ module dns 'modules/dns.bicep' = {
 
 output apiUrl string = 'https://${containerAppApi.outputs.fqdn}'
 output keycloakUrl string = 'https://${containerAppKeycloak.outputs.fqdn}'
+output frontDoorFqdn string = frontdoor.outputs.frontDoorFqdn
+output storageAccountName string = storageAccountName

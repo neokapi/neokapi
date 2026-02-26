@@ -45,6 +45,8 @@ jobs:
       redis-hostname: ${{ steps.core-out.outputs.redis-hostname }}
       service-bus-connection-string: ${{ steps.core-out.outputs.service-bus-connection-string }}
       key-vault-uri: ${{ steps.core-out.outputs.key-vault-uri }}
+      storage-account-name: ${{ steps.core-out.outputs.storage-account-name }}
+      web-hostname: ${{ steps.core-out.outputs.web-hostname }}
     env:
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
     steps:
@@ -117,6 +119,8 @@ jobs:
             echo "redis-hostname=$(echo "$CORE_OUTPUTS" | jq -r '.redisHostname.value')"
             echo "service-bus-connection-string=${SB_CONN}"
             echo "key-vault-uri=$(echo "$CORE_OUTPUTS" | jq -r '.keyVaultUri.value')"
+            echo "storage-account-name=$(echo "$CORE_OUTPUTS" | jq -r '.storageAccountName.value')"
+            echo "web-hostname=$(echo "$CORE_OUTPUTS" | jq -r '.webHostname.value')"
           } >> "$GITHUB_OUTPUT"
 
   # Step 2: Build and push container images (ACR now exists from core)
@@ -162,6 +166,8 @@ jobs:
               "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
               "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
               "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
+              "storageWebHostname": "${{ needs.deploy-core.outputs.web-hostname }}",
+              "storageAccountName": "${{ needs.deploy-core.outputs.storage-account-name }}",
               "managedIdentityId": "${{ needs.deploy-core.outputs.managed-identity-id }}",
               "acrLoginServer": "${{ needs.deploy-core.outputs.acr-login-server }}",
               "containerAppEnvId": "${{ needs.deploy-core.outputs.container-app-env-id }}",
@@ -170,3 +176,21 @@ jobs:
               "serviceBusConnectionString": "${{ needs.deploy-core.outputs.service-bus-connection-string }}",
               "keyVaultUri": "${{ needs.deploy-core.outputs.key-vault-uri }}"
             }
+
+      - name: Upload web assets to Storage
+        env:
+          ACR_LOGIN_SERVER: ${{ needs.deploy-core.outputs.acr-login-server }}
+          IMAGE_TAG: ${{ needs.deploy-core.outputs.image-tag }}
+          STORAGE_ACCOUNT: ${{ needs.deploy-core.outputs.storage-account-name }}
+        run: |
+          az acr login --name "${ACR_LOGIN_SERVER%%.*}"
+          CONTAINER_ID=$(docker create "${ACR_LOGIN_SERVER}/bowrain-web:${IMAGE_TAG}")
+          docker cp "${CONTAINER_ID}:/usr/share/nginx/html" ./web-dist
+          docker rm "${CONTAINER_ID}"
+          # shellcheck disable=SC2016
+          az storage blob upload-batch \
+            --source ./web-dist \
+            --destination '$web' \
+            --account-name "$STORAGE_ACCOUNT" \
+            --auth-mode login \
+            --overwrite

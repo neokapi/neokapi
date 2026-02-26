@@ -38,8 +38,8 @@ type ServerConfig struct {
 	SMTPHost string // SMTP server host:port
 	SMTPFrom string // sender email address
 
-	// WebUIDir is the path to built web UI static files.
-	// If set, the server serves static files for the web UI.
+	// WebUIDir is the path to built web UI static files (development only).
+	// In production, the web UI is served by a separate container (bowrain-web).
 	WebUIDir string
 
 	// External services

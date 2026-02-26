@@ -15,7 +15,6 @@ param redisHost string
 param serviceBusConnectionString string
 param keyVaultUri string
 param keycloakIssuerUrl string
-param customDomain string
 
 var minReplicas = environment == 'prod' ? 2 : 1
 var maxReplicas = environment == 'prod' ? 10 : 3
@@ -38,19 +37,6 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
         external: true
         targetPort: 8080
         transport: 'http'
-        corsPolicy: {
-          allowedOrigins: ['https://${customDomain}']
-          allowedMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
-          allowedHeaders: ['*']
-          allowCredentials: true
-        }
-        customDomains: [
-          {
-            name: customDomain
-            bindingType: 'SniEnabled'
-            certificateId: '${containerAppEnvId}/managedCertificates/${prefix}-api-cert'
-          }
-        ]
       }
       registries: [
         {

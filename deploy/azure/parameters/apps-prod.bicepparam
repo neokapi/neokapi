@@ -19,6 +19,8 @@ param tags = {
 //   --parameters redisHostname=<value>
 //   --parameters serviceBusConnectionString=<value>
 //   --parameters keyVaultUri=<value>
+//   --parameters storageWebHostname=<value>
+//   --parameters storageAccountName=<value>
 //
 // Sensitive parameters must be provided via CLI:
 //   --parameters postgresAdminLogin=<value>

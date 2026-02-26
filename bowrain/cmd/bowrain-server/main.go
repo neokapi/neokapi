@@ -3,12 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"strconv"
 
-	"github.com/gokapi/gokapi/bowrain/apps/web"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
 	"github.com/gokapi/gokapi/bowrain/server"
 	"google.golang.org/grpc"
@@ -78,10 +76,6 @@ func main() {
 	}
 
 	srv := server.NewServer(cfg)
-
-	// Serve embedded web UI.
-	webFS, _ := fs.Sub(web.Assets, "dist")
-	srv.WebUIFS = webFS
 
 	// Build gRPC server with auth interceptors when JWT is configured.
 	var grpcOpts []grpc.ServerOption

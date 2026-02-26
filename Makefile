@@ -81,7 +81,7 @@ build: ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/kapi ./cmd/kapi
 
-build-server: web-build ## Build the Bowrain REST server
+build-server: ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-server ./cmd/bowrain-server
 
@@ -155,6 +155,7 @@ DOCKER_BASE_IMAGE    := bowrain-base
 DOCKER_IMAGE         := ghcr.io/gokapi/bowrain-server
 DOCKER_WORKER_IMAGE  := ghcr.io/gokapi/bowrain-worker
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
+DOCKER_WEB_IMAGE     := ghcr.io/gokapi/bowrain-web
 
 docker-base: ## Build the shared base image (Go binaries + web UI)
 	docker build -f docker/bowrain-base/Dockerfile -t $(DOCKER_BASE_IMAGE):latest .
@@ -163,6 +164,7 @@ docker-build: docker-base ## Build Docker images for server, worker, and keycloa
 	docker build -f docker/bowrain-server/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
 	docker build -f docker/bowrain-worker/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest .
+	docker build -f docker/bowrain-web/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest .
 
 docker-push: ## Push Docker images to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
@@ -171,6 +173,8 @@ docker-push: ## Push Docker images to GHCR
 	docker push $(DOCKER_WORKER_IMAGE):latest
 	docker push $(DOCKER_KEYCLOAK_IMAGE):$(VERSION)
 	docker push $(DOCKER_KEYCLOAK_IMAGE):latest
+	docker push $(DOCKER_WEB_IMAGE):$(VERSION)
+	docker push $(DOCKER_WEB_IMAGE):latest
 
 dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
 	@printf '\033]0;🍦 Dev Dependencies\007'

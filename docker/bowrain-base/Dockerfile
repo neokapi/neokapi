@@ -30,9 +30,8 @@ COPY kapi/go.mod kapi/go.sum ./kapi/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 RUN go mod download && cd platform && go mod download && cd ../bowrain && go mod download
 
-# Copy source + web dist for //go:embed.
+# Copy source.
 COPY . .
-COPY --from=web-builder /src/bowrain/apps/web/dist bowrain/apps/web/dist
 RUN mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
 
 # Build both binaries. The Go build cache means the second binary
@@ -40,6 +39,10 @@ RUN mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-
 RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /out/bowrain-server ./cmd/bowrain-server
 RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /out/bowrain-worker ./cmd/bowrain-worker
 
-# ── Output stage: just the binaries ──────────────────────────────────────────
+# ── Output stage: web dist files ───────────────────────────────────────────
+FROM scratch AS web-dist
+COPY --from=web-builder /src/bowrain/apps/web/dist /dist
+
+# ── Output stage: just the binaries (default) ─────────────────────────────
 FROM scratch
 COPY --from=go-builder /out/ /
