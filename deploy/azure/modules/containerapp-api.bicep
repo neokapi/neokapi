@@ -99,7 +99,7 @@ resource apiApp 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'BOWRAIN_JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'BOWRAIN_OIDC_CLIENT_SECRET', secretRef: 'oidc-client-secret' }
             { name: 'BOWRAIN_REDIS_PASSWORD', secretRef: 'redis-access-key' }
-            { name: 'BOWRAIN_SERVICEBUS_CONNECTION', secretRef: 'servicebus-connection' }
+            { name: 'BOWRAIN_SERVICE_BUS_CONNECTION', secretRef: 'servicebus-connection' }
           ]
           probes: [
             {

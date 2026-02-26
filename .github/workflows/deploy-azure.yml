@@ -81,7 +81,7 @@ jobs:
           ACR_NAME: ${{ steps.acr.outputs.name }}
         run: az acr login --name "$ACR_NAME"
 
-      - name: Build and push Docker image
+      - name: Build and push server image
         env:
           ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login-server }}
           IMAGE_TAG: ${{ steps.meta.outputs.tag }}
@@ -89,6 +89,7 @@ jobs:
         run: |
           IMAGE="${ACR_LOGIN_SERVER}/bowrain-server:${IMAGE_TAG}"
           docker build \
+            --target server \
             --build-arg VERSION="${IMAGE_TAG}" \
             --build-arg COMMIT="${GH_SHA}" \
             -t "$IMAGE" \
@@ -96,6 +97,23 @@ jobs:
             -f Dockerfile .
           docker push "$IMAGE"
           docker push "${ACR_LOGIN_SERVER}/bowrain-server:latest"
+
+      - name: Build and push worker image
+        env:
+          ACR_LOGIN_SERVER: ${{ steps.acr.outputs.login-server }}
+          IMAGE_TAG: ${{ steps.meta.outputs.tag }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          IMAGE="${ACR_LOGIN_SERVER}/bowrain-worker:${IMAGE_TAG}"
+          docker build \
+            --target worker \
+            --build-arg VERSION="${IMAGE_TAG}" \
+            --build-arg COMMIT="${GH_SHA}" \
+            -t "$IMAGE" \
+            -t "${ACR_LOGIN_SERVER}/bowrain-worker:latest" \
+            -f Dockerfile .
+          docker push "$IMAGE"
+          docker push "${ACR_LOGIN_SERVER}/bowrain-worker:latest"
 
   deploy:
     name: Deploy Infrastructure & App

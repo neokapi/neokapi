@@ -20,6 +20,7 @@ KAPI_MOD    := github.com/gokapi/gokapi/kapi
 BOWRAIN     := github.com/gokapi/gokapi/bowrain
 CLI_PKG     := $(KAPI_MOD)/cmd/kapi
 SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
+WORKER_PKG  := $(BOWRAIN)/cmd/bowrain-worker
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -84,10 +85,14 @@ build-server: web-build ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-server ./cmd/bowrain-server
 
+build-worker: ## Build the Bowrain worker
+	@mkdir -p $(BIN_DIR)
+	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
+
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd bowrain/apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
-build-all: build build-server ## Build all Go binaries
+build-all: build build-server build-worker ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi

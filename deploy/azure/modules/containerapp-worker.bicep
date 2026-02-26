@@ -39,11 +39,6 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = {
       ]
       secrets: [
         {
-          name: 'jwt-secret'
-          keyVaultUrl: '${keyVaultUri}secrets/jwt-secret'
-          identity: managedIdentityId
-        }
-        {
           name: 'redis-access-key'
           keyVaultUrl: '${keyVaultUri}secrets/redis-access-key'
           identity: managedIdentityId
@@ -58,18 +53,16 @@ resource workerApp 'Microsoft.App/containerApps@2024-03-01' = {
       containers: [
         {
           name: 'bowrain-worker'
-          image: '${acrLoginServer}/bowrain-server:${imageTag}'
+          image: '${acrLoginServer}/bowrain-worker:${imageTag}'
           resources: {
             cpu: json('1')
             memory: '2Gi'
           }
           env: [
-            { name: 'BOWRAIN_MODE', value: 'worker' }
             { name: 'BOWRAIN_DATABASE_URL', value: 'host=${postgresHost} port=5432 dbname=${postgresDbName} sslmode=require' }
             { name: 'BOWRAIN_REDIS_URL', value: 'rediss://${redisHost}:6380' }
-            { name: 'BOWRAIN_JWT_SECRET', secretRef: 'jwt-secret' }
             { name: 'BOWRAIN_REDIS_PASSWORD', secretRef: 'redis-access-key' }
-            { name: 'BOWRAIN_SERVICEBUS_CONNECTION', secretRef: 'servicebus-connection' }
+            { name: 'BOWRAIN_SERVICE_BUS_CONNECTION', secretRef: 'servicebus-connection' }
           ]
         }
       ]

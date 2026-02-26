@@ -10,22 +10,29 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/bowrain/server"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/bowrain/storage"
 	"github.com/gokapi/gokapi/platform/store"
 )
 
-// runWorker starts the async job processing loop. It connects to the
-// database and message queue, then processes translation jobs until
-// interrupted by SIGINT/SIGTERM.
-func runWorker(cfg server.ServerConfig) {
+func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	dbURL := cfg.DatabaseURL
-	if dbURL == "" && cfg.StorePath != "" {
-		dbURL = "sqlite:///" + cfg.StorePath
+	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
+	if dbURL == "" {
+		if sp := os.Getenv("BOWRAIN_STORE"); sp != "" {
+			dbURL = "sqlite:///" + sp
+		}
+	}
+	if dbURL == "" {
+		log.Fatal("BOWRAIN_DATABASE_URL or BOWRAIN_STORE is required")
+	}
+
+	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
+	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
+	if credentialsPath == "" {
+		credentialsPath = credentials.DefaultPath()
 	}
 
 	// Open stores.
@@ -52,10 +59,8 @@ func runWorker(cfg server.ServerConfig) {
 		}
 		jobStore = pgJS
 	} else {
-		storePath := cfg.StorePath
-		if storePath == "" {
-			storePath = strings.TrimPrefix(dbURL, "sqlite:///")
-		}
+		storePath := strings.TrimPrefix(dbURL, "sqlite:///")
+
 		sqCS, err := bstore.NewSQLiteStore(storePath)
 		if err != nil {
 			log.Fatalf("Worker: open SQLite content store: %v", err)
@@ -78,9 +83,9 @@ func runWorker(cfg server.ServerConfig) {
 
 	// Set up message queue.
 	var queue jobs.Queue
-	if cfg.ServiceBusConnection != "" {
+	if serviceBusConn != "" {
 		var err error
-		queue, err = jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "translation-jobs")
+		queue, err = jobs.NewServiceBusQueue(serviceBusConn, "translation-jobs")
 		if err != nil {
 			log.Fatalf("Worker: connect to Service Bus: %v", err)
 		}
@@ -89,7 +94,7 @@ func runWorker(cfg server.ServerConfig) {
 	}
 	defer queue.Close()
 
-	credStore := credentials.NewStore(credentials.DefaultPath())
+	credStore := credentials.NewStore(credentialsPath)
 
 	log.Println("Starting bowrain worker...")
 	if err := jobs.RunWorker(ctx, jobStore, cs, credStore, queue); err != nil {

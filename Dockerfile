@@ -32,21 +32,26 @@ COPY --from=web-builder /src/bowrain/apps/web/dist bowrain/apps/web/dist
 # Create placeholder for kapi-web embed (not used by bowrain-server but needed for compilation).
 RUN mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
 
-# Build bowrain-server from bowrain module. Pure Go (modernc.org/sqlite), no CGO needed.
+# Build bowrain-server and bowrain-worker from bowrain module. Pure Go (modernc.org/sqlite), no CGO needed.
 RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /bowrain-server ./cmd/bowrain-server
+RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /bowrain-worker ./cmd/bowrain-worker
 
-# ── Stage 3: Runtime ────────────────────────────────────────────────────────
-FROM alpine:3.21
+# ── Stage 3: API server runtime ────────────────────────────────────────────
+FROM alpine:3.21 AS server
 RUN apk add --no-cache ca-certificates tzdata
 
 COPY --from=go-builder /bowrain-server /usr/local/bin/bowrain-server
 
-# Default data directory (SQLite databases when not using PostgreSQL).
 VOLUME /data
 ENV BOWRAIN_STORE=/data/bowrain.db
 
-# Default mode: api server. Set BOWRAIN_MODE=worker for async job processing.
-ENV BOWRAIN_MODE=api
-
 EXPOSE 8080
 ENTRYPOINT ["bowrain-server"]
+
+# ── Stage 4: Worker runtime ────────────────────────────────────────────────
+FROM alpine:3.21 AS worker
+RUN apk add --no-cache ca-certificates tzdata
+
+COPY --from=go-builder /bowrain-worker /usr/local/bin/bowrain-worker
+
+ENTRYPOINT ["bowrain-worker"]

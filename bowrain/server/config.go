@@ -27,10 +27,6 @@ type ServerConfig struct {
 	// When set, takes precedence over StorePath.
 	DatabaseURL string
 
-	// Mode selects the server operating mode: "api" (default) runs the
-	// HTTP/gRPC server; "worker" runs the async job processing loop.
-	Mode string
-
 	// Auth
 	JWTSecret        string
 	OIDCIssuerURL    string
