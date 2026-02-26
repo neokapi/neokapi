@@ -24,8 +24,9 @@ permissions:
   contents: read
 
 env:
-  AZURE_RESOURCE_GROUP_DEV: bowrain-dev-rg
-  AZURE_RESOURCE_GROUP_PROD: bowrain-prod-rg
+  AZURE_REGION: weu
+  AZURE_RESOURCE_GROUP_DEV: rg-bowrain-d-weu
+  AZURE_RESOURCE_GROUP_PROD: rg-bowrain-p-weu
 
 jobs:
   build:
@@ -62,8 +63,10 @@ jobs:
         run: |
           if [ "$DEPLOY_ENV" = "prod" ]; then
             echo "name=${RG_PROD}" >> "$GITHUB_OUTPUT"
+            echo "env-abbr=p" >> "$GITHUB_OUTPUT"
           else
             echo "name=${RG_DEV}" >> "$GITHUB_OUTPUT"
+            echo "env-abbr=d" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Deploy Bicep
@@ -83,7 +86,7 @@ jobs:
       - name: Update API container revision
         env:
           RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: bowrain-${{ env.ENVIRONMENT }}-api
+          APP_NAME: ca-bowrain-api-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
           IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
         run: |
           az containerapp update \
@@ -94,7 +97,7 @@ jobs:
       - name: Update Worker container revision
         env:
           RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: bowrain-${{ env.ENVIRONMENT }}-worker
+          APP_NAME: ca-bowrain-worker-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
           IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
         run: |
           az containerapp update \
@@ -105,7 +108,7 @@ jobs:
       - name: Update Keycloak container revision
         env:
           RG: ${{ steps.rg.outputs.name }}
-          APP_NAME: bowrain-${{ env.ENVIRONMENT }}-keycloak
+          APP_NAME: ca-bowrain-keycloak-${{ steps.rg.outputs.env-abbr }}-${{ env.AZURE_REGION }}
           IMAGE_TAG: ${{ needs.build.outputs.image-tag }}
         run: |
           az containerapp update \

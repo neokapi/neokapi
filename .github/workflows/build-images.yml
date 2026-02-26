@@ -20,8 +20,9 @@ on:
         value: ${{ jobs.build.outputs.acr-login-server }}
 
 env:
-  AZURE_RESOURCE_GROUP_DEV: bowrain-dev-rg
-  AZURE_RESOURCE_GROUP_PROD: bowrain-prod-rg
+  AZURE_REGION: weu
+  AZURE_RESOURCE_GROUP_DEV: rg-bowrain-d-weu
+  AZURE_RESOURCE_GROUP_PROD: rg-bowrain-p-weu
 
 jobs:
   build:
