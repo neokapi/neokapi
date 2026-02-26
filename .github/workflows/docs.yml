@@ -51,7 +51,7 @@ jobs:
         working-directory: website
 
       # Build Storybook and merge into the site at /storybook
-      - run: npm ci --legacy-peer-deps
+      - run: npm ci
       - name: Build Storybook
         env:
           STORYBOOK_BASE_PATH: /storybook/
