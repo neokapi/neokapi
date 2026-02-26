@@ -17,7 +17,7 @@ on:
       - 'core/**'
       - 'platform/**'
       - 'deploy/**'
-      - 'Dockerfile'
+      - 'bowrain/docker/**'
 
 permissions:
   id-token: write
@@ -93,7 +93,7 @@ jobs:
             --build-arg COMMIT="${GH_SHA}" \
             -t "$IMAGE" \
             -t "${ACR_LOGIN_SERVER}/bowrain-server:latest" \
-            -f Dockerfile .
+            -f bowrain/docker/bowrain-server.Dockerfile .
           docker push "$IMAGE"
           docker push "${ACR_LOGIN_SERVER}/bowrain-server:latest"
 
@@ -109,7 +109,7 @@ jobs:
             --build-arg COMMIT="${GH_SHA}" \
             -t "$IMAGE" \
             -t "${ACR_LOGIN_SERVER}/bowrain-worker:latest" \
-            -f Dockerfile.worker .
+            -f bowrain/docker/bowrain-worker.Dockerfile .
           docker push "$IMAGE"
           docker push "${ACR_LOGIN_SERVER}/bowrain-worker:latest"
 

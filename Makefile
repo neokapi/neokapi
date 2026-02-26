@@ -156,8 +156,8 @@ DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
 DOCKER_WORKER_IMAGE := ghcr.io/gokapi/bowrain-worker
 
 docker-build: ## Build Docker images for server and worker
-	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
-	docker build -f Dockerfile.worker -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+	docker build -f bowrain/docker/bowrain-server.Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f bowrain/docker/bowrain-worker.Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 
 docker-push: ## Push Docker images to GHCR
 	docker push $(DOCKER_IMAGE):$(VERSION)
