@@ -30,6 +30,7 @@ func main() {
 	}
 
 	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
+	natsURL := os.Getenv("BOWRAIN_NATS_URL")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
 	if credentialsPath == "" {
 		credentialsPath = credentials.DefaultPath()
@@ -83,13 +84,20 @@ func main() {
 
 	// Set up message queue.
 	var queue jobs.Queue
-	if serviceBusConn != "" {
+	switch {
+	case serviceBusConn != "":
 		var err error
 		queue, err = jobs.NewServiceBusQueue(serviceBusConn, "translation-jobs")
 		if err != nil {
 			log.Fatalf("Worker: connect to Service Bus: %v", err)
 		}
-	} else {
+	case natsURL != "":
+		var err error
+		queue, err = jobs.NewNATSQueue(natsURL)
+		if err != nil {
+			log.Fatalf("Worker: connect to NATS: %v", err)
+		}
+	default:
 		queue = jobs.NewChannelQueue(64)
 	}
 	defer queue.Close()

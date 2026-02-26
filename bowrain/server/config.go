@@ -42,8 +42,9 @@ type ServerConfig struct {
 	// If set, the server serves static files for the web UI.
 	WebUIDir string
 
-	// Azure integration
+	// External services
 	ServiceBusConnection string // Azure Service Bus connection string for job queue
+	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)
 	RedisURL             string // Redis connection string for caching
 }
 

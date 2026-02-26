@@ -70,6 +70,9 @@ func main() {
 	if envSB := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION"); envSB != "" {
 		cfg.ServiceBusConnection = envSB
 	}
+	if envNATS := os.Getenv("BOWRAIN_NATS_URL"); envNATS != "" {
+		cfg.NATSUrl = envNATS
+	}
 	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
 		cfg.RedisURL = envRedis
 	}

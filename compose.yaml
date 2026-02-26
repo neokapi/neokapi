@@ -39,3 +39,15 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+
+  nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+
+volumes:
+  nats-data:
