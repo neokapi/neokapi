@@ -3,9 +3,14 @@
 package okf_xliff2
 
 import (
+	"bytes"
+	"context"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/plugin/bridge"
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -351,6 +356,66 @@ func TestExtract_UnicodeContent(t *testing.T) {
 	require.NotEmpty(t, blocks)
 
 	assert.Equal(t, "こんにちは世界", blocks[0].SourceText())
+}
+
+// TestExtract_TranslatedXlf verifies that translated.xlf can be read (extraction
+// works) even though roundtrip fails due to an Okapi CTag→MTag ClassCastException
+// when the XLIFF2 reader re-reads the roundtripped output.
+func TestExtract_TranslatedXlf(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_xliff2/translated.xlf"), mimeType, nil)
+
+	require.NotEmpty(t, parts)
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "translated.xlf should extract translatable blocks")
+}
+
+// TestExtract_InvalidTargetXlf verifies that invalid-target.xlf is correctly
+// rejected by Okapi's XLIFF2 reader. The file references <data> elements
+// without declaring <originalData>, which is invalid XLIFF 2.0.
+func TestExtract_InvalidTargetXlf(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	path := bridgetest.TestdataFile(t, "okf_xliff2/invalid-target.xlf")
+	// This file is intentionally invalid XLIFF 2.0. Okapi rejects it during
+	// read with: "The code id='source1' refers to the <data> id='source1',
+	// but no <originalData> is declared."
+	// We verify the bridge correctly propagates this error.
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	doc := &model.RawDocument{
+		URI:          "invalid-target.xlf",
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		Encoding:     "UTF-8",
+		MimeType:     mimeType,
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+
+	ctx := context.Background()
+	require.NoError(t, reader.Open(ctx, doc))
+	t.Cleanup(func() { _ = reader.Close() })
+
+	var readErr error
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			readErr = pr.Error
+			break
+		}
+	}
+	assert.Error(t, readErr, "invalid-target.xlf should produce a read error")
+	assert.Contains(t, readErr.Error(), "originalData",
+		"error should mention missing originalData")
 }
 
 func TestExtract_TranslateNo(t *testing.T) {

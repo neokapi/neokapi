@@ -83,14 +83,16 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	// Known failing files:
-	// - empty-tgt-lang.xlf: has empty target-language attr, adding one creates duplicate
-	// - lqiTest.xlf: references external lqiTestIssues.xml not in testdata
-	// - TS09-12-Test01.xlf: span ID instability between read/write phases
+	// Known failing:
+	// - empty-tgt-lang.xlf: Bridge bug — the write phase adds target-language="fr"
+	//   without removing the existing empty target-language="" attribute, producing
+	//   a duplicate XML attribute that fails on re-read.
+	// - lqiTest.xlf: Bridge protocol limitation — the file references an external
+	//   ITS standoff annotation file (lqiTestIssues.xml) via relative URI. The
+	//   bridge's single-document gRPC protocol cannot transfer auxiliary files.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_xliff/*.xlf", mimeType, nil,
 		"empty-tgt-lang.xlf",
 		"lqiTest.xlf",
-		"TS09-12-Test01.xlf",
 	)
 }

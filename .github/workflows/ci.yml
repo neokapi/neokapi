@@ -308,7 +308,7 @@ jobs:
       - name: Fetch okapi-bridge JAR
         run: |
           bash scripts/fetch-okapi-bridge.sh
-          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/okapi-bridge.jar" >> "$GITHUB_ENV"
+          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/v2.0.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
           GITHUB_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
 

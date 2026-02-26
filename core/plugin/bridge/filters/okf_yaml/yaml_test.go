@@ -3,9 +3,14 @@
 package okf_yaml
 
 import (
+	"bytes"
+	"context"
+	"io"
+	"os"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/plugin/bridge"
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -155,6 +160,66 @@ func TestExtract_DataParts(t *testing.T) {
 		}
 	}
 	assert.Greater(t, dataCount, 0, "YAML should have Data parts")
+}
+
+// TestExtract_EmojiYaml verifies that emoji1.yaml can be read (extraction works)
+// even though roundtrip fails due to protobuf surrogate pair serialization.
+func TestExtract_EmojiYaml(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_yaml/emoji1.yaml"), mimeType, nil)
+
+	require.NotEmpty(t, parts)
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+	blocks := bridgetest.FilterBlocks(parts)
+	assert.NotEmpty(t, blocks,
+		"emoji1.yaml should extract blocks despite emoji roundtrip issues")
+}
+
+// TestExtract_TimestampTagYaml verifies that no-children-1-pretty.yaml is
+// correctly rejected by Okapi's YAML parser. The file uses !!timestamp and
+// other YAML tags that Okapi's limited JavaCC grammar doesn't support.
+func TestExtract_TimestampTagYaml(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	path := bridgetest.TestdataFile(t, "okf_yaml/no-children-1-pretty.yaml")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	doc := &model.RawDocument{
+		URI:          "no-children-1-pretty.yaml",
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		Encoding:     "UTF-8",
+		MimeType:     mimeType,
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+
+	ctx := context.Background()
+	// The error occurs at Open time because Okapi's YAML parser rejects
+	// !!timestamp tags during initial parsing.
+	openErr := reader.Open(ctx, doc)
+	if openErr != nil {
+		assert.Contains(t, openErr.Error(), "timestamp",
+			"error should mention the unsupported YAML tag")
+		return
+	}
+	t.Cleanup(func() { _ = reader.Close() })
+
+	// If Open succeeds, the error may come during Read.
+	var readErr error
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			readErr = pr.Error
+			break
+		}
+	}
+	assert.Error(t, readErr,
+		"no-children-1-pretty.yaml should fail due to unsupported YAML tags")
 }
 
 func TestExtract_AllValuesExtracted(t *testing.T) {

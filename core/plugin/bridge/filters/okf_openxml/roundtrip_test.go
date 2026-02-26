@@ -13,17 +13,21 @@ func TestRoundTrip_Docx(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
+	// Known failing: Okapi OpenXML filter limitations (not bridge bugs).
+	// - 1102, 847-2, 847-3, 956: Structural Data parts dropped during roundtrip
+	//   in documents with tracked changes and complex fields.
+	// - 830-3: Structural Data part added during roundtrip (Okapi normalizes
+	//   skeleton between consecutive blocks).
+	// - 1437-color-exclusion: Span Type CSS property order changes after roundtrip
+	//   (HashMap iteration order instability in Okapi).
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_openxml/*.docx", mimeType, nil,
-		// Known failing: part count mismatch after roundtrip (complex documents
-		// with tracked changes, color exclusion, revision markup).
-		"NoStylesXml.docx",          // Missing styles.xml in ZIP
-		"1102.docx",                 // Complex revision markup
-		"1437-color-exclusion.docx", // Color-based exclusion changes part count
-		"830-3.docx",               // Tracked changes differ on re-read
-		"847-2.docx",               // Tracked changes
-		"847-3.docx",               // Tracked changes
-		"956.docx",                 // Complex structure mismatch
+		"1102.docx",
+		"1437-color-exclusion.docx",
+		"830-3.docx",
+		"847-2.docx",
+		"847-3.docx",
+		"956.docx",
 	)
 }
 
@@ -48,10 +52,10 @@ func TestRoundTrip_Pptx(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
+	// Known failing: Okapi OpenXML filter loses PPTX style metadata during
+	// roundtrip (style inheritance collapse, font stack truncation).
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_openxml/*.pptx", mimeType, nil,
-		// Known failing: part count mismatch from style clarification
-		// and text masking differences after roundtrip.
 		"1329-styles-clarification.pptx",
 		"1435-text-for-masking.pptx",
 	)

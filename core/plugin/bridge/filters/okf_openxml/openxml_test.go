@@ -708,3 +708,69 @@ func TestExtract_PptxFormattedHyperlink(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with formatted hyperlinks should produce blocks")
 }
+
+// TestExtract_KnownLimitationDocx verifies that DOCX files which fail roundtrip
+// due to Okapi OpenXML filter limitations still extract content correctly.
+// The roundtrip failures are Okapi-level structural Data part changes, not
+// bridge bugs — translatable content is fully preserved.
+func TestExtract_KnownLimitationDocx(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	files := []struct {
+		name       string
+		limitation string
+	}{
+		{"1102.docx", "structural Data dropped in complex revision markup"},
+		{"830-3.docx", "structural Data added between consecutive blocks"},
+		{"847-2.docx", "tracked changes cause Data part drop"},
+		{"847-3.docx", "tracked changes cause Data part drop"},
+		{"956.docx", "complex structure causes Data part drop"},
+		{"1437-color-exclusion.docx", "span Type CSS property order instability"},
+	}
+
+	for _, tt := range files {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+				bridgetest.TestdataFile(t, "okf_openxml/"+tt.name), mimeType, nil)
+
+			require.NotEmpty(t, parts)
+			assert.Equal(t, model.PartLayerStart, parts[0].Type)
+			assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+			blocks := bridgetest.TranslatableBlocks(parts)
+			assert.NotEmpty(t, blocks,
+				"%s should extract translatable blocks (limitation: %s)", tt.name, tt.limitation)
+		})
+	}
+}
+
+// TestExtract_KnownLimitationPptx verifies that PPTX files which fail roundtrip
+// due to Okapi style inheritance collapse still extract content correctly.
+func TestExtract_KnownLimitationPptx(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	files := []struct {
+		name       string
+		limitation string
+	}{
+		{"1329-styles-clarification.pptx", "PPTX theme-based style inheritance collapse"},
+		{"1435-text-for-masking.pptx", "font stack truncation during roundtrip"},
+	}
+
+	for _, tt := range files {
+		t.Run(tt.name, func(t *testing.T) {
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+				bridgetest.TestdataFile(t, "okf_openxml/"+tt.name), mimeType, nil)
+
+			require.NotEmpty(t, parts)
+			assert.Equal(t, model.PartLayerStart, parts[0].Type)
+			assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+			blocks := bridgetest.TranslatableBlocks(parts)
+			assert.NotEmpty(t, blocks,
+				"%s should extract translatable blocks (limitation: %s)", tt.name, tt.limitation)
+		})
+	}
+}

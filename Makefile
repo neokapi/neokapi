@@ -249,8 +249,10 @@ test-integration: ## Run integration tests
 	$(GOTEST) ./... -count=1 -tags=integration -run Integration
 	cd bowrain && $(GOTEST) ./... -count=1 -tags=integration -run Integration
 
-GITHUB_TOKEN ?= $(shell gh auth token 2>/dev/null)
-BRIDGE_JAR   := $(HOME)/.cache/gokapi/bridge/okapi-bridge.jar
+GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)
+OKAPI_BRIDGE_VERSION ?= v2.0.0
+OKAPI_VERSION        ?= 1.48.0
+BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 
 fetch-bridge-jar: ## Download okapi-bridge JAR from GitHub release
 	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-bridge.sh

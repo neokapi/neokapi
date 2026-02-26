@@ -19,17 +19,16 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	// Known failing files from Java's RoundTripYamlIT:
-	// - unknown-tags-example.yaml, no-children-1-pretty.yaml: !!timestamp tag rejected
-	// - ios_emoji_surrogate.yaml, emoji1.yaml: emoji surrogate pair handling
-	// - example2_17.yaml, example2_17_control.yaml: control character encoding
+	// Known failing:
+	// - no-children-1-pretty.yaml: Okapi limitation — YAML parser rejects
+	//   !!timestamp and other YAML tags (limited JavaCC grammar).
+	// - emoji1.yaml: Bridge bug — supplementary Unicode characters (emoji)
+	//   cause protobuf surrogate pair serialization corruption.
+	// Note: unknown-tags-example, ios_emoji_surrogate, example2_17,
+	// example2_17_control are in subdirectories and don't match *.yaml glob.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_yaml/*.yaml", mimeType, nil,
-		"unknown-tags-example.yaml",
 		"no-children-1-pretty.yaml",
-		"ios_emoji_surrogate.yaml",
 		"emoji1.yaml",
-		"example2_17.yaml",
-		"example2_17_control.yaml",
 	)
 }

@@ -6,7 +6,11 @@
 #   ./scripts/fetch-okapi-bridge.sh
 #
 # Downloads the bridge tarball from the gokapi/okapi-bridge repository,
-# extracts the JAR, and places it at ~/.cache/gokapi/bridge/okapi-bridge.jar.
+# extracts the JAR, and places it in a versioned directory at:
+#   ~/.cache/gokapi/bridge/<bridge-version>-okapi<okapi-version>/okapi-bridge.jar
+#
+# This versioned layout prevents confusion when switching between bridge or
+# Okapi Framework versions. It mirrors the okapi-testdata approach.
 #
 # Environment:
 #   GITHUB_TOKEN         — GitHub token for authenticated requests (required;
@@ -27,7 +31,7 @@ ASSET_NAME="okapi-bridge-${BRIDGE_VERSION}-okapi${OKAPI_VERSION}.tar.gz"
 # Resolve the token from either GITHUB_TOKEN or GH_TOKEN.
 TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
 
-BRIDGE_DIR="$HOME/.cache/gokapi/bridge"
+BRIDGE_DIR="$HOME/.cache/gokapi/bridge/${BRIDGE_VERSION}-okapi${OKAPI_VERSION}"
 JAR_PATH="$BRIDGE_DIR/okapi-bridge.jar"
 
 # Skip if already present and not forced.
