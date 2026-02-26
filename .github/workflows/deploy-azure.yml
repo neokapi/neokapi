@@ -70,18 +70,24 @@ jobs:
           fi
 
       - name: Deploy Bicep
-        uses: azure/arm-deploy@v2
+        uses: azure/bicep-deploy@v2
         with:
-          resourceGroupName: ${{ steps.rg.outputs.name }}
-          template: deploy/azure/main.bicep
-          parameters: >-
-            deploy/azure/parameters/${{ env.ENVIRONMENT }}.bicepparam
-            imageTag=${{ needs.build.outputs.image-tag }}
-            postgresAdminLogin=${{ secrets.POSTGRES_ADMIN_LOGIN }}
-            postgresAdminPassword=${{ secrets.POSTGRES_ADMIN_PASSWORD }}
-            jwtSecret=${{ secrets.JWT_SECRET }}
-            oidcClientSecret=${{ secrets.OIDC_CLIENT_SECRET }}
-            keycloakAdminPassword=${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}
+          type: deployment
+          operation: create
+          scope: resourceGroup
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group-name: ${{ steps.rg.outputs.name }}
+          template-file: deploy/azure/main.bicep
+          parameters-file: deploy/azure/parameters/${{ env.ENVIRONMENT }}.bicepparam
+          parameters: >
+            {
+              "imageTag": "${{ needs.build.outputs.image-tag }}",
+              "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
+              "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
+              "jwtSecret": "${{ secrets.JWT_SECRET }}",
+              "oidcClientSecret": "${{ secrets.OIDC_CLIENT_SECRET }}",
+              "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}"
+            }
 
       - name: Update API container revision
         env:
