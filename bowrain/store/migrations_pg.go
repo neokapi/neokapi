@@ -85,6 +85,30 @@ var storeMigrationsPg = []storage.Migration{
 			);
 			CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
 			CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
+
+			CREATE TABLE block_history (
+				id          BIGSERIAL PRIMARY KEY,
+				project_id  TEXT NOT NULL,
+				block_id    TEXT NOT NULL,
+				locale      TEXT NOT NULL,
+				change_type TEXT NOT NULL,
+				text        TEXT NOT NULL DEFAULT '',
+				coded_text  TEXT NOT NULL DEFAULT '',
+				origin      TEXT NOT NULL DEFAULT '',
+				author      TEXT NOT NULL DEFAULT '',
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_block_history_lookup ON block_history(project_id, block_id, locale);
+
+			CREATE TABLE block_notes (
+				id         TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				block_id   TEXT NOT NULL,
+				author     TEXT NOT NULL DEFAULT '',
+				text       TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, block_id);
 		`,
 	},
 }
