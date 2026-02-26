@@ -90,9 +90,12 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - lqiTest.xlf: Bridge protocol limitation — the file references an external
 	//   ITS standoff annotation file (lqiTestIssues.xml) via relative URI. The
 	//   bridge's single-document gRPC protocol cannot transfer auxiliary files.
+	// - TS09-12-Test01.xlf: Okapi assigns non-deterministic integer IDs to inline
+	//   codes (bpt/ept) across reads, causing span ID mismatch in event roundtrip.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_xliff/*.xlf", mimeType, nil,
 		"empty-tgt-lang.xlf",
 		"lqiTest.xlf",
+		"TS09-12-Test01.xlf",
 	)
 }
