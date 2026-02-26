@@ -1495,6 +1495,7 @@ type OpenRequest struct {
 	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
 	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	TargetLocale  string                 `protobuf:"bytes,8,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	SourcePath    string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"` // Optional absolute file path on disk.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1581,6 +1582,13 @@ func (x *OpenRequest) GetFilterParams() map[string]string {
 func (x *OpenRequest) GetTargetLocale() string {
 	if x != nil {
 		return x.TargetLocale
+	}
+	return ""
+}
+
+func (x *OpenRequest) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
 	}
 	return ""
 }
@@ -1756,6 +1764,7 @@ type WriteHeader struct {
 	Encoding        string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"`
 	OriginalContent []byte                 `protobuf:"bytes,4,opt,name=original_content,json=originalContent,proto3" json:"original_content,omitempty"`
 	FilterParams    map[string]string      `protobuf:"bytes,5,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SourcePath      string                 `protobuf:"bytes,6,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"` // Optional absolute path to original file.
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1823,6 +1832,13 @@ func (x *WriteHeader) GetFilterParams() map[string]string {
 		return x.FilterParams
 	}
 	return nil
+}
+
+func (x *WriteHeader) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
 }
 
 type WriteResponse struct {
@@ -2201,7 +2217,7 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"extensions\x18\x05 \x03(\tR\n" +
 	"extensions\"N\n" +
 	"\x13ListFiltersResponse\x127\n" +
-	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\xf6\x02\n" +
+	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\x97\x03\n" +
 	"\vOpenRequest\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
@@ -2210,7 +2226,9 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\acontent\x18\x05 \x01(\fR\acontent\x12\x1b\n" +
 	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12T\n" +
 	"\rfilter_params\x18\a \x03(\v2/.gokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
-	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x1a?\n" +
+	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x12\x1f\n" +
+	"\vsource_path\x18\t \x01(\tR\n" +
+	"sourcePath\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
@@ -2221,13 +2239,15 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"WriteChunk\x127\n" +
 	"\x06header\x18\x01 \x01(\v2\x1d.gokapi.bridge.v2.WriteHeaderH\x00R\x06header\x123\n" +
 	"\x04part\x18\x02 \x01(\v2\x1d.gokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
-	"\x05chunk\"\xa6\x02\n" +
+	"\x05chunk\"\xc7\x02\n" +
 	"\vWriteHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x16\n" +
 	"\x06locale\x18\x02 \x01(\tR\x06locale\x12\x1a\n" +
 	"\bencoding\x18\x03 \x01(\tR\bencoding\x12)\n" +
 	"\x10original_content\x18\x04 \x01(\fR\x0foriginalContent\x12T\n" +
-	"\rfilter_params\x18\x05 \x03(\v2/.gokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x1a?\n" +
+	"\rfilter_params\x18\x05 \x03(\v2/.gokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x12\x1f\n" +
+	"\vsource_path\x18\x06 \x01(\tR\n" +
+	"sourcePath\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +

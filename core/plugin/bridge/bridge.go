@@ -211,6 +211,7 @@ func (b *JavaBridge) Open(params OpenParams) error {
 		Content:      params.Content,
 		MimeType:     params.MimeType,
 		FilterParams: encodeFilterParams(params.FilterParams),
+		SourcePath:   params.SourcePath,
 	})
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
@@ -270,6 +271,7 @@ func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 				Encoding:        params.Encoding,
 				OriginalContent: params.OriginalContent,
 				FilterParams:    encodeFilterParams(params.FilterParams),
+				SourcePath:      params.SourcePath,
 			},
 		},
 	}); err != nil {

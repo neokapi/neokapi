@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -24,6 +26,7 @@ type BridgeFormatReader struct {
 	filterParams map[string]any // optional filter parameters
 	info         *InfoData
 	content      []byte // raw document content
+	sourcePath   string // absolute file path for direct disk access
 }
 
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
@@ -68,8 +71,18 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 	r.bridge = b
 	r.Doc = doc
 
+	// Detect absolute file paths for direct disk access.
+	// This enables relative URI resolution for auxiliary files (e.g. ITS standoff annotations).
 	var content []byte
-	if doc.Reader != nil {
+	var sourcePath string
+
+	if filepath.IsAbs(doc.URI) {
+		if _, serr := os.Stat(doc.URI); serr == nil {
+			sourcePath = doc.URI
+		}
+	}
+
+	if sourcePath == "" && doc.Reader != nil {
 		content, err = io.ReadAll(doc.Reader)
 		if err != nil {
 			r.pool.Release(b)
@@ -78,6 +91,7 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		}
 	}
 	r.content = content
+	r.sourcePath = sourcePath
 
 	if err := r.bridge.Open(OpenParams{
 		FilterClass:  r.filterClass,
@@ -88,6 +102,7 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		Content:      content,
 		MimeType:     doc.MimeType,
 		FilterParams: r.filterParams,
+		SourcePath:   sourcePath,
 	}); err != nil {
 		r.pool.Release(b)
 		r.bridge = nil
@@ -164,6 +179,7 @@ type BridgeFormatWriter struct {
 	filterClass     string
 	filterParams    map[string]any // optional filter parameters
 	originalContent []byte         // original document needed by Okapi for skeleton
+	sourcePath      string         // absolute file path for direct disk access
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
@@ -188,6 +204,12 @@ func (w *BridgeFormatWriter) SetFilterParams(params map[string]any) {
 // as a skeleton for the filter writer.
 func (w *BridgeFormatWriter) SetOriginalContent(content []byte) {
 	w.originalContent = content
+}
+
+// SetSourcePath sets the absolute file path for direct disk access.
+// When set, Java reads from this path instead of receiving content bytes.
+func (w *BridgeFormatWriter) SetSourcePath(path string) {
+	w.sourcePath = path
 }
 
 // Write collects all parts from the channel, acquires a bridge from the pool,
@@ -223,6 +245,7 @@ send:
 		Encoding:        w.Encoding,
 		OriginalContent: w.originalContent,
 		FilterParams:    w.filterParams,
+		SourcePath:      w.sourcePath,
 	})
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)

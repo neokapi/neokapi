@@ -234,6 +234,9 @@ message OpenRequest {
   string mime_type = 6;
   map<string, string> filter_params = 7;
   string target_locale = 8;
+  string source_path = 9;  // Optional absolute file path on disk.
+                            // When set, Java reads from disk (no temp file).
+                            // Enables relative URI resolution for auxiliary files.
 }
 
 message OpenResponse {
@@ -257,6 +260,8 @@ message WriteHeader {
   string encoding = 3;
   bytes original_content = 4;
   map<string, string> filter_params = 5;
+  string source_path = 6;  // Optional absolute path to original file.
+                            // When set, Java re-reads from disk (no temp file).
 }
 
 message WriteResponse {

@@ -20,6 +20,7 @@ type OpenParams struct {
 	Content      []byte // Raw document bytes
 	MimeType     string
 	FilterParams map[string]any
+	SourcePath   string // Optional absolute file path; Java reads from disk when set
 }
 
 // WriteParams are sent with the Write RPC.
@@ -30,6 +31,7 @@ type WriteParams struct {
 	Encoding        string
 	OriginalContent []byte
 	FilterParams    map[string]any
+	SourcePath      string // Optional absolute file path; Java reads from disk when set
 }
 
 // --- Response data types ---

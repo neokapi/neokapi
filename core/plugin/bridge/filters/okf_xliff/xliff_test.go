@@ -3,14 +3,9 @@
 package okf_xliff
 
 import (
-	"bytes"
-	"context"
-	"io"
-	"os"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/bridge"
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -849,40 +844,16 @@ func TestExtract_EmptyTgtLang(t *testing.T) {
 		"empty-tgt-lang.xlf should extract translatable blocks")
 }
 
-// TestExtract_LqiTest verifies that lqiTest.xlf fails on read because the
-// bridge's single-document protocol cannot resolve the external ITS standoff
-// annotation file (lqiTestIssues.xml) referenced via relative URI.
+// TestExtract_LqiTest verifies that lqiTest.xlf with ITS standoff annotations
+// can be read successfully. The bridge passes the source_path so Java can
+// resolve the external lqiTestIssues.xml file via relative URI.
 func TestExtract_LqiTest(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
-	content, err := os.ReadFile(path)
-	require.NoError(t, err)
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
-	doc := &model.RawDocument{
-		URI:          "lqiTest.xlf",
-		SourceLocale: "en",
-		TargetLocale: "fr",
-		Encoding:     "UTF-8",
-		MimeType:     mimeType,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-
-	ctx := context.Background()
-	require.NoError(t, reader.Open(ctx, doc))
-	t.Cleanup(func() { _ = reader.Close() })
-
-	var readErr error
-	for pr := range reader.Read(ctx) {
-		if pr.Error != nil {
-			readErr = pr.Error
-			break
-		}
-	}
-	// Expected: bridge cannot resolve the external lqiTestIssues.xml file
-	// because it's not co-located with the temp file.
-	assert.Error(t, readErr, "lqiTest.xlf should fail due to missing external resource")
-	assert.Contains(t, readErr.Error(), "lqiTestIssues.xml",
-		"error should mention the missing external file")
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.GreaterOrEqual(t, len(blocks), 4,
+		"lqiTest.xlf should extract at least 4 translatable trans-units")
 }

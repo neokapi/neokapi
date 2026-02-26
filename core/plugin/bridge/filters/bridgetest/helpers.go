@@ -156,8 +156,7 @@ func ReadFile(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, fi
 	content, err := os.ReadFile(path)
 	require.NoError(t, err, "reading test file %s", path)
 
-	uri := filepath.Base(path)
-	return ReadBytes(t, pool, cfg, filterClass, content, uri, mimeType, filterParams)
+	return ReadBytes(t, pool, cfg, filterClass, content, path, mimeType, filterParams)
 }
 
 // FilterBlocks returns only Block parts from a list of parts.

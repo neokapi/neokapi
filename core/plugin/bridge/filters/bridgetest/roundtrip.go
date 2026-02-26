@@ -72,6 +72,14 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	writer.SetLocale("fr")
 	require.NoError(t, writer.SetOutputWriter(&output))
 
+	// Pass source_path when the URI is an absolute file path so the Java
+	// write phase can also resolve relative auxiliary files from disk.
+	if filepath.IsAbs(uri) {
+		if _, serr := os.Stat(uri); serr == nil {
+			writer.SetSourcePath(uri)
+		}
+	}
+
 	partsCh := make(chan *model.Part, len(parts))
 	for _, p := range parts {
 		partsCh <- p
@@ -132,7 +140,7 @@ func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bridge
 			}
 			content, err := os.ReadFile(f)
 			require.NoError(t, err)
-			AssertRoundTripEvents(t, pool, cfg, filterClass, content, name, mimeType, filterParams)
+			AssertRoundTripEvents(t, pool, cfg, filterClass, content, f, mimeType, filterParams)
 		})
 	}
 }
