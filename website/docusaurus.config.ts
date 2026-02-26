@@ -91,7 +91,7 @@ const config: Config = {
           label: 'For Developers',
         },
         {
-          href: '/storybook/',
+          href: 'pathname:///storybook/',
           label: 'Storybook',
           position: 'left',
         },
