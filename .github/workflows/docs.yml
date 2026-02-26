@@ -55,7 +55,7 @@ jobs:
       - name: Build Storybook
         env:
           STORYBOOK_BASE_PATH: /storybook/
-        run: npx storybook build -o website/build/storybook
+        run: npx storybook build -o ../../website/build/storybook
         working-directory: packages/ui
 
       - uses: actions/upload-pages-artifact@v3
