@@ -1,0 +1,51 @@
+name: Build Keycloak Image
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        description: 'Image tag'
+        required: true
+        type: string
+      acr-login-server:
+        description: 'ACR login server URL'
+        required: true
+        type: string
+      acr-name:
+        description: 'ACR name'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build Keycloak Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        env:
+          ACR_NAME: ${{ inputs.acr-name }}
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push keycloak image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/keycloak/Dockerfile
+          push: true
+          tags: |
+            ${{ inputs.acr-login-server }}/bowrain-keycloak:${{ inputs.image-tag }}
+            ${{ inputs.acr-login-server }}/bowrain-keycloak:latest
+          cache-from: type=gha,scope=bowrain-keycloak
+          cache-to: type=gha,mode=max,scope=bowrain-keycloak
