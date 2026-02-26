@@ -371,7 +371,6 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	if query.Translatable != nil {
 		where = append(where, fmt.Sprintf("translatable = $%d", paramN))
 		args = append(args, *query.Translatable)
-		paramN++
 	}
 
 	q := fmt.Sprintf(
