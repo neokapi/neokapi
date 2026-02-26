@@ -114,13 +114,9 @@ func (b *JavaBridge) Start() error {
 
 	b.logger.Printf("[bridge] connecting to %s", addr)
 
-	// Establish gRPC connection.
-	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.StartupTimeout)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, addr,
+	// Establish gRPC connection (lazy — actually connects on first RPC).
+	conn, err := grpc.NewClient("passthrough:///"+addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
 	)
 	if err != nil {
