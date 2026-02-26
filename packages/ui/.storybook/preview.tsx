@@ -7,6 +7,10 @@ import "../src/styles/globals.css";
  * Decorator that syncs the shadcn-glass-ui data-theme attribute whenever
  * Storybook toggles the dark class, so semantic tokens (--semantic-*,
  * --orb-*, --glow-*) activate correctly.
+ *
+ * Also wraps each story in a div with bg-background / text-foreground so
+ * the correct theme surface shows through — especially in the Docs tab
+ * where stories are inlined in an otherwise-white documentation page.
  */
 function ThemeSyncDecorator(Story: React.ComponentType) {
   useEffect(() => {
@@ -21,7 +25,11 @@ function ThemeSyncDecorator(Story: React.ComponentType) {
     return () => observer.disconnect();
   }, []);
 
-  return <Story />;
+  return (
+    <div className="bg-background text-foreground" style={{ minHeight: "100%" }}>
+      <Story />
+    </div>
+  );
 }
 
 const preview: Preview = {
