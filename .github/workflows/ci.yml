@@ -352,8 +352,8 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
       - name: Run bridge filter integration tests
-        run: go test -race -tags=integration -count=1 -timeout=15m -v ./core/plugin/bridge/filters/...
-        timeout-minutes: 20
+        run: go test -race -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+        timeout-minutes: 10
 
   # ── Playwright E2E ────────────────────────────────────────────────────────
   playwright:
