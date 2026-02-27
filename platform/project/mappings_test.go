@@ -11,8 +11,8 @@ import (
 
 func TestResolveRemotePath(t *testing.T) {
 	tmpDir := t.TempDir()
-	kapiDir := filepath.Join(tmpDir, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(tmpDir, ".brain")
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	cfg := &Config{
 		Project: ProjectMeta{
@@ -38,7 +38,7 @@ func TestResolveRemotePath(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, SaveConfig(kapiDir, cfg))
+	require.NoError(t, SaveConfig(brainDir, cfg))
 
 	project, err := FindProject(tmpDir)
 	require.NoError(t, err)

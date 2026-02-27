@@ -11,7 +11,7 @@ import (
 const syncCacheFile = ".sync-cache"
 
 // SyncCache tracks the last known server state for incremental sync.
-// It is stored in .kapi/.sync-cache and is gitignored.
+// It is stored in .brain/.sync-cache and is gitignored.
 type SyncCache struct {
 	ServerURL  string                `json:"server_url"`
 	ProjectID  string                `json:"project_id"`
@@ -27,10 +27,10 @@ type FileCache struct {
 	Blocks map[string]string `json:"blocks"` // blockID → contentHash
 }
 
-// LoadSyncCache loads the sync cache from .kapi/.sync-cache.
+// LoadSyncCache loads the sync cache from .brain/.sync-cache.
 // Returns an empty cache if the file doesn't exist or is corrupt.
-func LoadSyncCache(kapiDir string) *SyncCache {
-	data, err := os.ReadFile(filepath.Join(kapiDir, syncCacheFile))
+func LoadSyncCache(configDir string) *SyncCache {
+	data, err := os.ReadFile(filepath.Join(configDir, syncCacheFile))
 	if err != nil {
 		return &SyncCache{Files: map[string]*FileCache{}}
 	}
@@ -45,11 +45,11 @@ func LoadSyncCache(kapiDir string) *SyncCache {
 	return &cache
 }
 
-// Save persists the sync cache to .kapi/.sync-cache.
-func (c *SyncCache) Save(kapiDir string) error {
+// Save persists the sync cache to .brain/.sync-cache.
+func (c *SyncCache) Save(configDir string) error {
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal sync cache: %w", err)
 	}
-	return os.WriteFile(filepath.Join(kapiDir, syncCacheFile), data, 0644)
+	return os.WriteFile(filepath.Join(configDir, syncCacheFile), data, 0644)
 }

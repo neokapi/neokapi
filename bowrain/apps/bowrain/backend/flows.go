@@ -109,15 +109,15 @@ func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
 }
 
 func (a *App) flowStore() *flow.FlowStore {
-	dir := filepath.Join(defaultKapiDir(), "flows")
+	dir := filepath.Join(defaultBrainDir(), "flows")
 	return flow.NewFlowStore(dir)
 }
 
-func defaultKapiDir() string {
+func defaultBrainDir() string {
 	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".kapi")
+		return filepath.Join(home, ".brain")
 	}
-	return ".kapi"
+	return ".brain"
 }
 
 // ListFlowDefinitions returns all flow definitions (built-in + user).

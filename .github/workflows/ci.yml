@@ -287,6 +287,9 @@ jobs:
       - name: Build kapi CLI
         run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
 
+      - name: Build brain CLI
+        run: cd bowrain && go build -o ../bin/brain ./cmd/brain
+
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 

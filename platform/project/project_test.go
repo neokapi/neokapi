@@ -13,8 +13,8 @@ import (
 func TestFindProject(t *testing.T) {
 	t.Run("find in current directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -22,19 +22,19 @@ func TestFindProject(t *testing.T) {
 				SourceLocale: "en",
 			},
 		}
-		require.NoError(t, SaveConfig(kapiDir, cfg))
+		require.NoError(t, SaveConfig(brainDir, cfg))
 
 		project, err := FindProject(tmpDir)
 		require.NoError(t, err)
 		require.NotNil(t, project)
 		assert.Equal(t, tmpDir, project.Root)
-		assert.Equal(t, kapiDir, project.KapiDir)
+		assert.Equal(t, brainDir, project.ConfigDir)
 	})
 
 	t.Run("find in parent directory", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -42,7 +42,7 @@ func TestFindProject(t *testing.T) {
 				SourceLocale: "en",
 			},
 		}
-		require.NoError(t, SaveConfig(kapiDir, cfg))
+		require.NoError(t, SaveConfig(brainDir, cfg))
 
 		// Search from subdirectory
 		subDir := filepath.Join(tmpDir, "src", "locales")
@@ -59,7 +59,7 @@ func TestFindProject(t *testing.T) {
 
 		_, err := FindProject(tmpDir)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), ".kapi/")
+		assert.Contains(t, err.Error(), ".brain/")
 	})
 
 	t.Run("find from empty path uses current directory", func(t *testing.T) {
@@ -71,8 +71,8 @@ func TestFindProject(t *testing.T) {
 		}()
 
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -80,7 +80,7 @@ func TestFindProject(t *testing.T) {
 				SourceLocale: "en",
 			},
 		}
-		require.NoError(t, SaveConfig(kapiDir, cfg))
+		require.NoError(t, SaveConfig(brainDir, cfg))
 
 		// Change to temp directory
 		require.NoError(t, os.Chdir(tmpDir))
@@ -97,8 +97,8 @@ func TestFindProject(t *testing.T) {
 
 	t.Run("find and load project with server config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -110,25 +110,25 @@ func TestFindProject(t *testing.T) {
 				ProjectID: "test123",
 			},
 		}
-		require.NoError(t, SaveConfig(kapiDir, cfg))
+		require.NoError(t, SaveConfig(brainDir, cfg))
 
 		project, err := FindProject(tmpDir)
 		require.NoError(t, err)
 		require.NotNil(t, project)
 
 		assert.Equal(t, tmpDir, project.Root)
-		assert.Equal(t, kapiDir, project.KapiDir)
+		assert.Equal(t, brainDir, project.ConfigDir)
 		assert.Equal(t, "Test Project", project.Config.Project.Name)
 		assert.Equal(t, "https://test.example.com", project.Config.Server.URL)
 	})
 
 	t.Run("find project with config error", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		// Write invalid config
-		configPath := filepath.Join(kapiDir, "config.yaml")
+		configPath := filepath.Join(brainDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte("invalid: yaml: content:"), 0644))
 
 		_, err := FindProject(tmpDir)
@@ -153,28 +153,28 @@ func TestInitProject(t *testing.T) {
 		require.NotNil(t, project)
 
 		// Verify directory structure
-		assert.DirExists(t, filepath.Join(tmpDir, ".kapi"))
-		assert.DirExists(t, filepath.Join(tmpDir, ".kapi", "flows"))
-		assert.FileExists(t, filepath.Join(tmpDir, ".kapi", "config.yaml"))
-		assert.FileExists(t, filepath.Join(tmpDir, ".kapi", ".gitignore"))
+		assert.DirExists(t, filepath.Join(tmpDir, ".brain"))
+		assert.DirExists(t, filepath.Join(tmpDir, ".brain", "flows"))
+		assert.FileExists(t, filepath.Join(tmpDir, ".brain", "config.yaml"))
+		assert.FileExists(t, filepath.Join(tmpDir, ".brain", ".gitignore"))
 
 		// Verify config was saved correctly
-		reloaded, err := LoadConfig(filepath.Join(tmpDir, ".kapi"))
+		reloaded, err := LoadConfig(filepath.Join(tmpDir, ".brain"))
 		require.NoError(t, err)
 		assert.Equal(t, "New Project", reloaded.Project.Name)
 		assert.Equal(t, model.LocaleID("en-US"), reloaded.Project.SourceLocale)
 		assert.Len(t, reloaded.Project.TargetLocales, 2)
 
-		// Verify .gitignore content (inside .kapi directory)
-		gitignoreContent, err := os.ReadFile(filepath.Join(tmpDir, ".kapi", ".gitignore"))
+		// Verify .gitignore content (inside .brain directory)
+		gitignoreContent, err := os.ReadFile(filepath.Join(tmpDir, ".brain", ".gitignore"))
 		require.NoError(t, err)
 		assert.Contains(t, string(gitignoreContent), ".sync-cache")
 	})
 
-	t.Run("initialize fails if .kapi already exists", func(t *testing.T) {
+	t.Run("initialize fails if .brain already exists", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -191,8 +191,8 @@ func TestInitProject(t *testing.T) {
 
 func TestResolvePath(t *testing.T) {
 	tmpDir := t.TempDir()
-	kapiDir := filepath.Join(tmpDir, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(tmpDir, ".brain")
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	cfg := &Config{
 		Project: ProjectMeta{
@@ -200,7 +200,7 @@ func TestResolvePath(t *testing.T) {
 			SourceLocale: "en",
 		},
 	}
-	require.NoError(t, SaveConfig(kapiDir, cfg))
+	require.NoError(t, SaveConfig(brainDir, cfg))
 
 	project, err := FindProject(tmpDir)
 	require.NoError(t, err)
@@ -220,8 +220,8 @@ func TestResolvePath(t *testing.T) {
 
 func TestRelativePath(t *testing.T) {
 	tmpDir := t.TempDir()
-	kapiDir := filepath.Join(tmpDir, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(tmpDir, ".brain")
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	cfg := &Config{
 		Project: ProjectMeta{
@@ -229,7 +229,7 @@ func TestRelativePath(t *testing.T) {
 			SourceLocale: "en",
 		},
 	}
-	require.NoError(t, SaveConfig(kapiDir, cfg))
+	require.NoError(t, SaveConfig(brainDir, cfg))
 
 	project, err := FindProject(tmpDir)
 	require.NoError(t, err)
@@ -252,8 +252,8 @@ func TestRelativePath(t *testing.T) {
 
 func TestFlowsDirPath(t *testing.T) {
 	tmpDir := t.TempDir()
-	kapiDir := filepath.Join(tmpDir, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(tmpDir, ".brain")
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	cfg := &Config{
 		Project: ProjectMeta{
@@ -261,12 +261,12 @@ func TestFlowsDirPath(t *testing.T) {
 			SourceLocale: "en",
 		},
 	}
-	require.NoError(t, SaveConfig(kapiDir, cfg))
+	require.NoError(t, SaveConfig(brainDir, cfg))
 
 	project, err := FindProject(tmpDir)
 	require.NoError(t, err)
 
 	flowsDir := project.FlowsDirPath()
-	expected := filepath.Join(kapiDir, "flows")
+	expected := filepath.Join(brainDir, "flows")
 	assert.Equal(t, expected, flowsDir)
 }

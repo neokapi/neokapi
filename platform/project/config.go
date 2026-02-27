@@ -9,9 +9,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// LoadConfig loads the project configuration from .kapi/config.yaml.
-func LoadConfig(kapiDir string) (*Config, error) {
-	configPath := filepath.Join(kapiDir, ConfigFile)
+// LoadConfig loads the project configuration from .brain/config.yaml.
+func LoadConfig(configDir string) (*Config, error) {
+	configPath := filepath.Join(configDir, ConfigFile)
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -26,10 +26,10 @@ func LoadConfig(kapiDir string) (*Config, error) {
 	return &cfg, nil
 }
 
-// GetConfigValue reads a dot-notation key from .kapi/config.yaml.
+// GetConfigValue reads a dot-notation key from .brain/config.yaml.
 // For example, "project.name" or "server.url".
-func GetConfigValue(kapiDir, key string) string {
-	configPath := filepath.Join(kapiDir, ConfigFile)
+func GetConfigValue(configDir, key string) string {
+	configPath := filepath.Join(configDir, ConfigFile)
 	v := viper.New()
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
@@ -37,10 +37,10 @@ func GetConfigValue(kapiDir, key string) string {
 	return v.GetString(key)
 }
 
-// SetConfigValue sets a dot-notation key in .kapi/config.yaml.
+// SetConfigValue sets a dot-notation key in .brain/config.yaml.
 // The file is loaded, updated, and written back.
-func SetConfigValue(kapiDir, key, value string) error {
-	configPath := filepath.Join(kapiDir, ConfigFile)
+func SetConfigValue(configDir, key, value string) error {
+	configPath := filepath.Join(configDir, ConfigFile)
 	v := viper.New()
 	v.SetConfigFile(configPath)
 	v.SetConfigType("yaml")
@@ -49,9 +49,9 @@ func SetConfigValue(kapiDir, key, value string) error {
 	return v.WriteConfigAs(configPath)
 }
 
-// SaveConfig saves the project configuration to .kapi/config.yaml.
-func SaveConfig(kapiDir string, cfg *Config) error {
-	configPath := filepath.Join(kapiDir, ConfigFile)
+// SaveConfig saves the project configuration to .brain/config.yaml.
+func SaveConfig(configDir string, cfg *Config) error {
+	configPath := filepath.Join(configDir, ConfigFile)
 
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// KapiDir is the project directory name.
-	KapiDir = ".kapi"
+	// BrainDir is the project directory name.
+	BrainDir = ".brain"
 
 	// ConfigFile is the project configuration file.
 	ConfigFile = "config.yaml"
@@ -19,19 +19,19 @@ const (
 	FlowsDir = "flows"
 )
 
-// Project represents a .kapi/ project.
+// Project represents a .brain/ project.
 type Project struct {
-	// Root is the project root directory (contains .kapi/).
+	// Root is the project root directory (contains .brain/).
 	Root string
 
-	// KapiDir is the .kapi/ directory path.
-	KapiDir string
+	// ConfigDir is the .brain/ directory path.
+	ConfigDir string
 
 	// Config is the loaded project configuration.
 	Config *Config
 }
 
-// FindProject searches for a .kapi/ directory starting from the current directory
+// FindProject searches for a .brain/ directory starting from the current directory
 // and walking up the directory tree (like git).
 func FindProject(startDir string) (*Project, error) {
 	if startDir == "" {
@@ -49,71 +49,64 @@ func FindProject(startDir string) (*Project, error) {
 
 	dir := absStart
 	for {
-		kapiDir := filepath.Join(dir, KapiDir)
-		if st, err := os.Stat(kapiDir); err == nil && st.IsDir() {
-			// Found .kapi/ directory
-			cfg, err := LoadConfig(kapiDir)
+		brainDir := filepath.Join(dir, BrainDir)
+		if st, err := os.Stat(brainDir); err == nil && st.IsDir() {
+			cfg, err := LoadConfig(brainDir)
 			if err != nil {
 				return nil, fmt.Errorf("load config: %w", err)
 			}
 
 			return &Project{
-				Root:    dir,
-				KapiDir: kapiDir,
-				Config:  cfg,
+				Root:      dir,
+				ConfigDir: brainDir,
+				Config:    cfg,
 			}, nil
 		}
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			// Reached filesystem root
-			return nil, fmt.Errorf("no .kapi/ directory found (searched from %s)", absStart)
+			return nil, fmt.Errorf("no .brain/ directory found (searched from %s)", absStart)
 		}
 		dir = parent
 	}
 }
 
-// InitProject creates a new .kapi/ project in the specified directory.
+// InitProject creates a new .brain/ project in the specified directory.
 func InitProject(root string, cfg *Config) (*Project, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
 	}
 
-	kapiDir := filepath.Join(absRoot, KapiDir)
+	brainDir := filepath.Join(absRoot, BrainDir)
 
-	// Check if .kapi/ already exists
-	if _, err := os.Stat(kapiDir); err == nil {
-		return nil, fmt.Errorf(".kapi/ directory already exists at %s", kapiDir)
+	if _, err := os.Stat(brainDir); err == nil {
+		return nil, fmt.Errorf(".brain/ directory already exists at %s", brainDir)
 	}
 
-	// Create .kapi/ directory
-	if err := os.MkdirAll(kapiDir, 0755); err != nil {
-		return nil, fmt.Errorf("create .kapi directory: %w", err)
+	if err := os.MkdirAll(brainDir, 0755); err != nil {
+		return nil, fmt.Errorf("create .brain directory: %w", err)
 	}
 
-	// Create flows/ subdirectory
-	flowsDir := filepath.Join(kapiDir, FlowsDir)
+	flowsDir := filepath.Join(brainDir, FlowsDir)
 	if err := os.MkdirAll(flowsDir, 0755); err != nil {
 		return nil, fmt.Errorf("create flows directory: %w", err)
 	}
 
-	// Save config
-	if err := SaveConfig(kapiDir, cfg); err != nil {
+	if err := SaveConfig(brainDir, cfg); err != nil {
 		return nil, fmt.Errorf("save config: %w", err)
 	}
 
-	// Create .gitignore entry for sync cache
-	gitignorePath := filepath.Join(kapiDir, ".gitignore")
-	gitignoreContent := "# Kapi sync cache (local only)\n.sync-cache\n"
+	gitignorePath := filepath.Join(brainDir, ".gitignore")
+	gitignoreContent := "# Brain sync cache (local only)\n.sync-cache\n"
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		return nil, fmt.Errorf("create .gitignore: %w", err)
 	}
 
 	return &Project{
-		Root:    absRoot,
-		KapiDir: kapiDir,
-		Config:  cfg,
+		Root:      absRoot,
+		ConfigDir: brainDir,
+		Config:    cfg,
 	}, nil
 }
 
@@ -130,12 +123,12 @@ func (p *Project) RelativePath(absPath string) (string, error) {
 	return filepath.Rel(p.Root, absPath)
 }
 
-// FlowsDir returns the flows directory path.
+// FlowsDirPath returns the flows directory path.
 func (p *Project) FlowsDirPath() string {
-	return filepath.Join(p.KapiDir, FlowsDir)
+	return filepath.Join(p.ConfigDir, FlowsDir)
 }
 
-// Config represents the .kapi/config.yaml structure.
+// Config represents the .brain/config.yaml structure.
 type Config struct {
 	Project ProjectMeta `yaml:"project"`
 
@@ -177,7 +170,7 @@ type ServerConfig struct {
 	ProjectID  string `yaml:"project_id"`
 	Workspace  string `yaml:"workspace,omitempty"`
 	ClaimToken string `yaml:"claim_token,omitempty"`
-	// Auth token comes from kapi auth login (stored separately)
+	// Auth token comes from brain auth login (stored separately)
 }
 
 // PluginsConfig specifies plugin dependencies.
