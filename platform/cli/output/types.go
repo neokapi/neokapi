@@ -10,6 +10,7 @@ import (
 
 // VersionOutput represents version information.
 type VersionOutput struct {
+	Program   string `json:"program"`
 	Version   string `json:"version"`
 	Commit    string `json:"commit,omitempty"`
 	BuildDate string `json:"build_date,omitempty"`
@@ -17,9 +18,9 @@ type VersionOutput struct {
 
 func (v VersionOutput) FormatText(w io.Writer) error {
 	if v.Commit != "" && v.BuildDate != "" {
-		fmt.Fprintf(w, "kapi %s (commit: %s, built: %s)\n", v.Version, v.Commit, v.BuildDate)
+		fmt.Fprintf(w, "%s %s (commit: %s, built: %s)\n", v.Program, v.Version, v.Commit, v.BuildDate)
 	} else {
-		fmt.Fprintf(w, "kapi %s\n", v.Version)
+		fmt.Fprintf(w, "%s %s\n", v.Program, v.Version)
 	}
 	return nil
 }
@@ -81,7 +82,7 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 type PluginInfo struct {
 	Name       string `json:"name"`
 	Version    string `json:"version,omitempty"`
-	PluginType string `json:"plugin_type,omitempty"` // "bundle", "format", "tool", etc.
+	PluginType string `json:"plugin_type,omitempty"`
 	Status     string `json:"status"`
 	Formats    int    `json:"formats,omitempty"`
 	Path       string `json:"path,omitempty"`
@@ -197,17 +198,34 @@ func (f FlowsListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// FlowRunOutput represents the result of a flow run.
+type FlowRunOutput struct {
+	FlowName       string `json:"flow_name"`
+	InputPath      string `json:"input_path,omitempty"`
+	OutputPath     string `json:"output_path,omitempty"`
+	FilesProcessed int    `json:"files_processed,omitempty"`
+}
+
+func (o FlowRunOutput) FormatText(w io.Writer) error {
+	if o.FilesProcessed > 0 {
+		fmt.Fprintf(w, "Flow %s completed: processed %d files\n", o.FlowName, o.FilesProcessed)
+	} else {
+		fmt.Fprintf(w, "Flow %s completed: %s → %s\n", o.FlowName, o.InputPath, o.OutputPath)
+	}
+	return nil
+}
+
 // PresetEntry represents a single preset in the list output.
 type PresetEntry struct {
 	Name        string         `json:"name"`
-	Type        string         `json:"type"` // "format" or "framework"
+	Type        string         `json:"type"`
 	Description string         `json:"description,omitempty"`
-	Format      string         `json:"format,omitempty"` // target format (format presets only)
+	Format      string         `json:"format,omitempty"`
 	Source      string         `json:"source,omitempty"`
 	IsDefault   bool           `json:"is_default,omitempty"`
-	Config      map[string]any `json:"config,omitempty"`   // parameter values (format presets only)
-	Mappings    []MappingEntry `json:"mappings,omitempty"` // framework presets only
-	Exclude     []string       `json:"exclude,omitempty"`  // framework presets only
+	Config      map[string]any `json:"config,omitempty"`
+	Mappings    []MappingEntry `json:"mappings,omitempty"`
+	Exclude     []string       `json:"exclude,omitempty"`
 }
 
 // MappingEntry represents a mapping in a framework preset.
@@ -229,7 +247,6 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	// Separate framework and format presets.
 	var fwPresets, fmtPresets []PresetEntry
 	for _, e := range p.Presets {
 		switch e.Type {
@@ -266,7 +283,7 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 // PresetShowOutput represents the details of a single preset.
 type PresetShowOutput struct {
 	Name        string         `json:"name"`
-	Type        string         `json:"type"` // "format" or "framework"
+	Type        string         `json:"type"`
 	Description string         `json:"description,omitempty"`
 	Format      string         `json:"format,omitempty"`
 	Source      string         `json:"source,omitempty"`
@@ -325,7 +342,7 @@ type PluginSearchEntry struct {
 	Description string `json:"description,omitempty"`
 }
 
-// PluginSearchOutput represents the result of kapi plugins search.
+// PluginSearchOutput represents the result of a plugin search.
 type PluginSearchOutput struct {
 	Plugins []PluginSearchEntry `json:"plugins"`
 	Total   int                 `json:"total"`
@@ -346,7 +363,7 @@ func (o PluginSearchOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PluginInstallOutput represents the result of kapi plugins install.
+// PluginInstallOutput represents the result of a plugin install.
 type PluginInstallOutput struct {
 	Name        string   `json:"name"`
 	Version     string   `json:"version"`
@@ -369,7 +386,7 @@ type PluginUpdateEntry struct {
 	NewVersion string `json:"new_version"`
 }
 
-// PluginUpdateOutput represents the result of kapi plugins update.
+// PluginUpdateOutput represents the result of a plugin update.
 type PluginUpdateOutput struct {
 	Updated  []PluginUpdateEntry `json:"updated"`
 	UpToDate bool                `json:"up_to_date"`
@@ -386,7 +403,7 @@ func (o PluginUpdateOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PluginRemoveOutput represents the result of kapi plugins remove.
+// PluginRemoveOutput represents the result of a plugin remove.
 type PluginRemoveOutput struct {
 	Name    string `json:"name"`
 	Version string `json:"version,omitempty"`
@@ -399,180 +416,6 @@ func (o PluginRemoveOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Removed %s\n", o.Name)
 	}
 	return nil
-}
-
-// TermbaseImportOutput represents the result of kapi termbase import.
-type TermbaseImportOutput struct {
-	Imported int    `json:"imported"`
-	DBPath   string `json:"db_path"`
-	Total    int    `json:"total"`
-}
-
-func (o TermbaseImportOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Imported %d concepts into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
-	return nil
-}
-
-// TermbaseExportOutput represents the result of kapi termbase export.
-type TermbaseExportOutput struct {
-	Count      int    `json:"count"`
-	OutputPath string `json:"output_path"`
-}
-
-func (o TermbaseExportOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Exported %d concepts to %s\n", o.Count, o.OutputPath)
-	return nil
-}
-
-// TermbaseLookupTarget represents a target term in a lookup result.
-type TermbaseLookupTarget struct {
-	Text   string `json:"text"`
-	Locale string `json:"locale"`
-	Status string `json:"status"`
-}
-
-// TermbaseLookupEntry represents a single match from a termbase lookup.
-type TermbaseLookupEntry struct {
-	Term      string                 `json:"term"`
-	Locale    string                 `json:"locale"`
-	Status    string                 `json:"status"`
-	MatchType string                 `json:"match_type"`
-	Score     float64                `json:"score"`
-	ConceptID string                 `json:"concept_id"`
-	Domain    string                 `json:"domain,omitempty"`
-	Targets   []TermbaseLookupTarget `json:"targets,omitempty"`
-}
-
-// TermbaseLookupOutput represents the result of kapi termbase lookup.
-type TermbaseLookupOutput struct {
-	Matches []TermbaseLookupEntry `json:"matches"`
-	Total   int                   `json:"total"`
-}
-
-func (o TermbaseLookupOutput) FormatText(w io.Writer) error {
-	if len(o.Matches) == 0 {
-		fmt.Fprintln(w, "No matches found.")
-		return nil
-	}
-
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  TERM\tLOCALE\tSTATUS\tMATCH\tSCORE\tCONCEPT\tDOMAIN\n")
-	fmt.Fprintf(tw, "  ----\t------\t------\t-----\t-----\t-------\t------\n")
-	for _, m := range o.Matches {
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%.2f\t%s\t%s\n",
-			m.Term, m.Locale, m.Status, m.MatchType, m.Score, m.ConceptID, m.Domain)
-		for _, t := range m.Targets {
-			fmt.Fprintf(tw, "    -> %s\t%s\t%s\t\t\t\t\n", t.Text, t.Locale, t.Status)
-		}
-	}
-	tw.Flush()
-	fmt.Fprintf(w, "\nTotal: %d match(es)\n", o.Total)
-	return nil
-}
-
-// TermbaseSearchTerm represents a term within a concept search result.
-type TermbaseSearchTerm struct {
-	Text   string `json:"text"`
-	Locale string `json:"locale"`
-}
-
-// TermbaseSearchEntry represents a single concept from a termbase search.
-type TermbaseSearchEntry struct {
-	ID         string               `json:"id"`
-	Domain     string               `json:"domain,omitempty"`
-	Definition string               `json:"definition,omitempty"`
-	Terms      []TermbaseSearchTerm `json:"terms"`
-}
-
-// TermbaseSearchOutput represents the result of kapi termbase search.
-type TermbaseSearchOutput struct {
-	Concepts []TermbaseSearchEntry `json:"concepts"`
-	Total    int                   `json:"total"`
-	Shown    int                   `json:"shown"`
-}
-
-func (o TermbaseSearchOutput) FormatText(w io.Writer) error {
-	if len(o.Concepts) == 0 {
-		fmt.Fprintln(w, "No concepts found.")
-		return nil
-	}
-
-	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(tw, "  CONCEPT\tDOMAIN\tTERMS\tDEFINITION\n")
-	fmt.Fprintf(tw, "  -------\t------\t-----\t----------\n")
-	for _, c := range o.Concepts {
-		var terms []string
-		for _, t := range c.Terms {
-			terms = append(terms, fmt.Sprintf("%s [%s]", t.Text, t.Locale))
-		}
-		def := c.Definition
-		if len(def) > 40 {
-			def = def[:37] + "..."
-		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", c.ID, c.Domain, strings.Join(terms, ", "), def)
-	}
-	tw.Flush()
-
-	if o.Total > o.Shown {
-		fmt.Fprintf(w, "\nShowing %d of %d results. Use --limit to see more.\n", o.Shown, o.Total)
-	}
-	return nil
-}
-
-// TermbaseStatsOutput represents the result of kapi termbase stats.
-type TermbaseStatsOutput struct {
-	DBPath   string         `json:"db_path"`
-	Concepts int            `json:"concepts"`
-	Terms    int            `json:"terms"`
-	Locales  map[string]int `json:"locales,omitempty"`
-	Domains  map[string]int `json:"domains,omitempty"`
-	Statuses map[string]int `json:"statuses,omitempty"`
-}
-
-func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Termbase: %s\n", o.DBPath)
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  Concepts:  %d\n", o.Concepts)
-	fmt.Fprintf(w, "  Terms:     %d\n", o.Terms)
-
-	if len(o.Locales) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Locales:")
-		keys := sortedKeys(o.Locales)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-10s %d terms\n", k, o.Locales[k])
-		}
-	}
-
-	if len(o.Domains) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Domains:")
-		keys := sortedKeys(o.Domains)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-20s %d concepts\n", k, o.Domains[k])
-		}
-	}
-
-	if len(o.Statuses) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "  Term statuses:")
-		keys := sortedKeys(o.Statuses)
-		for _, k := range keys {
-			fmt.Fprintf(w, "    %-12s %d\n", k, o.Statuses[k])
-		}
-	}
-
-	return nil
-}
-
-// sortedKeys returns the keys of a map[string]int sorted alphabetically.
-func sortedKeys(m map[string]int) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	return keys
 }
 
 // FormatInfoParam represents a parameter in a format info group.
@@ -672,19 +515,176 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// FlowRunOutput represents the result of kapi flow run.
-type FlowRunOutput struct {
-	FlowName       string `json:"flow_name"`
-	InputPath      string `json:"input_path,omitempty"`
-	OutputPath     string `json:"output_path,omitempty"`
-	FilesProcessed int    `json:"files_processed,omitempty"`
+// TermbaseImportOutput represents the result of a termbase import.
+type TermbaseImportOutput struct {
+	Imported int    `json:"imported"`
+	DBPath   string `json:"db_path"`
+	Total    int    `json:"total"`
 }
 
-func (o FlowRunOutput) FormatText(w io.Writer) error {
-	if o.FilesProcessed > 0 {
-		fmt.Fprintf(w, "Flow %s completed: processed %d files\n", o.FlowName, o.FilesProcessed)
-	} else {
-		fmt.Fprintf(w, "Flow %s completed: %s → %s\n", o.FlowName, o.InputPath, o.OutputPath)
+func (o TermbaseImportOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Imported %d concepts into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
+	return nil
+}
+
+// TermbaseExportOutput represents the result of a termbase export.
+type TermbaseExportOutput struct {
+	Count      int    `json:"count"`
+	OutputPath string `json:"output_path"`
+}
+
+func (o TermbaseExportOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Exported %d concepts to %s\n", o.Count, o.OutputPath)
+	return nil
+}
+
+// TermbaseLookupTarget represents a target term in a lookup result.
+type TermbaseLookupTarget struct {
+	Text   string `json:"text"`
+	Locale string `json:"locale"`
+	Status string `json:"status"`
+}
+
+// TermbaseLookupEntry represents a single match from a termbase lookup.
+type TermbaseLookupEntry struct {
+	Term      string                 `json:"term"`
+	Locale    string                 `json:"locale"`
+	Status    string                 `json:"status"`
+	MatchType string                 `json:"match_type"`
+	Score     float64                `json:"score"`
+	ConceptID string                 `json:"concept_id"`
+	Domain    string                 `json:"domain,omitempty"`
+	Targets   []TermbaseLookupTarget `json:"targets,omitempty"`
+}
+
+// TermbaseLookupOutput represents the result of a termbase lookup.
+type TermbaseLookupOutput struct {
+	Matches []TermbaseLookupEntry `json:"matches"`
+	Total   int                   `json:"total"`
+}
+
+func (o TermbaseLookupOutput) FormatText(w io.Writer) error {
+	if len(o.Matches) == 0 {
+		fmt.Fprintln(w, "No matches found.")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "  TERM\tLOCALE\tSTATUS\tMATCH\tSCORE\tCONCEPT\tDOMAIN\n")
+	fmt.Fprintf(tw, "  ----\t------\t------\t-----\t-----\t-------\t------\n")
+	for _, m := range o.Matches {
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\t%.2f\t%s\t%s\n",
+			m.Term, m.Locale, m.Status, m.MatchType, m.Score, m.ConceptID, m.Domain)
+		for _, t := range m.Targets {
+			fmt.Fprintf(tw, "    -> %s\t%s\t%s\t\t\t\t\n", t.Text, t.Locale, t.Status)
+		}
+	}
+	tw.Flush()
+	fmt.Fprintf(w, "\nTotal: %d match(es)\n", o.Total)
+	return nil
+}
+
+// TermbaseSearchTerm represents a term within a concept search result.
+type TermbaseSearchTerm struct {
+	Text   string `json:"text"`
+	Locale string `json:"locale"`
+}
+
+// TermbaseSearchEntry represents a single concept from a termbase search.
+type TermbaseSearchEntry struct {
+	ID         string               `json:"id"`
+	Domain     string               `json:"domain,omitempty"`
+	Definition string               `json:"definition,omitempty"`
+	Terms      []TermbaseSearchTerm `json:"terms"`
+}
+
+// TermbaseSearchOutput represents the result of a termbase search.
+type TermbaseSearchOutput struct {
+	Concepts []TermbaseSearchEntry `json:"concepts"`
+	Total    int                   `json:"total"`
+	Shown    int                   `json:"shown"`
+}
+
+func (o TermbaseSearchOutput) FormatText(w io.Writer) error {
+	if len(o.Concepts) == 0 {
+		fmt.Fprintln(w, "No concepts found.")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "  CONCEPT\tDOMAIN\tTERMS\tDEFINITION\n")
+	fmt.Fprintf(tw, "  -------\t------\t-----\t----------\n")
+	for _, c := range o.Concepts {
+		var terms []string
+		for _, t := range c.Terms {
+			terms = append(terms, fmt.Sprintf("%s [%s]", t.Text, t.Locale))
+		}
+		def := c.Definition
+		if len(def) > 40 {
+			def = def[:37] + "..."
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", c.ID, c.Domain, strings.Join(terms, ", "), def)
+	}
+	tw.Flush()
+
+	if o.Total > o.Shown {
+		fmt.Fprintf(w, "\nShowing %d of %d results. Use --limit to see more.\n", o.Shown, o.Total)
 	}
 	return nil
+}
+
+// TermbaseStatsOutput represents the result of termbase stats.
+type TermbaseStatsOutput struct {
+	DBPath   string         `json:"db_path"`
+	Concepts int            `json:"concepts"`
+	Terms    int            `json:"terms"`
+	Locales  map[string]int `json:"locales,omitempty"`
+	Domains  map[string]int `json:"domains,omitempty"`
+	Statuses map[string]int `json:"statuses,omitempty"`
+}
+
+func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Termbase: %s\n", o.DBPath)
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  Concepts:  %d\n", o.Concepts)
+	fmt.Fprintf(w, "  Terms:     %d\n", o.Terms)
+
+	if len(o.Locales) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  Locales:")
+		keys := SortedKeys(o.Locales)
+		for _, k := range keys {
+			fmt.Fprintf(w, "    %-10s %d terms\n", k, o.Locales[k])
+		}
+	}
+
+	if len(o.Domains) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  Domains:")
+		keys := SortedKeys(o.Domains)
+		for _, k := range keys {
+			fmt.Fprintf(w, "    %-20s %d concepts\n", k, o.Domains[k])
+		}
+	}
+
+	if len(o.Statuses) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  Term statuses:")
+		keys := SortedKeys(o.Statuses)
+		for _, k := range keys {
+			fmt.Fprintf(w, "    %-12s %d\n", k, o.Statuses[k])
+		}
+	}
+
+	return nil
+}
+
+// SortedKeys returns the keys of a map[string]int sorted alphabetically.
+func SortedKeys(m map[string]int) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

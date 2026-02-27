@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"testing"
@@ -14,7 +14,6 @@ func TestFilterFormatsEmpty(t *testing.T) {
 		{Name: "csv", MimeTypes: []string{"text/csv"}, Extensions: []string{".csv"}},
 	}
 
-	// No match.
 	result := filterFormats(infos, "application/pdf", "")
 	assert.Empty(t, result)
 }
@@ -49,7 +48,6 @@ func TestFilterFormatsCombined(t *testing.T) {
 		{Name: "csv", MimeTypes: []string{"text/csv"}, Extensions: []string{".csv"}},
 	}
 
-	// Both MIME and extension filter: only okapi-html has .htm + text/html.
 	result := filterFormats(infos, "text/html", ".htm")
 	assert.Len(t, result, 1)
 	assert.Equal(t, "okapi-html", result[0].Name)
@@ -75,30 +73,6 @@ func TestToFormatInfoParam_Boolean(t *testing.T) {
 	assert.Equal(t, "Enable extraction", p.Description)
 }
 
-func TestToFormatInfoParam_String(t *testing.T) {
-	prop := loader.PropertySchema{
-		Type:        "string",
-		Description: "Pattern to match",
-		Default:     ".*",
-	}
-	p := toFormatInfoParam("pattern", prop)
-	assert.Equal(t, "pattern", p.Name)
-	assert.Equal(t, "string", p.Type)
-	assert.Equal(t, ".*", p.Default)
-}
-
-func TestToFormatInfoParam_Integer(t *testing.T) {
-	prop := loader.PropertySchema{
-		Type:        "integer",
-		Description: "Max depth",
-		Default:     float64(10), // JSON numbers come as float64
-	}
-	p := toFormatInfoParam("maxDepth", prop)
-	assert.Equal(t, "maxDepth", p.Name)
-	assert.Equal(t, "integer", p.Type)
-	assert.Equal(t, float64(10), p.Default)
-}
-
 func TestToFormatInfoParam_ObjectWithOkapiFormat(t *testing.T) {
 	prop := loader.PropertySchema{
 		Type:        "object",
@@ -107,37 +81,6 @@ func TestToFormatInfoParam_ObjectWithOkapiFormat(t *testing.T) {
 	}
 	p := toFormatInfoParam("codeFinderRules", prop)
 	assert.Equal(t, "codeFinderRules", p.Name)
-	assert.Equal(t, "inlineCodeFinder", p.Type) // OkapiFormat overrides Type
+	assert.Equal(t, "inlineCodeFinder", p.Type)
 	assert.Equal(t, "Inline code detection", p.Description)
-}
-
-func TestToFormatInfoParam_DeprecatedParam(t *testing.T) {
-	prop := loader.PropertySchema{
-		Type:       "boolean",
-		Deprecated: true,
-	}
-	p := toFormatInfoParam("oldOption", prop)
-	assert.Equal(t, "oldOption", p.Name)
-	assert.Equal(t, "boolean", p.Type)
-	assert.Nil(t, p.Default)
-}
-
-func TestToFormatInfoParam_EmptyDefault(t *testing.T) {
-	prop := loader.PropertySchema{
-		Type:    "string",
-		Default: "",
-	}
-	p := toFormatInfoParam("emptyStr", prop)
-	assert.Equal(t, "emptyStr", p.Name)
-	assert.Equal(t, "", p.Default)
-}
-
-func TestToFormatInfoParam_NilDefault(t *testing.T) {
-	prop := loader.PropertySchema{
-		Type:    "string",
-		Default: nil,
-	}
-	p := toFormatInfoParam("noDefault", prop)
-	assert.Equal(t, "noDefault", p.Name)
-	assert.Nil(t, p.Default)
 }

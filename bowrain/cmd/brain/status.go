@@ -28,7 +28,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		},
 	}
 
-	conn, err := project.NewSourceConnector(proj, formatReg)
+	conn, err := project.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
 		// No server configured — show local info only.
 		return output.Print(cmd, out)

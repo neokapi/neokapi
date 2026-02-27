@@ -53,7 +53,7 @@ Examples:
 			if format == "" {
 				ext := filepath.Ext(pattern)
 				if ext != "" {
-					detected, err := formatReg.Detector().DetectByExtension(ext)
+					detected, err := app.FormatReg.Detector().DetectByExtension(ext)
 					if err == nil {
 						format = detected
 					}

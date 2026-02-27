@@ -29,7 +29,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	conn, err := project.NewSourceConnector(proj, formatReg)
+	conn, err := project.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
 		return err
 	}

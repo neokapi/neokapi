@@ -61,7 +61,7 @@ func runLsFast(cmd *cobra.Command, proj *project.Project, filterPaths []string) 
 			if formatName == "" {
 				ext := filepath.Ext(rp)
 				if ext != "" {
-					formatName, _ = formatReg.Detector().DetectByExtension(ext)
+					formatName, _ = app.FormatReg.Detector().DetectByExtension(ext)
 				}
 			}
 			if formatName == "" {
@@ -81,7 +81,7 @@ func runLsFast(cmd *cobra.Command, proj *project.Project, filterPaths []string) 
 
 // runLsWithStats lists files with block/word counts and optional dirty detection.
 func runLsWithStats(cmd *cobra.Command, proj *project.Project, filterPaths []string) error {
-	conn := project.NewLocalConnector(proj, formatReg)
+	conn := project.NewLocalConnector(proj, app.FormatReg)
 
 	files, err := conn.ListFiles(cmd.Context(), nil)
 	if err != nil {

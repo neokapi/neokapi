@@ -1,5 +1,5 @@
-// Package output provides consistent output formatting for the kapi CLI.
-// All commands use this package to output results in either text or JSON format.
+// Package output provides consistent output formatting for gokapi CLI tools.
+// Both kapi and brain CLIs use this package to output results in text or JSON format.
 package output
 
 import (
@@ -28,8 +28,14 @@ type TextFormatter interface {
 	FormatText(w io.Writer) error
 }
 
+// TableFormattable is implemented by collector result data that can
+// render itself as an aligned text table.
+type TableFormattable interface {
+	FormatTable(w io.Writer)
+}
+
 // AddFlags registers output format flags on the given command.
-// This adds --json, --text, and --output-format/-o flags.
+// This adds --json, --text, and --output-format flags.
 func AddFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("json", false, "Output in JSON format")
 	cmd.Flags().Bool("text", false, "Output in text format (default)")
@@ -47,28 +53,20 @@ func AddPersistentFlags(cmd *cobra.Command) {
 // GetFormat resolves the output format from command flags.
 // Precedence: --json > --text > --output-format > default (text)
 func GetFormat(cmd *cobra.Command) Format {
-	// Check --json flag first (convenience shorthand)
 	if jsonFlag, _ := cmd.Flags().GetBool("json"); jsonFlag {
 		return FormatJSON
 	}
-
-	// Check --text flag
 	if textFlag, _ := cmd.Flags().GetBool("text"); textFlag {
 		return FormatText
 	}
-
-	// Check --output-format flag
 	if format, _ := cmd.Flags().GetString("output-format"); format != "" {
 		switch format {
 		case "json":
 			return FormatJSON
 		case "text":
 			return FormatText
-		default:
-			// Invalid format, fall through to default
 		}
 	}
-
 	return FormatText
 }
 
@@ -104,12 +102,9 @@ func printJSON(w io.Writer, data any) error {
 }
 
 func printText(w io.Writer, data any) error {
-	// If the data implements TextFormatter, use it
 	if tf, ok := data.(TextFormatter); ok {
 		return tf.FormatText(w)
 	}
-
-	// Fallback: pretty-print as JSON
 	return printJSON(w, data)
 }
 
@@ -128,4 +123,27 @@ func PrintError(cmd *cobra.Command, err error, code string) {
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
+}
+
+// FormatCollectorResult writes a collector result to stdout.
+// In JSON mode it marshals result data; in text mode it calls FormatTable
+// if available, falling back to JSON.
+func FormatCollectorResult(jsonMode bool, data any) error {
+	if jsonMode {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(data)
+	}
+
+	if ft, ok := data.(TableFormattable); ok {
+		ft.FormatTable(os.Stdout)
+		return nil
+	}
+
+	out, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal result: %w", err)
+	}
+	fmt.Println(string(out))
+	return nil
 }

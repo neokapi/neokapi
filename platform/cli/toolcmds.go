@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"context"
@@ -10,28 +10,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// pseudoExpansion is the expansion percentage for pseudo-translate.
-var pseudoExpansion int
-
-// toolCommandDef describes a tool that is exposed as a top-level CLI command.
-type toolCommandDef struct {
+// ToolCommandDef describes a tool that is exposed as a top-level CLI command.
+type ToolCommandDef struct {
 	Use               string
 	Aliases           []string
 	Short             string
-	WritesOutput      bool   // tool produces file output via format writers
-	DefaultTargetLang string // fallback target language when --target-lang is not set
-	NewTool           func() (tool.Tool, error)
+	WritesOutput      bool
+	DefaultTargetLang string
+	NewTool           func(targetLang string, expansion int) (tool.Tool, error)
 	NewCollector      func() flow.Collector
 }
 
-// builtinToolCommands lists all tools exposed as top-level commands.
-// tools_cmd.go reads this for `kapi tools` output.
-var builtinToolCommands = []toolCommandDef{
+// BuiltinToolCommands lists all tools exposed as top-level commands.
+var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:     "word-count",
 		Aliases: []string{"wc"},
 		Short:   "Count words in source and target text",
-		NewTool: func() (tool.Tool, error) {
+		NewTool: func(targetLang string, expansion int) (tool.Tool, error) {
 			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
 		},
 		NewCollector: func() flow.Collector {
@@ -44,25 +40,31 @@ var builtinToolCommands = []toolCommandDef{
 		Short:             "Generate pseudo-translations for localization testing",
 		WritesOutput:      true,
 		DefaultTargetLang: "qps",
-		NewTool: func() (tool.Tool, error) {
+		NewTool: func(targetLang string, expansion int) (tool.Tool, error) {
 			lang := targetLang
 			if lang == "" {
 				lang = "qps"
 			}
 			return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 				TargetLocale:     model.LocaleID(lang),
-				ExpansionPercent: pseudoExpansion,
+				ExpansionPercent: expansion,
 			}), nil
 		},
 	},
 }
 
-func init() {
-	for _, def := range builtinToolCommands {
+// NewToolCommands creates cobra commands for all builtin tool definitions.
+func (a *App) NewToolCommands() []*cobra.Command {
+	var cmds []*cobra.Command
+
+	for _, def := range BuiltinToolCommands {
+		d := def // capture loop variable
+		var pseudoExpansion int
+
 		cmd := &cobra.Command{
-			Use:     def.Use + " [files...]",
-			Aliases: def.Aliases,
-			Short:   def.Short,
+			Use:     d.Use + " [files...]",
+			Aliases: d.Aliases,
+			Short:   d.Short,
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")
@@ -72,20 +74,20 @@ func init() {
 				progress, _ := cmd.Flags().GetBool("progress")
 
 				var outputTmpl string
-				if def.WritesOutput {
+				if d.WritesOutput {
 					outputTmpl, _ = cmd.Flags().GetString("output")
 					if outputTmpl == "" {
 						outputTmpl = "./out/{name}.{ext}"
 					}
 				}
 
-				effectiveLang := targetLang
-				if effectiveLang == "" && def.DefaultTargetLang != "" {
-					effectiveLang = def.DefaultTargetLang
+				effectiveLang := a.TargetLang
+				if effectiveLang == "" && d.DefaultTargetLang != "" {
+					effectiveLang = d.DefaultTargetLang
 				}
 
-				return RunToolOnFiles(context.Background(), ToolRunConfig{
-					ToolName:       def.Use,
+				return a.RunToolOnFiles(context.Background(), ToolRunConfig{
+					ToolName:       d.Use,
 					Files:          args,
 					Concurrency:    conc,
 					JSONOutput:     jsonOut,
@@ -94,23 +96,27 @@ func init() {
 					Progress:       progress,
 					OutputTemplate: outputTmpl,
 					TargetLang:     effectiveLang,
-					NewTool:        def.NewTool,
-					NewCollector:   def.NewCollector,
+					NewTool: func() (tool.Tool, error) {
+						return d.NewTool(effectiveLang, pseudoExpansion)
+					},
+					NewCollector: d.NewCollector,
 				})
 			},
 		}
-		addProcessingFlags(cmd)
+		a.AddProcessingFlags(cmd)
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
 		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")
 		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
-		if def.WritesOutput {
+		if d.WritesOutput {
 			cmd.Flags().StringP("output", "o", "", "output path template (variables: {name}, {ext}, {lang})")
 		}
-		if def.Use == "pseudo-translate" {
+		if d.Use == "pseudo-translate" {
 			cmd.Flags().IntVar(&pseudoExpansion, "expansion", 0, "text expansion percentage (0 = none)")
 		}
-		rootCmd.AddCommand(cmd)
+		cmds = append(cmds, cmd)
 	}
+
+	return cmds
 }
