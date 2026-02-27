@@ -47,10 +47,8 @@ services:
 
   keycloak:
     image: ghcr.io/gokapi/bowrain-keycloak:latest
+    command: ["start-dev", "--import-realm"]
     environment:
-      KC_HOSTNAME_STRICT: "false"
-      KC_HTTP_ENABLED: "true"
-      KC_PROXY_HEADERS: xforwarded
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       OIDC_CLIENT_SECRET: bowrain-secret
