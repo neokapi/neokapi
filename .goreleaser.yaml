@@ -36,6 +36,28 @@ builds:
       - -X github.com/gokapi/gokapi/core/version.Commit={{.Commit}}
       - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
 
+  - id: brain
+    dir: bowrain
+    main: ./cmd/brain
+    binary: brain
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/gokapi/gokapi/core/version.Version={{.Version}}
+      - -X github.com/gokapi/gokapi/core/version.Commit={{.Commit}}
+      - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
+
 archives:
   - id: kapi
     ids:
@@ -45,8 +67,18 @@ archives:
       - goos: windows
         formats: [zip]
 
+  - id: brain
+    ids:
+      - brain
+    name_template: "bowrain-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
 brews:
   - name: kapi
+    ids:
+      - kapi
     repository:
       owner: gokapi
       name: homebrew-tap
@@ -58,6 +90,24 @@ brews:
     custom_require: "lib/private_download_strategy"
     test: |
       system "#{bin}/kapi", "version"
+
+  - name: bowrain-cli
+    ids:
+      - brain
+    repository:
+      owner: gokapi
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/gokapi/gokapi"
+    description: "Bowrain CLI — manage localization projects, sync with Bowrain Server"
+    license: "Apache-2.0"
+    download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
+    custom_require: "lib/private_download_strategy"
+    extra_install: |
+      bin.install_symlink bin/"brain" => "bowrain"
+    test: |
+      system "#{bin}/brain", "version"
+      system "#{bin}/bowrain", "version"
 
 checksum:
   name_template: "checksums.txt"
@@ -86,9 +136,14 @@ release:
   header: |
     ## Installation
 
-    **Homebrew (CLI):**
+    **Homebrew (kapi CLI):**
     ```
     brew install gokapi/tap/kapi
+    ```
+
+    **Homebrew (bowrain CLI):**
+    ```
+    brew install gokapi/tap/bowrain-cli
     ```
 
     **Homebrew (Bowrain desktop app, macOS):**

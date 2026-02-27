@@ -209,15 +209,6 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      # macOS: Install CLI launcher into .app bundle
-      - name: Install CLI launcher
-        if: runner.os == 'macOS'
-        working-directory: bowrain/apps/bowrain
-        run: |
-          mkdir -p bin/Bowrain.app/Contents/Resources/bin
-          cp resources/bowrain-launcher.sh bin/Bowrain.app/Contents/Resources/bin/bowrain
-          chmod +x bin/Bowrain.app/Contents/Resources/bin/bowrain
-
       # macOS: Import Developer ID certificate for code signing
       - name: Import signing certificate
         if: runner.os == 'macOS'
@@ -413,8 +404,9 @@ jobs:
             desc "AI-native translation editor"
             homepage "https://github.com/gokapi/gokapi"
 
+            depends_on formula: "gokapi/tap/bowrain-cli"
+
             app "Bowrain.app"
-            binary "Bowrain.app/Contents/Resources/bin/bowrain", target: "bowrain"
 
             postflight do
               system_command "/usr/bin/xattr",
@@ -423,9 +415,8 @@ jobs:
             end
 
             caveats <<~EOS
-              If Bowrain.app was previously installed from a DMG, run:
-                brew install --cask --force gokapi/tap/bowrain
-              to let Homebrew manage it. Future upgrades will work normally.
+              The bowrain CLI is provided by the bowrain-cli formula (installed
+              automatically). Run "bowrain ui" to launch the desktop app.
             EOS
 
             zap trash: [
