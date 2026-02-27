@@ -223,11 +223,13 @@ func (b *JavaBridge) Open(params OpenParams) error {
 }
 
 // Read streams all parts from an opened document.
+// Uses 10x the command timeout since streaming large documents (e.g. 570K+
+// parts for large XLSX files) can take much longer than unary RPCs.
 func (b *JavaBridge) Read() ([]*pb.PartMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.streamTimeout())
 	defer cancel()
 
 	stream, err := b.client.Read(ctx, &pb.ReadRequest{})
@@ -250,11 +252,13 @@ func (b *JavaBridge) Read() ([]*pb.PartMessage, error) {
 }
 
 // Write sends translated parts and receives the reconstructed document.
+// Uses 10x the command timeout since streaming large documents can take
+// much longer than unary RPCs.
 func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.streamTimeout())
 	defer cancel()
 
 	stream, err := b.client.Write(ctx)

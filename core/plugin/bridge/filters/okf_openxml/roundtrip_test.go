@@ -37,8 +37,8 @@ func TestRoundTrip_Xlsx(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Known failing:
-	// - large.xlsx: 570K+ parts, exceeds gRPC command timeout during read phase
-	//   (DeadlineExceeded). This is a resource limitation, not a bridge bug.
+	// - large.xlsx: 570K+ parts causes JVM OutOfMemoryError during write phase
+	//   on CI runners. Reads fine but the write phase holds all parts in memory.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_openxml/*.xlsx", mimeType, nil,
 		"large.xlsx",
