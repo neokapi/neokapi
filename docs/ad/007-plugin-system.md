@@ -108,20 +108,44 @@ The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
 - Scans the plugin directory for versioned subdirectories
 - Loads Go binary plugins via `host.PluginManager`
-- Loads Java bridge plugins via bridge descriptors (`*.bridge.json`)
+- Loads bridge plugins via bridge descriptors (`*.bridge.json`)
 - Registers all discovered formats, tools, connectors, and providers into the
   core registries
 - Manages the shared bridge pool and plugin lifecycle
 
-### Java Bridge
+### Okapi Bridge
 
-A Go-managed JVM subprocess hosts an adapter that translates between gokapi's Part model and Okapi's Event model. Communication uses synchronous NDJSON over stdin/stdout with base64-encoded content. The adapter layer wraps the bridge protocol behind standard `DataFormatReader` / `DataFormatWriter` interfaces.
+The **Okapi bridge** is a gRPC-based subprocess that hosts Okapi Framework filters.
+The Go side launches a JVM (or any process implementing the `BridgeService` gRPC
+contract), connects as a gRPC client, and translates between gokapi's Part model
+and Okapi's Event model. The adapter layer wraps the bridge behind standard
+`DataFormatReader` / `DataFormatWriter` interfaces — bridge-backed formats are
+indistinguishable from native Go formats at the registry level.
+
+The bridge protocol (`core/plugin/proto/v2/gokapi_bridge.proto`) defines seven RPCs:
+
+| RPC | Direction | Purpose |
+|-----|-----------|---------|
+| `ListFilters` | Unary | Discover available filters |
+| `Info` | Unary | Get metadata for a specific filter |
+| `Open` | Unary | Open a document with a filter for reading |
+| `Read` | Server-streaming | Stream extracted Parts from the document |
+| `Write` | Client-streaming | Send Parts to reconstruct the document |
+| `Close` | Unary | Release filter resources |
+| `Shutdown` | Unary | Gracefully stop the bridge process |
+
+The `Read` and `Write` RPCs use gRPC streaming, so content flows incrementally
+rather than requiring the entire document to be buffered in memory.
 
 ### Global Bridge Pool
 
-A single process-wide `BridgePool` manages all JVM instances, keyed by JARPath, with a global capacity limit of `runtime.NumCPU()`. The pool uses LIFO reuse, cross-JAR eviction to prevent deadlocks, and `sync.Cond` with `Broadcast()` for fair waiting.
+A single process-wide `BridgePool` manages all bridge subprocess instances, keyed
+by process configuration (command + args), with a global capacity limit of
+`runtime.NumCPU()`. The pool uses LIFO reuse, cross-key eviction to prevent
+deadlocks, and `sync.Cond` with `Broadcast()` for fair waiting.
 
-See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for bridge commands/responses, BridgePool acquire algorithm, and bridge descriptor format.
+See [Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the gRPC service
+definition, BridgePool acquire algorithm, and bridge descriptor format.
 
 ### Plugin Configuration
 
@@ -222,10 +246,9 @@ should be built-in.
 - **WASM plugins** — promising but immature Go WASM host support; limited
   system access.
 - **JNI/CGo for Java bridge** — tight coupling; crash propagation; complex build.
-  NDJSON over stdio is simpler for the synchronous command-response pattern of
-  filter operations.
-- **gRPC for bridge** — would work but NDJSON over stdio is simpler for the
-  synchronous command-response pattern of filter operations.
+- **NDJSON over stdin/stdout for bridge** — the original v1 bridge protocol.
+  Replaced by gRPC streaming (v2) to support incremental content transfer,
+  eliminate OOM for large files, and enable richer error handling.
 - **Per-descriptor bridge pools** — simpler but allows JVM count to scale
   linearly with plugin versions (e.g., 2 versions x NumCPU = 2x JVMs).
 - **Docker-based isolation** — heavyweight; doesn't work for desktop app.
@@ -236,7 +259,7 @@ should be built-in.
 - Any language that can implement a gRPC server works as a plugin
 - Protocol versioning in the handshake prevents incompatible plugins from loading
 - Multiple versions of the same plugin coexist without conflict
-- All 40+ Okapi filters are accessible without Go rewrites via the Java bridge
+- All 40+ Okapi filters are accessible without Go rewrites via the Okapi bridge
 - JVM count is bounded by one `maxSize` regardless of plugin versions; different
   JARs share capacity fairly via eviction
 - Bundles package multiple formats and tools as a single installable unit,

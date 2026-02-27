@@ -82,7 +82,7 @@ graph TB
 
     subgraph "Plugin System (gRPC)"
         P1[Native Go]
-        P2[Java Bridge]
+        P2[Okapi Bridge]
         P3[Remote Plugin]
     end
 
@@ -152,7 +152,7 @@ gokapi/                              ── Framework Module ──
 ├── plugin/                          # Plugin system
 │   ├── host/                        # PluginManager, gRPC clients
 │   ├── server/                      # gRPC server helpers (plugin side)
-│   ├── bridge/                      # Java bridge: protocol, pool, format adapters
+│   ├── bridge/                      # Okapi bridge: gRPC protocol, pool, format adapters
 │   ├── loader/                      # Plugin discovery and loading
 │   ├── registry/                    # Multi-version plugin registry
 │   ├── shared/                      # DTO types shared between host and bridge
