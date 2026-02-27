@@ -14,8 +14,7 @@ COPY bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-v
 COPY docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
 
 # Entrypoint wrapper that substitutes OIDC_CLIENT_SECRET in realm.json before starting Keycloak.
-COPY docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
-RUN chmod +x /opt/keycloak/docker-entrypoint.sh
+COPY --chmod=0755 docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
 
 ENV KC_HEALTH_ENABLED=true
 
