@@ -1,5 +1,7 @@
 # Build artifacts
 bin/
+brain
+bowrain/brain
 bowrain-server
 coverage/
 
