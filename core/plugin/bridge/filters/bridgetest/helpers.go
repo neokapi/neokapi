@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -33,6 +34,9 @@ var (
 // SharedBridge returns a shared BridgePool and BridgeConfig for integration tests.
 // It starts a single JVM process and reuses it across all tests in the binary.
 // If Java or the bridge JAR is unavailable, it fails the test.
+//
+// The pool size defaults to 2 but can be overridden with the
+// GOKAPI_BRIDGE_POOL_SIZE environment variable.
 func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	t.Helper()
 
@@ -60,7 +64,14 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 			return
 		}
 
-		sharedPool = bridge.NewBridgePool(2, log.Default())
+		poolSize := 2
+		if s := os.Getenv("GOKAPI_BRIDGE_POOL_SIZE"); s != "" {
+			if n, err := strconv.Atoi(s); err == nil && n > 0 {
+				poolSize = n
+			}
+		}
+
+		sharedPool = bridge.NewBridgePool(poolSize, log.Default())
 		sharedPool.Seed(b)
 	})
 

@@ -316,6 +316,30 @@ func (b *JavaBridge) CloseFilter() error {
 	return nil
 }
 
+// IsHealthy checks if the bridge's gRPC connection is still alive by
+// performing a short-timeout ListFilters RPC. Returns false if the call
+// fails or times out, indicating the bridge should be discarded.
+// Returns true if the bridge has no client (e.g. mock/test bridges).
+func (b *JavaBridge) IsHealthy() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if !b.running {
+		return false
+	}
+
+	// No client means this is a mock/test bridge — skip the health check.
+	if b.client == nil {
+		return true
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err := b.client.ListFilters(ctx, &pb.ListFiltersRequest{})
+	return err == nil
+}
+
 // ListFilters returns all available Okapi filters.
 func (b *JavaBridge) ListFilters() (*ListFiltersData, error) {
 	b.mu.Lock()

@@ -135,7 +135,7 @@ func (p *BridgePool) Acquire(cfg BridgeConfig) (*JavaBridge, error) {
 }
 
 // Release returns a bridge to the pool for reuse. If the pool has been shut
-// down, the bridge is stopped instead.
+// down or the bridge is unhealthy, the bridge is stopped and discarded.
 func (p *BridgePool) Release(b *JavaBridge) {
 	key := b.cfg.PoolKey()
 	p.mu.Lock()
@@ -146,6 +146,20 @@ func (p *BridgePool) Release(b *JavaBridge) {
 		p.cond.Broadcast()
 		return
 	}
+
+	// Health check: discard bridges with broken gRPC connections or
+	// stale JVM state rather than polluting the pool.
+	if !b.IsHealthy() {
+		p.active--
+		p.mu.Unlock()
+		if p.logger != nil {
+			p.logger.Printf("[bridge-pool] discarding unhealthy bridge (key=%s)", key)
+		}
+		_ = b.Stop()
+		p.cond.Broadcast()
+		return
+	}
+
 	p.idle[key] = append(p.idle[key], b)
 	p.mu.Unlock()
 	p.cond.Broadcast()

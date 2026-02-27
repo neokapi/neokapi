@@ -84,14 +84,10 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Known failing:
-	// - empty-tgt-lang.xlf: Bridge bug — the write phase adds target-language="fr"
-	//   without removing the existing empty target-language="" attribute, producing
-	//   a duplicate XML attribute that fails on re-read.
 	// - TS09-12-Test01.xlf: Okapi assigns non-deterministic integer IDs to inline
 	//   codes (bpt/ept) across reads, causing span ID mismatch in event roundtrip.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_xliff/*.xlf", mimeType, nil,
-		"empty-tgt-lang.xlf",
 		"TS09-12-Test01.xlf",
 	)
 }
