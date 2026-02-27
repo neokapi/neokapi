@@ -17,8 +17,15 @@ type ServerConfig struct {
 	DataDir string
 
 	// StorePath is the path to the SQLite content store database.
-	// If empty, project/block/connector APIs are disabled.
+	// If empty and DatabaseURL is also empty, project/block/connector APIs are disabled.
+	// Deprecated: prefer DatabaseURL for new deployments.
 	StorePath string
+
+	// DatabaseURL is a database connection string. Supported schemes:
+	//   - postgres://user:pass@host/db  → PostgreSQL via pgx
+	//   - sqlite:///path/to/file.db     → SQLite (same as StorePath)
+	// When set, takes precedence over StorePath.
+	DatabaseURL string
 
 	// Auth
 	JWTSecret        string
@@ -31,9 +38,14 @@ type ServerConfig struct {
 	SMTPHost string // SMTP server host:port
 	SMTPFrom string // sender email address
 
-	// WebUIDir is the path to built web UI static files.
-	// If set, the server serves static files for the web UI.
+	// WebUIDir is the path to built web UI static files (development only).
+	// In production, the web UI is served by a separate container (bowrain-web).
 	WebUIDir string
+
+	// External services
+	ServiceBusConnection string // Azure Service Bus connection string for job queue
+	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)
+	RedisURL             string // Redis connection string for caching
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.

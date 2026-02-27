@@ -1,0 +1,75 @@
+package store
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/google/uuid"
+)
+
+// AddBlockNote inserts a new block note.
+func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, blockID string, note model.BlockNote) error {
+	if note.ID == "" {
+		note.ID = uuid.NewString()
+	}
+	if note.CreatedAt.IsZero() {
+		note.CreatedAt = time.Now().UTC()
+	}
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO block_notes (id, project_id, block_id, author, text, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		note.ID, projectID, blockID, note.Author, note.Text, note.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("insert block note: %w", err)
+	}
+	return nil
+}
+
+// ListBlockNotes returns all notes for a block, ordered by creation time.
+func (s *PostgresStore) ListBlockNotes(ctx context.Context, projectID, blockID string) ([]model.BlockNote, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, block_id, author, text, created_at
+		 FROM block_notes
+		 WHERE project_id = $1 AND block_id = $2
+		 ORDER BY created_at ASC`,
+		projectID, blockID)
+	if err != nil {
+		return nil, fmt.Errorf("query block notes: %w", err)
+	}
+	defer rows.Close()
+
+	var notes []model.BlockNote
+	for rows.Next() {
+		var n model.BlockNote
+		if err := rows.Scan(&n.ID, &n.BlockID, &n.Author, &n.Text, &n.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan block note: %w", err)
+		}
+		notes = append(notes, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate block notes: %w", err)
+	}
+
+	if notes == nil {
+		notes = []model.BlockNote{}
+	}
+	return notes, nil
+}
+
+// DeleteBlockNote removes a block note by ID.
+func (s *PostgresStore) DeleteBlockNote(ctx context.Context, projectID, noteID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM block_notes WHERE project_id = $1 AND id = $2`,
+		projectID, noteID)
+	if err != nil {
+		return fmt.Errorf("delete block note: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("note %s not found in project %s", noteID, projectID)
+	}
+	return nil
+}

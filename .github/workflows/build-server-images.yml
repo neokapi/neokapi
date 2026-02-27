@@ -1,0 +1,71 @@
+name: Build Server Images
+
+on:
+  workflow_call:
+    inputs:
+      image-tag:
+        description: 'Image tag'
+        required: true
+        type: string
+      acr-login-server:
+        description: 'ACR login server URL'
+        required: true
+        type: string
+      acr-name:
+        description: 'ACR name'
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build Server & Worker Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: ACR Login
+        env:
+          ACR_NAME: ${{ inputs.acr-name }}
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build base image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-base/Dockerfile
+          load: true
+          tags: bowrain-base:latest
+          cache-from: type=gha,scope=bowrain-base
+          cache-to: type=gha,mode=max,scope=bowrain-base
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-server/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
+          push: true
+          tags: |
+            ${{ inputs.acr-login-server }}/bowrain-server:${{ inputs.image-tag }}
+            ${{ inputs.acr-login-server }}/bowrain-server:latest
+
+      - name: Build and push worker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-worker/Dockerfile
+          build-contexts: bowrain-base=docker-image://bowrain-base:latest
+          push: true
+          tags: |
+            ${{ inputs.acr-login-server }}/bowrain-worker:${{ inputs.image-tag }}
+            ${{ inputs.acr-login-server }}/bowrain-worker:latest

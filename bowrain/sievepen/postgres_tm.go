@@ -12,35 +12,22 @@ import (
 	fw "github.com/gokapi/gokapi/core/sievepen"
 )
 
-// SQLiteTM is a persistent translation memory backed by SQLite with
-// content-aware matching using derived keys (plain, structural, generalized).
-type SQLiteTM struct {
-	db *storage.DB
+// PostgresTM is a persistent translation memory backed by PostgreSQL.
+// Unlike SQLiteTM (one database file per workspace), PostgresTM stores all
+// workspaces in a single shared database with a workspace_id column.
+type PostgresTM struct {
+	db          *storage.PgDB
+	workspaceID string
 }
 
-// NewSQLiteTM opens (or creates) a SQLite-backed translation memory.
-// Use ":memory:" for an in-memory database (useful for testing).
-func NewSQLiteTM(dbPath string) (*SQLiteTM, error) {
-	db, err := storage.Open(dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("open database: %w", err)
-	}
-
-	if err := storage.Migrate(db, tmMigrations); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("migrate schema: %w", err)
-	}
-
-	return &SQLiteTM{db: db}, nil
-}
-
-var tmMigrations = []storage.Migration{
+var tmMigrationsPg = []storage.Migration{
 	{
 		Version:     1,
-		Description: "content-aware TM schema",
+		Description: "content-aware TM schema for PostgreSQL",
 		SQL: `
 		CREATE TABLE IF NOT EXISTS tm_entries (
 			id              TEXT PRIMARY KEY,
+			workspace_id    TEXT NOT NULL,
 			source_coded    TEXT NOT NULL,
 			target_coded    TEXT NOT NULL,
 			source_plain    TEXT NOT NULL,
@@ -49,25 +36,28 @@ var tmMigrations = []storage.Migration{
 			source_locale   TEXT NOT NULL,
 			target_locale   TEXT NOT NULL,
 			entities        TEXT,
-			annotations     TEXT,
 			properties      TEXT,
-			created_at      TEXT NOT NULL,
-			updated_at      TEXT NOT NULL
+			created_at      TIMESTAMPTZ NOT NULL,
+			updated_at      TIMESTAMPTZ NOT NULL
 		);
-		CREATE INDEX IF NOT EXISTS idx_tm_general ON tm_entries(source_general, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_struct  ON tm_entries(source_struct, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_plain   ON tm_entries(source_plain, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_workspace ON tm_entries(workspace_id);
+		CREATE INDEX IF NOT EXISTS idx_tm_general ON tm_entries(workspace_id, source_general, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_struct  ON tm_entries(workspace_id, source_struct, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_plain   ON tm_entries(workspace_id, source_plain, source_locale, target_locale);
 		`,
-	},
-	{
-		Version:     2,
-		Description: "drop unused annotations column",
-		SQL:         `ALTER TABLE tm_entries DROP COLUMN annotations;`,
 	},
 }
 
+// NewPostgresTM creates a PostgreSQL-backed translation memory scoped to a workspace.
+func NewPostgresTM(db *storage.PgDB, workspaceID string) (*PostgresTM, error) {
+	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", tmMigrationsPg); err != nil {
+		return nil, fmt.Errorf("migrate TM schema: %w", err)
+	}
+	return &PostgresTM{db: db, workspaceID: workspaceID}, nil
+}
+
 // Add inserts or updates a translation memory entry.
-func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
+func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 	if entry.ID == "" {
 		return fmt.Errorf("entry ID is required")
 	}
@@ -101,31 +91,31 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 	}
 
 	_, err = tm.db.Exec(`
-		INSERT INTO tm_entries (id, source_coded, target_coded,
+		INSERT INTO tm_entries (id, workspace_id, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
 			entities, properties,
 			created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT(id) DO UPDATE SET
-			source_coded = excluded.source_coded,
-			target_coded = excluded.target_coded,
-			source_plain = excluded.source_plain,
-			source_struct = excluded.source_struct,
-			source_general = excluded.source_general,
-			source_locale = excluded.source_locale,
-			target_locale = excluded.target_locale,
-			entities = excluded.entities,
-			properties = excluded.properties,
-			updated_at = excluded.updated_at
-	`, entry.ID,
+			source_coded = EXCLUDED.source_coded,
+			target_coded = EXCLUDED.target_coded,
+			source_plain = EXCLUDED.source_plain,
+			source_struct = EXCLUDED.source_struct,
+			source_general = EXCLUDED.source_general,
+			source_locale = EXCLUDED.source_locale,
+			target_locale = EXCLUDED.target_locale,
+			entities = EXCLUDED.entities,
+			properties = EXCLUDED.properties,
+			updated_at = EXCLUDED.updated_at
+	`, entry.ID, tm.workspaceID,
 		string(sourceJSON), string(targetJSON),
 		fw.NormalizeText(entry.SourceText()),
 		fw.NormalizeText(entry.SourceStructural()),
 		fw.NormalizeText(entry.SourceGeneralized()),
 		string(entry.SourceLocale), string(entry.TargetLocale),
 		nullableString(entitiesJSON), nullableString(propertiesJSON),
-		entry.CreatedAt.Format(time.RFC3339), entry.UpdatedAt.Format(time.RFC3339))
+		entry.CreatedAt, entry.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert entry: %w", err)
 	}
@@ -134,7 +124,7 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 }
 
 // Lookup searches for matches using tiered matching with the full content model.
-func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) Lookup(source *model.Block, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -154,21 +144,19 @@ func (tm *SQLiteTM) Lookup(source *model.Block, sourceLocale, targetLocale model
 }
 
 // LookupText searches for matches using plain text only.
-// This always uses plain-mode matching, returning MatchExact/MatchFuzzy types.
-func (tm *SQLiteTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) LookupText(source string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	opts = fw.ApplyDefaults(opts)
 	opts.MatchModes = []fw.MatchMode{fw.MatchModePlain}
 	normalizedSource := fw.NormalizeText(source)
 	return tm.tieredLookup(normalizedSource, normalizedSource, normalizedSource, nil, sourceLocale, targetLocale, opts)
 }
 
-func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
+func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entityAnnotations []*model.EntityAnnotation, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMMatch, error) {
 	var matches []fw.TMMatch
 	seen := make(map[string]bool)
 
 	modeEnabled := fw.MatchModesEnabled(opts.MatchModes)
 
-	// Tier 1-3: Exact matches (indexed lookups — fast even for large TMs).
 	if modeEnabled[fw.MatchModeGeneralized] {
 		exactMatches, err := tm.queryExact("source_general", generalKey, sourceLocale, targetLocale)
 		if err != nil {
@@ -222,13 +210,10 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 		}
 	}
 
-	// If we have exact matches and threshold is 1.0, return early.
 	if len(matches) > 0 && opts.MinScore >= 1.0 {
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
-	// Tier 4-6: Fuzzy matches (scan with Levenshtein — acceptable because
-	// exact/near-exact matches dominate in localization workflows).
 	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
 	if err != nil {
 		return nil, err
@@ -239,7 +224,6 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 			continue
 		}
 
-		// Try each fuzzy tier in priority order.
 		var bestScore float64
 		var bestType fw.MatchType
 		var adaptations []fw.EntityAdaptation
@@ -292,15 +276,21 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
-func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	switch column {
+	case "source_plain", "source_struct", "source_general":
+		// valid column names
+	default:
+		return nil, fmt.Errorf("invalid TM lookup column: %q", column)
+	}
 	query := fmt.Sprintf(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
-		WHERE %s = ? AND source_locale = ? AND target_locale = ?
+		WHERE workspace_id = $1 AND %s = $2 AND source_locale = $3 AND target_locale = $4
 	`, column)
 
-	rows, err := tm.db.Query(query, value, string(sourceLocale), string(targetLocale))
+	rows, err := tm.db.Query(query, tm.workspaceID, value, string(sourceLocale), string(targetLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query exact: %w", err)
 	}
@@ -309,13 +299,13 @@ func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale 
 	return tm.scanEntries(rows)
 }
 
-func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+func (tm *PostgresTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
 	rows, err := tm.db.Query(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
-		WHERE source_locale = ? AND target_locale = ?
-	`, string(sourceLocale), string(targetLocale))
+		WHERE workspace_id = $1 AND source_locale = $2 AND target_locale = $3
+	`, tm.workspaceID, string(sourceLocale), string(targetLocale))
 	if err != nil {
 		return nil, fmt.Errorf("query locale: %w", err)
 	}
@@ -324,7 +314,7 @@ func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw
 	return tm.scanEntries(rows)
 }
 
-func (tm *SQLiteTM) scanEntries(rows interface {
+func (tm *PostgresTM) scanEntries(rows interface {
 	Next() bool
 	Scan(...any) error
 	Err() error
@@ -335,12 +325,12 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 		var sourceJSON, targetJSON string
 		var srcLocale, tgtLocale string
 		var entitiesJSON, propertiesJSON *string
-		var createdStr, updatedStr string
+		var createdAt, updatedAt time.Time
 
 		if err := rows.Scan(&entry.ID, &sourceJSON, &targetJSON,
 			&srcLocale, &tgtLocale,
 			&entitiesJSON, &propertiesJSON,
-			&createdStr, &updatedStr); err != nil {
+			&createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan entry: %w", err)
 		}
 
@@ -355,8 +345,8 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 
 		entry.SourceLocale = model.LocaleID(srcLocale)
 		entry.TargetLocale = model.LocaleID(tgtLocale)
-		entry.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
-		entry.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+		entry.CreatedAt = createdAt
+		entry.UpdatedAt = updatedAt
 
 		if entitiesJSON != nil && *entitiesJSON != "" {
 			_ = json.Unmarshal([]byte(*entitiesJSON), &entry.Entities)
@@ -373,9 +363,9 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 	return entries, nil
 }
 
-// Delete removes an entry by ID.
-func (tm *SQLiteTM) Delete(id string) error {
-	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE id = ?", id)
+// Delete removes an entry by ID (scoped to workspace).
+func (tm *PostgresTM) Delete(id string) error {
+	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE id = $1 AND workspace_id = $2", id, tm.workspaceID)
 	if err != nil {
 		return fmt.Errorf("delete entry: %w", err)
 	}
@@ -389,34 +379,39 @@ func (tm *SQLiteTM) Delete(id string) error {
 	return nil
 }
 
-// Count returns the total number of entries.
-func (tm *SQLiteTM) Count() int {
+// Count returns the total number of entries for this workspace.
+func (tm *PostgresTM) Count() int {
 	var count int
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count)
 	return count
 }
 
-// Close closes the database connection.
-func (tm *SQLiteTM) Close() error {
-	return tm.db.Close()
+// Close is a no-op for PostgresTM since the PgDB is shared and managed externally.
+func (tm *PostgresTM) Close() error {
+	return nil
 }
 
 // SearchEntries performs a case-insensitive substring search on source/target text.
-func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
-	where := "1=1"
-	var args []any
+func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
+	where := "workspace_id = $1"
+	args := []any{tm.workspaceID}
+	paramN := 2
+
 	if query != "" {
-		where += " AND (LOWER(source_plain) LIKE ? OR LOWER(target_coded) LIKE ?)"
+		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", paramN, paramN+1)
 		pattern := "%" + strings.ToLower(query) + "%"
 		args = append(args, pattern, pattern)
+		paramN += 2
 	}
 	if sourceLocale != "" {
-		where += " AND source_locale = ?"
+		where += fmt.Sprintf(" AND source_locale = $%d", paramN)
 		args = append(args, sourceLocale)
+		paramN++
 	}
 	if targetLocale != "" {
-		where += " AND target_locale = ?"
+		where += fmt.Sprintf(" AND target_locale = $%d", paramN)
 		args = append(args, targetLocale)
+		paramN++
 	}
 
 	var total int
@@ -426,7 +421,7 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
 		entities, properties, created_at, updated_at
-		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?`, where)
+		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, paramN, paramN+1)
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
 	if err != nil {
@@ -438,13 +433,13 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 	return entries, total
 }
 
-// GetEntry fetches a single entry by ID.
-func (tm *SQLiteTM) GetEntry(id string) (fw.TMEntry, bool) {
+// GetEntry fetches a single entry by ID (scoped to workspace).
+func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
 	rows, err := tm.db.Query(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
-		FROM tm_entries WHERE id = ?
-	`, id)
+		FROM tm_entries WHERE id = $1 AND workspace_id = $2
+	`, id, tm.workspaceID)
 	if err != nil {
 		return fw.TMEntry{}, false
 	}
@@ -457,13 +452,13 @@ func (tm *SQLiteTM) GetEntry(id string) (fw.TMEntry, bool) {
 	return entries[0], true
 }
 
-// Entries returns all entries. Used for export operations.
-func (tm *SQLiteTM) Entries() []fw.TMEntry {
+// Entries returns all entries for this workspace. Used for export operations.
+func (tm *PostgresTM) Entries() []fw.TMEntry {
 	rows, err := tm.db.Query(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
-		FROM tm_entries ORDER BY id
-	`)
+		FROM tm_entries WHERE workspace_id = $1 ORDER BY id
+	`, tm.workspaceID)
 	if err != nil {
 		return nil
 	}
@@ -471,12 +466,4 @@ func (tm *SQLiteTM) Entries() []fw.TMEntry {
 
 	entries, _ := tm.scanEntries(rows)
 	return entries
-}
-
-func nullableString(b []byte) *string {
-	if len(b) == 0 {
-		return nil
-	}
-	s := string(b)
-	return &s
 }

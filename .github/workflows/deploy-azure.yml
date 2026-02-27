@@ -1,0 +1,237 @@
+name: Deploy to Azure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'bowrain/**'
+      - 'core/**'
+      - 'platform/**'
+      - 'docker/**'
+      - 'packages/ui/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_REGION: weu
+
+jobs:
+  # ── Step 1: Detect which components changed ────────────────────────────────
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.web }}
+      server: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.server }}
+      keycloak: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.keycloak }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          filters: |
+            web:
+              - 'bowrain/apps/web/**'
+              - 'packages/ui/**'
+              - 'docker/bowrain-web/**'
+            server:
+              - 'core/**'
+              - 'platform/**'
+              - 'bowrain/**'
+              - '!bowrain/apps/web/**'
+              - '!bowrain/apps/keycloak-theme/**'
+              - 'docker/bowrain-base/**'
+              - 'docker/bowrain-server/**'
+              - 'docker/bowrain-worker/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'go.work'
+            keycloak:
+              - 'bowrain/apps/keycloak-theme/**'
+              - 'docker/keycloak/**'
+
+  # ── Step 2: Look up infrastructure values from GitHub environment ──────────
+  lookup:
+    name: Look Up Infrastructure
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    outputs:
+      rg-name: ${{ steps.rg.outputs.name }}
+      image-tag: ${{ steps.tag.outputs.value }}
+      acr-login-server: ${{ vars.ACR_LOGIN_SERVER }}
+      acr-name: ${{ vars.ACR_NAME }}
+      storage-account-name: ${{ vars.STORAGE_ACCOUNT_NAME }}
+      managed-identity-id: ${{ vars.MANAGED_IDENTITY_ID }}
+      container-app-env-id: ${{ vars.CONTAINER_APP_ENV_ID }}
+      postgres-fqdn: ${{ vars.POSTGRES_FQDN }}
+      redis-hostname: ${{ vars.REDIS_HOSTNAME }}
+      key-vault-uri: ${{ vars.KEY_VAULT_URI }}
+      web-hostname: ${{ vars.WEB_HOSTNAME }}
+      service-bus-connection-string: ${{ secrets.SERVICE_BUS_CONNECTION_STRING }}
+    steps:
+      - name: Compute image tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=${GH_SHA}-${INPUT_ENV}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set resource group
+        id: rg
+        env:
+          DEPLOY_ENV: ${{ github.event.inputs.environment || 'dev' }}
+        run: |
+          if [ "$DEPLOY_ENV" = "prod" ]; then
+            echo "name=rg-bowrain-p-weu" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=rg-bowrain-d-weu" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Step 3: Build images (conditional, parallel) ───────────────────────────
+  build-web:
+    name: Build Web Image
+    needs: [detect-changes, lookup]
+    if: needs.detect-changes.outputs.web == 'true'
+    uses: ./.github/workflows/build-web-image.yml
+    with:
+      image-tag: ${{ needs.lookup.outputs.image-tag }}
+      acr-login-server: ${{ needs.lookup.outputs.acr-login-server }}
+      acr-name: ${{ needs.lookup.outputs.acr-name }}
+    secrets: inherit
+
+  build-server:
+    name: Build Server Images
+    needs: [detect-changes, lookup]
+    if: >-
+      needs.detect-changes.outputs.server == 'true' ||
+      needs.detect-changes.outputs.keycloak == 'true'
+    uses: ./.github/workflows/build-server-images.yml
+    with:
+      image-tag: ${{ needs.lookup.outputs.image-tag }}
+      acr-login-server: ${{ needs.lookup.outputs.acr-login-server }}
+      acr-name: ${{ needs.lookup.outputs.acr-name }}
+    secrets: inherit
+
+  build-keycloak:
+    name: Build Keycloak Image
+    needs: [detect-changes, lookup]
+    if: >-
+      needs.detect-changes.outputs.server == 'true' ||
+      needs.detect-changes.outputs.keycloak == 'true'
+    uses: ./.github/workflows/build-keycloak-image.yml
+    with:
+      image-tag: ${{ needs.lookup.outputs.image-tag }}
+      acr-login-server: ${{ needs.lookup.outputs.acr-login-server }}
+      acr-name: ${{ needs.lookup.outputs.acr-name }}
+    secrets: inherit
+
+  # ── Step 4a: Deploy Container Apps (server + keycloak changes) ─────────────
+  deploy-apps:
+    name: Deploy Apps
+    needs: [lookup, build-server, build-keycloak]
+    if: >-
+      !cancelled() &&
+      needs.lookup.result == 'success' &&
+      (needs.build-server.result == 'success' || needs.build-keycloak.result == 'success')
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: gokapi/bowrain-infra
+          path: infra
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy apps
+        uses: azure/bicep-deploy@v2
+        with:
+          type: deployment
+          operation: create
+          scope: resourceGroup
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          resource-group-name: ${{ needs.lookup.outputs.rg-name }}
+          template-file: infra/apps.bicep
+          parameters-file: infra/environments/${{ env.ENVIRONMENT }}/apps.bicepparam
+          parameters: >
+            {
+              "imageTag": "${{ needs.lookup.outputs.image-tag }}",
+              "postgresAdminLogin": "${{ secrets.POSTGRES_ADMIN_LOGIN }}",
+              "postgresAdminPassword": "${{ secrets.POSTGRES_ADMIN_PASSWORD }}",
+              "keycloakAdminPassword": "${{ secrets.KEYCLOAK_ADMIN_PASSWORD }}",
+              "storageWebHostname": "${{ needs.lookup.outputs.web-hostname }}",
+              "storageAccountName": "${{ needs.lookup.outputs.storage-account-name }}",
+              "managedIdentityId": "${{ needs.lookup.outputs.managed-identity-id }}",
+              "acrLoginServer": "${{ needs.lookup.outputs.acr-login-server }}",
+              "containerAppEnvId": "${{ needs.lookup.outputs.container-app-env-id }}",
+              "postgresFqdn": "${{ needs.lookup.outputs.postgres-fqdn }}",
+              "redisHostname": "${{ needs.lookup.outputs.redis-hostname }}",
+              "serviceBusConnectionString": "${{ needs.lookup.outputs.service-bus-connection-string }}",
+              "keyVaultUri": "${{ needs.lookup.outputs.key-vault-uri }}"
+            }
+
+  # ── Step 4b: Deploy web assets to Storage (web-only changes) ───────────────
+  deploy-web:
+    name: Deploy Web
+    needs: [lookup, build-web]
+    if: >-
+      !cancelled() &&
+      needs.lookup.result == 'success' &&
+      needs.build-web.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Upload web assets to Storage
+        env:
+          ACR_LOGIN_SERVER: ${{ needs.lookup.outputs.acr-login-server }}
+          ACR_NAME: ${{ needs.lookup.outputs.acr-name }}
+          IMAGE_TAG: ${{ needs.lookup.outputs.image-tag }}
+          STORAGE_ACCOUNT: ${{ needs.lookup.outputs.storage-account-name }}
+        run: |
+          az acr login --name "$ACR_NAME"
+          CONTAINER_ID=$(docker create "${ACR_LOGIN_SERVER}/bowrain-web:${IMAGE_TAG}")
+          docker cp "${CONTAINER_ID}:/usr/share/nginx/html" ./web-dist
+          docker rm "${CONTAINER_ID}"
+          # shellcheck disable=SC2016
+          az storage blob upload-batch \
+            --source ./web-dist \
+            --destination '$web' \
+            --account-name "$STORAGE_ACCOUNT" \
+            --auth-mode login \
+            --overwrite

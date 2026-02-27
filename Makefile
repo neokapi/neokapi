@@ -20,6 +20,7 @@ KAPI_MOD    := github.com/gokapi/gokapi/kapi
 BOWRAIN     := github.com/gokapi/gokapi/bowrain
 CLI_PKG     := $(KAPI_MOD)/cmd/kapi
 SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
+WORKER_PKG  := $(BOWRAIN)/cmd/bowrain-worker
 VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 COMMIT      := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -47,7 +48,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
-        docker-build docker-push certs \
+        docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve
@@ -80,9 +81,13 @@ build: ## Build the kapi CLI
 	@mkdir -p $(BIN_DIR)
 	cd kapi && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/kapi ./cmd/kapi
 
-build-server: web-build ## Build the Bowrain REST server
+build-server: ## Build the Bowrain REST server
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-server ./cmd/bowrain-server
+
+build-worker: ## Build the Bowrain worker
+	@mkdir -p $(BIN_DIR)
+	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
 
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd bowrain/apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
@@ -91,7 +96,7 @@ build-brain: ## Build brain CLI
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
 
-build-all: build build-brain build-server ## Build all Go binaries
+build-all: build build-brain build-server build-worker ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
@@ -153,14 +158,40 @@ keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
-DOCKER_IMAGE := ghcr.io/gokapi/bowrain-server
+DOCKER_BASE_IMAGE     := bowrain-base
+DOCKER_IMAGE          := ghcr.io/gokapi/bowrain-server
+DOCKER_WORKER_IMAGE   := ghcr.io/gokapi/bowrain-worker
+DOCKER_WEB_IMAGE      := ghcr.io/gokapi/bowrain-web
+DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
 
-docker-build: ## Build Docker image for bowrain-server
-	docker build -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+docker-server: ## Build server and worker images
+	docker build -f docker/bowrain-base/Dockerfile -t $(DOCKER_BASE_IMAGE):latest .
+	docker build -f docker/bowrain-server/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f docker/bowrain-worker/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 
-docker-push: ## Push Docker image to GHCR
+docker-web: ## Build web UI image
+	docker build -f docker/bowrain-web/Dockerfile -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest .
+
+docker-keycloak: ## Build keycloak image
+	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest .
+
+docker-all: docker-server docker-web docker-keycloak ## Build all Docker images
+
+docker-push-server: ## Push server and worker images
 	docker push $(DOCKER_IMAGE):$(VERSION)
 	docker push $(DOCKER_IMAGE):latest
+	docker push $(DOCKER_WORKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_WORKER_IMAGE):latest
+
+docker-push-web: ## Push web UI image
+	docker push $(DOCKER_WEB_IMAGE):$(VERSION)
+	docker push $(DOCKER_WEB_IMAGE):latest
+
+docker-push-keycloak: ## Push keycloak image
+	docker push $(DOCKER_KEYCLOAK_IMAGE):$(VERSION)
+	docker push $(DOCKER_KEYCLOAK_IMAGE):latest
+
+docker-push: docker-push-server docker-push-web docker-push-keycloak ## Push all Docker images
 
 dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
 	@printf '\033]0;🍦 Dev Dependencies\007'
@@ -322,6 +353,10 @@ ifdef GOLANGCI_LINT
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
 endif
+
+gha-lint: ## Lint GitHub Actions workflow files
+	@command -v actionlint >/dev/null 2>&1 || { echo "actionlint not installed. Run 'brew install actionlint' or 'go install github.com/rhysd/actionlint/cmd/actionlint@latest'."; exit 1; }
+	actionlint
 
 check: fmt vet lint ## Run all code quality checks
 
