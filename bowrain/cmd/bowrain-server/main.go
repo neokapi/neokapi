@@ -3,12 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"strconv"
 
-	"github.com/gokapi/gokapi/bowrain/apps/web"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
 	"github.com/gokapi/gokapi/bowrain/server"
 	"google.golang.org/grpc"
@@ -43,6 +41,9 @@ func main() {
 	if envStore := os.Getenv("BOWRAIN_STORE"); envStore != "" {
 		cfg.StorePath = envStore
 	}
+	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
+		cfg.DatabaseURL = envDBURL
+	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
 	}
@@ -64,12 +65,17 @@ func main() {
 	if envSMTPFrom := os.Getenv("BOWRAIN_SMTP_FROM"); envSMTPFrom != "" {
 		cfg.SMTPFrom = envSMTPFrom
 	}
+	if envSB := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION"); envSB != "" {
+		cfg.ServiceBusConnection = envSB
+	}
+	if envNATS := os.Getenv("BOWRAIN_NATS_URL"); envNATS != "" {
+		cfg.NATSUrl = envNATS
+	}
+	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
+		cfg.RedisURL = envRedis
+	}
 
 	srv := server.NewServer(cfg)
-
-	// Serve embedded web UI.
-	webFS, _ := fs.Sub(web.Assets, "dist")
-	srv.WebUIFS = webFS
 
 	// Build gRPC server with auth interceptors when JWT is configured.
 	var grpcOpts []grpc.ServerOption

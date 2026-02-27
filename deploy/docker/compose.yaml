@@ -1,0 +1,42 @@
+# Self-hosting Docker Compose for Bowrain.
+#
+# Traefik routes:
+#   /api/*     → bowrain-server:8080
+#   /gokapi.*  → bowrain-server:8080  (gRPC)
+#   /*         → bowrain-web:80       (SPA)
+#
+# Usage:
+#   docker compose -f deploy/docker/compose.yaml up -d
+
+services:
+  traefik:
+    image: traefik:v3.3
+    ports:
+      - "80:80"
+    volumes:
+      - ./traefik.yml:/etc/traefik/dynamic.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "--entrypoints.web.address=:80"
+      - "--providers.file.filename=/etc/traefik/dynamic.yml"
+      - "--providers.file.watch=true"
+    restart: unless-stopped
+
+  bowrain-server:
+    image: ghcr.io/gokapi/bowrain-server:latest
+    volumes:
+      - bowrain-data:/data
+    environment:
+      BOWRAIN_STORE: /data/bowrain.db
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  bowrain-web:
+    image: ghcr.io/gokapi/bowrain-web:latest
+    expose:
+      - "80"
+    restart: unless-stopped
+
+volumes:
+  bowrain-data:

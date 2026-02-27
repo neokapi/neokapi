@@ -1,0 +1,42 @@
+# Traefik v3 dynamic configuration for self-hosted Bowrain.
+#
+# Routes API and gRPC traffic to bowrain-server, everything else to bowrain-web.
+# h2c:// is used for the API backend so gRPC (HTTP/2) works over cleartext.
+
+http:
+  routers:
+    # API requests → bowrain-server
+    bowrain-api:
+      rule: "PathPrefix(`/api`)"
+      service: bowrain-api
+      entryPoints:
+        - web
+      priority: 100
+
+    # gRPC requests → bowrain-server
+    # gRPC paths follow /<package>.<service>/<method> convention.
+    bowrain-grpc:
+      rule: "PathPrefix(`/gokapi.`)"
+      service: bowrain-api
+      entryPoints:
+        - web
+      priority: 100
+
+    # Everything else → web SPA
+    bowrain-web:
+      rule: "PathPrefix(`/`)"
+      service: bowrain-web
+      entryPoints:
+        - web
+      priority: 10
+
+  services:
+    bowrain-api:
+      loadBalancer:
+        servers:
+          - url: "h2c://bowrain-server:8080"
+
+    bowrain-web:
+      loadBalancer:
+        servers:
+          - url: "http://bowrain-web:80"

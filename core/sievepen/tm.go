@@ -50,9 +50,8 @@ type TMEntry struct {
 	Target       *model.Fragment // coded text + inline spans
 	SourceLocale model.LocaleID
 	TargetLocale model.LocaleID
-	Entities     []EntityMapping             // entity placeholders in this entry
-	Annotations  map[string]model.Annotation // carried from original translation
-	Properties   map[string]string
+	Entities   []EntityMapping   // entity placeholders in this entry
+	Properties map[string]string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

@@ -23,6 +23,7 @@ services:
       KC_HEALTH_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
+      OIDC_CLIENT_SECRET: bowrain-secret
     volumes:
       - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
       - ./bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
@@ -39,3 +40,15 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+
+  nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/data
+
+volumes:
+  nats-data:

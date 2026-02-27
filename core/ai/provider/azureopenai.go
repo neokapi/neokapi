@@ -10,19 +10,21 @@ import (
 	"strings"
 )
 
-const azureAPIVersion = "2024-10-21"
+const defaultAzureAPIVersion = "2024-10-21"
 
 // AzureOpenAIProvider implements LLMProvider for Azure OpenAI Service.
-// Azure OpenAI uses deployment-based URLs and api-key header authentication
-// instead of the standard OpenAI Bearer token approach.
+// Azure OpenAI uses the same request/response format as OpenAI but with
+// different URL structure and authentication.
 type AzureOpenAIProvider struct {
-	config Config
-	client *http.Client
+	config     Config
+	deployment string // Azure deployment name (defaults to config.Model)
+	apiVersion string
+	client     *http.Client
 }
 
 // NewAzureOpenAIProvider creates a new Azure OpenAI provider.
-// cfg.BaseURL is the Azure endpoint (e.g., "https://my-openai.openai.azure.com").
-// cfg.Model is the deployment name (e.g., "gpt-4o").
+// config.BaseURL should be the Azure endpoint (e.g. https://myresource.openai.azure.com).
+// config.Model is used as the deployment name.
 func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 	if cfg.Model == "" {
 		cfg.Model = "gpt-4o"
@@ -30,15 +32,15 @@ func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 4096
 	}
-	// Trim trailing slash from base URL
-	cfg.BaseURL = strings.TrimRight(cfg.BaseURL, "/")
 	return &AzureOpenAIProvider{
-		config: cfg,
-		client: &http.Client{},
+		config:     cfg,
+		deployment: cfg.Model,
+		apiVersion: defaultAzureAPIVersion,
+		client:     &http.Client{},
 	}
 }
 
-func (p *AzureOpenAIProvider) Name() string { return "azure_openai" }
+func (p *AzureOpenAIProvider) Name() string { return "azureopenai" }
 
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	var prompt strings.Builder
@@ -74,9 +76,8 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 		apiMessages[i] = openaiMessage(m)
 	}
 
-	// Azure OpenAI does not use the model field in the request body;
-	// the deployment name is part of the URL.
 	body := openaiRequest{
+		Model:    p.deployment,
 		Messages: apiMessages,
 	}
 	if p.config.MaxTokens > 0 {
@@ -85,15 +86,18 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("azure_openai: marshal request: %w", err)
+		return nil, fmt.Errorf("azureopenai: marshal request: %w", err)
 	}
 
+	// Azure OpenAI URL format:
+	// https://{resource}.openai.azure.com/openai/deployments/{deployment}/chat/completions?api-version={version}
+	endpoint := strings.TrimRight(p.config.BaseURL, "/")
 	url := fmt.Sprintf("%s/openai/deployments/%s/chat/completions?api-version=%s",
-		p.config.BaseURL, p.config.Model, azureAPIVersion)
+		endpoint, p.deployment, p.apiVersion)
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
 	if err != nil {
-		return nil, fmt.Errorf("azure_openai: create request: %w", err)
+		return nil, fmt.Errorf("azureopenai: create request: %w", err)
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -101,26 +105,27 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 
 	httpResp, err := p.client.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("azure_openai: request: %w", err)
+		return nil, fmt.Errorf("azureopenai: request: %w", err)
 	}
 	defer httpResp.Body.Close()
 
 	respBody, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("azure_openai: read response: %w", err)
+		return nil, fmt.Errorf("azureopenai: read response: %w", err)
 	}
 
 	if httpResp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("azure_openai: API error %d: %s", httpResp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("azureopenai: API error %d: %s", httpResp.StatusCode, string(respBody))
 	}
 
+	// Azure OpenAI returns the same response format as OpenAI.
 	var apiResp openaiResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return nil, fmt.Errorf("azure_openai: unmarshal response: %w", err)
+		return nil, fmt.Errorf("azureopenai: unmarshal response: %w", err)
 	}
 
 	if len(apiResp.Choices) == 0 {
-		return nil, fmt.Errorf("azure_openai: no choices in response")
+		return nil, fmt.Errorf("azureopenai: no choices in response")
 	}
 
 	return &ChatResponse{

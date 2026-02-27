@@ -1,0 +1,114 @@
+package store
+
+import "github.com/gokapi/gokapi/bowrain/storage"
+
+// storeMigrationsPg is a single clean PostgreSQL schema that represents the
+// final state of all 8 incremental SQLite migrations consolidated into one.
+var storeMigrationsPg = []storage.Migration{
+	{
+		Version:     1,
+		Description: "create content store schema",
+		SQL: `
+			CREATE TABLE projects (
+				id             TEXT PRIMARY KEY,
+				name           TEXT NOT NULL,
+				source_locale  TEXT NOT NULL,
+				target_locales TEXT NOT NULL DEFAULT '',
+				properties     TEXT NOT NULL DEFAULT '{}',
+				workspace_id   TEXT NOT NULL DEFAULT '',
+				created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+
+			CREATE TABLE items (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				format       TEXT NOT NULL DEFAULT '',
+				item_type    TEXT NOT NULL DEFAULT 'file',
+				source_bytes BYTEA,
+				block_index  TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, name)
+			);
+			CREATE INDEX idx_items_project ON items(project_id);
+
+			CREATE TABLE blocks (
+				id           TEXT NOT NULL,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_name    TEXT NOT NULL DEFAULT '',
+				name         TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL DEFAULT '',
+				mime_type    TEXT NOT NULL DEFAULT '',
+				translatable BOOLEAN NOT NULL DEFAULT TRUE,
+				content_hash TEXT NOT NULL DEFAULT '',
+				context_hash TEXT NOT NULL DEFAULT '',
+				source_json  TEXT NOT NULL DEFAULT '[]',
+				targets_json TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				annotations  TEXT NOT NULL DEFAULT '{}',
+				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, item_name, id)
+			);
+			CREATE INDEX idx_blocks_content_hash ON blocks(content_hash);
+			CREATE INDEX idx_blocks_project ON blocks(project_id);
+			CREATE INDEX idx_blocks_item ON blocks(project_id, item_name);
+
+			CREATE TABLE versions (
+				id          TEXT PRIMARY KEY,
+				project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				label       TEXT NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				block_count INTEGER NOT NULL DEFAULT 0,
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_versions_project ON versions(project_id);
+
+			CREATE TABLE version_blocks (
+				version_id   TEXT NOT NULL REFERENCES versions(id) ON DELETE CASCADE,
+				block_id     TEXT NOT NULL,
+				content_hash TEXT NOT NULL,
+				PRIMARY KEY (version_id, block_id)
+			);
+
+			CREATE TABLE change_log (
+				seq          BIGSERIAL PRIMARY KEY,
+				project_id   TEXT NOT NULL,
+				block_id     TEXT NOT NULL,
+				change_type  TEXT NOT NULL,
+				locale       TEXT,
+				content_hash TEXT,
+				logged_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
+			CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
+
+			CREATE TABLE block_history (
+				id          BIGSERIAL PRIMARY KEY,
+				project_id  TEXT NOT NULL,
+				block_id    TEXT NOT NULL,
+				locale      TEXT NOT NULL,
+				change_type TEXT NOT NULL,
+				text        TEXT NOT NULL DEFAULT '',
+				coded_text  TEXT NOT NULL DEFAULT '',
+				origin      TEXT NOT NULL DEFAULT '',
+				author      TEXT NOT NULL DEFAULT '',
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_block_history_lookup ON block_history(project_id, block_id, locale);
+
+			CREATE TABLE block_notes (
+				id         TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				block_id   TEXT NOT NULL,
+				author     TEXT NOT NULL DEFAULT '',
+				text       TEXT NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, block_id);
+		`,
+	},
+}
