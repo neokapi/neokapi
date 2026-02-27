@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import Layout from '@theme/Layout';
+import useBaseUrl from '@docusaurus/useBaseUrl';
 import type {TestComparisonData} from './_types';
 import SummaryBar from './_SummaryBar';
 import FilterCard from './_FilterCard';
@@ -19,16 +20,17 @@ export default function TestComparison() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const dataUrl = useBaseUrl('/data/test-comparison.json');
 
   useEffect(() => {
-    fetch('/data/test-comparison.json')
+    fetch(dataUrl)
       .then((r) => {
         if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
         return r.json();
       })
       .then(setData)
       .catch((e) => setError(e.message));
-  }, []);
+  }, [dataUrl]);
 
   const filtered = data?.filters.filter((f) => {
     if (search && !f.filterName.toLowerCase().includes(search.toLowerCase()))
