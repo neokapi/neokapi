@@ -39,6 +39,13 @@ func (c BridgeConfig) PoolKey() string {
 	return c.Command + "\x00" + strings.Join(c.Args, "\x00")
 }
 
+// streamTimeout returns the timeout for streaming RPCs (Read, Write).
+// Streaming operations can transfer hundreds of thousands of messages, so they
+// need a much longer deadline than unary RPCs like Open or Info.
+func (c BridgeConfig) streamTimeout() time.Duration {
+	return 10 * c.CommandTimeout
+}
+
 // withDefaults returns a copy of the config with zero values replaced by defaults.
 func (c BridgeConfig) withDefaults() BridgeConfig {
 	if c.Command == "" {

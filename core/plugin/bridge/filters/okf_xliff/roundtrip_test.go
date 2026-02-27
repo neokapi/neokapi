@@ -86,11 +86,8 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// Known failing:
 	// - TS09-12-Test01.xlf: Okapi assigns non-deterministic integer IDs to inline
 	//   codes (bpt/ept) across reads, causing span ID mismatch in event roundtrip.
-	// - lqiTest.xlf: References external standoff file lqiTestIssues.xml via ITS
-	//   extension; write phase fails because the auxiliary file can't be resolved.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_xliff/*.xlf", mimeType, nil,
 		"TS09-12-Test01.xlf",
-		"lqiTest.xlf",
 	)
 }
