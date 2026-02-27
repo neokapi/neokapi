@@ -297,7 +297,7 @@ test-integration: ## Run integration tests
 	cd bowrain && $(GOTEST) ./... -count=1 -tags=integration -run Integration
 
 GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)
-OKAPI_BRIDGE_VERSION ?= v2.3.0
+OKAPI_BRIDGE_VERSION ?= v2.3.1
 OKAPI_VERSION        ?= 1.48.0
 BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 OKAPI_FILTERS_DIR    ?= $(HOME)/src/okapi/Okapi/okapi/filters
@@ -315,7 +315,7 @@ test-bridge-filters: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter
 
 test-bridge-json: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter tests with JSON output
 	@mkdir -p $(COVER_DIR)
-	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE)
+	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE); true
 
 generate-test-comparison: test-bridge-json ## Generate test comparison dashboard data
 	@mkdir -p website/static/data
