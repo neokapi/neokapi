@@ -1,10 +1,10 @@
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 import Layout from '@theme/Layout';
-import useBaseUrl from '@docusaurus/useBaseUrl';
 import type {TestComparisonData} from './_types';
 import SummaryBar from './_SummaryBar';
 import FilterCard from './_FilterCard';
 import styles from './_index.module.css';
+import comparisonData from '@site/static/data/test-comparison.json';
 
 type FilterMode = 'all' | 'both' | 'okapi-only' | 'gokapi-only';
 
@@ -15,24 +15,13 @@ const filterLabels: Record<FilterMode, string> = {
   'gokapi-only': 'Gokapi only',
 };
 
+const data = comparisonData as TestComparisonData;
+
 export default function TestComparison() {
-  const [data, setData] = useState<TestComparisonData | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
-  const dataUrl = useBaseUrl('/data/test-comparison.json');
 
-  useEffect(() => {
-    fetch(dataUrl)
-      .then((r) => {
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        return r.json();
-      })
-      .then(setData)
-      .catch((e) => setError(e.message));
-  }, [dataUrl]);
-
-  const filtered = data?.filters.filter((f) => {
+  const filtered = data.filters.filter((f) => {
     if (search && !f.filterName.toLowerCase().includes(search.toLowerCase()))
       return false;
     switch (filterMode) {
@@ -58,54 +47,39 @@ export default function TestComparison() {
           tests.
         </p>
 
-        {error && (
-          <div className="alert alert--warning margin-bottom--md">
-            <p>
-              Could not load test data: {error}. Run{' '}
-              <code>make generate-test-comparison</code> to generate it.
-            </p>
+        <SummaryBar
+          summary={data.summary}
+          generatedAt={data.generatedAt}
+        />
+
+        <div className={styles.toolbar}>
+          <input
+            type="text"
+            className={styles.searchInput}
+            placeholder="Search filters..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <div className={styles.filterButtons}>
+            {(
+              ['all', 'both', 'okapi-only', 'gokapi-only'] as FilterMode[]
+            ).map((m) => (
+              <button
+                key={m}
+                className={`button button--sm ${filterMode === m ? 'button--primary' : 'button--outline button--secondary'}`}
+                onClick={() => setFilterMode(m)}>
+                {filterLabels[m]}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
-        {!data && !error && <p>Loading...</p>}
-
-        {data && (
-          <>
-            <SummaryBar
-              summary={data.summary}
-              generatedAt={data.generatedAt}
-            />
-
-            <div className={styles.toolbar}>
-              <input
-                type="text"
-                className={styles.searchInput}
-                placeholder="Search filters..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <div className={styles.filterButtons}>
-                {(
-                  ['all', 'both', 'okapi-only', 'gokapi-only'] as FilterMode[]
-                ).map((m) => (
-                  <button
-                    key={m}
-                    className={`button button--sm ${filterMode === m ? 'button--primary' : 'button--outline button--secondary'}`}
-                    onClick={() => setFilterMode(m)}>
-                    {filterLabels[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className={styles.filterList}>
-              {filtered?.map((fc) => (
-                <FilterCard key={fc.filterName} filter={fc} />
-              ))}
-              {filtered?.length === 0 && <p>No filters match your search.</p>}
-            </div>
-          </>
-        )}
+        <div className={styles.filterList}>
+          {filtered.map((fc) => (
+            <FilterCard key={fc.filterName} filter={fc} />
+          ))}
+          {filtered.length === 0 && <p>No filters match your search.</p>}
+        </div>
       </main>
     </Layout>
   );
