@@ -1,0 +1,85 @@
+name: Deploy Server + Worker
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'platform/**'
+      - 'bowrain/**'
+      - '!bowrain/apps/web/**'
+      - '!bowrain/apps/keycloak-theme/**'
+      - 'docker/bowrain-server/**'
+      - 'docker/bowrain-worker/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'go.work'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  lookup:
+    name: Look Up Build Config
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    outputs:
+      image-tag: ${{ steps.tag.outputs.value }}
+      acr-login-server: ${{ vars.ACR_LOGIN_SERVER }}
+      acr-name: ${{ vars.ACR_NAME }}
+    steps:
+      - name: Compute image tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=${GH_SHA}-${INPUT_ENV}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build Server Images
+    needs: lookup
+    uses: ./.github/workflows/build-server-images.yml
+    with:
+      image-tag: ${{ needs.lookup.outputs.image-tag }}
+      acr-login-server: ${{ needs.lookup.outputs.acr-login-server }}
+      acr-name: ${{ needs.lookup.outputs.acr-name }}
+    secrets: inherit
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: [lookup, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      IMAGE_TAG: ${{ needs.lookup.outputs.image-tag }}
+    steps:
+      - name: Deploy server
+        run: |
+          gh workflow run deploy-server.yml \
+            --repo gokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f imageTag="$IMAGE_TAG"
+
+      - name: Deploy worker
+        run: |
+          gh workflow run deploy-worker.yml \
+            --repo gokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f imageTag="$IMAGE_TAG"
