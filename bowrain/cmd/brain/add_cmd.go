@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -14,19 +14,19 @@ var addFormat string
 var addCmd = &cobra.Command{
 	Use:   "add <pattern> [pattern...]",
 	Short: "Add files to the project",
-	Long: `Add file patterns to this project so kapi knows which files to process.
+	Long: `Add file patterns to this project so brain knows which files to process.
 
 Patterns support ** for recursive matching.
 
 Examples:
-  kapi add "src/**/*.html"
-  kapi add "locales/*.json" --format json
-  kapi add "src/**/*.html" "content/**/*.md"`,
+  brain add "src/**/*.html"
+  brain add "locales/*.json" --format json
+  brain add "src/**/*.html" "content/**/*.md"`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .kapi/ project found (run 'kapi init' first): %w", err)
+			return fmt.Errorf("no .brain/ project found (run 'brain init' first): %w", err)
 		}
 
 		var result output.AddOutput
@@ -77,7 +77,7 @@ Examples:
 		}
 
 		// Save updated config.
-		if err := project.SaveConfig(proj.KapiDir, proj.Config); err != nil {
+		if err := project.SaveConfig(proj.ConfigDir, proj.Config); err != nil {
 			return fmt.Errorf("save config: %w", err)
 		}
 

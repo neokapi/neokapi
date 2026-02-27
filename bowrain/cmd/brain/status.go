@@ -3,7 +3,7 @@ package main
 import (
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -24,7 +24,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	out := output.StatusOutput{
 		Project: output.ProjectInfo{
 			Root:      proj.Root,
-			ConfigDir: filepath.Join(proj.KapiDir, "config.yaml"),
+			ConfigDir: filepath.Join(proj.ConfigDir, "config.yaml"),
 		},
 	}
 

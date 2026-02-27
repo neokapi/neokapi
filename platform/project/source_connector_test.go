@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupTestProject creates a temporary kapi project with a JSON source file and
+// setupTestProject creates a temporary brain project with a JSON source file and
 // a mock Bowrain server. Returns the project, format registry, and cleanup func.
 func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.FormatRegistry) {
 	t.Helper()
@@ -28,8 +28,8 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 
 	// Create project structure.
 	root := t.TempDir()
-	kapiDir := filepath.Join(root, ".kapi")
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(root, ".brain")
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	// Write a JSON source file.
 	srcDir := filepath.Join(root, "src", "locales")
@@ -57,7 +57,7 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 
 	proj := &Project{
 		Root:    root,
-		KapiDir: kapiDir,
+		ConfigDir: brainDir,
 		Config:  cfg,
 	}
 
@@ -135,7 +135,7 @@ func containsSubstr(s, sub string) bool {
 func TestNewSourceConnector_RequiresServer(t *testing.T) {
 	proj := &Project{
 		Root:    t.TempDir(),
-		KapiDir: filepath.Join(t.TempDir(), ".kapi"),
+		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
 		Config:  &Config{},
 	}
 
@@ -147,7 +147,7 @@ func TestNewSourceConnector_RequiresServer(t *testing.T) {
 func TestNewSourceConnector_RequiresURL(t *testing.T) {
 	proj := &Project{
 		Root:    t.TempDir(),
-		KapiDir: filepath.Join(t.TempDir(), ".kapi"),
+		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
 		Config:  &Config{Server: &ServerConfig{ProjectID: "p1"}},
 	}
 
@@ -251,7 +251,7 @@ func TestSourceConnector_Status(t *testing.T) {
 	// Before any sync: all local blocks should be pending push.
 	status, err := conn.Status(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, "kapi-source", status.ConnectorID)
+	assert.Equal(t, "brain-source", status.ConnectorID)
 	assert.Equal(t, 2, status.ItemCount)
 	assert.Equal(t, 2, status.PendingPush)
 
@@ -472,7 +472,7 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 		},
 	}
 
-	conn := &KapiSourceConnector{project: proj}
+	conn := &BrainSourceConnector{project: proj}
 
 	// Default behavior: replace source locale in path.
 	assert.Equal(t, "src/locales/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
@@ -526,6 +526,6 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 }
 
 func TestSourceConnector_InterfaceCompliance(t *testing.T) {
-	// Compile-time check that KapiSourceConnector implements SourceConnector.
-	var _ connector.SourceConnector = (*KapiSourceConnector)(nil)
+	// Compile-time check that BrainSourceConnector implements connector.SourceConnector.
+	var _ connector.SourceConnector = (*BrainSourceConnector)(nil)
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -22,14 +22,14 @@ With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
 Use --global to read/write the global config file (~/.config/kapi/kapi.yaml).
-Without --global, reads/writes the project config file (.kapi/config.yaml).
+Without --global, reads/writes the project config file (.brain/config.yaml).
 
 Examples:
-  kapi config project.name                       # Print project name
-  kapi config project.name "My Project"          # Set project name
-  kapi config server.url                         # Print project server URL
-  kapi config --global server.url                # Print global server URL
-  kapi config --global server.url https://bowrain.example.com  # Set global server URL`,
+  brain config project.name                       # Print project name
+  brain config project.name "My Project"          # Set project name
+  brain config server.url                         # Print project server URL
+  brain config --global server.url                # Print global server URL
+  brain config --global server.url https://bowrain.example.com  # Set global server URL`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: runConfig,
 }
@@ -80,10 +80,10 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no .kapi/ project found (run 'kapi init' first, or use --global)")
+		return fmt.Errorf("no .brain/ project found (run 'brain init' first, or use --global)")
 	}
 
-	configPath := filepath.Join(proj.KapiDir, project.ConfigFile)
+	configPath := filepath.Join(proj.ConfigDir, project.ConfigFile)
 
 	if len(args) == 0 {
 		return output.Print(cmd, output.ConfigOutput{
@@ -95,7 +95,7 @@ func runConfigProject(cmd *cobra.Command, args []string) error {
 	key := args[0]
 
 	if len(args) == 1 {
-		val := project.GetConfigValue(proj.KapiDir, key)
+		val := project.GetConfigValue(proj.ConfigDir, key)
 		if val == "" {
 			return fmt.Errorf("key %q is not set in %s", key, configPath)
 		}
@@ -107,7 +107,7 @@ func runConfigProject(cmd *cobra.Command, args []string) error {
 	}
 
 	value := args[1]
-	if err := project.SetConfigValue(proj.KapiDir, key, value); err != nil {
+	if err := project.SetConfigValue(proj.ConfigDir, key, value); err != nil {
 		return fmt.Errorf("set config: %w", err)
 	}
 	return output.Print(cmd, output.ConfigOutput{

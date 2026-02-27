@@ -2,11 +2,9 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
-	kapipreset "github.com/gokapi/gokapi/kapi/preset"
 	"github.com/spf13/cobra"
 )
 
@@ -28,12 +26,6 @@ var presetsShowCmd = &cobra.Command{
 	RunE:  runPresetsShow,
 }
 
-var presetsValidateCmd = &cobra.Command{
-	Use:   "validate",
-	Short: "Validate presets in config.yaml",
-	RunE:  runPresetsValidate,
-}
-
 var (
 	presetsFormatFilter  string
 	presetsFrameworkOnly bool
@@ -41,7 +33,7 @@ var (
 
 func runPresetsList(cmd *cobra.Command, _ []string) error {
 	reg := pluginLoader.Presets()
-	kapipreset.RegisterBuiltins(reg)
+	preset.RegisterBuiltins(reg)
 
 	var entries []output.PresetEntry
 
@@ -129,7 +121,7 @@ func formatPresetEntry(format string, p *preset.FormatPreset) output.PresetEntry
 func runPresetsShow(cmd *cobra.Command, args []string) error {
 	name := args[0]
 	reg := pluginLoader.Presets()
-	kapipreset.RegisterBuiltins(reg)
+	preset.RegisterBuiltins(reg)
 
 	// Try framework preset first
 	fp := reg.GetFrameworkPreset(name)
@@ -166,63 +158,11 @@ func runPresetsShow(cmd *cobra.Command, args []string) error {
 	return fmt.Errorf("preset %q not found", name)
 }
 
-func runPresetsValidate(cmd *cobra.Command, _ []string) error {
-	proj, err := findProject()
-	if err != nil {
-		return fmt.Errorf("no .kapi/ project found: %w", err)
-	}
-
-	reg := pluginLoader.Presets()
-	kapipreset.RegisterBuiltins(reg)
-
-	// Convert project local presets to resolver format
-	localPresets := make(map[string]preset.LocalFormatPreset)
-	for name, lp := range proj.Config.FormatPresets {
-		localPresets[name] = preset.LocalFormatPreset{
-			Description: lp.Description,
-			Base:        lp.Base,
-			Config:      lp.Config,
-		}
-	}
-
-	resolver := preset.NewConfigResolver(reg, pluginLoader.Schemas())
-	errs := resolver.ValidateAllPresets(localPresets, presetsFormatFilter)
-
-	// Also validate mapping overrides
-	for _, m := range proj.Config.Mappings {
-		if len(m.Overrides) > 0 {
-			formatName := m.Format
-			if i := strings.LastIndex(formatName, "@"); i > 0 {
-				formatName = formatName[:i]
-			}
-			if err := resolver.ValidateOverrides(formatName, m.Overrides); err != nil {
-				errs = append(errs, fmt.Sprintf("mapping %q overrides: %s", m.Local, err.Error()))
-			}
-		}
-	}
-
-	out := output.PresetsValidateOutput{
-		Valid:  len(errs) == 0,
-		Errors: errs,
-	}
-
-	if err := output.Print(cmd, out); err != nil {
-		return err
-	}
-
-	if !out.Valid {
-		return fmt.Errorf("%d validation error(s)", len(errs))
-	}
-	return nil
-}
-
 func init() {
 	presetsListCmd.Flags().StringVar(&presetsFormatFilter, "format", "", "filter by format")
 	presetsListCmd.Flags().BoolVar(&presetsFrameworkOnly, "framework", false, "list framework presets only")
-	presetsValidateCmd.Flags().StringVar(&presetsFormatFilter, "format", "", "validate presets for specific format")
 
 	presetsCmd.AddCommand(presetsListCmd)
 	presetsCmd.AddCommand(presetsShowCmd)
-	presetsCmd.AddCommand(presetsValidateCmd)
 	rootCmd.AddCommand(presetsCmd)
 }

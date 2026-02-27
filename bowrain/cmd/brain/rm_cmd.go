@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -13,17 +13,17 @@ var rmCmd = &cobra.Command{
 	Short: "Remove files from the project",
 	Long: `Stop tracking files that match the given patterns.
 
-If the pattern matches one you added with 'kapi add', it is removed entirely.
+If the pattern matches one you added with 'brain add', it is removed entirely.
 Otherwise the pattern is added to the exclude list so those files are skipped.
 
 Examples:
-  kapi rm "src/**/*.html"          # removes the mapping
-  kapi rm "src/legacy/*.html"      # excludes files matching the pattern`,
+  brain rm "src/**/*.html"          # removes the mapping
+  brain rm "src/legacy/*.html"      # excludes files matching the pattern`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .kapi/ project found (run 'kapi init' first): %w", err)
+			return fmt.Errorf("no .brain/ project found (run 'brain init' first): %w", err)
 		}
 
 		var result output.RmOutput
@@ -33,7 +33,7 @@ Examples:
 			result.Entries = append(result.Entries, entry)
 		}
 
-		if err := project.SaveConfig(proj.KapiDir, proj.Config); err != nil {
+		if err := project.SaveConfig(proj.ConfigDir, proj.Config); err != nil {
 			return fmt.Errorf("save config: %w", err)
 		}
 

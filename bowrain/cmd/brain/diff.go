@@ -17,14 +17,14 @@ Shows which blocks have changed locally or remotely since the last sync.`,
 		// Find project
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("find project: %w (run 'kapi init' to create a project)", err)
+			return fmt.Errorf("find project: %w (run 'brain init' to create a project)", err)
 		}
 
 		fmt.Printf("Project: %s\n\n", proj.Config.Project.Name)
 
 		if proj.Config.Server == nil {
 			fmt.Println("No server configured")
-			fmt.Println("Run 'kapi init' to connect to a server")
+			fmt.Println("Run 'brain init' to connect to a server")
 			return nil
 		}
 
@@ -35,7 +35,7 @@ Shows which blocks have changed locally or remotely since the last sync.`,
 		fmt.Println("  - Blocks changed remotely")
 		fmt.Println("  - Conflicts (both changed)")
 		fmt.Println()
-		fmt.Println("For now, use 'kapi status' to see basic sync state")
+		fmt.Println("For now, use 'brain status' to see basic sync state")
 
 		return nil
 	},

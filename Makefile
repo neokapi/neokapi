@@ -42,7 +42,7 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-server build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
+.PHONY: all build build-brain build-server build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
         test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
@@ -87,10 +87,17 @@ build-server: web-build ## Build the Bowrain REST server
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd bowrain/apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
-build-all: build build-server ## Build all Go binaries
+build-brain: ## Build brain CLI
+	@mkdir -p $(BIN_DIR)
+	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
+
+build-all: build build-brain build-server ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
+
+install-brain: ## Install brain CLI to GOPATH/bin
+	cd bowrain && $(GO) install $(LDFLAGS) ./cmd/brain
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 

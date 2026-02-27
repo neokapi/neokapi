@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/auth"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
@@ -146,25 +146,25 @@ var authClaimCmd = &cobra.Command{
 	Short: "Claim a project into your workspace",
 	Long: `Take ownership of a project by providing a claim token.
 
-If no token is given, it is read from .kapi/config.yaml.
-Requires authentication (run 'kapi auth login' first).`,
+If no token is given, it is read from .brain/config.yaml.
+Requires authentication (run 'brain auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: kapi auth login")
+			return fmt.Errorf("not authenticated — run: brain auth login")
 		}
 
 		var claimToken string
 		if len(args) > 0 {
 			claimToken = args[0]
 		} else {
-			// Try to read from .kapi/config.yaml.
+			// Try to read from .brain/config.yaml.
 			proj, err := project.FindProject("")
 			if err != nil {
-				return fmt.Errorf("no claim token provided and no .kapi/ project found")
+				return fmt.Errorf("no claim token provided and no .brain/ project found")
 			}
 			if proj.Config.Server == nil || proj.Config.Server.ClaimToken == "" {
-				return fmt.Errorf("no claim_token in .kapi/config.yaml — provide token as argument")
+				return fmt.Errorf("no claim_token in .brain/config.yaml — provide token as argument")
 			}
 			claimToken = proj.Config.Server.ClaimToken
 		}
@@ -197,14 +197,14 @@ Requires authentication (run 'kapi auth login' first).`,
 			return fmt.Errorf("decode claim response: %w", err)
 		}
 
-		// Update .kapi/config.yaml: remove claim_token, update project_id.
+		// Update .brain/config.yaml: remove claim_token, update project_id.
 		proj, err := project.FindProject("")
 		if err == nil && proj.Config.Server != nil {
 			proj.Config.Server.ClaimToken = ""
 			proj.Config.Server.ProjectID = result.ProjectID
 			proj.Config.Server.Workspace = result.WorkspaceSlug
-			if saveErr := project.SaveConfig(proj.KapiDir, proj.Config); saveErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not update .kapi/config.yaml: %v\n", saveErr)
+			if saveErr := project.SaveConfig(proj.ConfigDir, proj.Config); saveErr != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not update .brain/config.yaml: %v\n", saveErr)
 			}
 		}
 

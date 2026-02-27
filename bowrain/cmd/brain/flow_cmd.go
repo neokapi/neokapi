@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/flow"
@@ -17,7 +18,6 @@ import (
 	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
 	"github.com/spf13/cobra"
 )
 
@@ -36,26 +36,30 @@ var flowRunCmd = &cobra.Command{
 		inputPaths, _ := cmd.Flags().GetStringSlice("input")
 		concurrency, _ := cmd.Flags().GetInt("concurrency")
 
-		if len(inputPaths) == 0 {
-			return fmt.Errorf("--input (-i) is required")
-		}
-		if targetLang == "" {
-			if flowName == "pseudo-translate" {
-				targetLang = "qps"
-			} else {
-				return fmt.Errorf("--target-lang is required")
+		// If --input is provided, use direct file processing.
+		if len(inputPaths) > 0 {
+			if targetLang == "" {
+				if flowName == "pseudo-translate" {
+					targetLang = "qps"
+				} else {
+					return fmt.Errorf("--target-lang is required")
+				}
 			}
+
+			ctx := context.Background()
+
+			if len(inputPaths) == 1 {
+				return runSingleFile(ctx, cmd, flowName, inputPaths[0])
+			}
+			return runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency)
 		}
 
-		ctx := context.Background()
-
-		// Single file: use the existing direct pipeline path.
-		if len(inputPaths) == 1 {
-			return runSingleFile(ctx, cmd, flowName, inputPaths[0])
+		// No --input: try project flow from .brain/flows/.
+		proj, err := findProject()
+		if err != nil {
+			return fmt.Errorf("--input (-i) is required, or run from a .brain/ project directory")
 		}
-
-		// Multiple files: use parallel executor with tool factories.
-		return runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency)
+		return runProjectFlow(cmd, proj, flowName, args)
 	},
 }
 
@@ -260,7 +264,7 @@ func runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, 
 
 var flowListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List available built-in flows",
+	Short: "List available flows",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		builtinFlows := []output.FlowInfo{
 			{Name: "ai-translate", Description: "Translate content using AI/LLM"},
@@ -269,6 +273,30 @@ var flowListCmd = &cobra.Command{
 			{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
 			{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
 			{Name: "segmentation", Description: "Split source text into sentence segments"},
+		}
+
+		// Also list project flows if in a project.
+		proj, err := findProject()
+		if err == nil {
+			entries, _ := os.ReadDir(proj.FlowsDirPath())
+			for _, e := range entries {
+				if !e.IsDir() && filepath.Ext(e.Name()) == ".yaml" {
+					name := e.Name()[:len(e.Name())-5]
+					flowDef, loadErr := loadFlowDefinition(filepath.Join(proj.FlowsDirPath(), e.Name()))
+					desc := ""
+					steps := 0
+					if loadErr == nil {
+						desc = flowDef.Description
+						steps = len(flowDef.Steps)
+					}
+					builtinFlows = append(builtinFlows, output.FlowInfo{
+						Name:        name,
+						Description: desc,
+						Path:        e.Name(),
+						Steps:       steps,
+					})
+				}
+			}
 		}
 
 		out := output.FlowsListOutput{

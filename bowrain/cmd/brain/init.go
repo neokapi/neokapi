@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
-	kapipreset "github.com/gokapi/gokapi/kapi/preset"
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/platform/client"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
@@ -32,9 +32,9 @@ var (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Set up a new project",
-	Long: `Set up a new kapi project in the current directory.
+	Long: `Set up a new brain project in the current directory.
 
-Creates the .kapi/ folder with your project configuration and an example flow.
+Creates the .brain/ folder with your project configuration and an example flow.
 
 In interactive mode (default when stdin is a terminal), presents a guided setup
 wizard. Use flags for non-interactive CI/CD usage.
@@ -42,7 +42,7 @@ wizard. Use flags for non-interactive CI/CD usage.
 The server URL is determined from (first match wins):
   1. --server flag
   2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
-  3. Existing auth state (from kapi auth login)
+  3. Existing auth state (from brain auth login)
   4. Built-in default (http://localhost:8080)
 
 Use --anonymous to create a project without signing in.
@@ -56,10 +56,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get current directory: %w", err)
 	}
 
-	// Fail fast if .kapi/ already exists — before any server calls or prompts.
-	kapiDir := filepath.Join(cwd, project.KapiDir)
-	if _, err := os.Stat(kapiDir); err == nil {
-		return fmt.Errorf(".kapi/ directory already exists at %s", cwd)
+	// Fail fast if .brain/ already exists — before any server calls or prompts.
+	brainDir := filepath.Join(cwd, project.BrainDir)
+	if _, err := os.Stat(brainDir); err == nil {
+		return fmt.Errorf(".brain/ directory already exists at %s", cwd)
 	}
 
 	var result *output.InitOutput
@@ -88,9 +88,9 @@ func resolveServerURL() string {
 }
 
 const serverURLHelp = `Server URL not configured. Set it via one of:
-  kapi config --global server.url https://bowrain.example.com
+  brain config --global server.url https://bowrain.example.com
   export KAPI_SERVER_URL=https://bowrain.example.com
-  kapi init --server https://bowrain.example.com`
+  brain init --server https://bowrain.example.com`
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
 func parseTargetLocales(s string) []model.LocaleID {
@@ -132,7 +132,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		}
 		auth, err := loadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("not authenticated with server (run: kapi auth login)")
+			return nil, fmt.Errorf("not authenticated with server (run: brain auth login)")
 		}
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
@@ -620,7 +620,7 @@ func finishInit(cwd string, cfg *project.Config) (*output.InitOutput, error) {
 
 	out := &output.InitOutput{
 		Root:      proj.Root,
-		ConfigDir: filepath.Join(proj.KapiDir, project.ConfigFile),
+		ConfigDir: filepath.Join(proj.ConfigDir, project.ConfigFile),
 	}
 
 	if cfg.Server != nil {
@@ -658,7 +658,7 @@ steps:
 
 func applyFrameworkPreset(cfg *project.Config, presetName string) error {
 	reg := pluginLoader.Presets()
-	kapipreset.RegisterBuiltins(reg)
+	preset.RegisterBuiltins(reg)
 
 	fp := reg.GetFrameworkPreset(presetName)
 	if fp == nil {

@@ -5,11 +5,11 @@ import (
 	"log"
 	"os"
 
-	"github.com/gokapi/gokapi/core/appconfig"
+	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/platform/config"
 	"github.com/spf13/cobra"
 )
 
@@ -27,18 +27,18 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "kapi",
-	Short:        "A localization and translation toolkit",
+	Use:          "brain",
+	Short:        "Bowrain project sync CLI",
 	SilenceUsage: true,
-	Long: `kapi helps you manage multilingual content — convert document formats,
-translate with AI, and run quality checks across a wide range of file types.`,
+	Long: `brain manages localization projects and syncs with Bowrain Server.
+Use brain to initialize projects, push and pull translations,
+and run processing flows on project files.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		formatReg = registry.NewFormatRegistry()
 		formats.RegisterAll(formatReg)
 
-		// Load configuration.
-		cfg := appconfig.New()
-		_ = cfg.Load()
+		// Load configuration using platform config (Viper-based).
+		cfg := config.NewAppConfig()
 
 		// Resolve plugin directory: flag > env > config.
 		dir := pluginDir
@@ -85,8 +85,7 @@ func init() {
 }
 
 // addProcessingFlags adds file-processing flags (--format, --encoding,
-// --source-lang, --target-lang) to a command. These only apply to commands
-// that process files (flow run, tool commands).
+// --source-lang, --target-lang) to a command.
 func addProcessingFlags(cmd *cobra.Command) {
 	cmd.Flags().StringVarP(&formatFlag, "format", "f", "", "override input format detection")
 	cmd.Flags().StringVarP(&encoding, "encoding", "e", "UTF-8", "input file encoding")

@@ -13,8 +13,8 @@ import (
 func TestLoadConfig(t *testing.T) {
 	t.Run("load valid config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		configYAML := `project:
   name: Test Project
@@ -38,10 +38,10 @@ hooks:
   post-pull:
     - segmentation
 `
-		configPath := filepath.Join(kapiDir, "config.yaml")
+		configPath := filepath.Join(brainDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte(configYAML), 0644))
 
-		cfg, err := LoadConfig(kapiDir)
+		cfg, err := LoadConfig(brainDir)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
@@ -69,22 +69,22 @@ hooks:
 
 	t.Run("config file not found", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
-		_, err := LoadConfig(kapiDir)
+		_, err := LoadConfig(brainDir)
 		require.Error(t, err)
 	})
 
 	t.Run("invalid YAML", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
-		configPath := filepath.Join(kapiDir, "config.yaml")
+		configPath := filepath.Join(brainDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte("invalid: yaml: content:"), 0644))
 
-		_, err := LoadConfig(kapiDir)
+		_, err := LoadConfig(brainDir)
 		require.Error(t, err)
 	})
 }
@@ -92,8 +92,8 @@ hooks:
 func TestSaveConfig(t *testing.T) {
 	t.Run("save and reload config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -118,16 +118,16 @@ func TestSaveConfig(t *testing.T) {
 			},
 		}
 
-		err := SaveConfig(kapiDir, cfg)
+		err := SaveConfig(brainDir, cfg)
 		require.NoError(t, err)
 
 		// Verify file exists
-		configPath := filepath.Join(kapiDir, "config.yaml")
+		configPath := filepath.Join(brainDir, "config.yaml")
 		_, err = os.Stat(configPath)
 		require.NoError(t, err)
 
 		// Reload and verify
-		reloaded, err := LoadConfig(kapiDir)
+		reloaded, err := LoadConfig(brainDir)
 		require.NoError(t, err)
 
 		assert.Equal(t, cfg.Project.Name, reloaded.Project.Name)
@@ -141,8 +141,8 @@ func TestSaveConfig(t *testing.T) {
 
 	t.Run("save minimal config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		kapiDir := filepath.Join(tmpDir, ".kapi")
-		require.NoError(t, os.MkdirAll(kapiDir, 0755))
+		brainDir := filepath.Join(tmpDir, ".brain")
+		require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -151,11 +151,11 @@ func TestSaveConfig(t *testing.T) {
 			},
 		}
 
-		err := SaveConfig(kapiDir, cfg)
+		err := SaveConfig(brainDir, cfg)
 		require.NoError(t, err)
 
 		// Verify file exists
-		configPath := filepath.Join(kapiDir, "config.yaml")
+		configPath := filepath.Join(brainDir, "config.yaml")
 		_, err = os.Stat(configPath)
 		require.NoError(t, err)
 	})
@@ -163,25 +163,25 @@ func TestSaveConfig(t *testing.T) {
 
 func TestGetSetConfigValue(t *testing.T) {
 	dir := t.TempDir()
-	kapiDir := filepath.Join(dir, KapiDir)
-	require.NoError(t, os.MkdirAll(kapiDir, 0755))
+	brainDir := filepath.Join(dir, BrainDir)
+	require.NoError(t, os.MkdirAll(brainDir, 0755))
 
 	cfg := DefaultConfig()
 	cfg.Project.Name = "test-project"
-	require.NoError(t, SaveConfig(kapiDir, cfg))
+	require.NoError(t, SaveConfig(brainDir, cfg))
 
 	// Read existing value.
-	assert.Equal(t, "test-project", GetConfigValue(kapiDir, "project.name"))
-	assert.Equal(t, "en", GetConfigValue(kapiDir, "project.source_locale"))
+	assert.Equal(t, "test-project", GetConfigValue(brainDir, "project.name"))
+	assert.Equal(t, "en", GetConfigValue(brainDir, "project.source_locale"))
 
 	// Set a new value.
-	require.NoError(t, SetConfigValue(kapiDir, "project.name", "renamed"))
-	assert.Equal(t, "renamed", GetConfigValue(kapiDir, "project.name"))
+	require.NoError(t, SetConfigValue(brainDir, "project.name", "renamed"))
+	assert.Equal(t, "renamed", GetConfigValue(brainDir, "project.name"))
 
 	// Set a nested value that didn't exist before.
-	require.NoError(t, SetConfigValue(kapiDir, "server.url", "https://example.com"))
-	assert.Equal(t, "https://example.com", GetConfigValue(kapiDir, "server.url"))
+	require.NoError(t, SetConfigValue(brainDir, "server.url", "https://example.com"))
+	assert.Equal(t, "https://example.com", GetConfigValue(brainDir, "server.url"))
 
 	// Unset key returns empty.
-	assert.Equal(t, "", GetConfigValue(kapiDir, "nonexistent.key"))
+	assert.Equal(t, "", GetConfigValue(brainDir, "nonexistent.key"))
 }

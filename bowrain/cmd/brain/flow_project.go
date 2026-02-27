@@ -30,7 +30,7 @@ func findProject() (*project.Project, error) {
 	return project.FindProject("")
 }
 
-// runProjectFlow executes a flow defined in .kapi/flows/.
+// runProjectFlow executes a flow defined in .brain/flows/.
 func runProjectFlow(cmd *cobra.Command, proj *project.Project, flowName string, args []string) error {
 	// Load flow definition
 	flowPath := filepath.Join(proj.FlowsDirPath(), flowName+".yaml")

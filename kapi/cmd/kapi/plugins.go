@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gokapi/gokapi/core/appconfig"
 	"github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
-	"github.com/gokapi/gokapi/platform/config"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -36,7 +36,7 @@ var pluginsListCmd = &cobra.Command{
 func listInstalledPlugins(cmd *cobra.Command) error {
 	plugins := pluginLoader.Plugins()
 
-	cfg := config.NewAppConfig()
+	cfg := appconfig.New()
 	_ = cfg.Load()
 	reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 	installed, _ := reg.ListInstalled()
@@ -130,7 +130,7 @@ func listInstalledPlugins(cmd *cobra.Command) error {
 }
 
 func listAvailablePlugins(cmd *cobra.Command) error {
-	cfg := config.NewAppConfig()
+	cfg := appconfig.New()
 	_ = cfg.Load()
 	reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
@@ -246,7 +246,7 @@ var pluginsInstallCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ref := registry.ParsePluginRef(args[0])
 
-		cfg := config.NewAppConfig()
+		cfg := appconfig.New()
 		_ = cfg.Load()
 
 		reg, cleanup := newProgressRegistry(cfg.RegistryURL(), pluginLoader.Dir())
@@ -276,7 +276,7 @@ var pluginsUpdateCmd = &cobra.Command{
 	Short: "Update plugins",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg := config.NewAppConfig()
+		cfg := appconfig.New()
 		_ = cfg.Load()
 
 		reg, cleanup := newProgressRegistry(cfg.RegistryURL(), pluginLoader.Dir())
@@ -344,7 +344,7 @@ var pluginsRemoveCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ref := registry.ParsePluginRef(args[0])
 
-		cfg := config.NewAppConfig()
+		cfg := appconfig.New()
 		_ = cfg.Load()
 		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 
@@ -406,7 +406,7 @@ Examples:
 			return fmt.Errorf("provide a search query or use --type, --mime, --ext, --bundle, --format, or --tool flags")
 		}
 
-		cfg := config.NewAppConfig()
+		cfg := appconfig.New()
 		_ = cfg.Load()
 		reg := registry.NewRemoteRegistry(cfg.RegistryURL(), pluginLoader.Dir())
 

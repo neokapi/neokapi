@@ -17,9 +17,9 @@ import (
 	"github.com/gokapi/gokapi/platform/connector"
 )
 
-// KapiSourceConnector implements connector.SourceConnector for local kapi projects.
+// BrainSourceConnector implements connector.SourceConnector for local brain projects.
 // It communicates with a Bowrain server via REST API.
-type KapiSourceConnector struct {
+type BrainSourceConnector struct {
 	project   *Project
 	client    *apiclient.BowrainClient
 	formatReg *registry.FormatRegistry
@@ -28,18 +28,18 @@ type KapiSourceConnector struct {
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
-func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*KapiSourceConnector, error) {
+func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BrainSourceConnector, error) {
 	if project.Config.Server == nil {
-		return nil, fmt.Errorf("no server configuration in .kapi/config.yaml")
+		return nil, fmt.Errorf("no server configuration in .brain/config.yaml")
 	}
 	if project.Config.Server.URL == "" {
-		return nil, fmt.Errorf("server URL not configured in .kapi/config.yaml")
+		return nil, fmt.Errorf("server URL not configured in .brain/config.yaml")
 	}
 	if project.Config.Server.ProjectID == "" {
-		return nil, fmt.Errorf("server project_id not configured in .kapi/config.yaml")
+		return nil, fmt.Errorf("server project_id not configured in .brain/config.yaml")
 	}
 
-	cache := LoadSyncCache(project.KapiDir)
+	cache := LoadSyncCache(project.ConfigDir)
 
 	var client *apiclient.BowrainClient
 	srv := project.Config.Server
@@ -49,7 +49,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	case srv.Workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("workspace sync requires authentication: run 'kapi auth login'")
+			return nil, fmt.Errorf("workspace sync requires authentication: run 'brain auth login'")
 		}
 		if authInfo.ServerURL != srv.URL {
 			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, srv.URL)
@@ -66,7 +66,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		return nil, fmt.Errorf("server config requires either workspace or claim_token")
 	}
 
-	return &KapiSourceConnector{
+	return &BrainSourceConnector{
 		project:   project,
 		client:    client,
 		formatReg: formatReg,
@@ -75,11 +75,11 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	}, nil
 }
 
-// NewLocalConnector creates a KapiSourceConnector for local-only operations
+// NewLocalConnector creates a BrainSourceConnector for local-only operations
 // (listing files, scanning blocks) without requiring a server connection.
-func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *KapiSourceConnector {
-	cache := LoadSyncCache(project.KapiDir)
-	return &KapiSourceConnector{
+func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *BrainSourceConnector {
+	cache := LoadSyncCache(project.ConfigDir)
+	return &BrainSourceConnector{
 		project:   project,
 		formatReg: formatReg,
 		cache:     cache,
@@ -98,7 +98,7 @@ type FileInfo struct {
 // ListFiles scans all tracked files and returns per-file stats.
 // It uses scanLocalBlocks for block extraction and compares against the
 // sync cache for dirty detection. Results are sorted by path.
-func (c *KapiSourceConnector) ListFiles(ctx context.Context, paths []string) ([]FileInfo, error) {
+func (c *BrainSourceConnector) ListFiles(ctx context.Context, paths []string) ([]FileInfo, error) {
 	_, blockMap, err := c.scanLocalBlocks(ctx, paths)
 	if err != nil {
 		return nil, err
@@ -139,22 +139,22 @@ func (c *KapiSourceConnector) ListFiles(ctx context.Context, paths []string) ([]
 }
 
 // ID returns the connector identifier.
-func (c *KapiSourceConnector) ID() string {
-	return "kapi-source"
+func (c *BrainSourceConnector) ID() string {
+	return "brain-source"
 }
 
 // Name returns a human-readable name.
-func (c *KapiSourceConnector) Name() string {
-	return "Kapi Local Source"
+func (c *BrainSourceConnector) Name() string {
+	return "Brain Local Source"
 }
 
 // Category returns the connector category.
-func (c *KapiSourceConnector) Category() connector.Category {
+func (c *BrainSourceConnector) Category() connector.Category {
 	return connector.CategoryFile
 }
 
 // Status reports the sync state.
-func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
+func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
 	// Count local changes by scanning files and comparing to cache.
 	hashMap, blockMap, err := c.scanLocalBlocks(ctx, nil)
 	if err != nil {
@@ -206,18 +206,18 @@ func (c *KapiSourceConnector) Status(ctx context.Context) (*connector.SyncStatus
 	}, nil
 }
 
-// Configure is a no-op for the kapi source connector (configured via .kapi/config.yaml).
-func (c *KapiSourceConnector) Configure(config map[string]string) error {
+// Configure is a no-op for the brain source connector (configured via .brain/config.yaml).
+func (c *BrainSourceConnector) Configure(config map[string]string) error {
 	return nil
 }
 
 // Close saves the sync cache.
-func (c *KapiSourceConnector) Close() error {
-	return c.cache.Save(c.project.KapiDir)
+func (c *BrainSourceConnector) Close() error {
+	return c.cache.Save(c.project.ConfigDir)
 }
 
 // Push sends source content from local files to Bowrain.
-func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
+func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
 	// Scan local files and extract blocks grouped by item.
 	hashMap, blockMap, err := c.scanLocalBlocks(ctx, opts.Paths)
 	if err != nil {
@@ -303,7 +303,7 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 	c.cache.ServerURL = c.project.Config.Server.URL
 	c.cache.ProjectID = c.project.Config.Server.ProjectID
 
-	if err := c.cache.Save(c.project.KapiDir); err != nil {
+	if err := c.cache.Save(c.project.ConfigDir); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
 	}
 
@@ -316,7 +316,7 @@ func (c *KapiSourceConnector) Push(ctx context.Context, opts connector.PushOptio
 }
 
 // Pull retrieves translated content from Bowrain.
-func (c *KapiSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
+func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
 	locales := make([]string, len(opts.Locales))
 	for i, l := range opts.Locales {
 		locales[i] = string(l)
@@ -418,7 +418,7 @@ func (c *KapiSourceConnector) Pull(ctx context.Context, opts connector.PullOptio
 	// Update cursor.
 	c.cache.SyncCursor = cursor
 	c.cache.LastSync = time.Now().UTC()
-	if err := c.cache.Save(c.project.KapiDir); err != nil {
+	if err := c.cache.Save(c.project.ConfigDir); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
 	}
 
@@ -432,7 +432,7 @@ func (c *KapiSourceConnector) Pull(ctx context.Context, opts connector.PullOptio
 // scanLocalBlocks walks local source files, reads them with format readers,
 // and extracts blocks grouped by item (file path relative to project root).
 // Returns itemName→(blockID→hash) and itemName→blocks.
-func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
+func (c *BrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
 	hashMap := map[string]map[string]string{}
 	blockMap := map[string][]*model.Block{}
 
@@ -487,7 +487,7 @@ func (c *KapiSourceConnector) scanLocalBlocks(ctx context.Context, paths []strin
 }
 
 // detectFormat determines the format for a file using mappings or the registry.
-func (c *KapiSourceConnector) detectFormat(absPath string) string {
+func (c *BrainSourceConnector) detectFormat(absPath string) string {
 	relPath, err := c.project.RelativePath(absPath)
 	if err != nil {
 		relPath = filepath.Base(absPath)
@@ -514,7 +514,7 @@ func (c *KapiSourceConnector) detectFormat(absPath string) string {
 }
 
 // readBlocks reads a file and extracts blocks using the format reader.
-func (c *KapiSourceConnector) readBlocks(ctx context.Context, filePath, formatName string) ([]*model.Block, error) {
+func (c *BrainSourceConnector) readBlocks(ctx context.Context, filePath, formatName string) ([]*model.Block, error) {
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
 		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
@@ -555,7 +555,7 @@ func (c *KapiSourceConnector) readBlocks(ctx context.Context, filePath, formatNa
 // resolveTargetPath determines the output path for a translated file.
 // It checks mappings for an explicit target_path template, falls back to
 // replacing the source locale in the path, or appends the locale as a suffix.
-func (c *KapiSourceConnector) resolveTargetPath(itemName, locale string) string {
+func (c *BrainSourceConnector) resolveTargetPath(itemName, locale string) string {
 	relPath := itemName
 
 	// Check if any mapping has a target_path template.
@@ -580,7 +580,7 @@ func (c *KapiSourceConnector) resolveTargetPath(itemName, locale string) string 
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,
 // and writes the translated output file using the appropriate format writer.
-func (c *KapiSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
+func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
 	// Read source.
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
@@ -650,7 +650,7 @@ func (c *KapiSourceConnector) writeTranslatedFile(ctx context.Context, sourcePat
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
-func (c *KapiSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
+func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
 	fc, ok := c.cache.Files[itemName]
 	if !ok {
 		return "", false
@@ -659,5 +659,5 @@ func (c *KapiSourceConnector) lookupCachedHashForItem(itemName, blockID string) 
 	return hash, found
 }
 
-// Ensure KapiSourceConnector implements SourceConnector at compile time.
-var _ connector.SourceConnector = (*KapiSourceConnector)(nil)
+// Ensure BrainSourceConnector implements SourceConnector at compile time.
+var _ connector.SourceConnector = (*BrainSourceConnector)(nil)

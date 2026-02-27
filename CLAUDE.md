@@ -10,8 +10,10 @@ The repository is a **multi-module monorepo** with four Go modules:
 
 - **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system. All framework Go packages live under `core/`. Zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC).
 - **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types, interfaces, and client code used by both kapi and bowrain: project model, auth types, connector interfaces, REST client, configuration. No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
-- **Kapi** (`github.com/gokapi/gokapi/kapi`) — the CLI tool for local file processing and Bowrain Server sync. Depends on framework + platform. No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
-- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite storage. Depends on framework + platform.
+- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework only (no platform dependency). No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
+- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, **brain CLI** (project sync companion), connectors, authentication, persistent SQLite storage. Depends on framework + platform.
+
+The **brain CLI** (`bowrain/cmd/brain/`) manages localization projects and syncs with Bowrain Server (init, push, pull, auth, status, etc.). It lives in the bowrain module alongside bowrain-server.
 
 A `go.work` file at the root coordinates the four modules for local development. Kapi and bowrain have no dependency on each other.
 
@@ -19,6 +21,7 @@ A `go.work` file at the root coordinates the four modules for local development.
 
 ```bash
 make build              # Build kapi CLI → bin/kapi
+make build-brain        # Build brain CLI → bin/brain
 make build-server       # Build REST server → bin/bowrain-server
 make build-all          # Build all Go binaries
 make test               # Run all tests (all four modules)
@@ -136,6 +139,7 @@ gokapi/
 │   ├── termbase/          # SQLite TermBase implementation
 │   ├── proto/v1/          # gRPC protobuf definitions
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
+│   ├── cmd/brain/         # Brain CLI (project sync companion)
 │   └── apps/
 │       ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
 │       ├── web/           # SaaS web UI
@@ -153,13 +157,13 @@ gokapi/
 └── Makefile               # Multi-module build targets
 ```
 
-### Kapi Project Model (.kapi/ Directories)
+### Brain Project Model (.brain/ Directories)
 
-Kapi uses a git-like project model with `.kapi/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
+Brain uses a git-like project model with `.brain/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
 
 ```
 my-app/
-├── .kapi/
+├── .brain/
 │   ├── config.yaml      # Project configuration
 │   ├── flows/           # Flow definitions (YAML)
 │   │   └── pseudo.yaml
@@ -170,20 +174,29 @@ my-app/
 │       └── fr-FR.json
 ```
 
-**Key CLI commands:**
+**Key brain CLI commands:**
 ```bash
-kapi init                    # Create .kapi/ project
-kapi status                  # Show sync state (like git status)
-kapi pull                    # Fetch from Bowrain Server → update local files
-kapi push                    # Send local files → update Bowrain Server
-kapi flow run <flow-name>    # Execute flow from .kapi/flows/
-kapi serve                   # Start local dashboard (web UI)
+brain init                    # Create .brain/ project
+brain status                  # Show sync state (like git status)
+brain pull                    # Fetch from Bowrain Server → update local files
+brain push                    # Send local files → update Bowrain Server
+brain flow run <flow-name>    # Execute flow from .brain/flows/
+brain serve                   # Start local dashboard (web UI)
 ```
 
-**All Kapi commands require a `.kapi/` project.** The CLI searches upward from the current directory (like git) to find the project root.
+**All brain commands require a `.brain/` project.** The CLI searches upward from the current directory (like git) to find the project root.
+
+**Key kapi CLI commands (standalone, no project needed):**
+```bash
+kapi formats list             # List available formats
+kapi flow run pseudo-translate -i file.json --target-lang qps   # Process files directly
+kapi plugins list             # List installed plugins
+kapi presets list             # List available presets
+```
 
 **Role Separation:**
-- **Kapi** = local file tool, swiss army knife for files, CAN sync with Bowrain Server
+- **Kapi** = standalone file-processing tool, no platform dependency
+- **Brain** = project sync companion CLI, manages .brain/ projects, syncs with Bowrain Server
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 
 ### Streaming Pipeline

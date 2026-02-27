@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -100,54 +99,6 @@ func TestVersionOutput_FormatText(t *testing.T) {
 			err := tt.version.FormatText(&buf)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, buf.String())
-		})
-	}
-}
-
-func TestStatusOutput_FormatText(t *testing.T) {
-	lastSync := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
-
-	tests := []struct {
-		name   string
-		status StatusOutput
-		checks []string
-	}{
-		{
-			"no server configured",
-			StatusOutput{
-				Project: ProjectInfo{Root: "/project", ConfigDir: "/project/.kapi"},
-			},
-			[]string{"Project root: /project", "Not connected to a server."},
-		},
-		{
-			"up to date",
-			StatusOutput{
-				Project:  ProjectInfo{Root: "/project", ConfigDir: "/project/.kapi", Server: "http://localhost"},
-				UpToDate: true,
-			},
-			[]string{"Up to date."},
-		},
-		{
-			"pending changes",
-			StatusOutput{
-				Project:     ProjectInfo{Root: "/project", ConfigDir: "/project/.kapi", Server: "http://localhost"},
-				ItemCount:   100,
-				PendingPush: 5,
-				PendingPull: 3,
-				LastSync:    &lastSync,
-			},
-			[]string{"Local: 0 files, 100 blocks (0 words)", "Pending push: 5", "Pending pull: 3", "Last sync:"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			err := tt.status.FormatText(&buf)
-			require.NoError(t, err)
-			for _, check := range tt.checks {
-				assert.Contains(t, buf.String(), check)
-			}
 		})
 	}
 }
@@ -276,43 +227,6 @@ func TestToolsListOutput_FormatText(t *testing.T) {
 	assert.Contains(t, buf.String(), "Total: 2 tool(s)")
 }
 
-func TestAuthStatusOutput_FormatText(t *testing.T) {
-	expiry := time.Date(2024, 12, 31, 23, 59, 59, 0, time.UTC)
-
-	tests := []struct {
-		name   string
-		auth   AuthStatusOutput
-		checks []string
-	}{
-		{
-			"not logged in",
-			AuthStatusOutput{LoggedIn: false},
-			[]string{"Not logged in."},
-		},
-		{
-			"logged in",
-			AuthStatusOutput{
-				LoggedIn:  true,
-				Server:    "http://localhost:8080",
-				User:      "user@example.com",
-				ExpiresAt: &expiry,
-			},
-			[]string{"Server: http://localhost:8080", "User:   user@example.com", "Token expires:"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			err := tt.auth.FormatText(&buf)
-			require.NoError(t, err)
-			for _, check := range tt.checks {
-				assert.Contains(t, buf.String(), check)
-			}
-		})
-	}
-}
-
 func TestFlowsListOutput_FormatText(t *testing.T) {
 	t.Run("empty list", func(t *testing.T) {
 		out := FlowsListOutput{Flows: []FlowInfo{}, Total: 0}
@@ -422,64 +336,12 @@ func TestPrint_WithCommand(t *testing.T) {
 	assert.Contains(t, buf.String(), "kapi 1.0.0")
 }
 
-func TestStatusOutput_WithErrors(t *testing.T) {
-	status := StatusOutput{
-		Project: ProjectInfo{
-			Root:      "/project",
-			ConfigDir: "/project/.kapi",
-			Server:    "http://localhost",
-		},
-		Errors: []string{"sync failed", "connection timeout"},
-	}
-
-	var buf bytes.Buffer
-	err := status.FormatText(&buf)
-	require.NoError(t, err)
-
-	assert.Contains(t, buf.String(), "Errors:")
-	assert.Contains(t, buf.String(), "sync failed")
-	assert.Contains(t, buf.String(), "connection timeout")
-}
-
-func TestStatusOutput_PendingPullUnknown(t *testing.T) {
-	status := StatusOutput{
-		Project: ProjectInfo{
-			Root:      "/project",
-			ConfigDir: "/project/.kapi",
-			Server:    "http://localhost",
-		},
-		PendingPull: -1, // Unknown count
-	}
-
-	var buf bytes.Buffer
-	err := status.FormatText(&buf)
-	require.NoError(t, err)
-
-	assert.Contains(t, buf.String(), "Pending pull: remote changes available")
-}
-
 func TestToolsListOutput_Empty(t *testing.T) {
 	out := ToolsListOutput{Tools: []ToolInfo{}, Total: 0}
 	var buf bytes.Buffer
 	err := out.FormatText(&buf)
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "No tools available.")
-}
-
-func TestAuthStatusOutput_WithUserID(t *testing.T) {
-	auth := AuthStatusOutput{
-		LoggedIn: true,
-		Server:   "http://localhost",
-		User:     "test@example.com",
-		UserID:   "user-123",
-	}
-
-	var buf bytes.Buffer
-	err := auth.FormatText(&buf)
-	require.NoError(t, err)
-
-	assert.Contains(t, buf.String(), "test@example.com")
-	assert.Contains(t, buf.String(), "ID: user-123")
 }
 
 func TestFormatsListOutput_JSON(t *testing.T) {
@@ -551,121 +413,6 @@ func TestFlowsListOutput_JSON(t *testing.T) {
 	assert.Equal(t, 1, parsed.Total)
 	assert.Equal(t, "translate", parsed.Flows[0].Name)
 	assert.Equal(t, 2, parsed.Flows[0].Steps)
-}
-
-func TestLsOutput_FormatText_Basic(t *testing.T) {
-	out := LsOutput{
-		Files: []LsEntry{
-			{Path: "src/locales/en.json", Format: "json"},
-			{Path: "src/locales/fr.json", Format: "json"},
-			{Path: "docs/readme.md", Format: "markdown"},
-		},
-		Total: 3,
-	}
-
-	var buf bytes.Buffer
-	err := out.FormatText(&buf)
-	require.NoError(t, err)
-
-	text := buf.String()
-	assert.Contains(t, text, "src/locales/en.json")
-	assert.Contains(t, text, "json")
-	assert.Contains(t, text, "docs/readme.md")
-	assert.Contains(t, text, "markdown")
-	assert.Contains(t, text, "3 file(s)")
-	// Should NOT contain column headers (no stats mode).
-	assert.NotContains(t, text, "BLOCKS")
-}
-
-func TestLsOutput_FormatText_WithStats(t *testing.T) {
-	out := LsOutput{
-		Files: []LsEntry{
-			{Path: "src/locales/en.json", Format: "json", Blocks: 42, Words: 1230},
-			{Path: "docs/readme.md", Format: "markdown", Blocks: 8, Words: 540},
-		},
-		Total:    2,
-		Blocks:   50,
-		Words:    1770,
-		HasStats: true,
-	}
-
-	var buf bytes.Buffer
-	err := out.FormatText(&buf)
-	require.NoError(t, err)
-
-	text := buf.String()
-	assert.Contains(t, text, "PATH")
-	assert.Contains(t, text, "FORMAT")
-	assert.Contains(t, text, "BLOCKS")
-	assert.Contains(t, text, "WORDS")
-	assert.NotContains(t, text, "DIRTY")
-	assert.Contains(t, text, "src/locales/en.json")
-	assert.Contains(t, text, "42")
-	assert.Contains(t, text, "1230")
-	assert.Contains(t, text, "2 file(s), 50 blocks, 1770 words")
-}
-
-func TestLsOutput_FormatText_WithDirty(t *testing.T) {
-	out := LsOutput{
-		Files: []LsEntry{
-			{Path: "src/locales/en.json", Format: "json", Blocks: 42, Words: 1230, Dirty: 3},
-			{Path: "docs/readme.md", Format: "markdown", Blocks: 8, Words: 540, Dirty: 1},
-		},
-		Total:    2,
-		Blocks:   50,
-		Words:    1770,
-		Changed:  4,
-		HasStats: true,
-		HasDirty: true,
-	}
-
-	var buf bytes.Buffer
-	err := out.FormatText(&buf)
-	require.NoError(t, err)
-
-	text := buf.String()
-	assert.Contains(t, text, "DIRTY")
-	assert.Contains(t, text, "3")
-	assert.Contains(t, text, "4 changed")
-}
-
-func TestLsOutput_FormatText_Empty(t *testing.T) {
-	out := LsOutput{
-		Files: []LsEntry{},
-		Total: 0,
-	}
-
-	var buf bytes.Buffer
-	err := out.FormatText(&buf)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "No tracked files.")
-}
-
-func TestLsOutput_JSON(t *testing.T) {
-	out := LsOutput{
-		Files: []LsEntry{
-			{Path: "src/en.json", Format: "json", Blocks: 10, Words: 200, Dirty: 2},
-		},
-		Total:    1,
-		Blocks:   10,
-		Words:    200,
-		Changed:  2,
-		HasStats: true,
-		HasDirty: true,
-	}
-
-	var buf bytes.Buffer
-	err := PrintTo(&buf, FormatJSON, out)
-	require.NoError(t, err)
-
-	var parsed LsOutput
-	err = json.Unmarshal(buf.Bytes(), &parsed)
-	require.NoError(t, err)
-
-	assert.Equal(t, 1, parsed.Total)
-	assert.Equal(t, "src/en.json", parsed.Files[0].Path)
-	assert.Equal(t, 10, parsed.Files[0].Blocks)
-	assert.Equal(t, 2, parsed.Files[0].Dirty)
 }
 
 func TestPresetsListOutput_FormatText(t *testing.T) {
@@ -833,46 +580,3 @@ func TestPresetShowOutput_JSON(t *testing.T) {
 	assert.Equal(t, true, parsed.Config["assumeWellformed"])
 }
 
-func TestPresetsValidateOutput_FormatText(t *testing.T) {
-	t.Run("valid", func(t *testing.T) {
-		out := PresetsValidateOutput{Valid: true}
-		var buf bytes.Buffer
-		err := out.FormatText(&buf)
-		require.NoError(t, err)
-		assert.Contains(t, buf.String(), "All presets and overrides are valid.")
-	})
-
-	t.Run("with errors", func(t *testing.T) {
-		out := PresetsValidateOutput{
-			Valid:  false,
-			Errors: []string{"okf_html: unknown parameter: preservWhitespace", "json: expected boolean, got string"},
-		}
-		var buf bytes.Buffer
-		err := out.FormatText(&buf)
-		require.NoError(t, err)
-
-		text := buf.String()
-		assert.Contains(t, text, "Found 2 validation error(s):")
-		assert.Contains(t, text, "preservWhitespace")
-		assert.Contains(t, text, "expected boolean")
-	})
-}
-
-func TestPresetsValidateOutput_JSON(t *testing.T) {
-	out := PresetsValidateOutput{
-		Valid:  false,
-		Errors: []string{"bad param", "wrong type"},
-	}
-
-	var buf bytes.Buffer
-	err := PrintTo(&buf, FormatJSON, out)
-	require.NoError(t, err)
-
-	var parsed PresetsValidateOutput
-	err = json.Unmarshal(buf.Bytes(), &parsed)
-	require.NoError(t, err)
-
-	assert.False(t, parsed.Valid)
-	assert.Equal(t, 2, len(parsed.Errors))
-	assert.Equal(t, "bad param", parsed.Errors[0])
-}
