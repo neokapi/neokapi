@@ -260,11 +260,20 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		s.registerWorkspaceContentRoutes(wsSpecific)
 	}
 
-	// Web UI static file serving (development only)
+	// Web UI static file serving (development and E2E only).
+	// A single handler serves static files first and falls back to index.html
+	// for SPA client-side routing. Using two separate handlers (e.Static + e.GET)
+	// would conflict because Echo overwrites the first GET /* with the second.
 	if s.Config.WebUIDir != "" {
-		e.Static("/", s.Config.WebUIDir)
-		// SPA fallback: serve index.html for non-API routes
 		e.GET("/*", func(c echo.Context) error {
+			reqPath := c.Param("*")
+			if reqPath == "" {
+				reqPath = "index.html"
+			}
+			filePath := filepath.Join(s.Config.WebUIDir, filepath.Clean(reqPath))
+			if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+				return c.File(filePath)
+			}
 			return c.File(filepath.Join(s.Config.WebUIDir, "index.html"))
 		})
 	}
