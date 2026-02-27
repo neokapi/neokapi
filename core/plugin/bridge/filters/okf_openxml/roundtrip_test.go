@@ -36,12 +36,8 @@ func TestRoundTrip_Xlsx(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	// Known failing:
-	// - large.xlsx: 570K+ parts causes JVM OutOfMemoryError during write phase
-	//   on CI runners. Reads fine but the write phase holds all parts in memory.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okf_openxml/*.xlsx", mimeType, nil,
-		"large.xlsx",
 	)
 }
 

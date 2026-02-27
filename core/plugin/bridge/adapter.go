@@ -216,41 +216,25 @@ func (w *BridgeFormatWriter) SetSourcePath(path string) {
 	w.sourcePath = path
 }
 
-// Write collects all parts from the channel, acquires a bridge from the pool,
-// sends the parts to the Java bridge with the original content, writes the
-// reconstructed output, and releases the bridge back to the pool.
+// Write streams parts from the channel directly to the Java bridge, which
+// applies translations on-demand as it re-reads the original document skeleton.
+// No parts are accumulated in memory — streaming keeps memory constant regardless
+// of document size.
 func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
-	var collected []*model.Part
-	for {
-		select {
-		case p, ok := <-parts:
-			if !ok {
-				goto send
-			}
-			collected = append(collected, p)
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-
-send:
-	protoMsgs := shared.PartsToProto(collected)
-
 	b, err := w.pool.Acquire(w.cfg)
 	if err != nil {
 		return fmt.Errorf("acquiring bridge for write: %w", err)
 	}
 	defer w.pool.Release(b)
 
-	output, err := b.Write(WriteParams{
+	output, err := b.WriteStream(ctx, WriteStreamParams{
 		FilterClass:     w.filterClass,
-		Parts:           protoMsgs,
 		Locale:          string(w.Locale),
 		Encoding:        w.Encoding,
 		OriginalContent: w.originalContent,
 		FilterParams:    w.filterParams,
 		SourcePath:      w.sourcePath,
-	})
+	}, parts)
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)
 	}

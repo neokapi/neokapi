@@ -12,7 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gokapi/gokapi/core/model"
 	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+	"github.com/gokapi/gokapi/core/plugin/shared"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -286,6 +288,57 @@ func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 	for _, part := range params.Parts {
 		if err := stream.Send(&pb.WriteChunk{
 			Chunk: &pb.WriteChunk_Part{Part: part},
+		}); err != nil {
+			return nil, fmt.Errorf("write part: %w", err)
+		}
+	}
+
+	// Close and receive response.
+	resp, err := stream.CloseAndRecv()
+	if err != nil {
+		return nil, fmt.Errorf("write close: %w", err)
+	}
+	if resp.Error != "" {
+		return nil, fmt.Errorf("write: %s", resp.Error)
+	}
+	return resp.Output, nil
+}
+
+// WriteStream sends translated parts one-by-one from a channel to the Java bridge
+// and receives the reconstructed document. Unlike Write, it never accumulates all
+// parts in memory — parts are streamed directly from the pipeline channel to gRPC.
+func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
+	parts <-chan *model.Part) ([]byte, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(ctx, b.cfg.streamTimeout())
+	defer cancel()
+
+	stream, err := b.client.Write(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("write: %w", err)
+	}
+
+	// Send header first.
+	if err := stream.Send(&pb.WriteChunk{
+		Chunk: &pb.WriteChunk_Header{Header: &pb.WriteHeader{
+			FilterClass:     params.FilterClass,
+			Locale:          params.Locale,
+			Encoding:        params.Encoding,
+			OriginalContent: params.OriginalContent,
+			FilterParams:    encodeFilterParams(params.FilterParams),
+			SourcePath:      params.SourcePath,
+		}},
+	}); err != nil {
+		return nil, fmt.Errorf("write header: %w", err)
+	}
+
+	// Stream parts one-by-one from channel — no accumulation.
+	for p := range parts {
+		msg := shared.PartToProto(p)
+		if err := stream.Send(&pb.WriteChunk{
+			Chunk: &pb.WriteChunk_Part{Part: msg},
 		}); err != nil {
 			return nil, fmt.Errorf("write part: %w", err)
 		}
