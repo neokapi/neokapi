@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/tool"
+	"github.com/gokapi/gokapi/platform/cli/output"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
@@ -24,59 +25,20 @@ import (
 type ToolRunConfig struct {
 	ToolName       string
 	Files          []string
-	Concurrency    int // 0 = NumCPU
+	Concurrency    int
 	JSONOutput     bool
-	FailOnUnknown  bool                      // fail on unrecognized formats instead of skipping
-	NoWarn         bool                      // suppress skip warnings
-	Progress       bool                      // show progress bar on stderr
-	OutputTemplate string                    // output path template with {name}, {ext}, {lang}
-	TargetLang     string                    // effective target language (may differ from global flag)
-	NewTool        func() (tool.Tool, error) // factory for fresh tool per file
-	NewCollector   func() flow.Collector     // nil = no collection
-}
-
-// resolveFiles expands glob patterns and filters out directories
-// and known temporary/lock files, returning only regular files.
-func resolveFiles(patterns []string) ([]string, error) {
-	var files []string
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
-		}
-		if matches == nil {
-			// No glob meta-characters or no matches — treat as literal path.
-			matches = []string{pattern}
-		}
-		for _, m := range matches {
-			info, err := os.Stat(m)
-			if err != nil {
-				return nil, fmt.Errorf("stat %q: %w", m, err)
-			}
-			if info.IsDir() {
-				continue
-			}
-			if isJunkFile(filepath.Base(m)) {
-				continue
-			}
-			files = append(files, m)
-		}
-	}
-	return files, nil
-}
-
-// isJunkFile returns true for file names that are known temporary or
-// lock files that should never be processed:
-//   - ~$*  — Microsoft Office lock files
-//   - ._*  — macOS resource fork / AppleDouble files
-func isJunkFile(name string) bool {
-	return strings.HasPrefix(name, "~$") || strings.HasPrefix(name, "._")
+	FailOnUnknown  bool
+	NoWarn         bool
+	Progress       bool
+	OutputTemplate string
+	TargetLang     string
+	NewTool        func() (tool.Tool, error)
+	NewCollector   func() flow.Collector
 }
 
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
-// Glob patterns are expanded and directories are skipped automatically.
-func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	files, err := resolveFiles(cfg.Files)
 	if err != nil {
 		return err
@@ -95,13 +57,11 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		collector = cfg.NewCollector()
 	}
 
-	// Compute common directory prefix for output path expansion.
 	var commonDir string
 	if cfg.OutputTemplate != "" {
 		commonDir = commonDirPrefix(files)
 	}
 
-	// Optional progress bar.
 	var bar *mpb.Bar
 	var progress *mpb.Progress
 	var active atomic.Int64
@@ -131,7 +91,7 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		g.Go(func() error {
 			defer func() { <-sem }()
 			active.Add(1)
-			err := processOneFile(ctx, cfg, file, collector, commonDir, progress)
+			err := a.processOneFile(ctx, cfg, file, collector, commonDir, progress)
 			active.Add(-1)
 			if bar != nil {
 				bar.Increment()
@@ -159,17 +119,14 @@ func RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 	if err != nil {
 		return fmt.Errorf("collector result: %w", err)
 	}
-	return formatOutput(cfg.JSONOutput, result)
+	return output.FormatCollectorResult(cfg.JSONOutput, result.Data)
 }
 
-// processOneFile reads a single file, pipes parts through the tool, and
-// feeds the output to the collector or writes via a format writer.
-func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress) error {
-	// Detect format.
-	fmtName := formatFlag
+func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress) error {
+	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(filePath)
-		detected, err := formatReg.Detector().DetectByExtension(ext)
+		detected, err := a.FormatReg.Detector().DetectByExtension(ext)
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -182,7 +139,7 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		fmtName = detected
 	}
 
-	reader, err := formatReg.NewReader(fmtName)
+	reader, err := a.FormatReg.NewReader(fmtName)
 	if err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
@@ -193,9 +150,8 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
-	// Validate writer availability early, before doing expensive I/O.
 	if cfg.OutputTemplate != "" {
-		if _, err := formatReg.NewWriter(fmtName); err != nil {
+		if _, err := a.FormatReg.NewWriter(fmtName); err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
 					warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
@@ -213,8 +169,8 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 
 	doc := &model.RawDocument{
 		URI:          filePath,
-		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     encoding,
+		SourceLocale: model.LocaleID(a.SourceLang),
+		Encoding:     a.Encoding,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
 	}
 
@@ -228,7 +184,6 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		return fmt.Errorf("open %s: %w", filePath, err)
 	}
 
-	// Read all parts from the format reader.
 	var parts []*model.Part
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
@@ -243,12 +198,8 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		}
 		parts = append(parts, result.Part)
 	}
-
-	// Release the reader before tool/writer phases so bridge pool slots
-	// are available for the writer.
 	reader.Close()
 
-	// Create a single-tool flow and execute it.
 	t, err := cfg.NewTool()
 	if err != nil {
 		return fmt.Errorf("create tool: %w", err)
@@ -277,11 +228,10 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		return fmt.Errorf("tool execution on %s: %w", filePath, err)
 	}
 
-	// Write output via format writer.
 	if cfg.OutputTemplate != "" {
 		outputPath := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
 
-		writer, err := formatReg.NewWriter(fmtName)
+		writer, err := a.FormatReg.NewWriter(fmtName)
 		if err != nil {
 			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 		}
@@ -310,7 +260,7 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 			return fmt.Errorf("close writer %s: %w", outputPath, err)
 		}
 
-		if !quiet {
+		if !a.Quiet {
 			msg := fmt.Sprintf("%s → %s\n", filePath, outputPath)
 			if progress != nil {
 				fmt.Fprint(progress, msg)
@@ -321,7 +271,6 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 		return nil
 	}
 
-	// Feed collector.
 	if collector != nil {
 		item := &flow.FlowItem{
 			Input:        doc,
@@ -335,8 +284,37 @@ func processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, col
 	return nil
 }
 
-// commonDirPrefix returns the longest shared directory prefix of the given file paths.
-// For example, ["a/b/x.html", "a/b/c/y.html"] returns "a/b/".
+func resolveFiles(patterns []string) ([]string, error) {
+	var files []string
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid glob pattern %q: %w", pattern, err)
+		}
+		if matches == nil {
+			matches = []string{pattern}
+		}
+		for _, m := range matches {
+			info, err := os.Stat(m)
+			if err != nil {
+				return nil, fmt.Errorf("stat %q: %w", m, err)
+			}
+			if info.IsDir() {
+				continue
+			}
+			if isJunkFile(filepath.Base(m)) {
+				continue
+			}
+			files = append(files, m)
+		}
+	}
+	return files, nil
+}
+
+func isJunkFile(name string) bool {
+	return strings.HasPrefix(name, "~$") || strings.HasPrefix(name, "._")
+}
+
 func commonDirPrefix(files []string) string {
 	if len(files) == 0 {
 		return ""
@@ -345,7 +323,6 @@ func commonDirPrefix(files []string) string {
 		return filepath.Dir(files[0]) + string(filepath.Separator)
 	}
 
-	// Split the first file's directory into parts.
 	prefix := filepath.Dir(files[0])
 	for _, f := range files[1:] {
 		dir := filepath.Dir(f)
@@ -360,7 +337,6 @@ func commonDirPrefix(files []string) string {
 	return prefix
 }
 
-// commonPath returns the longest common directory path between a and b.
 func commonPath(a, b string) string {
 	aParts := strings.Split(filepath.ToSlash(a), "/")
 	bParts := strings.Split(filepath.ToSlash(b), "/")
@@ -378,10 +354,6 @@ func commonPath(a, b string) string {
 	return filepath.FromSlash(strings.Join(common, "/"))
 }
 
-// expandOutputPath expands template variables in the output path template.
-// Supported variables: {name} (relative path without extension), {ext} (extension without dot),
-// {lang} (target language). If the expanded path ends with "/", the original
-// relative name.ext is appended (directory mode).
 func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	rel := filePath
 	if commonDir != "" {
@@ -399,9 +371,6 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 	result = strings.ReplaceAll(result, "{ext}", extNoDot)
 	result = strings.ReplaceAll(result, "{lang}", lang)
 
-	// Directory mode: if result ends with /, is an existing directory,
-	// or has no file extension — treat as a directory and append the
-	// original relative name.ext.
 	isDir := strings.HasSuffix(result, "/") || strings.HasSuffix(result, string(filepath.Separator))
 	if !isDir {
 		if info, err := os.Stat(result); err == nil && info.IsDir() {
@@ -415,16 +384,12 @@ func expandOutputPath(tmpl, filePath, commonDir, lang string) string {
 		result = filepath.Join(result, rel)
 	}
 
-	// Ensure parent directory exists.
 	dir := filepath.Dir(result)
 	_ = os.MkdirAll(dir, 0o755)
 
 	return result
 }
 
-// warnf writes a warning message to the mpb progress container (if active)
-// or directly to stderr. This prevents raw stderr writes from corrupting the
-// progress bar display.
 func warnf(progress *mpb.Progress, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if progress != nil {

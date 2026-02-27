@@ -657,7 +657,7 @@ steps:
 }
 
 func applyFrameworkPreset(cfg *project.Config, presetName string) error {
-	reg := pluginLoader.Presets()
+	reg := app.PluginLoader.Presets()
 	preset.RegisterBuiltins(reg)
 
 	fp := reg.GetFrameworkPreset(presetName)

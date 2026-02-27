@@ -1,0 +1,24 @@
+package cli
+
+import (
+	"github.com/gokapi/gokapi/core/version"
+	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/spf13/cobra"
+)
+
+// NewVersionCmd creates a version command for the named program.
+func (a *App) NewVersionCmd(program string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			out := output.VersionOutput{
+				Program:   program,
+				Version:   version.Version,
+				Commit:    version.Commit,
+				BuildDate: version.BuildDate,
+			}
+			return output.Print(cmd, out)
+		},
+	}
+}

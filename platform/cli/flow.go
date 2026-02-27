@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -17,91 +17,132 @@ import (
 	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/kapi/cmd/kapi/output"
+	"github.com/gokapi/gokapi/platform/cli/output"
 	"github.com/spf13/cobra"
 )
 
-var flowCmd = &cobra.Command{
-	Use:   "flow",
-	Short: "Run processing flows",
+// FlowCmdOptions configures the flow command.
+type FlowCmdOptions struct {
+	// FallbackRunE is called when --input is not provided.
+	// If nil, --input is required.
+	FallbackRunE func(cmd *cobra.Command, flowName string, args []string) error
+
+	// ExtraFlows returns additional flows for the list command (e.g. project flows).
+	ExtraFlows func() []output.FlowInfo
 }
 
-var flowRunCmd = &cobra.Command{
-	Use:   "run [flow-name]",
-	Short: "Run a flow",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		flowName := args[0]
+// NewFlowCmd creates the flow command group (flow run, flow list).
+func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
+	flowCmd := &cobra.Command{
+		Use:   "flow",
+		Short: "Run processing flows",
+	}
 
-		inputPaths, _ := cmd.Flags().GetStringSlice("input")
-		concurrency, _ := cmd.Flags().GetInt("concurrency")
+	flowRunCmd := &cobra.Command{
+		Use:   "run [flow-name]",
+		Short: "Run a flow",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			flowName := args[0]
+			inputPaths, _ := cmd.Flags().GetStringSlice("input")
+			concurrency, _ := cmd.Flags().GetInt("concurrency")
 
-		if len(inputPaths) == 0 {
-			return fmt.Errorf("--input (-i) is required")
-		}
-		if targetLang == "" {
-			if flowName == "pseudo-translate" {
-				targetLang = "qps"
-			} else {
-				return fmt.Errorf("--target-lang is required")
+			if len(inputPaths) > 0 {
+				if a.TargetLang == "" {
+					if flowName == "pseudo-translate" {
+						a.TargetLang = "qps"
+					} else {
+						return fmt.Errorf("--target-lang is required")
+					}
+				}
+				ctx := context.Background()
+				if len(inputPaths) == 1 {
+					return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
+				}
+				return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency)
 			}
-		}
 
-		ctx := context.Background()
+			// No --input: try fallback (e.g. project flow).
+			if opts.FallbackRunE != nil {
+				return opts.FallbackRunE(cmd, flowName, args)
+			}
+			return fmt.Errorf("--input (-i) is required")
+		},
+	}
 
-		// Single file: use the existing direct pipeline path.
-		if len(inputPaths) == 1 {
-			return runSingleFile(ctx, cmd, flowName, inputPaths[0])
-		}
+	a.AddProcessingFlags(flowRunCmd)
+	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
+	flowRunCmd.Flags().StringP("output", "o", "", "output file path (single-file mode only)")
+	flowRunCmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+	flowRunCmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	flowRunCmd.Flags().String("api-key", "", "API key for the AI provider")
+	flowRunCmd.Flags().String("model", "", "AI model name")
 
-		// Multiple files: use parallel executor with tool factories.
-		return runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency)
-	},
+	flowListCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List available flows",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			builtinFlows := []output.FlowInfo{
+				{Name: "ai-translate", Description: "Translate content using AI/LLM"},
+				{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
+				{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
+				{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
+				{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
+				{Name: "segmentation", Description: "Split source text into sentence segments"},
+			}
+
+			if opts.ExtraFlows != nil {
+				builtinFlows = append(builtinFlows, opts.ExtraFlows()...)
+			}
+
+			out := output.FlowsListOutput{
+				Flows: builtinFlows,
+				Total: len(builtinFlows),
+			}
+			return output.Print(cmd, out)
+		},
+	}
+
+	flowCmd.AddCommand(flowRunCmd)
+	flowCmd.AddCommand(flowListCmd)
+	return flowCmd
 }
 
-// runSingleFile processes a single input file through the flow.
-func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {
-	fmtName := formatFlag
+func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {
+	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(inputPath)
-		detected, err := formatReg.Detector().DetectByExtension(ext)
+		detected, err := a.FormatReg.Detector().DetectByExtension(ext)
 		if err != nil {
 			return fmt.Errorf("unable to detect format: %w", err)
 		}
 		fmtName = detected
 	}
 
-	// Parse format reference for preset/version
 	ref := pluginreg.ParseFormatRef(fmtName)
 	resolvedFmtName := ref.Name
 
-	// Resolve format config if preset is specified
 	var mergedConfig map[string]any
 	if ref.IsPreset() {
-		presetReg := pluginLoader.Presets()
+		presetReg := a.PluginLoader.Presets()
 		preset.RegisterBuiltins(presetReg)
-
-		resolver := preset.NewConfigResolver(presetReg, pluginLoader.Schemas())
+		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
 
 		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(
-			resolvedFmtName, ref.Preset, nil, nil,
-		)
+		mergedConfig, err = resolver.ResolveFormatConfig(resolvedFmtName, ref.Preset, nil, nil)
 		if err != nil {
 			return fmt.Errorf("resolve format config: %w", err)
 		}
 	}
 
-	reader, err := formatReg.NewReader(resolvedFmtName)
+	reader, err := a.FormatReg.NewReader(resolvedFmtName)
 	if err != nil {
-		// Fall back to full fmtName (might be versioned)
-		reader, err = formatReg.NewReader(fmtName)
+		reader, err = a.FormatReg.NewReader(fmtName)
 		if err != nil {
 			return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 		}
 	}
 
-	// Apply merged config if available
 	if len(mergedConfig) > 0 {
 		if cfg := reader.Config(); cfg != nil {
 			if err := cfg.ApplyMap(mergedConfig); err != nil {
@@ -117,8 +158,8 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 
 	doc := &model.RawDocument{
 		URI:          inputPath,
-		SourceLocale: model.LocaleID(sourceLang),
-		Encoding:     encoding,
+		SourceLocale: model.LocaleID(a.SourceLang),
+		Encoding:     a.Encoding,
 		Reader:       io.NopCloser(bytes.NewReader(inputContent)),
 	}
 
@@ -135,7 +176,7 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 		parts = append(parts, result.Part)
 	}
 
-	flowTools, err := buildFlowTools(flowName)
+	flowTools, err := a.buildFlowTools(flowName)
 	if err != nil {
 		return err
 	}
@@ -169,13 +210,12 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 	if outputPath == "" {
 		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
-		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
+		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
-	writer, err := formatReg.NewWriter(resolvedFmtName)
+	writer, err := a.FormatReg.NewWriter(resolvedFmtName)
 	if err != nil {
-		// Fall back to full fmtName (might be versioned)
-		writer, err = formatReg.NewWriter(fmtName)
+		writer, err = a.FormatReg.NewWriter(fmtName)
 		if err != nil {
 			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 		}
@@ -189,7 +229,7 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 		ocs.SetOriginalContent(inputContent)
 	}
 
-	writer.SetLocale(model.LocaleID(targetLang))
+	writer.SetLocale(model.LocaleID(a.TargetLang))
 
 	ch := make(chan *model.Part, len(outputParts))
 	for _, p := range outputParts {
@@ -202,7 +242,7 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 	}
 	writer.Close()
 
-	if !quiet {
+	if !a.Quiet {
 		return output.Print(cmd, output.FlowRunOutput{
 			FlowName:   flowName,
 			InputPath:  inputPath,
@@ -212,24 +252,21 @@ func runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath 
 	return nil
 }
 
-// runMultipleFiles processes multiple input files in parallel using tool factories.
-func runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, inputPaths []string, concurrency int) error {
-	// Build FlowItems for each input path.
+func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, inputPaths []string, concurrency int) error {
 	items := make([]*flow.FlowItem, len(inputPaths))
 	for i, p := range inputPaths {
 		items[i] = &flow.FlowItem{
 			Input: &model.RawDocument{
 				URI:          p,
-				SourceLocale: model.LocaleID(sourceLang),
-				Encoding:     encoding,
+				SourceLocale: model.LocaleID(a.SourceLang),
+				Encoding:     a.Encoding,
 			},
-			TargetLocale: model.LocaleID(targetLang),
+			TargetLocale: model.LocaleID(a.TargetLang),
 		}
 	}
 
-	// Build flow with tool factories so each document gets a fresh tool chain.
 	fb := flow.NewFlow(flowName)
-	factories, err := buildFlowToolFactories(flowName)
+	factories, err := a.buildFlowToolFactories(flowName)
 	if err != nil {
 		return err
 	}
@@ -238,104 +275,66 @@ func runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName string, 
 	}
 	f2 := fb.Build()
 
-	// Set up executor with concurrency.
 	var opts []flow.ExecutorOption
 	opts = append(opts, flow.WithMaxConcurrency(concurrency))
-
 	executor := flow.NewFlowExecutor(opts...)
 
 	if err := executor.Execute(ctx, f2, items); err != nil {
 		return fmt.Errorf("flow execution error: %w", err)
 	}
 
-	if !quiet {
+	if !a.Quiet {
 		return output.Print(cmd, output.FlowRunOutput{
 			FlowName:       flowName,
 			FilesProcessed: len(inputPaths),
 		})
 	}
-
 	return nil
 }
 
-var flowListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List available built-in flows",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		builtinFlows := []output.FlowInfo{
-			{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-			{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
-			{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-			{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
-			{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
-			{Name: "segmentation", Description: "Split source text into sentence segments"},
-		}
-
-		out := output.FlowsListOutput{
-			Flows: builtinFlows,
-			Total: len(builtinFlows),
-		}
-		return output.Print(cmd, out)
-	},
-}
-
-func init() {
-	addProcessingFlags(flowRunCmd)
-	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
-	flowRunCmd.Flags().StringP("output", "o", "", "output file path (single-file mode only)")
-	flowRunCmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
-	flowRunCmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
-	flowRunCmd.Flags().String("api-key", "", "API key for the AI provider")
-	flowRunCmd.Flags().String("model", "", "AI model name")
-
-	flowCmd.AddCommand(flowRunCmd)
-	flowCmd.AddCommand(flowListCmd)
-	rootCmd.AddCommand(flowCmd)
-}
-
-func buildFlowTools(flowName string) ([]tool.Tool, error) {
+func (a *App) buildFlowTools(flowName string) ([]tool.Tool, error) {
 	switch flowName {
 	case "ai-translate":
-		p := getProvider()
+		p := a.getProvider()
 		return []tool.Tool{
 			tools.NewAITranslateTool(p, tools.AITranslateConfig{
-				SourceLocale: model.LocaleID(sourceLang),
-				TargetLocale: model.LocaleID(targetLang),
+				SourceLocale: model.LocaleID(a.SourceLang),
+				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
 		}, nil
 	case "ai-translate-qa":
-		p := getProvider()
+		p := a.getProvider()
 		return []tool.Tool{
 			tools.NewAITranslateTool(p, tools.AITranslateConfig{
-				SourceLocale: model.LocaleID(sourceLang),
-				TargetLocale: model.LocaleID(targetLang),
+				SourceLocale: model.LocaleID(a.SourceLang),
+				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
 			tools.NewAIQACheckTool(p, tools.AIQAConfig{
-				SourceLocale: model.LocaleID(sourceLang),
-				TargetLocale: model.LocaleID(targetLang),
+				SourceLocale: model.LocaleID(a.SourceLang),
+				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
 		}, nil
 	case "pseudo-translate":
 		return []tool.Tool{
 			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
-				TargetLocale: model.LocaleID(targetLang),
+				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
 		}, nil
 	case "qa-check":
 		return []tool.Tool{
-			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))),
+			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))),
 		}, nil
 	case "segmentation":
 		return []tool.Tool{
 			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
-				TargetLocale: model.LocaleID(targetLang),
+				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
 		}, nil
 	case "tm-leverage":
 		return []tool.Tool{
 			libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
-				SourceLocale:   model.LocaleID(sourceLang),
-				TargetLocale:   model.LocaleID(targetLang),
+				SourceLocale:   model.LocaleID(a.SourceLang),
+				TargetLocale:   model.LocaleID(a.TargetLang),
 				FuzzyThreshold: 70,
 				Provider:       libtools.NullTMProvider{},
 			}),
@@ -345,34 +344,32 @@ func buildFlowTools(flowName string) ([]tool.Tool, error) {
 	}
 }
 
-// buildFlowToolFactories returns ToolFactory functions for each tool in the named flow.
-// Each factory creates a fresh instance so parallel documents don't share state.
-func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
+func (a *App) buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 	switch flowName {
 	case "ai-translate":
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
-				p := getProvider()
+				p := a.getProvider()
 				return tools.NewAITranslateTool(p, tools.AITranslateConfig{
-					SourceLocale: model.LocaleID(sourceLang),
-					TargetLocale: model.LocaleID(targetLang),
+					SourceLocale: model.LocaleID(a.SourceLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
 				}), nil
 			},
 		}, nil
 	case "ai-translate-qa":
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
-				p := getProvider()
+				p := a.getProvider()
 				return tools.NewAITranslateTool(p, tools.AITranslateConfig{
-					SourceLocale: model.LocaleID(sourceLang),
-					TargetLocale: model.LocaleID(targetLang),
+					SourceLocale: model.LocaleID(a.SourceLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
 				}), nil
 			},
 			func() (tool.Tool, error) {
-				p := getProvider()
+				p := a.getProvider()
 				return tools.NewAIQACheckTool(p, tools.AIQAConfig{
-					SourceLocale: model.LocaleID(sourceLang),
-					TargetLocale: model.LocaleID(targetLang),
+					SourceLocale: model.LocaleID(a.SourceLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
 				}), nil
 			},
 		}, nil
@@ -380,21 +377,21 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
 				return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
-					TargetLocale: model.LocaleID(targetLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
 				}), nil
 			},
 		}, nil
 	case "qa-check":
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
-				return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))), nil
+				return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))), nil
 			},
 		}, nil
 	case "segmentation":
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
 				return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
-					TargetLocale: model.LocaleID(targetLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
 				}), nil
 			},
 		}, nil
@@ -402,8 +399,8 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 		return []flow.ToolFactory{
 			func() (tool.Tool, error) {
 				return libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
-					SourceLocale:   model.LocaleID(sourceLang),
-					TargetLocale:   model.LocaleID(targetLang),
+					SourceLocale:   model.LocaleID(a.SourceLang),
+					TargetLocale:   model.LocaleID(a.TargetLang),
 					FuzzyThreshold: 70,
 					Provider:       libtools.NullTMProvider{},
 				}), nil
@@ -414,8 +411,6 @@ func buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
 	}
 }
 
-func getProvider() provider.LLMProvider {
-	// For now, return a mock provider. In production, this would
-	// look up API key and provider from flags/config.
+func (a *App) getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()
 }
