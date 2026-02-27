@@ -46,12 +46,15 @@ services:
       retries: 20
 
   keycloak:
-    image: ghcr.io/gokapi/bowrain-keycloak:latest
-    command: ["start-dev", "--import-realm"]
+    image: quay.io/keycloak/keycloak:26.1
+    command: start-dev --import-realm
     environment:
+      KC_HEALTH_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       OIDC_CLIENT_SECRET: bowrain-secret
+    volumes:
+      - ../docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
     ports:
       - "8180:8080"
     healthcheck:
