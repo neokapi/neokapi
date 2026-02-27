@@ -18,11 +18,40 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build:
     name: Build Web Assets
     uses: ./.github/workflows/build-web.yml
+
+  docker:
+    name: Build Web Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/bowrain-web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/gokapi/bowrain-web:${{ github.sha }}
+            ghcr.io/gokapi/bowrain-web:latest
+          cache-from: type=gha,scope=bowrain-web
+          cache-to: type=gha,mode=max,scope=bowrain-web
 
   trigger-deploy:
     name: Trigger Deploy
