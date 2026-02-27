@@ -1,0 +1,44 @@
+name: Deploy Web
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'bowrain/apps/web/**'
+      - 'packages/ui/**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Web Assets
+    uses: ./.github/workflows/build-web.yml
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    env:
+      GH_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      RUN_ID: ${{ github.run_id }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Deploy web
+        run: |
+          gh workflow run deploy-web.yml \
+            --repo gokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f triggerRunId="$RUN_ID" \
+            -f triggerRepo="$REPO"
