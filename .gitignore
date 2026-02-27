@@ -65,6 +65,7 @@ docker/traefik/certs/
 # Docusaurus
 website/build/
 website/.docusaurus/
+website/static/data/
 
 # Generated documentation assets (fetched from docs-assets release in CI)
 website/static/img/bowrain/

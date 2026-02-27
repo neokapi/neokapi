@@ -1,0 +1,252 @@
+/* Summary bar */
+.summaryBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.statCard {
+  flex: 1 1 120px;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  padding: 1rem;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statDate {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.searchInput {
+  flex: 1 1 200px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font-size: 0.9rem;
+}
+
+.filterButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Filter list */
+.filterList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Filter card */
+.filterCard {
+  margin: 0;
+}
+
+.filterHeader {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  user-select: none;
+}
+
+.filterHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 180px;
+}
+
+.filterHeaderRight {
+  display: flex;
+  gap: 2rem;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.expandIcon {
+  color: var(--ifm-color-emphasis-500);
+  font-size: 0.75rem;
+}
+
+/* Status dot */
+.statusDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.statusGreen {
+  background: #2e8555;
+}
+
+.statusYellow {
+  background: #e3a008;
+}
+
+.statusRed {
+  background: #d9534f;
+}
+
+/* Side column in header */
+.sideColumn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 200px;
+}
+
+.sideLabel {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-500);
+  text-transform: uppercase;
+  width: 50px;
+}
+
+.counts {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.countTotal {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+  margin-left: 0.25rem;
+}
+
+.noTests {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-400);
+  font-style: italic;
+}
+
+/* Mini progress bar */
+.progressMini {
+  width: 60px;
+  height: 4px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #2e8555;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+/* Expanded side-by-side */
+.sideBySide {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.sidePanel h4 {
+  margin-bottom: 0.5rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.noData {
+  color: var(--ifm-color-emphasis-400);
+  font-style: italic;
+}
+
+/* Test table */
+.suiteBlock {
+  margin-bottom: 1rem;
+}
+
+.suiteName {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+  margin-bottom: 0.25rem;
+  word-break: break-all;
+}
+
+.testTable {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+}
+
+.testTable th {
+  text-align: left;
+  padding: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.testTable td {
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-100);
+}
+
+.testName {
+  word-break: break-all;
+}
+
+.duration {
+  color: var(--ifm-color-emphasis-500);
+  white-space: nowrap;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .filterHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filterHeaderRight {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .sideBySide {
+    grid-template-columns: 1fr;
+  }
+
+  .summaryBar {
+    gap: 0.5rem;
+  }
+
+  .statCard {
+    flex: 1 1 80px;
+    padding: 0.5rem;
+  }
+}
