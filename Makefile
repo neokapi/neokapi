@@ -51,7 +51,8 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
         screenshots recordings cli-recordings docs-assets fetch-docs-assets \
-        docs-deps docs-dev docs-build docs-serve
+        docs-deps docs-dev docs-build docs-serve \
+        test-bridge-json generate-test-comparison
 
 # ── General ──────────────────────────────────────────────────────────────────
 
@@ -299,6 +300,9 @@ GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)
 OKAPI_BRIDGE_VERSION ?= v2.3.0
 OKAPI_VERSION        ?= 1.48.0
 BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
+OKAPI_FILTERS_DIR    ?= $(HOME)/src/okapi/Okapi/okapi/filters
+GOTEST_JSON_FILE     := $(COVER_DIR)/bridge-test-results.jsonl
+TEST_COMPARE_JSON    := website/static/data/test-comparison.json
 
 fetch-bridge-jar: ## Download okapi-bridge JAR from GitHub release
 	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-bridge.sh
@@ -308,6 +312,14 @@ fetch-bridge-testdata: ## Download okapi test data from GitHub release
 
 test-bridge-filters: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter integration tests (requires Java)
 	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+
+test-bridge-json: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter tests with JSON output
+	@mkdir -p $(COVER_DIR)
+	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE)
+
+generate-test-comparison: test-bridge-json ## Generate test comparison dashboard data
+	@mkdir -p website/static/data
+	$(GO) run ./scripts/testcompare -okapi-dir $(OKAPI_FILTERS_DIR) -gotest-json $(GOTEST_JSON_FILE) -out $(TEST_COMPARE_JSON)
 
 test-e2e: ## Run end-to-end tests against Docker stack
 	bash e2e/run.sh
