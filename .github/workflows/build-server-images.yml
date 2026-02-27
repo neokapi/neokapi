@@ -38,34 +38,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build base image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/bowrain-base/Dockerfile
-          load: true
-          tags: bowrain-base:latest
-          cache-from: type=gha,scope=bowrain-base
-          cache-to: type=gha,mode=max,scope=bowrain-base
-
       - name: Build and push server image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/bowrain-server/Dockerfile
-          build-contexts: bowrain-base=docker-image://bowrain-base:latest
           push: true
           tags: |
             ${{ inputs.acr-login-server }}/bowrain-server:${{ inputs.image-tag }}
             ${{ inputs.acr-login-server }}/bowrain-server:latest
+          cache-from: |
+            type=gha,scope=bowrain-server
+            type=gha,scope=bowrain-worker
+          cache-to: type=gha,mode=max,scope=bowrain-server
 
       - name: Build and push worker image
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/bowrain-worker/Dockerfile
-          build-contexts: bowrain-base=docker-image://bowrain-base:latest
           push: true
           tags: |
             ${{ inputs.acr-login-server }}/bowrain-worker:${{ inputs.image-tag }}
             ${{ inputs.acr-login-server }}/bowrain-worker:latest
+          cache-from: |
+            type=gha,scope=bowrain-worker
+            type=gha,scope=bowrain-server
+          cache-to: type=gha,mode=max,scope=bowrain-worker
