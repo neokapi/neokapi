@@ -16,7 +16,7 @@ Traditional localization workflows revolve around file exchange: export content 
 
 gokapi takes a connector-first approach. Instead of moving files between systems, connectors maintain a live, bidirectional link to each content source. A versioned content store tracks every block by content hash, so incremental sync only processes what actually changed. Event-driven automation replaces manual handoffs with triggers, quality gates, and webhooks.
 
-The project draws on the conceptual model of the [Okapi Framework](https://okapiframework.org/) — filters, pipelines, events — but redesigns the APIs around Go idioms: interfaces, channels, goroutines, and composition over inheritance. A Java bridge allows reuse of Okapi's 40+ existing filters.
+The project draws on the conceptual model of the [Okapi Framework](https://okapiframework.org/) — filters, pipelines, events — but redesigns the APIs around Go idioms: interfaces, channels, goroutines, and composition over inheritance. A gRPC bridge allows reuse of Okapi's 40+ existing filters.
 
 ## Key Features
 
@@ -26,7 +26,7 @@ The project draws on the conceptual model of the [Okapi Framework](https://okapi
 - **AI-native tools** — First-class LLM integration with Anthropic, OpenAI, and Ollama, plus 5 MT services (DeepL, Google, Microsoft, ModernMT, MyMemory). AI tools compose in the same pipeline as every other tool.
 - **15+ formats** — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
 - **Channel-based pipeline** — Concurrent streaming with goroutines, buffered channels, and automatic backpressure
-- **Plugin system** — Crash-isolated gRPC plugins in any language, plus a Java bridge for 40+ Okapi filters
+- **Plugin system** — Crash-isolated gRPC plugins in any language, plus the Okapi bridge for 40+ additional filters
 - **Translation memory** — Built-in Sievepen TM with Levenshtein fuzzy matching and TMX import/export
 - **Terminology management** — Bowrain Termbase with concept-oriented TBX-inspired data model and pipeline enforcement tools
 - **Desktop, CLI, and server** — Bowrain (cross-platform GUI), `kapi` (CLI), and `bowrain-server` (REST API) all compile to standalone executables from one codebase

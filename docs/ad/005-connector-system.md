@@ -121,7 +121,7 @@ Kapi inherits the **three-tier format system** from [AD-004](./004-processing-en
 
 1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
 2. **Plugin formats** (any language): External executables via gRPC ([AD-007](./007-plugin-system.md))
-3. **Java bridge formats** (Okapi): JVM subprocesses with NDJSON protocol ([AD-007](./007-plugin-system.md))
+3. **Bridge formats** (Okapi): Subprocess-hosted filters via gRPC bridge protocol ([AD-007](./007-plugin-system.md))
 
 All three tiers register into the `FormatRegistry`. Kapi uses this registry to read/write files based on `.kapi/config.yaml` mappings.
 

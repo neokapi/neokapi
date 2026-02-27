@@ -17,7 +17,7 @@ Plugins are classified into three main types:
 
 ### Bundles
 
-A bundle packages multiple formats and tools into one installable plugin. The Okapi bridge is the canonical example — it provides 40+ format filters (DOCX, XLSX, EPUB, HTML, etc.) and processing tools via a single Java bridge.
+A bundle packages multiple formats and tools into one installable plugin. The Okapi bridge is the canonical example — it provides 40+ format filters (DOCX, XLSX, EPUB, HTML, etc.) and processing tools via a single bridge subprocess.
 
 Bundles are declared with `plugin_type: "bundle"` in the registry manifest and list their capabilities explicitly. This allows the CLI to search and filter by contained capability type:
 
@@ -37,7 +37,7 @@ Plugins are discovered by scanning a directory for executables matching the nami
 - `gokapi-format-*` — format reader/writer plugins
 - `gokapi-tool-*` — tool plugins
 
-The host launches each plugin, performs a version handshake, queries capabilities via `Info()`, and registers into the appropriate registry. Bundles (like Java bridge plugins) are discovered via `*.bridge.json` descriptors and may register many capabilities at once.
+The host launches each plugin, performs a version handshake, queries capabilities via `Info()`, and registers into the appropriate registry. Bundles (like bridge plugins) are discovered via `*.bridge.json` descriptors and may register many capabilities at once.
 
 ## Multi-Version Support
 
@@ -85,7 +85,7 @@ func main() {
 
 ## Writing a Bundle Plugin
 
-A bundle is typically distributed as a Java bridge (`.bridge.json` + JAR) but can also be a Go binary that registers multiple capabilities. Bridge-based bundles use NDJSON over stdin/stdout to communicate with the host. See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the bridge protocol details.
+A bundle is typically distributed as a bridge (`.bridge.json` + JAR or other executable) but can also be a Go binary that registers multiple capabilities. Bridge-based bundles communicate with the host via gRPC. See [Bridge Protocol](/docs/notes/plugin-bridge-protocol) for details.
 
 For Go-based bundles, register multiple `format_reader`, `format_writer`, and `tool` services in the `ServeConfig.Plugins` map.
 

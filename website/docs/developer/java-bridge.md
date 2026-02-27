@@ -1,25 +1,33 @@
 ---
 sidebar_position: 6
-title: Java Bridge
+title: Okapi Bridge
 ---
 
-# Java Bridge
+# Okapi Bridge
 
-The Java bridge provides access to all 40+ Okapi Framework filters without rewriting them in Go. It works by running a JVM subprocess that hosts an adapter translating between gokapi's Part model and Okapi's Event model.
+The Okapi bridge provides access to all 40+ Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between gokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
 
 ## How It Works
 
-Communication uses synchronous NDJSON over stdin/stdout:
+The bridge subprocess starts a gRPC server and prints its socket address to stdout. The Go side connects as a client and communicates via the `BridgeService` defined in `core/plugin/proto/v2/gokapi_bridge.proto`:
 
-- **Commands:** `open`, `read`, `write`, `close`, `info`, `list_filters`
-- **Responses:** `{status, data}` or `{status, error}`
-- **Content:** base64-encoded in both directions
+| RPC | Direction | Purpose |
+|-----|-----------|---------|
+| `ListFilters` | Unary | Discover available filters at startup |
+| `Info` | Unary | Get metadata for a specific filter |
+| `Open` | Unary | Open a document with a filter |
+| `Read` | Server-streaming | Stream extracted Parts from the document |
+| `Write` | Client-streaming | Send Parts to reconstruct the document |
+| `Close` | Unary | Release filter resources |
+| `Shutdown` | Unary | Gracefully stop the bridge |
+
+`Read` and `Write` use gRPC streaming — content flows incrementally without buffering the entire document in memory, which is critical for large files (e.g., XLSX).
 
 Bridge-backed formats are registered into the standard `FormatRegistry` and are indistinguishable from native formats at the API level.
 
 ## Global Bridge Pool
 
-A single process-wide `BridgePool` manages all JVM instances. The pool is keyed by JAR path, but the total number of running JVMs never exceeds `maxSize` (default: `runtime.NumCPU()`).
+A single process-wide `BridgePool` manages all bridge subprocess instances. The pool is keyed by process configuration (command + args), but the total number of running subprocesses never exceeds `maxSize` (default: `runtime.NumCPU()`).
 
 ```go
 type BridgePool struct {
@@ -27,16 +35,20 @@ type BridgePool struct {
     cond    *sync.Cond
     maxSize int
     active  int                       // total running (idle + in-use)
-    idle    map[string][]*JavaBridge   // keyed by JARPath
+    closed  bool
+    logger  *log.Logger
+    idle    map[string][]*JavaBridge   // keyed by PoolKey
 }
 ```
 
 ### Acquire Logic
 
-1. Return idle bridge for requested JAR (LIFO for cache warmth)
+1. Return idle bridge for requested key (LIFO for cache warmth)
 2. If capacity available, create new bridge
-3. If at capacity but idle bridges exist for a different JAR, evict one
+3. If at capacity but idle bridges exist for a different key, evict one
 4. If all bridges are in-use with none idle, block until one is released
+
+Bridges are health-checked on release to prevent stale subprocesses from causing hangs.
 
 ## Bridge Descriptor
 
@@ -53,6 +65,6 @@ Each plugin version includes a `*.bridge.json` descriptor:
 
 ## Available Filters
 
-Through the Java bridge, gokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
+Through the Okapi bridge, gokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
 
 See [AD-007](/docs/ad/007-plugin-system) for the complete design rationale.

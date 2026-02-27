@@ -34,7 +34,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | AD | Title | Scope |
 |----|-------|-------|
 | [006](006-tool-system.md) | Tool System | BaseTool dispatch, categories, built-in tools |
-| [007](007-plugin-system.md) | Plugin System and Okapi Bridge | go-plugin, gRPC, Java bridge, plugin governance |
+| [007](007-plugin-system.md) | Plugin System and Okapi Bridge | go-plugin, gRPC, bridge protocol, plugin governance |
 
 ## Layer 4: Domain Intelligence
 

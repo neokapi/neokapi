@@ -1,26 +1,57 @@
 ---
 sidebar_position: 3
-title: "Plugin Bridge Protocol"
+title: "Bridge Protocol"
 ---
-# Plugin Bridge Protocol
+# Bridge Protocol
 
 This note provides implementation details for [AD-007](/docs/ad/007-plugin-system).
 
-## Java Bridge Protocol
+## gRPC Bridge Protocol
 
-A Go-managed JVM subprocess hosts an adapter that translates between gokapi's Part model and Okapi's Event model. Communication uses synchronous NDJSON over stdin/stdout.
+The Okapi bridge is a subprocess that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between gokapi's Part model and Okapi's Event model.
 
-**Commands:** `open`, `read`, `write`, `close`, `info`, `list_filters`
-**Responses:** `\{status, data\}` or `\{status, error\}`
-**Content:** base64-encoded in both directions
+The protocol is defined in `core/plugin/proto/v2/gokapi_bridge.proto`:
 
-Bridge descriptor files (`*.bridge.json`) describe which JAR to use, JVM arguments, and timeouts. They are discovered by the plugin loader from versioned directories.
+```protobuf
+service BridgeService {
+  rpc Info(InfoRequest) returns (InfoResponse);
+  rpc ListFilters(ListFiltersRequest) returns (ListFiltersResponse);
+  rpc Open(OpenRequest) returns (OpenResponse);
+  rpc Read(ReadRequest) returns (stream PartMessage);
+  rpc Write(stream WriteChunk) returns (WriteResponse);
+  rpc Close(CloseRequest) returns (CloseResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+}
+```
 
-The adapter layer (`plugin/bridge/adapter.go`) wraps the bridge protocol behind standard `DataFormatReader` / `DataFormatWriter` interfaces. Bridge-backed formats are indistinguishable from native formats at the registry level. Each adapter carries a `BridgeConfig` identifying its JAR and passes it to the pool on acquire.
+### RPC Lifecycle
+
+A typical read cycle:
+
+1. **ListFilters** — called once during plugin discovery to register available formats
+2. **Open** — sends the document content (or a file path) and filter configuration
+3. **Read** — streams `PartMessage` values (Blocks, Layers, Data, Groups, Media) as the filter extracts them
+4. **Close** — releases filter resources; the bridge becomes available for the next document
+
+A write cycle:
+
+1. **Open** — opens the filter with the original document for skeleton reconstruction
+2. **Write** — client-streams a `WriteHeader` (filter class, locale, original content) followed by `PartMessage` values; returns the reconstructed document bytes
+3. **Close** — releases resources
+
+### Subprocess Startup
+
+On launch, the bridge subprocess starts a gRPC server on a random port and prints the socket address to stdout. The Go side reads this address, connects as a gRPC client, and the bridge is ready. The `BridgeConfig.StartupTimeout` controls how long to wait.
+
+### Content Transfer
+
+For small files, document content is sent inline in the `OpenRequest.content` or `WriteHeader.original_content` fields (protobuf `bytes`). For large files or formats that require auxiliary file resolution (e.g., XLIFF with external ITS references), the `source_path` field passes an absolute file path and the bridge reads directly from disk.
+
+The `Read` and `Write` RPCs use gRPC streaming, so Parts flow incrementally without buffering the entire document in memory.
 
 ## Global Bridge Pool
 
-A single process-wide `BridgePool` manages all JVM instances. The pool is keyed internally by JARPath: idle bridges are bucketed by JAR, but the total number of running JVMs (across all JARs) never exceeds `maxSize` (default: `runtime.NumCPU()`).
+A single process-wide `BridgePool` manages all bridge subprocess instances. The pool is keyed by process configuration (command + args): idle bridges are bucketed by key, but the total number of running subprocesses (across all keys) never exceeds `maxSize` (default: `runtime.NumCPU()`).
 
 ```go
 type BridgePool struct {
@@ -28,18 +59,26 @@ type BridgePool struct {
     cond    *sync.Cond
     maxSize int
     active  int                       // total running (idle + in-use)
-    idle    map[string][]*JavaBridge   // keyed by JARPath
+    closed  bool
+    logger  *log.Logger
+    idle    map[string][]*JavaBridge   // keyed by PoolKey
 }
 ```
 
 ### Acquire Algorithm
 
-1. Return idle bridge for requested JAR (LIFO for cache warmth)
+1. Return idle bridge for requested key (LIFO for cache warmth)
 2. If capacity available, create new bridge
-3. If at capacity but idle bridges exist for a different JAR, **evict one** (stop it, start a new one for the requested JAR)
+3. If at capacity but idle bridges exist for a different key, **evict one** (stop it, start a new one for the requested key)
 4. If all bridges are in-use with none idle, block until one is released
 
-The eviction step is critical: without it, the pool deadlocks when all capacity is consumed by one JAR and a request arrives for a different JAR. `sync.Cond` with `Broadcast()` is used because waiters may be for different JARs.
+The eviction step is critical: without it, the pool deadlocks when all capacity is consumed by one key and a request arrives for a different key. `sync.Cond` with `Broadcast()` is used because waiters may be for different keys.
+
+### Health Checks
+
+On release back to the pool, bridges undergo a health check to verify the gRPC connection is still alive. Unhealthy bridges are discarded rather than returned to the idle set, preventing stale subprocesses from causing hangs on subsequent use.
+
+### Seeding
 
 The first bridge for each descriptor is seeded during plugin loading (needed for `ListFilters` discovery). The `PluginLoader` creates one pool and shares it across all bridge descriptors and versions.
 
@@ -134,7 +173,7 @@ distributable unit. In the remote registry, bundles are declared with
 ```
 
 The Okapi bridge is the canonical bundle example. Bridge-backed bundles use the
-same `*.bridge.json` descriptor and JVM subprocess protocol described above.
+same `*.bridge.json` descriptor and gRPC subprocess protocol described above.
 Go binary bundles can also exist — they simply register multiple format readers,
 writers, and/or tools via the go-plugin handshake.
 
@@ -157,7 +196,7 @@ The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
 - Scans the plugin directory for versioned subdirectories
 - Loads Go binary plugins via `host.PluginManager`
-- Loads Java bridge plugins via bridge descriptors (`*.bridge.json`)
+- Loads bridge plugins via bridge descriptors (`*.bridge.json`)
 - Registers all discovered formats, tools, connectors, and providers into the core registries
 - Manages the shared bridge pool and plugin lifecycle
 - Bundles are loaded the same way as standalone plugins; their individual capabilities are registered separately into format and tool registries

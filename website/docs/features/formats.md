@@ -5,7 +5,7 @@ title: Supported Formats
 
 # Supported Formats
 
-gokapi includes 15 built-in format readers and writers, plus access to 40+ additional formats via the Java bridge.
+gokapi includes 15 built-in format readers and writers, plus access to 40+ additional formats via the Okapi bridge.
 
 ## Built-in Formats
 
@@ -26,9 +26,9 @@ gokapi includes 15 built-in format readers and writers, plus access to 40+ addit
 | **VTT** | `.vtt` | WebVTT subtitle format |
 | **TMX** | `.tmx` | Translation Memory eXchange |
 
-## Java Bridge Formats
+## Okapi Bridge Formats
 
-With the Okapi Java bridge plugin installed, these additional formats are available:
+With the Okapi bridge plugin installed, these additional formats are available:
 
 - Microsoft Office (DOCX, XLSX, PPTX)
 - OpenDocument (ODT, ODS, ODP)

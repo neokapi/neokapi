@@ -94,7 +94,7 @@ Plugins are stored in `~/.config/gokapi/plugins/`. Multiple versions can be inst
 
 ## Okapi Bridge Bundle
 
-The Okapi Java bridge bundle provides access to 40+ Okapi format filters:
+The Okapi bridge bundle provides access to 40+ Okapi format filters:
 
 ```bash
 kapi plugins install okapi

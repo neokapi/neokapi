@@ -53,9 +53,9 @@ data model.
    ([AD-004](./004-processing-engine.md)).
 
 6. **Open and extensible** — Plugins via gRPC
-   ([AD-007](./007-plugin-system.md)), a Java bridge for Okapi filters,
-   and community connectors. The content model is public; anyone can build
-   integrations.
+   ([AD-007](./007-plugin-system.md)), the Okapi bridge for 40+ additional
+   filters, and community connectors. The content model is public; anyone
+   can build integrations.
 
 ### Why Go
 
@@ -124,7 +124,7 @@ gokapi/                    ── Framework Module ──
   termbase/       concept-oriented terminology interface + in-memory impl
   tools/          utility tools (wordcount, charcount, pseudo-translation,
                   search/replace, term lookup, term enforce)
-  plugin/         plugin system: gRPC host, Java bridge, loader, registry
+  plugin/         plugin system: gRPC host, bridge protocol, loader, registry
   testutil/       shared test helpers
 
 bowrain/                   ── Platform Module ──
