@@ -48,7 +48,6 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	ctx := context.Background()
 	require.NoError(t, reader.Open(ctx, doc))
-	t.Cleanup(func() { _ = reader.Close() })
 
 	var parts []*model.Part
 	var readErr error
@@ -60,6 +59,12 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 		parts = append(parts, pr.Part)
 	}
 	require.NoError(t, readErr, "roundtrip read phase")
+
+	// Close the reader eagerly to release the bridge back to the pool
+	// before the write phase acquires one. This prevents pool pressure
+	// (especially with pool size 2) and avoids hangs with complex filters
+	// like OpenXML that hold ZIP archive state.
+	require.NoError(t, reader.Close(), "closing reader after read phase")
 
 	// --- Write phase ---
 	var output bytes.Buffer
@@ -119,6 +124,13 @@ func AssertRoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeCon
 // pattern).
 func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, knownFailing ...string) {
 	t.Helper()
+
+	// Log pool stats at the end for CI observability.
+	t.Cleanup(func() {
+		stats := pool.Stats()
+		t.Logf("[pool-stats] filter=%s max=%d active=%d in_use=%d idle=%v",
+			filterClass, stats.MaxSize, stats.Active, stats.InUse, stats.IdleByKey)
+	})
 
 	failing := make(map[string]bool, len(knownFailing))
 	for _, f := range knownFailing {

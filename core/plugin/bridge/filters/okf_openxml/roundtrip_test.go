@@ -32,13 +32,6 @@ func TestRoundTrip_Docx(t *testing.T) {
 }
 
 func TestRoundTrip_Xlsx(t *testing.T) {
-	// XLSX roundtrip hangs when processing many files sequentially through
-	// the bridge. Individual files pass when run in isolation (e.g.,
-	// -run TestRoundTrip_Xlsx/pokemon.xlsx). The issue is in the bridge
-	// pool / gRPC connection management with the OpenXML filter's multi-layer
-	// write path. Extraction tests (TestExtract_*) validate the read path.
-	t.Skip("XLSX roundtrip hangs with sequential multi-file processing — tracked for bridge pool improvements")
-
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)

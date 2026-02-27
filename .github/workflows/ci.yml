@@ -324,16 +324,19 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Verify JDK
+        run: java -version
+
       - name: Cache okapi-bridge JAR
         uses: actions/cache@v4
         with:
           path: ~/.cache/gokapi/bridge/
-          key: okapi-bridge-v2.0.0-okapi1.48.0-2
+          key: okapi-bridge-v2.1.0-okapi1.48.0
 
       - name: Fetch okapi-bridge JAR
         run: |
           bash scripts/fetch-okapi-bridge.sh
-          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/v2.0.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
+          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/v2.1.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
           GITHUB_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
 
@@ -350,7 +353,7 @@ jobs:
 
       - name: Run bridge filter integration tests
         run: go test -race -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
-        timeout-minutes: 15
+        timeout-minutes: 10
 
   # ── Playwright E2E ────────────────────────────────────────────────────────
   playwright:

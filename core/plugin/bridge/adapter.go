@@ -82,7 +82,11 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		}
 	}
 
-	if sourcePath == "" && doc.Reader != nil {
+	// Always read content when a Reader is available, even with source_path.
+	// This provides backward compatibility with older bridge JARs that don't
+	// support source_path — Java prefers source_path when available and falls
+	// back to content bytes.
+	if doc.Reader != nil {
 		content, err = io.ReadAll(doc.Reader)
 		if err != nil {
 			r.pool.Release(b)

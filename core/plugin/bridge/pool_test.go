@@ -302,3 +302,43 @@ func TestPoolStats(t *testing.T) {
 	stats = pool.Stats()
 	assert.Equal(t, 0, stats.InUse)
 }
+
+func TestPoolReleasesDiscardUnhealthyBridge(t *testing.T) {
+	pool := NewBridgePool(2, nil)
+
+	// Create a bridge marked as not running (unhealthy).
+	unhealthy := newMockBridge(t, "-jar", "/path/to/a.jar")
+	unhealthy.running = false
+
+	pool.Seed(unhealthy)
+	stats := pool.Stats()
+	assert.Equal(t, 1, stats.Active)
+
+	// Acquire it (seed puts it in idle).
+	got, err := pool.Acquire(unhealthy.cfg)
+	require.NoError(t, err)
+
+	// Release the unhealthy bridge — it should be discarded, not returned to idle.
+	pool.Release(got)
+
+	stats = pool.Stats()
+	assert.Equal(t, 0, stats.Active, "unhealthy bridge should be discarded on release")
+	assert.Equal(t, 0, stats.InUse)
+}
+
+func TestPoolReleasesKeepHealthyBridge(t *testing.T) {
+	pool := NewBridgePool(2, nil)
+
+	healthy := newMockBridge(t, "-jar", "/path/to/a.jar")
+	pool.Seed(healthy)
+
+	got, err := pool.Acquire(healthy.cfg)
+	require.NoError(t, err)
+
+	pool.Release(got)
+
+	stats := pool.Stats()
+	assert.Equal(t, 1, stats.Active, "healthy bridge should be returned to pool")
+	assert.Equal(t, 0, stats.InUse)
+	assert.Equal(t, 1, stats.IdleByKey[healthy.cfg.PoolKey()])
+}
