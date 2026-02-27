@@ -34,6 +34,18 @@ type WriteParams struct {
 	SourcePath      string // Optional absolute file path; Java reads from disk when set
 }
 
+// WriteStreamParams are sent with the WriteStream method.
+// Same as WriteParams but without the pre-collected Parts slice — parts
+// are streamed directly from a channel.
+type WriteStreamParams struct {
+	FilterClass     string
+	Locale          string
+	Encoding        string
+	OriginalContent []byte
+	FilterParams    map[string]any
+	SourcePath      string // Optional absolute file path; Java reads from disk when set
+}
+
 // --- Response data types ---
 
 // InfoData is returned by the Info RPC.
