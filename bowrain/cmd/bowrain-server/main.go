@@ -74,6 +74,9 @@ func main() {
 	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
 		cfg.RedisURL = envRedis
 	}
+	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
+		cfg.WebUIDir = envWebUI
+	}
 
 	srv := server.NewServer(cfg)
 

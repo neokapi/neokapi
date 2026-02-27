@@ -20,6 +20,7 @@ BOWRAIN_SMTP_HOST=localhost:1025 \
 BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 BOWRAIN_STORE="$ROOT_DIR/bowrain-e2e.db" \
 BOWRAIN_GRPC_PORT=9080 \
+BOWRAIN_WEB_UI_DIR="$ROOT_DIR/bowrain/apps/web/dist" \
 "$ROOT_DIR/bin/bowrain-server" &
 echo $! > "$ROOT_DIR/.bowrain-server.pid"
 
