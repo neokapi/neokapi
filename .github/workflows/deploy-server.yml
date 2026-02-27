@@ -25,18 +25,15 @@ on:
       - 'go.work'
 
 permissions:
-  id-token: write
+  packages: write
   contents: read
 
 jobs:
-  lookup:
-    name: Look Up Build Config
+  image-tag:
+    name: Compute Image Tag
     runs-on: ubuntu-latest
-    environment: ${{ github.event.inputs.environment || 'dev' }}
     outputs:
-      image-tag: ${{ steps.tag.outputs.value }}
-      acr-login-server: ${{ vars.ACR_LOGIN_SERVER }}
-      acr-name: ${{ vars.ACR_NAME }}
+      value: ${{ steps.tag.outputs.value }}
     steps:
       - name: Compute image tag
         id: tag
@@ -53,22 +50,19 @@ jobs:
 
   build:
     name: Build Server Images
-    needs: lookup
+    needs: image-tag
     uses: ./.github/workflows/build-server-images.yml
     with:
-      image-tag: ${{ needs.lookup.outputs.image-tag }}
-      acr-login-server: ${{ needs.lookup.outputs.acr-login-server }}
-      acr-name: ${{ needs.lookup.outputs.acr-name }}
-    secrets: inherit
+      image-tag: ${{ needs.image-tag.outputs.value }}
 
   trigger-deploy:
     name: Trigger Deploy
-    needs: [lookup, build]
+    needs: [image-tag, build]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-      IMAGE_TAG: ${{ needs.lookup.outputs.image-tag }}
+      IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
     steps:
       - name: Deploy server
         run: |

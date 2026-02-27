@@ -7,33 +7,23 @@ on:
         description: 'Image tag'
         required: true
         type: string
-      acr-login-server:
-        description: 'ACR login server URL'
-        required: true
-        type: string
-      acr-name:
-        description: 'ACR name'
-        required: true
-        type: string
 
 jobs:
   build:
     name: Build Server & Worker Images
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: ACR Login
-        env:
-          ACR_NAME: ${{ inputs.acr-name }}
-        run: az acr login --name "$ACR_NAME"
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -45,8 +35,8 @@ jobs:
           file: docker/bowrain-server/Dockerfile
           push: true
           tags: |
-            ${{ inputs.acr-login-server }}/bowrain-server:${{ inputs.image-tag }}
-            ${{ inputs.acr-login-server }}/bowrain-server:latest
+            ghcr.io/gokapi/bowrain-server:${{ inputs.image-tag }}
+            ghcr.io/gokapi/bowrain-server:latest
           cache-from: |
             type=gha,scope=bowrain-server
             type=gha,scope=bowrain-worker
@@ -59,8 +49,8 @@ jobs:
           file: docker/bowrain-worker/Dockerfile
           push: true
           tags: |
-            ${{ inputs.acr-login-server }}/bowrain-worker:${{ inputs.image-tag }}
-            ${{ inputs.acr-login-server }}/bowrain-worker:latest
+            ghcr.io/gokapi/bowrain-worker:${{ inputs.image-tag }}
+            ghcr.io/gokapi/bowrain-worker:latest
           cache-from: |
             type=gha,scope=bowrain-worker
             type=gha,scope=bowrain-server
