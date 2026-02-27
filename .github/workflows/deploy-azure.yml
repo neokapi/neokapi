@@ -56,7 +56,6 @@ jobs:
               - 'bowrain/**'
               - '!bowrain/apps/web/**'
               - '!bowrain/apps/keycloak-theme/**'
-              - 'docker/bowrain-base/**'
               - 'docker/bowrain-server/**'
               - 'docker/bowrain-worker/**'
               - 'go.mod'

@@ -158,16 +158,14 @@ keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
-DOCKER_BASE_IMAGE     := bowrain-base
 DOCKER_IMAGE          := ghcr.io/gokapi/bowrain-server
 DOCKER_WORKER_IMAGE   := ghcr.io/gokapi/bowrain-worker
 DOCKER_WEB_IMAGE      := ghcr.io/gokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
 
 docker-server: ## Build server and worker images
-	docker build -f docker/bowrain-base/Dockerfile -t $(DOCKER_BASE_IMAGE):latest .
-	docker build -f docker/bowrain-server/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
-	docker build -f docker/bowrain-worker/Dockerfile --build-context bowrain-base=docker-image://$(DOCKER_BASE_IMAGE):latest -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+	docker build -f docker/bowrain-server/Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f docker/bowrain-worker/Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 
 docker-web: ## Build web UI image
 	docker build -f docker/bowrain-web/Dockerfile -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest .
