@@ -10,7 +10,8 @@ import (
 
 // AddGlobalRegistry adds a named registry to the global config file.
 // Returns an error if a registry with the same name already exists.
-func AddGlobalRegistry(name, url string) error {
+// Channels is optional — pass nil for no channels.
+func AddGlobalRegistry(name, url string, channels []string) error {
 	path := GlobalConfigFilePath()
 
 	v := viper.New()
@@ -25,7 +26,7 @@ func AddGlobalRegistry(name, url string) error {
 		}
 	}
 
-	entries = append(entries, RegistryEntry{Name: name, URL: url})
+	entries = append(entries, RegistryEntry{Name: name, URL: url, Channels: channels})
 	v.Set("registries", registryEntriesToSlice(entries))
 
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
@@ -89,10 +90,14 @@ func ListGlobalRegistries() ([]RegistryEntry, error) {
 func registryEntriesToSlice(entries []RegistryEntry) []map[string]any {
 	result := make([]map[string]any, len(entries))
 	for i, e := range entries {
-		result[i] = map[string]any{
+		m := map[string]any{
 			"name": e.Name,
 			"url":  e.URL,
 		}
+		if len(e.Channels) > 0 {
+			m["channels"] = e.Channels
+		}
+		result[i] = m
 	}
 	return result
 }

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gokapi/gokapi/platform/cli/output"
 	"github.com/gokapi/gokapi/platform/config"
@@ -27,8 +28,9 @@ func (a *App) NewRegistryCmd() *cobra.Command {
 			var entries []output.RegistryInfo
 			for _, r := range regs {
 				entries = append(entries, output.RegistryInfo{
-					Name: r.Name,
-					URL:  r.URL,
+					Name:     r.Name,
+					URL:      r.URL,
+					Channels: r.Channels,
 				})
 			}
 
@@ -40,23 +42,34 @@ func (a *App) NewRegistryCmd() *cobra.Command {
 		},
 	}
 
+	var channelsFlag string
 	registryAddCmd := &cobra.Command{
 		Use:   "add <name> <url>",
 		Short: "Add a registry to global config",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name, url := args[0], args[1]
-			if err := config.AddGlobalRegistry(name, url); err != nil {
+			var channels []string
+			if channelsFlag != "" {
+				for _, ch := range strings.Split(channelsFlag, ",") {
+					if s := strings.TrimSpace(ch); s != "" {
+						channels = append(channels, s)
+					}
+				}
+			}
+			if err := config.AddGlobalRegistry(name, url, channels); err != nil {
 				return err
 			}
 
 			out := output.RegistryAddOutput{
-				Name: name,
-				URL:  url,
+				Name:     name,
+				URL:      url,
+				Channels: channels,
 			}
 			return output.Print(cmd, out)
 		},
 	}
+	registryAddCmd.Flags().StringVar(&channelsFlag, "channels", "", "available channels (comma-separated, e.g., default,snapshot)")
 
 	registryRemoveCmd := &cobra.Command{
 		Use:   "remove <name>",
