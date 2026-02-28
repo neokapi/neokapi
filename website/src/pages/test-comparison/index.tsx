@@ -15,7 +15,7 @@ const sideLabels: Record<Side, string> = {
   native: 'Native',
 };
 
-const raw = comparisonData as TestComparisonData;
+const raw = comparisonData as unknown as TestComparisonData;
 
 export default function TestComparison() {
   const [search, setSearch] = useState('');
@@ -69,7 +69,11 @@ export default function TestComparison() {
           bridge and native counterparts.
         </p>
 
-        <SummaryBar summary={data.summary} generatedAt={data.generatedAt} />
+        <SummaryBar
+          summary={data.summary}
+          generatedAt={data.generatedAt}
+          filters={data.filters}
+        />
 
         <div className={styles.toolbar}>
           <input

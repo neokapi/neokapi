@@ -350,6 +350,21 @@
   background: var(--ifm-color-emphasis-100);
 }
 
+/* Test state row backgrounds */
+.stateImplemented {
+  border-left: 3px solid #2e8555;
+}
+
+.statePending {
+  border-left: 3px solid #e3a008;
+  background: color-mix(in srgb, #e3a008 4%, transparent);
+}
+
+.stateSkipped {
+  border-left: 3px solid var(--ifm-color-emphasis-300);
+  opacity: 0.7;
+}
+
 .testCaseName {
   word-break: break-all;
 }

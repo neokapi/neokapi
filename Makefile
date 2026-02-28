@@ -53,7 +53,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         screenshots recordings kapi-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
         videos-deps videos-setup videos-studio videos-render \
         docs-deps docs-dev docs-build docs-serve \
-        test-bridge-json test-native-json generate-test-comparison
+        test-bridge-json test-native-json generate-test-comparison generate-test-stubs
 
 # ── General ──────────────────────────────────────────────────────────────────
 
@@ -362,6 +362,10 @@ generate-test-comparison: fetch-okapi-surefire test-bridge-json test-native-json
 		-bridge-src core/plugin/bridge/filters \
 		-native-src core/formats \
 		-out $(TEST_COMPARE_JSON)
+
+generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefire XML
+	$(GO) run ./scripts/gen-test-stubs \
+		-surefire-dir $(OKAPI_SUREFIRE_DIR)
 
 test-e2e: ## Run end-to-end tests against Docker stack
 	bash e2e/run.sh

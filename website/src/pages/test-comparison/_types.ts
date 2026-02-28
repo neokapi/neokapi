@@ -58,6 +58,9 @@ export interface TestCase {
   durationMs: number;
 }
 
+/** Test state classification. */
+export type TestState = 'implemented' | 'pending' | 'skipped' | 'unmapped';
+
 /** Row in the unified test case table. */
 export interface TestCaseRow {
   /** Display name for the test (Java method or Go func). */
@@ -74,6 +77,10 @@ export interface TestCaseRow {
   nativeTest: string;
   /** Native status or empty string. */
   nativeStatus: string;
+  /** Skip reason (for skipped tests). */
+  skipReason?: string;
+  /** Test state: implemented, pending, skipped, or unmapped. */
+  testState?: TestState;
 }
 
 /** Wire format from the Go testcompare tool (annotation-based). */
@@ -85,6 +92,8 @@ export interface TestCaseMatch {
   bridgeStatus: string;
   nativeTest: string;
   nativeStatus: string;
+  skipReason?: string;
+  testState?: TestState;
 }
 
 export interface CoverageStats {
@@ -94,6 +103,9 @@ export interface CoverageStats {
   nativeMapped: number;
   nativePassing: number;
   coveragePct: number;
+  skippedCount?: number;
+  pendingCount?: number;
+  implementedPct?: number;
 }
 
 /**
@@ -133,6 +145,8 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     bridgeStatus: m.bridgeStatus ?? '',
     nativeTest: m.nativeTest ?? '',
     nativeStatus: m.nativeStatus ?? '',
+    skipReason: m.skipReason,
+    testState: m.testState,
   }));
 }
 

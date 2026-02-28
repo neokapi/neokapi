@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import type {TestCaseRow} from './_types';
+import type {TestCaseRow, TestState} from './_types';
 import styles from './_index.module.css';
 
 interface Props {
@@ -7,7 +7,16 @@ interface Props {
   filterName: string;
 }
 
-type FilterMode = 'all' | 'okapi' | 'bridge' | 'native' | 'failing';
+type FilterMode =
+  | 'all'
+  | 'okapi'
+  | 'bridge'
+  | 'native'
+  | 'failing'
+  | 'implemented'
+  | 'pending'
+  | 'skipped'
+  | 'unmapped';
 type SortMode = 'name' | 'status';
 
 const statusBadgeClass: Record<string, string> = {
@@ -22,6 +31,20 @@ function StatusCell({status}: {status: string}) {
     return <span className={styles.statusDash}>&mdash;</span>;
   }
   return <span className={statusBadgeClass[status]}>{status}</span>;
+}
+
+/** CSS class for test state row background. */
+function stateRowClass(state?: TestState): string {
+  switch (state) {
+    case 'implemented':
+      return styles.stateImplemented ?? '';
+    case 'pending':
+      return styles.statePending ?? '';
+    case 'skipped':
+      return styles.stateSkipped ?? '';
+    default:
+      return '';
+  }
 }
 
 function statusOrder(s: string): number {
@@ -74,6 +97,14 @@ export default function TestCaseTable({testCases, filterName}: Props) {
           tc.nativeStatus === 'fail' ||
           tc.nativeStatus === 'error'
         );
+      case 'implemented':
+        return tc.testState === 'implemented';
+      case 'pending':
+        return tc.testState === 'pending';
+      case 'skipped':
+        return tc.testState === 'skipped';
+      case 'unmapped':
+        return tc.testState === 'unmapped' || !tc.testState;
       default:
         return true;
     }
@@ -109,11 +140,47 @@ export default function TestCaseTable({testCases, filterName}: Props) {
       tc.nativeStatus === 'error',
   ).length;
 
+  // State-based counts
+  const hasTestState = testCases.some((tc) => tc.testState);
+  const implementedCount = testCases.filter(
+    (tc) => tc.testState === 'implemented',
+  ).length;
+  const pendingCount = testCases.filter(
+    (tc) => tc.testState === 'pending',
+  ).length;
+  const skippedCount = testCases.filter(
+    (tc) => tc.testState === 'skipped',
+  ).length;
+  const unmappedCount = testCases.filter(
+    (tc) => tc.testState === 'unmapped' || !tc.testState,
+  ).length;
+
   const filterButtons: {mode: FilterMode; label: string}[] = [
     {mode: 'all', label: `All (${testCases.length})`},
-    {mode: 'okapi', label: `Okapi (${okapiCount})`},
-    {mode: 'bridge', label: `Bridge (${bridgeCount})`},
-    {mode: 'native', label: `Native (${nativeCount})`},
+    ...(hasTestState
+      ? [
+          {
+            mode: 'implemented' as FilterMode,
+            label: `Implemented (${implementedCount})`,
+          },
+          {
+            mode: 'pending' as FilterMode,
+            label: `Pending (${pendingCount})`,
+          },
+          {
+            mode: 'skipped' as FilterMode,
+            label: `Skipped (${skippedCount})`,
+          },
+          {
+            mode: 'unmapped' as FilterMode,
+            label: `Unmapped (${unmappedCount})`,
+          },
+        ]
+      : [
+          {mode: 'okapi' as FilterMode, label: `Okapi (${okapiCount})`},
+          {mode: 'bridge' as FilterMode, label: `Bridge (${bridgeCount})`},
+          {mode: 'native' as FilterMode, label: `Native (${nativeCount})`},
+        ]),
     ...(failingCount > 0
       ? [{mode: 'failing' as FilterMode, label: `Failing (${failingCount})`}]
       : []),
@@ -176,7 +243,8 @@ export default function TestCaseTable({testCases, filterName}: Props) {
               <>
                 <tr
                   key={rowKey}
-                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''}`}
+                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''} ${stateRowClass(tc.testState)}`}
+                  title={tc.skipReason ? `Skipped: ${tc.skipReason}` : undefined}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleRow(rowKey);
