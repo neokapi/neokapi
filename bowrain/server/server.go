@@ -426,4 +426,3 @@ func requestBaseURL(c echo.Context) string {
 	}
 	return fmt.Sprintf("%s://%s", c.Scheme(), host)
 }
-

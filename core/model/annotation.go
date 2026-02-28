@@ -10,16 +10,16 @@ type AltTranslation struct {
 	Source        *Fragment `json:"source,omitempty"`
 	Target        *Fragment `json:"target,omitempty"`
 	Locale        LocaleID  `json:"locale,omitempty"`
-	Origin        string    `json:"origin,omitempty"`        // Where this translation came from (TM, MT, etc.)
+	Origin        string    `json:"origin,omitempty"`         // Where this translation came from (TM, MT, etc.)
 	Score         float64   `json:"score,omitempty"`          // Match quality (0.0 - 1.0)
 	MatchType     string    `json:"match_type,omitempty"`     // "exact", "fuzzy", "mt", "ai"
 	CombinedScore float64   `json:"combined_score,omitempty"` // Combined match score (Okapi)
 	FuzzyScore    float64   `json:"fuzzy_score,omitempty"`    // Fuzzy match score (Okapi)
 	QualityScore  float64   `json:"quality_score,omitempty"`  // Quality score (Okapi)
-	Engine        string    `json:"engine,omitempty"`          // MT/AI engine name
-	ToolID        string    `json:"tool_id,omitempty"`         // Tool that produced this translation
-	AltTransType  string    `json:"alt_trans_type,omitempty"`  // Okapi alt-trans type (e.g., "proposal", "previous-version")
-	FromOriginal  bool      `json:"from_original,omitempty"`   // Whether this came from the original document
+	Engine        string    `json:"engine,omitempty"`         // MT/AI engine name
+	ToolID        string    `json:"tool_id,omitempty"`        // Tool that produced this translation
+	AltTransType  string    `json:"alt_trans_type,omitempty"` // Okapi alt-trans type (e.g., "proposal", "previous-version")
+	FromOriginal  bool      `json:"from_original,omitempty"`  // Whether this came from the original document
 }
 
 // AnnotationType returns the type identifier for this annotation.

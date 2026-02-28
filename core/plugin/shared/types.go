@@ -9,19 +9,19 @@ package shared
 
 // SpanDTO is the wire representation of model.Span.
 type SpanDTO struct {
-	SpanType    int                       `json:"span_type"`
-	Type        string                    `json:"type"`
-	ID          string                    `json:"id"`
-	Data        string                    `json:"data"`
-	OuterData   string                    `json:"outer_data"`
-	Deletable   bool                      `json:"deletable"`
-	Cloneable   bool                      `json:"cloneable"`
-	OriginalID  string                    `json:"original_id,omitempty"`
-	DisplayText string                    `json:"display_text,omitempty"`
-	Flags       int                       `json:"flags,omitempty"`
-	EquivText   string                    `json:"equiv_text,omitempty"`
-	CanReorder  bool                      `json:"can_reorder,omitempty"`
-	Annotations map[string]AnnotationDTO  `json:"annotations,omitempty"`
+	SpanType    int                      `json:"span_type"`
+	Type        string                   `json:"type"`
+	ID          string                   `json:"id"`
+	Data        string                   `json:"data"`
+	OuterData   string                   `json:"outer_data"`
+	Deletable   bool                     `json:"deletable"`
+	Cloneable   bool                     `json:"cloneable"`
+	OriginalID  string                   `json:"original_id,omitempty"`
+	DisplayText string                   `json:"display_text,omitempty"`
+	Flags       int                      `json:"flags,omitempty"`
+	EquivText   string                   `json:"equiv_text,omitempty"`
+	CanReorder  bool                     `json:"can_reorder,omitempty"`
+	Annotations map[string]AnnotationDTO `json:"annotations,omitempty"`
 }
 
 // AnnotationDTO is a typed annotation with a JSON-encoded payload.
@@ -74,19 +74,19 @@ type DisplayHintDTO struct {
 
 // BlockDTO is the wire representation of model.Block.
 type BlockDTO struct {
-	ID                 string                    `json:"id"`
-	Name               string                    `json:"name"`
-	Type               string                    `json:"type"`
-	MimeType           string                    `json:"mime_type"`
-	Translatable       bool                      `json:"translatable"`
-	Source             []SegmentDTO              `json:"source"`
-	Targets            []TargetDTO               `json:"targets,omitempty"`
-	Properties         map[string]string         `json:"properties,omitempty"`
-	Annotations        map[string]AnnotationDTO  `json:"annotations,omitempty"`
-	DisplayHint        *DisplayHintDTO           `json:"display_hint,omitempty"`
-	Skeleton           *SkeletonDTO              `json:"skeleton,omitempty"`
-	PreserveWhitespace bool                      `json:"preserve_whitespace,omitempty"`
-	IsReferent         bool                      `json:"is_referent,omitempty"`
+	ID                 string                   `json:"id"`
+	Name               string                   `json:"name"`
+	Type               string                   `json:"type"`
+	MimeType           string                   `json:"mime_type"`
+	Translatable       bool                     `json:"translatable"`
+	Source             []SegmentDTO             `json:"source"`
+	Targets            []TargetDTO              `json:"targets,omitempty"`
+	Properties         map[string]string        `json:"properties,omitempty"`
+	Annotations        map[string]AnnotationDTO `json:"annotations,omitempty"`
+	DisplayHint        *DisplayHintDTO          `json:"display_hint,omitempty"`
+	Skeleton           *SkeletonDTO             `json:"skeleton,omitempty"`
+	PreserveWhitespace bool                     `json:"preserve_whitespace,omitempty"`
+	IsReferent         bool                     `json:"is_referent,omitempty"`
 }
 
 // LayerDTO is the wire representation of model.Layer.

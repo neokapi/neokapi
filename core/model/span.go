@@ -40,10 +40,10 @@ type Span struct {
 	OuterData   string
 	Deletable   bool
 	Cloneable   bool
-	OriginalID  string              // Original ID before merging/splitting
-	DisplayText string              // Human-readable display text for the code
-	Flags       int                 // Bitfield of SpanFlag* constants
-	EquivText   string              // Equivalent text representation
-	CanReorder  bool                // Whether this code can be reordered in translation
+	OriginalID  string                // Original ID before merging/splitting
+	DisplayText string                // Human-readable display text for the code
+	Flags       int                   // Bitfield of SpanFlag* constants
+	EquivText   string                // Equivalent text representation
+	CanReorder  bool                  // Whether this code can be reordered in translation
 	Annotations map[string]Annotation // Annotations attached to this span
 }

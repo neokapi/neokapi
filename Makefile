@@ -57,7 +57,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # ── General ──────────────────────────────────────────────────────────────────
 
-all: frontend-build kapi-web-build web-build fmt vet lint test build ## Build and validate everything
+all: help ## Default: show help
 
 help: ## Show this help
 	@awk '/^# ── / { \

@@ -253,7 +253,7 @@ func TestExtract_HTMLBlockFiles(t *testing.T) {
 	// These files fail roundtrip due to Okapi MarkdownFilter newline
 	// normalization in HTML blocks, but extraction is correct and usable.
 	files := map[string][]string{
-		"test-html-block-newline.md":   {"html"},
+		"test-html-block-newline.md":  {"html"},
 		"html_list_original.md":       {"Item"},
 		"html_table_changed.md":       {"table", "td"},
 		"admonitions.md":              {},
