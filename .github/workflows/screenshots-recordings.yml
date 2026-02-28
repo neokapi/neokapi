@@ -15,7 +15,7 @@ permissions:
   packages: read   # Needed to pull Docker images from GHCR
 
 jobs:
-  # ── Bowrain Screenshots & Recordings (real server via Docker) ────────────────
+  # ── Bowrain Screenshots & Recordings (mock backend, self-contained) ──────────
   bowrain-assets:
     name: Bowrain Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
@@ -24,10 +24,6 @@ jobs:
         theme: [dark, light]
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
 
       - uses: actions/setup-node@v4
         with:
@@ -42,16 +38,6 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Start full stack (pre-built Docker images)
-        run: docker compose -f e2e/compose.yaml up -d --wait
-
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -65,8 +51,6 @@ jobs:
       - name: Generate screenshots
         working-directory: bowrain/apps/bowrain/frontend
         run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
-        env:
-          BOWRAIN_SERVER_URL: http://localhost:8080
 
       - name: Generate recordings
         working-directory: bowrain/apps/bowrain/frontend
@@ -74,7 +58,6 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
-          BOWRAIN_SERVER_URL: http://localhost:8080
 
       - name: Copy recordings to static assets
         working-directory: bowrain/apps/bowrain/frontend
@@ -88,10 +71,6 @@ jobs:
             website/static/img/bowrain/${{ matrix.theme }}/
             website/static/video/bowrain/${{ matrix.theme }}/
           retention-days: 30
-
-      - name: Shutdown
-        if: always()
-        run: docker compose -f e2e/compose.yaml down -v
 
   # ── Web App Screenshots & Recordings (real server via Docker) ────────────────
   web-app-assets:

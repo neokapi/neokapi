@@ -27,6 +27,7 @@ services:
     environment:
       BOWRAIN_JWT_SECRET: dev-secret-change-in-production
       BOWRAIN_OIDC_ISSUER_URL: http://keycloak:8080/realms/bowrain
+      BOWRAIN_OIDC_PUBLIC_URL: http://localhost:8180/realms/bowrain
       BOWRAIN_OIDC_CLIENT_ID: bowrain
       BOWRAIN_OIDC_CLIENT_SECRET: bowrain-secret
       BOWRAIN_SMTP_HOST: mailpit:1025
