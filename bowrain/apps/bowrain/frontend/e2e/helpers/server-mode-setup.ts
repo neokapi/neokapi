@@ -37,7 +37,11 @@ export async function setupServerModeApp(page: Page): Promise<void> {
   try {
     const projects = await callBackend(page, "ListProjects") as { id: string }[];
     for (const p of projects ?? []) {
-      await callBackend(page, "CloseProject", p.id);
+      try {
+        await callBackend(page, "CloseProject", p.id);
+      } catch {
+        // Individual project deletion failure is OK
+      }
     }
   } catch {
     // Ignore cleanup errors — first test may have no projects
