@@ -142,7 +142,7 @@ describeOrSkip("Video Recordings", () => {
 
     // Save provider
     await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Anthropic Claude").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 1000);
   });
 
@@ -1466,7 +1466,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Anthropic Claude").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
     // Add second provider — OpenAI
@@ -1488,7 +1488,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("OpenAI GPT")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("OpenAI GPT").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
     // Navigate back to Translate to show the workspace is ready
