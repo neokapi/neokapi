@@ -51,6 +51,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
         screenshots recordings kapi-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
+        videos-deps videos-setup videos-studio videos-render \
         docs-deps docs-dev docs-build docs-serve \
         test-bridge-json test-native-json generate-test-comparison
 
@@ -255,6 +256,23 @@ fetch-docs-assets: ## Download pre-built docs assets from the docs-assets GitHub
 	@rm -f /tmp/docs-assets.tar.gz
 	@echo "Done. Assets extracted to website/static/"
 	@du -sh website/static/img website/static/video 2>/dev/null || true
+
+# ── Polished Videos (Remotion) ──────────────────────────────────────────────
+
+VIDEOS_DIR := website/videos
+
+videos-deps: ## Install Remotion video dependencies
+	cd $(VIDEOS_DIR) && $(NPM) ci
+
+videos-setup: videos-deps ## Set up raw recording symlinks for Remotion
+	cd $(VIDEOS_DIR) && $(NPM) run setup-raw
+
+videos-studio: videos-setup ## Launch Remotion Studio for video preview
+	cd $(VIDEOS_DIR) && $(NPM) run studio
+
+videos-render: videos-setup ## Render all polished demo videos
+	cd $(VIDEOS_DIR) && $(NPM) run build
+	cd $(VIDEOS_DIR) && $(NPM) run publish
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
