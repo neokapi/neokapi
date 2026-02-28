@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: POFilterTest#testOuputSimpleEntry
 func TestReadSimple(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -33,6 +34,7 @@ func TestReadSimple(t *testing.T) {
 	assert.Equal(t, "Bonjour", blocks[0].TargetText(model.LocaleFrench))
 }
 
+// okapi: POFilterTest#testPOHeader
 func TestReadHeader(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -64,6 +66,7 @@ func TestReadHeader(t *testing.T) {
 	assert.Equal(t, "Hello", blocks[0].SourceText())
 }
 
+// okapi: POFilterTest#testNoQuoteOnSameLine
 func TestReadMultiline(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -82,6 +85,7 @@ func TestReadMultiline(t *testing.T) {
 	assert.Equal(t, "Bonjour le monde", blocks[0].TargetText(model.LocaleFrench))
 }
 
+// okapi: POFilterTest#testIDWithContext
 func TestReadMsgctxt(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -101,6 +105,7 @@ func TestReadMsgctxt(t *testing.T) {
 	assert.Equal(t, "menu", blocks[0].Properties["context"])
 }
 
+// okapi: POFilterTest#testTUPluralEntry_DefaultGroup
 func TestReadPluralForms(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -196,6 +201,7 @@ func TestReadUntranslated(t *testing.T) {
 	assert.False(t, blocks[0].HasTarget(model.LocaleFrench))
 }
 
+// okapi: POFilterTest#testEscapes
 func TestReadEscapeSequences(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -357,6 +363,7 @@ msgstr ""
 	assert.Equal(t, input, buf.String())
 }
 
+// okapi: POFilterTest#testOuputEntryWithCTXT
 func TestRoundTripWithContext(t *testing.T) {
 	ctx := context.Background()
 
@@ -390,6 +397,7 @@ msgstr "Fichier"
 	assert.Equal(t, input, buf.String())
 }
 
+// okapi: POFilterTest#testOuputPluralEntry
 func TestRoundTripWithPlurals(t *testing.T) {
 	ctx := context.Background()
 
@@ -466,6 +474,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 	assert.Equal(t, expected, buf.String())
 }
 
+// okapi: POFilterTest#testOuputOptionLine_FormatFuzzy
 func TestReadFlags(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -492,6 +501,7 @@ func TestReadFlags(t *testing.T) {
 	assert.Equal(t, "fuzzy", flagsData.Properties["flags"])
 }
 
+// okapi: POFilterTest#testUnescapedRead
 func TestReadEscapedQuotes(t *testing.T) {
 	ctx := context.Background()
 	reader := po.NewReader()
@@ -510,6 +520,7 @@ func TestReadEscapedQuotes(t *testing.T) {
 	assert.Equal(t, "Elle a dit \"bonjour\"", blocks[0].TargetText(model.LocaleFrench))
 }
 
+// okapi: POFilterTest#testUnescapedRewrite
 func TestWriteEscapedQuotes(t *testing.T) {
 	ctx := context.Background()
 

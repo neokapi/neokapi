@@ -8,6 +8,7 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 )
 
+// okapi: RoundTripXliff2IT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)

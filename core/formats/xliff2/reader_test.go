@@ -39,6 +39,7 @@ const sampleXLIFF2 = `<?xml version="1.0" encoding="UTF-8"?>
   </file>
 </xliff>`
 
+// okapi: XLIFF2FilterTest#testSimple
 func TestReadXLIFF2(t *testing.T) {
 	ctx := context.Background()
 	reader := xliff2.NewReader()
@@ -84,6 +85,7 @@ func TestReadXLIFF2UnitIDs(t *testing.T) {
 	assert.Equal(t, "u3", blocks[2].ID)
 }
 
+// okapi: XLIFF2FilterTest#testSimpleMeta
 func TestReadXLIFF2Notes(t *testing.T) {
 	ctx := context.Background()
 	reader := xliff2.NewReader()

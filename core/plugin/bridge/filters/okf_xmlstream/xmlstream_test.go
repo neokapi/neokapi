@@ -70,6 +70,7 @@ func TestExtract_NestedElements(t *testing.T) {
 	assert.Contains(t, texts, "Section content")
 }
 
+// okapi: XmlSnippetsTest#testPWithInlines
 func TestExtract_InlineElements(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -115,6 +116,7 @@ func TestExtract_BlockIDs(t *testing.T) {
 	}
 }
 
+// okapi: XmlSnippetsTest#testEscapes
 func TestExtract_Entities(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -131,6 +133,7 @@ func TestExtract_Entities(t *testing.T) {
 	assert.Contains(t, texts, "Price: <$10 & >$5")
 }
 
+// okapi: XmlSnippetsTest#testCdataSection
 func TestExtract_CDATA(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 

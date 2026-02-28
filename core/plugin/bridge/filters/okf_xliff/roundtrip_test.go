@@ -79,6 +79,7 @@ func TestRoundTrip_MultipleUnits(t *testing.T) {
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, xliff, "test.xlf", mimeType, nil)
 }
 
+// okapi: RoundTripXliffIT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)

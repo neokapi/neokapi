@@ -8,6 +8,7 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
 )
 
+// okapi: RoundTripOpenXmlIT
 func TestRoundTrip_Docx(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -31,6 +32,7 @@ func TestRoundTrip_Docx(t *testing.T) {
 	)
 }
 
+// okapi: RoundTripOpenXmlIT
 func TestRoundTrip_Xlsx(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -45,6 +47,7 @@ func TestRoundTrip_Xlsx(t *testing.T) {
 	)
 }
 
+// okapi: RoundTripOpenXmlIT
 func TestRoundTrip_Pptx(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)

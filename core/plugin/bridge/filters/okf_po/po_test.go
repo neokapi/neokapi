@@ -35,6 +35,7 @@ msgstr ""
 	assert.Contains(t, texts, "Goodbye")
 }
 
+// okapi: POFilterTest#testOuputSimpleEntry
 func TestExtract_WithTarget(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -54,6 +55,7 @@ msgstr "Bonjour"
 	assert.Equal(t, "Bonjour", b.TargetText("fr"))
 }
 
+// okapi: POFilterTest#testIDWithContext
 func TestExtract_Context(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -77,6 +79,7 @@ msgstr ""
 	assert.Contains(t, texts, "File")
 }
 
+// okapi: POFilterTest#testTUCompleteEntry
 func TestExtract_Comments(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -105,6 +108,7 @@ msgstr ""
 	}
 }
 
+// okapi: POFilterTest#testNoQuoteOnSameLine
 func TestExtract_MultilineStrings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -124,6 +128,8 @@ msgstr ""
 	assert.Contains(t, texts, "This is a multiline string")
 }
 
+// okapi: POFilterTest#testTUPluralEntry_DefaultGroup
+// okapi: POFilterTest#testTUPluralEntry_DefaultPlural
 func TestExtract_PluralForms(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -200,6 +206,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type, "last part should be LayerEnd")
 }
 
+// okapi: POFilterTest#testEscapes
 func TestExtract_EscapedCharacters(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
