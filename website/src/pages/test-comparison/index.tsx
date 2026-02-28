@@ -1,32 +1,43 @@
-import {useState, useMemo} from 'react';
+import {useState, useMemo, useCallback} from 'react';
 import Layout from '@theme/Layout';
 import type {TestComparisonData, FilterComparison} from './_types';
 import {normalizeFilter, normalizeSummary} from './_types';
 import SummaryBar from './_SummaryBar';
-import FilterCard from './_FilterCard';
+import FilterCard, {FilterColumnHeadings} from './_FilterCard';
 import styles from './_index.module.css';
 import comparisonData from '@site/static/data/test-comparison.json';
 
-type FilterMode =
-  | 'all'
-  | 'both'
-  | 'okapi-only'
-  | 'bridge-only'
-  | 'native-only';
+type Side = 'okapi' | 'bridge' | 'native';
 
-const filterLabels: Record<FilterMode, string> = {
-  all: 'All',
-  both: 'Both sides',
-  'okapi-only': 'Okapi only',
-  'bridge-only': 'Bridge only',
-  'native-only': 'Native only',
+const sideLabels: Record<Side, string> = {
+  okapi: 'Okapi',
+  bridge: 'Bridge',
+  native: 'Native',
 };
 
 const raw = comparisonData as TestComparisonData;
 
 export default function TestComparison() {
   const [search, setSearch] = useState('');
-  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [activeSides, setActiveSides] = useState<Set<Side>>(new Set());
+
+  const allSelected = activeSides.size === 0;
+
+  const toggleSide = useCallback((side: Side) => {
+    setActiveSides((prev) => {
+      const next = new Set(prev);
+      if (next.has(side)) {
+        next.delete(side);
+      } else {
+        next.add(side);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setActiveSides(new Set());
+  }, []);
 
   const data = useMemo(
     () => ({
@@ -40,18 +51,11 @@ export default function TestComparison() {
   const filtered = data.filters.filter((f: FilterComparison) => {
     if (search && !f.filterName.toLowerCase().includes(search.toLowerCase()))
       return false;
-    switch (filterMode) {
-      case 'both':
-        return f.okapi != null && (f.bridge != null || f.native != null);
-      case 'okapi-only':
-        return f.okapi != null && f.bridge == null && f.native == null;
-      case 'bridge-only':
-        return f.bridge != null;
-      case 'native-only':
-        return f.native != null;
-      default:
-        return true;
-    }
+    if (allSelected) return true;
+    if (activeSides.has('okapi') && f.okapi == null) return false;
+    if (activeSides.has('bridge') && f.bridge == null) return false;
+    if (activeSides.has('native') && f.native == null) return false;
+    return true;
   });
 
   return (
@@ -76,26 +80,24 @@ export default function TestComparison() {
             onChange={(e) => setSearch(e.target.value)}
           />
           <div className={styles.filterButtons}>
-            {(
-              [
-                'all',
-                'both',
-                'okapi-only',
-                'bridge-only',
-                'native-only',
-              ] as FilterMode[]
-            ).map((m) => (
+            <button
+              className={`button button--sm ${allSelected ? 'button--primary' : 'button--outline button--secondary'}`}
+              onClick={selectAll}>
+              All
+            </button>
+            {(['okapi', 'bridge', 'native'] as Side[]).map((side) => (
               <button
-                key={m}
-                className={`button button--sm ${filterMode === m ? 'button--primary' : 'button--outline button--secondary'}`}
-                onClick={() => setFilterMode(m)}>
-                {filterLabels[m]}
+                key={side}
+                className={`button button--sm ${activeSides.has(side) ? 'button--primary' : 'button--outline button--secondary'}`}
+                onClick={() => toggleSide(side)}>
+                {sideLabels[side]}
               </button>
             ))}
           </div>
         </div>
 
         <div className={styles.filterList}>
+          <FilterColumnHeadings />
           {filtered.map((fc: FilterComparison) => (
             <FilterCard key={fc.filterName} filter={fc} />
           ))}

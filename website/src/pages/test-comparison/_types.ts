@@ -25,7 +25,7 @@ export interface FilterComparison {
   okapi: FilterResult | null;
   bridge: FilterResult | null;
   native: FilterResult | null;
-  testCases: TestCaseMatch[];
+  testCases: TestCaseRow[];
   coverage: CoverageStats | null;
   // Backward compat (old JSON may have this)
   gokapi?: FilterResult | null;
@@ -58,14 +58,33 @@ export interface TestCase {
   durationMs: number;
 }
 
+/** Row in the unified test case table. */
+export interface TestCaseRow {
+  /** Display name for the test (Java method or Go func). */
+  testName: string;
+  /** Java class (short name), empty for bridge/native-only rows. */
+  javaClass: string;
+  /** Okapi status or empty string. */
+  okapiStatus: string;
+  /** Bridge Go test name, empty if not mapped. */
+  bridgeTest: string;
+  /** Bridge status or empty string. */
+  bridgeStatus: string;
+  /** Native Go test name, empty if not mapped. */
+  nativeTest: string;
+  /** Native status or empty string. */
+  nativeStatus: string;
+}
+
+/** Wire format from the Go testcompare tool (annotation-based). */
 export interface TestCaseMatch {
   javaClass: string;
   javaMethod: string;
-  okapiStatus: 'pass' | 'fail' | 'skip' | 'error';
+  okapiStatus: string;
   bridgeTest: string;
-  bridgeStatus: 'pass' | 'fail' | 'skip' | 'error' | '';
+  bridgeStatus: string;
   nativeTest: string;
-  nativeStatus: 'pass' | 'fail' | 'skip' | 'error' | '';
+  nativeStatus: string;
 }
 
 export interface CoverageStats {
@@ -79,17 +98,113 @@ export interface CoverageStats {
 
 /**
  * Normalize a FilterComparison from JSON that may use old field names.
- * Maps `gokapi` -> `bridge` and fills in missing new fields with defaults.
+ * Always builds unified testCases rows — from annotations if available,
+ * otherwise from raw suite data.
  */
 export function normalizeFilter(f: FilterComparison): FilterComparison {
+  const bridge = f.bridge ?? f.gokapi ?? null;
+  const native = f.native ?? null;
+
+  // If the Go tool provided annotation-based testCases, convert them.
+  // Otherwise build rows from suite data so the table always renders.
+  const rawTestCases = (f as any).testCases as TestCaseMatch[] | undefined;
+  const testCases =
+    rawTestCases && rawTestCases.length > 0
+      ? convertAnnotatedRows(rawTestCases)
+      : buildRowsFromSuites(f.okapi, bridge, native);
+
   return {
     filterName: f.filterName,
     okapi: f.okapi ?? null,
-    bridge: f.bridge ?? f.gokapi ?? null,
-    native: f.native ?? null,
-    testCases: f.testCases ?? [],
+    bridge,
+    native,
+    testCases,
     coverage: f.coverage ?? null,
   };
+}
+
+/** Convert annotation-based TestCaseMatch to display rows. */
+function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
+  return matches.map((m) => ({
+    testName: m.javaMethod,
+    javaClass: shortClass(m.javaClass),
+    okapiStatus: m.okapiStatus ?? '',
+    bridgeTest: m.bridgeTest ?? '',
+    bridgeStatus: m.bridgeStatus ?? '',
+    nativeTest: m.nativeTest ?? '',
+    nativeStatus: m.nativeStatus ?? '',
+  }));
+}
+
+/**
+ * Build unified rows from raw suite data when annotations aren't available.
+ * Each Okapi test becomes a row; bridge and native tests that don't map to
+ * any Okapi row are appended as separate rows.
+ */
+function buildRowsFromSuites(
+  okapi: FilterResult | null,
+  bridge: FilterResult | null,
+  native: FilterResult | null,
+): TestCaseRow[] {
+  const rows: TestCaseRow[] = [];
+
+  // 1) All Okapi tests
+  if (okapi) {
+    for (const suite of okapi.suites) {
+      for (const tc of suite.tests) {
+        rows.push({
+          testName: tc.name,
+          javaClass: shortClass(tc.className ?? suite.name),
+          okapiStatus: tc.status,
+          bridgeTest: '',
+          bridgeStatus: '',
+          nativeTest: '',
+          nativeStatus: '',
+        });
+      }
+    }
+  }
+
+  // 2) All Bridge tests as separate rows (below Okapi)
+  if (bridge) {
+    for (const suite of bridge.suites) {
+      for (const tc of suite.tests) {
+        rows.push({
+          testName: tc.name,
+          javaClass: '',
+          okapiStatus: '',
+          bridgeTest: tc.name,
+          bridgeStatus: tc.status,
+          nativeTest: '',
+          nativeStatus: '',
+        });
+      }
+    }
+  }
+
+  // 3) All Native tests as separate rows
+  if (native) {
+    for (const suite of native.suites) {
+      for (const tc of suite.tests) {
+        rows.push({
+          testName: tc.name,
+          javaClass: '',
+          okapiStatus: '',
+          bridgeTest: '',
+          bridgeStatus: '',
+          nativeTest: tc.name,
+          nativeStatus: tc.status,
+        });
+      }
+    }
+  }
+
+  return rows;
+}
+
+function shortClass(fqn: string): string {
+  const idx = fqn.lastIndexOf('.');
+  return idx >= 0 ? fqn.slice(idx + 1) : fqn;
 }
 
 /**

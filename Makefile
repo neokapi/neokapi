@@ -328,6 +328,7 @@ OKAPI_BRIDGE_VERSION ?= v2.3.1
 OKAPI_VERSION        ?= 1.48.0
 BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 OKAPI_FILTERS_DIR    ?= $(HOME)/src/okapi/Okapi/okapi/filters
+OKAPI_SUREFIRE_DIR   ?= okapi-surefire/$(OKAPI_VERSION)-v1
 GOTEST_JSON_FILE     := $(COVER_DIR)/bridge-test-results.jsonl
 NATIVE_JSON_FILE     := $(COVER_DIR)/native-test-results.jsonl
 TEST_COMPARE_JSON    := website/static/data/test-comparison.json
@@ -337,6 +338,9 @@ fetch-bridge-jar: ## Download okapi-bridge JAR from GitHub release
 
 fetch-bridge-testdata: ## Download okapi test data from GitHub release
 	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-testdata.sh
+
+fetch-okapi-surefire: ## Download Okapi Surefire XML reports from GitHub release
+	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-surefire.sh
 
 test-bridge-filters: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter integration tests (requires Java)
 	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
@@ -349,10 +353,10 @@ test-native-json: ## Run native format tests with JSON output
 	@mkdir -p $(COVER_DIR)
 	$(GOTEST) -count=1 -json ./core/formats/... > $(NATIVE_JSON_FILE); true
 
-generate-test-comparison: test-bridge-json test-native-json ## Generate test comparison dashboard data
+generate-test-comparison: fetch-okapi-surefire test-bridge-json test-native-json ## Generate test comparison dashboard data
 	@mkdir -p website/static/data
 	$(GO) run ./scripts/testcompare \
-		-okapi-dir $(OKAPI_FILTERS_DIR) \
+		-okapi-dir $(OKAPI_SUREFIRE_DIR) \
 		-gotest-bridge-json $(GOTEST_JSON_FILE) \
 		-gotest-native-json $(NATIVE_JSON_FILE) \
 		-bridge-src core/plugin/bridge/filters \

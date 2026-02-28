@@ -1,6 +1,5 @@
 import {useState} from 'react';
 import type {FilterComparison, FilterResult} from './_types';
-import TestList from './_TestList';
 import TestCaseTable from './_TestCaseTable';
 import styles from './_index.module.css';
 
@@ -11,51 +10,57 @@ interface Props {
 function statusColor(filter: FilterComparison): string {
   const sides = [filter.okapi, filter.bridge, filter.native].filter(Boolean);
   if (sides.length === 0) return styles.statusYellow;
-
-  const hasFails = sides.some(
-    (s) => s != null && s.failed + s.errors > 0,
-  );
+  const hasFails = sides.some((s) => s != null && s.failed + s.errors > 0);
   if (hasFails) return styles.statusRed;
-
-  // Yellow if only one side has tests
   if (sides.length === 1) return styles.statusYellow;
-
   return styles.statusGreen;
 }
 
-function Counts({
-  result,
-  label,
-}: {
-  result: FilterResult | null;
-  label: string;
-}) {
+function StatColumn({result}: {result: FilterResult | null}) {
   if (!result) {
-    return <span className={styles.noTests}>No {label} tests</span>;
+    return (
+      <div className={styles.sideColumn}>
+        <span className={styles.noTests}>&mdash;</span>
+      </div>
+    );
   }
+  const pct = result.total > 0 ? (result.passed / result.total) * 100 : 0;
   return (
-    <span className={styles.counts}>
-      <span className="badge badge--success">{result.passed}</span>
-      {result.failed > 0 && (
-        <span className="badge badge--danger">{result.failed}</span>
-      )}
-      {result.errors > 0 && (
-        <span className="badge badge--danger">{result.errors} err</span>
-      )}
-      {result.skipped > 0 && (
-        <span className="badge badge--secondary">{result.skipped}</span>
-      )}
-      <span className={styles.countTotal}>{result.total} total</span>
-    </span>
-  );
-}
-
-function ProgressMini({result}: {result: FilterResult | null}) {
-  if (!result || result.total === 0) return null;
-  const pct = (result.passed / result.total) * 100;
-  return (
-    <div className={styles.progressMini}>
-      <div className={styles.progressFill} style={{width: `${pct}%`}} />
+    <div className={styles.sideColumn}>
+      <div className={styles.badgeRow}>
+        <span
+          className="badge badge--success"
+          title={`${result.passed} passed`}>
+          {result.passed}
+        </span>
+        {result.failed > 0 && (
+          <span
+            className="badge badge--danger"
+            title={`${result.failed} failed`}>
+            {result.failed}
+          </span>
+        )}
+        {result.errors > 0 && (
+          <span
+            className="badge badge--danger"
+            title={`${result.errors} errors`}>
+            {result.errors} err
+          </span>
+        )}
+        {result.skipped > 0 && (
+          <span
+            className="badge badge--warning"
+            title={`${result.skipped} skipped`}>
+            {result.skipped}
+          </span>
+        )}
+      </div>
+      <div className={styles.barRow}>
+        <div className={styles.progressBar}>
+          <div className={styles.progressFill} style={{width: `${pct}%`}} />
+        </div>
+        <span className={styles.totalLabel}>{result.total}</span>
+      </div>
     </div>
   );
 }
@@ -76,10 +81,30 @@ function CoverageBar({filter}: {filter: FilterComparison}) {
   );
 }
 
+/** Column headings row — rendered once above the filter list. */
+export function FilterColumnHeadings() {
+  return (
+    <div className={`${styles.filterHeader} ${styles.columnHeadings}`}>
+      <div className={styles.filterHeaderLeft}>
+        <span className={styles.columnHeading}>Filter</span>
+      </div>
+      <div className={styles.filterHeaderRight}>
+        <div className={styles.sideColumn}>
+          <span className={styles.columnHeading}>Okapi</span>
+        </div>
+        <div className={styles.sideColumn}>
+          <span className={styles.columnHeading}>Bridge</span>
+        </div>
+        <div className={styles.sideColumn}>
+          <span className={styles.columnHeading}>Native</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FilterCard({filter}: Props) {
   const [expanded, setExpanded] = useState(false);
-
-  const hasTestCases = filter.testCases && filter.testCases.length > 0;
 
   return (
     <div className={`card ${styles.filterCard}`}>
@@ -93,55 +118,25 @@ export default function FilterCard({filter}: Props) {
           <span className={`${styles.statusDot} ${statusColor(filter)}`} />
           <strong>{filter.filterName}</strong>
           <CoverageBar filter={filter} />
-          <span className={styles.expandIcon}>{expanded ? '\u25BE' : '\u25B8'}</span>
+          <span className={styles.expandIcon}>
+            {expanded ? '\u25BE' : '\u25B8'}
+          </span>
         </div>
         <div className={styles.filterHeaderRight}>
-          <div className={styles.sideColumn}>
-            <span className={styles.sideLabel}>Okapi</span>
-            <Counts result={filter.okapi} label="Okapi" />
-            <ProgressMini result={filter.okapi} />
-          </div>
-          <div className={styles.sideColumn}>
-            <span className={styles.sideLabel}>Bridge</span>
-            <Counts result={filter.bridge} label="Bridge" />
-            <ProgressMini result={filter.bridge} />
-          </div>
-          <div className={styles.sideColumn}>
-            <span className={styles.sideLabel}>Native</span>
-            <Counts result={filter.native} label="Native" />
-            <ProgressMini result={filter.native} />
-          </div>
+          <StatColumn result={filter.okapi} />
+          <StatColumn result={filter.bridge} />
+          <StatColumn result={filter.native} />
         </div>
       </div>
       {expanded && (
         <div className="card__body">
-          {hasTestCases ? (
-            <TestCaseTable testCases={filter.testCases} />
+          {filter.testCases.length > 0 ? (
+            <TestCaseTable
+              testCases={filter.testCases}
+              filterName={filter.filterName}
+            />
           ) : (
-            <div className={styles.sideBySide}>
-              <div className={styles.sidePanel}>
-                <h4>Okapi</h4>
-                {filter.okapi ? (
-                  <TestList result={filter.okapi} />
-                ) : (
-                  <p className={styles.noData}>No tests</p>
-                )}
-              </div>
-              <div className={styles.sidePanel}>
-                <h4>Bridge</h4>
-                {filter.bridge ? (
-                  <TestList result={filter.bridge} />
-                ) : (
-                  <p className={styles.noData}>No tests</p>
-                )}
-              </div>
-              {filter.native && (
-                <div className={styles.sidePanel}>
-                  <h4>Native</h4>
-                  <TestList result={filter.native} />
-                </div>
-              )}
-            </div>
+            <p className={styles.noData}>No test data available.</p>
           )}
         </div>
       )}

@@ -25,6 +25,7 @@ gokapi-plugin-*
 
 # Okapi filter test data (fetched from GitHub release)
 okapi-testdata/
+okapi-surefire/
 
 # Frontend
 node_modules/

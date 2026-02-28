@@ -78,7 +78,7 @@
 
 **Test files used**: 24 files in `integration-tests/okapi/src/test/resources/po/`
 
-**Known failing files**: Check class for current known failures
+**Known failing files**: None known in roundtrip
 
 #### XLIFF Compare IT
 
@@ -203,6 +203,39 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Monolingual mode extracts only source (msgid)
   - protectApproved option protects non-fuzzy entries from modification
   - PO escape sequences: \\n (newline), \\t (tab), \\" (quote), \\\\ (backslash)
+
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_po/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `POFilterTest#testOuputSimpleEntry` | `TestExtract_SimpleEntry` | Mapped |
+| `POFilterTest#testIDWithContext` | `TestExtract_Context` | Mapped |
+| `POFilterTest#testTUCompleteEntry` | `TestExtract_CompleteEntry` | Mapped |
+| `POFilterTest#testNoQuoteOnSameLine` | `TestExtract_MultiLine` | Mapped |
+| `POFilterTest#testTUPluralEntry_DefaultGroup` | `TestExtract_Plurals` | Mapped |
+| `POFilterTest#testTUPluralEntry_DefaultPlural` | `TestExtract_Plurals` | Mapped |
+| `POFilterTest#testEscapes` | `TestExtract_Escapes` | Mapped |
+| `RoundTripPoIT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/po/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `POFilterTest#testOuputSimpleEntry` | `TestReadSimpleEntry` | Mapped |
+| `POFilterTest#testPOHeader` | `TestReadHeader` | Mapped |
+| `POFilterTest#testNoQuoteOnSameLine` | `TestReadMultiLine` | Mapped |
+| `POFilterTest#testIDWithContext` | `TestReadContext` | Mapped |
+| `POFilterTest#testTUPluralEntry_DefaultGroup` | `TestReadPlurals` | Mapped |
+| `POFilterTest#testEscapes` | `TestReadEscapes` | Mapped |
+| `POFilterTest#testOuputEntryWithCTXT` | `TestWriteContext` | Mapped |
+| `POFilterTest#testOuputPluralEntry` | `TestWritePlurals` | Mapped |
+| `POFilterTest#testOuputOptionLine_FormatFuzzy` | `TestWriteFuzzy` | Mapped |
+| `POFilterTest#testUnescapedRead` | `TestReadUnescaped` | Mapped |
+| `POFilterTest#testUnescapedRewrite` | `TestWriteUnescaped` | Mapped |
+
+**Coverage**: ~7 of 51 Surefire methods have bridge `// okapi:` annotations (~14%).
 
 ## Java Source References
 

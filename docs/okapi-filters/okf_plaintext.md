@@ -193,6 +193,24 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Very simple filter: no inline codes, no configuration-based element rules
   - Line numbers can be tracked in extracted text units
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_plaintext/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `RoundTripPlainTextIT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/plaintext/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `PlainTextFilterTest#testEvents` | `TestReadBasicLines` | Mapped |
+| `PlainTextFilterTest#testSkeleton2` | `TestReadSkeleton` | Mapped |
+| `PlainTextFilterTest#testEmptyInput` | `TestReadEmpty` | Mapped |
+
+**Coverage**: ~1 of 39 Surefire methods have bridge `// okapi:` annotations (~3%). Plaintext bridge tests exist but most lack `// okapi:` annotations.
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:

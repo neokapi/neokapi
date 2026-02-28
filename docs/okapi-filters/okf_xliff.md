@@ -107,7 +107,7 @@ Tests XTM-specific properties in XLIFF.
 
 **Test files used**: 143 files in `integration-tests/okapi/src/test/resources/xliff/`
 
-**Known failing files**: Check class for current known failures
+**Known failing files**: None known in roundtrip
 
 #### XLIFF Compare IT
 
@@ -203,6 +203,23 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - alt-trans elements provide alternative translations
   - inlineCdata parameter controls CDATA handling
   - Monolingual mode extracts source only; generateTarget creates empty target on output
+
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_xliff/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `XLIFFFilterTest#testSegmentedTarget` | `TestExtract_SegmentedTarget` | Mapped |
+| `XLIFFFilterTest#testGroupIds` | `TestExtract_GroupIds` | Mapped |
+| `XLIFFFilterTest#testWSBetweenSegments` | `TestExtract_WSBetweenSegments` | Mapped |
+| `XLIFFFilterTest#testSegmentedContent` | `TestExtract_SegmentedContent` | Mapped |
+| `XLIFFFilterTest#testSegmentIDs` | `TestExtract_SegmentedContent` | Mapped |
+| `XLIFFFilterTest#testEmptyTarget` | `TestExtract_EmptyTarget` | Mapped |
+| `XLIFFFilterTest#testLQR` | `TestExtract_LQR` | Mapped |
+| `RoundTripXliffIT` | `TestRoundTrip` | Mapped |
+
+**Coverage**: ~7 of 246 Surefire methods have bridge `// okapi:` annotations (~3%).
 
 ## Java Source References
 

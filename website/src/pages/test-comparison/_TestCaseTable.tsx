@@ -1,13 +1,14 @@
 import {useState} from 'react';
-import type {TestCaseMatch} from './_types';
+import type {TestCaseRow} from './_types';
 import styles from './_index.module.css';
 
 interface Props {
-  testCases: TestCaseMatch[];
+  testCases: TestCaseRow[];
+  filterName: string;
 }
 
-type FilterMode = 'all' | 'mapped' | 'unmapped' | 'failing';
-type SortMode = 'class' | 'status';
+type FilterMode = 'all' | 'okapi' | 'bridge' | 'native' | 'failing';
+type SortMode = 'name' | 'status';
 
 const statusBadgeClass: Record<string, string> = {
   pass: 'badge badge--success',
@@ -21,19 +22,6 @@ function StatusCell({status}: {status: string}) {
     return <span className={styles.statusDash}>&mdash;</span>;
   }
   return <span className={statusBadgeClass[status]}>{status}</span>;
-}
-
-function isMapped(tc: TestCaseMatch): boolean {
-  return tc.bridgeStatus !== '' || tc.nativeStatus !== '';
-}
-
-function isFailing(tc: TestCaseMatch): boolean {
-  return (
-    tc.bridgeStatus === 'fail' ||
-    tc.bridgeStatus === 'error' ||
-    tc.nativeStatus === 'fail' ||
-    tc.nativeStatus === 'error'
-  );
 }
 
 function statusOrder(s: string): number {
@@ -51,18 +39,41 @@ function statusOrder(s: string): number {
   }
 }
 
-export default function TestCaseTable({testCases}: Props) {
+/** Construct a GitHub source link for a bridge test. */
+function bridgeSrcPath(filterName: string): string {
+  return `core/plugin/bridge/filters/okf_${filterName}/`;
+}
+
+/** Construct a path for a native format test. */
+function nativeSrcPath(filterName: string): string {
+  return `core/formats/${filterName}/`;
+}
+
+/** GitHub repo base for source links. */
+const REPO_BASE = 'https://github.com/gokapi/gokapi/tree/main/';
+
+export default function TestCaseTable({testCases, filterName}: Props) {
   const [filter, setFilter] = useState<FilterMode>('all');
-  const [sort, setSort] = useState<SortMode>('class');
+  const [sort, setSort] = useState<SortMode>('name');
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const filtered = testCases.filter((tc) => {
     switch (filter) {
-      case 'mapped':
-        return isMapped(tc);
-      case 'unmapped':
-        return !isMapped(tc);
+      case 'okapi':
+        return tc.okapiStatus !== '';
+      case 'bridge':
+        return tc.bridgeStatus !== '';
+      case 'native':
+        return tc.nativeStatus !== '';
       case 'failing':
-        return isFailing(tc);
+        return (
+          tc.okapiStatus === 'fail' ||
+          tc.okapiStatus === 'error' ||
+          tc.bridgeStatus === 'fail' ||
+          tc.bridgeStatus === 'error' ||
+          tc.nativeStatus === 'fail' ||
+          tc.nativeStatus === 'error'
+        );
       default:
         return true;
     }
@@ -71,29 +82,46 @@ export default function TestCaseTable({testCases}: Props) {
   const sorted = [...filtered].sort((a, b) => {
     if (sort === 'status') {
       const aMin = Math.min(
+        statusOrder(a.okapiStatus),
         statusOrder(a.bridgeStatus),
         statusOrder(a.nativeStatus),
       );
       const bMin = Math.min(
+        statusOrder(b.okapiStatus),
         statusOrder(b.bridgeStatus),
         statusOrder(b.nativeStatus),
       );
       if (aMin !== bMin) return aMin - bMin;
     }
-    const cmp = a.javaClass.localeCompare(b.javaClass);
-    if (cmp !== 0) return cmp;
-    return a.javaMethod.localeCompare(b.javaMethod);
+    return a.testName.localeCompare(b.testName);
   });
 
-  const mappedCount = testCases.filter(isMapped).length;
-  const failingCount = testCases.filter(isFailing).length;
+  const okapiCount = testCases.filter((tc) => tc.okapiStatus !== '').length;
+  const bridgeCount = testCases.filter((tc) => tc.bridgeStatus !== '').length;
+  const nativeCount = testCases.filter((tc) => tc.nativeStatus !== '').length;
+  const failingCount = testCases.filter(
+    (tc) =>
+      tc.okapiStatus === 'fail' ||
+      tc.okapiStatus === 'error' ||
+      tc.bridgeStatus === 'fail' ||
+      tc.bridgeStatus === 'error' ||
+      tc.nativeStatus === 'fail' ||
+      tc.nativeStatus === 'error',
+  ).length;
 
   const filterButtons: {mode: FilterMode; label: string}[] = [
     {mode: 'all', label: `All (${testCases.length})`},
-    {mode: 'mapped', label: `Mapped (${mappedCount})`},
-    {mode: 'unmapped', label: `Unmapped (${testCases.length - mappedCount})`},
-    {mode: 'failing', label: `Failing (${failingCount})`},
+    {mode: 'okapi', label: `Okapi (${okapiCount})`},
+    {mode: 'bridge', label: `Bridge (${bridgeCount})`},
+    {mode: 'native', label: `Native (${nativeCount})`},
+    ...(failingCount > 0
+      ? [{mode: 'failing' as FilterMode, label: `Failing (${failingCount})`}]
+      : []),
   ];
+
+  const toggleRow = (key: string) => {
+    setExpandedRow(expandedRow === key ? null : key);
+  };
 
   return (
     <div className={styles.testCaseTableWrap}>
@@ -114,12 +142,12 @@ export default function TestCaseTable({testCases}: Props) {
         <div className={styles.testCaseSortButtons}>
           <span className={styles.sortLabel}>Sort:</span>
           <button
-            className={`button button--sm ${sort === 'class' ? 'button--primary' : 'button--outline button--secondary'}`}
+            className={`button button--sm ${sort === 'name' ? 'button--primary' : 'button--outline button--secondary'}`}
             onClick={(e) => {
               e.stopPropagation();
-              setSort('class');
+              setSort('name');
             }}>
-            Class
+            Name
           </button>
           <button
             className={`button button--sm ${sort === 'status' ? 'button--primary' : 'button--outline button--secondary'}`}
@@ -134,33 +162,137 @@ export default function TestCaseTable({testCases}: Props) {
       <table className={styles.testCaseTable}>
         <thead>
           <tr>
-            <th>Java Test</th>
-            <th>Okapi</th>
-            <th>Bridge</th>
-            <th>Native</th>
+            <th>Test</th>
+            <th className={styles.testCaseStatusHeader}>Okapi</th>
+            <th className={styles.testCaseStatusHeader}>Bridge</th>
+            <th className={styles.testCaseStatusHeader}>Native</th>
           </tr>
         </thead>
         <tbody>
-          {sorted.map((tc) => {
-            const shortClass = tc.javaClass.split('.').pop() ?? tc.javaClass;
+          {sorted.map((tc, i) => {
+            const rowKey = `${tc.testName}-${i}`;
+            const isExpanded = expandedRow === rowKey;
             return (
-              <tr key={`${tc.javaClass}#${tc.javaMethod}`}>
-                <td className={styles.testCaseName}>
-                  <span className={styles.testCaseClass}>{shortClass}</span>
-                  <span className={styles.testCaseMethod}>
-                    #{tc.javaMethod}
-                  </span>
-                </td>
-                <td className={styles.testCaseStatus}>
-                  <StatusCell status={tc.okapiStatus} />
-                </td>
-                <td className={styles.testCaseStatus}>
-                  <StatusCell status={tc.bridgeStatus} />
-                </td>
-                <td className={styles.testCaseStatus}>
-                  <StatusCell status={tc.nativeStatus} />
-                </td>
-              </tr>
+              <>
+                <tr
+                  key={rowKey}
+                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleRow(rowKey);
+                  }}>
+                  <td className={styles.testCaseName}>
+                    {tc.javaClass ? (
+                      <>
+                        <span className={styles.testCaseClass}>
+                          {tc.javaClass}
+                        </span>
+                        <span className={styles.testCaseMethod}>
+                          #{tc.testName}
+                        </span>
+                      </>
+                    ) : (
+                      <span className={styles.testCaseGoName}>
+                        {tc.testName}
+                      </span>
+                    )}
+                  </td>
+                  <td className={styles.testCaseStatus}>
+                    <StatusCell status={tc.okapiStatus} />
+                  </td>
+                  <td className={styles.testCaseStatus}>
+                    <StatusCell status={tc.bridgeStatus} />
+                  </td>
+                  <td className={styles.testCaseStatus}>
+                    <StatusCell status={tc.nativeStatus} />
+                  </td>
+                </tr>
+                {isExpanded && (
+                  <tr key={`${rowKey}-detail`} className={styles.detailRow}>
+                    <td colSpan={4}>
+                      <div className={styles.detailContent}>
+                        {tc.okapiStatus && tc.javaClass && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Okapi:</span>
+                            <code>
+                              {tc.javaClass}#{tc.testName}
+                            </code>
+                          </div>
+                        )}
+                        {tc.bridgeTest && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Bridge:</span>
+                            <a
+                              href={`${REPO_BASE}${bridgeSrcPath(filterName)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}>
+                              <code>{tc.bridgeTest}</code>
+                            </a>
+                            <span className={styles.detailPath}>
+                              {bridgeSrcPath(filterName)}
+                            </span>
+                          </div>
+                        )}
+                        {tc.bridgeStatus && !tc.bridgeTest && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Bridge:</span>
+                            <a
+                              href={`${REPO_BASE}${bridgeSrcPath(filterName)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}>
+                              <code>{tc.testName}</code>
+                            </a>
+                            <span className={styles.detailPath}>
+                              {bridgeSrcPath(filterName)}
+                            </span>
+                          </div>
+                        )}
+                        {tc.nativeTest && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Native:</span>
+                            <a
+                              href={`${REPO_BASE}${nativeSrcPath(filterName)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}>
+                              <code>{tc.nativeTest}</code>
+                            </a>
+                            <span className={styles.detailPath}>
+                              {nativeSrcPath(filterName)}
+                            </span>
+                          </div>
+                        )}
+                        {tc.nativeStatus && !tc.nativeTest && (
+                          <div className={styles.detailItem}>
+                            <span className={styles.detailLabel}>Native:</span>
+                            <a
+                              href={`${REPO_BASE}${nativeSrcPath(filterName)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}>
+                              <code>{tc.testName}</code>
+                            </a>
+                            <span className={styles.detailPath}>
+                              {nativeSrcPath(filterName)}
+                            </span>
+                          </div>
+                        )}
+                        {!tc.okapiStatus &&
+                          !tc.bridgeTest &&
+                          !tc.bridgeStatus &&
+                          !tc.nativeTest &&
+                          !tc.nativeStatus && (
+                            <span className={styles.noData}>
+                              No source mapping available.
+                            </span>
+                          )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </>
             );
           })}
           {sorted.length === 0 && (

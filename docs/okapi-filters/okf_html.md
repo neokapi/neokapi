@@ -577,6 +577,47 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - `dir` attribute is updated based on target locale direction (RTL/LTR)
   - ASPX comments and embedded tags are handled as non-translatable
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_html/`)
+
+Annotated Java methods with `// okapi:` mapping:
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `HtmlSnippetsTest#minimalCompleteHtml` | `TestExtract_MinimalHTML` | Mapped |
+| `HtmlSnippetsTest#testInlineCodesStorage` | `TestExtract_InlineCodes` | Mapped |
+| `HtmlFullFileTest#testSkippedScriptandStyleElements` | `TestExtract_ScriptStyle` | Mapped |
+| `HtmlSnippetsTest#testPWithInlines2` | `TestExtract_PWithInlines` | Mapped |
+| `HtmlSnippetsTest#paraWithBreak` | `TestExtract_ParaWithBreak` | Mapped |
+| `HtmlSnippetsTest#testEscapes` | `TestExtract_Escapes` | Mapped |
+| `HtmlSnippetsTest#testAltInImg` | `TestExtract_Attributes` | Mapped |
+| `HtmlSnippetsTest#testTitleInP` | `TestExtract_Attributes` | Mapped |
+| `HtmlSnippetsTest#testTableGroups` | `TestExtract_TableGroups` | Mapped |
+| `HtmlSnippetsTest#ITextUnitsInARowWithTwoHeaders` | `TestExtract_Headers` | Mapped |
+| `HtmlSnippetsTest#testGroupInPara` | `TestExtract_GroupInPara` | Mapped |
+| `HtmlSnippetsTest#testMETATag1` | `TestExtract_META` | Mapped |
+| `HtmlSnippetsTest#italicBoldEtc` | `TestExtract_ItalicBold` | Mapped |
+| `HtmlDetectBomTest#testDetectBom` | `TestExtract_BOM` | Mapped |
+| `HtmlSnippetsTest#testSupplementalSupport` | `TestExtract_Supplemental` | Mapped |
+| `HtmlSnippetsTest#testCollapseWhitespaceWithPre` | `TestExtract_WhitespacePre` | Mapped |
+| `HtmlSnippetsTest#testCollapseWhitespaceWithoutPre` | `TestExtract_WhitespaceNoPre` | Mapped |
+| `RoundTripHtmlIT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/html/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `HtmlSnippetsTest#minimalCompleteHtml` | `TestReadBasicElements` | Mapped |
+| `HtmlSnippetsTest#ITextUnitsInARowWithTwoHeaders` | `TestReadBasicElements` | Mapped |
+| `HtmlSnippetsTest#testPWithInlines` | `TestReadBasicElements` | Mapped |
+| `HtmlSnippetsTest#testHref` | `TestReadBasicElements` | Mapped |
+| `HtmlSnippetsTest#paraWithBreak` | `TestReadBasicElements` | Mapped |
+| `HtmlFullFileTest#testSkippedScriptandStyleElements` | `TestReadScriptStyle` | Mapped |
+| `HtmlConfigurationTest#defaultConfiguration` | `TestReadConfig` | Mapped |
+
+**Coverage**: ~18 of 177 Surefire methods have bridge `// okapi:` annotations (~10%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:

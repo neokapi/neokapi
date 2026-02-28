@@ -48,7 +48,7 @@
 
 **Test files used**: 158 files in `integration-tests/okapi/src/test/resources/yaml/`
 
-**Known failing files**: Check class for current known failures
+**Known failing files**: None known in roundtrip
 
 #### XLIFF Compare IT
 
@@ -163,6 +163,16 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Quoting style (single, double, unquoted) preserved on output
   - Recursive/circular reference handling
   - Boolean resolution: yes/no treated as strings (not booleans) via custom SnakeYAML resolver
+
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_yaml/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `RoundTripYamlIT` | `TestRoundTrip` | Mapped |
+
+**Coverage**: ~1 of 39 Surefire methods have bridge `// okapi:` annotations (~3%). YAML bridge tests exist but most lack `// okapi:` annotations.
 
 ## Java Source References
 

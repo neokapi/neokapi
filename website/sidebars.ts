@@ -60,6 +60,11 @@ const sidebars: SidebarsConfig = {
         'developer/testing',
       ],
     },
+    {
+      type: 'link',
+      label: 'Test Results',
+      href: '/test-comparison',
+    },
   ],
   bowrainSidebar: [
     {
