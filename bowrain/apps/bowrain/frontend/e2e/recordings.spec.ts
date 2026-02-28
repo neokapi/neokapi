@@ -1467,13 +1467,12 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
-    await pause(page, 500);
-    // On Linux CI, API key keyring save fails but the provider record is created.
-    // The dialog may stay open with an error — dismiss it so we can add the next provider.
+    await pause(page, 1000);
+    // On Linux CI, API key keyring save fails but the provider record IS created
+    // (upsert happens before keyring save). The dialog stays open with an error —
+    // dismiss it. Escape is a no-op if the dialog already closed (mock mode).
     await page.keyboard.press("Escape");
-    await pause(page, 500);
-    await expect(page.getByText("Anthropic Claude").first()).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
+    await pause(page, 300);
 
     // Add second provider — OpenAI
     await humanClick(page, page.getByTestId("add-provider-btn"));
@@ -1494,14 +1493,24 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
-    await pause(page, 500);
+    await pause(page, 1000);
     await page.keyboard.press("Escape");
-    await pause(page, 500);
-    await expect(page.getByText("OpenAI GPT").first()).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
+    await pause(page, 300);
 
-    // Navigate back to Translate to show the workspace is ready
+    // Refresh the provider list — on CI the keyring error prevents the auto-refresh
+    // that normally happens on successful save. Navigate away and back to re-fetch.
     await humanClick(page, page.getByTestId("nav-translate"));
+    await pause(page, 200);
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 200);
+    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
+    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Both providers should be visible in the refreshed list
+    await expect(page.getByText("Anthropic Claude").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("OpenAI GPT").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 800);
   });
 
