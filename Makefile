@@ -43,7 +43,7 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-brain build-server build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
+.PHONY: all build build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
         test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
@@ -96,6 +96,10 @@ build-bowrain: frontend-build ## Build the Bowrain desktop app
 build-brain: ## Build brain CLI
 	@mkdir -p $(BIN_DIR)
 	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
+
+build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
+	@mkdir -p $(BIN_DIR)
+	cd bowrain/apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o ../../../$(BIN_DIR)/bowrain-headless .
 
 build-all: build build-brain build-server build-worker ## Build all Go binaries
 

@@ -1,5 +1,7 @@
 import { defineConfig } from "@playwright/test";
 
+const useServerMode = !!process.env.WAILS_SERVER_MODE;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30000,
@@ -9,15 +11,22 @@ export default defineConfig({
     ? [["list"], ["html", { open: "never" }]]
     : "html",
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: useServerMode ? "http://localhost:8090" : "http://localhost:5173",
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },
-  webServer: {
-    command: "npm run dev -- --port 5173",
-    port: 5173,
-    timeout: 30000,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: useServerMode
+    ? {
+        command: "cd ../../../.. && WAILS_SERVER_PORT=8090 bin/bowrain-headless",
+        port: 8090,
+        timeout: 30000,
+        reuseExistingServer: !process.env.CI,
+      }
+    : {
+        command: "npm run dev -- --port 5173",
+        port: 5173,
+        timeout: 30000,
+        reuseExistingServer: !process.env.CI,
+      },
 });

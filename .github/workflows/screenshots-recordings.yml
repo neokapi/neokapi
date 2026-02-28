@@ -15,15 +15,21 @@ permissions:
   packages: read   # Needed to pull Docker images from GHCR
 
 jobs:
-  # ── Bowrain Screenshots & Recordings (mock backend, self-contained) ──────────
+  # ── Bowrain Screenshots & Recordings (headless binary, cross-platform) ───────
   bowrain-assets:
-    name: Bowrain Assets (${{ matrix.theme }})
-    runs-on: ubuntu-latest
+    name: Bowrain Assets (${{ matrix.os }}/${{ matrix.theme }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-14, windows-latest]
         theme: [dark, light]
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.0"
 
       - uses: actions/setup-node@v4
         with:
@@ -38,6 +44,14 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
+      - name: Build frontend
+        working-directory: bowrain/apps/bowrain/frontend
+        run: npm run build
+
+      - name: Build headless binary
+        working-directory: bowrain/apps/bowrain
+        run: go build -tags server -o ../../../bin/bowrain-headless .
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -51,6 +65,8 @@ jobs:
       - name: Generate screenshots
         working-directory: bowrain/apps/bowrain/frontend
         run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
+        env:
+          WAILS_SERVER_MODE: "true"
 
       - name: Generate recordings
         working-directory: bowrain/apps/bowrain/frontend
@@ -58,6 +74,7 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
+          WAILS_SERVER_MODE: "true"
 
       - name: Copy recordings to static assets
         working-directory: bowrain/apps/bowrain/frontend
@@ -66,7 +83,7 @@ jobs:
       - name: Upload Bowrain assets
         uses: actions/upload-artifact@v4
         with:
-          name: bowrain-assets-${{ matrix.theme }}
+          name: bowrain-assets-${{ matrix.os }}-${{ matrix.theme }}
           path: |
             website/static/img/bowrain/${{ matrix.theme }}/
             website/static/video/bowrain/${{ matrix.theme }}/
@@ -294,11 +311,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download Bowrain assets
+      - name: Download Bowrain assets (Linux canonical)
         uses: actions/download-artifact@v4
         with:
           path: downloaded-assets/bowrain
-          pattern: bowrain-assets-*
+          pattern: bowrain-assets-ubuntu-latest-*
           merge-multiple: true
 
       - name: Download Web App assets
