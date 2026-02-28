@@ -29,6 +29,7 @@ func init() {
 	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{}))
 	rootCmd.AddCommand(app.NewFormatsCmd())
 	rootCmd.AddCommand(app.NewPluginsCmd())
+	rootCmd.AddCommand(app.NewRegistryCmd())
 	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewPresetsCmd())
 	rootCmd.AddCommand(app.NewTermbaseCmd())

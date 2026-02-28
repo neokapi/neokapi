@@ -21,7 +21,7 @@ The CLI must reflect the **project-based architecture** ([AD-016](./016-kapi-pro
 
 ### Kapi CLI: Project-Based Commands
 
-The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.kapi/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `flow`, `serve`, `auth`, `termbase`, `formats`, `tools`, and `plugins`.
+The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.kapi/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `flow`, `serve`, `auth`, `termbase`, `formats`, `tools`, `plugins`, and `registry`.
 
 See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full command tree, `kapi init` workflows, `kapi pull/push` algorithms, and all command details.
 

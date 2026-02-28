@@ -91,6 +91,64 @@ func (c *AppConfig) RegistryURL() string {
 	return c.v.GetString("plugins.registry")
 }
 
+// RegistryEntry represents a named plugin registry.
+type RegistryEntry struct {
+	Name string `yaml:"name" json:"name"`
+	URL  string `yaml:"url"  json:"url"`
+}
+
+// DefaultRegistryURL is the official gokapi plugin registry.
+const DefaultRegistryURL = "https://gokapi.github.io/registry/plugins.json"
+
+// Registries returns the configured list of plugin registries.
+// If the "registries" key is set, those entries are returned.
+// Otherwise, falls back to "plugins.registry" wrapped as a single entry named "default".
+func (c *AppConfig) Registries() []RegistryEntry {
+	raw := c.v.Get("registries")
+	if raw != nil {
+		if entries := parseRegistryEntries(raw); len(entries) > 0 {
+			return entries
+		}
+	}
+	// Fallback to single registry URL.
+	url := c.v.GetString("plugins.registry")
+	if url == "" {
+		url = DefaultRegistryURL
+	}
+	return []RegistryEntry{{Name: "default", URL: url}}
+}
+
+// parseRegistryEntries converts Viper's raw interface{} into []RegistryEntry.
+// Handles both []any (from YAML) and []map[string]any (from Set).
+func parseRegistryEntries(raw any) []RegistryEntry {
+	switch v := raw.(type) {
+	case []any:
+		var entries []RegistryEntry
+		for _, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				name, _ := m["name"].(string)
+				url, _ := m["url"].(string)
+				if name != "" && url != "" {
+					entries = append(entries, RegistryEntry{Name: name, URL: url})
+				}
+			}
+		}
+		return entries
+	case []map[string]any:
+		var entries []RegistryEntry
+		for _, m := range v {
+			name, _ := m["name"].(string)
+			url, _ := m["url"].(string)
+			if name != "" && url != "" {
+				entries = append(entries, RegistryEntry{Name: name, URL: url})
+			}
+		}
+		return entries
+	default:
+		return nil
+	}
+}
+
 // ServerURL returns the configured Bowrain Server URL.
 // Resolved from config file (server.url) or KAPI_SERVER_URL env var.
 func (c *AppConfig) ServerURL() string {
