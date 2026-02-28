@@ -42,6 +42,7 @@ func init() {
 	}))
 	rootCmd.AddCommand(app.NewFormatsCmd())
 	rootCmd.AddCommand(app.NewPluginsCmd())
+	rootCmd.AddCommand(app.NewRegistryCmd())
 	rootCmd.AddCommand(app.NewToolsCmd())
 
 	// Shared presets command + brain-specific validate subcommand.

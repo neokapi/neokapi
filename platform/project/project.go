@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/platform/config"
 )
 
 const (
@@ -137,6 +138,9 @@ type Config struct {
 
 	// Plugin configuration
 	Plugins *PluginsConfig `yaml:"plugins,omitempty"`
+
+	// Plugin registries (overrides global registries when present)
+	Registries []config.RegistryEntry `yaml:"registries,omitempty"`
 
 	// Framework preset name (e.g., "nextjs")
 	Preset string `yaml:"preset,omitempty"`

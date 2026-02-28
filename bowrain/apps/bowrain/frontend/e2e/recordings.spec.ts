@@ -1467,6 +1467,11 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
+    await pause(page, 500);
+    // On Linux CI, API key keyring save fails but the provider record is created.
+    // The dialog may stay open with an error — dismiss it so we can add the next provider.
+    await page.keyboard.press("Escape");
+    await pause(page, 500);
     await expect(page.getByText("Anthropic Claude").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
@@ -1489,6 +1494,9 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     await humanClick(page, page.getByTestId("provider-save-btn"));
+    await pause(page, 500);
+    await page.keyboard.press("Escape");
+    await pause(page, 500);
     await expect(page.getByText("OpenAI GPT").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 

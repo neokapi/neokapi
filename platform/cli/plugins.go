@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"sort"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/platform/config"
+	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -20,6 +23,8 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 		Use:   "plugins",
 		Short: "Manage plugins and bundles",
 	}
+	pluginsCmd.PersistentFlags().String("channel", "", "use a registry channel (e.g., snapshot)")
+	pluginsCmd.PersistentFlags().String("registry", "", "use a specific named registry")
 
 	var availableFlag bool
 	pluginsListCmd := &cobra.Command{
@@ -40,78 +45,115 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ref := registry.ParsePluginRef(args[0])
-			reg, cleanup := a.newProgressRegistry()
-			defer cleanup()
 
 			if !a.Quiet {
 				fmt.Fprintf(os.Stderr, "Installing plugin: %s\n", ref)
 			}
 
-			result, err := reg.InstallPlugin(ref)
-			if err != nil {
-				return fmt.Errorf("installing %s: %w", ref, err)
-			}
+			regs := a.resolveRegistries(cmd)
+			var lastErr error
+			for _, re := range regs {
+				reg, cleanup := a.newProgressRegistryForURL(re.URL)
+				result, err := reg.InstallPlugin(ref)
+				cleanup()
+				if err != nil {
+					lastErr = err
+					continue
+				}
 
-			out := output.PluginInstallOutput{
-				Name:        result.Name,
-				Version:     result.Version,
-				InstallType: result.InstallType,
-				Files:       result.Files,
+				out := output.PluginInstallOutput{
+					Name:        result.Name,
+					Version:     result.Version,
+					InstallType: result.InstallType,
+					Files:       result.Files,
+				}
+				return output.Print(cmd, out)
 			}
-			return output.Print(cmd, out)
+			return fmt.Errorf("installing %s: %w", ref, lastErr)
 		},
 	}
-
 	pluginsUpdateCmd := &cobra.Command{
 		Use:   "update [name[@version]]",
 		Short: "Update plugins",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			reg, cleanup := a.newProgressRegistry()
-			defer cleanup()
+			regs := a.resolveRegistries(cmd)
 
 			if len(args) == 1 {
 				ref := registry.ParsePluginRef(args[0])
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "Updating plugin: %s\n", ref)
 				}
-				result, err := reg.InstallPlugin(ref)
+				var lastErr error
+				for _, re := range regs {
+					reg, cleanup := a.newProgressRegistryForURL(re.URL)
+					result, err := reg.InstallPlugin(ref)
+					cleanup()
+					if err != nil {
+						lastErr = err
+						continue
+					}
+					out := output.PluginUpdateOutput{
+						Updated: []output.PluginUpdateEntry{
+							{Name: result.Name, NewVersion: result.Version},
+						},
+					}
+					return output.Print(cmd, out)
+				}
+				return fmt.Errorf("updating %s: %w", ref, lastErr)
+			}
+
+			// Check for updates across all registries.
+			var allUpdates []registry.PluginUpdate
+			for _, re := range regs {
+				reg := registry.NewRemoteRegistry(re.URL, a.PluginLoader.Dir())
+				updates, err := reg.CheckUpdates()
 				if err != nil {
-					return fmt.Errorf("updating %s: %w", ref, err)
+					continue
 				}
-				out := output.PluginUpdateOutput{
-					Updated: []output.PluginUpdateEntry{
-						{Name: result.Name, NewVersion: result.Version},
-					},
-				}
-				return output.Print(cmd, out)
+				allUpdates = append(allUpdates, updates...)
 			}
 
-			updates, err := reg.CheckUpdates()
-			if err != nil {
-				return fmt.Errorf("checking for updates: %w", err)
-			}
-
-			if len(updates) == 0 {
+			if len(allUpdates) == 0 {
 				out := output.PluginUpdateOutput{UpToDate: true}
 				return output.Print(cmd, out)
 			}
 
+			// Deduplicate by plugin name (first registry wins).
+			seen := make(map[string]bool)
+			var unique []registry.PluginUpdate
+			for _, u := range allUpdates {
+				if seen[u.Name] {
+					continue
+				}
+				seen[u.Name] = true
+				unique = append(unique, u)
+			}
+
 			var entries []output.PluginUpdateEntry
-			for _, u := range updates {
+			for _, u := range unique {
 				if !a.Quiet {
 					fmt.Fprintf(os.Stderr, "Updating %s: %s \u2192 %s\n", u.Name, u.InstalledVersion, u.AvailableVersion)
 				}
-				result, err := reg.InstallPlugin(registry.PluginRef{Name: u.Name})
-				if err != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to update %s: %v\n", u.Name, err)
-					continue
+				var updated bool
+				for _, re := range regs {
+					reg, cleanup := a.newProgressRegistryForURL(re.URL)
+					result, err := reg.InstallPlugin(registry.PluginRef{Name: u.Name})
+					cleanup()
+					if err != nil {
+						continue
+					}
+					entries = append(entries, output.PluginUpdateEntry{
+						Name:       result.Name,
+						OldVersion: u.InstalledVersion,
+						NewVersion: result.Version,
+					})
+					updated = true
+					break
 				}
-				entries = append(entries, output.PluginUpdateEntry{
-					Name:       result.Name,
-					OldVersion: u.InstalledVersion,
-					NewVersion: result.Version,
-				})
+				if !updated {
+					fmt.Fprintf(cmd.ErrOrStderr(), "Warning: failed to update %s\n", u.Name)
+				}
 			}
 
 			out := output.PluginUpdateOutput{Updated: entries}
@@ -173,7 +215,7 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 				return fmt.Errorf("provide a search query or use --type, --mime, --ext, --bundle, --format, or --tool flags")
 			}
 
-			reg := registry.NewRemoteRegistry(a.Config.RegistryURL(), a.PluginLoader.Dir())
+			regs := a.resolveRegistries(cmd)
 
 			if hasFilter {
 				opts := registry.SearchOptions{
@@ -185,26 +227,34 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 					FormatOnly: searchFormat,
 					ToolOnly:   searchTool,
 				}
-				return a.searchPluginsAdvanced(cmd, reg, opts)
+				return a.searchPluginsAdvancedMulti(cmd, regs, opts)
 			}
 
-			results, err := reg.SearchPlugins(query)
-			if err != nil {
-				return fmt.Errorf("searching plugins: %w", err)
-			}
-
+			seen := make(map[string]bool)
 			var entries []output.PluginSearchEntry
-			for _, m := range results {
-				desc := m.Description
-				if len(desc) > 50 {
-					desc = desc[:47] + "..."
+			for _, re := range regs {
+				reg := registry.NewRemoteRegistry(re.URL, a.PluginLoader.Dir())
+				results, err := reg.SearchPlugins(query)
+				if err != nil {
+					continue
 				}
-				entries = append(entries, output.PluginSearchEntry{
-					Name:        m.Name,
-					Version:     m.Version,
-					PluginType:  m.PluginType,
-					Description: desc,
-				})
+				for _, m := range results {
+					key := m.Name + "@" + m.Version
+					if seen[key] {
+						continue
+					}
+					seen[key] = true
+					desc := m.Description
+					if len(desc) > 50 {
+						desc = desc[:47] + "..."
+					}
+					entries = append(entries, output.PluginSearchEntry{
+						Name:        m.Name,
+						Version:     m.Version,
+						PluginType:  m.PluginType,
+						Description: desc,
+					})
+				}
 			}
 
 			out := output.PluginSearchOutput{
@@ -319,14 +369,27 @@ func (a *App) listInstalledPlugins(cmd *cobra.Command) error {
 }
 
 func (a *App) listAvailablePlugins(cmd *cobra.Command) error {
-	reg := registry.NewRemoteRegistry(a.Config.RegistryURL(), a.PluginLoader.Dir())
+	regs := a.resolveRegistries(cmd)
 
-	groups, err := reg.ListAvailableGrouped()
-	if err != nil {
-		return fmt.Errorf("fetching available plugins: %w", err)
+	// Merge groups from all registries, deduplicating by name+version.
+	seen := make(map[string]bool)
+	var allGroups []registry.PluginGroup
+	for _, re := range regs {
+		reg := registry.NewRemoteRegistry(re.URL, a.PluginLoader.Dir())
+		groups, err := reg.ListAvailableGrouped()
+		if err != nil {
+			continue
+		}
+		for _, g := range groups {
+			key := g.Name
+			if !seen[key] {
+				seen[key] = true
+				allGroups = append(allGroups, g)
+			}
+		}
 	}
 
-	if len(groups) == 0 {
+	if len(allGroups) == 0 {
 		out := output.PluginsListOutput{
 			Plugins: []output.PluginInfo{},
 			Total:   0,
@@ -334,14 +397,16 @@ func (a *App) listAvailablePlugins(cmd *cobra.Command) error {
 		return output.Print(cmd, out)
 	}
 
-	installed, _ := reg.ListInstalled()
+	// Use first registry for install check (local operation).
+	firstReg := registry.NewRemoteRegistry(regs[0].URL, a.PluginLoader.Dir())
+	installed, _ := firstReg.ListInstalled()
 	installedSet := make(map[string]bool)
 	for _, iv := range installed {
 		installedSet[iv.Name+"/"+iv.Version] = true
 	}
 
 	var pluginInfos []output.PluginInfo
-	for _, g := range groups {
+	for _, g := range allGroups {
 		for _, v := range g.Versions {
 			status := "available"
 			if installedSet[g.Name+"/"+v.Version] {
@@ -370,30 +435,38 @@ func (a *App) listAvailablePlugins(cmd *cobra.Command) error {
 	return output.Print(cmd, out)
 }
 
-func (a *App) searchPluginsAdvanced(cmd *cobra.Command, reg *registry.RemoteRegistry, opts registry.SearchOptions) error {
-	results, err := reg.SearchPluginsAdvanced(opts)
-	if err != nil {
-		return fmt.Errorf("searching plugins: %w", err)
-	}
-
+func (a *App) searchPluginsAdvancedMulti(cmd *cobra.Command, regs []config.RegistryEntry, opts registry.SearchOptions) error {
+	seen := make(map[string]bool)
 	var entries []output.PluginSearchEntry
-	for _, m := range results {
-		desc := m.Description
-		if len(desc) > 50 {
-			desc = desc[:47] + "..."
+	for _, re := range regs {
+		reg := registry.NewRemoteRegistry(re.URL, a.PluginLoader.Dir())
+		results, err := reg.SearchPluginsAdvanced(opts)
+		if err != nil {
+			continue
 		}
+		for _, m := range results {
+			key := m.Name + "@" + m.Version
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			desc := m.Description
+			if len(desc) > 50 {
+				desc = desc[:47] + "..."
+			}
 
-		capInfo := matchingCapabilities(m, opts)
-		if capInfo != "" {
-			desc = capInfo
+			capInfo := matchingCapabilities(m, opts)
+			if capInfo != "" {
+				desc = capInfo
+			}
+
+			entries = append(entries, output.PluginSearchEntry{
+				Name:        m.Name,
+				Version:     m.Version,
+				PluginType:  m.PluginType,
+				Description: desc,
+			})
 		}
-
-		entries = append(entries, output.PluginSearchEntry{
-			Name:        m.Name,
-			Version:     m.Version,
-			PluginType:  m.PluginType,
-			Description: desc,
-		})
 	}
 
 	out := output.PluginSearchOutput{
@@ -439,8 +512,64 @@ func (w *barWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (a *App) newProgressRegistry() (reg *registry.RemoteRegistry, cleanup func()) {
-	reg = registry.NewRemoteRegistry(a.Config.RegistryURL(), a.PluginLoader.Dir())
+// channelRegistryURL derives a channel-specific registry URL from the base URL.
+// For example, given base "https://gokapi.github.io/registry/plugins.json" and
+// channel "snapshot", it returns "https://gokapi.github.io/registry/channels/snapshot.json".
+func channelRegistryURL(baseURL, channel string) string {
+	dir := path.Dir(baseURL)
+	return dir + "/channels/" + channel + ".json"
+}
+
+// resolveRegistries returns the list of registries to use for the current command.
+// It checks project config first, then falls back to global config.
+// If --registry flag is set, it filters to just that named registry.
+// If --channel flag is set, it derives channel URLs.
+func (a *App) resolveRegistries(cmd *cobra.Command) []config.RegistryEntry {
+	var entries []config.RegistryEntry
+
+	// Try project config first.
+	if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
+		entries = proj.Config.Registries
+	} else {
+		entries = a.Config.Registries()
+	}
+
+	// Filter by --registry flag.
+	if name, _ := cmd.Flags().GetString("registry"); name != "" {
+		for _, e := range entries {
+			if e.Name == name {
+				entries = []config.RegistryEntry{e}
+				goto applyChannel
+			}
+		}
+		// Not found — return empty so callers get a clear error.
+		return nil
+	}
+
+applyChannel:
+	// Apply --channel flag.
+	if channel, _ := cmd.Flags().GetString("channel"); channel != "" {
+		for i := range entries {
+			entries[i].URL = channelRegistryURL(entries[i].URL, channel)
+		}
+	}
+
+	return entries
+}
+
+// registryURL returns the registry URL, applying the --channel flag if set.
+func (a *App) registryURL(cmd *cobra.Command) string {
+	channel, _ := cmd.Flags().GetString("channel")
+	baseURL := a.Config.RegistryURL()
+	if channel != "" {
+		return channelRegistryURL(baseURL, channel)
+	}
+	return baseURL
+}
+
+// newProgressRegistryForURL creates a RemoteRegistry with progress tracking for a given URL.
+func (a *App) newProgressRegistryForURL(url string) (reg *registry.RemoteRegistry, cleanup func()) {
+	reg = registry.NewRemoteRegistry(url, a.PluginLoader.Dir())
 	cleanup = func() {}
 
 	if a.Quiet {
@@ -477,4 +606,8 @@ func (a *App) newProgressRegistry() (reg *registry.RemoteRegistry, cleanup func(
 	}
 
 	return reg, cleanup
+}
+
+func (a *App) newProgressRegistry(cmd *cobra.Command) (reg *registry.RemoteRegistry, cleanup func()) {
+	return a.newProgressRegistryForURL(a.registryURL(cmd))
 }

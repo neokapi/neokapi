@@ -210,6 +210,43 @@ Presets are a **capability**, not a plugin type. Existing plugin types (bundles,
 formats) can declare preset capabilities via `presets.yaml` files. No additional
 plugin type is needed.
 
+### Plugin Registries
+
+Plugins are distributed via **registries** — JSON endpoints listing available
+plugins with versions, capabilities, and download URLs. Multiple registries can
+be configured, enabling organizations to host internal plugins alongside the
+official registry.
+
+**Registry configuration** follows a three-level resolution:
+
+1. **Project config** (`.brain/config.yaml`) — `registries:` list. When present,
+   overrides global config entirely (no merging).
+2. **Global config** (`~/.config/kapi/kapi.yaml`) — `registries:` list. Managed
+   via `kapi registry add/remove/list`.
+3. **Fallback** — `plugins.registry` single URL, or the hardcoded official URL.
+
+```yaml
+# ~/.config/kapi/kapi.yaml or .brain/config.yaml
+registries:
+  - name: official
+    url: https://gokapi.github.io/registry/plugins.json
+  - name: company
+    url: https://registry.example.com/plugins.json
+```
+
+**Resolution behavior:**
+- **Install/update**: iterate registries in order, first match wins
+- **Search/list**: merge results from all registries, deduplicating by name+version
+- `--registry <name>` flag pins to a specific named registry
+- `--channel <name>` flag derives channel-specific URLs (orthogonal to registry selection)
+
+**Registry management:**
+```bash
+kapi registry list                        # List configured registries
+kapi registry add <name> <url>            # Add to global config
+kapi registry remove <name>              # Remove from global config
+```
+
 ### Plugin Governance
 
 **Protocol stability.** The v1 protocol (defined in `plugin/proto/v1/gokapi.proto`)
@@ -224,7 +261,7 @@ simultaneously, giving plugin authors time to migrate.
 |------|--------|-------|-------------|
 | **Built-in** | `formats/`, `tools/` | Full | Ships with binary |
 | **Official** | gokapi org registry | High | `kapi plugins install` |
-| **Community** | Third-party registry | Medium | `kapi plugins install --source <url>` |
+| **Community** | Third-party registry | Medium | `kapi plugins install --registry <name>` |
 | **Local** | User-built | User's risk | Copy to plugin directory |
 
 **Built-in vs plugin split.** Formats with broad usage (HTML, XML, JSON, YAML,
@@ -264,6 +301,10 @@ should be built-in.
   JARs share capacity fairly via eviction
 - Bundles package multiple formats and tools as a single installable unit,
   simplifying distribution while allowing individual capability registration
+- Multiple registries can be configured at project or global level, enabling
+  organizations to host internal plugins alongside the official registry
+- The `kapi registry` command provides add/remove/list management of global
+  registries; project-level registries override global ones entirely
 - The CLI searches both standalone plugins and bundles; `--bundle`, `--format`,
   and `--tool` flags allow users to narrow results by plugin kind
 - Connector plugins extend gokapi's integration capabilities, enabling

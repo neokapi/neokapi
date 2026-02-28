@@ -45,7 +45,7 @@ The `.kapi/` directory is created by `kapi init` and contains:
 
 ### `config.yaml` Schema
 
-The config file defines project identity (name, source locale, target locales), optional server connection (URL, project ID, workspace), file mappings (local glob patterns to remote item paths with format IDs), hooks (pre-push, post-pull), and per-flow configuration overrides.
+The config file defines project identity (name, source locale, target locales), optional server connection (URL, project ID, workspace), plugin registries (overriding global registries when present), file mappings (local glob patterns to remote item paths with format IDs), hooks (pre-push, post-pull), and per-flow configuration overrides.
 
 ### File Mappings
 
