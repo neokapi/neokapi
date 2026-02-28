@@ -241,6 +241,19 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - XML-specific: handles DOCTYPE, PIs, namespaces, CDATA
   - Newlines are normalized per XML spec
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_xmlstream/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `XmlSnippetsTest#testPWithInlines` | `TestExtract_PWithInlines` | Mapped |
+| `XmlSnippetsTest#testEscapes` | `TestExtract_Escapes` | Mapped |
+| `XmlSnippetsTest#testCdataSection` | `TestExtract_CDATA` | Mapped |
+| `RoundTripXmlStreamIT` | `TestRoundTrip` | Mapped |
+
+**Coverage**: ~4 of 136 Surefire methods have bridge `// okapi:` annotations (~3%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:

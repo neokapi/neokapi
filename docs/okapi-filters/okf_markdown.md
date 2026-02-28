@@ -446,6 +446,35 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Custom configurations via `.fprm` files (YAML-based) for HTML/YAML subfilters
   - Code finder can detect patterns within markdown text units
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_markdown/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `MarkdownFilterTest#testHeadingPrefix` | `TestExtract_Headings` | Mapped |
+| `MarkdownFilterTest#testEmphasis` | `TestExtract_InlineFormatting` | Mapped |
+| `MarkdownFilterTest#testEmphasisAndStrong` | `TestExtract_InlineFormatting` | Mapped |
+| `MarkdownFilterTest#testLink` | `TestExtract_Links` | Mapped |
+| `MarkdownFilterTest#testLinkSubflow` | `TestExtract_Links` | Mapped |
+| `MarkdownFilterTest#testTranslateFencedCodeBlocks` | `TestExtract_CodeBlocks` | Mapped |
+| `MarkdownFilterTest#testBulletList` | `TestExtract_Lists` | Mapped |
+| `MarkdownFilterTest#testHtmlBlockWithMarkdown` | `TestExtract_HtmlBlocks` | Mapped |
+| `RoundTripMarkdownIT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/markdown/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `MarkdownFilterTest#testHeadingPrefix` | `TestReadHeadings` | Mapped |
+| `MarkdownFilterTest#testEmphasisAndStrong` | `TestReadEmphasis` | Mapped |
+| `MarkdownFilterTest#testDontTranslateFencedCodeBlocks` | `TestReadCodeBlocks` | Mapped |
+| `MarkdownFilterTest#testBulletList` | `TestReadLists` | Mapped |
+| `MarkdownFilterTest#testEventsFromEmptyInput` | `TestReadEmpty` | Mapped |
+| `MarkdownFilterTest#testHtmlBlockWithMarkdown` | `TestReadHtmlBlocks` | Mapped |
+
+**Coverage**: ~9 of 209 Surefire methods have bridge `// okapi:` annotations (~4%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:

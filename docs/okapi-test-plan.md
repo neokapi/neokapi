@@ -23,13 +23,25 @@ Migrate all Java Okapi filter tests into Go bridge integration tests so every fi
 
 ## Test Data Strategy
 
-Test data files are stored in a GitHub release (`okapi-testdata`) to avoid bloating the repository.
+Test data files and Surefire XML reports are stored in GitHub releases to avoid bloating the repository.
+
+### Test Resources
 
 - **Release**: `gh release` in gokapi/gokapi tagged `okapi-testdata-1.48.0`
 - **Fetch script**: `scripts/fetch-okapi-testdata.sh` downloads and extracts to `./okapi-testdata/`
+- **Publish script**: `scripts/publish-okapi-testdata.sh` builds from Okapi GitLab repo
 - **Gitignored**: `okapi-testdata/` is in `.gitignore`
 - **CI**: The fetch script runs before integration tests in CI
 - **Structure**: `okapi-testdata/okf_{id}/` per filter, with `roundtrip/` subdirectory for integration test resources
+
+### Surefire XML Reports
+
+- **Release**: `gh release` in gokapi/gokapi tagged `okapi-surefire-1.48.0`
+- **Fetch script**: `scripts/fetch-okapi-surefire.sh` downloads and extracts to `./okapi-surefire/`
+- **Publish script**: `scripts/publish-okapi-surefire.sh` runs Maven tests on local Okapi checkout
+- **Gitignored**: `okapi-surefire/` is in `.gitignore`
+- **Structure**: `okapi-surefire/{filter}/TEST-*.xml` (flat per-filter layout)
+- **Used by**: `make generate-test-comparison` to build the test comparison dashboard
 
 ---
 
@@ -37,22 +49,25 @@ Test data files are stored in a GitHub release (`okapi-testdata`) to avoid bloat
 
 | Filter | Doc | Extraction | Config | Roundtrip | XLIFF Compare | Simplifier | Memory | Java Unit Tests | Java IT Tests |
 |--------|-----|------------|--------|-----------|---------------|------------|--------|-----------------|---------------|
-| [okf_html](okapi-filters/okf_html.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | 10 files (171 methods) | RT, XC, Simp, Mem |
-| [okf_json](okapi-filters/okf_json.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 2 files (52 methods) | RT, XC, Simp |
-| [okf_xmlstream](okapi-filters/okf_xmlstream.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | 12 files (137 methods) | RT, XC, Simp, Mem(xml) |
-| [okf_xliff](okapi-filters/okf_xliff.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 10 files (245 methods) | RT, XC |
+| [okf_html](okapi-filters/okf_html.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | 10 files (177 methods) | RT, XC, Simp, Mem |
+| [okf_json](okapi-filters/okf_json.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 2 files (51 methods) | RT, XC, Simp |
+| [okf_xmlstream](okapi-filters/okf_xmlstream.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | 12 files (136 methods) | RT, XC, Simp, Mem(xml) |
+| [okf_xliff](okapi-filters/okf_xliff.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 10 files (246 methods) | RT, XC |
 | [okf_xliff2](okapi-filters/okf_xliff2.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 3 files (31 methods) | RT, XC |
-| [okf_properties](okapi-filters/okf_properties.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 1 file (33 methods) | RT, XC, Simp |
+| [okf_properties](okapi-filters/okf_properties.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 1 file (30 methods) | RT, XC, Simp |
 | [okf_po](okapi-filters/okf_po.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 2 files (51 methods) | RT, XC, Simp |
 | [okf_yaml](okapi-filters/okf_yaml.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 4 files (39 methods) | RT, XC, Simp, MsgFmt |
-| [okf_plaintext](okapi-filters/okf_plaintext.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [ ] | 5 files (42 methods) | RT, XC, Mem |
+| [okf_plaintext](okapi-filters/okf_plaintext.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [ ] | 5 files (39 methods) | RT, XC, Mem |
 | [okf_markdown](okapi-filters/okf_markdown.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 4 files (209 methods) | RT, XC |
 
-## Phase 2 - Remaining Text Formats (15 filters)
+## Phase 2 - Remaining Text Formats (19 filters)
 
 | Filter | Doc | Extraction | Config | Roundtrip | XLIFF Compare | Simplifier | Memory | Java Unit Tests | Java IT Tests |
 |--------|-----|------------|--------|-----------|---------------|------------|--------|-----------------|---------------|
 | [okf_html5](okapi-filters/okf_html5.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | 2 files (38 methods) | RT(its), XC(its), Simp(its) |
+| abstractmarkup | [ ] | [ ] | [-] | [-] | [-] | [-] | [-] | (57 methods) | - |
+| its | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | (188 methods) | RT, XC, Simp |
+| subtitles | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | (43 methods) | RT, XC |
 | [okf_xml](okapi-filters/okf_xml.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | [ ] | 4 files (98 methods) | RT, XC, Simp, Mem |
 | [okf_dtd](okapi-filters/okf_dtd.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 1 file (8 methods) | RT, XC |
 | [okf_tmx](okapi-filters/okf_tmx.md) | [ ] | [ ] | [ ] | [ ] | [ ] | [-] | [-] | 2 files (60 methods) | RT, XC |
@@ -114,6 +129,7 @@ Test data files are stored in a GitHub release (`okapi-testdata`) to avoid bloat
 | [okf_pensieve](okapi-filters/okf_pensieve.md) | [ ] | [ ] | [-] | [ ] | [-] | [-] | [-] | 0 files | Pensieve ITs |
 | [okf_autoxliff](okapi-filters/okf_autoxliff.md) | [ ] | [ ] | [-] | [ ] | [-] | [-] | [-] | 1 file (3 methods) | - |
 | [okf_multiparsers](okapi-filters/okf_multiparsers.md) | [ ] | [ ] | [-] | [ ] | [-] | [-] | [-] | 1 file (6 methods) | - |
+| cascadingfilter | [ ] | [ ] | [-] | [-] | [-] | [-] | [-] | (5 methods) | - |
 
 ### Shared Cross-Cutting Tests
 
@@ -127,15 +143,40 @@ Test data files are stored in a GitHub release (`okapi-testdata`) to avoid bloat
 
 ## Infrastructure Checklist
 
-- [ ] Create `bridgetest` helper package (`core/plugin/bridge/filters/bridgetest/`)
-  - [ ] `helpers.go` - `SharedBridge()`, `ReadString()`, `ReadBytes()`, `ReadFile()`
-  - [ ] `roundtrip.go` - `RoundTrip()`, `AssertRoundTrip()`, `RoundTripTestFiles()`
-  - [ ] `golden.go` - `CompareGolden()`
-- [ ] Create `scripts/fetch-okapi-testdata.sh`
-- [ ] Create `okapi-testdata` GitHub release with test resources
-- [ ] Add `okapi-testdata/` to `.gitignore`
+- [x] Create `bridgetest` helper package (`core/plugin/bridge/filters/bridgetest/`)
+  - [x] `helpers.go` - `SharedBridge()`, `ReadString()`, `ReadBytes()`, `ReadFile()`
+  - [x] `roundtrip.go` - `RoundTrip()`, `AssertRoundTrip()`, `RoundTripTestFiles()`
+  - [x] `golden.go` - `CompareGolden()`
+- [x] Create `scripts/fetch-okapi-testdata.sh`
+- [x] Create `okapi-testdata` GitHub release with test resources
+- [x] Add `okapi-testdata/` to `.gitignore`
 - [ ] CI: Add testdata fetch step before integration tests
 - [ ] CI: Add bridge filter tests to integration test job
+- [x] Create `scripts/publish-okapi-surefire.sh` for Surefire XML reports
+- [x] Create `scripts/fetch-okapi-surefire.sh` for fetching Surefire XML
+- [x] Add `okapi-surefire/` to `.gitignore`
+- [x] Test comparison dashboard (`make generate-test-comparison`)
+
+---
+
+## Native Format Tests
+
+In addition to bridge tests (which verify Java→Go fidelity through the bridge JAR), native format implementations in `core/formats/` have their own test suites. Native tests verify the pure Go implementations directly.
+
+Native format tests are included in `make generate-test-comparison` via `make test-native-json` and appear alongside bridge tests in the test comparison dashboard. They use `// okapi:` annotations to map Go tests to their Java counterparts.
+
+| Native Format | Go Package | Status |
+|---------------|-----------|--------|
+| HTML | `core/formats/html` | Active |
+| JSON | `core/formats/json` | Active |
+| XLIFF | `core/formats/xliff` | Active |
+| XLIFF 2 | `core/formats/xliff2` | Active |
+| Properties | `core/formats/properties` | Active |
+| PO | `core/formats/po` | Active |
+| YAML | `core/formats/yaml` | Active |
+| Plaintext | `core/formats/plaintext` | Active |
+| Markdown | `core/formats/markdown` | Active |
+| XML Stream | `core/formats/xmlstream` | Active |
 
 ---
 

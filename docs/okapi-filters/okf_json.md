@@ -319,6 +319,35 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - `maxwidthRules` and `maxwidthSizeUnit` attach length constraints to TUs
   - Unicode escapes (\\uXXXX) are decoded on input, output as raw characters in UTF-8
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_json/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `JSONFilterTest#testValue` | `TestExtract_BasicKeyValue` | Mapped |
+| `JSONFilterTest#testObject` | `TestExtract_NestedObjects` | Mapped |
+| `JSONFilterTest#testAllWithKeyNoException` | `TestExtract_AllWithKey` | Mapped |
+| `JSONFilterTest#testDecimalNumber` | `TestExtract_Numbers` | Mapped |
+| `JSONFilterTest#testEmptyValue` | `TestExtract_EmptyValue` | Mapped |
+| `JSONFilterTest#testEscapes` | `TestExtract_Escapes` | Mapped |
+| `JSONFilterTest#testStandaloneDefaultWhichIsNo` | `TestExtract_Standalone` | Mapped |
+| `RoundTripJsonIT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/json/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `JSONFilterTest#testValue` | `TestReadBasicKeyValue` | Mapped |
+| `JSONFilterTest#testObject` | `TestReadNestedObject` | Mapped |
+| `JSONFilterTest#testList` | `TestReadArray` | Mapped |
+| `JSONFilterTest#testDecimalNumber` | `TestReadNumbers` | Mapped |
+| `JSONFilterTest#testEscape` | `TestReadEscapes` | Mapped |
+| `JSONFilterTest#testEmptyValue` | `TestReadEmptyValue` | Mapped |
+| `JSONFilterTest#testPath` | `TestReadKeyPaths` | Mapped |
+
+**Coverage**: ~8 of 51 Surefire methods have bridge `// okapi:` annotations (~16%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:

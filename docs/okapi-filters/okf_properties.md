@@ -17,7 +17,7 @@
 
 **Module**: `okapi/filters/properties/src/test/java/`
 
-#### PropertiesFilterTest.java (33 @Test methods)
+#### PropertiesFilterTest.java (30 @Test methods)
 
 | # | Test Method | What it Tests | Priority |
 |---|-------------|---------------|----------|
@@ -173,6 +173,31 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Extended characters can be escaped or left raw depending on config
   - Keys can contain special characters with backslash escaping
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_properties/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `PropertiesFilterTest#testEntry` | `TestExtract_BasicEntry` | Mapped |
+| `PropertiesFilterTest#testEscapes` | `TestExtract_Escapes` | Mapped |
+| `PropertiesFilterTest#testSpecialChars` | `TestExtract_SpecialChars` | Mapped |
+| `PropertiesFilterTest#testSplicedEntry` | `TestExtract_SplicedEntry` | Mapped |
+| `PropertiesFilterTest#testKeySpecial` | `TestExtract_KeySpecial` | Mapped |
+
+### Native Tests (`core/formats/properties/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `PropertiesFilterTest#testEntry` | `TestReadBasicEntry` | Mapped |
+| `PropertiesFilterTest#testKeySpecial` | `TestReadKeySpecial` | Mapped |
+| `PropertiesFilterTest#testSplicedEntry` | `TestReadSplicedEntry` | Mapped |
+| `PropertiesFilterTest#testEscapes` | `TestReadEscapes` | Mapped |
+| `PropertiesFilterTest#testSpecialChars` | `TestReadSpecialChars` | Mapped |
+| `PropertiesFilterTest#testSpecialCharsOutput` | `TestWriteSpecialChars` | Mapped |
+
+**Coverage**: ~5 of 30 Surefire methods have bridge `// okapi:` annotations (~17%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:
@@ -183,4 +208,4 @@ git log --since="2026-02-24" --name-only -- "okapi/filters/properties/src/test/"
 
 | Java File | Path | @Test Count |
 |-----------|------|-------------|
-| `PropertiesFilterTest.java` | `okapi/filters/properties/src/test/java/.../` | 33 |
+| `PropertiesFilterTest.java` | `okapi/filters/properties/src/test/java/.../` | 30 |

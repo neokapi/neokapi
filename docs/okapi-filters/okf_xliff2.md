@@ -159,6 +159,28 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
   - Can convert XLIFF 2.0 to XLIFF 1.2 output format
   - copyOf attribute allows code reuse within segments
 
+## Current Go Coverage
+
+### Bridge Tests (`core/plugin/bridge/filters/okf_xliff2/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `XLIFF2FilterTest#testSimple` | `TestExtract_Simple` | Mapped |
+| `XLIFF2FilterTest#testInline` | `TestExtract_InlineCodes` | Mapped |
+| `XLIFF2FilterTest#testSimpleMeta` | `TestExtract_Metadata` | Mapped |
+| `XLIFF2FilterTest#testGroupHandling` | `TestExtract_Groups` | Mapped |
+| `XLIFF2FilterTest#testDiscardInvalidTargets` | `TestExtract_InvalidTargets` | Mapped |
+| `RoundTripXliff2IT` | `TestRoundTrip` | Mapped |
+
+### Native Tests (`core/formats/xliff2/`)
+
+| Java Method | Go Test | Status |
+|-------------|---------|--------|
+| `XLIFF2FilterTest#testSimple` | `TestReadSimple` | Mapped |
+| `XLIFF2FilterTest#testSimpleMeta` | `TestReadMetadata` | Mapped |
+
+**Coverage**: ~6 of 31 Surefire methods have bridge `// okapi:` annotations (~19%).
+
 ## Java Source References
 
 For change tracking against Okapi baseline commit `3da02f86ec17c8168d6d49f80aaf55c1c04a7d47`:
