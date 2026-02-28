@@ -87,13 +87,18 @@ async function main() {
         },
       },
     }),
-    onProgress: (pct) => {
-      if (Math.round(pct * 100) % 25 === 0) {
-        process.stdout.write(`\r  Bundling: ${Math.round(pct * 100)}%`);
-      }
-    },
+    onProgress: (() => {
+      let last = -1;
+      return (pct: number) => {
+        const rounded = Math.round(pct * 10) * 10;
+        if (rounded > last) {
+          last = rounded;
+          console.log(`  Bundling: ${rounded}%`);
+        }
+      };
+    })(),
   });
-  console.log("\n  Bundle complete.");
+  console.log("  Bundle complete.");
 
   for (const script of scripts) {
     const id = script.video.id;
@@ -123,14 +128,19 @@ async function main() {
       codec: "h264",
       outputLocation: outputFile,
       inputProps: { script: resolved },
-      onProgress: ({ progress }) => {
-        process.stdout.write(
-          `\r  Rendering: ${Math.round(progress * 100)}%`
-        );
-      },
+      onProgress: (() => {
+        let last = -1;
+        return ({ progress }: { progress: number }) => {
+          const rounded = Math.round(progress * 10) * 10;
+          if (rounded > last) {
+            last = rounded;
+            console.log(`  Rendering: ${rounded}%`);
+          }
+        };
+      })(),
     });
 
-    console.log(`\n  -> ${outputFile}`);
+    console.log(`  -> ${outputFile}`);
   }
 
   console.log("\nAll renders complete.");
