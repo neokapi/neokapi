@@ -1,26 +1,84 @@
-import type {Summary} from './_types';
+import type {FilterComparison, Summary} from './_types';
 import styles from './_index.module.css';
 
 interface Props {
   summary: Summary;
   generatedAt: string;
+  filters?: FilterComparison[];
 }
 
-export default function SummaryBar({summary, generatedAt}: Props) {
+export default function SummaryBar({
+  summary,
+  generatedAt,
+  filters,
+}: Props) {
+  // Aggregate state counts from all filters
+  let implementedCount = 0;
+  let pendingCount = 0;
+  let skippedCount = 0;
+  let unmappedCount = 0;
+  let hasStateData = false;
+
+  if (filters) {
+    for (const f of filters) {
+      if (f.coverage) {
+        if (f.coverage.skippedCount || f.coverage.pendingCount) {
+          hasStateData = true;
+        }
+        skippedCount += f.coverage.skippedCount ?? 0;
+        pendingCount += f.coverage.pendingCount ?? 0;
+      }
+      if (f.testCases) {
+        for (const tc of f.testCases) {
+          if (tc.testState === 'implemented') implementedCount++;
+          else if (tc.testState === 'unmapped' || !tc.testState)
+            unmappedCount++;
+        }
+      }
+    }
+  }
+
   return (
     <div className={styles.summaryBar}>
       <div className={styles.statCard}>
         <div className={styles.statValue}>{summary.totalTestsOkapi}</div>
         <div className={styles.statLabel}>Okapi Tests</div>
       </div>
-      <div className={styles.statCard}>
-        <div className={styles.statValue}>{summary.totalTestsBridge}</div>
-        <div className={styles.statLabel}>Bridge Mapped</div>
-      </div>
-      <div className={styles.statCard}>
-        <div className={styles.statValue}>{summary.totalTestsNative}</div>
-        <div className={styles.statLabel}>Native Mapped</div>
-      </div>
+      {hasStateData ? (
+        <>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>{implementedCount}</div>
+            <div className={styles.statLabel}>Implemented</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>{pendingCount}</div>
+            <div className={styles.statLabel}>Pending</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>{skippedCount}</div>
+            <div className={styles.statLabel}>Skipped</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>{unmappedCount}</div>
+            <div className={styles.statLabel}>Unmapped</div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>
+              {summary.totalTestsBridge}
+            </div>
+            <div className={styles.statLabel}>Bridge Mapped</div>
+          </div>
+          <div className={styles.statCard}>
+            <div className={styles.statValue}>
+              {summary.totalTestsNative}
+            </div>
+            <div className={styles.statLabel}>Native Mapped</div>
+          </div>
+        </>
+      )}
       <div className={styles.statCard}>
         <div className={styles.statValue}>
           {summary.coveragePct > 0
