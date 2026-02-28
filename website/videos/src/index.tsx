@@ -47,23 +47,20 @@ function getCompositions(): Array<{
   script: Script;
   resolved: ResolvedScript;
 }> {
-  const scriptsDir = path.resolve(import.meta.dirname ?? __dirname, "..", "scripts");
-
-  let allScripts: Script[];
   try {
-    allScripts = loadAllScripts(scriptsDir);
+    const scriptsDir = path.resolve(import.meta.dirname ?? __dirname, "..", "scripts");
+    const allScripts = loadAllScripts(scriptsDir);
+    const expanded = allScripts.flatMap(expandThemes);
+
+    return expanded.map((script) => ({
+      id: script.video.id,
+      script,
+      resolved: resolveWithDefaults(script),
+    }));
   } catch {
-    // If scripts dir doesn't exist, return empty for Studio
+    // Scripts dir doesn't exist or Node.js modules unavailable (webpack bundle)
     return [];
   }
-
-  const expanded = allScripts.flatMap(expandThemes);
-
-  return expanded.map((script) => ({
-    id: script.video.id,
-    script,
-    resolved: resolveWithDefaults(script),
-  }));
 }
 
 const RemotionRoot: React.FC = () => {

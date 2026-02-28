@@ -76,6 +76,17 @@ async function main() {
   console.log(`Bundling Remotion project...`);
   const bundleLocation = await bundle({
     entryPoint: ENTRY,
+    webpackOverride: (config) => ({
+      ...config,
+      resolve: {
+        ...config.resolve,
+        fallback: {
+          ...config.resolve?.fallback,
+          path: false,
+          fs: false,
+        },
+      },
+    }),
     onProgress: (pct) => {
       if (Math.round(pct * 100) % 25 === 0) {
         process.stdout.write(`\r  Bundling: ${Math.round(pct * 100)}%`);
