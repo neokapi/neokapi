@@ -36,12 +36,15 @@ export async function authenticate(
   const { device_code, user_code } = startData;
 
   // Step 2: Verify (simulates user approving in browser)
+  // Use redirect: "manual" because the handler responds with 302 to a SPA page.
   const verifyResp = await fetch(`${API}/auth/device/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: `user_code=${user_code}&email=${encodeURIComponent(email)}&name=${encodeURIComponent(name)}`,
+    redirect: "manual",
   });
-  if (!verifyResp.ok) throw new Error(`Device verify failed: ${verifyResp.status}`);
+  if (!verifyResp.ok && verifyResp.status !== 302)
+    throw new Error(`Device verify failed: ${verifyResp.status}`);
 
   // Step 3: Poll for token
   const pollResp = await fetch(`${API}/auth/device/poll`, {

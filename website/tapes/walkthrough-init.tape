@@ -1,4 +1,4 @@
-# VHS Tape: E2E walkthrough — kapi init (anonymous project)
+# VHS Tape: E2E walkthrough — brain init (anonymous project)
 # Demonstrates creating an anonymous project on the server.
 # Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
@@ -18,7 +18,7 @@ Type "cd $WALKTHROUGH_DIR"
 Enter
 Sleep 500ms
 
-Type "kapi init --anonymous --name 'Docusaurus E2E Demo' --source en"
+Type "brain init --anonymous --name 'Docusaurus E2E Demo' --source en"
 Enter
 Sleep 3s
 
@@ -30,7 +30,7 @@ Type "# Check the generated config"
 Enter
 Sleep 500ms
 
-Type "cat .kapi/config.yaml"
+Type "cat .brain/config.yaml"
 Enter
 Sleep 3s
 
@@ -38,11 +38,11 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Add .kapi/ to git"
+Type "# Add .brain/ to git"
 Enter
 Sleep 500ms
 
-Type "git add .kapi"
+Type "git add .brain"
 Enter
 Sleep 500ms
 

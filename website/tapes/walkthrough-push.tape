@@ -1,4 +1,4 @@
-# VHS Tape: E2E walkthrough — kapi push
+# VHS Tape: E2E walkthrough — brain push
 # Demonstrates pushing source content to Bowrain Server.
 # Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
@@ -18,7 +18,7 @@ Type "# Step 3: Push content to Bowrain Server"
 Enter
 Sleep 500ms
 
-Type "kapi status"
+Type "brain status"
 Enter
 Sleep 2s
 
@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "kapi push"
+Type "brain push"
 Enter
 Sleep 3s
 
@@ -38,7 +38,7 @@ Type "# Verify the push"
 Enter
 Sleep 500ms
 
-Type "kapi status"
+Type "brain status"
 Enter
 Sleep 2s
 

@@ -1,4 +1,4 @@
-# VHS Tape: kapi serve demo
+# VHS Tape: brain serve demo
 # Demonstrates the local project server command
 
 Output output/serve.webm
@@ -13,7 +13,7 @@ Type "# Local project server — like 'jupyter notebook' for translations"
 Enter
 Sleep 500ms
 
-Type "kapi serve --help"
+Type "brain serve --help"
 Enter
 Sleep 3s
 
@@ -24,7 +24,7 @@ Sleep 500ms
 Type "# Open a project in the browser"
 Enter
 Sleep 500ms
-Type "# kapi serve"
+Type "# brain serve"
 Enter
 Sleep 500ms
 Type "# → Starting local project server at http://localhost:3000"
@@ -42,7 +42,7 @@ Sleep 500ms
 Type "# Use a custom port"
 Enter
 Sleep 500ms
-Type "# kapi serve --port 4000"
+Type "# brain serve --port 4000"
 Enter
 Sleep 500ms
 Type "# → Starting local project server at http://localhost:4000"

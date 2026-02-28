@@ -90,13 +90,15 @@ export async function selectMultiLocalesHuman(
   humanTypeFn: (page: Page, locator: any, text: string) => Promise<void>,
 ) {
   for (const code of codes) {
-    // Click to open dropdown
-    const chips = page.getByTestId(`${testId}-chips`);
-    await chips.click();
-    await page.waitForTimeout(200);
+    // Open dropdown if not already open
+    const search = page.getByTestId(`${testId}-search`);
+    if (!(await search.isVisible().catch(() => false))) {
+      const chips = page.getByTestId(`${testId}-chips`);
+      await chips.click();
+      await page.waitForTimeout(200);
+    }
 
     // Type to search
-    const search = page.getByTestId(`${testId}-search`);
     await humanTypeFn(page, search, code);
     await page.waitForTimeout(200);
 

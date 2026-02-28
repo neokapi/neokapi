@@ -1007,7 +1007,7 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 200);
 
     await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByRole("option", { name: "OpenAI" }).click();
+    await page.getByRole("option", { name: "OpenAI", exact: true }).click();
     await pause(page, 300);
 
     await humanType(page, page.getByTestId("provider-api-key"), "sk-proj-xxxx");

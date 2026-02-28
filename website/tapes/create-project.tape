@@ -17,7 +17,7 @@ Type "# Initialize a project to establish context"
 Enter
 Sleep 300ms
 
-Type "kapi init --name 'Landing Page' --source en --targets fr"
+Type "brain init --name 'Landing Page' --source en --targets fr"
 Enter
 Sleep 2s
 
@@ -63,6 +63,6 @@ Sleep 2s
 
 Type ""
 Enter
-Type "# Open in Bowrain for visual editing, or use 'kapi serve' for web UI"
+Type "# Open in Bowrain for visual editing, or use 'brain serve' for web UI"
 Enter
 Sleep 1500ms
