@@ -66,7 +66,10 @@ export async function callBackend(page: Page, method: string, ...args: any[]) {
         throw new Error(`callBackend(${method}) failed: ${resp.status} ${text}`);
       }
 
-      return resp.json();
+      // Handle void responses (e.g., CloseProject returns no body)
+      const text = await resp.text();
+      if (!text || text === "null") return null;
+      return JSON.parse(text);
     },
     { method, methodId, args },
   );
