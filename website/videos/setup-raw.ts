@@ -1,0 +1,41 @@
+import fs from "fs";
+import path from "path";
+
+const publicRaw = path.resolve(import.meta.dirname, "public", "raw");
+const staticVideo = path.resolve(import.meta.dirname, "..", "static", "video");
+
+const links: [string, string][] = [
+  ["bowrain/dark", path.join(staticVideo, "bowrain", "dark")],
+  ["bowrain/light", path.join(staticVideo, "bowrain", "light")],
+  ["kapi", path.join(staticVideo, "kapi")],
+  ["brain", path.join(staticVideo, "brain")],
+  ["web-app/dark", path.join(staticVideo, "web-app", "dark")],
+  ["web-app/light", path.join(staticVideo, "web-app", "light")],
+];
+
+fs.mkdirSync(publicRaw, { recursive: true });
+
+for (const [name, target] of links) {
+  const linkPath = path.join(publicRaw, name);
+  const linkDir = path.dirname(linkPath);
+  fs.mkdirSync(linkDir, { recursive: true });
+
+  // Remove existing symlink if present
+  try {
+    const stat = fs.lstatSync(linkPath);
+    if (stat.isSymbolicLink() || stat.isDirectory()) {
+      fs.rmSync(linkPath, { recursive: true });
+    }
+  } catch {
+    // doesn't exist, fine
+  }
+
+  if (fs.existsSync(target)) {
+    fs.symlinkSync(target, linkPath, "dir");
+    console.log(`  ${name} -> ${target}`);
+  } else {
+    console.log(`  ${name} (skipped, target not found: ${target})`);
+  }
+}
+
+console.log("Raw recording symlinks set up.");

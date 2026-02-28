@@ -75,3 +75,7 @@ bowrain/website/
 website/tapes/output/
 website/tapes/out/
 website/tapes/.server-token
+
+# Remotion video pipeline
+website/videos/output/
+website/videos/public/raw/

@@ -1,0 +1,52 @@
+video:
+  id: kapi-overview
+  title: Kapi CLI Overview
+  width: 1920
+  height: 1080
+  fps: 30
+
+branding:
+  logo: logo.png
+  primaryColor: "#6366f1"
+  backgroundColor: "#1a1a2e"
+  fontFamily: "Inter, system-ui, sans-serif"
+  cornerRadius: 8
+
+scenes:
+  - type: title-card
+    duration: 3
+    heading: Kapi CLI
+    subheading: Format-aware localization toolkit
+    style: dark
+
+  - type: transition
+    effect: fade-black
+    duration: 0.4
+
+  - type: recording
+    source: kapi/overview.webm
+    duration: auto
+    frame:
+      type: terminal
+      title: "Terminal — kapi"
+    overlays:
+      - text: "kapi --help shows all available commands"
+        position: bottom-center
+        startAt: 0.5
+        duration: 3.0
+        style: caption
+      - text: "15+ built-in format readers for localization files"
+        position: bottom-center
+        startAt: 5.0
+        duration: 3.0
+        style: caption
+
+  - type: transition
+    effect: fade-black
+    duration: 0.4
+
+  - type: title-card
+    duration: 2.5
+    heading: "$ brew install gokapi/tap/kapi"
+    subheading: Get started in seconds
+    style: dark
