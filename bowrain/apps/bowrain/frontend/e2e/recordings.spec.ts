@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { setupServerApp } from "./helpers/server-setup";
+import { setupServerModeApp } from "./helpers/server-mode-setup";
+import { callBackend } from "./helpers/backend-call";
 import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo, moveCursorToElement } from "./cursor-helper";
 import { setMultiLocales, setMultiLocalesHuman, expectLocaleChips } from "./locale-helper";
 import { injectWindowChrome } from "./window-chrome";
@@ -21,11 +23,14 @@ async function setTheme(page: any, theme: "dark" | "light") {
 }
 
 const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
+const useServerMode = !!process.env.WAILS_SERVER_MODE;
 
-/** Setup helper - injects backend (mock or real server), cursor, and window chrome */
+/** Setup helper - injects backend (mock or real server or headless binary), cursor, and window chrome */
 async function setupRecording(page: any, title: string = "Bowrain", theme: "dark" | "light" = "dark") {
   if (useRealServer) {
     await setupServerApp(page);
+  } else if (useServerMode) {
+    await setupServerModeApp(page);
   } else {
     await setupLocalApp(page);
   }
@@ -96,18 +101,15 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
-    // Add files via mock backend
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects[0]) {
-        await backend.AddItems(projects[0].id, [
-          "/src/index.html",
-          "/src/strings.json",
-          "/content/about.md",
-        ]);
-      }
-    });
+    // Add files via backend
+    const projects = await callBackend(page, "ListProjects");
+    if (projects[0]) {
+      await callBackend(page, "AddItems", projects[0].id, [
+        "/src/index.html",
+        "/src/strings.json",
+        "/content/about.md",
+      ]);
+    }
 
     // Navigate away and back to refresh file list
     await humanClick(page, page.getByTestId("nav-settings"));
@@ -136,7 +138,15 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
     // Add HTML file with rich content - realistic webpage with headers, paragraphs, inline elements
-    await page.evaluate(async () => {
+    if (useServerMode) {
+      // In server mode, add a real file via the backend
+      const teProjects = await callBackend(page, "ListProjects");
+      if (teProjects[0]) {
+        await callBackend(page, "AddItems", teProjects[0].id, ["/about-us.html"]);
+      }
+    }
+    // In mock mode, set up custom blocks and preview rendering
+    if (!useServerMode) await page.evaluate(async () => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
       const projects = await backend[IDS.ListProjects]();
@@ -340,14 +350,11 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("create-project-submit"));
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
-    // Add file via mock
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects[0]) {
-        await backend.AddItems(projects[0].id, ["/content/homepage.html"]);
-      }
-    });
+    // Add file via backend
+    const focusProjects = await callBackend(page, "ListProjects");
+    if (focusProjects[0]) {
+      await callBackend(page, "AddItems", focusProjects[0].id, ["/content/homepage.html"]);
+    }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
@@ -415,19 +422,16 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
-    // Seed TM entries via mock
-    await page.evaluate(() => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = backend.ListProjects();
-      const pid = projects[0]?.id;
-      if (pid) {
-        backend.AddTMEntry(pid, "Hello World", "Bonjour le monde", "en", "fr");
-        backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-        backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
-        backend.AddTMEntry(pid, "Settings", "Paramètres", "en", "fr");
-        backend.AddTMEntry(pid, "Save changes", "Enregistrer les modifications", "en", "fr");
-      }
-    });
+    // Seed TM entries
+    const tmProjects = await callBackend(page, "ListProjects");
+    const tmPid = tmProjects[0]?.id;
+    if (tmPid) {
+      await callBackend(page, "AddTMEntry", tmPid, "Hello World", "Bonjour le monde", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Settings", "Paramètres", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Save changes", "Enregistrer les modifications", "en", "fr");
+    }
 
     // Open TM explorer
     await expect(page.getByTestId("open-tm-btn")).toBeVisible();
@@ -529,14 +533,11 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
-    // Add file via mock
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects[0]) {
-        await backend.AddItems(projects[0].id, ["/landing-page.html"]);
-      }
-    });
+    // Add file via backend
+    const e2eProjects = await callBackend(page, "ListProjects");
+    if (e2eProjects[0]) {
+      await callBackend(page, "AddItems", e2eProjects[0].id, ["/landing-page.html"]);
+    }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
@@ -616,20 +617,17 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
-    // Seed TM entries and add file via mock backend
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      const pid = projects[0]?.id;
-      if (!pid) return;
-
+    // Seed TM entries and add file via backend
+    const leverageProjects = await callBackend(page, "ListProjects");
+    const leveragePid = leverageProjects[0]?.id;
+    if (leveragePid) {
       // Add TM entries matching the generated blocks
-      backend.AddTMEntry(pid, "Hello from landing.html", "Bonjour depuis landing.html", "en", "fr");
-      backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-      backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+      await callBackend(page, "AddTMEntry", leveragePid, "Hello from landing.html", "Bonjour depuis landing.html", "en", "fr");
+      await callBackend(page, "AddTMEntry", leveragePid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      await callBackend(page, "AddTMEntry", leveragePid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
-      await backend.AddItems(pid, ["/content/landing.html"]);
-    });
+      await callBackend(page, "AddItems", leveragePid, ["/content/landing.html"]);
+    }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
@@ -743,38 +741,35 @@ describeOrSkip("Video Recordings", () => {
     await humanClickNative(page, "term-add-submit");
     await pause(page, 400);
 
-    // Add more concepts via mock backend for demo
-    await page.evaluate(() => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = backend.ListProjects();
-      const pid = projects[0]?.id;
-      if (pid) {
-        backend.AddConcept({
-          project_id: pid, domain: "Security",
-          definition: "Converting data to prevent unauthorized access",
-          terms: [
-            { text: "encryption", locale: "en", status: "preferred" },
-            { text: "chiffrement", locale: "fr", status: "preferred" },
-          ],
-        });
-        backend.AddConcept({
-          project_id: pid, domain: "UI",
-          definition: "Visual panel for settings",
-          terms: [
-            { text: "dashboard", locale: "en", status: "approved" },
-            { text: "tableau de bord", locale: "fr", status: "approved" },
-          ],
-        });
-        backend.AddConcept({
-          project_id: pid, domain: "Data",
-          definition: "Structured data storage",
-          terms: [
-            { text: "database", locale: "en", status: "preferred" },
-            { text: "base de données", locale: "fr", status: "preferred" },
-          ],
-        });
-      }
-    });
+    // Add more concepts via backend for demo
+    const termProjects = await callBackend(page, "ListProjects");
+    const termPid = termProjects[0]?.id;
+    if (termPid) {
+      await callBackend(page, "AddConcept", {
+        project_id: termPid, domain: "Security",
+        definition: "Converting data to prevent unauthorized access",
+        terms: [
+          { text: "encryption", locale: "en", status: "preferred" },
+          { text: "chiffrement", locale: "fr", status: "preferred" },
+        ],
+      });
+      await callBackend(page, "AddConcept", {
+        project_id: termPid, domain: "UI",
+        definition: "Visual panel for settings",
+        terms: [
+          { text: "dashboard", locale: "en", status: "approved" },
+          { text: "tableau de bord", locale: "fr", status: "approved" },
+        ],
+      });
+      await callBackend(page, "AddConcept", {
+        project_id: termPid, domain: "Data",
+        definition: "Structured data storage",
+        terms: [
+          { text: "database", locale: "en", status: "preferred" },
+          { text: "base de données", locale: "fr", status: "preferred" },
+        ],
+      });
+    }
 
     // Search to refresh list and show new concepts
     await humanTypeNative(page, "term-search-input", " ");
@@ -821,35 +816,32 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
     // Add TM entries and terminology, then add file
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      const pid = projects[0]?.id;
-      if (!pid) return;
-
+    const ctxProjects = await callBackend(page, "ListProjects");
+    const ctxPid = ctxProjects[0]?.id;
+    if (ctxPid) {
       // TM entries
-      backend.AddTMEntry(pid, "Hello from app.html", "Bonjour depuis app.html", "en", "fr");
-      backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-      backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+      await callBackend(page, "AddTMEntry", ctxPid, "Hello from app.html", "Bonjour depuis app.html", "en", "fr");
+      await callBackend(page, "AddTMEntry", ctxPid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      await callBackend(page, "AddTMEntry", ctxPid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
       // Terminology
-      backend.AddConcept({
-        project_id: pid, domain: "UI",
+      await callBackend(page, "AddConcept", {
+        project_id: ctxPid, domain: "UI",
         terms: [
           { text: "application", locale: "en", status: "preferred" },
           { text: "application", locale: "fr", status: "preferred" },
         ],
       });
-      backend.AddConcept({
-        project_id: pid, domain: "Navigation",
+      await callBackend(page, "AddConcept", {
+        project_id: ctxPid, domain: "Navigation",
         terms: [
           { text: "continue", locale: "en", status: "approved" },
           { text: "continuer", locale: "fr", status: "approved" },
         ],
       });
 
-      await backend.AddItems(pid, ["/src/app.html"]);
-    });
+      await callBackend(page, "AddItems", ctxPid, ["/src/app.html"]);
+    }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
@@ -1052,17 +1044,14 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     // Add files
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects[0]) {
-        await backend.AddItems(projects[0].id, [
-          "/src/index.html",
-          "/src/strings.json",
-          "/content/about.md",
-        ]);
-      }
-    });
+    const wsProjFirst = await callBackend(page, "ListProjects");
+    if (wsProjFirst[0]) {
+      await callBackend(page, "AddItems", wsProjFirst[0].id, [
+        "/src/index.html",
+        "/src/strings.json",
+        "/content/about.md",
+      ]);
+    }
 
     // Refresh to show files
     await page.getByTestId("nav-settings").click();
@@ -1092,14 +1081,11 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 300);
 
     // Add files to second project
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      const p = projects[projects.length - 1];
-      if (p) {
-        await backend.AddItems(p.id, ["/app/strings.json", "/app/config.yaml"]);
-      }
-    });
+    const wsProjSecond = await callBackend(page, "ListProjects");
+    const wsLastProj = wsProjSecond[wsProjSecond.length - 1];
+    if (wsLastProj) {
+      await callBackend(page, "AddItems", wsLastProj.id, ["/app/strings.json", "/app/config.yaml"]);
+    }
 
     // Go back and create third project
     await humanClick(page, page.getByTestId("back-to-projects"));
@@ -1211,7 +1197,33 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
     // Set up rich HTML file with inline codes, TM entries, and terminology
-    await page.evaluate(async ({ mo, mc, mp }: { mo: string; mc: string; mp: string }) => {
+    if (useServerMode) {
+      // In server mode, add a real file and seed TM/terms via the backend
+      const veProj = await callBackend(page, "ListProjects");
+      const vePid = veProj[0]?.id;
+      if (vePid) {
+        await callBackend(page, "AddItems", vePid, ["/help-center.html"]);
+        await callBackend(page, "AddTMEntry", vePid, "Welcome to the CloudSync Pro documentation and support portal.", "Velkommen til CloudSync Pro-dokumentasjonen og støtteportalen.", "en", "nb");
+        await callBackend(page, "AddTMEntry", vePid, "Getting Started", "Kom i gang", "en", "nb");
+        await callBackend(page, "AddTMEntry", vePid, "Security & Privacy", "Sikkerhet og personvern", "en", "nb");
+        await callBackend(page, "AddConcept", {
+          project_id: vePid, domain: "Security",
+          definition: "Converting data to prevent unauthorized access",
+          terms: [
+            { text: "encryption", locale: "en", status: "preferred" },
+            { text: "kryptering", locale: "nb", status: "preferred" },
+          ],
+        });
+        await callBackend(page, "AddConcept", {
+          project_id: vePid, domain: "Technology",
+          definition: "The process of keeping files in sync across devices",
+          terms: [
+            { text: "synchronization", locale: "en", status: "preferred" },
+            { text: "synkronisering", locale: "nb", status: "preferred" },
+          ],
+        });
+      }
+    } else await page.evaluate(async ({ mo, mc, mp }: { mo: string; mc: string; mp: string }) => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
       const byName = (window as any).__wailsMockByName;

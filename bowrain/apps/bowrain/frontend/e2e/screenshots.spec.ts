@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { setupServerApp } from "./helpers/server-setup";
+import { setupServerModeApp } from "./helpers/server-mode-setup";
+import { callBackend } from "./helpers/backend-call";
 import { selectMultiLocales } from "./locale-helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -9,6 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../../website/static/img/bowrain");
 const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
+const useServerMode = !!process.env.WAILS_SERVER_MODE;
 
 /** Helper: apply theme to the page. */
 async function setTheme(page: any, theme: "dark" | "light") {
@@ -48,7 +51,11 @@ async function seedDashboard(page: any) {
     await setupServerApp(page);
     return; // Server is already seeded with projects
   }
-  await setupLocalApp(page);
+  if (useServerMode) {
+    await setupServerModeApp(page);
+  } else {
+    await setupLocalApp(page);
+  }
 
   // Create three projects with different languages
   const projectDefs = [
@@ -65,14 +72,11 @@ async function seedDashboard(page: any) {
     await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
     // Add files to make the project look real
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      const p = projects[projects.length - 1];
-      if (p) {
-        await backend.AddItems(p.id, ["/src/index.html", "/src/app.json"]);
-      }
-    });
+    const projects = await callBackend(page, "ListProjects");
+    const p = projects[projects.length - 1];
+    if (p) {
+      await callBackend(page, "AddItems", p.id, ["/src/index.html", "/src/app.json"]);
+    }
 
     // Navigate back to dashboard
     await page.getByTestId("back-to-projects").click();
@@ -84,7 +88,11 @@ async function seedDashboard(page: any) {
  * Creates a project with four files and navigates to the project view.
  */
 async function openProjectView(page: any) {
-  await setupLocalApp(page);
+  if (useServerMode) {
+    await setupServerModeApp(page);
+  } else {
+    await setupLocalApp(page);
+  }
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
@@ -93,19 +101,16 @@ async function openProjectView(page: any) {
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
   // Add four files
-  await page.evaluate(async () => {
-    const backend = (window as any).__wailsMockByName;
-    const projects = await backend.ListProjects();
-    const p = projects[0];
-    if (p) {
-      await backend.AddItems(p.id, [
-        "/src/index.html",
-        "/src/strings.json",
-        "/content/about.md",
-        "/config/messages.yaml",
-      ]);
-    }
-  });
+  const projects = await callBackend(page, "ListProjects");
+  const p = projects[0];
+  if (p) {
+    await callBackend(page, "AddItems", p.id, [
+      "/src/index.html",
+      "/src/strings.json",
+      "/content/about.md",
+      "/config/messages.yaml",
+    ]);
+  }
 
   // Refresh by navigating away and back
   await page.getByTestId("nav-settings").click();
@@ -120,7 +125,11 @@ async function openProjectView(page: any) {
  * Creates a project with a file and opens the translation editor.
  */
 async function openEditor(page: any) {
-  await setupLocalApp(page);
+  if (useServerMode) {
+    await setupServerModeApp(page);
+  } else {
+    await setupLocalApp(page);
+  }
 
   await page.getByTestId("new-project-btn").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
@@ -128,13 +137,10 @@ async function openEditor(page: any) {
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-  await page.evaluate(async () => {
-    const backend = (window as any).__wailsMockByName;
-    const projects = await backend.ListProjects();
-    if (projects.length > 0) {
-      await backend.AddItems(projects[0].id, ["/src/index.html"]);
-    }
-  });
+  const projects = await callBackend(page, "ListProjects");
+  if (projects.length > 0) {
+    await callBackend(page, "AddItems", projects[0].id, ["/src/index.html"]);
+  }
 
   // Refresh
   await page.getByTestId("nav-settings").click();
@@ -225,7 +231,11 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture TM explorer [${theme}]`, async ({ page }) => {
-      await setupLocalApp(page);
+      if (useServerMode) {
+        await setupServerModeApp(page);
+      } else {
+        await setupLocalApp(page);
+      }
 
       // Create project
       await page.getByTestId("new-project-btn").click();
@@ -234,19 +244,16 @@ test.describe("Screenshots", () => {
       await page.getByTestId("create-project-submit").click();
       await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
-      // Seed TM entries via mock backend
-      await page.evaluate(() => {
-        const backend = (window as any).__wailsMockByName;
-        const projects = backend.ListProjects();
-        const pid = projects[0]?.id;
-        if (pid) {
-          backend.AddTMEntry(pid, "Hello World", "Bonjour le monde", "en", "fr");
-          backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-          backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
-          backend.AddTMEntry(pid, "Settings", "Param\u00e8tres", "en", "fr");
-          backend.AddTMEntry(pid, "Save changes", "Enregistrer les modifications", "en", "fr");
-        }
-      });
+      // Seed TM entries
+      const projects = await callBackend(page, "ListProjects");
+      const pid = projects[0]?.id;
+      if (pid) {
+        await callBackend(page, "AddTMEntry", pid, "Hello World", "Bonjour le monde", "en", "fr");
+        await callBackend(page, "AddTMEntry", pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+        await callBackend(page, "AddTMEntry", pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+        await callBackend(page, "AddTMEntry", pid, "Settings", "Param\u00e8tres", "en", "fr");
+        await callBackend(page, "AddTMEntry", pid, "Save changes", "Enregistrer les modifications", "en", "fr");
+      }
 
       // Open TM explorer
       await page.evaluate(() => {
@@ -268,7 +275,11 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture flow editor [${theme}]`, async ({ page }) => {
-      await setupLocalApp(page);
+      if (useServerMode) {
+        await setupServerModeApp(page);
+      } else {
+        await setupLocalApp(page);
+      }
       await setTheme(page, theme);
 
       // Navigate to Flows view
@@ -308,7 +319,11 @@ test.describe("Screenshots", () => {
     });
 
     test(`capture settings [${theme}]`, async ({ page }) => {
-      await setupLocalApp(page);
+      if (useServerMode) {
+        await setupServerModeApp(page);
+      } else {
+        await setupLocalApp(page);
+      }
       await setTheme(page, theme);
 
       // Navigate to Settings
