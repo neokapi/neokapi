@@ -275,11 +275,12 @@ Screenshots are captured via Playwright and written directly to `website/static/
 
 ### Recording systems
 
-There are three independent video recording pipelines:
+There are four independent video recording pipelines:
 
-1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Self-contained (auto-starts a Vite dev server).
+1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Uses real bowrain-server via Wails dev mode for recordings/screenshots. Mocks (`mock-backend.ts`) are used for e2e unit tests only.
 2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
-3. **CLI** — VHS terminal recordings from `.tape` files in `website/tapes/`. Some tapes require a running server.
+3. **Kapi CLI** — VHS terminal recordings from `.tape` files in `website/tapes/` (3 standalone kapi demos). No server required.
+4. **Brain CLI** — VHS terminal recordings from `.tape` files in `bowrain/e2e/tapes/` (10 brain demos, some need server).
 
 ### How to regenerate
 
@@ -299,8 +300,11 @@ THEME=light bash bowrain/apps/web/scripts/copy-recordings.sh
 # Ctrl-C the server, then:
 docker compose down -v
 
-# 3. CLI recordings (needs VHS: brew install charmbracelet/tap/vhs)
-make cli-recordings              # runs tapes + copies to website/static/video/cli/
+# 3. Kapi CLI recordings (no server needed)
+make kapi-recordings             # runs tapes + copies to website/static/video/kapi/
+
+# 4. Brain CLI recordings (needs VHS + server)
+make brain-recordings            # runs tapes + copies to website/static/video/brain/
 
 # Or generate everything at once:
 make docs-assets                 # screenshots + recordings + cli-recordings
@@ -318,7 +322,7 @@ make fetch-docs-assets           # downloads tarball from docs-assets GitHub rel
 # - On release: automatically triggered by version tags
 # - Nightly: scheduled at 2 AM UTC
 #
-# All three systems (Bowrain, Web app, CLI) run in parallel jobs.
+# All four systems (Bowrain, Web app, Kapi CLI, Brain CLI) run in parallel jobs.
 # A publish-assets job creates a tarball and uploads it to the "docs-assets"
 # GitHub release. The docs deploy workflow fetches this tarball before building.
 # Assets are NOT stored in git.

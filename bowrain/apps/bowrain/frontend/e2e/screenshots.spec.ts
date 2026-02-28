@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
+import { setupServerApp } from "./helpers/server-setup";
 import { selectMultiLocales } from "./locale-helper";
 import * as path from "path";
 import { fileURLToPath } from "url";
@@ -7,6 +8,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../../website/static/img/bowrain");
+const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
 
 /** Helper: apply theme to the page. */
 async function setTheme(page: any, theme: "dark" | "light") {
@@ -42,6 +44,10 @@ async function setInput(page: any, testId: string, value: string) {
  * Creates three sample projects so the dashboard looks populated.
  */
 async function seedDashboard(page: any) {
+  if (useRealServer) {
+    await setupServerApp(page);
+    return; // Server is already seeded with projects
+  }
   await setupLocalApp(page);
 
   // Create three projects with different languages

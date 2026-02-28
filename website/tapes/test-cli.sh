@@ -1,6 +1,8 @@
 #!/bin/bash
-# Test CLI commands used in VHS demos
+# Test kapi CLI commands used in VHS demos
 # Run before generating recordings to catch issues early
+#
+# For brain CLI tests, see bowrain/e2e/tapes/test-cli.sh
 
 set -e
 
@@ -10,8 +12,7 @@ cd "$SCRIPT_DIR"
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 passed=0
 failed=0
@@ -47,21 +48,8 @@ test_cmd() {
   fi
 }
 
-# Test file exists
-test_file() {
-  local path="$1"
-  printf "  Checking: %-40s" "$path"
-  if [ -f "$path" ]; then
-    echo -e "${GREEN}✓${NC}"
-    passed=$((passed + 1))
-  else
-    echo -e "${RED}✗ (not found)${NC}"
-    failed=$((failed + 1))
-  fi
-}
-
 echo "============================================"
-echo "CLI Demo Tests"
+echo "Kapi CLI Demo Tests"
 echo "============================================"
 echo ""
 
@@ -72,13 +60,6 @@ echo "Building kapi..."
   exit 1
 }
 
-# Build brain (needed for auth-login.tape)
-echo "Building brain..."
-(cd ../.. && cd bowrain && go build -o ../bin/brain ./cmd/brain) || {
-  echo -e "${RED}Failed to build brain${NC}"
-  exit 1
-}
-
 export PATH="$SCRIPT_DIR/../../bin:$PATH"
 
 # Skip plugin loading for faster tests
@@ -86,62 +67,31 @@ export KAPI_PLUGIN_DIR=/tmp/kapi-no-plugins
 mkdir -p "$KAPI_PLUGIN_DIR"
 
 echo -e "${GREEN}✓ kapi built${NC}"
-echo -e "${GREEN}✓ brain built${NC}"
 echo ""
 
-# Test sample files exist
+# Test sample files
 echo "Sample files:"
-test_file "samples/messages.json"
-test_file "samples/landing-page.html"
+printf "  Checking: %-40s" "samples/messages.json"
+if [ -f "samples/messages.json" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
 echo ""
 
-# overview.tape tests
+# overview.tape commands
 echo "overview.tape commands:"
 test_cmd "kapi --help" "kapi --help" "Usage:"
 test_cmd "kapi formats" "kapi formats" "html"
 test_cmd "kapi tools" "kapi tools" "pseudo-translate"
 echo ""
 
-# word-count.tape tests
+# word-count.tape commands
 echo "word-count.tape commands:"
 test_cmd "word-count messages.json" "kapi word-count samples/messages.json" "WORDS"
-test_cmd "word-count html" "kapi word-count samples/landing-page.html" "WORDS"
 echo ""
 
-# pseudo-translate.tape tests
+# pseudo-translate.tape commands
 echo "pseudo-translate.tape commands:"
 rm -rf out
 test_cmd "pseudo-translate json" "kapi pseudo-translate samples/messages.json --target-lang fr && cat out/messages.json" "welcome"
 rm -rf out
-echo ""
-
-# create-project.tape tests
-echo "create-project.tape commands:"
-test_cmd "cat landing-page.html" "cat samples/landing-page.html" "<html"
-rm -rf out
-test_cmd "pseudo-translate html" "kapi pseudo-translate samples/landing-page.html --target-lang fr && cat out/landing-page.html" ""
-rm -rf out
-echo ""
-
-# auth-login.tape tests
-echo "auth-login.tape commands:"
-test_cmd "brain auth --help" "brain auth --help" "authentication"
-test_cmd "brain auth status" "brain auth status" ""
-echo ""
-
-# serve.tape tests
-echo "serve.tape commands:"
-test_cmd "brain serve --help" "brain serve --help" "Open a local web dashboard"
-echo ""
-
-# workspaces.tape tests (only if server is running)
-echo "workspaces.tape commands:"
-if curl -sf http://localhost:8080/api/v1/health > /dev/null 2>&1; then
-  test_cmd "server health" "curl -sf http://localhost:8080/api/v1/health" '"status":"ok"'
-  echo -e "  ${YELLOW}(Server-backed tests ran against live server)${NC}"
-else
-  echo -e "  ${YELLOW}(Skipped: server not running)${NC}"
-fi
 echo ""
 
 echo "============================================"

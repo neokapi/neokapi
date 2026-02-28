@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
+import { setupServerApp } from "./helpers/server-setup";
 import { injectCursor, humanClick, humanClickNative, humanType, humanTypeNative, moveCursorTo, moveCursorToElement } from "./cursor-helper";
 import { setMultiLocales, setMultiLocalesHuman, expectLocaleChips } from "./locale-helper";
 import { injectWindowChrome } from "./window-chrome";
@@ -19,9 +20,15 @@ async function setTheme(page: any, theme: "dark" | "light") {
   await page.waitForTimeout(100);
 }
 
-/** Setup helper - injects mock backend, cursor, and window chrome */
+const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
+
+/** Setup helper - injects backend (mock or real server), cursor, and window chrome */
 async function setupRecording(page: any, title: string = "Bowrain", theme: "dark" | "light" = "dark") {
-  await setupLocalApp(page);
+  if (useRealServer) {
+    await setupServerApp(page);
+  } else {
+    await setupLocalApp(page);
+  }
   await setTheme(page, theme);
   await injectCursor(page);
   await injectWindowChrome(page, title);

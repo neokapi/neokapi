@@ -14,66 +14,9 @@ permissions:
   actions: write   # Needed to trigger docs redeploy workflow
 
 jobs:
-  # ── Bowrain Screenshots & Recordings (self-contained) ───────────────────────
+  # ── Bowrain Screenshots & Recordings (real server via Docker) ────────────────
   bowrain-assets:
     name: Bowrain Assets (${{ matrix.theme }})
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        theme: [dark, light]
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install workspace dependencies
-        run: npm ci
-
-      - name: Build shared UI package
-        working-directory: packages/ui
-        run: npx tsc
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
-
-      - name: Install Playwright browsers
-        working-directory: bowrain/apps/bowrain/frontend
-        run: npx playwright install --with-deps chromium
-
-      - name: Generate screenshots
-        working-directory: bowrain/apps/bowrain/frontend
-        run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
-
-      - name: Generate recordings
-        working-directory: bowrain/apps/bowrain/frontend
-        run: npx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
-        timeout-minutes: 30  # Recordings are slow due to human-like typing
-        env:
-          FORCE_RECORDINGS: "true"  # Override CI skip for dedicated recordings workflow
-
-      - name: Copy recordings to static assets
-        working-directory: bowrain/apps/bowrain/frontend
-        run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
-
-      - name: Upload Bowrain assets
-        uses: actions/upload-artifact@v4
-        with:
-          name: bowrain-assets-${{ matrix.theme }}
-          path: |
-            website/static/img/bowrain/${{ matrix.theme }}/
-            website/static/video/bowrain/${{ matrix.theme }}/
-          retention-days: 30
-
-  # ── Web App Screenshots & Recordings (needs Keycloak + local server) ────────
-  web-app-assets:
-    name: Web App Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -98,45 +41,75 @@ jobs:
         working-directory: packages/ui
         run: npx tsc
 
-      - name: Build web UI
-        working-directory: bowrain/apps/web
-        run: npm run build
+      - name: Start full stack (pre-built Docker images)
+        run: docker compose -f e2e/compose.yaml up -d --wait
 
-      - name: Build bowrain-server
-        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
-      - name: Build Keycloak theme
-        run: make keycloak-theme
+      - name: Install Playwright browsers
+        working-directory: bowrain/apps/bowrain/frontend
+        run: npx playwright install --with-deps chromium
 
-      - name: Start dependencies (Keycloak + Mailpit)
-        run: docker compose -f compose.yaml up -d --wait
+      - name: Generate screenshots
+        working-directory: bowrain/apps/bowrain/frontend
+        run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
+        env:
+          BOWRAIN_SERVER_URL: http://localhost:8080
 
-      - name: Start bowrain-server
-        run: |
-          BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
-          BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
-          BOWRAIN_OIDC_CLIENT_ID=bowrain \
-          BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
-          BOWRAIN_SMTP_HOST=localhost:1025 \
-          BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
-          BOWRAIN_STORE=bowrain-ci.db \
-          BOWRAIN_GRPC_PORT=9080 \
-          BOWRAIN_WEB_UI_DIR=bowrain/apps/web/dist \
-          bin/bowrain-server &
-          echo $! > .bowrain-server.pid
+      - name: Generate recordings
+        working-directory: bowrain/apps/bowrain/frontend
+        run: npx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
+        timeout-minutes: 30
+        env:
+          FORCE_RECORDINGS: "true"
+          BOWRAIN_SERVER_URL: http://localhost:8080
 
-      - name: Wait for server health
-        run: |
-          for i in {1..30}; do
-            if curl -sf http://localhost:8080/api/v1/health; then
-              echo "Server is healthy"
-              exit 0
-            fi
-            echo "Waiting for server... ($i/30)"
-            sleep 2
-          done
-          echo "Server failed to become healthy"
-          exit 1
+      - name: Copy recordings to static assets
+        working-directory: bowrain/apps/bowrain/frontend
+        run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
+
+      - name: Upload Bowrain assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: bowrain-assets-${{ matrix.theme }}
+          path: |
+            website/static/img/bowrain/${{ matrix.theme }}/
+            website/static/video/bowrain/${{ matrix.theme }}/
+          retention-days: 30
+
+      - name: Shutdown
+        if: always()
+        run: docker compose -f e2e/compose.yaml down -v
+
+  # ── Web App Screenshots & Recordings (real server via Docker) ────────────────
+  web-app-assets:
+    name: Web App Assets (${{ matrix.theme }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        theme: [dark, light]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build shared UI package
+        working-directory: packages/ui
+        run: npx tsc
+
+      - name: Start full stack (pre-built Docker images)
+        run: docker compose -f e2e/compose.yaml up -d --wait
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -172,18 +145,13 @@ jobs:
             website/static/video/web-app/${{ matrix.theme }}/
           retention-days: 30
 
-      - name: Shutdown server and dependencies
+      - name: Shutdown
         if: always()
-        run: |
-          if [ -f .bowrain-server.pid ]; then
-            kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
-            rm -f .bowrain-server.pid
-          fi
-          docker compose -f compose.yaml down -v
+        run: docker compose -f e2e/compose.yaml down -v
 
-  # ── CLI Recordings (VHS) ────────────────────────────────────────────────────
-  cli-recordings:
-    name: CLI Recordings (VHS)
+  # ── Kapi CLI Recordings (VHS, standalone) ────────────────────────────────────
+  kapi-recordings:
+    name: Kapi Recordings (VHS)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -192,22 +160,9 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
+      - name: Build kapi CLI
+        run: make build
 
-      - name: Build kapi CLI, brain CLI, and bowrain-server
-        run: |
-          npm ci
-          cd packages/ui && npx tsc
-          cd ../../bowrain/apps/kapi-web && npm run build
-          cd ../web && npm run build
-          cd ../../.. && make build build-brain
-          cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
-
-      # Install VHS and its dependencies (ttyd is required for terminal rendering)
       - name: Install VHS
         run: |
           sudo apt-get update
@@ -217,77 +172,84 @@ jobs:
           sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
           sudo chmod +x /usr/local/bin/vhs
 
-      # VHS needs Xvfb for headless rendering
       - name: Install Xvfb
         run: sudo apt-get install -y xvfb
 
-      - name: Build Keycloak theme
-        run: make keycloak-theme
-
-      - name: Start dependencies (Keycloak + Mailpit)
-        run: docker compose -f compose.yaml up -d --wait
-
-      - name: Start bowrain-server
-        run: |
-          BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
-          BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
-          BOWRAIN_OIDC_CLIENT_ID=bowrain \
-          BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
-          BOWRAIN_SMTP_HOST=localhost:1025 \
-          BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
-          BOWRAIN_STORE=bowrain-ci.db \
-          BOWRAIN_GRPC_PORT=9080 \
-          BOWRAIN_WEB_UI_DIR=bowrain/apps/web/dist \
-          bin/bowrain-server &
-          echo $! > .bowrain-server.pid
-
-      - name: Wait for server health
-        run: |
-          for i in {1..30}; do
-            if curl -sf http://localhost:8080/api/v1/health; then
-              echo "Server is healthy"
-              exit 0
-            fi
-            echo "Waiting for server... ($i/30)"
-            sleep 2
-          done
-          echo "Server failed to become healthy"
-          exit 1
-
-      - name: Generate CLI recordings with VHS
-        timeout-minutes: 30
+      - name: Generate kapi recordings
+        timeout-minutes: 15
         working-directory: website/tapes
         run: |
           export PATH="$PWD/../../bin:$PATH"
-          export KAPI_SERVER_URL=http://localhost:8080
 
-          # Start virtual display for VHS
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           export DISPLAY=:99
 
           bash generate.sh
 
-      - name: Shutdown server and dependencies
-        if: always()
-        run: |
-          if [ -f .bowrain-server.pid ]; then
-            kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
-            rm -f .bowrain-server.pid
-          fi
-          docker compose -f compose.yaml down -v
-
-      - name: Upload CLI assets
+      - name: Upload kapi assets
         uses: actions/upload-artifact@v4
         with:
-          name: cli-assets
-          path: website/static/video/cli/
+          name: kapi-assets
+          path: website/static/video/kapi/
           retention-days: 30
 
-  # ── Publish Assets to Release ──────────────────────────────────────────────
+  # ── Brain CLI Recordings (VHS, needs server) ─────────────────────────────────
+  brain-recordings:
+    name: Brain Recordings (VHS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.0"
+
+      - name: Build kapi + brain CLIs
+        run: make build build-brain
+
+      - name: Install VHS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg ttyd
+          curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_Linux_x86_64.tar.gz | \
+            sudo tar -xz -C /tmp
+          sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
+          sudo chmod +x /usr/local/bin/vhs
+
+      - name: Install Xvfb
+        run: sudo apt-get install -y xvfb
+
+      - name: Start full stack (pre-built Docker images)
+        run: docker compose -f e2e/compose.yaml up -d --wait
+
+      - name: Generate brain recordings
+        timeout-minutes: 30
+        working-directory: bowrain/e2e/tapes
+        run: |
+          export PATH="$PWD/../../../bin:$PATH"
+          export KAPI_SERVER_URL=http://localhost:8080
+
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          export DISPLAY=:99
+
+          bash generate.sh
+
+      - name: Shutdown
+        if: always()
+        run: docker compose -f e2e/compose.yaml down -v
+
+      - name: Upload brain assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: brain-assets
+          path: website/static/video/brain/
+          retention-days: 30
+
+  # ── Publish Assets to Release ────────────────────────────────────────────────
   publish-assets:
     name: Publish Assets to Release
     runs-on: ubuntu-latest
-    needs: [bowrain-assets, web-app-assets, cli-recordings]
+    needs: [bowrain-assets, web-app-assets, kapi-recordings, brain-recordings]
     steps:
       - uses: actions/checkout@v4
 
@@ -305,11 +267,17 @@ jobs:
           pattern: web-app-assets-*
           merge-multiple: true
 
-      - name: Download CLI assets
+      - name: Download Kapi assets
         uses: actions/download-artifact@v4
         with:
-          path: downloaded-assets/cli
-          name: cli-assets
+          path: downloaded-assets/kapi
+          name: kapi-assets
+
+      - name: Download Brain assets
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-assets/brain
+          name: brain-assets
 
       - name: Assemble tarball
         run: |
@@ -323,9 +291,13 @@ jobs:
           cp -r downloaded-assets/web-app/img/web-app assembled/img/ 2>/dev/null || true
           cp -r downloaded-assets/web-app/video/web-app assembled/video/ 2>/dev/null || true
 
-          # CLI recordings
-          mkdir -p assembled/video/cli
-          cp downloaded-assets/cli/* assembled/video/cli/ 2>/dev/null || true
+          # Kapi CLI recordings
+          mkdir -p assembled/video/kapi
+          cp downloaded-assets/kapi/* assembled/video/kapi/ 2>/dev/null || true
+
+          # Brain CLI recordings
+          mkdir -p assembled/video/brain
+          cp downloaded-assets/brain/* assembled/video/brain/ 2>/dev/null || true
 
           echo "## Asset sizes:"
           du -sh assembled/img assembled/video
