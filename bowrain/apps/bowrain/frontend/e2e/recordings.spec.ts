@@ -78,8 +78,14 @@ async function pause(page: any, ms: number = 500) {
   await page.waitForTimeout(ms);
 }
 
-// Use conditional describe to skip entire suite in CI
-const describeOrSkip = isCI ? test.describe.skip : test.describe;
+/** Find a project by name from the backend project list. */
+async function findProject(page: any, name: string) {
+  const projects = await callBackend(page, "ListProjects");
+  return projects.find((p: any) => p.name === name);
+}
+
+// Use conditional describe to skip entire suite in CI; serial ensures order + shared state
+const describeOrSkip = isCI ? test.describe.skip : test.describe.serial;
 
 const themes = ["dark", "light"] as const;
 
@@ -87,8 +93,61 @@ describeOrSkip("Video Recordings", () => {
   // Video settings are configured in playwright.recordings.config.ts
   // Videos are saved to test-results/ - use `npm run recordings:copy` to copy to docs
   // Skipped in CI due to human-speed typing exceeding timeouts
+  //
+  // Tests are ordered as a continuous narrative: each test builds on the state
+  // left by previous tests. Projects accumulate intentionally in the workspace.
 
   for (const theme of themes) {
+
+  // ── 1. Settings Configuration ─────────────────────────────────────────────────
+  // Setup workspace — configure an AI provider (no projects created)
+  test(`record settings configuration [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Settings", theme);
+    await pause(page, 600);
+
+    // Navigate to Settings
+    await expect(page.getByTestId("nav-settings")).toBeVisible();
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Switch to AI Providers tab
+    await expect(page.getByTestId("settings-tab-ai-providers")).toBeVisible();
+    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
+    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Add a provider
+    await expect(page.getByTestId("add-provider-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("add-provider-btn"));
+    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Fill provider details
+    await humanType(page, page.getByTestId("provider-name"), "Anthropic Claude");
+    await pause(page, 300);
+
+    // Select provider type
+    await humanClick(page, page.getByTestId("provider-type"));
+    await page.getByRole("option", { name: "Anthropic" }).click();
+    await pause(page, 400);
+
+    // Enter API key
+    await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
+    await pause(page, 300);
+
+    // Enter model
+    await humanType(page, page.getByTestId("provider-model"), "claude-sonnet-4-20250514");
+    await pause(page, 400);
+
+    // Save provider
+    await humanClick(page, page.getByTestId("provider-save-btn"));
+    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
+    await pause(page, 1000);
+  });
+
+  // ── 2. Create Project Flow ────────────────────────────────────────────────────
+  // First project — shows project creation (creates "Website Redesign")
   test(`record create project flow [${theme}]`, async ({ page }) => {
     await setupRecording(page, "Bowrain — New Project", theme);
     await pause(page, 800);
@@ -114,9 +173,9 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 600);
 
     // Add files via backend
-    const projects = await callBackend(page, "ListProjects");
-    if (projects[0]) {
-      await callBackend(page, "AddItems", projects[0].id, useServerMode
+    const proj = await findProject(page, "Website Redesign");
+    if (proj) {
+      await callBackend(page, "AddItems", proj.id, useServerMode
         ? [fixture("index.html"), fixture("strings.json"), fixture("about.md")]
         : ["/src/index.html", "/src/strings.json", "/content/about.md"]);
     }
@@ -125,7 +184,7 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 300);
     await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Website Redesign").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 300);
 
     // Click into project to see files
@@ -135,6 +194,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1500);
   });
 
+  // ── 3. Translation Editor Workflow ────────────────────────────────────────────
+  // Hero demo — grid, split, preview, translate (creates "Company Website")
   test(`record translation editor workflow [${theme}]`, async ({ page }) => {
     // Hero demo: Translating a realistic HTML page to Norwegian
     // Shows: grid view → translate blocks → toggle to split view → translate more
@@ -150,9 +211,9 @@ describeOrSkip("Video Recordings", () => {
     // Add HTML file with rich content - realistic webpage with headers, paragraphs, inline elements
     if (useServerMode) {
       // In server mode, add a real file via the backend
-      const teProjects = await callBackend(page, "ListProjects");
-      if (teProjects[0]) {
-        await callBackend(page, "AddItems", teProjects[0].id, [fixture("about-us.html")]);
+      const teProj = await findProject(page, "Company Website");
+      if (teProj) {
+        await callBackend(page, "AddItems", teProj.id, [fixture("about-us.html")]);
       }
     }
     // In mock mode, set up custom blocks and preview rendering
@@ -342,6 +403,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 4000); // Hold for 4 seconds to show completed state
   });
 
+  // ── 4. Focus View Editing ─────────────────────────────────────────────────────
+  // Alternative editing mode (creates "Marketing Site")
   test(`record focus view editing [${theme}]`, async ({ page }) => {
     await setupRecording(page, "Bowrain — Focus View", theme);
     await pause(page, 600);
@@ -350,7 +413,7 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("new-project-btn")).toBeVisible();
     await humanClick(page, page.getByTestId("new-project-btn"));
     await expect(page.getByTestId("project-name-input")).toBeVisible();
-    
+
     await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
     await pause(page, 200);
     await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
@@ -361,18 +424,18 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
     // Add file via backend
-    const focusProjects = await callBackend(page, "ListProjects");
-    if (focusProjects[0]) {
-      await callBackend(page, "AddItems", focusProjects[0].id, [fixture("homepage.html")]);
+    const focusProj = await findProject(page, "Marketing Site");
+    if (focusProj) {
+      await callBackend(page, "AddItems", focusProj.id, [fixture("homepage.html")]);
     }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
     await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Marketing Site")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Marketing Site").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
-    
+
     await humanClick(page, page.getByText("Marketing Site").first());
     await expect(page.getByTestId("open-file-homepage.html")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
@@ -412,117 +475,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 800);
   });
 
-  test(`record TM explorer [${theme}]`, async ({ page }, testInfo) => {
-    test.skip(!!process.env.CI, "Flaky in CI - TM search input timing issue");
-    await setupRecording(page, "Bowrain — Translation Memory", theme);
-    await pause(page, 600);
-
-    // Create project
-    await expect(page.getByTestId("new-project-btn")).toBeVisible();
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-    
-    await humanType(page, page.getByTestId("project-name-input"), "Documentation");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["fr"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 400);
-
-    // Seed TM entries
-    const tmProjects = await callBackend(page, "ListProjects");
-    const tmPid = tmProjects[0]?.id;
-    if (tmPid) {
-      await callBackend(page, "AddTMEntry", tmPid, "Hello World", "Bonjour le monde", "en", "fr");
-      await callBackend(page, "AddTMEntry", tmPid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-      await callBackend(page, "AddTMEntry", tmPid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
-      await callBackend(page, "AddTMEntry", tmPid, "Settings", "Paramètres", "en", "fr");
-      await callBackend(page, "AddTMEntry", tmPid, "Save changes", "Enregistrer les modifications", "en", "fr");
-    }
-
-    // Open TM explorer
-    await expect(page.getByTestId("open-tm-btn")).toBeVisible();
-    await moveCursorTo(page, 1100, 100, 300);
-    await page.evaluate(() => {
-      (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
-    });
-    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // TM explorer is open - show the entries
-    await expect(page.getByTestId("tm-search-input")).toBeVisible();
-    await pause(page, 400);
-
-    // Type search query
-    const searchInput = page.getByTestId("tm-search-input");
-    await moveCursorToElement(page, searchInput, 350);
-    await pause(page, 500);
-    await searchInput.fill("Hello");
-    await pause(page, 600);
-
-    // Show results
-    await expect(page.getByText("Bonjour")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Clear search
-    await page.getByTestId("tm-search-input").fill("");
-    await pause(page, 400);
-
-    // Type another search
-    await humanType(page, page.getByTestId("tm-search-input"), "Settings");
-    await pause(page, 600);
-
-    // Show filtered results
-    await expect(page.getByText("Paramètres")).toBeVisible({ timeout: 5000 });
-    await pause(page, 800);
-  });
-
-  test(`record flow editor [${theme}]`, async ({ page }) => {
-    await setupRecording(page, "Bowrain — Flow Editor", theme);
-    await pause(page, 600);
-
-    // Navigate to Flows view
-    await expect(page.getByTestId("nav-flows")).toBeVisible();
-    await humanClick(page, page.getByTestId("nav-flows"));
-    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Select AI Translate flow
-    await expect(page.getByTestId("flow-item-ai-translate")).toBeVisible();
-    await humanClick(page, page.getByTestId("flow-item-ai-translate"));
-    await pause(page, 600);
-
-    // Verify flow nodes are visible
-    await expect(page.getByTestId("flow-node-reader")).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Click through the flow nodes to show the pipeline
-    await humanClick(page, page.getByTestId("flow-node-reader"), true);
-    await pause(page, 500);
-    
-    await humanClick(page, page.getByTestId("flow-node-ai-translate"), true);
-    await pause(page, 500);
-    
-    await humanClick(page, page.getByTestId("flow-node-writer"), true);
-    await pause(page, 600);
-
-    // Switch to pseudo-translate flow
-    await humanClick(page, page.getByTestId("flow-item-pseudo-translate"));
-    await expect(page.getByTestId("flow-node-pseudo-translate")).toBeVisible({ timeout: 5000 });
-    await pause(page, 800);
-
-    // Click through pseudo-translate nodes
-    await humanClick(page, page.getByTestId("flow-node-reader"), true);
-    await pause(page, 400);
-    await humanClick(page, page.getByTestId("flow-node-pseudo-translate"), true);
-    await pause(page, 400);
-    await humanClick(page, page.getByTestId("flow-node-writer"), true);
-    await pause(page, 1000);
-  });
-
+  // ── 5. End-to-End Translation Workflow ────────────────────────────────────────
+  // Complete workflow start-to-finish (creates "Product Launch")
   test(`record end-to-end translation workflow [${theme}]`, async ({ page }) => {
     // Complete workflow: create project → add file → translate in different views → export
     await setupRecording(page, "Bowrain — Complete Workflow", theme);
@@ -532,7 +486,7 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("new-project-btn")).toBeVisible();
     await humanClick(page, page.getByTestId("new-project-btn"));
     await expect(page.getByTestId("project-name-input")).toBeVisible();
-    
+
     await humanType(page, page.getByTestId("project-name-input"), "Product Launch");
     await pause(page, 200);
     await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
@@ -544,18 +498,18 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
 
     // Add file via backend
-    const e2eProjects = await callBackend(page, "ListProjects");
-    if (e2eProjects[0]) {
-      await callBackend(page, "AddItems", e2eProjects[0].id, [fixture("landing-page.html")]);
+    const e2eProj = await findProject(page, "Product Launch");
+    if (e2eProj) {
+      await callBackend(page, "AddItems", e2eProj.id, [fixture("landing-page.html")]);
     }
 
     // Refresh to show file
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
     await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Product Launch")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Product Launch").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
-    
+
     await humanClick(page, page.getByText("Product Launch").first());
     await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
@@ -608,6 +562,78 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
+  // ── 6. TM Explorer ────────────────────────────────────────────────────────────
+  // Explore translation memory (creates "Documentation")
+  test(`record TM explorer [${theme}]`, async ({ page }, testInfo) => {
+    test.skip(!!process.env.CI, "Flaky in CI - TM search input timing issue");
+    await setupRecording(page, "Bowrain — Translation Memory", theme);
+    await pause(page, 600);
+
+    // Create project
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Documentation");
+    await pause(page, 200);
+    await setMultiLocalesHuman(page, "target-langs-input", ["fr"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["fr"]);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 400);
+
+    // Seed TM entries
+    const tmProj = await findProject(page, "Documentation");
+    const tmPid = tmProj?.id;
+    if (tmPid) {
+      await callBackend(page, "AddTMEntry", tmPid, "Hello World", "Bonjour le monde", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Settings", "Paramètres", "en", "fr");
+      await callBackend(page, "AddTMEntry", tmPid, "Save changes", "Enregistrer les modifications", "en", "fr");
+    }
+
+    // Open TM explorer
+    await expect(page.getByTestId("open-tm-btn")).toBeVisible();
+    await moveCursorTo(page, 1100, 100, 300);
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("tm-explorer")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // TM explorer is open - show the entries
+    await expect(page.getByTestId("tm-search-input")).toBeVisible();
+    await pause(page, 400);
+
+    // Type search query
+    const searchInput = page.getByTestId("tm-search-input");
+    await moveCursorToElement(page, searchInput, 350);
+    await pause(page, 500);
+    await searchInput.fill("Hello");
+    await pause(page, 600);
+
+    // Show results
+    await expect(page.getByText("Bonjour")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Clear search
+    await page.getByTestId("tm-search-input").fill("");
+    await pause(page, 400);
+
+    // Type another search
+    await humanType(page, page.getByTestId("tm-search-input"), "Settings");
+    await pause(page, 600);
+
+    // Show filtered results
+    await expect(page.getByText("Paramètres")).toBeVisible({ timeout: 5000 });
+    await pause(page, 800);
+  });
+
+  // ── 7. TM Leverage Workflow ───────────────────────────────────────────────────
+  // Apply TM to content (creates "Website Translation")
   test(`record TM leverage workflow [${theme}]`, async ({ page }) => {
     await setupRecording(page, "Bowrain — TM Leverage", theme);
     await pause(page, 600);
@@ -628,8 +654,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
 
     // Seed TM entries and add file via backend
-    const leverageProjects = await callBackend(page, "ListProjects");
-    const leveragePid = leverageProjects[0]?.id;
+    const leverageProj = await findProject(page, "Website Translation");
+    const leveragePid = leverageProj?.id;
     if (leveragePid) {
       // Add TM entries matching the generated blocks
       await callBackend(page, "AddTMEntry", leveragePid, "Hello from landing.html", "Bonjour depuis landing.html", "en", "fr");
@@ -643,7 +669,7 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
     await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Website Translation")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Website Translation").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
     await humanClick(page, page.getByText("Website Translation").first());
@@ -692,6 +718,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
+  // ── 8. Term Explorer ──────────────────────────────────────────────────────────
+  // Build terminology (creates "Software Docs")
   test(`record term explorer [${theme}]`, async ({ page }) => {
     await setupRecording(page, "Bowrain — Terminology", theme);
     await pause(page, 600);
@@ -752,8 +780,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
 
     // Add more concepts via backend for demo
-    const termProjects = await callBackend(page, "ListProjects");
-    const termPid = termProjects[0]?.id;
+    const termProj = await findProject(page, "Software Docs");
+    const termPid = termProj?.id;
     if (termPid) {
       await callBackend(page, "AddConcept", {
         project_id: termPid, domain: "Security",
@@ -807,6 +835,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1200);
   });
 
+  // ── 9. Context Panel ──────────────────────────────────────────────────────────
+  // TM + terms in context (creates "Web Application")
   test(`record context panel [${theme}]`, async ({ page }) => {
     await setupRecording(page, "Bowrain — Context Panel", theme);
     await pause(page, 600);
@@ -826,8 +856,8 @@ describeOrSkip("Video Recordings", () => {
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
 
     // Add TM entries and terminology, then add file
-    const ctxProjects = await callBackend(page, "ListProjects");
-    const ctxPid = ctxProjects[0]?.id;
+    const ctxProj = await findProject(page, "Web Application");
+    const ctxPid = ctxProj?.id;
     if (ctxPid) {
       // TM entries
       await callBackend(page, "AddTMEntry", ctxPid, "Hello from app.html", "Bonjour depuis app.html", "en", "fr");
@@ -857,7 +887,7 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("nav-settings"));
     await pause(page, 200);
     await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Web Application")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Web Application").first()).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
     await humanClick(page, page.getByText("Web Application").first());
@@ -896,299 +926,8 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 1000);
   });
 
-  test(`record workspace switcher [${theme}]`, async ({ page }) => {
-    await setupRecording(page, "Bowrain — Workspace Navigation", theme);
-    await pause(page, 600);
-
-    // Show the sidebar with workspace name "Personal"
-    // Create a project first so the dashboard has content
-    await expect(page.getByTestId("new-project-btn")).toBeVisible();
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-
-    await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["fr", "de"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 400);
-
-    // Go back to dashboard
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await pause(page, 400);
-
-    // Create a second project
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-    await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["es", "ja"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["es", "ja"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 400);
-
-    // Navigate back to see both projects
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await pause(page, 600);
-
-    // === Demonstrate sidebar navigation ===
-
-    // Navigate to Termbase
-    await humanClick(page, page.getByTestId("nav-termbase"));
-    await pause(page, 500);
-
-    // Navigate to Memory
-    await humanClick(page, page.getByTestId("nav-memory"));
-    await pause(page, 500);
-
-    // Navigate to Flows
-    await humanClick(page, page.getByTestId("nav-flows"));
-    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Navigate to Connectors
-    await humanClick(page, page.getByTestId("nav-connectors"));
-    await pause(page, 500);
-
-    // Navigate to Settings
-    await humanClick(page, page.getByTestId("nav-settings"));
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Back to Translate (project list)
-    await humanClick(page, page.getByTestId("nav-translate"));
-    await expect(page.getByText("Marketing Site")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Mobile App v2")).toBeVisible();
-    await pause(page, 1200);
-  });
-
-  test(`record account and authentication [${theme}]`, async ({ page }) => {
-    await setupRecording(page, "Bowrain — Settings & Providers", theme);
-    await pause(page, 600);
-
-    // Navigate to Settings
-    await expect(page.getByTestId("nav-settings")).toBeVisible();
-    await humanClick(page, page.getByTestId("nav-settings"));
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Switch to AI Providers tab
-    await expect(page.getByTestId("settings-tab-ai-providers")).toBeVisible();
-    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
-    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Add first provider — Anthropic
-    await expect(page.getByTestId("add-provider-btn")).toBeVisible();
-    await humanClick(page, page.getByTestId("add-provider-btn"));
-    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
-    await pause(page, 300);
-
-    await humanType(page, page.getByTestId("provider-name"), "Anthropic Claude");
-    await pause(page, 200);
-
-    await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByRole("option", { name: "Anthropic" }).click();
-    await pause(page, 300);
-
-    await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
-    await pause(page, 200);
-
-    await humanType(page, page.getByTestId("provider-model"), "claude-sonnet-4-20250514");
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Add second provider — OpenAI
-    await humanClick(page, page.getByTestId("add-provider-btn"));
-    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
-    await pause(page, 300);
-
-    await humanType(page, page.getByTestId("provider-name"), "OpenAI GPT");
-    await pause(page, 200);
-
-    await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByRole("option", { name: "OpenAI", exact: true }).click();
-    await pause(page, 300);
-
-    await humanType(page, page.getByTestId("provider-api-key"), "sk-proj-xxxx");
-    await pause(page, 200);
-
-    await humanType(page, page.getByTestId("provider-model"), "gpt-4o");
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("OpenAI GPT")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Navigate back to Translate to show the workspace is ready
-    await humanClick(page, page.getByTestId("nav-translate"));
-    await pause(page, 800);
-  });
-
-  test(`record workspace project management [${theme}]`, async ({ page }) => {
-    await setupRecording(page, "Bowrain — Project Management", theme);
-    await pause(page, 600);
-
-    // Create first project
-    await expect(page.getByTestId("new-project-btn")).toBeVisible();
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-
-    await humanType(page, page.getByTestId("project-name-input"), "Website Redesign");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["fr", "de", "ja"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["fr", "de", "ja"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 300);
-
-    // Add files
-    const wsProjFirst = await callBackend(page, "ListProjects");
-    if (wsProjFirst[0]) {
-      await callBackend(page, "AddItems", wsProjFirst[0].id, useServerMode
-        ? [fixture("index.html"), fixture("strings.json"), fixture("about.md")]
-        : ["/src/index.html", "/src/strings.json", "/content/about.md"]);
-    }
-
-    // Refresh to show files
-    await page.getByTestId("nav-settings").click();
-    await page.waitForTimeout(100);
-    await page.getByTestId("nav-translate").click();
-    await page.waitForTimeout(200);
-    await humanClick(page, page.getByText("Website Redesign").first());
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Go back and create second project
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await pause(page, 400);
-
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-
-    await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2.0");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["es"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["es"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 300);
-
-    // Add files to second project
-    const wsProjSecond = await callBackend(page, "ListProjects");
-    const wsLastProj = wsProjSecond[wsProjSecond.length - 1];
-    if (wsLastProj) {
-      await callBackend(page, "AddItems", wsLastProj.id, useServerMode
-        ? [fixture("strings.json"), fixture("config.yaml")]
-        : ["/app/strings.json", "/app/config.yaml"]);
-    }
-
-    // Go back and create third project
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await pause(page, 400);
-
-    await humanClick(page, page.getByTestId("new-project-btn"));
-    await expect(page.getByTestId("project-name-input")).toBeVisible();
-
-    await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
-    await pause(page, 200);
-    await setMultiLocalesHuman(page, "target-langs-input", ["ko"], humanType);
-    await expectLocaleChips(page, "target-langs-input", ["ko"]);
-    await pause(page, 300);
-
-    await humanClick(page, page.getByTestId("create-project-submit"));
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 300);
-
-    // Navigate back to dashboard to see all 3 projects
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Mobile App v2.0")).toBeVisible();
-    await expect(page.getByText("API Documentation")).toBeVisible();
-    await pause(page, 800);
-
-    // Open first project to show files
-    await humanClick(page, page.getByText("Website Redesign").first());
-    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Open a file to show quick access
-    await humanClick(page, page.getByTestId("open-file-index.html"));
-    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
-    await pause(page, 600);
-
-    // Navigate back to project list
-    await humanClick(page, page.getByTestId("back-to-project"));
-    await pause(page, 400);
-
-    await humanClick(page, page.getByTestId("back-to-projects"));
-    await pause(page, 400);
-
-    // Open the second project
-    await humanClick(page, page.getByText("Mobile App v2.0").first());
-    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-    await pause(page, 1000);
-  });
-
-  test(`record settings configuration [${theme}]`, async ({ page }) => {
-    await setupRecording(page, "Bowrain — Settings", theme);
-    await pause(page, 600);
-
-    // Navigate to Settings
-    await expect(page.getByTestId("nav-settings")).toBeVisible();
-    await humanClick(page, page.getByTestId("nav-settings"));
-    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Switch to AI Providers tab
-    await expect(page.getByTestId("settings-tab-ai-providers")).toBeVisible();
-    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
-    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
-    await pause(page, 500);
-
-    // Add a provider
-    await expect(page.getByTestId("add-provider-btn")).toBeVisible();
-    await humanClick(page, page.getByTestId("add-provider-btn"));
-    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
-    await pause(page, 400);
-
-    // Fill provider details
-    await humanType(page, page.getByTestId("provider-name"), "Anthropic Claude");
-    await pause(page, 300);
-
-    // Select provider type
-    await humanClick(page, page.getByTestId("provider-type"));
-    await page.getByRole("option", { name: "Anthropic" }).click();
-    await pause(page, 400);
-
-    // Enter API key
-    await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
-    await pause(page, 300);
-
-    // Enter model
-    await humanType(page, page.getByTestId("provider-model"), "claude-sonnet-4-20250514");
-    await pause(page, 400);
-
-    // Save provider
-    await humanClick(page, page.getByTestId("provider-save-btn"));
-    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
-    await pause(page, 1000);
-  });
-
+  // ── 10. Visual Editor Workflow ────────────────────────────────────────────────
+  // Advanced visual editor (creates "Help Center")
   test(`record visual editor workflow [${theme}]`, async ({ page }) => {
     // Hero demo: Visual translation editor with rich HTML preview,
     // keyboard navigation, inline codes, TM matches, terms, reference locales, review mode
@@ -1209,8 +948,8 @@ describeOrSkip("Video Recordings", () => {
     // Set up rich HTML file with inline codes, TM entries, and terminology
     if (useServerMode) {
       // In server mode, add a real file and seed TM/terms via the backend
-      const veProj = await callBackend(page, "ListProjects");
-      const vePid = veProj[0]?.id;
+      const veProj = await findProject(page, "Help Center");
+      const vePid = veProj?.id;
       if (vePid) {
         await callBackend(page, "AddItems", vePid, [fixture("help-center.html")]);
         await callBackend(page, "AddTMEntry", vePid, "Welcome to the CloudSync Pro documentation and support portal.", "Velkommen til CloudSync Pro-dokumentasjonen og støtteportalen.", "en", "nb");
@@ -1642,6 +1381,232 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
     await page.keyboard.press("k");
     await pause(page, 2000);
+  });
+
+  // ── 11. Flow Editor ───────────────────────────────────────────────────────────
+  // Browse automation flows (no projects created)
+  test(`record flow editor [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Flow Editor", theme);
+    await pause(page, 600);
+
+    // Navigate to Flows view
+    await expect(page.getByTestId("nav-flows")).toBeVisible();
+    await humanClick(page, page.getByTestId("nav-flows"));
+    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Select AI Translate flow
+    await expect(page.getByTestId("flow-item-ai-translate")).toBeVisible();
+    await humanClick(page, page.getByTestId("flow-item-ai-translate"));
+    await pause(page, 600);
+
+    // Verify flow nodes are visible
+    await expect(page.getByTestId("flow-node-reader")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Click through the flow nodes to show the pipeline
+    await humanClick(page, page.getByTestId("flow-node-reader"), true);
+    await pause(page, 500);
+
+    await humanClick(page, page.getByTestId("flow-node-ai-translate"), true);
+    await pause(page, 500);
+
+    await humanClick(page, page.getByTestId("flow-node-writer"), true);
+    await pause(page, 600);
+
+    // Switch to pseudo-translate flow
+    await humanClick(page, page.getByTestId("flow-item-pseudo-translate"));
+    await expect(page.getByTestId("flow-node-pseudo-translate")).toBeVisible({ timeout: 5000 });
+    await pause(page, 800);
+
+    // Click through pseudo-translate nodes
+    await humanClick(page, page.getByTestId("flow-node-reader"), true);
+    await pause(page, 400);
+    await humanClick(page, page.getByTestId("flow-node-pseudo-translate"), true);
+    await pause(page, 400);
+    await humanClick(page, page.getByTestId("flow-node-writer"), true);
+    await pause(page, 1000);
+  });
+
+  // ── 12. Account and Authentication ────────────────────────────────────────────
+  // Add more AI providers (no projects created)
+  test(`record account and authentication [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Settings & Providers", theme);
+    await pause(page, 600);
+
+    // Navigate to Settings
+    await expect(page.getByTestId("nav-settings")).toBeVisible();
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Switch to AI Providers tab
+    await expect(page.getByTestId("settings-tab-ai-providers")).toBeVisible();
+    await humanClick(page, page.getByTestId("settings-tab-ai-providers"));
+    await expect(page.getByTestId("settings-ai-providers")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Add first provider — Anthropic
+    await expect(page.getByTestId("add-provider-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("add-provider-btn"));
+    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-name"), "Anthropic Claude");
+    await pause(page, 200);
+
+    await humanClick(page, page.getByTestId("provider-type"));
+    await page.getByRole("option", { name: "Anthropic" }).click();
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-api-key"), "sk-ant-api03-xxxx");
+    await pause(page, 200);
+
+    await humanType(page, page.getByTestId("provider-model"), "claude-sonnet-4-20250514");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("provider-save-btn"));
+    await expect(page.getByText("Anthropic Claude")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Add second provider — OpenAI
+    await humanClick(page, page.getByTestId("add-provider-btn"));
+    await expect(page.getByTestId("provider-name")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-name"), "OpenAI GPT");
+    await pause(page, 200);
+
+    await humanClick(page, page.getByTestId("provider-type"));
+    await page.getByRole("option", { name: "OpenAI", exact: true }).click();
+    await pause(page, 300);
+
+    await humanType(page, page.getByTestId("provider-api-key"), "sk-proj-xxxx");
+    await pause(page, 200);
+
+    await humanType(page, page.getByTestId("provider-model"), "gpt-4o");
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("provider-save-btn"));
+    await expect(page.getByText("OpenAI GPT")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Navigate back to Translate to show the workspace is ready
+    await humanClick(page, page.getByTestId("nav-translate"));
+    await pause(page, 800);
+  });
+
+  // ── 13. Workspace Project Management ──────────────────────────────────────────
+  // Add a couple more projects, manage workspace (creates "Mobile App v2.0" + "API Documentation")
+  test(`record workspace project management [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Project Management", theme);
+    await pause(page, 600);
+
+    // Create first NEW project (workspace already has projects from the narrative)
+    await expect(page.getByTestId("new-project-btn")).toBeVisible();
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2.0");
+    await pause(page, 200);
+    await setMultiLocalesHuman(page, "target-langs-input", ["es"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["es"]);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Add files to the new project
+    const mobileProj = await findProject(page, "Mobile App v2.0");
+    if (mobileProj) {
+      await callBackend(page, "AddItems", mobileProj.id, useServerMode
+        ? [fixture("strings.json"), fixture("config.yaml")]
+        : ["/app/strings.json", "/app/config.yaml"]);
+    }
+
+    // Go back and create second project
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    await humanClick(page, page.getByTestId("new-project-btn"));
+    await expect(page.getByTestId("project-name-input")).toBeVisible();
+
+    await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
+    await pause(page, 200);
+    await setMultiLocalesHuman(page, "target-langs-input", ["ko"], humanType);
+    await expectLocaleChips(page, "target-langs-input", ["ko"]);
+    await pause(page, 300);
+
+    await humanClick(page, page.getByTestId("create-project-submit"));
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 300);
+
+    // Navigate back to dashboard to see all projects
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await expect(page.getByText("Mobile App v2.0").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("API Documentation").first()).toBeVisible();
+    await pause(page, 800);
+
+    // Open an existing project to show management
+    await humanClick(page, page.getByText("Website Redesign").first());
+    await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Open a file to show quick access
+    await humanClick(page, page.getByTestId("open-file-index.html"));
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+    await pause(page, 600);
+
+    // Navigate back to project list
+    await humanClick(page, page.getByTestId("back-to-project"));
+    await pause(page, 400);
+
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 400);
+
+    // Open the second new project
+    await humanClick(page, page.getByText("Mobile App v2.0").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 1000);
+  });
+
+  // ── 14. Workspace Switcher ────────────────────────────────────────────────────
+  // Navigate the rich accumulated workspace (no projects created)
+  test(`record workspace switcher [${theme}]`, async ({ page }) => {
+    await setupRecording(page, "Bowrain — Workspace", theme);
+    await pause(page, 600);
+
+    // The workspace already has 11 projects from previous tests.
+    // Navigate between a few of them to demonstrate workspace switching.
+    await humanClick(page, page.getByText("Website Redesign").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    await humanClick(page, page.getByTestId("back-to-projects"));
+    await pause(page, 300);
+
+    await humanClick(page, page.getByText("Company Website").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Navigate through sidebar sections
+    await humanClick(page, page.getByTestId("nav-termbase"));
+    await pause(page, 500);
+    await humanClick(page, page.getByTestId("nav-memory"));
+    await pause(page, 500);
+    await humanClick(page, page.getByTestId("nav-flows"));
+    await expect(page.getByTestId("flow-list")).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+    await humanClick(page, page.getByTestId("nav-connectors"));
+    await pause(page, 500);
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 5000 });
+    await pause(page, 500);
+
+    // Back to project list — all projects visible
+    await humanClick(page, page.getByTestId("nav-translate"));
+    await pause(page, 1200);
   });
 
   } // end for (theme)
