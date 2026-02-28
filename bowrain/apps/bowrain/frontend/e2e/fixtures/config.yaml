@@ -1,0 +1,7 @@
+app:
+  title: My Application
+  description: A sample application for testing
+navigation:
+  home: Home
+  settings: Settings
+  help: Help

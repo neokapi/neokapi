@@ -1,0 +1,11 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "footer": {
+    "copyright": "All rights reserved",
+    "privacy": "Privacy Policy"
+  }
+}
