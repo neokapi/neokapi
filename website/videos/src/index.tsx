@@ -1,5 +1,5 @@
 import React from "react";
-import { Composition } from "remotion";
+import { Composition, registerRoot } from "remotion";
 import { DemoVideo } from "./compositions/DemoVideo";
 import { loadAllScripts, expandThemes } from "./parse-script";
 import type { ResolvedScript, Script } from "./schema";
@@ -47,7 +47,7 @@ function getCompositions(): Array<{
   script: Script;
   resolved: ResolvedScript;
 }> {
-  const scriptsDir = path.resolve(import.meta.dirname, "..", "scripts");
+  const scriptsDir = path.resolve(import.meta.dirname ?? __dirname, "..", "scripts");
 
   let allScripts: Script[];
   try {
@@ -66,7 +66,7 @@ function getCompositions(): Array<{
   }));
 }
 
-export const RemotionRoot: React.FC = () => {
+const RemotionRoot: React.FC = () => {
   const compositions = getCompositions();
 
   return (
@@ -87,3 +87,5 @@ export const RemotionRoot: React.FC = () => {
     </>
   );
 };
+
+registerRoot(RemotionRoot);
