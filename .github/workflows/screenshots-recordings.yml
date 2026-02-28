@@ -75,7 +75,6 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
-          WAILS_SERVER_MODE: "true"
 
       - name: Copy recordings to static assets
         working-directory: bowrain/apps/bowrain/frontend
