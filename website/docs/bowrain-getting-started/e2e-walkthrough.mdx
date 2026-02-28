@@ -2,6 +2,7 @@
 sidebar_position: 5
 title: End-to-End Walkthrough
 sidebar_label: E2E Walkthrough
+slug: /bowrain/e2e-walkthrough
 ---
 
 # End-to-End Walkthrough
@@ -26,7 +27,7 @@ as the source project. The walkthrough has seven steps:
 
 ## Prerequisites
 
-- **kapi CLI** installed ([Installation](/docs/getting-started/installation))
+- **Brain CLI** installed ([Installation](/docs/bowrain/installation))
 - **Bowrain Server** running locally or in Docker ([Self-Hosting](/docs/bowrain-server/self-hosting))
 - **Node.js 18+** (for the example Docusaurus site)
 
@@ -34,42 +35,42 @@ as the source project. The walkthrough has seven steps:
 # Start the server stack (Keycloak + Bowrain)
 docker compose up -d --wait
 
-# Verify kapi is installed
-kapi --version
+# Verify brain is installed
+brain --version
 ```
 
 ---
 
 ## Step 1: Initialize the Project
 
-Navigate to the example Docusaurus project and create a Kapi project. You can
+Navigate to the example Docusaurus project and create a Brain project. You can
 create an anonymous project and receive a claim link by email:
 
 ```bash
 cd examples/docusaurus-e2e
 
-kapi init --name "Docusaurus E2E Demo" --email alex@example.com
+brain init --name "Docusaurus E2E Demo" --email alex@example.com
 ```
 
 Or create an anonymous project and get the claim URL printed directly:
 
 ```bash
-kapi init --anonymous --name "Docusaurus E2E Demo" --source en
+brain init --anonymous --name "Docusaurus E2E Demo" --source en
 ```
 
-This creates a `.kapi/` directory with the project configuration and prints a
+This creates a `.brain/` directory with the project configuration and prints a
 **claim URL** (or sends it via email) that you'll use in [Step 4](#step-4-claim-the-project):
 
 ```
 Creating project on https://bowrain.example.com...
-Initialized .kapi/ project in: /path/to/examples/docusaurus-e2e
-Configuration: /path/to/examples/docusaurus-e2e/.kapi/config.yaml
+Initialized .brain/ project in: /path/to/examples/docusaurus-e2e
+Configuration: /path/to/examples/docusaurus-e2e/.brain/config.yaml
 
 Project created: proj_abc123
 Claim URL: https://bowrain.example.com/claim/clm_def456
 
 Next steps:
-  1. Run: kapi push    — upload content to the server
+  1. Run: brain push    — upload content to the server
   2. Open the claim URL to take ownership of the project
   3. Invite translators from the web dashboard
 ```
@@ -81,8 +82,8 @@ Use `--json` for machine-readable output in CI/CD pipelines.
 </video>
 
 :::tip
-The server URL is resolved from `KAPI_SERVER_URL` environment variable or existing
-auth state. Set it once and `kapi init` picks it up automatically.
+The server URL is resolved from `BRAIN_SERVER_URL` environment variable or existing
+auth state. Set it once and `brain init` picks it up automatically.
 :::
 
 ---
@@ -94,7 +95,7 @@ i18n setup works. Pseudo-translation replaces characters with accented variants
 and adds padding to catch truncation bugs:
 
 ```bash
-kapi pseudo-translate i18n/en/code.json \
+brain pseudo-translate i18n/en/code.json \
   --target-lang qps \
   --output i18n/qps/code.json
 ```
@@ -120,10 +121,10 @@ truncation or layout issues become immediately visible.
 Upload the source content to the Bowrain Server:
 
 ```bash
-kapi push
+brain push
 ```
 
-Kapi reads the file mappings from `.kapi/config.yaml`, parses each file using
+Brain reads the file mappings from `.brain/config.yaml`, parses each file using
 the appropriate format reader (JSON, Markdown, etc.), and uploads the
 translatable blocks to the server.
 
@@ -164,8 +165,8 @@ The claim flow:
 
 :::tip
 The claim URL is a one-time-use token. Once claimed, the project belongs to your
-workspace and the CLI remembers the association for future `kapi push` and
-`kapi pull` commands.
+workspace and the CLI remembers the association for future `brain push` and
+`brain pull` commands.
 :::
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
@@ -241,7 +242,7 @@ Once translation is complete, pull the finished translations back into your
 codebase:
 
 ```bash
-kapi pull --locale nb --locale fr
+brain pull --locale nb --locale fr
 ```
 
 This downloads all translated content and writes it to the mapped file paths:
@@ -272,17 +273,17 @@ npm run serve
 
 | Step | Tool | What Happens |
 |------|------|-------------|
-| 1. Initialize | `kapi init --anonymous` | Creates project on server, generates claim URL |
-| 2. Pseudo-translate | `kapi pseudo-translate` | Generate test translations for UI validation |
-| 3. Push | `kapi push` | Uploads source content to Bowrain Server |
+| 1. Initialize | `brain init --anonymous` | Creates project on server, generates claim URL |
+| 2. Pseudo-translate | `brain pseudo-translate` | Generate test translations for UI validation |
+| 3. Push | `brain push` | Uploads source content to Bowrain Server |
 | 4. Claim | Web browser / email | Developer claims the anonymous project |
 | 5. Invite | Web app / API | Admin invites translator to workspace |
 | 6. Translate | Web / Desktop | Translator works on content |
-| 7. Pull | `kapi pull` | Downloads translated files into codebase |
+| 7. Pull | `brain pull` | Downloads translated files into codebase |
 
 ## Next Steps
 
-- [Project Walkthrough](/docs/getting-started/project-walkthrough) — deep dive into the `.kapi/` project model
-- [Website Translation](/docs/kapi-cli/use-cases/website-translation) — production workflow with CI/CD integration
-- [Flows](/docs/kapi-cli/flows/overview) — create custom translation pipelines
+- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.brain/` project model
+- [Website Translation](/docs/brain-cli/use-cases/website-translation) — production workflow with CI/CD integration
+- [Flows](/docs/brain-cli/flows/overview) — create custom translation pipelines
 - [Self-Hosting](/docs/bowrain-server/self-hosting) — deploy your own Bowrain Server

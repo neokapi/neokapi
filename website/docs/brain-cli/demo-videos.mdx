@@ -1,0 +1,178 @@
+---
+title: CLI Demo Videos
+sidebar_label: CLI Demos
+---
+
+# CLI Demo Videos
+
+Animated demos of common `brain` CLI workflows.
+
+## Overview
+
+Quick tour of brain's capabilities.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/overview.webm" type="video/webm" />
+</video>
+
+```bash
+brain --help
+brain formats
+brain tools
+```
+
+## Word Count
+
+Estimate translation costs with word counting.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/word-count.webm" type="video/webm" />
+</video>
+
+```bash
+brain word-count messages.json
+```
+
+## Pseudo-Translation
+
+Generate pseudo-translations to test UI for truncation and RTL issues.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/pseudo-translate.webm" type="video/webm" />
+</video>
+
+```bash
+brain pseudo-translate messages.json --target-lang fr
+```
+
+## Translation Memory
+
+Import, export, and look up translation memory entries.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the TM CLI end-to-end test is added.
+:::
+
+```bash
+# Leverage TM in a translation flow
+brain flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
+```
+
+## Terminology Management
+
+Import termbases, look up terms in running text, search concepts, and view statistics.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the termbase CLI end-to-end test is added.
+:::
+
+```bash
+# Import terms from CSV
+brain termbase import terms.csv --format csv -s en -t fr --domain general
+
+# Look up terms in a sentence
+brain termbase lookup "The authentication module uses end-to-end encryption" -s en -t fr
+
+# Fuzzy lookup
+brain termbase lookup "authenticating users" -s en -t fr --fuzzy
+
+# Search the termbase
+brain termbase search "encryption" -s en --domain security
+
+# View termbase statistics
+brain termbase stats
+```
+
+## Terminology-Aware Translation Flow
+
+Run a pipeline that uses both TM and terminology to enrich translations.
+
+:::note[Video coming soon]
+This demo will be auto-generated once the terminology-aware flow end-to-end test is added.
+:::
+
+```bash
+# AI translation flow
+brain flow run ai-translate -i docs/input.html -o out/output.html --source-lang en --target-lang fr
+
+# Translation + quality assurance flow
+brain flow run ai-translate-qa -i docs/input.html -o out/output.html --source-lang en --target-lang fr
+```
+
+## Project Workflow
+
+End-to-end project workflow: inspect content, count words, and pseudo-translate.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/create-project.webm" type="video/webm" />
+</video>
+
+```bash
+# Count words for cost estimation
+brain word-count landing-page.html
+
+# Pseudo-translate for UI testing
+brain pseudo-translate landing-page.html --target-lang fr
+
+# Open in web UI for visual editing
+brain serve
+```
+
+## Authentication
+
+Authenticate the CLI against a deployed bowrain-server using the OAuth device flow.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/auth-login.webm" type="video/webm" />
+</video>
+
+```bash
+# Login to a bowrain-server
+brain auth login --server https://gokapi.example.com
+
+# Check authentication status
+brain auth status
+
+# Logout
+brain auth logout
+```
+
+## Local Project Server
+
+Start a web-based translation editor for a local project — no server setup or authentication required.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/serve.webm" type="video/webm" />
+</video>
+
+```bash
+# Open a project in the browser
+brain serve
+
+# Custom port, don't auto-open browser
+brain serve --port 4000 --no-open
+```
+
+## Workspace Management
+
+Create and manage workspaces via the REST API for team collaboration.
+
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/cli/workspaces.webm" type="video/webm" />
+</video>
+
+```bash
+# List your workspaces
+curl -H "Authorization: Bearer $TOKEN" \
+  https://gokapi.example.com/api/v1/workspaces
+
+# Create a team workspace
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"name": "Acme Translations", "slug": "acme"}' \
+  https://gokapi.example.com/api/v1/workspaces
+
+# Create a project in the workspace
+curl -X POST -H "Authorization: Bearer $TOKEN" \
+  -d '{"name": "Website", "source_locale": "en", "target_locales": ["fr","de"]}' \
+  https://gokapi.example.com/api/v1/workspaces/acme/projects
+```

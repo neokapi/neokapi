@@ -5,110 +5,74 @@ title: Overview
 
 # Kapi CLI
 
-Kapi is the command-line interface for file-based localization workflows. It manages `.kapi/` projects, executes translation flows, and syncs with Bowrain Server for team collaboration.
+Kapi is a standalone command-line tool for file-based localization tasks — format conversion, pseudo-translation, word counting, quality checks, and AI translation. It operates directly on files without requiring a project, server, or configuration.
 
 ## What is Kapi?
 
-Kapi is to Bowrain Server as **git is to GitHub** — a local-first tool that:
+Kapi is a standalone localization toolkit that:
 
-- Initializes and manages `.kapi/` projects in your repository
-- Runs translation flows (AI, MT, TM, QA) on local files
-- Syncs changes with Bowrain Server via push/pull (optional)
-- Operates on files without requiring a server
+- Processes files directly (no project initialization needed)
+- Runs translation flows with AI, MT, TM, and QA tools
+- Supports 15+ file formats with automatic detection
+- Extends via gRPC plugins (including 40+ Okapi bridge filters)
 
-## Key Features
-
-### Project Model
-
-`.kapi/` directories (like `.git/`) contain:
-- **config.yaml** — project settings, file mappings, locales
-- **flows/** — custom YAML flow definitions
-- **.sync-cache** — sync cache (gitignored, local only)
-
-### Translation Flows
-
-Composable pipelines that process files through tools:
+## Key Commands
 
 ```bash
-# Run built-in AI translation flow
-kapi flow run ai-translate
+# List supported formats
+kapi formats
 
-# Create custom flows in .kapi/flows/my-flow.yaml
-# Run custom flow
-kapi flow run my-flow
-```
+# Count words in a file
+kapi word-count messages.json
 
-Flows automatically process all files matching `.kapi/config.yaml` mappings.
+# Pseudo-translate for UI testing
+kapi pseudo-translate messages.json --target-lang fr
 
-### Server Sync (Optional)
+# Run a translation flow
+kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
-Push/pull workflow similar to git:
+# List available tools
+kapi tools
 
-```bash
-kapi status    # Show local changes
-kapi diff      # Compare local vs. server
-kapi pull      # Fetch from server
-kapi push -m "message"  # Upload to server
-```
+# Manage terminology
+kapi termbase import terms.csv --format csv -s en -t fr
+kapi termbase lookup "authentication module" -s en -t fr
 
-Only changed blocks transfer (content-addressed sync).
+# List presets
+kapi presets list
 
-### Configuration
-
-View or set project and global configuration values:
-
-```bash
-kapi config project.name              # Print project name
-kapi config project.name "My App"     # Set project name
-kapi config --global server.url https://bowrain.example.com  # Set global server URL
+# Manage plugins
+kapi plugins list
 ```
 
 ## When to Use Kapi
 
 Use Kapi CLI when you:
 
-- **Work with files** in a git repository
-- **Need local workflows** without server dependency
-- **Want automation** via CI/CD pipelines
-- **Prefer terminal** over GUI
+- **Process individual files** — translate, pseudo-translate, count words
+- **Need quick results** without project setup or configuration
+- **Run in CI/CD** for automated file processing
+- **Evaluate formats** — list supported formats, check file compatibility
 
-Use Bowrain Desktop/Web when you:
-
-- **Need visual editing** with split preview, context panel
-- **Collaborate** with team members in real-time
-- **Manage workspaces** and projects in a browser
+For project management, server sync, and team collaboration, use the [Brain CLI](/docs/brain-cli/overview) instead.
 
 ## Installation
 
 ```bash
-# macOS
+# macOS/Linux
 brew install gokapi/tap/kapi
 
 # Go install
-go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
+go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
 
-# Download binary
-# Visit https://github.com/gokapi/gokapi/releases
-```
-
-## Quick Start
-
-```bash
-# Initialize project
-cd my-app/
-kapi init --name "My App" --source en-US --targets fr-FR,de-DE
-
-# Run translation flow
-kapi flow run ai-translate
-
-# Check status
-kapi status
+# Binary downloads: https://github.com/gokapi/gokapi/releases
 ```
 
 ## Next Steps
 
-- [Installation](/docs/kapi-cli/installation)
-- [Project Model](/docs/kapi-cli/project-model)
-- [Commands Reference](/docs/kapi-cli/commands/init)
-- [Flows](/docs/kapi-cli/flows/overview)
-- [Use Cases](/docs/kapi-cli/use-cases/website-translation)
+- [Formats](/docs/kapi-cli/commands/formats)
+- [Flow Command](/docs/kapi-cli/commands/flow)
+- [Pseudo-Translation](/docs/kapi-cli/commands/pseudo-translate)
+- [Word Count](/docs/kapi-cli/commands/word-count)
+- [Terminology](/docs/kapi-cli/commands/termbase)
+- [Plugins](/docs/kapi-cli/commands/plugins)

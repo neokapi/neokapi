@@ -9,14 +9,14 @@ Hooks are automatic tool chains that run before/after sync operations to enforce
 
 ## What Are Hooks?
 
-Hooks are flows that run automatically during `kapi push` and `kapi pull`:
+Hooks are flows that run automatically during `brain push` and `brain pull`:
 
 - **pre-push**: Run before uploading to server (quality gates)
 - **post-pull**: Run after fetching from server (post-processing)
 
 ## Configuration
 
-Define hooks in `.kapi/config.yaml`:
+Define hooks in `.brain/config.yaml`:
 
 ```yaml
 hooks:
@@ -29,7 +29,7 @@ hooks:
 
 ## Pre-Push Hooks
 
-Pre-push hooks run **before** `kapi push` uploads content to Bowrain Server.
+Pre-push hooks run **before** `brain push` uploads content to Bowrain Server.
 
 ### Use Cases
 
@@ -40,7 +40,7 @@ Pre-push hooks run **before** `kapi push` uploads content to Bowrain Server.
 
 ### Example
 
-`.kapi/config.yaml`:
+`.brain/config.yaml`:
 
 ```yaml
 hooks:
@@ -49,20 +49,20 @@ hooks:
     - term-enforce
 ```
 
-When you run `kapi push`, these tools run on local content:
+When you run `brain push`, these tools run on local content:
 
 ```bash
-$ kapi push -m "Translate new features"
+$ brain push -m "Translate new features"
 
 Running pre-push hooks: [qa-check, term-enforce]
-✓ qa-check: 0 issues found
-✗ term-enforce: 2 violations (blocking)
+ok qa-check: 0 issues found
+FAIL term-enforce: 2 violations (blocking)
 
 Block 'login_button':
   Missing required term "sign in" (found "log in")
 
 Block 'password_field':
-  Incorrect translation of "password" → use "mot de passe"
+  Incorrect translation of "password" -> use "mot de passe"
 
 Push aborted. Fix issues or use --force to bypass.
 ```
@@ -73,7 +73,7 @@ Hooks can be configured to block or warn:
 
 ```yaml
 # Create a flow that fails on violations
-# .kapi/flows/strict-qa.yaml
+# .brain/flows/strict-qa.yaml
 name: strict-qa
 description: Strict QA checks that block push
 
@@ -97,7 +97,7 @@ hooks:
 
 ## Post-Pull Hooks
 
-Post-pull hooks run **after** `kapi pull` fetches content from the server.
+Post-pull hooks run **after** `brain pull` fetches content from the server.
 
 ### Use Cases
 
@@ -108,7 +108,7 @@ Post-pull hooks run **after** `kapi pull` fetches content from the server.
 
 ### Example
 
-`.kapi/config.yaml`:
+`.brain/config.yaml`:
 
 ```yaml
 hooks:
@@ -117,20 +117,20 @@ hooks:
     - term-lookup
 ```
 
-When you run `kapi pull`:
+When you run `brain pull`:
 
 ```bash
-$ kapi pull
+$ brain pull
 
 Pulling from: https://bowrain.example.com
 Project: abc123
 
 Fetching changes...
-✓ 3 files updated
+ok 3 files updated
 
 Running post-pull hooks: [segmentation, term-lookup]
-✓ Segmented 42 blocks into 128 segments
-✓ Extracted 15 new terms
+ok Segmented 42 blocks into 128 segments
+ok Extracted 15 new terms
 
 Pull complete.
 ```
@@ -141,10 +141,10 @@ Skip hooks with `--no-hooks`:
 
 ```bash
 # Skip all hooks
-kapi push --no-hooks
+brain push --no-hooks
 
 # Use --force to bypass quality gates but still run hooks
-kapi push --force
+brain push --force
 ```
 
 **Difference:**
@@ -155,7 +155,7 @@ kapi push --force
 
 Hooks run as regular flows:
 
-1. **Read files**: Load files matching `.kapi/config.yaml` mappings
+1. **Read files**: Load files matching `.brain/config.yaml` mappings
 2. **Process blocks**: Run each tool in the hook sequence
 3. **Check results**: If any tool exits with error, abort operation
 4. **Write files**: Save processed content back to local files
@@ -164,26 +164,26 @@ Hooks run as regular flows:
 
 ### Pre-Push Hooks
 
-✅ **Do:**
+**Do:**
 - Enforce terminology compliance
 - Check for formatting errors
 - Validate required translations
 - Block on critical errors
 
-❌ **Don't:**
+**Don't:**
 - Run expensive operations (AI translation)
 - Make network calls (MT services)
 - Modify content (hooks should validate, not transform)
 
 ### Post-Pull Hooks
 
-✅ **Do:**
+**Do:**
 - Segment new source text
 - Extract terminology
 - Warm up caches
 - Format content consistently
 
-❌ **Don't:**
+**Don't:**
 - Make network calls
 - Run expensive analysis
 - Modify source blocks
@@ -217,10 +217,10 @@ Use different hooks per environment:
 
 ```bash
 # Development: lenient
-kapi push --no-hooks
+brain push --no-hooks
 
 # Staging: medium
-# .kapi/config.yaml has qa-check only
+# .brain/config.yaml has qa-check only
 
 # Production: strict
 # Production branch has qa-check + term-enforce + spell-check
@@ -229,11 +229,11 @@ kapi push --no-hooks
 Or use environment-specific configs:
 
 ```yaml
-# .kapi/config.dev.yaml
+# .brain/config.dev.yaml
 hooks:
   pre-push: []
 
-# .kapi/config.prod.yaml
+# .brain/config.prod.yaml
 hooks:
   pre-push:
     - qa-check
@@ -258,7 +258,7 @@ Current behavior: hooks are documented in config but not executed.
 
 ## Next Steps
 
-- [Custom Flows](/docs/kapi-cli/flows/custom-flows)
-- [Push Command](/docs/kapi-cli/commands/push)
-- [Pull Command](/docs/kapi-cli/commands/pull)
+- [Custom Flows](/docs/brain-cli/flows/custom-flows)
+- [Push Command](/docs/brain-cli/commands/push)
+- [Pull Command](/docs/brain-cli/commands/pull)
 - [QA Checks](/docs/features/qa-checks)

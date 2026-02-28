@@ -1,12 +1,11 @@
 ---
-sidebar_position: 6
+sidebar_position: 1
 title: flow
 ---
 
 # kapi flow
 
-Run multi-step processing flows. Flows can be defined in `.kapi/flows/` (project-based)
-or use built-in legacy flows.
+Run multi-step processing flows on files.
 
 ## Synopsis
 
@@ -19,11 +18,11 @@ kapi flow list
 
 The `flow run` command executes a named processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
-**Project-based flows**: If a `.kapi/` project exists, flows are loaded from `.kapi/flows/*.yaml` files.
-
-**Built-in flows**: Without a project, built-in flows can still be executed.
-
 Use `flow list` to see available flows.
+
+:::note
+For project-based flows with automatic file mappings and locale configuration, see [Brain CLI flow command](/docs/brain-cli/commands/flow).
+:::
 
 ## Examples
 
@@ -70,52 +69,7 @@ The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
 specific to `flow run` and tool commands. They are not global flags.
 :::
 
-## Project-Based Flows
-
-If you've initialized a Kapi project with `kapi init`, create custom flows in `.kapi/flows/`:
-
-```yaml
-# .kapi/flows/translate-review.yaml
-name: translate-review
-description: Translate with AI then run QA checks
-
-steps:
-  - tool: ai-translate
-    config:
-      provider: anthropic
-      model: claude-sonnet-4.5
-
-  - tool: qa-check
-    config:
-      rules:
-        - whitespace
-        - punctuation
-        - placeholders
-
-  - tool: term-enforce
-    config:
-      termbase: project.tbx
-      required: true
-```
-
-Run with:
-
-```bash
-kapi flow run translate-review
-```
-
-Project flows automatically use file mappings and locales from `.kapi/config.yaml`.
-No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
-
 ## Built-in Flows
-
-Without a `.kapi/` project, you can still use built-in flows with explicit flags:
-
-```bash
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
-```
-
-Available built-in flows:
 
 | Flow | Description |
 |------|-------------|

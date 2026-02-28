@@ -12,19 +12,19 @@ Flows are composable pipelines that process localization files through a sequenc
 A flow is a multi-step processing pipeline where each step transforms the content:
 
 ```
-Input Files → [Tool 1] → [Tool 2] → [Tool 3] → Output Files
-              ↓          ↓          ↓
+Input Files -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Output Files
+              |          |          |
           Translate    QA Check   Enforce Terms
 ```
 
 Flows automatically:
-- Read files matching `.kapi/config.yaml` mappings
+- Read files matching `.brain/config.yaml` mappings
 - Process through each tool in sequence
 - Write results back to local files
 
 ## Built-In Flows
 
-Kapi includes several built-in flows:
+Brain includes several built-in flows:
 
 | Flow | Description |
 |------|-------------|
@@ -39,22 +39,22 @@ Kapi includes several built-in flows:
 
 ```bash
 # List available flows
-kapi flow list
+brain flow list
 
 # Run a flow (project-based)
-kapi flow run ai-translate
+brain flow run ai-translate
 
-# Legacy mode (without .kapi/ project)
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+# Standalone mode (without .brain/ project)
+brain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Custom Flows
 
-Create custom flows in `.kapi/flows/` as YAML files.
+Create custom flows in `.brain/flows/` as YAML files.
 
 ### Example: Translation with QA
 
-`.kapi/flows/translate-with-qa.yaml`:
+`.brain/flows/translate-with-qa.yaml`:
 
 ```yaml
 name: translate-with-qa
@@ -63,7 +63,7 @@ description: AI translation with quality checks and terminology enforcement
 steps:
   - tool: term-lookup
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
 
   - tool: ai-translate
     config:
@@ -73,7 +73,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
       required: true
 
   - tool: qa-check
@@ -88,7 +88,7 @@ steps:
 Run with:
 
 ```bash
-kapi flow run translate-with-qa
+brain flow run translate-with-qa
 ```
 
 ## Flow Tools
@@ -116,7 +116,7 @@ Available tools for flows:
 
 ## How Flows Work
 
-1. **File Discovery**: Kapi reads files matching `.kapi/config.yaml` mappings
+1. **File Discovery**: Brain reads files matching `.brain/config.yaml` mappings
 2. **Parsing**: Each file is parsed into blocks (translatable units)
 3. **Processing**: Blocks stream through tools in sequence
 4. **Writing**: Results are written back to local files
@@ -126,8 +126,8 @@ Available tools for flows:
 Flows use a streaming architecture for efficiency:
 
 ```
-Read File → Parse → [Tool 1] → [Tool 2] → [Tool 3] → Write
-            ↓         ↓          ↓          ↓
+Read File -> Parse -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Write
+            |         |          |          |
          Channel   Channel    Channel    Channel
 ```
 
@@ -138,7 +138,7 @@ Benefits:
 
 ## Next Steps
 
-- [Create Custom Flows](/docs/kapi-cli/flows/custom-flows)
-- [Configure Hooks](/docs/kapi-cli/flows/hooks)
+- [Create Custom Flows](/docs/brain-cli/flows/custom-flows)
+- [Configure Hooks](/docs/brain-cli/flows/hooks)
 - [Available Tools](/docs/features/formats)
-- [Flow Command Reference](/docs/kapi-cli/commands/flow)
+- [Flow Command Reference](/docs/brain-cli/commands/flow)

@@ -3,7 +3,7 @@ title: pull
 sidebar_position: 4
 ---
 
-# kapi pull
+# brain pull
 
 Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
 transfer only blocks that changed since the last pull.
@@ -11,26 +11,26 @@ transfer only blocks that changed since the last pull.
 ## Usage
 
 ```bash
-kapi pull [flags]
+brain pull [flags]
 ```
 
 ## Examples
 
 ```bash
 # Pull all changes from server
-kapi pull
+brain pull
 
 # Pull only French translations
-kapi pull --locale fr-FR
+brain pull --locale fr-FR
 
 # Pull multiple locales
-kapi pull --locale fr-FR --locale de-DE
+brain pull --locale fr-FR --locale de-DE
 
 # Show what would be pulled without making changes
-kapi pull --dry-run
+brain pull --dry-run
 
 # Force pull from beginning (ignore sync cursor)
-kapi pull --force
+brain pull --force
 
 # Example output:
 # Pulled 12 blocks for 2 locales
@@ -46,11 +46,11 @@ kapi pull --force
 
 ## What Happens
 
-1. **Read sync cursor** from `.kapi/.sync-cache`
+1. **Read sync cursor** from `.brain/.sync-cache`
 2. **Query server** via `GET /api/v1/projects/:id/sync/pull?cursor=X&locales=...`
    - Server returns only changes since the cursor (O(changes), not O(total))
    - Paginated: follows `has_more` until all changes are consumed
-3. **Update `.kapi/.sync-cache`** with new cursor
+3. **Update `.brain/.sync-cache`** with new cursor
 
 ## Locale Scoping
 
@@ -59,10 +59,10 @@ without downloading everything:
 
 ```bash
 # Only French
-kapi pull --locale fr-FR
+brain pull --locale fr-FR
 
 # French and German
-kapi pull --locale fr-FR --locale de-DE
+brain pull --locale fr-FR --locale de-DE
 ```
 
 This is efficient because the server's change log is indexed by locale.
@@ -74,9 +74,9 @@ This is efficient because the server's change log is indexed by locale.
 
 ## Related Commands
 
-- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes to server
-- [`kapi status`](/docs/kapi-cli/commands/status) — Show sync state
-- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed changes
+- [`brain push`](/docs/brain-cli/commands/push) — Send local changes to server
+- [`brain status`](/docs/brain-cli/commands/status) — Show sync state
+- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

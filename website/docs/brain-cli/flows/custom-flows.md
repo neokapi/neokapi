@@ -5,7 +5,7 @@ title: Custom Flows
 
 # Creating Custom Flows
 
-Define your own translation workflows as YAML files in `.kapi/flows/`.
+Define your own translation workflows as YAML files in `.brain/flows/`.
 
 ## Flow Definition Format
 
@@ -28,7 +28,7 @@ steps:
 
 ### Simple AI Translation
 
-`.kapi/flows/ai-translate-simple.yaml`:
+`.brain/flows/ai-translate-simple.yaml`:
 
 ```yaml
 name: ai-translate-simple
@@ -43,7 +43,7 @@ steps:
 
 ### Translation with Pre/Post Processing
 
-`.kapi/flows/full-translation.yaml`:
+`.brain/flows/full-translation.yaml`:
 
 ```yaml
 name: full-translation
@@ -53,7 +53,7 @@ steps:
   # 1. Look up terminology before translating
   - tool: term-lookup
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
       fuzzy_threshold: 85
 
   # 2. Pre-fill from translation memory
@@ -73,7 +73,7 @@ steps:
   # 4. Validate terminology compliance
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
       required: true
       fail_on_violation: true
 
@@ -90,7 +90,7 @@ steps:
 
 ### Multi-Provider Translation
 
-`.kapi/flows/multi-mt.yaml`:
+`.brain/flows/multi-mt.yaml`:
 
 ```yaml
 name: multi-mt
@@ -115,7 +115,7 @@ steps:
 
 ### QA-Only Flow
 
-`.kapi/flows/qa-only.yaml`:
+`.brain/flows/qa-only.yaml`:
 
 ```yaml
 name: qa-only
@@ -133,7 +133,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
 
   - tool: ai-qa
     config:
@@ -201,13 +201,13 @@ Each tool has its own configuration options. Common patterns:
 ```yaml
 - tool: term-lookup
   config:
-    termbase: .kapi/termbase.tbx
+    termbase: .brain/termbase.tbx
     fuzzy_threshold: 85
     domain: software  # Filter by domain
 
 - tool: term-enforce
   config:
-    termbase: .kapi/termbase.tbx
+    termbase: .brain/termbase.tbx
     required: true              # Block must use term if available
     fail_on_violation: true     # Exit flow if violation found
 ```
@@ -227,13 +227,13 @@ Use environment variables in flow configs:
 
 ```bash
 # List all flows (built-in + custom)
-kapi flow list
+brain flow list
 
 # Run your custom flow
-kapi flow run my-flow
+brain flow run my-flow
 
 # Run with verbose output
-kapi flow run my-flow --verbose
+brain flow run my-flow --verbose
 ```
 
 ## Best Practices
@@ -243,12 +243,12 @@ kapi flow run my-flow --verbose
 3. **Use skip_translated**: Avoid retranslating existing content
 4. **Order matters**: Place expensive tools (AI) last
 5. **Test incrementally**: Add one tool at a time
-6. **Commit flows to git**: `.kapi/flows/*.yaml` should be versioned
+6. **Commit flows to git**: `.brain/flows/*.yaml` should be versioned
 7. **Use hooks for gates**: Pre-push QA prevents bad uploads
 
 ## Next Steps
 
-- [Flow Hooks](/docs/kapi-cli/flows/hooks)
-- [Flow Command](/docs/kapi-cli/commands/flow)
+- [Flow Hooks](/docs/brain-cli/flows/hooks)
+- [Flow Command](/docs/brain-cli/commands/flow)
 - [Available Formats](/docs/features/formats)
 - [AI Translation](/docs/features/ai-translation)

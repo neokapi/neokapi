@@ -80,20 +80,15 @@ const config: Config = {
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'userGuide',
+          sidebarId: 'gokapiSidebar',
           position: 'left',
-          label: 'User Guide',
+          label: 'Gokapi',
         },
         {
           type: 'docSidebar',
-          sidebarId: 'developer',
+          sidebarId: 'bowrainSidebar',
           position: 'left',
-          label: 'For Developers',
-        },
-        {
-          href: 'pathname:///storybook/',
-          label: 'Storybook',
-          position: 'left',
+          label: 'Bowrain',
         },
         {
           href: 'https://github.com/gokapi/gokapi',
@@ -106,19 +101,36 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Gokapi',
           items: [
             {
               label: 'Getting Started',
               to: '/docs/getting-started/introduction',
             },
             {
-              label: 'User Guide',
+              label: 'Kapi CLI',
               to: '/docs/kapi-cli/overview',
             },
             {
-              label: 'For Developers',
+              label: 'Framework',
               to: '/docs/developer/architecture',
+            },
+          ],
+        },
+        {
+          title: 'Bowrain',
+          items: [
+            {
+              label: 'Getting Started',
+              to: '/docs/bowrain/introduction',
+            },
+            {
+              label: 'Brain CLI',
+              to: '/docs/brain-cli/overview',
+            },
+            {
+              label: 'Bowrain Web',
+              to: '/docs/bowrain-web/overview',
             },
           ],
         },
