@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write  # Needed to create/update releases
   actions: write   # Needed to trigger docs redeploy workflow
+  packages: read   # Needed to pull Docker images from GHCR
 
 jobs:
   # ── Bowrain Screenshots & Recordings (real server via Docker) ────────────────
@@ -40,6 +41,13 @@ jobs:
       - name: Build shared UI package
         working-directory: packages/ui
         run: npx tsc
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start full stack (pre-built Docker images)
         run: docker compose -f e2e/compose.yaml up -d --wait
@@ -107,6 +115,13 @@ jobs:
       - name: Build shared UI package
         working-directory: packages/ui
         run: npx tsc
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start full stack (pre-built Docker images)
         run: docker compose -f e2e/compose.yaml up -d --wait
@@ -218,6 +233,13 @@ jobs:
 
       - name: Install Xvfb
         run: sudo apt-get install -y xvfb
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start full stack (pre-built Docker images)
         run: docker compose -f e2e/compose.yaml up -d --wait
