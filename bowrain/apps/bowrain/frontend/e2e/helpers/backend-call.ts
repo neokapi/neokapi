@@ -45,13 +45,16 @@ export async function callBackend(page: Page, method: string, ...args: any[]) {
 
       // Server mode: call via Wails runtime HTTP protocol
       // The Wails v3 runtime routes binding calls through POST /wails/runtime
-      // with { object: 1 (Call), method: 0 (CallBinding), args: { call-id, methodID, args } }
+      // objectNames.Call = 0, CallBinding = 0
       const callId = Math.random().toString(36).slice(2);
       const resp = await fetch("/wails/runtime", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-wails-client-id": "e2e-test",
+        },
         body: JSON.stringify({
-          object: 1,
+          object: 0,
           method: 0,
           args: { "call-id": callId, methodID: methodId, args },
         }),
