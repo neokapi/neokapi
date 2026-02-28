@@ -10,6 +10,9 @@ FROM quay.io/keycloak/keycloak:26.1
 # Install custom theme JAR (pre-built by `make keycloak-theme`).
 COPY bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar /opt/keycloak/providers/keycloak-theme.jar
 
+# Register providers (theme JAR) so `start` (production mode) works.
+RUN /opt/keycloak/bin/kc.sh build
+
 # Seed realm configuration for initial import.
 COPY docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
 
