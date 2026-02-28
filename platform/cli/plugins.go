@@ -557,16 +557,6 @@ applyChannel:
 	return entries
 }
 
-// registryURL returns the registry URL, applying the --channel flag if set.
-func (a *App) registryURL(cmd *cobra.Command) string {
-	channel, _ := cmd.Flags().GetString("channel")
-	baseURL := a.Config.RegistryURL()
-	if channel != "" {
-		return channelRegistryURL(baseURL, channel)
-	}
-	return baseURL
-}
-
 // newProgressRegistryForURL creates a RemoteRegistry with progress tracking for a given URL.
 func (a *App) newProgressRegistryForURL(url string) (reg *registry.RemoteRegistry, cleanup func()) {
 	reg = registry.NewRemoteRegistry(url, a.PluginLoader.Dir())
@@ -608,6 +598,3 @@ func (a *App) newProgressRegistryForURL(url string) (reg *registry.RemoteRegistr
 	return reg, cleanup
 }
 
-func (a *App) newProgressRegistry(cmd *cobra.Command) (reg *registry.RemoteRegistry, cleanup func()) {
-	return a.newProgressRegistryForURL(a.registryURL(cmd))
-}
