@@ -3,15 +3,15 @@ sidebar_position: 3
 title: Project Model
 ---
 
-# Kapi Project Model
+# Brain Project Model
 
-Kapi uses a `.kapi/` directory (like `.git`) to manage localization projects within your repository.
+Brain uses a `.brain/` directory (like `.git`) to manage localization projects within your repository.
 
 ## Directory Structure
 
 ```
 my-app/
-├── .kapi/
+├── .brain/
 │   ├── config.yaml       # Project configuration
 │   ├── flows/            # Custom flow definitions
 │   │   └── my-flow.yaml
@@ -24,7 +24,7 @@ my-app/
 │       │   └── messages.json
 │       └── fr/
 │           └── messages.json
-└── .gitignore            # Add .kapi/.sync-cache
+└── .gitignore            # Add .brain/.sync-cache
 ```
 
 ## config.yaml
@@ -46,7 +46,7 @@ server:
   project_id: abc123
   workspace: my-team
 
-# File mappings: local paths ↔ remote items
+# File mappings: local paths <-> remote items
 mappings:
   - local: src/locales/**/*.json
     remote: ui/strings/{path}
@@ -81,19 +81,19 @@ Mappings define how local files correspond to remote translation items.
 ```yaml
 mappings:
   # Pattern: src/locales/en/buttons.json
-  # → Remote: ui/strings/en/buttons
+  # -> Remote: ui/strings/en/buttons
   - local: src/locales/**/*.json
     remote: ui/strings/{path}
     format: json
 
   # Pattern: content/faq.md
-  # → Remote: docs/faq.md
+  # -> Remote: docs/faq.md
   - local: content/*.md
     remote: docs/{filename}
     format: markdown
 
   # Pattern: data/settings.yaml
-  # → Remote: config/settings
+  # -> Remote: config/settings
   - local: data/*.yaml
     remote: config/{basename}
     format: yaml
@@ -101,11 +101,11 @@ mappings:
 
 ## Project Discovery
 
-Kapi searches for `.kapi/` by walking up the directory tree (like git):
+Brain searches for `.brain/` by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-kapi status  # Finds .kapi/ at ../../../.kapi/
+brain status  # Finds .brain/ at ../../../.brain/
 ```
 
 All commands work from any subdirectory within the project.
@@ -115,51 +115,51 @@ All commands work from any subdirectory within the project.
 ### Commit to git
 
 Files to commit:
-- `.kapi/config.yaml` — project settings
-- `.kapi/flows/*.yaml` — flow definitions
+- `.brain/config.yaml` — project settings
+- `.brain/flows/*.yaml` — flow definitions
 
 ### Do NOT commit
 
 Files that should NOT be committed (auto-gitignored):
-- `.kapi/.sync-cache` — local sync cache (block hashes + cursor)
-- `.kapi/.server-token` — authentication token
+- `.brain/.sync-cache` — local sync cache (block hashes + cursor)
+- `.brain/.server-token` — authentication token
 
-`kapi init` automatically creates `.kapi/.gitignore` with these entries.
+`brain init` automatically creates `.brain/.gitignore` with these entries.
 
 ## Initialization
 
-Create a new Kapi project:
+Create a new Brain project:
 
 ```bash
 cd my-app/
-kapi init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+brain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
 This creates:
-1. `.kapi/` directory
-2. `.kapi/config.yaml` with specified settings
-3. `.kapi/flows/` for custom flows
-4. `.kapi/.gitignore` to exclude cache and token files
+1. `.brain/` directory
+2. `.brain/config.yaml` with specified settings
+3. `.brain/flows/` for custom flows
+4. `.brain/.gitignore` to exclude cache and token files
 
 ## Server Connection (Optional)
 
 Connect an existing project to Bowrain Server:
 
 ```bash
-kapi init --server https://bowrain.example.com --project abc123
+brain init --server https://bowrain.example.com --project abc123
 ```
 
-This updates `.kapi/config.yaml` with server details. You can then:
+This updates `.brain/config.yaml` with server details. You can then:
 
 ```bash
-kapi push    # Upload local source blocks to server
-kapi pull    # Fetch translated blocks from server
-kapi status  # Show sync state (pending push/pull)
+brain push    # Upload local source blocks to server
+brain pull    # Fetch translated blocks from server
+brain status  # Show sync state (pending push/pull)
 ```
 
 ## Next Steps
 
-- [Initialize a Project](/docs/kapi-cli/commands/init)
-- [Configure File Mappings](/docs/kapi-cli/commands/init#configuration-file)
-- [Custom Flows](/docs/kapi-cli/flows/custom-flows)
-- [Server Sync](/docs/kapi-cli/commands/push)
+- [Initialize a Project](/docs/brain-cli/commands/init)
+- [Configure File Mappings](/docs/brain-cli/commands/init#configuration-file)
+- [Custom Flows](/docs/brain-cli/flows/custom-flows)
+- [Server Sync](/docs/brain-cli/commands/push)

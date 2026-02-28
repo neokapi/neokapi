@@ -233,10 +233,10 @@ Add a cron job for regular backups:
 
 ## CLI Connection
 
-Connect the kapi CLI to your self-hosted server:
+Connect the Brain CLI to your self-hosted server:
 
 ```bash
-kapi auth login --server https://bowrain.example.com
+brain auth login --server https://bowrain.example.com
 ```
 
 This starts a device authorization flow. Open the URL shown in your terminal,

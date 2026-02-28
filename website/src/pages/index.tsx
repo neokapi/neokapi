@@ -18,8 +18,14 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/getting-started/introduction">
-            Get Started
+            to="/docs/getting-started/introduction"
+            style={{marginRight: '1rem'}}>
+            Gokapi Framework
+          </Link>
+          <Link
+            className="button button--secondary button--lg"
+            to="/docs/bowrain/introduction">
+            Bowrain Platform
           </Link>
         </div>
       </div>
@@ -27,50 +33,68 @@ function HomepageHeader() {
   );
 }
 
-type FeatureItem = {
+type ProductItem = {
   title: string;
   description: string;
+  link: string;
+  linkText: string;
 };
 
-const FeatureList: FeatureItem[] = [
-  {
-    title: 'Connector-first',
-    description:
-      'Bidirectional connectors sync content from CMS, design tools, code repos, and marketing platforms. Files are one connector type, not the whole story.',
-  },
-  {
-    title: 'Versioned Content Store',
-    description:
-      'Content-addressed blocks with SHA-256 identity. Deduplication, version history, and incremental sync that only processes what changed.',
-  },
-  {
-    title: 'AI-native Tools',
-    description:
-      'LLM-powered translation, QA, terminology, and review compose in the same pipeline as every other tool. Anthropic, OpenAI, Ollama, plus 5 MT services.',
-  },
-  {
-    title: 'Event-driven Automation',
-    description:
-      'Triggers, quality gates, and webhooks. Content changes flow through rules that run flows, enforce quality, and notify teams.',
-  },
+const GokapiFeatures: ProductItem[] = [
   {
     title: '15+ Formats & Plugins',
     description:
       'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.',
+    link: '/docs/features/formats',
+    linkText: 'Formats',
   },
   {
-    title: 'Progressive Complexity',
+    title: 'AI-native Tools',
     description:
-      'Day one: CLI on files. Grow into flows, content store, automation, and team collaboration. Same content model at every scale — single binary, no runtime dependencies.',
+      'LLM-powered translation, QA, terminology, and review. Anthropic, OpenAI, Ollama, plus 5 MT services compose in the same pipeline.',
+    link: '/docs/features/ai-translation',
+    linkText: 'AI Translation',
+  },
+  {
+    title: 'Streaming Pipeline',
+    description:
+      'Concurrent processing with goroutines and buffered channels. Automatic backpressure and context cancellation. Low memory, high throughput.',
+    link: '/docs/developer/architecture',
+    linkText: 'Architecture',
   },
 ];
 
-function Feature({title, description}: FeatureItem) {
+const BowrainFeatures: ProductItem[] = [
+  {
+    title: 'Brain CLI',
+    description:
+      'Git-like project management for localization. Initialize projects, sync with servers, run flows, and manage terminology from the terminal.',
+    link: '/docs/brain-cli/overview',
+    linkText: 'Brain CLI',
+  },
+  {
+    title: 'Visual Editor',
+    description:
+      'Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.',
+    link: '/docs/bowrain-web/overview',
+    linkText: 'Bowrain Web',
+  },
+  {
+    title: 'Automation & Connectors',
+    description:
+      'Event-driven triggers, quality gates, and webhooks. Bidirectional connectors sync content from CMS, code repos, and design tools.',
+    link: '/docs/bowrain-server/automation',
+    linkText: 'Automation',
+  },
+];
+
+function ProductCard({title, description, link, linkText}: ProductItem) {
   return (
     <div className={clsx('col col--4')}>
       <div className="text--center padding-horiz--md padding-vert--md">
         <Heading as="h3">{title}</Heading>
         <p>{description}</p>
+        <Link to={link}>{linkText} &rarr;</Link>
       </div>
     </div>
   );
@@ -80,9 +104,29 @@ function HomepageFeatures() {
   return (
     <section className={styles.features}>
       <div className="container">
+        <Heading as="h2" className="text--center margin-bottom--lg">
+          Gokapi Framework
+        </Heading>
+        <p className="text--center margin-bottom--lg">
+          Open-source localization engine and <Link to="/docs/kapi-cli/overview">kapi CLI</Link> for standalone file processing.
+        </p>
+        <div className="row margin-bottom--xl">
+          {GokapiFeatures.map((props, idx) => (
+            <ProductCard key={idx} {...props} />
+          ))}
+        </div>
+
+        <hr />
+
+        <Heading as="h2" className="text--center margin-top--lg margin-bottom--lg">
+          Bowrain Platform
+        </Heading>
+        <p className="text--center margin-bottom--lg">
+          Full-stack localization platform with <Link to="/docs/brain-cli/overview">Brain CLI</Link>, visual editor, and server.
+        </p>
         <div className="row">
-          {FeatureList.map((props, idx) => (
-            <Feature key={idx} {...props} />
+          {BowrainFeatures.map((props, idx) => (
+            <ProductCard key={idx} {...props} />
           ))}
         </div>
       </div>

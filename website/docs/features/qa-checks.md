@@ -24,7 +24,7 @@ QA checks are validation rules that run automatically on your translations to ca
 Include the `qa-check` tool in your flows:
 
 ```yaml
-# .kapi/flows/translate-and-check.yaml
+# .brain/flows/translate-and-check.yaml
 name: translate-and-check
 description: Translate with AI and run QA
 
@@ -48,13 +48,13 @@ steps:
 Run QA automatically before pushing to the server:
 
 ```yaml
-# .kapi/config.yaml
+# .brain/config.yaml
 hooks:
   pre-push:
     - qa-check
 ```
 
-See [Flow Hooks](/docs/kapi-cli/flows/hooks) for details.
+See [Flow Hooks](/docs/brain-cli/flows/hooks) for details.
 
 ## Available QA Rules
 
@@ -82,6 +82,6 @@ QA check framework is under development. Current status:
 
 ## Next Steps
 
-- [Flow Hooks](/docs/kapi-cli/flows/hooks)
-- [Custom Flows](/docs/kapi-cli/flows/custom-flows)
+- [Flow Hooks](/docs/brain-cli/flows/hooks)
+- [Custom Flows](/docs/brain-cli/flows/custom-flows)
 - [Terminology](/docs/features/terminology)

@@ -1,16 +1,16 @@
 ---
-sidebar_position: 8
+sidebar_position: 6
 title: plugins
 ---
 
-# kapi plugins
+# brain plugins
 
 Manage plugins and bundles for additional formats and tools.
 
 ## Synopsis
 
 ```bash
-kapi plugins <command> [flags]
+brain plugins <command> [flags]
 ```
 
 ## Concepts
@@ -26,21 +26,21 @@ When you install a bundle, its individual capabilities (formats, tools) are regi
 ### List installed plugins
 
 ```bash
-kapi plugins list
-kapi plugins list -a              # show all available (installed + registry)
+brain plugins list
+brain plugins list -a              # show all available (installed + registry)
 ```
 
 ### Search for plugins and bundles
 
 ```bash
-kapi plugins search <query>            # search by name or description
-kapi plugins search --bundle           # list all bundles
-kapi plugins search --format           # list format plugins (including bundles with formats)
-kapi plugins search --tool             # list tool plugins (including bundles with tools)
-kapi plugins search --bundle --format  # bundles that contain format capabilities
-kapi plugins search --ext .docx        # find plugins that handle .docx files
-kapi plugins search --mime text/html   # find plugins that handle HTML
-kapi plugins search --type format      # filter by capability type
+brain plugins search <query>            # search by name or description
+brain plugins search --bundle           # list all bundles
+brain plugins search --format           # list format plugins (including bundles with formats)
+brain plugins search --tool             # list tool plugins (including bundles with tools)
+brain plugins search --bundle --format  # bundles that contain format capabilities
+brain plugins search --ext .docx        # find plugins that handle .docx files
+brain plugins search --mime text/html   # find plugins that handle HTML
+brain plugins search --type format      # filter by capability type
 ```
 
 All filter flags are combined with AND logic.
@@ -48,22 +48,22 @@ All filter flags are combined with AND logic.
 ### Install a plugin or bundle
 
 ```bash
-kapi plugins install <name>                  # install latest version
-kapi plugins install <name>@<version>        # install specific version
+brain plugins install <name>                  # install latest version
+brain plugins install <name>@<version>        # install specific version
 ```
 
 ### Update a plugin or bundle
 
 ```bash
-kapi plugins update <name>       # update specific plugin
-kapi plugins update              # check and update all plugins
+brain plugins update <name>       # update specific plugin
+brain plugins update              # check and update all plugins
 ```
 
 ### Remove a plugin or bundle
 
 ```bash
-kapi plugins remove <name>@<version>   # remove a specific version
-kapi plugins remove <name>             # remove all versions
+brain plugins remove <name>@<version>   # remove a specific version
+brain plugins remove <name>             # remove all versions
 ```
 
 ## Search Flags
@@ -97,14 +97,14 @@ Plugins are stored in `~/.config/gokapi/plugins/`. Multiple versions can be inst
 The Okapi bridge bundle provides access to 40+ Okapi format filters:
 
 ```bash
-kapi plugins install okapi
+brain plugins install okapi
 ```
 
-Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `kapi formats`.
+Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `brain formats`.
 
 ## Version Pinning
 
-Pin a specific plugin version in `kapi.yaml`:
+Pin a specific plugin version in `brain.yaml`:
 
 ```yaml
 plugins:

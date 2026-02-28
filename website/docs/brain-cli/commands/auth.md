@@ -3,7 +3,7 @@ title: auth
 sidebar_position: 9
 ---
 
-# kapi auth
+# brain auth
 
 Authenticate the CLI against a deployed `bowrain-server` instance. This enables
 CLI commands to access workspace-scoped resources on a remote server.
@@ -15,7 +15,7 @@ CLI commands to access workspace-scoped resources on a remote server.
 Start an interactive login using the OAuth device flow:
 
 ```bash
-kapi auth login --server https://gokapi.example.com
+brain auth login --server https://gokapi.example.com
 ```
 
 The CLI will display a URL and a one-time code. Open the URL in your browser,
@@ -23,13 +23,13 @@ enter the code, and authorize the application. The CLI polls automatically and
 stores your token on success.
 
 ```
-$ kapi auth login --server https://gokapi.example.com
+$ brain auth login --server https://gokapi.example.com
 Open https://gokapi.example.com/auth/device and enter code: ABCD-1234
 Waiting for authorization...
 Logged in as translator@example.com
 ```
 
-The access token is stored at `~/.config/kapi/auth.json` and used
+The access token is stored at `~/.config/brain/auth.json` and used
 automatically by other CLI commands.
 
 ### auth status
@@ -37,7 +37,7 @@ automatically by other CLI commands.
 Check the current authentication state:
 
 ```bash
-kapi auth status
+brain auth status
 ```
 
 Output:
@@ -54,7 +54,7 @@ Expires: 2026-02-11 14:30:00
 Remove the stored token:
 
 ```bash
-kapi auth logout
+brain auth logout
 ```
 
 ## How It Works
@@ -77,7 +77,7 @@ redirect is not available.
 
 ## Token Storage
 
-Tokens are stored in `~/.config/kapi/auth.json`:
+Tokens are stored in `~/.config/brain/auth.json`:
 
 ```json
 {
@@ -96,10 +96,10 @@ Tokens are stored in `~/.config/kapi/auth.json`:
 ## Server Modes
 
 Authentication is only required when connecting to a `bowrain-server` running in
-multi-user mode. When using `kapi serve` for local project editing, no
+multi-user mode. When using `brain serve` for local project editing, no
 authentication is needed — the local server runs on localhost without auth.
 
 | Mode | Auth Required | Description |
 |------|--------------|-------------|
-| `kapi serve` | No | Local project server, localhost only |
+| `brain serve` | No | Local project server, localhost only |
 | `bowrain-server` | Yes | Multi-user deployment with workspaces |

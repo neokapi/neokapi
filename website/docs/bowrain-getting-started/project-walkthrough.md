@@ -1,34 +1,35 @@
 ---
 sidebar_position: 4
 title: Project Walkthrough
+slug: /bowrain/project-walkthrough
 ---
 
 # Project Walkthrough
 
-This guide demonstrates the Kapi project model — a git-like `.kapi/` directory
+This guide demonstrates the Brain project model — a git-like `.brain/` directory
 for managing localization workflows.
 
 ## Step 1: Initialize a Project
 
-Create a new Kapi project in your application directory:
+Create a new Brain project in your application directory:
 
 ```bash
 cd my-app/
-kapi init
+brain init
 ```
 
 The interactive wizard guides you through setup. Choose **Local only** for a
 local-only project, or use flags to skip the wizard:
 
 ```bash
-kapi init --name "My App Localization" --source en-US --targets fr-FR,de-DE,ja-JP
+brain init --name "My App Localization" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
 This creates:
 
 ```
 my-app/
-├── .kapi/
+├── .brain/
 │   ├── config.yaml       # Project settings
 │   ├── flows/            # Custom workflow definitions
 │   ├── .sync-cache       # Sync cache (gitignored)
@@ -43,7 +44,7 @@ my-app/
 
 ## Step 2: Configure File Mappings
 
-Edit `.kapi/config.yaml` to map your local files to the project structure:
+Edit `.brain/config.yaml` to map your local files to the project structure:
 
 ```yaml
 project:
@@ -74,7 +75,7 @@ mappings:
 
 ## Step 3: Create a Translation Flow
 
-Define a custom workflow in `.kapi/flows/translate-with-qa.yaml`:
+Define a custom workflow in `.brain/flows/translate-with-qa.yaml`:
 
 ```yaml
 name: translate-with-qa
@@ -83,7 +84,7 @@ description: AI translation with terminology enforcement and QA checks
 steps:
   - tool: term-lookup
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
 
   - tool: ai-translate
     config:
@@ -93,7 +94,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .kapi/termbase.tbx
+      termbase: .brain/termbase.tbx
       required: true
 
   - tool: qa-check
@@ -110,11 +111,11 @@ steps:
 Execute your custom flow:
 
 ```bash
-kapi flow run translate-with-qa
+brain flow run translate-with-qa
 ```
 
 The flow automatically:
-- Reads files matching `.kapi/config.yaml` mappings
+- Reads files matching `.brain/config.yaml` mappings
 - Uses configured source/target locales
 - Processes through all tools in sequence
 - Writes results back to local files
@@ -147,7 +148,7 @@ Flow completed: 200 blocks translated
 View what changed:
 
 ```bash
-kapi status
+brain status
 ```
 
 **Output:**
@@ -166,7 +167,7 @@ Modified local files:
   M src/locales/fr/buttons.json
 
 No server configured
-Run 'kapi auth login' to connect to a server
+Run 'brain auth login' to connect to a server
 ```
 
 ## Step 6: Connect to Bowrain Server (Optional)
@@ -179,23 +180,23 @@ If you already initialized a local project and want to move it to a server:
 
 ```bash
 # Authenticate with the server
-kapi auth login --server https://bowrain.example.com
+brain auth login --server https://bowrain.example.com
 
 # Claim your local project into your personal workspace
-kapi auth claim
+brain auth claim
 ```
 
 The claim transfers your anonymous local project into your personal workspace
-on the server, preserving all files and translations. Your `.kapi/config.yaml`
+on the server, preserving all files and translations. Your `.brain/config.yaml`
 is updated with the server connection details.
 
 ### Option B: Interactive Init
 
-Re-run `kapi init` and choose **Sign in to Bowrain** to create a new
+Re-run `brain init` and choose **Sign in to Bowrain** to create a new
 server-connected project from scratch:
 
 ```bash
-kapi init
+brain init
 # → Choose "Sign in to Bowrain"
 # → Authenticate via browser (device flow)
 # → Select workspace (or create a new one)
@@ -208,23 +209,23 @@ Once connected, you can sync with the server:
 
 ```bash
 # Push local translations to server
-kapi push -m "Translate UI strings for v2.0 release"
+brain push -m "Translate UI strings for v2.0 release"
 
 # Pull translations from team members
-kapi pull
+brain pull
 
 # Show differences before pushing
-kapi diff
+brain diff
 
 # Check sync status
-kapi status
+brain status
 ```
 
 ## Step 7: Add Quality Hooks
 
 Configure pre-push hooks to catch issues before upload:
 
-Edit `.kapi/config.yaml`:
+Edit `.brain/config.yaml`:
 
 ```yaml
 hooks:
@@ -239,7 +240,7 @@ hooks:
 When you push, hooks run automatically:
 
 ```bash
-kapi push -m "Update translations"
+brain push -m "Update translations"
 ```
 
 **Output with hook failure:**
@@ -263,24 +264,24 @@ Push aborted. Fix issues or use --force to bypass.
 Commit your project configuration to git:
 
 ```bash
-git add .kapi/config.yaml .kapi/flows/
-git commit -m "Add Kapi project configuration"
+git add .brain/config.yaml .brain/flows/
+git commit -m "Add Brain project configuration"
 ```
 
 **Do NOT commit:**
-- `.kapi/.sync-cache` — auto-gitignored (local sync cache)
-- `.kapi/.server-token` — auto-gitignored (auth credentials)
+- `.brain/.sync-cache` — auto-gitignored (local sync cache)
+- `.brain/.server-token` — auto-gitignored (auth credentials)
 
-`kapi init` creates a `.gitignore` automatically.
+`brain init` creates a `.gitignore` automatically.
 
 ## Project Discovery
 
-Kapi searches for `.kapi/` by walking up the directory tree (like git):
+Brain searches for `.brain/` by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-kapi status  # Finds .kapi/ at ../../../.kapi/
-kapi flow run translate-with-qa  # Works from any subdirectory
+brain status  # Finds .brain/ at ../../../.brain/
+brain flow run translate-with-qa  # Works from any subdirectory
 ```
 
 All commands work from anywhere within the project tree.
@@ -291,9 +292,9 @@ All commands work from anywhere within the project tree.
 
 If you don't need team collaboration:
 
-1. `kapi init` — initialize project (choose "Local only")
-2. Define flows in `.kapi/flows/`
-3. `kapi flow run <flow>` — process files
+1. `brain init` — initialize project (choose "Local only")
+2. Define flows in `.brain/flows/`
+3. `brain flow run <flow>` — process files
 4. Commit results to git
 
 No server required. Perfect for individual translators or small teams using git directly.
@@ -302,34 +303,34 @@ No server required. Perfect for individual translators or small teams using git 
 
 For team collaboration with Bowrain Server:
 
-1. `kapi auth login --server <URL>` — authenticate with the server
-2. `kapi auth claim` — claim your local project into a workspace, or re-run `kapi init` with "Sign in to Bowrain"
-3. `kapi pull` — fetch latest translations
+1. `brain auth login --server <URL>` — authenticate with the server
+2. `brain auth claim` — claim your local project into a workspace, or re-run `brain init` with "Sign in to Bowrain"
+3. `brain pull` — fetch latest translations
 4. Edit files locally or run flows
-5. `kapi diff` — review changes
-6. `kapi push -m "message"` — upload to server
+5. `brain diff` — review changes
+6. `brain push -m "message"` — upload to server
 7. Repeat
 
 Think of it as **git for localization content**:
 
-| Git | Kapi |
-|-----|------|
-| `git clone` | `kapi init` (Sign in) |
-| `git status` | `kapi status` |
-| `git diff` | `kapi diff` |
-| `git pull` | `kapi pull` |
+| Git | Brain |
+|-----|-------|
+| `git clone` | `brain init` (Sign in) |
+| `git status` | `brain status` |
+| `git diff` | `brain diff` |
+| `git pull` | `brain pull` |
 | `git add` | (automatic — based on file mappings) |
-| `git commit -m` | `kapi push -m` |
-| `git push` | (part of `kapi push`) |
+| `git commit -m` | `brain push -m` |
+| `git push` | (part of `brain push`) |
 
 ## Next Steps
 
-Now that you have a Kapi project:
+Now that you have a Brain project:
 
-- **Explore flows**: [`kapi flow list`](/docs/kapi-cli/commands/flow)
+- **Explore flows**: [`brain flow list`](/docs/brain-cli/commands/flow)
 - **Manage terminology**: [Terminology features](/docs/features/terminology)
-- **Serve locally**: [`kapi serve`](/docs/kapi-cli/commands/serve)
-- **Understand sync**: [Push](/docs/kapi-cli/commands/push) and [Pull](/docs/kapi-cli/commands/pull)
+- **Serve locally**: [`brain serve`](/docs/brain-cli/commands/serve)
+- **Understand sync**: [Push](/docs/brain-cli/commands/push) and [Pull](/docs/brain-cli/commands/pull)
 - **Read ADs**: [Architecture decisions](/docs/ad/001-vision)
 
 For team deployments, see [Bowrain Server](/docs/developer/server).

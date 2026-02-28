@@ -19,7 +19,7 @@ docker compose up -d
 
 Open `http://localhost:8080` in your browser.
 
-For local single-user mode, use `kapi serve` instead — no Docker or authentication required.
+For local single-user mode, use `brain serve` instead — no Docker or authentication required.
 
 ## Logging In
 
@@ -131,10 +131,10 @@ invites, see usage counts, and revoke invites that are no longer needed.
 
 ## CLI Connection
 
-Connect the kapi CLI to your server for command-line workflows:
+Connect the Brain CLI to your server for command-line workflows:
 
 ```bash
-kapi auth login --server http://localhost:8080
+brain auth login --server http://localhost:8080
 ```
 
 This starts a [device authorization flow](https://www.rfc-editor.org/rfc/rfc8628):
@@ -148,11 +148,11 @@ After login, CLI commands automatically authenticate with the server.
 
 ### Claiming Anonymous Projects
 
-If you started with `kapi init` locally (without a server connection), you
+If you started with `brain init` locally (without a server connection), you
 can claim that project into your server workspace:
 
 ```bash
-kapi auth claim
+brain auth claim
 ```
 
 This transfers the anonymous local project into your personal workspace on

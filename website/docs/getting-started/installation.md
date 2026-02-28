@@ -5,40 +5,27 @@ title: Installation
 
 # Installation
 
-## Homebrew (macOS/Linux)
+Install the `kapi` CLI for standalone file processing.
 
-Install the `kapi` CLI via Homebrew:
+## Homebrew (macOS/Linux)
 
 ```bash
 brew install gokapi/tap/kapi
 ```
 
-Install the Bowrain desktop app (macOS):
-
-```bash
-brew install --cask gokapi/tap/bowrain
-```
-
 ## Go Install
 
-If you have Go installed:
-
 ```bash
-go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest
+go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
 ```
 
 ## Binary Downloads
 
 Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/gokapi/gokapi/releases) page:
 
-- **kapi CLI** — Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64)
-- **Bowrain desktop app** — macOS (universal DMG), Linux (amd64), Windows (amd64)
-
-## Verify Installation
-
-```bash
-kapi version
-```
+- Linux (amd64, arm64)
+- macOS (amd64, arm64)
+- Windows (amd64)
 
 ## Building from Source
 
@@ -46,12 +33,14 @@ kapi version
 git clone https://github.com/gokapi/gokapi.git
 cd gokapi
 make build       # Build kapi CLI → bin/kapi
-make build-all   # Build all binaries
 ```
 
-For the Bowrain desktop app:
+## Verify Installation
 
 ```bash
-cd bowrain/apps/bowrain
-wails3 build
+kapi version
 ```
+
+## Bowrain Platform
+
+For the Bowrain platform (Brain CLI, desktop app, server), see [Bowrain Installation](/docs/bowrain/installation).

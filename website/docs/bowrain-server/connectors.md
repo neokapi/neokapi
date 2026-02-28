@@ -15,7 +15,7 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 | **Design** | Figma, Sketch | UI text strings from designs |
 | **Code** | GitHub, GitLab, Bitbucket | Localization files in repos |
 | **Marketing** | HubSpot, Marketo | Campaign and email content |
-| **File** | Kapi CLI | Local file sync |
+| **File** | Brain CLI | Local file sync |
 
 ## How Connectors Work
 
@@ -27,22 +27,22 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 External System ←→ Connector ←→ Bowrain Server ←→ Translators
 ```
 
-## File Connector (Kapi CLI)
+## File Connector (Brain CLI)
 
-Kapi CLI acts as a file connector:
+Brain CLI acts as a file connector:
 
 ```bash
 # Initialize connection to server
-kapi init --server https://bowrain.example.com --project abc123
+brain init --server https://bowrain.example.com --project abc123
 
 # Pull translations from server
-kapi pull
+brain pull
 
 # Push local changes to server
-kapi push -m "Translate new features"
+brain push -m "Translate new features"
 ```
 
-See [Kapi CLI documentation](/docs/kapi-cli/overview) for details.
+See [Brain CLI documentation](/docs/brain-cli/overview) for details.
 
 ## Server-Side Connectors
 
@@ -97,7 +97,7 @@ action:
 
 Server-side connectors are under development. Currently supported:
 
-- **File connector** via Kapi CLI (placeholder)
+- **File connector** via Brain CLI (placeholder)
 - **GitHub connector** (in progress)
 - **Contentful connector** (planned)
 
@@ -105,6 +105,6 @@ Server-side connectors are under development. Currently supported:
 
 ## Next Steps
 
-- [Kapi CLI](/docs/kapi-cli/overview)
+- [Brain CLI](/docs/brain-cli/overview)
 - [Automation](/docs/bowrain-server/automation)
 - [Workspaces](/docs/bowrain-server/workspaces)

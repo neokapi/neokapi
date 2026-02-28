@@ -3,22 +3,22 @@ title: init
 sidebar_position: 1
 ---
 
-# kapi init
+# brain init
 
-Initialize a new Kapi project in the current directory. Creates a `.kapi/` directory
+Initialize a new Brain project in the current directory. Creates a `.brain/` directory
 with configuration, flow definitions, and sync state tracking.
 
 ## Usage
 
 ```bash
-kapi init [flags]
+brain init [flags]
 ```
 
 ## Interactive Mode
 
-When run in a terminal without flags, `kapi init` presents an interactive wizard.
+When run in a terminal without flags, `brain init` presents an interactive wizard.
 
-**If you are already signed in** (via `kapi auth login`), the wizard goes straight
+**If you are already signed in** (via `brain auth login`), the wizard goes straight
 to workspace selection, then project name and source locale.
 
 **If you are not signed in**, the wizard offers four paths:
@@ -40,32 +40,32 @@ existing workspace or create a new one.
 
 ```bash
 # Interactive mode (recommended)
-kapi init
+brain init
 
 # Non-interactive: local project with locales
-kapi init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+brain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Non-interactive: anonymous project (prints claim URL)
-kapi init --anonymous --name "My App" --source en
+brain init --anonymous --name "My App" --source en
 
 # Non-interactive: anonymous project with email claim
-kapi init --name "My App" --email alex@example.com
+brain init --name "My App" --email alex@example.com
 
 # Non-interactive: connect to existing server project
-kapi init --server https://bowrain.example.com --project abc123
+brain init --server https://bowrain.example.com --project abc123
 ```
 
 ## What Happens
 
-1. Checks that `.kapi/` does not already exist (fails fast if it does)
-2. Creates `.kapi/` directory in the current folder
+1. Checks that `.brain/` does not already exist (fails fast if it does)
+2. Creates `.brain/` directory in the current folder
 3. Generates `config.yaml` with project settings
 4. Creates `flows/` subdirectory with an example flow definition
-5. Adds `.kapi/.gitignore` to exclude sync state and tokens
+5. Adds `.brain/.gitignore` to exclude sync state and tokens
 6. Optionally creates a project on the Bowrain Server and configures the connection
 
-After initialization, the directory becomes a Kapi project. You can run `kapi status`,
-`kapi flow run`, and other commands from anywhere within the project tree.
+After initialization, the directory becomes a Brain project. You can run `brain status`,
+`brain flow run`, and other commands from anywhere within the project tree.
 
 ## Options
 
@@ -74,7 +74,7 @@ After initialization, the directory becomes a Kapi project. You can run `kapi st
 | `--name` | Project name | Directory name |
 | `--source` | Source locale code (BCP 47) | `en` |
 | `--targets` | Comma-separated target locale codes | (none) |
-| `--server` | Bowrain Server URL | `KAPI_SERVER_URL` or config |
+| `--server` | Bowrain Server URL | `BRAIN_SERVER_URL` or config |
 | `--project` | Server project ID (connect to existing) | (none) |
 | `--anonymous` | Create anonymous project (prints claim URL) | `false` |
 | `--email` | Create anonymous project, send claim email | (none) |
@@ -86,13 +86,13 @@ After initialization, the directory becomes a Kapi project. You can run `kapi st
 Use `--json` for machine-readable output (useful in CI/CD):
 
 ```bash
-kapi init --anonymous --name "My App" --source en --json
+brain init --anonymous --name "My App" --source en --json
 ```
 
 ```json
 {
   "root": "/path/to/my-app",
-  "config_dir": "/path/to/my-app/.kapi/config.yaml",
+  "config_dir": "/path/to/my-app/.brain/config.yaml",
   "project_id": "proj_abc123",
   "server": "https://bowrain.example.com",
   "claim_token": "clm_def456",
@@ -102,7 +102,7 @@ kapi init --anonymous --name "My App" --source en --json
 
 ## Configuration File
 
-`kapi init` creates `.kapi/config.yaml` with this structure:
+`brain init` creates `.brain/config.yaml` with this structure:
 
 ```yaml
 project:
@@ -142,44 +142,44 @@ hooks:
 The server URL is resolved from (first match wins):
 
 1. `--server` flag
-2. `KAPI_SERVER_URL` environment variable
-3. `server.url` in global config (`~/.config/kapi/kapi.yaml`)
-4. Existing auth state (from `kapi auth login`)
+2. `BRAIN_SERVER_URL` environment variable
+3. `server.url` in global config (`~/.config/brain/brain.yaml`)
+4. Existing auth state (from `brain auth login`)
 5. Built-in default (`http://localhost:8080`)
 
 Set it once globally with:
 
 ```bash
-kapi config --global server.url https://bowrain.example.com
+brain config --global server.url https://bowrain.example.com
 ```
 
 ## Project Discovery
 
-Once initialized, Kapi searches for `.kapi/` by walking up the directory tree
+Once initialized, Brain searches for `.brain/` by walking up the directory tree
 (like git). You can run commands from any subdirectory:
 
 ```bash
 cd my-project/src/locales/
-kapi status  # Finds .kapi/ at ../../.kapi/
+brain status  # Finds .brain/ at ../../.brain/
 ```
 
 ## Version Control
 
 **Commit to git:**
-- `.kapi/config.yaml` — project settings
-- `.kapi/flows/*.yaml` — flow definitions
+- `.brain/config.yaml` — project settings
+- `.brain/flows/*.yaml` — flow definitions
 
 **Do NOT commit:**
-- `.kapi/.sync-cache` — sync cache (auto-gitignored)
-- `.kapi/.server-token` — auth token (auto-gitignored)
+- `.brain/.sync-cache` — sync cache (auto-gitignored)
+- `.brain/.server-token` — auth token (auto-gitignored)
 
-`kapi init` automatically adds these to `.gitignore`.
+`brain init` automatically adds these to `.gitignore`.
 
 ## Next Steps
 
 After initialization:
 
-1. **Edit mappings** in `.kapi/config.yaml` to match your file structure
-2. **Create flows** in `.kapi/flows/` for your translation workflows
-3. **Run flows**: `kapi flow list` and `kapi flow run <flow-name>`
-4. **Connect to server**: `kapi pull` and `kapi push` (if server configured)
+1. **Edit mappings** in `.brain/config.yaml` to match your file structure
+2. **Create flows** in `.brain/flows/` for your translation workflows
+3. **Run flows**: `brain flow list` and `brain flow run <flow-name>`
+4. **Connect to server**: `brain pull` and `brain push` (if server configured)

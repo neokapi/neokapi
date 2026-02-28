@@ -1,7 +1,7 @@
 import type {SidebarsConfig} from '@docusaurus/plugin-content-docs';
 
 const sidebars: SidebarsConfig = {
-  userGuide: [
+  gokapiSidebar: [
     {
       type: 'category',
       label: 'Getting Started',
@@ -9,8 +9,6 @@ const sidebars: SidebarsConfig = {
         'getting-started/introduction',
         'getting-started/installation',
         'getting-started/quickstart',
-        'getting-started/project-walkthrough',
-        'getting-started/e2e-walkthrough',
       ],
     },
     {
@@ -18,38 +16,18 @@ const sidebars: SidebarsConfig = {
       label: 'Kapi CLI',
       items: [
         'kapi-cli/overview',
-        'kapi-cli/installation',
-        'kapi-cli/project-model',
         {
           type: 'category',
           label: 'Commands',
           items: [
-            'kapi-cli/commands/init',
-            'kapi-cli/commands/config',
-            'kapi-cli/commands/status',
-            'kapi-cli/commands/diff',
-            'kapi-cli/commands/pull',
-            'kapi-cli/commands/push',
             'kapi-cli/commands/flow',
-            'kapi-cli/commands/serve',
-            'kapi-cli/commands/auth',
+            'kapi-cli/commands/formats',
+            'kapi-cli/commands/tools',
             'kapi-cli/commands/plugins',
-          ],
-        },
-        {
-          type: 'category',
-          label: 'Flows',
-          items: [
-            'kapi-cli/flows/overview',
-            'kapi-cli/flows/custom-flows',
-            'kapi-cli/flows/hooks',
-          ],
-        },
-        {
-          type: 'category',
-          label: 'Use Cases',
-          items: [
-            'kapi-cli/use-cases/website-translation',
+            'kapi-cli/commands/presets',
+            'kapi-cli/commands/pseudo-translate',
+            'kapi-cli/commands/termbase',
+            'kapi-cli/commands/word-count',
           ],
         },
         'kapi-cli/demo-videos',
@@ -57,16 +35,94 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Bowrain',
+      label: 'Features',
+      items: [
+        'features/formats',
+        'features/translation-memory',
+        'features/terminology',
+        'features/ai-translation',
+        'features/mt-services',
+        'features/qa-checks',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Framework',
+      items: [
+        'developer/architecture',
+        'developer/interfaces',
+        'developer/formats',
+        'developer/tools',
+        'developer/translation-memory',
+        'developer/terminology',
+        'developer/plugins',
+        'developer/java-bridge',
+        'developer/testing',
+      ],
+    },
+  ],
+  bowrainSidebar: [
+    {
+      type: 'category',
+      label: 'Getting Started',
+      items: [
+        'bowrain-getting-started/introduction',
+        'bowrain-getting-started/installation',
+        'bowrain-getting-started/quickstart',
+        'bowrain-getting-started/project-walkthrough',
+        'bowrain-getting-started/e2e-walkthrough',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Brain CLI',
+      items: [
+        'brain-cli/overview',
+        'brain-cli/project-model',
+        {
+          type: 'category',
+          label: 'Commands',
+          items: [
+            'brain-cli/commands/init',
+            'brain-cli/commands/config',
+            'brain-cli/commands/status',
+            'brain-cli/commands/diff',
+            'brain-cli/commands/pull',
+            'brain-cli/commands/push',
+            'brain-cli/commands/flow',
+            'brain-cli/commands/serve',
+            'brain-cli/commands/auth',
+            'brain-cli/commands/plugins',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Flows',
+          items: [
+            'brain-cli/flows/overview',
+            'brain-cli/flows/custom-flows',
+            'brain-cli/flows/hooks',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Use Cases',
+          items: [
+            'brain-cli/use-cases/website-translation',
+          ],
+        },
+        'brain-cli/demo-videos',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Bowrain Web',
       items: [
         'bowrain-web/overview',
         'bowrain-web/getting-started',
         'bowrain-web/translation-editor',
         'bowrain-web/translation-memory',
         'bowrain-web/terminology',
-        'bowrain-server/workspaces',
-        'bowrain-server/connectors',
-        'bowrain-server/automation',
         'bowrain-web/walkthroughs',
         'bowrain-web/demo-videos',
       ],
@@ -86,41 +142,23 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Features',
+      label: 'Bowrain Server',
       items: [
-        'features/formats',
-        'features/translation-memory',
-        'features/terminology',
-        'features/ai-translation',
-        'features/mt-services',
-        'features/qa-checks',
-      ],
-    },
-  ],
-  developer: [
-    {
-      type: 'category',
-      label: 'Framework',
-      items: [
-        'developer/architecture',
-        'developer/interfaces',
-        'developer/formats',
-        'developer/tools',
-        'developer/translation-memory',
-        'developer/terminology',
-        'developer/content-store',
-        'developer/plugins',
-        'developer/java-bridge',
-        'developer/testing',
+        'bowrain-server/overview',
+        'bowrain-server/workspaces',
+        'bowrain-server/connectors',
+        'bowrain-server/automation',
+        'bowrain-server/server-walkthrough',
       ],
     },
     {
       type: 'category',
-      label: 'Bowrain',
+      label: 'Developer',
       items: [
         'developer/server',
         'developer/connectors',
         'developer/events',
+        'developer/content-store',
         {
           type: 'category',
           label: 'Self-Hosting',
@@ -142,6 +180,11 @@ const sidebars: SidebarsConfig = {
       type: 'link',
       label: 'Implementation Notes',
       href: '/docs/notes/index',
+    },
+    {
+      type: 'link',
+      label: 'Storybook',
+      href: 'pathname:///storybook/',
     },
   ],
 };

@@ -3,7 +3,7 @@ title: status
 sidebar_position: 2
 ---
 
-# kapi status
+# brain status
 
 Show the sync state between local files and Bowrain Server. Displays local block
 count, pending changes, and last sync timestamp.
@@ -11,18 +11,18 @@ count, pending changes, and last sync timestamp.
 ## Usage
 
 ```bash
-kapi status
+brain status
 ```
 
 ## Examples
 
 ```bash
 # Show current project status
-kapi status
+brain status
 
 # Example output (connected to server):
 # Project root: /Users/me/my-project
-# Config:       /Users/me/my-project/.kapi/config.yaml
+# Config:       /Users/me/my-project/.brain/config.yaml
 #
 # Local blocks: 142
 # Pending push: 3 blocks changed locally
@@ -30,10 +30,10 @@ kapi status
 
 # Example output (no server configured):
 # Project root: /Users/me/my-project
-# Config:       /Users/me/my-project/.kapi/config.yaml
+# Config:       /Users/me/my-project/.brain/config.yaml
 #
 # Sync status requires a Bowrain server connection.
-#   Configure server in /Users/me/my-project/.kapi/config.yaml
+#   Configure server in /Users/me/my-project/.brain/config.yaml
 ```
 
 ## What It Shows
@@ -41,17 +41,17 @@ kapi status
 ### Local State
 
 - **Local blocks**: Total number of translatable blocks found in local files
-- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.kapi/.sync-cache`)
+- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.brain/.sync-cache`)
 - **Pending pull**: Remote changes available on the server since last pull
 
 ### Server Connection
 
-- Requires `server.url` and `server.project_id` in `.kapi/config.yaml`
+- Requires `server.url` and `server.project_id` in `.brain/config.yaml`
 - If not configured, shows a message directing you to configure the server
 
 ### Sync Cache
 
-Status is tracked in `.kapi/.sync-cache` (auto-gitignored):
+Status is tracked in `.brain/.sync-cache` (auto-gitignored):
 
 ```json
 {
@@ -75,12 +75,12 @@ until the next sync re-establishes the baseline.
 
 ## How It Works
 
-`kapi status` performs:
+`brain status` performs:
 
 1. **Scan local files** via FormatRegistry (using config mappings)
 2. **Extract blocks** and compute content hashes
-3. **Diff hashes** against `.kapi/.sync-cache` → count changed blocks (pending push)
-4. **Query server** for changes since last sync cursor → count pending pull (if cursor > 0)
+3. **Diff hashes** against `.brain/.sync-cache` -> count changed blocks (pending push)
+4. **Query server** for changes since last sync cursor -> count pending pull (if cursor > 0)
 
 ## Exit Codes
 
@@ -89,13 +89,13 @@ until the next sync re-establishes the baseline.
 
 ## Related Commands
 
-- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed line-by-line changes
-- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch changes from server
-- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes to server
+- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed line-by-line changes
+- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch changes from server
+- [`brain push`](/docs/brain-cli/commands/push) — Send local changes to server
 
 ## When to Use
 
-Run `kapi status` to:
+Run `brain status` to:
 
 - **Check before push** to see what will be uploaded
 - **Check after pull** to verify sync succeeded

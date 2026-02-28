@@ -3,7 +3,7 @@ title: diff
 sidebar_position: 3
 ---
 
-# kapi diff
+# brain diff
 
 Show detailed differences between local files and Bowrain Server content. Displays
 block-level changes with source and target text diffs.
@@ -11,29 +11,29 @@ block-level changes with source and target text diffs.
 ## Usage
 
 ```bash
-kapi diff [paths...] [flags]
+brain diff [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Show all differences in the project
-kapi diff
+brain diff
 
 # Show differences for specific files
-kapi diff src/locales/en/messages.json
+brain diff src/locales/en/messages.json
 
 # Show differences for a directory
-kapi diff src/locales/
+brain diff src/locales/
 
 # Show only added/removed blocks (no modified)
-kapi diff --status added,removed
+brain diff --status added,removed
 
 # Use unified diff format (like git diff)
-kapi diff --format unified
+brain diff --format unified
 
 # Example output:
-# diff --kapi a/ui/strings/messages b/ui/strings/messages
+# diff --brain a/ui/strings/messages b/ui/strings/messages
 # --- a/src/locales/en/messages.json (remote)
 # +++ b/src/locales/en/messages.json (local)
 #
@@ -59,7 +59,7 @@ kapi diff --format unified
 ### Unified Format
 
 ```diff
-diff --kapi a/ui/strings/buttons b/ui/strings/buttons
+diff --brain a/ui/strings/buttons b/ui/strings/buttons
 --- a/src/locales/en/buttons.json (remote: sha256:abc123)
 +++ b/src/locales/en/buttons.json (local: sha256:def456)
 
@@ -108,21 +108,21 @@ Block: close_button (added)
 ### Table Format
 
 ```
-FILE: src/locales/en/buttons.json ↔ ui/strings/buttons
-┌────────────────┬──────────┬─────────────────┬─────────────────┐
-│ Block ID       │ Status   │ Remote Source   │ Local Source    │
-├────────────────┼──────────┼─────────────────┼─────────────────┤
-│ save_button    │ modified │ Save            │ Save Changes    │
-│ cancel_button  │ removed  │ Cancel          │                 │
-│ close_button   │ added    │                 │ Close           │
-└────────────────┴──────────┴─────────────────┴─────────────────┘
+FILE: src/locales/en/buttons.json <-> ui/strings/buttons
++----------------+----------+-----------------+-----------------+
+| Block ID       | Status   | Remote Source   | Local Source    |
++----------------+----------+-----------------+-----------------+
+| save_button    | modified | Save            | Save Changes    |
+| cancel_button  | removed  | Cancel          |                 |
+| close_button   | added    |                 | Close           |
++----------------+----------+-----------------+-----------------+
 ```
 
 ## How It Works
 
-`kapi diff` compares block-level content between local files and server state:
+`brain diff` compares block-level content between local files and server state:
 
-1. **Read local files** via FormatRegistry (respecting `.kapi/config.yaml` mappings)
+1. **Read local files** via FormatRegistry (respecting `.brain/config.yaml` mappings)
 2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
 3. **Compute block hashes** using `BlockIdentity` (source text + metadata)
 4. **Match blocks** by ID and hash across local/remote
@@ -148,7 +148,7 @@ This enables efficient incremental sync — only changed blocks transfer over th
 
 :::warning Work in Progress
 
-`kapi diff` is currently a **placeholder**. Full implementation requires:
+`brain diff` is currently a **placeholder**. Full implementation requires:
 
 - Server API endpoint: `POST /api/v1/workspaces/:ws/projects/:id/diff`
 - Block-level content comparison
@@ -161,15 +161,15 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`kapi status`](/docs/kapi-cli/commands/status) — Show which files changed (summary)
-- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch remote changes
-- [`kapi push`](/docs/kapi-cli/commands/push) — Send local changes
+- [`brain status`](/docs/brain-cli/commands/status) — Show which files changed (summary)
+- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch remote changes
+- [`brain push`](/docs/brain-cli/commands/push) — Send local changes
 
 ## When to Use
 
-Use `kapi diff` to:
+Use `brain diff` to:
 
 - **Review changes** before pushing to the server
 - **Understand conflicts** when both local and remote changed
 - **Generate reports** for translation review (JSON output)
-- **Debug sync issues** when `kapi status` shows unexpected state
+- **Debug sync issues** when `brain status` shows unexpected state

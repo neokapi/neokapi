@@ -3,7 +3,7 @@ title: push
 sidebar_position: 5
 ---
 
-# kapi push
+# brain push
 
 Send local file changes to Bowrain Server. Only transfers modified blocks
 (incremental sync using content hashing).
@@ -11,23 +11,23 @@ Send local file changes to Bowrain Server. Only transfers modified blocks
 ## Usage
 
 ```bash
-kapi push [paths...] [flags]
+brain push [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Push all local changes to server
-kapi push
+brain push
 
 # Push specific files
-kapi push src/locales/en/
+brain push src/locales/en/
 
 # Show what would be pushed without uploading
-kapi push --dry-run
+brain push --dry-run
 
 # Force re-push all blocks (ignoring sync cache)
-kapi push --force
+brain push --force
 
 # Example output:
 # Pushed 47 blocks (scanned 12 files)
@@ -43,18 +43,18 @@ kapi push --force
 
 ## What Happens
 
-1. **Read local files** via FormatRegistry (using `.kapi/config.yaml` mappings)
-2. **Extract blocks** from each file (streaming Parts → Blocks)
+1. **Read local files** via FormatRegistry (using `.brain/config.yaml` mappings)
+2. **Extract blocks** from each file (streaming Parts -> Blocks)
 3. **Compute block hashes** using `BlockIdentity` (SHA-256)
-4. **Compare with `.kapi/.sync-cache`** to identify changed blocks
+4. **Compare with `.brain/.sync-cache`** to identify changed blocks
 5. **Send changed blocks** to server via `POST /api/v1/projects/:id/sync/push`
    - Batched at 1000 blocks per request
    - Server enforces batch limits and body size (50MB)
-6. **Update `.kapi/.sync-cache`** with new hashes and sync cursor
+6. **Update `.brain/.sync-cache`** with new hashes and sync cursor
 
 ## Content Hashing
 
-Kapi uses content-addressed blocks for efficient sync:
+Brain uses content-addressed blocks for efficient sync:
 
 ```
 content_hash = sha256(normalized_source_text)
@@ -65,7 +65,7 @@ where 5 changed will only transfer those 5 blocks.
 
 ## Sync Cache
 
-Push state is tracked in `.kapi/.sync-cache` (auto-gitignored):
+Push state is tracked in `.brain/.sync-cache` (auto-gitignored):
 
 ```json
 {
@@ -94,9 +94,9 @@ The sync cache can be safely deleted — it will be regenerated on the next push
 
 ## Related Commands
 
-- [`kapi pull`](/docs/kapi-cli/commands/pull) — Fetch changes from server
-- [`kapi status`](/docs/kapi-cli/commands/status) — Show what will be pushed
-- [`kapi diff`](/docs/kapi-cli/commands/diff) — Show detailed changes
+- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch changes from server
+- [`brain status`](/docs/brain-cli/commands/status) — Show what will be pushed
+- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 
@@ -111,6 +111,6 @@ Think of it as `git push` for localization content.
 
 ## Best Practices
 
-1. **Run `kapi status`** before pushing to see what changed
+1. **Run `brain status`** before pushing to see what changed
 2. **Pull first** if working with a team to avoid conflicts
 3. **Use `--dry-run`** when unsure about what will be uploaded
