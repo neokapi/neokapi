@@ -1,4 +1,4 @@
-# VHS Tape: kapi auth demo
+# VHS Tape: brain auth demo
 # Demonstrates the CLI authentication commands
 
 Output output/auth-login.webm
@@ -13,7 +13,7 @@ Type "# CLI Authentication"
 Enter
 Sleep 500ms
 
-Type "kapi auth --help"
+Type "brain auth --help"
 Enter
 Sleep 3s
 
@@ -25,7 +25,7 @@ Type "# Check current authentication status"
 Enter
 Sleep 500ms
 
-Type "kapi auth status"
+Type "brain auth status"
 Enter
 Sleep 2s
 
@@ -37,7 +37,7 @@ Type "# Login connects to a deployed bowrain-server"
 Enter
 Sleep 500ms
 
-Type "kapi auth login --help"
+Type "brain auth login --help"
 Enter
 Sleep 3s
 
@@ -64,7 +64,7 @@ Type "# Claim an anonymous local project into your server workspace"
 Enter
 Sleep 500ms
 
-Type "kapi auth claim --help"
+Type "brain auth claim --help"
 Enter
 Sleep 3s
 
@@ -76,7 +76,7 @@ Type "# Remove stored credentials"
 Enter
 Sleep 500ms
 
-Type "kapi auth logout"
+Type "brain auth logout"
 Enter
 Sleep 2s
 

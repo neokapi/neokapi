@@ -121,6 +121,7 @@ jobs:
           BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
           BOWRAIN_STORE=bowrain-ci.db \
           BOWRAIN_GRPC_PORT=9080 \
+          BOWRAIN_WEB_UI_DIR=bowrain/apps/web/dist \
           bin/bowrain-server &
           echo $! > .bowrain-server.pid
 
@@ -197,13 +198,13 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
 
-      - name: Build kapi CLI and bowrain-server
+      - name: Build kapi CLI, brain CLI, and bowrain-server
         run: |
           npm ci
           cd packages/ui && npx tsc
           cd ../../bowrain/apps/kapi-web && npm run build
           cd ../web && npm run build
-          cd ../../.. && make build
+          cd ../../.. && make build build-brain
           cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       # Install VHS and its dependencies (ttyd is required for terminal rendering)
@@ -236,6 +237,7 @@ jobs:
           BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
           BOWRAIN_STORE=bowrain-ci.db \
           BOWRAIN_GRPC_PORT=9080 \
+          BOWRAIN_WEB_UI_DIR=bowrain/apps/web/dist \
           bin/bowrain-server &
           echo $! > .bowrain-server.pid
 

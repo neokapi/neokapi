@@ -71,6 +71,14 @@ echo "Building kapi..."
   echo -e "${RED}Failed to build kapi${NC}"
   exit 1
 }
+
+# Build brain (needed for auth-login.tape)
+echo "Building brain..."
+(cd ../.. && cd bowrain && go build -o ../bin/brain ./cmd/brain) || {
+  echo -e "${RED}Failed to build brain${NC}"
+  exit 1
+}
+
 export PATH="$SCRIPT_DIR/../../bin:$PATH"
 
 # Skip plugin loading for faster tests
@@ -78,6 +86,7 @@ export KAPI_PLUGIN_DIR=/tmp/kapi-no-plugins
 mkdir -p "$KAPI_PLUGIN_DIR"
 
 echo -e "${GREEN}✓ kapi built${NC}"
+echo -e "${GREEN}✓ brain built${NC}"
 echo ""
 
 # Test sample files exist
@@ -116,13 +125,13 @@ echo ""
 
 # auth-login.tape tests
 echo "auth-login.tape commands:"
-test_cmd "kapi auth --help" "kapi auth --help" "authentication"
-test_cmd "kapi auth status" "kapi auth status" ""
+test_cmd "brain auth --help" "brain auth --help" "authentication"
+test_cmd "brain auth status" "brain auth status" ""
 echo ""
 
 # serve.tape tests
 echo "serve.tape commands:"
-test_cmd "kapi serve --help" "kapi serve --help" "Open a local web dashboard"
+test_cmd "brain serve --help" "brain serve --help" "Open a local web dashboard"
 echo ""
 
 # workspaces.tape tests (only if server is running)

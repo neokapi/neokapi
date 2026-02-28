@@ -1,4 +1,4 @@
-# VHS Tape: E2E walkthrough — kapi pull
+# VHS Tape: E2E walkthrough — brain pull
 # Demonstrates pulling translated content from Bowrain Server.
 # Requires: WALKTHROUGH_DIR set by generate.sh, KAPI_SERVER_URL set.
 
@@ -18,7 +18,7 @@ Type "# Step 7: Pull translations back to codebase"
 Enter
 Sleep 500ms
 
-Type "kapi pull --locale nb --locale fr"
+Type "brain pull --locale nb --locale fr"
 Enter
 Sleep 3s
 
