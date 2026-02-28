@@ -1,5 +1,5 @@
 import React from "react";
-import { Composition, registerRoot } from "remotion";
+import { Composition, getInputProps, registerRoot } from "remotion";
 import { DemoVideo } from "./compositions/DemoVideo";
 import { loadAllScripts, expandThemes } from "./parse-script";
 import type { ResolvedScript, Script } from "./schema";
@@ -40,11 +40,11 @@ function resolveWithDefaults(script: Script): ResolvedScript {
 }
 
 /**
- * Load scripts and register compositions.
+ * Load scripts from filesystem. Works in Remotion Studio (Node.js);
+ * returns [] in the webpack bundle where fs/path are unavailable.
  */
 function getCompositions(): Array<{
   id: string;
-  script: Script;
   resolved: ResolvedScript;
 }> {
   try {
@@ -54,34 +54,57 @@ function getCompositions(): Array<{
 
     return expanded.map((script) => ({
       id: script.video.id,
-      script,
       resolved: resolveWithDefaults(script),
     }));
   } catch {
-    // Scripts dir doesn't exist or Node.js modules unavailable (webpack bundle)
     return [];
   }
 }
 
 const RemotionRoot: React.FC = () => {
+  // Try filesystem-based loading (works in Remotion Studio dev mode)
   const compositions = getCompositions();
 
+  if (compositions.length > 0) {
+    return (
+      <>
+        {compositions.map(({ id, resolved }) => (
+          <Composition
+            key={id}
+            id={id}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            component={DemoVideo as React.FC<any>}
+            durationInFrames={resolved.totalDurationInFrames}
+            fps={resolved.video.fps}
+            width={resolved.video.width}
+            height={resolved.video.height}
+            defaultProps={{ script: resolved }}
+          />
+        ))}
+      </>
+    );
+  }
+
+  // Webpack bundle: fs/path unavailable. Use inputProps from render.ts
+  // which passes { script: ResolvedScript } via selectComposition().
+  const props = getInputProps() as { script?: ResolvedScript };
+  const script = props?.script;
+
+  if (!script) {
+    return null;
+  }
+
   return (
-    <>
-      {compositions.map(({ id, resolved }) => (
-        <Composition
-          key={id}
-          id={id}
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          component={DemoVideo as React.FC<any>}
-          durationInFrames={resolved.totalDurationInFrames}
-          fps={resolved.video.fps}
-          width={resolved.video.width}
-          height={resolved.video.height}
-          defaultProps={{ script: resolved }}
-        />
-      ))}
-    </>
+    <Composition
+      id={script.video.id}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      component={DemoVideo as React.FC<any>}
+      durationInFrames={script.totalDurationInFrames}
+      fps={script.video.fps}
+      width={script.video.width}
+      height={script.video.height}
+      defaultProps={{ script }}
+    />
   );
 };
 
