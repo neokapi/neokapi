@@ -15,6 +15,7 @@ const METHOD_IDS: Record<string, number> = {
   AddConcept: 719452361,
   AddItems: 1434721329,
   AddTMEntry: 877455352,
+  CloseProject: 637964653,
   CreateProject: 2130069333,
   GetItemBlocks: 2088446217,
   ListProjects: 1255557302,
