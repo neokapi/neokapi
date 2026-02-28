@@ -382,18 +382,19 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("preview-target-toggle"));
     await pause(page, 600); // Show that preview now displays translated text
 
-    // Block 4: p - "We believe in quality..."
-    await page.getByTestId("target-cell-4").dblclick();
-    await expect(page.getByTestId("edit-target-4")).toBeVisible();
-    await humanType(page, page.getByTestId("edit-target-4"), "Vi tror på kvalitet, integritet og kundesuksess.");
+    // Skip block 4 in server mode — it has inline spans (<strong>/<em>) which render
+    // as a Lexical rich editor (TargetCellEditor) instead of a plain textarea.
+    // Edit blocks 5 and 6 instead (plain text in both server and mock mode).
+    await page.getByTestId("target-cell-5").dblclick();
+    await expect(page.getByTestId("edit-target-5")).toBeVisible({ timeout: 5000 });
+    await humanType(page, page.getByTestId("edit-target-5"), "Vi tror på kvalitet, integritet og kundesuksess.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
     await pause(page, 200);
 
-    // Block 5: p - "Every project starts..."
-    await page.getByTestId("target-cell-5").dblclick();
-    await expect(page.getByTestId("edit-target-5")).toBeVisible();
-    await humanType(page, page.getByTestId("edit-target-5"), "Hvert prosjekt starter med å forstå dine unike behov.");
+    await page.getByTestId("target-cell-6").dblclick();
+    await expect(page.getByTestId("edit-target-6")).toBeVisible({ timeout: 5000 });
+    await humanType(page, page.getByTestId("edit-target-6"), "Hvert prosjekt starter med å forstå dine unike behov.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
     await pause(page, 400);
