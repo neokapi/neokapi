@@ -19,6 +19,7 @@ import (
 const filterClass = "net.sf.okapi.filters.xliff2.XLIFF2Filter"
 const mimeType = "application/xliff+xml"
 
+// okapi: XLIFF2FilterTest#testSimple
 func TestExtract_SimpleXLIFF2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -136,6 +137,7 @@ func TestExtract_UnitIDs(t *testing.T) {
 	assert.Equal(t, "farewell", blocks[1].ID)
 }
 
+// okapi: XLIFF2FilterTest#testInline
 func TestExtract_InlinePh(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -171,6 +173,7 @@ func TestExtract_InlinePh(t *testing.T) {
 	assert.True(t, hasPlaceholder, "should have a placeholder span for <ph>")
 }
 
+// okapi: XLIFF2FilterTest#testInline
 func TestExtract_InlinePc(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -211,6 +214,7 @@ func TestExtract_InlinePc(t *testing.T) {
 	assert.True(t, hasClosing, "should have closing span from </pc>")
 }
 
+// okapi: XLIFF2FilterTest#testSimpleMeta
 func TestExtract_Notes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -246,6 +250,7 @@ func TestExtract_Notes(t *testing.T) {
 	}
 }
 
+// okapi: XLIFF2FilterTest#testGroupHandling
 func TestExtract_GroupStructure(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -376,6 +381,7 @@ func TestExtract_TranslatedXlf(t *testing.T) {
 	require.NotEmpty(t, blocks, "translated.xlf should extract translatable blocks")
 }
 
+// okapi: XLIFF2FilterTest#testDiscardInvalidTargets
 // TestExtract_InvalidTargetXlf verifies that invalid-target.xlf is correctly
 // rejected by Okapi's XLIFF2 reader. The file references <data> elements
 // without declaring <originalData>, which is invalid XLIFF 2.0.

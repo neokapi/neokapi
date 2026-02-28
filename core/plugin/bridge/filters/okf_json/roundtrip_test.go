@@ -29,6 +29,7 @@ func TestRoundTrip_MultipleKeys(t *testing.T) {
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.json", mimeType, nil)
 }
 
+// okapi: RoundTripJsonIT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)

@@ -14,6 +14,7 @@ import (
 const filterClass = "net.sf.okapi.filters.html.HtmlFilter"
 const mimeType = "text/html"
 
+// okapi: HtmlSnippetsTest#minimalCompleteHtml
 func TestExtract_SimpleHTML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -28,6 +29,7 @@ func TestExtract_SimpleHTML(t *testing.T) {
 	assert.Contains(t, texts, "Hello world")
 }
 
+// okapi: HtmlSnippetsTest#testInlineCodesStorage
 func TestExtract_InlineCodes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -89,6 +91,7 @@ func TestExtract_MultipleBlocks(t *testing.T) {
 	assert.Contains(t, texts, "Second paragraph")
 }
 
+// okapi: HtmlFullFileTest#testSkippedScriptandStyleElements
 func TestExtract_NonTranslatable(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -133,6 +136,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 	assert.True(t, hasLayerEnd, "should have a LayerEnd part")
 }
 
+// okapi: HtmlSnippetsTest#testPWithInlines2
 func TestExtract_NestedInlineCodes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -159,6 +163,7 @@ func TestExtract_NestedInlineCodes(t *testing.T) {
 	assert.GreaterOrEqual(t, len(frag.Spans), 4, "should have spans for nested <b><i>...</i></b>")
 }
 
+// okapi: HtmlSnippetsTest#paraWithBreak
 func TestExtract_SelfClosingTags(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -185,6 +190,7 @@ func TestExtract_SelfClosingTags(t *testing.T) {
 	assert.NotNil(t, found, "should find a block with a placeholder span for <br/>")
 }
 
+// okapi: HtmlSnippetsTest#testEscapes
 func TestExtract_Entities(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -200,6 +206,8 @@ func TestExtract_Entities(t *testing.T) {
 	assert.Contains(t, texts, "Price: <$10 & >$5")
 }
 
+// okapi: HtmlSnippetsTest#testAltInImg
+// okapi: HtmlSnippetsTest#testTitleInP
 func TestExtract_Attributes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -219,6 +227,7 @@ func TestExtract_Attributes(t *testing.T) {
 	assert.Contains(t, texts, "Sunset photo")
 }
 
+// okapi: HtmlSnippetsTest#testTableGroups
 func TestExtract_Table(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -436,6 +445,7 @@ func TestExtract_DataSkeleton(t *testing.T) {
 	assert.Greater(t, dataWithSkeleton, 0, "some Data parts should have skeletons")
 }
 
+// okapi: HtmlSnippetsTest#ITextUnitsInARowWithTwoHeaders
 func TestExtract_Headings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -456,6 +466,7 @@ func TestExtract_Headings(t *testing.T) {
 	assert.Contains(t, texts, "Section")
 }
 
+// okapi: HtmlSnippetsTest#testGroupInPara
 func TestExtract_List(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -478,6 +489,7 @@ func TestExtract_List(t *testing.T) {
 	assert.Contains(t, texts, "Item three")
 }
 
+// okapi: HtmlSnippetsTest#testMETATag1
 func TestExtract_MetaNotTranslatable(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -542,6 +554,7 @@ func TestExtract_PartSequenceIntegrity(t *testing.T) {
 	assert.Equal(t, starts, ends, "layer starts and ends should be balanced")
 }
 
+// okapi: HtmlSnippetsTest#italicBoldEtc
 func TestExtract_MultipleInlineTags(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -581,6 +594,7 @@ func TestExtract_FormElements(t *testing.T) {
 	require.NotEmpty(t, blocks, "form.html should produce translatable blocks")
 }
 
+// okapi: HtmlDetectBomTest#testDetectBom
 func TestExtract_UTF8WithBOM(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
@@ -603,6 +617,7 @@ func TestExtract_RubyAnnotation(t *testing.T) {
 	require.NotEmpty(t, blocks, "ruby annotation HTML should produce translatable blocks")
 }
 
+// okapi: HtmlSnippetsTest#testSupplementalSupport
 func TestExtract_Emoji(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
@@ -636,6 +651,7 @@ func TestExtract_SimpleLink(t *testing.T) {
 	assert.True(t, hasSpans, "simple_link.html should have blocks with inline code spans")
 }
 
+// okapi: HtmlSnippetsTest#testCollapseWhitespaceWithPre
 func TestExtract_PreformattedText(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -664,6 +680,7 @@ func TestExtract_PreformattedText(t *testing.T) {
 	assert.True(t, hasPreText, "pre-formatted text should preserve whitespace")
 }
 
+// okapi: HtmlSnippetsTest#testAltInImg
 func TestExtract_ImageAltAndTitle(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -706,6 +723,7 @@ func TestExtract_DefinitionList(t *testing.T) {
 	assert.Contains(t, texts, "Definition two")
 }
 
+// okapi: HtmlSnippetsTest#testCollapseWhitespaceWithoutPre
 func TestExtract_WhitespaceInMixedContent(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 

@@ -22,6 +22,7 @@ func TestRoundTrip_WithTarget(t *testing.T) {
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.po", mimeType, nil)
 }
 
+// okapi: RoundTripPoIT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)

@@ -33,6 +33,22 @@
   color: var(--ifm-color-emphasis-700);
 }
 
+/* Coverage bar in summary */
+.coverageBarWrap {
+  margin-top: 0.5rem;
+  height: 6px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.coverageBarFill {
+  height: 100%;
+  background: #2e8555;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
 /* Toolbar */
 .toolbar {
   display: flex;
@@ -55,6 +71,7 @@
 .filterButtons {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 /* Filter list */
@@ -167,6 +184,34 @@
   transition: width 0.3s;
 }
 
+/* Coverage mini bar in filter card header */
+.coverageMini {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.5rem;
+}
+
+.coverageMiniBar {
+  width: 40px;
+  height: 4px;
+  background: var(--ifm-color-emphasis-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.coverageMiniBarFill {
+  height: 100%;
+  background: var(--ifm-color-primary);
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.coverageMiniLabel {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
 /* Expanded side-by-side */
 .sideBySide {
   display: grid;
@@ -184,7 +229,7 @@
   font-style: italic;
 }
 
-/* Test table */
+/* Test suite table (TestList) */
 .suiteBlock {
   margin-bottom: 1rem;
 }
@@ -225,7 +270,94 @@
   white-space: nowrap;
 }
 
+/* TestCaseTable */
+.testCaseTableWrap {
+  width: 100%;
+}
+
+.testCaseToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.testCaseFilterButtons {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.testCaseSortButtons {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.sortLabel {
+  font-size: 0.75rem;
+  color: var(--ifm-color-emphasis-500);
+  text-transform: uppercase;
+}
+
+.testCaseTable {
+  width: 100%;
+  font-size: 0.85rem;
+  border-collapse: collapse;
+}
+
+.testCaseTable th {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 2px solid var(--ifm-color-emphasis-300);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.testCaseTable td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-100);
+  vertical-align: middle;
+}
+
+.testCaseName {
+  word-break: break-all;
+}
+
+.testCaseClass {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-800);
+}
+
+.testCaseMethod {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 0.82rem;
+}
+
+.testCaseStatus {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.statusDash {
+  color: var(--ifm-color-emphasis-300);
+  font-size: 1rem;
+}
+
 /* Responsive */
+@media (max-width: 996px) {
+  .filterHeaderRight {
+    gap: 1rem;
+  }
+
+  .sideColumn {
+    min-width: 150px;
+  }
+}
+
 @media (max-width: 768px) {
   .filterHeader {
     flex-direction: column;
@@ -248,5 +380,10 @@
   .statCard {
     flex: 1 1 80px;
     padding: 0.5rem;
+  }
+
+  .testCaseToolbar {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }

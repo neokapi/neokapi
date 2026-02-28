@@ -14,6 +14,7 @@ import (
 const filterClass = "net.sf.okapi.filters.properties.PropertiesFilter"
 const mimeType = "text/x-java-properties"
 
+// okapi: PropertiesFilterTest#testEntry
 func TestExtract_SimpleProperties(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -47,6 +48,7 @@ func TestExtract_BlockIDs(t *testing.T) {
 	}
 }
 
+// okapi: PropertiesFilterTest#testEscapes
 func TestExtract_UnicodeEscapes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -62,6 +64,7 @@ func TestExtract_UnicodeEscapes(t *testing.T) {
 	assert.Contains(t, text, "こんにちは")
 }
 
+// okapi: PropertiesFilterTest#testSpecialChars
 func TestExtract_EscapedCharacters(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -77,6 +80,7 @@ func TestExtract_EscapedCharacters(t *testing.T) {
 	assert.Contains(t, text, "Hello")
 }
 
+// okapi: PropertiesFilterTest#testSplicedEntry
 func TestExtract_MultiLineValues(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -92,6 +96,7 @@ func TestExtract_MultiLineValues(t *testing.T) {
 	assert.Contains(t, text, "Line two")
 }
 
+// okapi: PropertiesFilterTest#testKeySpecial
 func TestExtract_ColonSeparator(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
