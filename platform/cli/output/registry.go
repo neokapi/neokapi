@@ -3,12 +3,14 @@ package output
 import (
 	"fmt"
 	"io"
+	"strings"
 )
 
 // RegistryInfo represents a single registry entry.
 type RegistryInfo struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name     string   `json:"name"`
+	URL      string   `json:"url"`
+	Channels []string `json:"channels,omitempty"`
 }
 
 // RegistryListOutput represents the list of registries.
@@ -23,10 +25,14 @@ func (o RegistryListOutput) FormatText(w io.Writer) error {
 		return nil
 	}
 
-	fmt.Fprintf(w, "  %-20s %s\n", "NAME", "URL")
-	fmt.Fprintf(w, "  %-20s %s\n", "----", "---")
+	fmt.Fprintf(w, "  %-20s %-50s %s\n", "NAME", "URL", "CHANNELS")
+	fmt.Fprintf(w, "  %-20s %-50s %s\n", "----", "---", "--------")
 	for _, r := range o.Registries {
-		fmt.Fprintf(w, "  %-20s %s\n", r.Name, r.URL)
+		channels := "-"
+		if len(r.Channels) > 0 {
+			channels = strings.Join(r.Channels, ", ")
+		}
+		fmt.Fprintf(w, "  %-20s %-50s %s\n", r.Name, r.URL, channels)
 	}
 	fmt.Fprintf(w, "\nTotal: %d registry(ies)\n", o.Total)
 	return nil
@@ -34,12 +40,17 @@ func (o RegistryListOutput) FormatText(w io.Writer) error {
 
 // RegistryAddOutput represents the result of adding a registry.
 type RegistryAddOutput struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name     string   `json:"name"`
+	URL      string   `json:"url"`
+	Channels []string `json:"channels,omitempty"`
 }
 
 func (o RegistryAddOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Added registry %q (%s)\n", o.Name, o.URL)
+	if len(o.Channels) > 0 {
+		fmt.Fprintf(w, "Added registry %q (%s) channels: %s\n", o.Name, o.URL, strings.Join(o.Channels, ", "))
+	} else {
+		fmt.Fprintf(w, "Added registry %q (%s)\n", o.Name, o.URL)
+	}
 	return nil
 }
 

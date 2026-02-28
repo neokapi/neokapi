@@ -93,8 +93,9 @@ func (c *AppConfig) RegistryURL() string {
 
 // RegistryEntry represents a named plugin registry.
 type RegistryEntry struct {
-	Name string `yaml:"name" json:"name"`
-	URL  string `yaml:"url"  json:"url"`
+	Name     string   `yaml:"name"               json:"name"`
+	URL      string   `yaml:"url"                json:"url"`
+	Channels []string `yaml:"channels,omitempty" json:"channels,omitempty"`
 }
 
 // DefaultRegistryURL is the official gokapi plugin registry.
@@ -126,10 +127,8 @@ func parseRegistryEntries(raw any) []RegistryEntry {
 		var entries []RegistryEntry
 		for _, item := range v {
 			if m, ok := item.(map[string]any); ok {
-				name, _ := m["name"].(string)
-				url, _ := m["url"].(string)
-				if name != "" && url != "" {
-					entries = append(entries, RegistryEntry{Name: name, URL: url})
+				if e, ok := registryEntryFromMap(m); ok {
+					entries = append(entries, e)
 				}
 			}
 		}
@@ -137,13 +136,43 @@ func parseRegistryEntries(raw any) []RegistryEntry {
 	case []map[string]any:
 		var entries []RegistryEntry
 		for _, m := range v {
-			name, _ := m["name"].(string)
-			url, _ := m["url"].(string)
-			if name != "" && url != "" {
-				entries = append(entries, RegistryEntry{Name: name, URL: url})
+			if e, ok := registryEntryFromMap(m); ok {
+				entries = append(entries, e)
 			}
 		}
 		return entries
+	default:
+		return nil
+	}
+}
+
+// registryEntryFromMap extracts a RegistryEntry from a map.
+func registryEntryFromMap(m map[string]any) (RegistryEntry, bool) {
+	name, _ := m["name"].(string)
+	url, _ := m["url"].(string)
+	if name == "" || url == "" {
+		return RegistryEntry{}, false
+	}
+	e := RegistryEntry{Name: name, URL: url}
+	if raw, ok := m["channels"]; ok {
+		e.Channels = parseStringSlice(raw)
+	}
+	return e, true
+}
+
+// parseStringSlice converts an interface{} to []string.
+func parseStringSlice(raw any) []string {
+	switch v := raw.(type) {
+	case []any:
+		var out []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	case []string:
+		return v
 	default:
 		return nil
 	}

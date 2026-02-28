@@ -230,9 +230,14 @@ official registry.
 registries:
   - name: official
     url: https://gokapi.github.io/registry/plugins.json
+    channels: [default, snapshot]
   - name: company
     url: https://registry.example.com/plugins.json
 ```
+
+Each registry entry can declare its available `channels` — named release tracks
+(e.g., `snapshot` for pre-release builds). The `channels` field is informational,
+helping teams document which channels a registry provides.
 
 **Resolution behavior:**
 - **Install/update**: iterate registries in order, first match wins
@@ -242,9 +247,10 @@ registries:
 
 **Registry management:**
 ```bash
-kapi registry list                        # List configured registries
-kapi registry add <name> <url>            # Add to global config
-kapi registry remove <name>              # Remove from global config
+kapi registry list                                          # List configured registries
+kapi registry add <name> <url>                              # Add to global config
+kapi registry add <name> <url> --channels default,snapshot  # Add with channel declarations
+kapi registry remove <name>                                 # Remove from global config
 ```
 
 ### Plugin Governance
