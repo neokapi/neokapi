@@ -137,11 +137,18 @@ function App() {
         Backend.GetPendingChangesCount?.()
           .then((n: number) => setPendingChanges(n))
           .catch(() => {});
+      } else if ((window as any).__skipConnection) {
+        // Headless server mode (e2e tests): skip connection screen, use local workspace.
+        setMode("ready");
       } else {
         setMode("connecting");
       }
     }).catch(() => {
-      setMode("connecting");
+      if ((window as any).__skipConnection) {
+        setMode("ready");
+      } else {
+        setMode("connecting");
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
