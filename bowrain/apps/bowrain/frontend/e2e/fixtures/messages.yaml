@@ -1,0 +1,7 @@
+welcome:
+  title: Welcome
+  description: Thank you for joining us
+settings:
+  title: Settings
+  language: Language
+  theme: Theme

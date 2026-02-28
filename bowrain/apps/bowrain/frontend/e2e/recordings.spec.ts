@@ -22,8 +22,20 @@ async function setTheme(page: any, theme: "dark" | "light") {
   await page.waitForTimeout(100);
 }
 
+import * as path from "path";
+import { fileURLToPath } from "url";
+
+const __recFilename = fileURLToPath(import.meta.url);
+const __recDirname = path.dirname(__recFilename);
+const FIXTURE_DIR = path.resolve(__recDirname, "fixtures");
+
 const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
 const useServerMode = !!process.env.WAILS_SERVER_MODE;
+
+/** Resolve fixture file path (absolute) for use in server mode AddItems calls. */
+function fixture(name: string): string {
+  return path.join(FIXTURE_DIR, name);
+}
 
 /** Setup helper - injects backend (mock or real server or headless binary), cursor, and window chrome */
 async function setupRecording(page: any, title: string = "Bowrain", theme: "dark" | "light" = "dark") {
@@ -104,11 +116,9 @@ describeOrSkip("Video Recordings", () => {
     // Add files via backend
     const projects = await callBackend(page, "ListProjects");
     if (projects[0]) {
-      await callBackend(page, "AddItems", projects[0].id, [
-        "/src/index.html",
-        "/src/strings.json",
-        "/content/about.md",
-      ]);
+      await callBackend(page, "AddItems", projects[0].id, useServerMode
+        ? [fixture("index.html"), fixture("strings.json"), fixture("about.md")]
+        : ["/src/index.html", "/src/strings.json", "/content/about.md"]);
     }
 
     // Navigate away and back to refresh file list
@@ -142,7 +152,7 @@ describeOrSkip("Video Recordings", () => {
       // In server mode, add a real file via the backend
       const teProjects = await callBackend(page, "ListProjects");
       if (teProjects[0]) {
-        await callBackend(page, "AddItems", teProjects[0].id, ["/about-us.html"]);
+        await callBackend(page, "AddItems", teProjects[0].id, [fixture("about-us.html")]);
       }
     }
     // In mock mode, set up custom blocks and preview rendering
@@ -353,7 +363,7 @@ describeOrSkip("Video Recordings", () => {
     // Add file via backend
     const focusProjects = await callBackend(page, "ListProjects");
     if (focusProjects[0]) {
-      await callBackend(page, "AddItems", focusProjects[0].id, ["/content/homepage.html"]);
+      await callBackend(page, "AddItems", focusProjects[0].id, [fixture("homepage.html")]);
     }
 
     // Refresh to show file
@@ -536,7 +546,7 @@ describeOrSkip("Video Recordings", () => {
     // Add file via backend
     const e2eProjects = await callBackend(page, "ListProjects");
     if (e2eProjects[0]) {
-      await callBackend(page, "AddItems", e2eProjects[0].id, ["/landing-page.html"]);
+      await callBackend(page, "AddItems", e2eProjects[0].id, [fixture("landing-page.html")]);
     }
 
     // Refresh to show file
@@ -626,7 +636,7 @@ describeOrSkip("Video Recordings", () => {
       await callBackend(page, "AddTMEntry", leveragePid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
       await callBackend(page, "AddTMEntry", leveragePid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
-      await callBackend(page, "AddItems", leveragePid, ["/content/landing.html"]);
+      await callBackend(page, "AddItems", leveragePid, [fixture("landing.html")]);
     }
 
     // Refresh to show file
@@ -840,7 +850,7 @@ describeOrSkip("Video Recordings", () => {
         ],
       });
 
-      await callBackend(page, "AddItems", ctxPid, ["/src/app.html"]);
+      await callBackend(page, "AddItems", ctxPid, [fixture("app.html")]);
     }
 
     // Refresh to show file
@@ -1046,11 +1056,9 @@ describeOrSkip("Video Recordings", () => {
     // Add files
     const wsProjFirst = await callBackend(page, "ListProjects");
     if (wsProjFirst[0]) {
-      await callBackend(page, "AddItems", wsProjFirst[0].id, [
-        "/src/index.html",
-        "/src/strings.json",
-        "/content/about.md",
-      ]);
+      await callBackend(page, "AddItems", wsProjFirst[0].id, useServerMode
+        ? [fixture("index.html"), fixture("strings.json"), fixture("about.md")]
+        : ["/src/index.html", "/src/strings.json", "/content/about.md"]);
     }
 
     // Refresh to show files
@@ -1084,7 +1092,9 @@ describeOrSkip("Video Recordings", () => {
     const wsProjSecond = await callBackend(page, "ListProjects");
     const wsLastProj = wsProjSecond[wsProjSecond.length - 1];
     if (wsLastProj) {
-      await callBackend(page, "AddItems", wsLastProj.id, ["/app/strings.json", "/app/config.yaml"]);
+      await callBackend(page, "AddItems", wsLastProj.id, useServerMode
+        ? [fixture("strings.json"), fixture("config.yaml")]
+        : ["/app/strings.json", "/app/config.yaml"]);
     }
 
     // Go back and create third project
@@ -1202,7 +1212,7 @@ describeOrSkip("Video Recordings", () => {
       const veProj = await callBackend(page, "ListProjects");
       const vePid = veProj[0]?.id;
       if (vePid) {
-        await callBackend(page, "AddItems", vePid, ["/help-center.html"]);
+        await callBackend(page, "AddItems", vePid, [fixture("help-center.html")]);
         await callBackend(page, "AddTMEntry", vePid, "Welcome to the CloudSync Pro documentation and support portal.", "Velkommen til CloudSync Pro-dokumentasjonen og støtteportalen.", "en", "nb");
         await callBackend(page, "AddTMEntry", vePid, "Getting Started", "Kom i gang", "en", "nb");
         await callBackend(page, "AddTMEntry", vePid, "Security & Privacy", "Sikkerhet og personvern", "en", "nb");

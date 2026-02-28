@@ -1,0 +1,12 @@
+{
+  "greeting": "Hello World",
+  "buttons": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "save": "Save changes"
+  },
+  "messages": {
+    "success": "Operation completed successfully",
+    "error": "An error occurred"
+  }
+}

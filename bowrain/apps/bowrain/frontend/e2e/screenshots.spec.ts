@@ -10,8 +10,14 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../../website/static/img/bowrain");
+const FIXTURE_DIR = path.resolve(__dirname, "fixtures");
 const useRealServer = !!process.env.BOWRAIN_SERVER_URL;
 const useServerMode = !!process.env.WAILS_SERVER_MODE;
+
+/** Resolve fixture file path (absolute) for use in server mode AddItems calls. */
+function fixture(name: string): string {
+  return path.join(FIXTURE_DIR, name);
+}
 
 /** Helper: apply theme to the page. */
 async function setTheme(page: any, theme: "dark" | "light") {
@@ -75,7 +81,9 @@ async function seedDashboard(page: any) {
     const projects = await callBackend(page, "ListProjects");
     const p = projects[projects.length - 1];
     if (p) {
-      await callBackend(page, "AddItems", p.id, ["/src/index.html", "/src/app.json"]);
+      await callBackend(page, "AddItems", p.id, useServerMode
+        ? [fixture("index.html"), fixture("app.json")]
+        : ["/src/index.html", "/src/app.json"]);
     }
 
     // Navigate back to dashboard
@@ -104,12 +112,9 @@ async function openProjectView(page: any) {
   const projects = await callBackend(page, "ListProjects");
   const p = projects[0];
   if (p) {
-    await callBackend(page, "AddItems", p.id, [
-      "/src/index.html",
-      "/src/strings.json",
-      "/content/about.md",
-      "/config/messages.yaml",
-    ]);
+    await callBackend(page, "AddItems", p.id, useServerMode
+      ? [fixture("index.html"), fixture("strings.json"), fixture("about.md"), fixture("messages.yaml")]
+      : ["/src/index.html", "/src/strings.json", "/content/about.md", "/config/messages.yaml"]);
   }
 
   // Refresh by navigating away and back
@@ -139,7 +144,9 @@ async function openEditor(page: any) {
 
   const projects = await callBackend(page, "ListProjects");
   if (projects.length > 0) {
-    await callBackend(page, "AddItems", projects[0].id, ["/src/index.html"]);
+    await callBackend(page, "AddItems", projects[0].id, useServerMode
+      ? [fixture("index.html")]
+      : ["/src/index.html"]);
   }
 
   // Refresh
