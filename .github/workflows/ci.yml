@@ -88,11 +88,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
 
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
       - name: Run framework tests
-        run: go test -race -coverprofile=framework.out -covermode=atomic ./...
+        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-framework.json -out junit-framework.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Framework Tests
+          path: junit-framework.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-framework.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-framework
           path: framework.out
@@ -107,11 +131,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
 
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
       - name: Run platform tests
-        run: cd platform && go test -race -coverprofile=platform.out -covermode=atomic ./...
+        run: cd platform && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-platform.json -out junit-platform.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Platform Tests
+          path: junit-platform.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-platform.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-platform
           path: platform/platform.out
@@ -126,11 +174,35 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
 
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
       - name: Run kapi tests
-        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic ./...
+        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-kapi.json -out junit-kapi.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Kapi Tests
+          path: junit-kapi.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-kapi.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-kapi
           path: kapi/kapi.out
@@ -145,14 +217,38 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
 
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
       - name: Run bowrain tests
         run: |
           cd bowrain
           # shellcheck disable=SC2046
-          go test -race -coverprofile=bowrain.out -covermode=atomic $(go list ./... | grep -v '/apps/bowrain')
+          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Bowrain Tests
+          path: junit-bowrain.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-bowrain.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: coverage-bowrain
           path: bowrain/bowrain.out
@@ -351,6 +447,29 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
       - name: Run bridge filter integration tests
-        run: go test -race -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+        run: go test -race -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > test-results-bridge.json 2>&1 || true
         timeout-minutes: 10
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-bridge.json -out junit-bridge.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Bridge Filter Tests
+          path: junit-bridge.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-bridge.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
