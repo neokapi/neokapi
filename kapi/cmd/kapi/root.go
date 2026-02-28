@@ -38,4 +38,6 @@ func init() {
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
 	}
+
+	rootCmd.AddCommand(newMCPCmd())
 }

@@ -1,9 +1,9 @@
 # Build artifacts
 bin/
-brain
-bowrain/brain
-bowrain-server
-actionlint
+/brain
+/bowrain/brain
+/bowrain-server
+/actionlint
 coverage/
 
 # IDE
