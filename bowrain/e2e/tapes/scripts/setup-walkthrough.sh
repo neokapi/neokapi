@@ -6,7 +6,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-EXAMPLE_DIR="$SCRIPT_DIR/../../../examples/docusaurus-e2e"
+EXAMPLE_DIR="$SCRIPT_DIR/../../../../examples/docusaurus-e2e"
 
 WALKTHROUGH_DIR="$(mktemp -d)/docusaurus-e2e"
 cp -r "$EXAMPLE_DIR" "$WALKTHROUGH_DIR"

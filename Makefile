@@ -50,7 +50,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         keycloak-theme \
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
-        screenshots recordings cli-recordings docs-assets fetch-docs-assets \
+        screenshots recordings kapi-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve \
         test-bridge-json generate-test-comparison
 
@@ -233,8 +233,13 @@ screenshots: frontend-deps ## Generate documentation screenshots
 recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
 	cd $(FRONTEND_DIR) && $(NPM) run recordings:all
 
-cli-recordings: build ## Generate CLI demo videos using VHS
+kapi-recordings: build ## Generate kapi CLI demo videos (VHS)
 	./website/tapes/generate.sh
+
+brain-recordings: build build-brain ## Generate brain CLI demo videos (VHS)
+	./bowrain/e2e/tapes/generate.sh
+
+cli-recordings: kapi-recordings brain-recordings ## Generate all CLI demo videos
 
 docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
 

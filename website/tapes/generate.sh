@@ -1,7 +1,8 @@
 #!/bin/bash
-# Generate CLI demo videos using VHS
+# Generate kapi CLI demo videos using VHS
 # Requires: vhs (brew install charmbracelet/tap/vhs)
-# Works in local terminals and CI (with Xvfb for headless rendering)
+#
+# For brain CLI demos, see bowrain/e2e/tapes/
 
 set -e
 
@@ -16,7 +17,7 @@ fi
 
 # Run CLI tests first
 echo "============================================"
-echo "Running CLI tests before recording..."
+echo "Running kapi CLI tests before recording..."
 echo "============================================"
 echo ""
 
@@ -37,87 +38,9 @@ export KAPI_CONFIG_DIR="$(mktemp -d)"
 # Create output directory
 mkdir -p output
 
-# Tapes that need a running server
-SERVER_TAPES="workspaces walkthrough-init walkthrough-push walkthrough-pull"
-
-# Check if server-backed recordings are possible.
-# In CI the workflow starts a server before running this script, so detect it
-# before trying to start a second one via Docker.
-SERVER_AVAILABLE=false
-STARTED_SERVER=false
-KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
-
-if curl -sf "${KAPI_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
-  echo ""
-  echo "Server already running at $KAPI_SERVER_URL"
-  SERVER_AVAILABLE=true
-  export KAPI_SERVER_URL
-
-  # Obtain auth token for server-backed tapes if not already provided.
-  if [ -z "${BOWRAIN_TOKEN:-}" ]; then
-    echo "  Acquiring auth token..."
-    START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
-      "${KAPI_SERVER_URL}/api/v1/auth/device/start") || true
-    if [ -n "$START_RESP" ]; then
-      DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
-      USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
-      curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
-        "${KAPI_SERVER_URL}/api/v1/auth/device/verify" > /dev/null
-      TOKEN_RESP=$(curl -sf -X POST \
-        -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
-        "${KAPI_SERVER_URL}/api/v1/auth/device/poll")
-      export BOWRAIN_TOKEN
-      BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-      # Create default workspace for demos.
-      curl -sf -X POST \
-        -H "Authorization: Bearer $BOWRAIN_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"name":"Personal","slug":"personal"}' \
-        "${KAPI_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
-      echo "  Token obtained."
-    else
-      echo "  Warning: could not acquire auth token."
-    fi
-  fi
-elif command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
-  echo ""
-  echo "Starting server for live recordings..."
-  if bash "$SCRIPT_DIR/start-server.sh"; then
-    source "$SCRIPT_DIR/.server-token" 2>/dev/null || true
-    SERVER_AVAILABLE=true
-    STARTED_SERVER=true
-  else
-    echo "  Could not start server. Server-backed tapes will be skipped."
-  fi
-else
-  echo ""
-  echo "Docker not available. Server-backed tapes will be skipped."
-fi
-
-# Set KAPI_SERVER_URL for walkthrough tapes when server is available.
-if [ "$SERVER_AVAILABLE" = true ]; then
-  export KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
-fi
-
-# Set up clean walkthrough directory for walkthrough tapes.
-WALKTHROUGH_DIR=""
-if [ "$SERVER_AVAILABLE" = true ]; then
-  echo ""
-  echo "Setting up walkthrough test directory..."
-  WALKTHROUGH_DIR="$(bash "$SCRIPT_DIR/scripts/setup-walkthrough.sh")"
-  export WALKTHROUGH_DIR
-  echo "  Walkthrough dir: $WALKTHROUGH_DIR"
-fi
-
-# Generate all tapes
-echo ""
-echo "Generating CLI demo videos..."
-echo ""
-
-# Detect if we're in CI
+# Detect CI
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ]; then
   echo "Running in CI mode (headless)"
-  # CI should have already set up Xvfb and DISPLAY
   if [ -z "$DISPLAY" ]; then
     echo "Warning: DISPLAY not set in CI. VHS may fail."
   fi
@@ -126,65 +49,37 @@ else
 fi
 echo ""
 
+# Generate kapi demo videos
+echo "Generating kapi CLI demo videos..."
+echo ""
+
 failed=0
-for tape in *.tape; do
-  if [ -f "$tape" ]; then
-    name="${tape%.tape}"
-
-    # Check if this tape needs the server
-    is_server_tape=false
-    for st in $SERVER_TAPES; do
-      if [ "$name" = "$st" ]; then
-        is_server_tape=true
-        break
-      fi
-    done
-
-    if [ "$is_server_tape" = true ] && [ "$SERVER_AVAILABLE" = false ]; then
-      echo "  Skipping: $name (requires server)"
-      continue
-    fi
-
-    echo "  Recording: $name"
-    if timeout 180 vhs "$tape" 2>&1; then
-      echo "    ✓ Done"
+for tape in overview.tape word-count.tape pseudo-translate.tape; do
+  name="${tape%.tape}"
+  echo "  Recording: $name"
+  if timeout 180 vhs "$tape" 2>&1; then
+    echo "    ✓ Done"
+  else
+    exitcode=$?
+    if [ $exitcode -eq 124 ]; then
+      echo "    ✗ Timed out (3 min limit)"
     else
-      exitcode=$?
-      if [ $exitcode -eq 124 ]; then
-        echo "    ✗ Timed out (3 min limit)"
-      else
-        echo "    ✗ Failed (exit $exitcode)"
-      fi
-      failed=$((failed + 1))
+      echo "    ✗ Failed (exit $exitcode)"
     fi
+    failed=$((failed + 1))
   fi
 done
 
-# Stop server only if we started it ourselves (not when reusing an external one).
-if [ "$STARTED_SERVER" = true ]; then
-  echo ""
-  echo "Stopping server..."
-  bash "$SCRIPT_DIR/stop-server.sh" || true
-fi
-
-# Clean up temp dirs
+# Clean up temp dir
 rm -rf "$KAPI_CONFIG_DIR"
-if [ -n "$WALKTHROUGH_DIR" ]; then
-  rm -rf "$(dirname "$WALKTHROUGH_DIR")"
-fi
 
 if [ $failed -gt 0 ]; then
   echo ""
   echo "Warning: $failed recording(s) failed."
-  if [ -n "$CI" ]; then
-    echo "  Check that Xvfb and DISPLAY are configured correctly in CI."
-  else
-    echo "  Check VHS installation and dependencies."
-  fi
 fi
 
 # Copy to docs
-DOCS_VIDEO_DIR="$SCRIPT_DIR/../../website/static/video/cli"
+DOCS_VIDEO_DIR="$SCRIPT_DIR/../../website/static/video/kapi"
 mkdir -p "$DOCS_VIDEO_DIR"
 
 echo ""
@@ -193,16 +88,6 @@ for video in output/*.webm; do
   if [ -f "$video" ]; then
     name=$(basename "$video")
     cp "$video" "$DOCS_VIDEO_DIR/"
-    size=$(du -h "$DOCS_VIDEO_DIR/$name" | cut -f1)
-    echo "  $name ($size)"
-  fi
-done
-
-# Copy GIFs if any exist (optional, no longer generated by default)
-for gif in output/*.gif; do
-  if [ -f "$gif" ]; then
-    name=$(basename "$gif")
-    cp "$gif" "$DOCS_VIDEO_DIR/"
     size=$(du -h "$DOCS_VIDEO_DIR/$name" | cut -f1)
     echo "  $name ($size)"
   fi

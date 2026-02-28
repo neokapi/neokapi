@@ -23,10 +23,19 @@ export default defineConfig({
     // Slower actions for better video visualization
     actionTimeout: 15000,
   },
-  webServer: {
-    command: "npm run dev -- --port 5173",
-    port: 5173,
-    timeout: 30000,
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: process.env.BOWRAIN_SERVER_URL
+    ? {
+        // Real server mode: Wails dev mode (Go backend + Vite frontend)
+        command: "cd ../../../.. && wails3 dev",
+        port: 5173,
+        timeout: 60000,
+        reuseExistingServer: !process.env.CI,
+      }
+    : {
+        // Mock mode: Vite dev server only (for fast local development)
+        command: "npm run dev -- --port 5173",
+        port: 5173,
+        timeout: 30000,
+        reuseExistingServer: !process.env.CI,
+      },
 });
