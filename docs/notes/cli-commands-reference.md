@@ -47,10 +47,11 @@ kapi
 +-- tools            # Tool listing
 |   +-- list         # List available tools
 +-- plugins          # Plugin management
-    +-- install      # Install a plugin
-    +-- list         # List installed plugins
-    +-- update       # Update plugins
-    +-- search       # Search plugin registry
+|   +-- install      # Install a plugin
+|   +-- list         # List installed plugins
+|   +-- update       # Update plugins
+|   +-- search       # Search plugin registry
++-- mcp              # Start MCP server for AI agent integration
 ```
 
 ## `kapi init` Workflows

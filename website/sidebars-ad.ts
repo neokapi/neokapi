@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
     '018-four-module-architecture',
     '019-mt-providers',
     '020-collaborative-editor',
+    '021-mcp-integration',
   ],
 };
 

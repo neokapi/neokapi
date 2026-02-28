@@ -15,6 +15,7 @@ const sidebars: SidebarsConfig = {
     'keycloak-theming',
     'npm-workspaces',
     'docker-compose',
+    'mcp-tools-reference',
   ],
 };
 
