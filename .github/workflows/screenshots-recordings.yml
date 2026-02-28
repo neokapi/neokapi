@@ -217,15 +217,13 @@ jobs:
 
       - name: Install VHS
         run: |
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.sources /etc/apt/sources.list.d/microsoft-prod.list 2>/dev/null || true
           sudo apt-get update
-          sudo apt-get install -y ffmpeg ttyd
+          sudo apt-get install -y ffmpeg ttyd xvfb
           curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_Linux_x86_64.tar.gz | \
             sudo tar -xz -C /tmp
           sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
           sudo chmod +x /usr/local/bin/vhs
-
-      - name: Install Xvfb
-        run: sudo apt-get install -y xvfb
 
       - name: Generate kapi recordings
         timeout-minutes: 15
@@ -261,15 +259,13 @@ jobs:
 
       - name: Install VHS
         run: |
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.sources /etc/apt/sources.list.d/microsoft-prod.list 2>/dev/null || true
           sudo apt-get update
-          sudo apt-get install -y ffmpeg ttyd
+          sudo apt-get install -y ffmpeg ttyd xvfb
           curl -fsSL https://github.com/charmbracelet/vhs/releases/download/v0.9.0/vhs_0.9.0_Linux_x86_64.tar.gz | \
             sudo tar -xz -C /tmp
           sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
           sudo chmod +x /usr/local/bin/vhs
-
-      - name: Install Xvfb
-        run: sudo apt-get install -y xvfb
 
       - name: Login to GHCR
         uses: docker/login-action@v3
@@ -358,7 +354,9 @@ jobs:
         run: npx tsx setup-raw.ts
 
       - name: Install ffmpeg
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/azure-cli.sources /etc/apt/sources.list.d/microsoft-prod.list 2>/dev/null || true
+          sudo apt-get update && sudo apt-get install -y ffmpeg
 
       - name: Render polished videos
         working-directory: website/videos
