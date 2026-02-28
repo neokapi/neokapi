@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"

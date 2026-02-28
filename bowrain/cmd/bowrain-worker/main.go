@@ -10,8 +10,8 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/jobs"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/bowrain/storage"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/platform/store"
 )
 

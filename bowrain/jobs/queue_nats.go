@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	natsStreamName  = "JOBS"
-	natsSubject     = "JOBS.translate"
-	natsConsumer    = "worker"
-	natsMaxDeliver  = 3
-	natsAckWait     = 5 * time.Minute
-	natsFetchWait   = 5 * time.Second
+	natsStreamName = "JOBS"
+	natsSubject    = "JOBS.translate"
+	natsConsumer   = "worker"
+	natsMaxDeliver = 3
+	natsAckWait    = 5 * time.Minute
+	natsFetchWait  = 5 * time.Second
 )
 
 // NATSQueue implements Queue using NATS JetStream.

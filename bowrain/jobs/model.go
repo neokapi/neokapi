@@ -21,7 +21,7 @@ type TranslationJob struct {
 	TargetLocale     string    `json:"target_locale"`
 	ProviderConfigID string    `json:"provider_config_id"`
 	Status           JobStatus `json:"status"`
-	Progress         int       `json:"progress"`      // 0-100
+	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`
 	DoneBlocks       int       `json:"done_blocks"`
 	Error            string    `json:"error,omitempty"`

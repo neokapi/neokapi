@@ -56,9 +56,9 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 	}
 
 	proj := &Project{
-		Root:    root,
+		Root:      root,
 		ConfigDir: brainDir,
-		Config:  cfg,
+		Config:    cfg,
 	}
 
 	formatReg := registry.NewFormatRegistry()
@@ -134,9 +134,9 @@ func containsSubstr(s, sub string) bool {
 
 func TestNewSourceConnector_RequiresServer(t *testing.T) {
 	proj := &Project{
-		Root:    t.TempDir(),
+		Root:      t.TempDir(),
 		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
-		Config:  &Config{},
+		Config:    &Config{},
 	}
 
 	_, err := NewSourceConnector(proj, registry.NewFormatRegistry())
@@ -146,9 +146,9 @@ func TestNewSourceConnector_RequiresServer(t *testing.T) {
 
 func TestNewSourceConnector_RequiresURL(t *testing.T) {
 	proj := &Project{
-		Root:    t.TempDir(),
+		Root:      t.TempDir(),
 		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
-		Config:  &Config{Server: &ServerConfig{ProjectID: "p1"}},
+		Config:    &Config{Server: &ServerConfig{ProjectID: "p1"}},
 	}
 
 	_, err := NewSourceConnector(proj, registry.NewFormatRegistry())
