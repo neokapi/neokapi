@@ -124,6 +124,7 @@ func TestExtract_InlineCodes(t *testing.T) {
 	assert.GreaterOrEqual(t, len(frag.Spans), 2, "should have spans for <g> elements")
 }
 
+// okapi: XLIFFFilterTest#testSegmentedTarget
 func TestExtract_WithTarget(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -179,6 +180,7 @@ func TestExtract_TranslateNo(t *testing.T) {
 	assert.Equal(t, "Translate me", translatableBlocks[0].SourceText())
 }
 
+// okapi: XLIFFFilterTest#testGroupIds
 func TestExtract_GroupStructure(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -280,6 +282,7 @@ func TestExtract_NoteWithPriority(t *testing.T) {
 	assert.Equal(t, "source", note.Annotates)
 }
 
+// okapi: XLIFFFilterTest#testWSBetweenSegments
 func TestExtract_PreserveWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -569,6 +572,8 @@ func TestExtract_NestedGroups(t *testing.T) {
 	assert.Equal(t, "Nested text", blocks[0].SourceText())
 }
 
+// okapi: XLIFFFilterTest#testSegmentedContent
+// okapi: XLIFFFilterTest#testSegmentIDs
 func TestExtract_Segmentation(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -775,6 +780,7 @@ func TestExtract_NonTranslatableUnit(t *testing.T) {
 	assert.Contains(t, texts, "Default translatable")
 }
 
+// okapi: XLIFFFilterTest#testEmptyTarget
 func TestExtract_EmptySource(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -844,6 +850,7 @@ func TestExtract_EmptyTgtLang(t *testing.T) {
 		"empty-tgt-lang.xlf should extract translatable blocks")
 }
 
+// okapi: XLIFFFilterTest#testLQR
 // TestExtract_LqiTest verifies that lqiTest.xlf with ITS standoff annotations
 // can be read successfully. The bridge passes the source_path so Java can
 // resolve the external lqiTestIssues.xml file via relative URI.

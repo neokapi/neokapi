@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: PlainTextFilterTest#testEvents
 func TestReadSimple(t *testing.T) {
 	ctx := context.Background()
 	reader := plaintext.NewReader()
@@ -29,6 +30,7 @@ func TestReadSimple(t *testing.T) {
 	assert.Equal(t, "Third line", blocks[2].SourceText())
 }
 
+// okapi: PlainTextFilterTest#testSkeleton2
 func TestReadWithEmptyLines(t *testing.T) {
 	ctx := context.Background()
 	reader := plaintext.NewReader()
@@ -59,6 +61,7 @@ func TestReadUnicode(t *testing.T) {
 	assert.Equal(t, "こんにちは世界", blocks[2].SourceText())
 }
 
+// okapi: PlainTextFilterTest#testEmptyInput
 func TestReadEmpty(t *testing.T) {
 	ctx := context.Background()
 	reader := plaintext.NewReader()

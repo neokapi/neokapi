@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: JSONFilterTest#testValue
 func TestReadSimpleJSON(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -31,6 +32,7 @@ func TestReadSimpleJSON(t *testing.T) {
 	assert.Contains(t, texts, "A simple test")
 }
 
+// okapi: JSONFilterTest#testObject
 func TestReadNestedJSON(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -55,6 +57,7 @@ func TestReadNestedJSON(t *testing.T) {
 	assert.Equal(t, "Deep value", names["nested.deep.inner"])
 }
 
+// okapi: JSONFilterTest#testList
 func TestReadArrayStrings(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -81,6 +84,7 @@ func TestReadArrayStrings(t *testing.T) {
 	assert.Equal(t, "Third", names["items[2]"])
 }
 
+// okapi: JSONFilterTest#testDecimalNumber
 func TestReadNonStringValues(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -423,6 +427,7 @@ func TestRoundTripFileSimple(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+// okapi: JSONFilterTest#testEscape
 func TestReadUnicodeJSON(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -438,6 +443,7 @@ func TestReadUnicodeJSON(t *testing.T) {
 	assert.Contains(t, texts, "\u3053\u3093\u306b\u3061\u306f")
 }
 
+// okapi: JSONFilterTest#testEmptyValue
 func TestReadEmptyStringValue(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
@@ -526,6 +532,7 @@ func TestBlocksAreTranslatable(t *testing.T) {
 	assert.True(t, blocks[0].Translatable)
 }
 
+// okapi: JSONFilterTest#testPath
 func TestReadDeeplyNested(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()

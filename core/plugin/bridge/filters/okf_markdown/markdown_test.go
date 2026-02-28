@@ -30,6 +30,7 @@ func TestExtract_SimpleMarkdown(t *testing.T) {
 	assert.Contains(t, texts, "Hello World")
 }
 
+// okapi: MarkdownFilterTest#testHeadingPrefix
 func TestExtract_MultipleHeadings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -47,6 +48,8 @@ func TestExtract_MultipleHeadings(t *testing.T) {
 	assert.Contains(t, texts, "Section")
 }
 
+// okapi: MarkdownFilterTest#testEmphasis
+// okapi: MarkdownFilterTest#testEmphasisAndStrong
 func TestExtract_InlineFormatting(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -77,6 +80,8 @@ func TestExtract_InlineFormatting(t *testing.T) {
 		"should have spans for bold/italic markdown")
 }
 
+// okapi: MarkdownFilterTest#testLink
+// okapi: MarkdownFilterTest#testLinkSubflow
 func TestExtract_Links(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -101,6 +106,7 @@ func TestExtract_Links(t *testing.T) {
 	assert.True(t, found, "should extract link text without raw URL in text")
 }
 
+// okapi: MarkdownFilterTest#testTranslateFencedCodeBlocks
 func TestExtract_CodeBlockExtracted(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -124,6 +130,7 @@ func TestExtract_CodeBlockExtracted(t *testing.T) {
 		"code block content should be extracted as translatable")
 }
 
+// okapi: MarkdownFilterTest#testBulletList
 func TestExtract_UnorderedList(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -189,6 +196,7 @@ func TestExtract_UnicodeContent(t *testing.T) {
 	assert.Contains(t, texts, "Hello 🌍")
 }
 
+// okapi: MarkdownFilterTest#testHtmlBlockWithMarkdown
 func TestExtract_SubfilterChildLayers(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)

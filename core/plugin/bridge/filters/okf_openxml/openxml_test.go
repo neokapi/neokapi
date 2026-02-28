@@ -94,6 +94,7 @@ func TestExtract_DocxBlockIDs(t *testing.T) {
 	}
 }
 
+// okapi: OpenXMLTest#testTabAsCharacter
 func TestExtract_DocxWithTabs(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -191,6 +192,7 @@ func TestExtract_DocxDataParts(t *testing.T) {
 	assert.Greater(t, dataCount, 0, "DOCX should have Data parts from XML structure")
 }
 
+// okapi: OpenXMLTest#testReorderedZipPackage
 func TestExtract_ReorderedZip(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -204,6 +206,7 @@ func TestExtract_ReorderedZip(t *testing.T) {
 	require.NotEmpty(t, blocks, "reordered ZIP DOCX should produce blocks")
 }
 
+// okapi: OpenXMLTest#testPPTXDocProperties
 func TestExtract_DocProperties(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -253,6 +256,7 @@ func TestExtract_XlsxBlockIDs(t *testing.T) {
 	}
 }
 
+// okapi: OpenXmlXlsxTest#testInlineStrings
 func TestExtract_XlsxInlineStrings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -336,6 +340,7 @@ func TestExtract_PptxMultiLayer(t *testing.T) {
 		"PPTX should produce multiple layers (sub-documents for slides)")
 }
 
+// okapi: OpenXMLTest#testLineBreakAsCharacter
 func TestExtract_PptxLineBreak(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -486,6 +491,7 @@ func TestExtract_SpanData(t *testing.T) {
 
 // --- DOCX edge case tests ---
 
+// okapi: OpenXMLTest#testLineBreakAsTag
 func TestExtract_DocxSoftLineBreaks(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -498,6 +504,7 @@ func TestExtract_DocxSoftLineBreaks(t *testing.T) {
 	require.NotEmpty(t, blocks, "DOCX with soft line breaks should produce blocks")
 }
 
+// okapi: OpenXMLTest#extractsStructuralDocumentTagsAsRunContainers
 func TestExtract_DocxTextBoxes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -555,6 +562,7 @@ func TestExtract_DocxSpecialCharsAndLinebreaks(t *testing.T) {
 	require.NotEmpty(t, blocks, "DOCX with special chars should produce blocks")
 }
 
+// okapi: OpenXMLTest#extractsNoneReorderedNotesAndComments
 func TestExtract_DocxNotes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -576,6 +584,7 @@ func TestExtract_DocxNotes(t *testing.T) {
 	assert.Greater(t, layerCount, 1, "footnotes/endnotes should create additional layers")
 }
 
+// okapi: OpenXMLTest#extractsExternalHyperlinks
 func TestExtract_DocxExternalHyperlink(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -588,6 +597,7 @@ func TestExtract_DocxExternalHyperlink(t *testing.T) {
 	require.NotEmpty(t, blocks, "DOCX with external hyperlinks should produce blocks")
 }
 
+// okapi: OpenXMLTest#extractsNestedContentInTheExpectedOrder
 func TestExtract_DocxNestedTables(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -602,6 +612,7 @@ func TestExtract_DocxNestedTables(t *testing.T) {
 
 // --- XLSX edge case tests ---
 
+// okapi: OpenXMLTest#documentsWithAbsentSharedStringsProcessed
 func TestExtract_XlsxEmptyCells(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -625,6 +636,7 @@ func TestExtract_XlsxSmartArt(t *testing.T) {
 	require.NotEmpty(t, blocks, "XLSX with SmartArt should produce blocks")
 }
 
+// okapi: OpenXMLTest#testXLSXOnlyExtractStringsNotNumbers
 func TestExtract_XlsxSharedStringsAndComments(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -651,6 +663,7 @@ func TestExtract_PptxSmartArt(t *testing.T) {
 	require.NotEmpty(t, blocks, "PPTX with SmartArt should produce blocks")
 }
 
+// okapi: OpenXMLTest#testPPTXComments
 func TestExtract_PptxComments(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -663,6 +676,7 @@ func TestExtract_PptxComments(t *testing.T) {
 	require.NotEmpty(t, blocks, "PPTX with comments should produce blocks")
 }
 
+// okapi: OpenXmlPptxTest#extractsHiddenSlides
 func TestExtract_PptxHiddenSlides(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
@@ -675,6 +689,7 @@ func TestExtract_PptxHiddenSlides(t *testing.T) {
 	require.NotEmpty(t, parts, "PPTX with hidden slides should produce parts")
 }
 
+// okapi: OpenXMLTest#testSlideReordering
 func TestExtract_PptxSlideLayouts(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)

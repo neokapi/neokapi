@@ -1,6 +1,7 @@
 // Package main implements a CLI that parses Okapi surefire XML reports and Go
 // test JSON output, then merges them into a single JSON file for the test
-// comparison dashboard.
+// comparison dashboard. It also parses // okapi: annotations from Go source
+// files to build per-test-case mappings between Java and Go tests.
 package main
 
 import (
@@ -12,6 +13,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -20,13 +22,13 @@ import (
 // --- Surefire XML structures ---
 
 type xmlTestSuite struct {
-	Name      string         `xml:"name,attr"`
-	Tests     int            `xml:"tests,attr"`
-	Errors    int            `xml:"errors,attr"`
-	Skipped   int            `xml:"skipped,attr"`
-	Failures  int            `xml:"failures,attr"`
-	Time      float64        `xml:"time,attr"`
-	TestCases []xmlTestCase  `xml:"testcase"`
+	Name      string        `xml:"name,attr"`
+	Tests     int           `xml:"tests,attr"`
+	Errors    int           `xml:"errors,attr"`
+	Skipped   int           `xml:"skipped,attr"`
+	Failures  int           `xml:"failures,attr"`
+	Time      float64       `xml:"time,attr"`
+	TestCases []xmlTestCase `xml:"testcase"`
 }
 
 type xmlTestCase struct {
@@ -62,17 +64,23 @@ type ComparisonData struct {
 }
 
 type Summary struct {
-	TotalFiltersOkapi  int `json:"totalFiltersOkapi"`
-	TotalFiltersGokapi int `json:"totalFiltersGokapi"`
-	TotalFiltersBoth   int `json:"totalFiltersBoth"`
-	TotalTestsOkapi    int `json:"totalTestsOkapi"`
-	TotalTestsGokapi   int `json:"totalTestsGokapi"`
+	TotalFiltersOkapi  int     `json:"totalFiltersOkapi"`
+	TotalFiltersBridge int     `json:"totalFiltersBridge"`
+	TotalFiltersNative int     `json:"totalFiltersNative"`
+	TotalFiltersBoth   int     `json:"totalFiltersBoth"`
+	TotalTestsOkapi    int     `json:"totalTestsOkapi"`
+	TotalTestsBridge   int     `json:"totalTestsBridge"`
+	TotalTestsNative   int     `json:"totalTestsNative"`
+	CoveragePct        float64 `json:"coveragePct"`
 }
 
 type FilterComparison struct {
-	FilterName string        `json:"filterName"`
-	Okapi      *FilterResult `json:"okapi"`
-	Gokapi     *FilterResult `json:"gokapi"`
+	FilterName string          `json:"filterName"`
+	Okapi      *FilterResult   `json:"okapi"`
+	Bridge     *FilterResult   `json:"bridge"`
+	Native     *FilterResult   `json:"native"`
+	TestCases  []TestCaseMatch `json:"testCases"`
+	Coverage   CoverageStats   `json:"coverage"`
 }
 
 type FilterResult struct {
@@ -102,28 +110,89 @@ type Test struct {
 	DurationMs float64 `json:"durationMs"`
 }
 
+type TestCaseMatch struct {
+	JavaClass    string `json:"javaClass"`
+	JavaMethod   string `json:"javaMethod"`
+	OkapiStatus  string `json:"okapiStatus"`
+	BridgeTest   string `json:"bridgeTest,omitempty"`
+	BridgeStatus string `json:"bridgeStatus"`
+	NativeTest   string `json:"nativeTest,omitempty"`
+	NativeStatus string `json:"nativeStatus"`
+}
+
+type CoverageStats struct {
+	TotalOkapi    int     `json:"totalOkapi"`
+	BridgeMapped  int     `json:"bridgeMapped"`
+	BridgePassing int     `json:"bridgePassing"`
+	NativeMapped  int     `json:"nativeMapped"`
+	NativePassing int     `json:"nativePassing"`
+	CoveragePct   float64 `json:"coveragePct"`
+}
+
+// annotation maps a Go test function to its Java test counterpart.
+type annotation struct {
+	JavaClass  string
+	JavaMethod string
+	GoTest     string
+	Filter     string // normalized filter name (e.g. "html", "json")
+}
+
+var annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
+var funcTestRe = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
+
 func main() {
 	okapiDir := flag.String("okapi-dir", "", "path to Okapi filters directory")
-	gotestJSON := flag.String("gotest-json", "", "path to go test -json JSONL file")
+	// New flags
+	bridgeJSON := flag.String("gotest-bridge-json", "", "path to bridge go test -json JSONL file")
+	nativeJSON := flag.String("gotest-native-json", "", "path to native go test -json JSONL file")
+	bridgeSrc := flag.String("bridge-src", "", "path to bridge test source (e.g. core/plugin/bridge/filters)")
+	nativeSrc := flag.String("native-src", "", "path to native format source (e.g. core/formats)")
+	// Legacy flag alias
+	gotestJSON := flag.String("gotest-json", "", "alias for -gotest-bridge-json (deprecated)")
+
 	outFile := flag.String("out", "", "output JSON file path")
 	okapiVer := flag.String("okapi-version", "", "Okapi version label")
 	gokapiVer := flag.String("gokapi-version", "", "gokapi version label")
 	flag.Parse()
 
 	if *okapiDir == "" || *outFile == "" {
-		fmt.Fprintln(os.Stderr, "Usage: testcompare -okapi-dir DIR -out FILE [-gotest-json FILE]")
+		fmt.Fprintln(os.Stderr, "Usage: testcompare -okapi-dir DIR -out FILE [options]")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	okapi := parseSurefire(*okapiDir)
-
-	var gokapi map[string]*FilterResult
-	if *gotestJSON != "" {
-		gokapi = parseGoTest(*gotestJSON)
+	// Handle legacy flag
+	if *bridgeJSON == "" && *gotestJSON != "" {
+		*bridgeJSON = *gotestJSON
 	}
 
-	data := merge(okapi, gokapi, *okapiVer, *gokapiVer)
+	okapi := parseSurefire(*okapiDir)
+
+	var bridge map[string]*FilterResult
+	if *bridgeJSON != "" {
+		bridge = parseGoTestResults(*bridgeJSON, bridgeFilterFromPkg)
+	}
+
+	var native map[string]*FilterResult
+	if *nativeJSON != "" {
+		native = parseGoTestResults(*nativeJSON, nativeFilterFromPkg)
+	}
+
+	// Parse annotations from source
+	var bridgeAnnotations, nativeAnnotations []annotation
+	if *bridgeSrc != "" {
+		bridgeAnnotations = parseAnnotations(*bridgeSrc, "bridge")
+	}
+	if *nativeSrc != "" {
+		nativeAnnotations = parseAnnotations(*nativeSrc, "native")
+	}
+
+	// Build Go test status maps from results
+	bridgeTestStatus := buildTestStatusMap(bridge)
+	nativeTestStatus := buildTestStatusMap(native)
+
+	data := merge(okapi, bridge, native, bridgeAnnotations, nativeAnnotations,
+		bridgeTestStatus, nativeTestStatus, *okapiVer, *gokapiVer)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
@@ -214,7 +283,8 @@ func parseSurefire(dir string) map[string]*FilterResult {
 	return out
 }
 
-func parseGoTest(path string) map[string]*FilterResult {
+// parseGoTestResults parses Go test JSON output using a filter extraction function.
+func parseGoTestResults(path string, filterFn func(string) string) map[string]*FilterResult {
 	f, err := os.Open(path)
 	if err != nil {
 		log.Fatalf("open %s: %v", path, err)
@@ -256,7 +326,7 @@ func parseGoTest(path string) map[string]*FilterResult {
 
 	out := map[string]*FilterResult{}
 	for pkg, tests := range pkgs {
-		filter := filterFromPkg(pkg)
+		filter := filterFn(pkg)
 		if filter == "" {
 			continue
 		}
@@ -296,12 +366,24 @@ func parseGoTest(path string) map[string]*FilterResult {
 	return out
 }
 
-func filterFromPkg(pkg string) string {
+// bridgeFilterFromPkg extracts the filter name from a bridge test package path.
+// e.g. ".../bridge/filters/okf_html" → "html"
+func bridgeFilterFromPkg(pkg string) string {
 	seg := lastSegment(pkg)
 	if !strings.HasPrefix(seg, "okf_") {
 		return ""
 	}
 	return strings.TrimPrefix(seg, "okf_")
+}
+
+// nativeFilterFromPkg extracts the filter name from a native format package path.
+// e.g. ".../formats/json" → "json"
+func nativeFilterFromPkg(pkg string) string {
+	// Check the package path contains "/formats/"
+	if !strings.Contains(pkg, "/formats/") {
+		return ""
+	}
+	return lastSegment(pkg)
 }
 
 func lastSegment(s string) string {
@@ -311,46 +393,249 @@ func lastSegment(s string) string {
 	return s
 }
 
-func merge(okapi, gokapi map[string]*FilterResult, okapiVer, gokapiVer string) *ComparisonData {
+// parseAnnotations scans Go source files for // okapi: annotations.
+// srcDir is the root directory to scan (e.g. "core/plugin/bridge/filters" or "core/formats").
+// kind is "bridge" or "native" (used for debug logging).
+func parseAnnotations(srcDir, kind string) []annotation {
+	var pattern string
+	switch kind {
+	case "bridge":
+		pattern = filepath.Join(srcDir, "okf_*", "*_test.go")
+	default:
+		pattern = filepath.Join(srcDir, "*", "*_test.go")
+	}
+
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		log.Printf("warn: annotation glob %s: %v", pattern, err)
+		return nil
+	}
+
+	var result []annotation
+	for _, path := range matches {
+		anns := parseFileAnnotations(path, kind)
+		result = append(result, anns...)
+	}
+
+	fmt.Printf("parsed %d %s annotations from %d files\n", len(result), kind, len(matches))
+	return result
+}
+
+// parseFileAnnotations parses a single Go test file for // okapi: annotations.
+func parseFileAnnotations(path, kind string) []annotation {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Printf("warn: read %s: %v", path, err)
+		return nil
+	}
+
+	// Determine filter name from path
+	filter := filterFromPath(path, kind)
+	if filter == "" {
+		return nil
+	}
+
+	lines := strings.Split(string(data), "\n")
+	var result []annotation
+	var pending []struct{ class, method string }
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Check for // okapi: annotation
+		if m := annotationRe.FindStringSubmatch(trimmed); m != nil {
+			pending = append(pending, struct{ class, method string }{m[1], m[2]})
+			continue
+		}
+
+		// Check for func Test...
+		if m := funcTestRe.FindStringSubmatch(trimmed); m != nil && len(pending) > 0 {
+			goTestName := m[1]
+			for _, p := range pending {
+				result = append(result, annotation{
+					JavaClass:  p.class,
+					JavaMethod: p.method,
+					GoTest:     goTestName,
+					Filter:     filter,
+				})
+			}
+			pending = nil
+			continue
+		}
+
+		// Non-annotation, non-func line clears pending annotations
+		// (only if it's not blank or another comment)
+		if trimmed != "" && !strings.HasPrefix(trimmed, "//") {
+			pending = nil
+		}
+	}
+
+	return result
+}
+
+// filterFromPath extracts the filter name from a file path.
+func filterFromPath(path, kind string) string {
+	dir := filepath.Dir(path)
+	seg := filepath.Base(dir)
+
+	switch kind {
+	case "bridge":
+		if !strings.HasPrefix(seg, "okf_") {
+			return ""
+		}
+		return strings.TrimPrefix(seg, "okf_")
+	default:
+		return seg
+	}
+}
+
+// buildTestStatusMap builds a map of "filter/TestName" → status from FilterResult maps.
+func buildTestStatusMap(results map[string]*FilterResult) map[string]string {
+	out := map[string]string{}
+	if results == nil {
+		return out
+	}
+	for filter, fr := range results {
+		for _, s := range fr.Suites {
+			for _, t := range s.Tests {
+				key := filter + "/" + t.Name
+				out[key] = t.Status
+			}
+		}
+	}
+	return out
+}
+
+func merge(
+	okapi, bridge, native map[string]*FilterResult,
+	bridgeAnns, nativeAnns []annotation,
+	bridgeTestStatus, nativeTestStatus map[string]string,
+	okapiVer, gokapiVer string,
+) *ComparisonData {
+	// Build annotation lookup: filter → javaClass#method → []GoTestName
+	type annKey struct{ filter, class, method string }
+	bridgeAnnMap := map[annKey][]string{}
+	for _, a := range bridgeAnns {
+		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
+		bridgeAnnMap[k] = append(bridgeAnnMap[k], a.GoTest)
+	}
+	nativeAnnMap := map[annKey][]string{}
+	for _, a := range nativeAnns {
+		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
+		nativeAnnMap[k] = append(nativeAnnMap[k], a.GoTest)
+	}
+
+	// Collect all filter names
 	names := map[string]struct{}{}
 	for n := range okapi {
 		names[n] = struct{}{}
 	}
-	for n := range gokapi {
+	for n := range bridge {
+		names[n] = struct{}{}
+	}
+	for n := range native {
 		names[n] = struct{}{}
 	}
 
 	filters := make([]FilterComparison, 0, len(names))
+	var sum Summary
+
 	for n := range names {
-		fc := FilterComparison{FilterName: n, Okapi: okapi[n]}
-		if gokapi != nil {
-			fc.Gokapi = gokapi[n]
+		fc := FilterComparison{
+			FilterName: n,
+			Okapi:      okapi[n],
 		}
+		if bridge != nil {
+			fc.Bridge = bridge[n]
+		}
+		if native != nil {
+			fc.Native = native[n]
+		}
+
+		// Build TestCaseMatch rows from Okapi test cases
+		if fc.Okapi != nil {
+			var testCases []TestCaseMatch
+			for _, suite := range fc.Okapi.Suites {
+				for _, tc := range suite.Tests {
+					className := shortClassName(tc.ClassName)
+					tcm := TestCaseMatch{
+						JavaClass:   className,
+						JavaMethod:  tc.Name,
+						OkapiStatus: tc.Status,
+					}
+
+					// Look up bridge annotation
+					k := annKey{n, className, tc.Name}
+					if goTests := bridgeAnnMap[k]; len(goTests) > 0 {
+						tcm.BridgeTest = goTests[0] // primary mapping
+						if st, ok := bridgeTestStatus[n+"/"+goTests[0]]; ok {
+							tcm.BridgeStatus = st
+						}
+					}
+
+					// Look up native annotation
+					if goTests := nativeAnnMap[k]; len(goTests) > 0 {
+						tcm.NativeTest = goTests[0]
+						if st, ok := nativeTestStatus[n+"/"+goTests[0]]; ok {
+							tcm.NativeStatus = st
+						}
+					}
+
+					testCases = append(testCases, tcm)
+				}
+			}
+
+			// Sort test cases by class then method
+			sort.Slice(testCases, func(i, j int) bool {
+				if testCases[i].JavaClass != testCases[j].JavaClass {
+					return testCases[i].JavaClass < testCases[j].JavaClass
+				}
+				return testCases[i].JavaMethod < testCases[j].JavaMethod
+			})
+
+			fc.TestCases = testCases
+
+			// Compute coverage stats
+			fc.Coverage = computeCoverage(testCases)
+		}
+
 		filters = append(filters, fc)
+
+		// Accumulate summary
+		if fc.Okapi != nil {
+			sum.TotalFiltersOkapi++
+			sum.TotalTestsOkapi += fc.Okapi.Total
+		}
+		if fc.Bridge != nil {
+			sum.TotalFiltersBridge++
+			sum.TotalTestsBridge += fc.Bridge.Total
+		}
+		if fc.Native != nil {
+			sum.TotalFiltersNative++
+			sum.TotalTestsNative += fc.Native.Total
+		}
+		if fc.Okapi != nil && (fc.Bridge != nil || fc.Native != nil) {
+			sum.TotalFiltersBoth++
+		}
 	}
 
+	// Sort: filters with both sides first, then alphabetically
 	sort.Slice(filters, func(i, j int) bool {
-		bi := filters[i].Okapi != nil && filters[i].Gokapi != nil
-		bj := filters[j].Okapi != nil && filters[j].Gokapi != nil
+		bi := filters[i].Okapi != nil && (filters[i].Bridge != nil || filters[i].Native != nil)
+		bj := filters[j].Okapi != nil && (filters[j].Bridge != nil || filters[j].Native != nil)
 		if bi != bj {
 			return bi
 		}
 		return filters[i].FilterName < filters[j].FilterName
 	})
 
-	var sum Summary
-	for _, fc := range filters {
-		if fc.Okapi != nil {
-			sum.TotalFiltersOkapi++
-			sum.TotalTestsOkapi += fc.Okapi.Total
+	// Overall coverage
+	if sum.TotalTestsOkapi > 0 {
+		totalMapped := 0
+		for _, fc := range filters {
+			totalMapped += fc.Coverage.BridgeMapped
 		}
-		if fc.Gokapi != nil {
-			sum.TotalFiltersGokapi++
-			sum.TotalTestsGokapi += fc.Gokapi.Total
-		}
-		if fc.Okapi != nil && fc.Gokapi != nil {
-			sum.TotalFiltersBoth++
-		}
+		sum.CoveragePct = float64(totalMapped) / float64(sum.TotalTestsOkapi) * 100
 	}
 
 	return &ComparisonData{
@@ -360,4 +645,38 @@ func merge(okapi, gokapi map[string]*FilterResult, okapiVer, gokapiVer string) *
 		Filters:       filters,
 		Summary:       sum,
 	}
+}
+
+// computeCoverage calculates coverage stats from test case matches.
+func computeCoverage(testCases []TestCaseMatch) CoverageStats {
+	cs := CoverageStats{
+		TotalOkapi: len(testCases),
+	}
+	for _, tc := range testCases {
+		if tc.BridgeTest != "" {
+			cs.BridgeMapped++
+			if tc.BridgeStatus == "pass" {
+				cs.BridgePassing++
+			}
+		}
+		if tc.NativeTest != "" {
+			cs.NativeMapped++
+			if tc.NativeStatus == "pass" {
+				cs.NativePassing++
+			}
+		}
+	}
+	if cs.TotalOkapi > 0 {
+		cs.CoveragePct = float64(cs.BridgeMapped) / float64(cs.TotalOkapi) * 100
+	}
+	return cs
+}
+
+// shortClassName extracts the short class name from a fully qualified Java class.
+// e.g. "net.sf.okapi.filters.html.HtmlSnippetsTest" → "HtmlSnippetsTest"
+func shortClassName(fqn string) string {
+	if i := strings.LastIndex(fqn, "."); i >= 0 {
+		return fqn[i+1:]
+	}
+	return fqn
 }

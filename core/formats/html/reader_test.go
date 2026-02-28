@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: HtmlSnippetsTest#minimalCompleteHtml
 func TestReadSimpleHTML(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -26,6 +27,7 @@ func TestReadSimpleHTML(t *testing.T) {
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 }
 
+// okapi: HtmlSnippetsTest#ITextUnitsInARowWithTwoHeaders
 func TestReadMultipleBlocks(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -41,6 +43,7 @@ func TestReadMultipleBlocks(t *testing.T) {
 	assert.Contains(t, texts, "Paragraph")
 }
 
+// okapi: HtmlSnippetsTest#testPWithInlines
 func TestReadInlineSpans(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -62,6 +65,7 @@ func TestReadInlineSpans(t *testing.T) {
 	assert.Equal(t, "</b>", frag.Spans[1].Data)
 }
 
+// okapi: HtmlSnippetsTest#testHref
 func TestReadLinkSpan(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -91,6 +95,7 @@ func TestReadLinkSpan(t *testing.T) {
 	assert.Contains(t, openingSpan.Data, "href")
 }
 
+// okapi: HtmlSnippetsTest#paraWithBreak
 func TestReadPlaceholderSpan(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -115,6 +120,7 @@ func TestReadPlaceholderSpan(t *testing.T) {
 	assert.True(t, found, "expected <br/> to be a placeholder span")
 }
 
+// okapi: HtmlFullFileTest#testSkippedScriptandStyleElements
 func TestReadScriptNonTranslatable(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()
@@ -150,6 +156,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "html", layer.Format)
 }
 
+// okapi: HtmlConfigurationTest#defaultConfiguration
 func TestReadTitle(t *testing.T) {
 	ctx := context.Background()
 	reader := htmlfmt.NewReader()

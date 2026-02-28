@@ -14,6 +14,7 @@ import (
 const filterClass = "net.sf.okapi.filters.json.JSONFilter"
 const mimeType = "application/json"
 
+// okapi: JSONFilterTest#testValue
 func TestExtract_SimpleJSON(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -28,6 +29,7 @@ func TestExtract_SimpleJSON(t *testing.T) {
 	assert.Contains(t, texts, "Hello World")
 }
 
+// okapi: JSONFilterTest#testObject
 func TestExtract_NestedObjects(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -112,6 +114,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 	assert.True(t, hasBlock, "should have Block")
 }
 
+// okapi: JSONFilterTest#testAllWithKeyNoException
 func TestExtract_WithFilterParams(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -176,6 +179,7 @@ func TestExtract_UniqueBlockIDs(t *testing.T) {
 	}
 }
 
+// okapi: JSONFilterTest#testDecimalNumber
 func TestExtract_NumbersNotExtracted(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -217,6 +221,7 @@ func TestExtract_DeepNesting(t *testing.T) {
 	assert.Contains(t, texts, "Deep value")
 }
 
+// okapi: JSONFilterTest#testEmptyValue
 func TestExtract_EmptyStrings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -230,6 +235,7 @@ func TestExtract_EmptyStrings(t *testing.T) {
 	assert.Contains(t, texts, "has content")
 }
 
+// okapi: JSONFilterTest#testEscapes
 func TestExtract_SpecialCharacters(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -296,6 +302,7 @@ func TestExtract_DataSkeleton(t *testing.T) {
 	assert.Greater(t, dataWithSkeleton, 0, "some JSON Data parts should have skeleton data")
 }
 
+// okapi: JSONFilterTest#testStandaloneDefaultWhichIsNo
 func TestExtract_ArrayOfStringsNotExtracted(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 

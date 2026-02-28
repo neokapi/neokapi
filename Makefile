@@ -52,7 +52,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         storybook storybook-dev storybook-build \
         screenshots recordings kapi-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
         docs-deps docs-dev docs-build docs-serve \
-        test-bridge-json generate-test-comparison
+        test-bridge-json test-native-json generate-test-comparison
 
 # ── General ──────────────────────────────────────────────────────────────────
 
@@ -311,6 +311,7 @@ OKAPI_VERSION        ?= 1.48.0
 BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 OKAPI_FILTERS_DIR    ?= $(HOME)/src/okapi/Okapi/okapi/filters
 GOTEST_JSON_FILE     := $(COVER_DIR)/bridge-test-results.jsonl
+NATIVE_JSON_FILE     := $(COVER_DIR)/native-test-results.jsonl
 TEST_COMPARE_JSON    := website/static/data/test-comparison.json
 
 fetch-bridge-jar: ## Download okapi-bridge JAR from GitHub release
@@ -326,9 +327,19 @@ test-bridge-json: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter te
 	@mkdir -p $(COVER_DIR)
 	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE); true
 
-generate-test-comparison: test-bridge-json ## Generate test comparison dashboard data
+test-native-json: ## Run native format tests with JSON output
+	@mkdir -p $(COVER_DIR)
+	$(GOTEST) -count=1 -json ./core/formats/... > $(NATIVE_JSON_FILE); true
+
+generate-test-comparison: test-bridge-json test-native-json ## Generate test comparison dashboard data
 	@mkdir -p website/static/data
-	$(GO) run ./scripts/testcompare -okapi-dir $(OKAPI_FILTERS_DIR) -gotest-json $(GOTEST_JSON_FILE) -out $(TEST_COMPARE_JSON)
+	$(GO) run ./scripts/testcompare \
+		-okapi-dir $(OKAPI_FILTERS_DIR) \
+		-gotest-bridge-json $(GOTEST_JSON_FILE) \
+		-gotest-native-json $(NATIVE_JSON_FILE) \
+		-bridge-src core/plugin/bridge/filters \
+		-native-src core/formats \
+		-out $(TEST_COMPARE_JSON)
 
 test-e2e: ## Run end-to-end tests against Docker stack
 	bash e2e/run.sh
