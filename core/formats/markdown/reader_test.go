@@ -26,6 +26,7 @@ func TestReadSimpleParagraphs(t *testing.T) {
 	assert.Equal(t, "Second paragraph", blocks[1].SourceText())
 }
 
+// okapi: MarkdownFilterTest#testHeadingPrefix
 func TestReadHeadings(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -45,6 +46,7 @@ func TestReadHeadings(t *testing.T) {
 	assert.Equal(t, "Text", blocks[2].SourceText())
 }
 
+// okapi: MarkdownFilterTest#testEmphasisAndStrong
 func TestReadBoldItalicInline(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -63,6 +65,7 @@ func TestReadBoldItalicInline(t *testing.T) {
 	assert.True(t, frag.HasSpans())
 }
 
+// okapi: MarkdownFilterTest#testDontTranslateFencedCodeBlocks
 func TestReadCodeBlockAsData(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -93,6 +96,7 @@ func TestReadCodeBlockAsData(t *testing.T) {
 	assert.True(t, hasCodeData, "expected code block as Data")
 }
 
+// okapi: MarkdownFilterTest#testBulletList
 func TestReadLists(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -147,6 +151,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: MarkdownFilterTest#testEventsFromEmptyInput
 func TestReadEmpty(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()
@@ -229,6 +234,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 	assert.NotContains(t, output, "World")
 }
 
+// okapi: MarkdownFilterTest#testHtmlBlockWithMarkdown
 func TestReadHTMLBlockAsData(t *testing.T) {
 	ctx := context.Background()
 	reader := markdown.NewReader()

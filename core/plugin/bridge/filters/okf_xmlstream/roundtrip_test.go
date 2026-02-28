@@ -15,6 +15,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 	bridgetest.AssertRoundTrip(t, pool, cfg, filterClass, input, "test.xml", mimeType, nil)
 }
 
+// okapi: RoundTripXmlStreamIT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)

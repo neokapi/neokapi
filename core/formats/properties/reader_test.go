@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: PropertiesFilterTest#testEntry
 func TestReadSimple(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
@@ -48,6 +49,7 @@ func TestReadMultipleEntries(t *testing.T) {
 	assert.Equal(t, "value3", blocks[2].SourceText())
 }
 
+// okapi: PropertiesFilterTest#testKeySpecial
 func TestReadColonSeparator(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
@@ -77,6 +79,7 @@ func TestReadSpaceSeparator(t *testing.T) {
 	assert.Equal(t, "value", blocks[0].SourceText())
 }
 
+// okapi: PropertiesFilterTest#testSplicedEntry
 func TestReadContinuationLine(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
@@ -161,6 +164,7 @@ func TestReadExclamationComment(t *testing.T) {
 	assert.Equal(t, "! This is also a comment", commentData.Properties["comment"])
 }
 
+// okapi: PropertiesFilterTest#testEscapes
 func TestReadUnicodeEscapes(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
@@ -175,6 +179,7 @@ func TestReadUnicodeEscapes(t *testing.T) {
 	assert.Equal(t, "Hello", blocks[0].SourceText())
 }
 
+// okapi: PropertiesFilterTest#testSpecialChars
 func TestReadJapaneseUnicodeEscapes(t *testing.T) {
 	ctx := context.Background()
 	reader := properties.NewReader()
@@ -456,6 +461,7 @@ func TestRoundTripColonSeparator(t *testing.T) {
 	assert.Equal(t, input, buf.String())
 }
 
+// okapi: PropertiesFilterTest#testSpecialCharsOutput
 func TestWriteUnicodeEscapes(t *testing.T) {
 	ctx := context.Background()
 

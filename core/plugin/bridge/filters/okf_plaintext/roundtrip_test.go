@@ -16,6 +16,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 	bridgetest.AssertRoundTrip(t, pool, cfg, filterClass, input, "test.txt", mimeType, nil)
 }
 
+// okapi: RoundTripPlainTextIT
 func TestRoundTrip_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
