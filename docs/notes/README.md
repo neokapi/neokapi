@@ -24,3 +24,4 @@ and other reference material.
 | [Keycloak Theming](keycloak-theming.md) | -- | Keycloakify v11, custom login pages |
 | [NPM Workspaces](npm-workspaces.md) | -- | Workspace config, build order, lock files |
 | [Docker Compose](docker-compose.md) | -- | Dev deps, Keycloak + Mailpit, e2e support |
+| [MCP Tools Reference](mcp-tools-reference.md) | [AD-021](/docs/ad/021-mcp-integration) | Tool specs, input/output schemas, testing |
