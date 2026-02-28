@@ -6,7 +6,7 @@ import { execFileSync } from "child_process";
 import { loadAllScripts, expandThemes, resolveScript } from "./src/parse-script";
 import type { ResolvedScript, Script } from "./src/schema";
 
-const ROOT = import.meta.dirname;
+const ROOT = import.meta.dirname ?? __dirname;
 const SCRIPTS_DIR = path.join(ROOT, "scripts");
 const OUTPUT_DIR = path.join(ROOT, "output");
 const ENTRY = path.join(ROOT, "src", "index.tsx");

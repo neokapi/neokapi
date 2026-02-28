@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 
-const OUTPUT_DIR = path.resolve(import.meta.dirname, "output");
-const PUBLISH_DIR = path.resolve(import.meta.dirname, "..", "static", "video", "polished");
+const dir = import.meta.dirname ?? __dirname;
+const OUTPUT_DIR = path.resolve(dir, "output");
+const PUBLISH_DIR = path.resolve(dir, "..", "static", "video", "polished");
 
 fs.mkdirSync(PUBLISH_DIR, { recursive: true });
 

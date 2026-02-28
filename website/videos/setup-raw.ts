@@ -1,8 +1,9 @@
 import fs from "fs";
 import path from "path";
 
-const publicRaw = path.resolve(import.meta.dirname, "public", "raw");
-const staticVideo = path.resolve(import.meta.dirname, "..", "static", "video");
+const dir = import.meta.dirname ?? __dirname;
+const publicRaw = path.resolve(dir, "public", "raw");
+const staticVideo = path.resolve(dir, "..", "static", "video");
 
 const links: [string, string][] = [
   ["bowrain/dark", path.join(staticVideo, "bowrain", "dark")],
