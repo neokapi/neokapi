@@ -43,4 +43,5 @@ export {
   WifiOff,
   Monitor,
   Bell,
+  Code,
 } from "lucide-react";
