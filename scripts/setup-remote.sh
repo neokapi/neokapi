@@ -43,7 +43,7 @@ go mod download
 echo "==> Installing npm dependencies"
 (cd packages/ui               && npm ci --prefer-offline)
 (cd bowrain/apps/web           && npm ci --prefer-offline)
-(cd bowrain/apps/kapi-web      && npm ci --prefer-offline)
+(cd kapi/apps/kapi-web      && npm ci --prefer-offline)
 (cd bowrain/apps/bowrain/frontend && npm ci --prefer-offline)
 
 echo "==> Remote environment ready"

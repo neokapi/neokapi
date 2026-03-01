@@ -53,15 +53,20 @@ jobs:
           check_paths framework '^core/' '^go\.(mod|sum|work)$' '^\.github/workflows/ci\.yml$'
           check_paths cli       '^cli/'
           check_paths platform  '^platform/'
-          check_paths kapi      '^kapi/'
+          # kapi: anything under kapi/ except the frontend app dir
+          if echo "$CHANGED" | grep -E '^kapi/' | grep -vE '^kapi/apps/' | grep -q .; then
+            echo "kapi=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "kapi=false" >> "$GITHUB_OUTPUT"
+          fi
           check_paths brain     '^brain/'
           # bowrain: anything under bowrain/ except the frontend app dirs
-          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/apps/(web|kapi-web|bowrain/frontend)/' | grep -q .; then
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/apps/(web|bowrain/frontend)/' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
+          check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^kapi/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
@@ -83,7 +88,7 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: bowrain/apps/kapi-web
+        working-directory: kapi/apps/kapi-web
         run: npm run build
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
@@ -409,7 +414,7 @@ jobs:
       - name: Create embed placeholders
         run: |
           mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-          mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
+          mkdir -p kapi/apps/kapi-web/dist && echo placeholder > kapi/apps/kapi-web/dist/index.html
 
       - name: Lint framework
         uses: golangci/golangci-lint-action@v7
@@ -495,7 +500,7 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: bowrain/apps/kapi-web
+        working-directory: kapi/apps/kapi-web
         run: npm run build
 
       - name: Build kapi CLI

@@ -226,7 +226,7 @@ All four frontend projects consume the theme system identically:
 |---------|-----------|----------------------|
 | Bowrain Desktop | `bowrain/apps/bowrain/frontend/src/index.css` | `App.tsx` |
 | Web App | `bowrain/apps/web/src/index.css` | `App.tsx` |
-| Kapi Web | `bowrain/apps/kapi-web/src/index.css` | `App.tsx` |
+| Kapi Web | `kapi/apps/kapi-web/src/index.css` | `App.tsx` |
 | Keycloak Theme | `bowrain/apps/keycloak-theme/src/login/main.css` | `main.tsx` |
 
 The Keycloak theme is a special case: it imports `@gokapi/ui/styles/globals.css` but also re-declares all OKLCH tokens and semantic tokens in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. See [Keycloak Theming](keycloak-theming.md) for details.

@@ -44,7 +44,7 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: bowrain/apps/kapi-web
+        working-directory: kapi/apps/kapi-web
         run: npm run build
 
       - name: Create Bowrain frontend placeholder

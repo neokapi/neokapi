@@ -143,12 +143,9 @@ gokapi/                              ── Framework Module ──
 │   ├── cmd/
 │   │   ├── kapi/                    # Cobra CLI
 │   │   └── bowrain-server/          # Echo v4 REST API server
-│   ├── apps/
-│   │   ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
-│   │   ├── web/                     # SaaS web UI
-│   │   └── kapi-web/               # kapi serve web UI
-│   └── packages/
-│       └── ui/                      # Shared React component library (@gokapi/ui)
+│   └── apps/
+│       ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
+│       └── web/                     # SaaS web UI
 │
 ├── docs/                            # Documentation, architecture decisions, notes
 └── website/                         # Docusaurus 3 documentation site

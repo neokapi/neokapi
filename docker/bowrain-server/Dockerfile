@@ -24,7 +24,7 @@ RUN go mod download \
 
 # Copy source.
 COPY . .
-RUN mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
+RUN mkdir -p kapi/apps/kapi-web/dist && echo placeholder > kapi/apps/kapi-web/dist/index.html
 
 # Build only the server binary.
 RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /out/bowrain-server ./cmd/bowrain-server
