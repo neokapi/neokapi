@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/config"
 )
 
 const (
@@ -140,7 +139,7 @@ type Config struct {
 	Plugins *PluginsConfig `yaml:"plugins,omitempty"`
 
 	// Plugin registries (overrides global registries when present)
-	Registries []config.RegistryEntry `yaml:"registries,omitempty"`
+	Registries []RegistryConfig `yaml:"registries,omitempty"`
 
 	// Framework preset name (e.g., "nextjs")
 	Preset string `yaml:"preset,omitempty"`
@@ -181,6 +180,13 @@ type ServerConfig struct {
 type PluginsConfig struct {
 	Framework []string `yaml:"framework,omitempty"` // e.g. ["okapi@1.48.0"]
 	Presets   []string `yaml:"presets,omitempty"`   // e.g. ["okapi-presets@1.48.0"]
+}
+
+// RegistryConfig represents a named plugin registry in project config.
+type RegistryConfig struct {
+	Name     string   `yaml:"name"               json:"name"`
+	URL      string   `yaml:"url"                json:"url"`
+	Channels []string `yaml:"channels,omitempty" json:"channels,omitempty"`
 }
 
 // LocalFormatPreset defines a user-defined format preset in config.yaml.
