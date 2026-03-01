@@ -9,11 +9,9 @@ import { useWorkspace } from "../context/WorkspaceContext";
 import { useProviderConfigs } from "../hooks/useProviderApi";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
-import { SourceCellDisplay } from "./editor/SourceCellDisplay";
+import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
 import { TargetCellEditor } from "./editor/TargetCellEditor";
-import { parseCodedSegments } from "./editor/codedText";
-import { TagChipComponent } from "./editor/TagChipComponent";
-import { buildPairs, validateTags } from "./editor/tagSemantics";
+import { validateTags } from "./editor/tagSemantics";
 import { HighlightedSource } from "./editor/HighlightedSource";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
@@ -745,7 +743,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             />
             <div className="flex-1 text-sm leading-relaxed pr-4 break-words">
               {block.has_spans && block.source_coded && block.source_spans ? (
-                <SourceCellDisplay
+                <FormattedSourceDisplay
                   codedText={block.source_coded}
                   spans={block.source_spans}
                 />
@@ -797,7 +795,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                 >
                   {block.has_spans && block.targets_coded?.[targetLocale] ? (
                     <>
-                      <CodedTextDisplay
+                      <FormattedSourceDisplay
                         codedText={block.targets_coded[targetLocale]}
                         spans={block.source_spans || []}
                       />
@@ -883,7 +881,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         </div>
         <div className="text-base leading-relaxed" data-testid="focus-source">
           {currentBlock.has_spans && currentBlock.source_coded && currentBlock.source_spans ? (
-            <SourceCellDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
+            <FormattedSourceDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
           ) : showContextPanel && termMatches.length > 0 ? (
             <HighlightedSource text={currentBlock.source} termMatches={termMatches} />
           ) : (
@@ -1358,43 +1356,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         </span>
       </div>
     </div>
-  );
-}
-
-/** Read-only display of coded text with pair-aware tag chips (for target cell, not editing). */
-function CodedTextDisplay({ codedText, spans }: { codedText: string; spans: SpanInfo[] }) {
-  const segments = parseCodedSegments(codedText, spans);
-  const pairs = useMemo(() => buildPairs(spans), [spans]);
-  const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
-  let tagIndex = 0;
-
-  return (
-    <span>
-      {segments.map((seg, i) => {
-        if (seg.type === "text") {
-          return <span key={i}>{seg.value}</span>;
-        }
-        const currentTagIndex = tagIndex;
-        tagIndex++;
-        const pairInfo = pairs.get(currentTagIndex);
-        const pairIdx = pairInfo?.pairIndex;
-
-        return (
-          <span
-            key={i}
-            onMouseEnter={() => pairIdx != null && setHoveredPairIndex(pairIdx)}
-            onMouseLeave={() => setHoveredPairIndex(null)}
-          >
-            <TagChipComponent
-              spanInfo={seg.spanInfo}
-              index={currentTagIndex + 1}
-              pairIndex={pairIdx}
-              highlighted={hoveredPairIndex != null && pairIdx === hoveredPairIndex}
-            />
-          </span>
-        );
-      })}
-    </span>
   );
 }
 

@@ -1,6 +1,9 @@
+import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { VisualEditorCard } from "../../components/editor/VisualEditorCard";
+import type { VisualEditorMode } from "../../components/editor/visual-editor-types";
+import type { SpanInfo } from "../../types/api";
 import {
   sampleBlocks, sampleProject, simpleBoldSpans,
   sampleTMMatches, sampleTermMatches,
@@ -8,6 +11,55 @@ import {
 } from "../fixtures";
 
 const baseBlock = sampleBlocks[1]; // "Click here to continue" — has spans
+
+// ---------------------------------------------------------------------------
+// Interactive wrapper — manages isEditing + editorMode state
+// ---------------------------------------------------------------------------
+
+type CardOverrides = Partial<React.ComponentProps<typeof VisualEditorCard>>;
+
+function InteractiveCard(props: CardOverrides) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editorMode, setEditorMode] = useState<VisualEditorMode>(
+    (props.editorMode as VisualEditorMode) ?? "translate",
+  );
+
+  const block = props.block ?? baseBlock;
+
+  return (
+    <VisualEditorCard
+      block={block}
+      blockIndex={props.blockIndex ?? 1}
+      totalBlocks={props.totalBlocks ?? sampleBlocks.length}
+      targetLocale={props.targetLocale ?? "fr-FR"}
+      editorMode={editorMode}
+      onEditorModeChange={setEditorMode}
+      isEditing={isEditing}
+      onStartEditing={() => setIsEditing(true)}
+      onSave={(_codedText: string, _spans: SpanInfo[]) => setIsEditing(false)}
+      onCancel={() => setIsEditing(false)}
+      onApprove={() => setIsEditing(false)}
+      onReject={() => {}}
+      tmMatches={props.tmMatches ?? []}
+      termMatches={props.termMatches ?? []}
+      onApplyTM={props.onApplyTM ?? (() => {})}
+      onInsertTerm={props.onInsertTerm ?? (() => {})}
+      project={props.project ?? sampleProject}
+      referenceLocales={props.referenceLocales}
+      qaIssues={props.qaIssues}
+      history={props.history}
+      onRevertHistory={props.onRevertHistory}
+      notes={props.notes}
+      onAddNote={props.onAddNote}
+      onDeleteNote={props.onDeleteNote}
+      onTermCreate={props.onTermCreate}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Meta
+// ---------------------------------------------------------------------------
 
 const meta: Meta<typeof VisualEditorCard> = {
   title: "Editor/VisualEditorCard",
@@ -44,62 +96,90 @@ const meta: Meta<typeof VisualEditorCard> = {
 export default meta;
 type Story = StoryObj<typeof VisualEditorCard>;
 
-/** Default translate mode — not editing, no TM matches */
-export const TranslateMode: Story = {};
+// ---------------------------------------------------------------------------
+// Interactive stories — click target to edit, type, Enter/save, Escape/cancel
+// ---------------------------------------------------------------------------
 
-/** Translate mode with editing active */
+/**
+ * Interactive card — click the target area to start editing, type text,
+ * press Enter or click Save to confirm, Escape to cancel.
+ * Use the mode switcher to toggle between translate / review / enrich.
+ */
+export const Interactive: Story = {
+  render: () => <InteractiveCard />,
+};
+
+/** Interactive card with TM matches panel visible */
+export const WithTMMatches: Story = {
+  render: () => <InteractiveCard tmMatches={sampleTMMatches} />,
+};
+
+/** Interactive card in enrich mode with notes */
+export const EnrichMode: Story = {
+  render: () => (
+    <InteractiveCard
+      editorMode="enrich"
+      notes={sampleBlockNotes}
+      onAddNote={fn()}
+      onDeleteNote={fn()}
+      onTermCreate={fn()}
+    />
+  ),
+};
+
+/** Interactive card in review mode — approve/reject are functional */
+export const ReviewMode: Story = {
+  render: () => (
+    <InteractiveCard
+      editorMode="review"
+      block={sampleBlocks[0]}
+      blockIndex={0}
+    />
+  ),
+};
+
+/**
+ * Interactive card with all panels: TM, QA, history, terms, ref locales.
+ * Full editing flow is functional.
+ */
+export const FullFeatured: Story = {
+  render: () => (
+    <InteractiveCard
+      block={sampleBlocks[0]}
+      blockIndex={0}
+      tmMatches={sampleTMMatches}
+      termMatches={sampleTermMatches}
+      qaIssues={sampleQAIssues}
+      history={sampleBlockHistory}
+      onRevertHistory={fn()}
+      referenceLocales={["de-DE"]}
+      notes={sampleBlockNotes}
+      onAddNote={fn()}
+      onDeleteNote={fn()}
+      onTermCreate={fn()}
+    />
+  ),
+};
+
+// ---------------------------------------------------------------------------
+// Static snapshots — design review oriented, not interactive
+// ---------------------------------------------------------------------------
+
+/** Static snapshot: translate mode with editing active */
 export const TranslateModeEditing: Story = {
   args: {
     isEditing: true,
   },
 };
 
-/** Translate mode with TM matches shown */
-export const WithTMMatches: Story = {
-  args: {
-    tmMatches: sampleTMMatches,
-  },
-};
-
-/** Review mode with approve/reject buttons */
-export const ReviewMode: Story = {
-  args: {
-    editorMode: "review",
-    block: sampleBlocks[0],
-    blockIndex: 0,
-  },
-};
-
-/** Enrich mode with notes section */
-export const EnrichMode: Story = {
-  args: {
-    editorMode: "enrich",
-    notes: sampleBlockNotes,
-    onAddNote: fn(),
-    onDeleteNote: fn(),
-    onTermCreate: fn(),
-  },
-};
-
-/** Enrich mode with no existing notes */
-export const EnrichModeEmpty: Story = {
-  args: {
-    editorMode: "enrich",
-    notes: [],
-    onAddNote: fn(),
-    onDeleteNote: fn(),
-    onTermCreate: fn(),
-  },
-};
-
-/** Card showing QA issues (errors + warnings) */
+/** Static snapshot: QA issues badge display */
 export const WithQAIssues: Story = {
   args: {
     qaIssues: sampleQAIssues,
   },
 };
 
-/** Card with block history entries */
+/** Static snapshot: block history entries */
 export const WithHistory: Story = {
   args: {
     history: sampleBlockHistory,
@@ -107,7 +187,7 @@ export const WithHistory: Story = {
   },
 };
 
-/** Card with reference locales displayed */
+/** Static snapshot: reference locales display */
 export const WithReferenceLocales: Story = {
   args: {
     referenceLocales: ["de-DE"],
@@ -116,7 +196,7 @@ export const WithReferenceLocales: Story = {
   },
 };
 
-/** Not-started block (no target text) */
+/** Static snapshot: not-started block (no target text) */
 export const NotStartedBlock: Story = {
   args: {
     block: sampleBlocks[2], // empty targets
@@ -124,7 +204,7 @@ export const NotStartedBlock: Story = {
   },
 };
 
-/** Reviewed block status */
+/** Static snapshot: reviewed block status */
 export const ReviewedBlock: Story = {
   args: {
     block: {
@@ -132,19 +212,5 @@ export const ReviewedBlock: Story = {
       properties: { "translation-status": "reviewed" },
     },
     blockIndex: 0,
-  },
-};
-
-/** Full featured: TM matches, QA, history, ref locales, term matches */
-export const FullFeatured: Story = {
-  args: {
-    block: sampleBlocks[0],
-    blockIndex: 0,
-    tmMatches: sampleTMMatches,
-    termMatches: sampleTermMatches,
-    qaIssues: sampleQAIssues,
-    history: sampleBlockHistory,
-    onRevertHistory: fn(),
-    referenceLocales: ["de-DE"],
   },
 };
