@@ -106,19 +106,29 @@ func (t *TMLeverageTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 // applyEntityAdaptations substitutes entity values in a target Fragment
 // based on the adaptations computed during matching. Returns a new Fragment
-// with adapted values.
+// with adapted values. Preserves inline spans by operating on CodedText
+// directly (replacing text segments while keeping marker runes intact).
 func applyEntityAdaptations(target *model.Fragment, adaptations []EntityAdaptation) *model.Fragment {
 	if target == nil || len(adaptations) == 0 {
 		return target
 	}
 
-	// Apply adaptations to the plain text representation.
-	// This is a simple string replacement — for each adaptation, replace
-	// the stored value with the current value.
-	text := target.Text()
+	// Clone to avoid mutating the stored TM entry.
+	result := target.Clone()
+
+	// Apply adaptations to entity span Data values (for placeholder entities)
+	// and to the plain text segments of CodedText.
 	for _, adapt := range adaptations {
-		text = strings.Replace(text, adapt.StoredValue, adapt.CurrentValue, 1)
+		// Update span Data for entity placeholder spans.
+		for _, s := range result.Spans {
+			if model.IsEntityTypeString(s.Type) && s.Data == adapt.StoredValue {
+				s.Data = adapt.CurrentValue
+			}
+		}
+
+		// Update text segments in CodedText (between markers).
+		result.CodedText = strings.Replace(result.CodedText, adapt.StoredValue, adapt.CurrentValue, 1)
 	}
 
-	return model.NewFragment(text)
+	return result
 }

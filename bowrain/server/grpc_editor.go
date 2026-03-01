@@ -724,10 +724,16 @@ func spanToProto(s *model.Span) *pb.SpanInfo {
 		spanType = "placeholder"
 	}
 	return &pb.SpanInfo{
-		SpanType: spanType,
-		Type:     s.Type,
-		Id:       s.ID,
-		Data:     s.Data,
+		SpanType:    spanType,
+		Type:        s.Type,
+		Id:          s.ID,
+		Data:        s.Data,
+		SubType:     s.SubType,
+		DisplayText: s.DisplayText,
+		EquivText:   s.EquivText,
+		Deletable:   s.Deletable,
+		Cloneable:   s.Cloneable,
+		CanReorder:  s.CanReorder,
 	}
 }
 
@@ -742,10 +748,16 @@ func protoToSpan(si *pb.SpanInfo) *model.Span {
 		st = model.SpanPlaceholder
 	}
 	return &model.Span{
-		SpanType: st,
-		Type:     si.Type,
-		ID:       si.Id,
-		Data:     si.Data,
+		SpanType:    st,
+		Type:        si.Type,
+		ID:          si.Id,
+		Data:        si.Data,
+		SubType:     si.SubType,
+		DisplayText: si.DisplayText,
+		EquivText:   si.EquivText,
+		Deletable:   si.Deletable,
+		Cloneable:   si.Cloneable,
+		CanReorder:  si.CanReorder,
 	}
 }
 

@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
-import { buildPairs, tagNameFromData } from "./tagSemantics";
+import { buildPairs } from "./tagSemantics";
 
 interface TagPaletteProps {
   sourceSpans: SpanInfo[];
@@ -49,7 +49,7 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
     if (!usedSpans) return new Map<string, number>();
     const counts = new Map<string, number>();
     for (const span of usedSpans) {
-      const key = `${(span.type || tagNameFromData(span.data)).toLowerCase()}:${span.span_type}`;
+      const key = `${span.type}:${span.span_type}`;
       counts.set(key, (counts.get(key) || 0) + 1);
     }
     return counts;
@@ -60,7 +60,7 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
 
   function isDimmed(span: SpanInfo): boolean {
     if (!usedSpans) return false;
-    const key = `${(span.type || tagNameFromData(span.data)).toLowerCase()}:${span.span_type}`;
+    const key = `${span.type}:${span.span_type}`;
     const used = usedCounts.get(key) || 0;
     const rendered = renderedCounts.get(key) || 0;
     if (rendered < used) {

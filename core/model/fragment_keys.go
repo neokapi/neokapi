@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// entityTypeLabel extracts the entity label from a type string.
+// "entity:person" → "PERSON", "entity:organization" → "ORGANIZATION".
+func entityTypeLabel(typeName string) string {
+	return strings.ToUpper(strings.TrimPrefix(typeName, EntityPrefix))
+}
+
 // StructuralText returns the fragment text with span markers replaced by
 // numbered placeholders like {1}, {/1}, {2}. This preserves inline code
 // structure while abstracting away the actual markup.
@@ -52,7 +58,7 @@ func (f *Fragment) GeneralizedText() string {
 			span := f.Spans[spanIdx]
 			if isEntitySpan(span) {
 				// Entity spans get typed placeholders.
-				buf.WriteString(fmt.Sprintf("{%s}", strings.ToUpper(span.Type)))
+				buf.WriteString(fmt.Sprintf("{%s}", entityTypeLabel(span.Type)))
 			} else {
 				// Structural spans get numbered placeholders.
 				switch span.SpanType {
@@ -75,13 +81,7 @@ func (f *Fragment) GeneralizedText() string {
 // isEntitySpan returns true if the span represents a named entity
 // (person, product, organization, etc.) rather than structural markup.
 func isEntitySpan(s *Span) bool {
-	switch EntityType(s.Type) {
-	case EntityPerson, EntityOrganization, EntityProduct, EntityLocation,
-		EntityDate, EntityTime, EntityCurrency, EntityMeasurement:
-		return true
-	default:
-		return false
-	}
+	return IsEntityTypeString(s.Type)
 }
 
 // EntitySpans returns only the spans that represent named entities.

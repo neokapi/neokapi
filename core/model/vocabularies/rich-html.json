@@ -1,0 +1,67 @@
+{
+  "name": "rich-html",
+  "version": "1.0",
+  "extends": "common-formatting",
+  "types": {
+    "fmt:strikethrough": {
+      "category": "formatting",
+      "label": "Strikethrough",
+      "html": {"open": "<s>", "close": "</s>"},
+      "display": {"open": "[S]", "close": "[/S]"},
+      "chipLabel": {"open": "S>", "close": "/S", "placeholder": "S"},
+      "color": {"bg": "rgba(239,68,68,0.15)", "border": "rgba(239,68,68,0.5)", "text": "rgb(239,68,68)"},
+      "equiv": "",
+      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+    },
+    "fmt:subscript": {
+      "category": "formatting",
+      "label": "Subscript",
+      "html": {"open": "<sub>", "close": "</sub>"},
+      "display": {"open": "[SUB]", "close": "[/SUB]"},
+      "chipLabel": {"open": "sub>", "close": "/sub", "placeholder": "sub"},
+      "color": {"bg": "rgba(20,184,166,0.15)", "border": "rgba(20,184,166,0.5)", "text": "rgb(20,184,166)"},
+      "equiv": "",
+      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+    },
+    "fmt:superscript": {
+      "category": "formatting",
+      "label": "Superscript",
+      "html": {"open": "<sup>", "close": "</sup>"},
+      "display": {"open": "[SUP]", "close": "[/SUP]"},
+      "chipLabel": {"open": "sup>", "close": "/sup", "placeholder": "sup"},
+      "color": {"bg": "rgba(99,102,241,0.15)", "border": "rgba(99,102,241,0.5)", "text": "rgb(99,102,241)"},
+      "equiv": "",
+      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+    },
+    "fmt:highlight": {
+      "category": "formatting",
+      "label": "Highlight",
+      "html": {"open": "<mark>", "close": "</mark>"},
+      "display": {"open": "[MARK]", "close": "[/MARK]"},
+      "chipLabel": {"open": "mark>", "close": "/mark", "placeholder": "mark"},
+      "color": {"bg": "rgba(251,191,36,0.15)", "border": "rgba(251,191,36,0.5)", "text": "rgb(251,191,36)"},
+      "equiv": "",
+      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+    },
+    "struct:ruby": {
+      "category": "structure",
+      "label": "Ruby Annotation",
+      "html": {"open": "<ruby>", "close": "</ruby>"},
+      "display": {"open": "[RUBY]", "close": "[/RUBY]"},
+      "chipLabel": {"open": "ruby>", "close": "/ruby", "placeholder": "ruby"},
+      "color": {"bg": "rgba(107,114,128,0.15)", "border": "rgba(107,114,128,0.5)", "text": "rgb(107,114,128)"},
+      "equiv": "",
+      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+    },
+    "struct:footnote": {
+      "category": "structure",
+      "label": "Footnote",
+      "html": {"placeholder": "<span data-type=\"struct:footnote\"/>"},
+      "display": {"placeholder": "[FN]"},
+      "chipLabel": {"placeholder": "fn"},
+      "color": {"bg": "rgba(107,114,128,0.15)", "border": "rgba(107,114,128,0.5)", "text": "rgb(107,114,128)"},
+      "equiv": "",
+      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+    }
+  }
+}

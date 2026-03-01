@@ -60,8 +60,15 @@ func TestReadInlineSpans(t *testing.T) {
 	assert.True(t, frag.HasSpans())
 	require.Len(t, frag.Spans, 2)
 	assert.Equal(t, model.SpanOpening, frag.Spans[0].SpanType)
+	assert.Equal(t, "fmt:bold", frag.Spans[0].Type)
+	assert.Equal(t, "html:b", frag.Spans[0].SubType)
+	assert.Equal(t, "1", frag.Spans[0].ID)
 	assert.Equal(t, "<b>", frag.Spans[0].Data)
+	assert.Equal(t, "[B]", frag.Spans[0].DisplayText)
+	assert.True(t, frag.Spans[0].Deletable)
 	assert.Equal(t, model.SpanClosing, frag.Spans[1].SpanType)
+	assert.Equal(t, "fmt:bold", frag.Spans[1].Type)
+	assert.Equal(t, "1", frag.Spans[1].ID) // same ID as opening
 	assert.Equal(t, "</b>", frag.Spans[1].Data)
 }
 
@@ -80,19 +87,22 @@ func TestReadLinkSpan(t *testing.T) {
 	assert.Equal(t, "Visit our site", frag.Text())
 	assert.True(t, frag.HasSpans())
 
-	// Should have opening <a> and closing </a>
+	// Should have opening and closing link:hyperlink spans
 	var openingSpan, closingSpan *model.Span
 	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanOpening && s.Type == "a" {
+		if s.SpanType == model.SpanOpening && s.Type == "link:hyperlink" {
 			openingSpan = s
 		}
-		if s.SpanType == model.SpanClosing && s.Type == "a" {
+		if s.SpanType == model.SpanClosing && s.Type == "link:hyperlink" {
 			closingSpan = s
 		}
 	}
 	require.NotNil(t, openingSpan)
 	require.NotNil(t, closingSpan)
 	assert.Contains(t, openingSpan.Data, "href")
+	assert.Equal(t, "html:a", openingSpan.SubType)
+	assert.Equal(t, "1", openingSpan.ID)
+	assert.Equal(t, openingSpan.ID, closingSpan.ID)
 }
 
 // okapi: HtmlSnippetsTest#paraWithBreak
@@ -110,11 +120,13 @@ func TestReadPlaceholderSpan(t *testing.T) {
 	assert.Equal(t, "Line oneLine two", frag.Text())
 	assert.True(t, frag.HasSpans())
 
-	// br should be a placeholder span
+	// br should be a placeholder span with semantic type
 	found := false
 	for _, s := range frag.Spans {
-		if s.SpanType == model.SpanPlaceholder && s.Type == "br" {
+		if s.SpanType == model.SpanPlaceholder && s.Type == "struct:break" {
 			found = true
+			assert.Equal(t, "html:br", s.SubType)
+			assert.Equal(t, "1", s.ID)
 		}
 	}
 	assert.True(t, found, "expected <br/> to be a placeholder span")

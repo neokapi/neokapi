@@ -1,19 +1,29 @@
 package model
 
+import "strings"
+
 // EntityType classifies named entities found in content.
 type EntityType string
 
 const (
-	EntityPerson       EntityType = "person"
-	EntityOrganization EntityType = "organization"
-	EntityProduct      EntityType = "product"
-	EntityLocation     EntityType = "location"
-	EntityDate         EntityType = "date"
-	EntityTime         EntityType = "time"
-	EntityCurrency     EntityType = "currency"
-	EntityMeasurement  EntityType = "measurement"
-	EntityOther        EntityType = "other"
+	EntityPerson       EntityType = "entity:person"
+	EntityOrganization EntityType = "entity:organization"
+	EntityProduct      EntityType = "entity:product"
+	EntityLocation     EntityType = "entity:location"
+	EntityDate         EntityType = "entity:date"
+	EntityTime         EntityType = "entity:time"
+	EntityCurrency     EntityType = "entity:currency"
+	EntityMeasurement  EntityType = "entity:measurement"
+	EntityOther        EntityType = "entity:other"
+
+	// EntityPrefix is the prefix used for all entity type strings.
+	EntityPrefix = "entity:"
 )
+
+// IsEntityTypeString returns true if the given type string represents an entity type.
+func IsEntityTypeString(typeName string) bool {
+	return strings.HasPrefix(typeName, EntityPrefix)
+}
 
 // EntityAnnotation carries a named entity with its position in source text.
 // Implements the Annotation interface. Used by entity-annotate tool,

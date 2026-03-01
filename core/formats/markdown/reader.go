@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -16,12 +17,15 @@ import (
 // Reader implements DataFormatReader for Markdown files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg   *Config
+	vocab *model.VocabularyRegistry
 }
 
 // NewReader creates a new Markdown reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	vocab := model.NewVocabularyRegistry()
+	_ = vocab.LoadDefaults()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "markdown",
@@ -30,7 +34,8 @@ func NewReader() *Reader {
 			FormatExtensions:  []string{".md", ".markdown"},
 			Cfg:               cfg,
 		},
-		cfg: cfg,
+		cfg:   cfg,
+		vocab: vocab,
 	}
 }
 
@@ -259,51 +264,16 @@ func (r *Reader) extractRawLines(node ast.Node, source []byte) string {
 
 // addInlineSpans adds span information to a block for inline formatting.
 func (r *Reader) addInlineSpans(block *model.Block, node ast.Node, source []byte) {
-	var spans []*inlineSpan
-	r.collectInlineSpans(&spans, node, source)
-	if len(spans) == 0 {
-		return
-	}
-
-	// Build coded text with span markers
+	// Build coded text with span markers using sequential IDs and semantic types.
 	frag := &model.Fragment{}
-	r.buildCodedFragment(frag, node, source)
+	spanCounter := 0
+	r.buildCodedFragment(frag, node, source, &spanCounter)
 	if frag.HasSpans() {
 		block.Source = []*model.Segment{{ID: "s1", Content: frag}}
 	}
 }
 
-type inlineSpan struct {
-	spanType model.SpanType
-	tag      string
-	semType  string
-}
-
-func (r *Reader) collectInlineSpans(spans *[]*inlineSpan, node ast.Node, source []byte) {
-	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
-		switch em := child.(type) {
-		case *ast.Emphasis:
-			var tag, semType string
-			if em.Level == 2 {
-				tag = "**"
-				semType = "bold"
-			} else {
-				tag = "*"
-				semType = "italic"
-			}
-			*spans = append(*spans, &inlineSpan{spanType: model.SpanOpening, tag: tag, semType: semType})
-			r.collectInlineSpans(spans, child, source)
-			*spans = append(*spans, &inlineSpan{spanType: model.SpanClosing, tag: tag, semType: semType})
-		case *ast.CodeSpan:
-			*spans = append(*spans, &inlineSpan{spanType: model.SpanOpening, tag: "`", semType: "code"})
-			*spans = append(*spans, &inlineSpan{spanType: model.SpanClosing, tag: "`", semType: "code"})
-		default:
-			r.collectInlineSpans(spans, child, source)
-		}
-	}
-}
-
-func (r *Reader) buildCodedFragment(frag *model.Fragment, node ast.Node, source []byte) {
+func (r *Reader) buildCodedFragment(frag *model.Fragment, node ast.Node, source []byte, spanCounter *int) {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch n := child.(type) {
 		case *ast.Text:
@@ -314,30 +284,59 @@ func (r *Reader) buildCodedFragment(frag *model.Fragment, node ast.Node, source 
 		case *ast.String:
 			frag.AppendText(string(n.Value))
 		case *ast.Emphasis:
-			var tag, semType string
+			var semType, subType, data string
 			if n.Level == 2 {
-				tag = "**"
-				semType = "bold"
+				semType = "fmt:bold"
+				subType = "md:strong"
+				data = "**"
 			} else {
-				tag = "*"
-				semType = "italic"
+				semType = "fmt:italic"
+				subType = "md:emphasis"
+				data = "*"
 			}
+			*spanCounter++
+			id := strconv.Itoa(*spanCounter)
+			info := r.vocab.LookupOrFallback(semType)
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanOpening,
-				Type:     semType,
-				Data:     tag,
+				SpanType:    model.SpanOpening,
+				Type:        semType,
+				SubType:     subType,
+				ID:          id,
+				Data:        data,
+				DisplayText: info.Display.Open,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
-			r.buildCodedFragment(frag, child, source)
+			r.buildCodedFragment(frag, child, source, spanCounter)
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanClosing,
-				Type:     semType,
-				Data:     tag,
+				SpanType:    model.SpanClosing,
+				Type:        semType,
+				SubType:     subType,
+				ID:          id,
+				Data:        data,
+				DisplayText: info.Display.Close,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
 		case *ast.CodeSpan:
+			*spanCounter++
+			id := strconv.Itoa(*spanCounter)
+			info := r.vocab.LookupOrFallback("fmt:code")
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanOpening,
-				Type:     "code",
-				Data:     "`",
+				SpanType:    model.SpanOpening,
+				Type:        "fmt:code",
+				SubType:     "md:code",
+				ID:          id,
+				Data:        "`",
+				DisplayText: info.Display.Open,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
 			for gc := n.FirstChild(); gc != nil; gc = gc.NextSibling() {
 				if t, ok := gc.(*ast.Text); ok {
@@ -345,24 +344,48 @@ func (r *Reader) buildCodedFragment(frag *model.Fragment, node ast.Node, source 
 				}
 			}
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanClosing,
-				Type:     "code",
-				Data:     "`",
+				SpanType:    model.SpanClosing,
+				Type:        "fmt:code",
+				SubType:     "md:code",
+				ID:          id,
+				Data:        "`",
+				DisplayText: info.Display.Close,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
 		case *ast.Link:
+			*spanCounter++
+			id := strconv.Itoa(*spanCounter)
+			info := r.vocab.LookupOrFallback("link:hyperlink")
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanOpening,
-				Type:     "link",
-				Data:     "[",
+				SpanType:    model.SpanOpening,
+				Type:        "link:hyperlink",
+				SubType:     "md:link",
+				ID:          id,
+				Data:        "[",
+				DisplayText: info.Display.Open,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
-			r.buildCodedFragment(frag, child, source)
+			r.buildCodedFragment(frag, child, source, spanCounter)
 			frag.AppendSpan(&model.Span{
-				SpanType: model.SpanClosing,
-				Type:     "link",
-				Data:     fmt.Sprintf("](%s)", string(n.Destination)),
+				SpanType:    model.SpanClosing,
+				Type:        "link:hyperlink",
+				SubType:     "md:link",
+				ID:          id,
+				Data:        fmt.Sprintf("](%s)", string(n.Destination)),
+				DisplayText: info.Display.Close,
+				EquivText:   info.Equiv,
+				Deletable:   info.Constraints.Deletable,
+				Cloneable:   info.Constraints.Cloneable,
+				CanReorder:  info.Constraints.Reorderable,
 			})
 		default:
-			r.buildCodedFragment(frag, child, source)
+			r.buildCodedFragment(frag, child, source, spanCounter)
 		}
 	}
 }
