@@ -459,3 +459,75 @@ export const navigationBlocks: BlockInfo[] = [
     properties: { state: "translated" },
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Inline code pipeline blocks — blocks with dense mixed-content markup
+// produced by code finder rules matching HTML tags in JSON values.
+// ---------------------------------------------------------------------------
+
+/**
+ * Blocks simulating output from a JSON filter with codeFinderRules enabled.
+ * Shows realistic mixed-content segments with multiple inline code categories:
+ * paired formatting (b, i, a, code) and self-closing placeholders (br, img).
+ */
+export const inlineCodeBlocks: BlockInfo[] = [
+  {
+    id: "ic-1",
+    source: "Click here to learn more about our features.",
+    source_coded: `Click ${O}here${C} to learn more about our ${O}features${C}.`,
+    source_spans: [
+      { span_type: "opening", type: "a", id: "1", data: '<a href="/features">' },
+      { span_type: "closing", type: "a", id: "1", data: "</a>" },
+      { span_type: "opening", type: "b", id: "2", data: "<b>" },
+      { span_type: "closing", type: "b", id: "2", data: "</b>" },
+    ],
+    targets: {
+      "fr-FR": `Cliquez ${O}ici${C} pour en savoir plus sur nos ${O}fonctionnalit\u00e9s${C}.`,
+    },
+    targets_coded: {
+      "fr-FR": `Cliquez ${O}ici${C} pour en savoir plus sur nos ${O}fonctionnalit\u00e9s${C}.`,
+    },
+    translatable: true,
+    has_spans: true,
+    properties: { state: "translated" },
+  },
+  {
+    id: "ic-2",
+    source: "Important: Run kapi init to get started.\nSee the docs for more.",
+    source_coded: `${O}Important:${C} Run ${O}kapi init${C} to get started.${P}See the ${O}docs${C} for more.`,
+    source_spans: [
+      { span_type: "opening", type: "b", id: "3", data: "<b>" },
+      { span_type: "closing", type: "b", id: "3", data: "</b>" },
+      { span_type: "opening", type: "code", id: "4", data: "<code>" },
+      { span_type: "closing", type: "code", id: "4", data: "</code>" },
+      { span_type: "placeholder", type: "br", id: "5", data: "<br/>" },
+      { span_type: "opening", type: "a", id: "6", data: '<a href="/docs">' },
+      { span_type: "closing", type: "a", id: "6", data: "</a>" },
+    ],
+    targets: {
+      "fr-FR": `${O}Important\u00a0:${C} Ex\u00e9cutez ${O}kapi init${C} pour commencer.${P}Consultez la ${O}documentation${C} pour plus de d\u00e9tails.`,
+    },
+    targets_coded: {
+      "fr-FR": `${O}Important\u00a0:${C} Ex\u00e9cutez ${O}kapi init${C} pour commencer.${P}Consultez la ${O}documentation${C} pour plus de d\u00e9tails.`,
+    },
+    translatable: true,
+    has_spans: true,
+    properties: { state: "draft" },
+  },
+  {
+    id: "ic-3",
+    source: "Upload your file (max 10 MB) and click Submit.",
+    source_coded: `Upload your file (max ${O}10 MB${C}) and click ${O}Submit${C}.`,
+    source_spans: [
+      { span_type: "opening", type: "i", id: "7", data: "<i>" },
+      { span_type: "closing", type: "i", id: "7", data: "</i>" },
+      { span_type: "opening", type: "b", id: "8", data: "<b>" },
+      { span_type: "closing", type: "b", id: "8", data: "</b>" },
+    ],
+    targets: { "fr-FR": "" },
+    targets_coded: { "fr-FR": "" },
+    translatable: true,
+    has_spans: true,
+    properties: {},
+  },
+];
