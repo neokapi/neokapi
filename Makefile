@@ -15,8 +15,10 @@ GOBUILD     := $(GO) build
 GOVET       := $(GO) vet
 GOFMT       := gofmt
 MODULE      := github.com/gokapi/gokapi
+CLI_MOD     := github.com/gokapi/gokapi/cli
 PLATFORM    := github.com/gokapi/gokapi/platform
 KAPI_MOD    := github.com/gokapi/gokapi/kapi
+BRAIN_MOD   := github.com/gokapi/gokapi/brain
 BOWRAIN     := github.com/gokapi/gokapi/bowrain
 CLI_PKG     := $(KAPI_MOD)/cmd/kapi
 SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
@@ -44,7 +46,7 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-kapi lint fmt vet proto clean install cover tools help \
+        test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-brain test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
@@ -96,7 +98,7 @@ build-bowrain: frontend-build ## Build the Bowrain desktop app
 
 build-brain: ## Build brain CLI
 	@mkdir -p $(BIN_DIR)
-	cd bowrain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
+	cd brain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
 
 build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
 	@mkdir -p $(BIN_DIR)
@@ -108,7 +110,7 @@ install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
 
 install-brain: ## Install brain CLI to GOPATH/bin
-	cd bowrain && $(GO) install $(LDFLAGS) ./cmd/brain
+	cd brain && $(GO) install $(LDFLAGS) ./cmd/brain
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -276,35 +278,45 @@ videos-render: videos-setup ## Render all polished demo videos
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
-test: ## Run all tests (all four modules)
+test: ## Run all tests (all modules)
 	$(GOTEST) ./... -count=1
+	cd cli && $(GOTEST) ./... -count=1
 	cd platform && $(GOTEST) ./... -count=1
 	cd kapi && $(GOTEST) ./... -count=1
+	cd brain && $(GOTEST) ./... -count=1
 	cd bowrain && $(GOTEST) ./... -count=1
 
 test-fast: ## Run all tests with caching (fast local iteration)
 	$(GOTEST) ./...
+	cd cli && $(GOTEST) ./...
 	cd platform && $(GOTEST) ./...
 	cd kapi && $(GOTEST) ./...
+	cd brain && $(GOTEST) ./...
 	cd bowrain && $(GOTEST) ./...
 
-test-parallel: ## Run all tests in parallel (all four modules concurrently)
+test-parallel: ## Run all tests in parallel (all modules concurrently)
 	@$(GOTEST) ./... -count=1 & \
+	(cd cli && $(GOTEST) ./... -count=1) & \
 	(cd platform && $(GOTEST) ./... -count=1) & \
 	(cd kapi && $(GOTEST) ./... -count=1) & \
+	(cd brain && $(GOTEST) ./... -count=1) & \
 	(cd bowrain && $(GOTEST) ./... -count=1) & \
 	wait
 
 test-unit: ## Run unit tests only (exclude integration)
 	$(GOTEST) ./... -count=1 -short
+	cd cli && $(GOTEST) ./... -count=1 -short
 	cd platform && $(GOTEST) ./... -count=1 -short
 	cd kapi && $(GOTEST) ./... -count=1 -short
+	cd brain && $(GOTEST) ./... -count=1 -short
 	cd bowrain && $(GOTEST) ./... -count=1 -short
 
 test-race: ## Run tests with race detector
 	$(GOTEST) ./... -count=1 -race
+	cd cli && $(GOTEST) ./... -count=1 -race
 	cd platform && $(GOTEST) ./... -count=1 -race
 	cd kapi && $(GOTEST) ./... -count=1 -race
+	cd brain && $(GOTEST) ./... -count=1 -race
 	cd bowrain && $(GOTEST) ./... -count=1 -race
 
 test-framework: ## Run framework tests only
@@ -313,8 +325,14 @@ test-framework: ## Run framework tests only
 test-platform: ## Run platform module tests only
 	cd platform && $(GOTEST) ./... -count=1
 
+test-cli: ## Run cli module tests only
+	cd cli && $(GOTEST) ./... -count=1
+
 test-kapi: ## Run kapi CLI tests only
 	cd kapi && $(GOTEST) ./... -count=1
+
+test-brain: ## Run brain CLI tests only
+	cd brain && $(GOTEST) ./... -count=1
 
 test-bowrain: ## Run bowrain tests only
 	cd bowrain && $(GOTEST) ./... -count=1
@@ -372,19 +390,25 @@ test-e2e: ## Run end-to-end tests against Docker stack
 
 test-verbose: ## Run tests with verbose output
 	$(GOTEST) ./... -count=1 -v
+	cd cli && $(GOTEST) ./... -count=1 -v
 	cd platform && $(GOTEST) ./... -count=1 -v
 	cd kapi && $(GOTEST) ./... -count=1 -v
+	cd brain && $(GOTEST) ./... -count=1 -v
 	cd bowrain && $(GOTEST) ./... -count=1 -v
 
 cover: ## Run tests with coverage
 	@mkdir -p $(COVER_DIR)
 	$(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/framework.out -covermode=atomic
+	cd cli && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/cli.out -covermode=atomic
 	cd platform && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/platform.out -covermode=atomic
 	cd kapi && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/kapi.out -covermode=atomic
+	cd brain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/brain.out -covermode=atomic
 	cd bowrain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/bowrain.out -covermode=atomic
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/platform.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/kapi.out >> $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/brain.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/bowrain.out >> $(COVER_DIR)/coverage.out
 	$(GO) tool cover -html=$(COVER_DIR)/coverage.out -o $(COVER_DIR)/coverage.html
 	@echo "Coverage report: $(COVER_DIR)/coverage.html"
@@ -396,15 +420,19 @@ fmt: ## Format Go source files
 
 vet: ## Run go vet
 	$(GOVET) ./...
+	cd cli && $(GOVET) ./...
 	cd platform && $(GOVET) ./...
 	cd kapi && $(GOVET) ./...
+	cd brain && $(GOVET) ./...
 	cd bowrain && $(GOVET) ./...
 
 lint: ## Run golangci-lint
 ifdef GOLANGCI_LINT
 	$(GOLANGCI_LINT) run ./...
+	cd cli && $(GOLANGCI_LINT) run ./...
 	cd platform && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
+	cd brain && $(GOLANGCI_LINT) run ./...
 	cd bowrain && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -463,17 +491,23 @@ clean: ## Remove build artifacts
 
 deps: ## Download and tidy dependencies
 	$(GO) mod download && $(GO) mod tidy
+	cd cli && $(GO) mod download && $(GO) mod tidy
 	cd platform && $(GO) mod download && $(GO) mod tidy
 	cd kapi && $(GO) mod download && $(GO) mod tidy
+	cd brain && $(GO) mod download && $(GO) mod tidy
 	cd bowrain && $(GO) mod download && $(GO) mod tidy
 
 deps-update: ## Update all dependencies
 	$(GO) get -u ./...
 	$(GO) mod tidy
+	cd cli && $(GO) get -u ./...
+	cd cli && $(GO) mod tidy
 	cd platform && $(GO) get -u ./...
 	cd platform && $(GO) mod tidy
 	cd kapi && $(GO) get -u ./...
 	cd kapi && $(GO) mod tidy
+	cd brain && $(GO) get -u ./...
+	cd brain && $(GO) mod tidy
 	cd bowrain && $(GO) get -u ./...
 	cd bowrain && $(GO) mod tidy
 

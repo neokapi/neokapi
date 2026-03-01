@@ -107,85 +107,82 @@ notifications. See [AD-001](/docs/ad/001-vision) and
 ```
 gokapi/                              ── Framework Module ──
 ├── go.mod                           # module github.com/gokapi/gokapi
-├── go.work                          # workspace: use . and ./bowrain
+├── go.work                          # workspace: use . ./cli ./platform ./kapi ./brain ./bowrain
 │
-├── model/                           # Part, Block, Layer, Fragment, Span, Data, Media
-├── format/                          # DataFormatReader/Writer interfaces, detection
-├── tool/                            # Tool interface, BaseTool dispatch
-├── flow/                            # FlowExecutor, FlowBuilder, FlowDefinition
-├── registry/                        # FormatRegistry, ToolRegistry
-├── encoding/                        # Text encoding utilities
-├── locale/                          # BCP-47 locale handling
-├── editor/                          # Block index serialization and preview generation
-├── version/                         # Build version info
+├── core/                            # All framework Go packages
+│   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
+│   ├── format/                      # DataFormatReader/Writer interfaces, detection
+│   ├── tool/                        # Tool interface, BaseTool dispatch
+│   ├── flow/                        # FlowExecutor, FlowBuilder, FlowDefinition
+│   ├── registry/                    # FormatRegistry, ToolRegistry
+│   ├── encoding/                    # Text encoding utilities
+│   ├── locale/                      # BCP-47 locale handling
+│   ├── editor/                      # Block index serialization and preview generation
+│   ├── version/                     # Build version info
+│   │
+│   ├── formats/                     # 15 built-in format implementations
+│   │   ├── html/                    # Each has reader.go, writer.go, config.go
+│   │   ├── xml/, xliff/, xliff2/, json/, yaml/, po/
+│   │   ├── properties/, plaintext/, markdown/, csv/
+│   │   ├── srt/, vtt/, tmx/
+│   │   └── register.go              # init() registration
+│   │
+│   ├── ai/                          # AI/LLM integration (providers + tools)
+│   ├── mt/                          # Machine translation (providers + tools)
+│   ├── sievepen/                    # Translation memory (interface + in-memory)
+│   ├── termbase/                    # Terminology management (interface + in-memory)
+│   ├── tools/                       # Utility tools (wordcount, pseudo, segmentation, etc.)
+│   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
+│   └── testutil/                    # Shared test helpers
 │
-├── formats/                         # 15 built-in format implementations
-│   ├── html/                        # Each has reader.go, writer.go, config.go
-│   ├── xml/
-│   ├── xliff/
-│   ├── xliff2/
-│   ├── json/
-│   ├── yaml/
-│   ├── po/
-│   ├── properties/
-│   ├── plaintext/
-│   ├── markdown/
-│   ├── csv/
-│   ├── srt/
-│   ├── vtt/
-│   ├── tmx/
-│   └── register.go                  # init() registration
+│                                    ── CLI Module ──
+├── cli/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/cli (framework only)
+│   ├── config/                      # Viper-based app configuration (~/.config/kapi/)
+│   └── output/                      # Shared output formatting + types
 │
-├── ai/                              # AI/LLM integration
-│   ├── provider/                    # LLMProvider: Anthropic, OpenAI, Ollama
-│   ├── tools/                       # AI translate, QA, terminology, review
-│   └── prompt/                      # Prompt templates
+│                                    ── Platform Module ──
+├── platform/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/platform (framework only)
+│   ├── project/                     # .brain/ project model (types, config, sync cache)
+│   ├── auth/                        # Auth types, JWT, device flow client
+│   ├── connector/                   # Connector interfaces + base types
+│   ├── client/                      # REST client for bowrain API
+│   ├── config/                      # Auth persistence (StoredAuth, LoadAuth, SaveAuth)
+│   ├── store/                       # ContentStore interface + domain types
+│   ├── event/                       # Event types + bus interface
+│   └── credentials/                 # Provider credential management
 │
-├── mt/                              # Machine translation
-│   ├── provider/                    # MTProvider: DeepL, Google, Microsoft, ModernMT, MyMemory
-│   └── tools/                       # MT translate tool
+│                                    ── Kapi Module ──
+├── kapi/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/kapi (framework + cli)
+│   └── cmd/kapi/                    # Thin root cmd wiring shared CLI commands
 │
-├── sievepen/                        # Translation memory (interface + in-memory)
-├── termbase/                        # Terminology management (interface + in-memory)
-├── tools/                           # Utility tools (wordcount, pseudo, segmentation, etc.)
+│                                    ── Brain Module ──
+├── brain/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/brain (framework + cli + platform)
+│   └── cmd/brain/                   # Brain CLI (project cmds + shared CLI base)
+│       └── output/                  # Brain-specific output types
 │
-├── plugin/                          # Plugin system
-│   ├── host/                        # PluginManager, gRPC clients
-│   ├── server/                      # gRPC server helpers (plugin side)
-│   ├── bridge/                      # Okapi bridge: gRPC protocol, pool, format adapters
-│   ├── loader/                      # Plugin discovery and loading
-│   ├── registry/                    # Multi-version plugin registry
-│   ├── shared/                      # DTO types shared between host and bridge
-│   └── proto/                       # Protobuf service definitions
-│
-├── testutil/                        # Shared test helpers
-│
-├── bowrain/                         ── Platform Module ──
-│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain
-│   ├── config/                      # Viper-based AppConfig
-│   ├── store/                       # ContentStore + SQLite implementation
-│   ├── auth/                        # OIDC, JWT, device flow authentication
-│   ├── connector/                   # System connectors (CMS, file, git)
-│   ├── project/                     # .kapi/ project model
-│   ├── event/                       # Event bus, webhooks, automation
-│   ├── service/                     # Auth, project, connector, flow services
-│   ├── credentials/                 # Credential management
+│                                    ── Bowrain Module ──
+├── bowrain/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain (framework + platform)
+│   ├── auth/                        # OIDC, AuthStore, SQLite auth
+│   ├── connector/                   # Concrete connector implementations
+│   ├── store/                       # SQLite ContentStore implementation
 │   ├── server/                      # HTTP/gRPC server handlers
-│   ├── storage/                     # SQLite migration utilities
+│   ├── service/                     # Auth, project, connector, flow services
+│   ├── event/                       # Event bus implementation + automation
 │   ├── sievepen/                    # SQLite TM implementation
 │   ├── termbase/                    # SQLite TermBase implementation
-│   ├── proto/v1/                    # gRPC protobuf definitions
-│   ├── cmd/
-│   │   ├── kapi/                    # Cobra CLI
-│   │   └── bowrain-server/          # Echo v4 REST API server
-│   ├── apps/
-│   │   ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
-│   │   ├── web/                     # SaaS web UI
-│   │   └── kapi-web/               # kapi serve web UI
-│   └── packages/
-│       └── ui/                      # Shared React component library (@gokapi/ui)
+│   ├── cmd/bowrain-server/          # Echo v4 REST API server
+│   └── apps/
+│       ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
+│       ├── web/                     # SaaS web UI
+│       └── kapi-web/               # kapi serve web UI
 │
-│   ── Non-Go Assets (stay at root) ──
+│   ── Non-Go Assets ──
+├── packages/ui/                     # Shared React component library (@gokapi/ui)
 ├── docs/                            # Architecture decisions, notes
 └── website/                         # Docusaurus 3 documentation site
 ```

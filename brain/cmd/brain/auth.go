@@ -10,7 +10,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
+	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	cliconfig "github.com/gokapi/gokapi/cli/config"
 	"github.com/gokapi/gokapi/platform/auth"
 	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
@@ -231,7 +232,7 @@ func resolveServerURLFrom(explicit string) string {
 		return explicit
 	}
 	// Check global config (includes KAPI_SERVER_URL env via Viper BindEnv).
-	cfg := config.NewAppConfig()
+	cfg := cliconfig.NewAppConfig()
 	_ = cfg.Load()
 	if u := cfg.ServerURL(); u != "" {
 		return u

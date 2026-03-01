@@ -17,12 +17,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       framework: ${{ github.event_name == 'push' || steps.filter.outputs.framework }}
+      cli: ${{ github.event_name == 'push' || steps.filter.outputs.cli }}
       platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
+      brain: ${{ github.event_name == 'push' || steps.filter.outputs.brain }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain }}
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.brain || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,8 +51,10 @@ jobs:
           }
 
           check_paths framework '^core/' '^go\.(mod|sum|work)$' '^\.github/workflows/ci\.yml$'
+          check_paths cli       '^cli/'
           check_paths platform  '^platform/'
           check_paths kapi      '^kapi/'
+          check_paths brain     '^brain/'
           # bowrain: anything under bowrain/ except the frontend app dirs
           if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/apps/(web|kapi-web|bowrain/frontend)/' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
@@ -171,11 +175,56 @@ jobs:
           path: platform/platform.out
           retention-days: 1
 
+  test-cli:
+    name: Test (cli)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
+      - name: Run cli tests
+        run: |
+          cd cli
+          go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-cli.json -out junit-cli.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: CLI Tests
+          path: junit-cli.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-cli.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-cli
+          path: cli/cli.out
+          retention-days: 1
+
   test-kapi:
     name: Test (kapi)
     runs-on: ubuntu-latest
     needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.kapi == 'true')
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true')
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -214,6 +263,51 @@ jobs:
         with:
           name: coverage-kapi
           path: kapi/kapi.out
+          retention-days: 1
+
+  test-brain:
+    name: Test (brain)
+    runs-on: ubuntu-latest
+    needs: [changes, frontend]
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.brain == 'true')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Install go-junit-report
+        run: go install github.com/jstemmer/go-junit-report/v2@latest
+
+      - name: Run brain tests
+        run: |
+          cd brain
+          go test -race -coverprofile=brain.out -covermode=atomic -json ./... > ../test-results-brain.json 2>&1 || true
+
+      - name: Convert to JUnit XML
+        if: always()
+        run: go-junit-report -in test-results-brain.json -out junit-brain.xml
+
+      - name: Report test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Brain Tests
+          path: junit-brain.xml
+          reporter: java-junit
+
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q '"Action":"fail"' test-results-brain.json 2>/dev/null; then
+            echo "Tests failed"
+            exit 1
+          fi
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-brain
+          path: brain/brain.out
           retention-days: 1
 
   test-bowrain:
@@ -266,7 +360,7 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [test-framework, test-platform, test-kapi, test-bowrain]
+    needs: [test-framework, test-cli, test-platform, test-kapi, test-brain, test-bowrain]
     if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v4
@@ -286,7 +380,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in platform.out kapi.out bowrain.out; do
+          for f in cli.out platform.out kapi.out brain.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi
@@ -324,6 +418,14 @@ jobs:
           version: latest
           args: --timeout=5m ./...
 
+      - name: Lint cli
+        uses: golangci/golangci-lint-action@v7
+        with:
+          install-mode: binary
+          version: latest
+          working-directory: cli
+          args: --timeout=5m ./...
+
       - name: Lint platform
         uses: golangci/golangci-lint-action@v7
         with:
@@ -338,6 +440,14 @@ jobs:
           install-mode: binary
           version: latest
           working-directory: kapi
+          args: --timeout=5m ./...
+
+      - name: Lint brain
+        uses: golangci/golangci-lint-action@v7
+        with:
+          install-mode: binary
+          version: latest
+          working-directory: brain
           args: --timeout=5m ./...
 
       - name: Install Linux dependencies for Wails
@@ -392,7 +502,7 @@ jobs:
         run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
 
       - name: Build brain CLI
-        run: cd bowrain && go build -o ../bin/brain ./cmd/brain
+        run: cd brain && go build -o ../bin/brain ./cmd/brain
 
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
@@ -400,11 +510,31 @@ jobs:
       - name: Verify framework module isolation
         run: GOWORK=off go build ./...
 
+      - name: Verify cli module isolation
+        run: GOWORK=off bash -c "cd cli && go build ./..."
+
       - name: Verify platform module isolation
         run: GOWORK=off bash -c "cd platform && go build ./..."
 
       - name: Verify kapi module isolation
         run: GOWORK=off bash -c "cd kapi && go build ./..."
+
+      - name: Verify brain module isolation
+        run: GOWORK=off bash -c "cd brain && go build ./..."
+
+      - name: Verify kapi has no platform dep
+        run: |
+          if cd kapi && GOWORK=off go list -m all | grep -q 'gokapi/platform'; then
+            echo "kapi should not depend on platform"
+            exit 1
+          fi
+
+      - name: Verify bowrain has no cli dep
+        run: |
+          if cd bowrain && GOWORK=off go list -m all | grep -q 'gokapi/cli'; then
+            echo "bowrain should not depend on cli"
+            exit 1
+          fi
 
       - name: Verify kapi has no heavy deps
         run: |

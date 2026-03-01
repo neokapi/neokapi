@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/core/preset"
-	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

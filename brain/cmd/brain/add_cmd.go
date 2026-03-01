@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
+	"github.com/gokapi/gokapi/brain/cmd/brain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )

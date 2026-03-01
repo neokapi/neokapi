@@ -16,7 +16,7 @@ import (
 	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/platform/cli"
+	"github.com/gokapi/gokapi/cli"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

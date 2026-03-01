@@ -4,11 +4,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/bowrain/cmd/brain/output"
+	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/cli"
+	cliconfig "github.com/gokapi/gokapi/cli/config"
+	clioutput "github.com/gokapi/gokapi/cli/output"
 	"github.com/gokapi/gokapi/core/preset"
-	"github.com/gokapi/gokapi/platform/cli"
-	clioutput "github.com/gokapi/gokapi/platform/cli/output"
-	"github.com/gokapi/gokapi/platform/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -24,12 +24,12 @@ var rootCmd = &cobra.Command{
 Initialize a .brain/ project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		app.Config = config.NewAppConfig()
-		app.RegistryResolver = func() []config.RegistryEntry {
+		app.Config = cliconfig.NewAppConfig()
+		app.RegistryResolver = func() []cliconfig.RegistryEntry {
 			if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
-				entries := make([]config.RegistryEntry, len(proj.Config.Registries))
+				entries := make([]cliconfig.RegistryEntry, len(proj.Config.Registries))
 				for i, r := range proj.Config.Registries {
-					entries[i] = config.RegistryEntry{Name: r.Name, URL: r.URL, Channels: r.Channels}
+					entries[i] = cliconfig.RegistryEntry{Name: r.Name, URL: r.URL, Channels: r.Channels}
 				}
 				return entries
 			}

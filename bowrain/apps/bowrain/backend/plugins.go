@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/core/plugin/registry"
-	"github.com/gokapi/gokapi/platform/config"
 )
+
+const defaultRegistryURL = "https://gokapi.github.io/registry/plugins.json"
 
 // Capability describes a specific format or tool provided by a plugin.
 type Capability struct {
@@ -47,9 +48,7 @@ type PluginUpdateInfo struct {
 func (a *App) remoteRegistry() *registry.RemoteRegistry {
 	url := a.pluginSearchRegistry
 	if url == "" {
-		cfg := config.NewAppConfig()
-		_ = cfg.Load()
-		url = cfg.RegistryURL()
+		url = defaultRegistryURL
 	}
 	return registry.NewRemoteRegistry(url, a.PluginDir())
 }

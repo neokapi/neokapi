@@ -20,7 +20,7 @@ const sidebars: SidebarsConfig = {
     '015-auth-and-workspaces',
     '016-kapi-project-model',
     '017-cli-output-format',
-    '018-four-module-architecture',
+    '018-multi-module-architecture',
     '019-mt-providers',
     '020-collaborative-editor',
     '021-mcp-integration',

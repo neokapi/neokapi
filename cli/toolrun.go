@@ -15,7 +15,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/cli/output"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
