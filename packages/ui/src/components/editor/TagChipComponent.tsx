@@ -7,12 +7,15 @@ interface TagChipComponentProps {
   pairIndex?: number;     // pair number badge
   highlighted?: boolean;  // partner-tag hover glow
   dimmed?: boolean;       // already-used in palette
+  locked?: boolean;       // non-deletable tag (dashed border, lock tooltip)
 }
 
-export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed }: TagChipComponentProps) {
+export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed, locked }: TagChipComponentProps) {
   const colors = tagColors(spanInfo);
   const label = semanticLabel(spanInfo);
-  const tooltip = semanticTooltip(spanInfo);
+  const tooltip = locked
+    ? `${semanticTooltip(spanInfo)} (locked — cannot be removed)`
+    : semanticTooltip(spanInfo);
 
   return (
     <span
@@ -20,6 +23,7 @@ export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimm
         ...chipStyle,
         backgroundColor: colors.bg,
         borderColor: colors.border,
+        borderStyle: locked ? "dashed" : "solid",
         color: colors.text,
         boxShadow: highlighted ? `0 0 0 2px ${colors.border}` : undefined,
         opacity: dimmed ? 0.4 : undefined,

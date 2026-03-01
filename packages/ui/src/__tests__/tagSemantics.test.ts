@@ -260,6 +260,47 @@ describe("validateTags", () => {
     expect(result.errors.some(e => e.type === "unpaired")).toBe(true);
   });
 
+  it("reports deleted_non_deletable for missing non-deletable tag", () => {
+    const source = [span("placeholder", "struct:break", "<br/>")];
+    const target: SpanInfo[] = [];
+    const result = validateTags(source, target);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.type === "deleted_non_deletable")).toBe(true);
+    expect(result.errors.some(e => e.type === "missing_tag")).toBe(false);
+  });
+
+  it("reports missing_tag (not deleted_non_deletable) for deletable tag", () => {
+    const source = [span("opening", "fmt:bold", "<b>")];
+    const target: SpanInfo[] = [];
+    const result = validateTags(source, target);
+
+    expect(result.errors.some(e => e.type === "missing_tag")).toBe(true);
+    expect(result.errors.some(e => e.type === "deleted_non_deletable")).toBe(false);
+  });
+
+  it("reports cloned_non_cloneable for duplicated non-cloneable tag", () => {
+    const source = [span("placeholder", "code:variable", "{x}")];
+    const target = [
+      span("placeholder", "code:variable", "{x}"),
+      span("placeholder", "code:variable", "{x}"),
+    ];
+    const result = validateTags(source, target);
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.some(e => e.type === "cloned_non_cloneable")).toBe(true);
+    expect(result.warnings.some(w => w.type === "extra_tag")).toBe(false);
+  });
+
+  it("reports extra_tag (not cloned_non_cloneable) for cloneable tag", () => {
+    const source: SpanInfo[] = [];
+    const target = [span("opening", "fmt:bold", "<b>")];
+    const result = validateTags(source, target);
+
+    expect(result.warnings.some(w => w.type === "extra_tag")).toBe(true);
+    expect(result.errors.some(e => e.type === "cloned_non_cloneable")).toBe(false);
+  });
+
   it("handles mixed valid and invalid tags", () => {
     const source = [
       span("opening", "fmt:bold", "<b>"),

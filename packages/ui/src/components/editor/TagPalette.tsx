@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
-import { buildPairs } from "./tagSemantics";
+import { buildPairs, semanticLabel } from "./tagSemantics";
+import { isCloneable } from "./tagConstraints";
 
 interface TagPaletteProps {
   sourceSpans: SpanInfo[];
@@ -78,14 +79,17 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
           <span style={pairLabelStyle}>{group.pairIndex}</span>
           {group.spans.map(({ span, sourceIndex }) => {
             const dimmed = isDimmed(span);
+            const blocked = dimmed && !isCloneable(span);
+            const label = semanticLabel(span);
             return (
               <button
                 key={sourceIndex}
-                onClick={() => onInsert(span)}
+                onClick={() => { if (!blocked) onInsert(span); }}
                 onMouseEnter={() => setHoveredPairIndex(group.pairIndex)}
                 onMouseLeave={() => setHoveredPairIndex(null)}
-                style={buttonStyle}
-                title={`Insert tag (Ctrl+${sourceIndex + 1})`}
+                style={{ ...buttonStyle, cursor: blocked ? "not-allowed" : "pointer" }}
+                title={blocked ? `"${label}" cannot be duplicated` : `Insert tag (Ctrl+${sourceIndex + 1})`}
+                disabled={blocked}
                 data-testid={`tag-palette-${sourceIndex}`}
               >
                 <TagChipComponent

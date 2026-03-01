@@ -10,9 +10,14 @@ import {
   $createParagraphNode,
   $createTextNode,
   $isElementNode,
+  $isNodeSelection,
   COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_CRITICAL,
   KEY_ENTER_COMMAND,
   KEY_ESCAPE_COMMAND,
+  KEY_BACKSPACE_COMMAND,
+  KEY_DELETE_COMMAND,
+  CUT_COMMAND,
   $getSelection,
   $isRangeSelection,
   type LexicalEditor,
@@ -20,6 +25,7 @@ import {
 import type { SpanInfo } from "../../types/api";
 import { parseCodedSegments, segmentsToCodedText, type CodedSegment } from "./codedText";
 import { TagChipNode, $createTagChipNode, $isTagChipNode } from "./TagChipNode";
+import { isDeletable, isCloneable } from "./tagConstraints";
 import { TagPalette } from "./TagPalette";
 import { TagValidationBar } from "./TagValidationBar";
 import { InlinePreview } from "./InlinePreview";
@@ -108,8 +114,56 @@ function KeyHandlerPlugin({
   return null;
 }
 
+/** Plugin that prevents deletion of non-deletable tag chips. */
+function TagConstraintPlugin() {
+  const [editor] = useLexicalComposerContext();
+
+  useEffect(() => {
+    function selectionContainsNonDeletable(): boolean {
+      const selection = $getSelection();
+      if ($isNodeSelection(selection)) {
+        for (const node of selection.getNodes()) {
+          if ($isTagChipNode(node) && !isDeletable(node.getSpanInfo())) return true;
+        }
+      }
+      if ($isRangeSelection(selection)) {
+        for (const node of selection.getNodes()) {
+          if ($isTagChipNode(node) && !isDeletable(node.getSpanInfo())) return true;
+        }
+      }
+      return false;
+    }
+
+    const handler = () => selectionContainsNonDeletable();
+
+    const unregBackspace = editor.registerCommand(
+      KEY_BACKSPACE_COMMAND,
+      handler,
+      COMMAND_PRIORITY_CRITICAL,
+    );
+    const unregDelete = editor.registerCommand(
+      KEY_DELETE_COMMAND,
+      handler,
+      COMMAND_PRIORITY_CRITICAL,
+    );
+    const unregCut = editor.registerCommand(
+      CUT_COMMAND,
+      handler,
+      COMMAND_PRIORITY_CRITICAL,
+    );
+
+    return () => {
+      unregBackspace();
+      unregDelete();
+      unregCut();
+    };
+  }, [editor]);
+
+  return null;
+}
+
 /** Plugin that handles Ctrl+1..9 keyboard shortcuts for tag insertion. */
-function TagShortcutPlugin({ sourceSpans }: { sourceSpans: SpanInfo[] }) {
+function TagShortcutPlugin({ sourceSpans, usedSpans }: { sourceSpans: SpanInfo[]; usedSpans?: SpanInfo[] }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -120,6 +174,15 @@ function TagShortcutPlugin({ sourceSpans }: { sourceSpans: SpanInfo[] }) {
 
       e.preventDefault();
       const span = sourceSpans[num - 1];
+
+      // Block insertion of non-cloneable tags already present in target.
+      if (!isCloneable(span) && usedSpans) {
+        const key = `${span.type}:${span.span_type}`;
+        const usedCount = usedSpans.filter(s => `${s.type}:${s.span_type}` === key).length;
+        const sourceCount = sourceSpans.filter(s => `${s.type}:${s.span_type}` === key).length;
+        if (usedCount >= sourceCount) return;
+      }
+
       editor.update(() => {
         const selection = $getSelection();
         if ($isRangeSelection(selection)) {
@@ -134,7 +197,7 @@ function TagShortcutPlugin({ sourceSpans }: { sourceSpans: SpanInfo[] }) {
       root.addEventListener("keydown", handleKeyDown);
       return () => root.removeEventListener("keydown", handleKeyDown);
     }
-  }, [editor, sourceSpans]);
+  }, [editor, sourceSpans, usedSpans]);
 
   return null;
 }
@@ -248,7 +311,8 @@ export function TargetCellEditor({
         />
         <HistoryPlugin />
         <KeyHandlerPlugin onSave={handleSave} onCancel={onCancel} />
-        <TagShortcutPlugin sourceSpans={sourceSpans} />
+        <TagConstraintPlugin />
+        <TagShortcutPlugin sourceSpans={sourceSpans} usedSpans={currentSpans} />
         <EditorObserverPlugin sourceSpans={sourceSpans} onUpdate={handleEditorUpdate} />
       </LexicalComposer>
       <TagPalette sourceSpans={sourceSpans} onInsert={handleInsertTag} usedSpans={currentSpans} />
