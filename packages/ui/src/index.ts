@@ -55,6 +55,7 @@ export { InviteManager } from "./components/InviteManager";
 
 // Editor components
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
+export { FormattedSourceDisplay } from "./components/editor/FormattedSourceDisplay";
 export { TargetCellEditor } from "./components/editor/TargetCellEditor";
 export { TagChipNode, $createTagChipNode, $isTagChipNode } from "./components/editor/TagChipNode";
 export { TagChipComponent } from "./components/editor/TagChipComponent";

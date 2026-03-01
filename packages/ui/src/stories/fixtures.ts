@@ -32,6 +32,16 @@ export const strikeClose: SpanInfo = { span_type: "closing", type: "s", id: "8",
 export const supOpen: SpanInfo = { span_type: "opening", type: "sup", id: "9", data: "<sup>" };
 export const supClose: SpanInfo = { span_type: "closing", type: "sup", id: "9", data: "</sup>" };
 
+// Markdown-style spans (semantic types, delimiter data)
+export const mdBoldOpen: SpanInfo = { span_type: "opening", type: "bold", id: "1", data: "**" };
+export const mdBoldClose: SpanInfo = { span_type: "closing", type: "bold", id: "1", data: "**" };
+export const mdItalicOpen: SpanInfo = { span_type: "opening", type: "italic", id: "2", data: "*" };
+export const mdItalicClose: SpanInfo = { span_type: "closing", type: "italic", id: "2", data: "*" };
+export const mdCodeOpen: SpanInfo = { span_type: "opening", type: "code", id: "3", data: "`" };
+export const mdCodeClose: SpanInfo = { span_type: "closing", type: "code", id: "3", data: "`" };
+export const mdLinkOpen: SpanInfo = { span_type: "opening", type: "link", id: "4", data: "[" };
+export const mdLinkClose: SpanInfo = { span_type: "closing", type: "link", id: "4", data: "](https://docs.example.com)" };
+
 // Unicode markers used in coded text
 const O = "\uE001"; // opening
 const C = "\uE002"; // closing
@@ -62,6 +72,14 @@ export const richCodedText = `${O}Bold${C} and ${O}italic${C} with ${O}a link${C
 export const richSpans: SpanInfo[] = [
   boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose, codeOpen, codeClose, lineBreak,
 ];
+
+/** Markdown: "Click **here** to *learn more*" */
+export const mdFormattingCodedText = `Click ${O}here${C} to ${O}learn more${C}`;
+export const mdFormattingSpans: SpanInfo[] = [mdBoldOpen, mdBoldClose, mdItalicOpen, mdItalicClose];
+
+/** Markdown: "Run `kapi init` and visit [docs](url)" */
+export const mdRichCodedText = `Run ${O}kapi init${C} and visit ${O}docs${C}`;
+export const mdRichSpans: SpanInfo[] = [mdCodeOpen, mdCodeClose, mdLinkOpen, mdLinkClose];
 
 // ---------------------------------------------------------------------------
 // Block samples

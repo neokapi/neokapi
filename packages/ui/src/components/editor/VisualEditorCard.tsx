@@ -5,6 +5,7 @@ import type {
 } from "../../types/api";
 import type { VisualEditorMode } from "./visual-editor-types";
 import { SourceCellDisplay } from "./SourceCellDisplay";
+import { FormattedSourceDisplay } from "./FormattedSourceDisplay";
 import { TargetCellEditor } from "./TargetCellEditor";
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
@@ -13,7 +14,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { cn } from "../../lib/utils";
-import { Check, X, ChevronDown, ChevronRight, AlertTriangle, Info } from "../icons";
+import { Check, X, ChevronDown, ChevronRight, AlertTriangle, Info, Code } from "../icons";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -122,6 +123,7 @@ export function VisualEditorCard({
   const [noteText, setNoteText] = useState("");
   const [termPopoverOpen, setTermPopoverOpen] = useState(false);
   const [selectedSourceText, setSelectedSourceText] = useState("");
+  const [codeView, setCodeView] = useState(false);
 
   const status = getBlockStatus(block, targetLocale);
   const sc = statusConfig[status];
@@ -261,17 +263,39 @@ export function VisualEditorCard({
           )}
           onMouseUp={handleSourceMouseUp}
         >
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-            Source
-            {editorMode === "enrich" && (
-              <span className="ml-2 font-normal text-[9px] normal-case">(select text to create term)</span>
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Source
+              {editorMode === "enrich" && (
+                <span className="ml-2 font-normal text-[9px] normal-case">(select text to create term)</span>
+              )}
+            </div>
+            {block.has_spans && (
+              <button
+                type="button"
+                onClick={() => setCodeView((v) => !v)}
+                className={cn(
+                  "inline-flex items-center gap-0.5 text-[10px] px-1 py-0 h-4 rounded transition-colors",
+                  codeView
+                    ? "text-foreground bg-muted-foreground/15"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10",
+                )}
+                title={codeView ? "Switch to formatted view" : "Switch to code view"}
+                data-testid="code-view-toggle"
+              >
+                <Code className="w-3 h-3" />
+              </button>
             )}
           </div>
           <div className="text-sm leading-relaxed">
             {termMatches.length > 0 ? (
               <HighlightedSource text={block.source} termMatches={termMatches} />
             ) : block.has_spans && block.source_coded ? (
-              <SourceCellDisplay codedText={sourceCodedText} spans={sourceSpans} />
+              codeView ? (
+                <SourceCellDisplay codedText={sourceCodedText} spans={sourceSpans} />
+              ) : (
+                <FormattedSourceDisplay codedText={sourceCodedText} spans={sourceSpans} />
+              )
             ) : (
               <span>{block.source}</span>
             )}
