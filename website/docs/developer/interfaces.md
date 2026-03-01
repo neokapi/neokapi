@@ -143,20 +143,30 @@ type SpanType int
 const (
     SpanOpening     SpanType = iota // Opening tag (e.g., <b>)
     SpanClosing                     // Closing tag (e.g., </b>)
-    SpanPlaceholder                 // Self-closing (e.g., <br/>)
+    SpanPlaceholder                 // Self-closing/standalone (e.g., <br/>)
 )
 
 // Span represents an inline markup element within a Fragment.
 type Span struct {
-    SpanType  SpanType
-    Type      string // Semantic type (e.g., "bold", "link")
-    ID        string
-    Data      string // Original markup (e.g., "<b>")
-    OuterData string
-    Deletable bool
-    Cloneable bool
+    SpanType    SpanType
+    Type        string // Semantic type (e.g., "bold", "link", "image")
+    ID          string
+    Data        string // Original markup verbatim (e.g., "<b>", "<a href=\"/help\">")
+    OuterData   string // Outer context when needed
+    Deletable   bool   // Can a translator remove this code?
+    Cloneable   bool   // Can a translator duplicate this code?
+    OriginalID  string // Original ID before merging/splitting
+    DisplayText string // Human-readable label for editors (e.g., "[B]")
+    EquivText   string // Plain text equivalent (e.g., "\n" for <br>)
+    CanReorder  bool   // Can this code be reordered in translation?
+    Flags       int    // Bitfield: SpanFlagHasRef, SpanFlagAdded, SpanFlagMerged, SpanFlagMarkerMasking
+    Annotations map[string]Annotation
 }
 ```
+
+Markers in `CodedText` map to spans positionally. See
+[Implementing a Format](/docs/developer/formats#inline-code-handling) for
+a complete guide to building and reconstructing inline codes.
 
 ### Data, Media, Group markers
 
