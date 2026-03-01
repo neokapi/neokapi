@@ -18,13 +18,13 @@ Input Files -> [Tool 1] -> [Tool 2] -> [Tool 3] -> Output Files
 ```
 
 Flows automatically:
-- Read files matching `.brain/config.yaml` mappings
+- Read files matching `.bowrain/config.yaml` mappings
 - Process through each tool in sequence
 - Write results back to local files
 
 ## Built-In Flows
 
-Brain includes several built-in flows:
+Bowrain CLI includes several built-in flows:
 
 | Flow | Description |
 |------|-------------|
@@ -44,17 +44,17 @@ brain flow list
 # Run a flow (project-based)
 brain flow run ai-translate
 
-# Standalone mode (without .brain/ project)
+# Standalone mode (without .bowrain/ project)
 brain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Custom Flows
 
-Create custom flows in `.brain/flows/` as YAML files.
+Create custom flows in `.bowrain/flows/` as YAML files.
 
 ### Example: Translation with QA
 
-`.brain/flows/translate-with-qa.yaml`:
+`.bowrain/flows/translate-with-qa.yaml`:
 
 ```yaml
 name: translate-with-qa
@@ -63,7 +63,7 @@ description: AI translation with quality checks and terminology enforcement
 steps:
   - tool: term-lookup
     config:
-      termbase: .brain/termbase.tbx
+      termbase: .bowrain/termbase.tbx
 
   - tool: ai-translate
     config:
@@ -73,7 +73,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .brain/termbase.tbx
+      termbase: .bowrain/termbase.tbx
       required: true
 
   - tool: qa-check
@@ -116,7 +116,7 @@ Available tools for flows:
 
 ## How Flows Work
 
-1. **File Discovery**: Brain reads files matching `.brain/config.yaml` mappings
+1. **File Discovery**: Bowrain CLI reads files matching `.bowrain/config.yaml` mappings
 2. **Parsing**: Each file is parsed into blocks (translatable units)
 3. **Processing**: Blocks stream through tools in sequence
 4. **Writing**: Results are written back to local files
@@ -138,7 +138,7 @@ Benefits:
 
 ## Next Steps
 
-- [Create Custom Flows](/docs/brain-cli/flows/custom-flows)
-- [Configure Hooks](/docs/brain-cli/flows/hooks)
+- [Create Custom Flows](/docs/bowrain-cli/flows/custom-flows)
+- [Configure Hooks](/docs/bowrain-cli/flows/hooks)
 - [Available Tools](/docs/features/formats)
-- [Flow Command Reference](/docs/brain-cli/commands/flow)
+- [Flow Command Reference](/docs/bowrain-cli/commands/flow)

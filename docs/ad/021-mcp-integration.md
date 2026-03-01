@@ -18,7 +18,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 Each CLI exposes its own MCP server via a `mcp` subcommand:
 
 - **`kapi mcp`** — Ad-hoc file processing tools. No project directory required. Operates on individual files.
-- **`brain mcp`** — Project management tools. Requires a `.brain/` project directory ([AD-016](./016-kapi-project-model.md)). Manages sync state with Bowrain Server.
+- **`brain mcp`** — Project management tools. Requires a `.bowrain/` project directory ([AD-016](./016-kapi-project-model.md)). Manages sync state with Bowrain Server.
 
 Both servers use the official Go MCP SDK (`github.com/modelcontextprotocol/go-sdk`) and communicate over newline-delimited JSON-RPC on stdio (`StdioTransport`).
 
@@ -26,7 +26,7 @@ Both servers use the official Go MCP SDK (`github.com/modelcontextprotocol/go-sd
 
 The separation mirrors the existing CLI architecture ([AD-013](./013-cli-and-server.md)):
 - **Kapi** = standalone file tool, no project or server dependency
-- **Brain** = project sync companion, `.brain/` context required
+- **Brain** = project sync companion, `.bowrain/` context required
 
 Combining them would force agents to reason about when project context is needed. Keeping them separate lets agents connect to the appropriate server based on the task.
 

@@ -3,15 +3,15 @@ sidebar_position: 3
 title: Project Model
 ---
 
-# Brain Project Model
+# Bowrain Project Model
 
-Brain uses a `.brain/` directory (like `.git`) to manage localization projects within your repository.
+Bowrain CLI uses a `.bowrain/` directory (like `.git`) to manage localization projects within your repository.
 
 ## Directory Structure
 
 ```
 my-app/
-├── .brain/
+├── .bowrain/
 │   ├── config.yaml       # Project configuration
 │   ├── flows/            # Custom flow definitions
 │   │   └── my-flow.yaml
@@ -24,7 +24,7 @@ my-app/
 │       │   └── messages.json
 │       └── fr/
 │           └── messages.json
-└── .gitignore            # Add .brain/.sync-cache
+└── .gitignore            # Add .bowrain/.sync-cache
 ```
 
 ## config.yaml
@@ -101,11 +101,11 @@ mappings:
 
 ## Project Discovery
 
-Brain searches for `.brain/` by walking up the directory tree (like git):
+Bowrain CLI searches for `.bowrain/` by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-brain status  # Finds .brain/ at ../../../.brain/
+brain status  # Finds .bowrain/ at ../../../.bowrain/
 ```
 
 All commands work from any subdirectory within the project.
@@ -115,20 +115,20 @@ All commands work from any subdirectory within the project.
 ### Commit to git
 
 Files to commit:
-- `.brain/config.yaml` — project settings
-- `.brain/flows/*.yaml` — flow definitions
+- `.bowrain/config.yaml` — project settings
+- `.bowrain/flows/*.yaml` — flow definitions
 
 ### Do NOT commit
 
 Files that should NOT be committed (auto-gitignored):
-- `.brain/.sync-cache` — local sync cache (block hashes + cursor)
-- `.brain/.server-token` — authentication token
+- `.bowrain/.sync-cache` — local sync cache (block hashes + cursor)
+- `.bowrain/.server-token` — authentication token
 
-`brain init` automatically creates `.brain/.gitignore` with these entries.
+`brain init` automatically creates `.bowrain/.gitignore` with these entries.
 
 ## Initialization
 
-Create a new Brain project:
+Create a new Bowrain project:
 
 ```bash
 cd my-app/
@@ -136,10 +136,10 @@ brain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
 This creates:
-1. `.brain/` directory
-2. `.brain/config.yaml` with specified settings
-3. `.brain/flows/` for custom flows
-4. `.brain/.gitignore` to exclude cache and token files
+1. `.bowrain/` directory
+2. `.bowrain/config.yaml` with specified settings
+3. `.bowrain/flows/` for custom flows
+4. `.bowrain/.gitignore` to exclude cache and token files
 
 ## Server Connection (Optional)
 
@@ -149,7 +149,7 @@ Connect an existing project to Bowrain Server:
 brain init --server https://bowrain.example.com --project abc123
 ```
 
-This updates `.brain/config.yaml` with server details. You can then:
+This updates `.bowrain/config.yaml` with server details. You can then:
 
 ```bash
 brain push    # Upload local source blocks to server
@@ -159,7 +159,7 @@ brain status  # Show sync state (pending push/pull)
 
 ## Next Steps
 
-- [Initialize a Project](/docs/brain-cli/commands/init)
-- [Configure File Mappings](/docs/brain-cli/commands/init#configuration-file)
-- [Custom Flows](/docs/brain-cli/flows/custom-flows)
-- [Server Sync](/docs/brain-cli/commands/push)
+- [Initialize a Project](/docs/bowrain-cli/commands/init)
+- [Configure File Mappings](/docs/bowrain-cli/commands/init#configuration-file)
+- [Custom Flows](/docs/bowrain-cli/flows/custom-flows)
+- [Server Sync](/docs/bowrain-cli/commands/push)

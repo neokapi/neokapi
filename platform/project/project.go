@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// BrainDir is the project directory name.
-	BrainDir = ".brain"
+	// BowrainDir is the project directory name.
+	BowrainDir = ".bowrain"
 
 	// ConfigFile is the project configuration file.
 	ConfigFile = "config.yaml"
@@ -19,19 +19,19 @@ const (
 	FlowsDir = "flows"
 )
 
-// Project represents a .brain/ project.
+// Project represents a .bowrain/ project.
 type Project struct {
-	// Root is the project root directory (contains .brain/).
+	// Root is the project root directory (contains .bowrain/).
 	Root string
 
-	// ConfigDir is the .brain/ directory path.
+	// ConfigDir is the .bowrain/ directory path.
 	ConfigDir string
 
 	// Config is the loaded project configuration.
 	Config *Config
 }
 
-// FindProject searches for a .brain/ directory starting from the current directory
+// FindProject searches for a .bowrain/ directory starting from the current directory
 // and walking up the directory tree (like git).
 func FindProject(startDir string) (*Project, error) {
 	if startDir == "" {
@@ -49,55 +49,55 @@ func FindProject(startDir string) (*Project, error) {
 
 	dir := absStart
 	for {
-		brainDir := filepath.Join(dir, BrainDir)
-		if st, err := os.Stat(brainDir); err == nil && st.IsDir() {
-			cfg, err := LoadConfig(brainDir)
+		bowrainDir := filepath.Join(dir, BowrainDir)
+		if st, err := os.Stat(bowrainDir); err == nil && st.IsDir() {
+			cfg, err := LoadConfig(bowrainDir)
 			if err != nil {
 				return nil, fmt.Errorf("load config: %w", err)
 			}
 
 			return &Project{
 				Root:      dir,
-				ConfigDir: brainDir,
+				ConfigDir: bowrainDir,
 				Config:    cfg,
 			}, nil
 		}
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return nil, fmt.Errorf("no .brain/ directory found (searched from %s)", absStart)
+			return nil, fmt.Errorf("no .bowrain/ directory found (searched from %s)", absStart)
 		}
 		dir = parent
 	}
 }
 
-// InitProject creates a new .brain/ project in the specified directory.
+// InitProject creates a new .bowrain/ project in the specified directory.
 func InitProject(root string, cfg *Config) (*Project, error) {
 	absRoot, err := filepath.Abs(root)
 	if err != nil {
 		return nil, fmt.Errorf("absolute path: %w", err)
 	}
 
-	brainDir := filepath.Join(absRoot, BrainDir)
+	bowrainDir := filepath.Join(absRoot, BowrainDir)
 
-	if _, err := os.Stat(brainDir); err == nil {
-		return nil, fmt.Errorf(".brain/ directory already exists at %s", brainDir)
+	if _, err := os.Stat(bowrainDir); err == nil {
+		return nil, fmt.Errorf(".bowrain/ directory already exists at %s", bowrainDir)
 	}
 
-	if err := os.MkdirAll(brainDir, 0755); err != nil {
-		return nil, fmt.Errorf("create .brain directory: %w", err)
+	if err := os.MkdirAll(bowrainDir, 0755); err != nil {
+		return nil, fmt.Errorf("create .bowrain directory: %w", err)
 	}
 
-	flowsDir := filepath.Join(brainDir, FlowsDir)
+	flowsDir := filepath.Join(bowrainDir, FlowsDir)
 	if err := os.MkdirAll(flowsDir, 0755); err != nil {
 		return nil, fmt.Errorf("create flows directory: %w", err)
 	}
 
-	if err := SaveConfig(brainDir, cfg); err != nil {
+	if err := SaveConfig(bowrainDir, cfg); err != nil {
 		return nil, fmt.Errorf("save config: %w", err)
 	}
 
-	gitignorePath := filepath.Join(brainDir, ".gitignore")
+	gitignorePath := filepath.Join(bowrainDir, ".gitignore")
 	gitignoreContent := "# Brain sync cache (local only)\n.sync-cache\n"
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		return nil, fmt.Errorf("create .gitignore: %w", err)
@@ -105,7 +105,7 @@ func InitProject(root string, cfg *Config) (*Project, error) {
 
 	return &Project{
 		Root:      absRoot,
-		ConfigDir: brainDir,
+		ConfigDir: bowrainDir,
 		Config:    cfg,
 	}, nil
 }
@@ -128,7 +128,7 @@ func (p *Project) FlowsDirPath() string {
 	return filepath.Join(p.ConfigDir, FlowsDir)
 }
 
-// Config represents the .brain/config.yaml structure.
+// Config represents the .bowrain/config.yaml structure.
 type Config struct {
 	Project ProjectMeta `yaml:"project"`
 

@@ -28,8 +28,8 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 
 	// Create project structure.
 	root := t.TempDir()
-	brainDir := filepath.Join(root, ".brain")
-	require.NoError(t, os.MkdirAll(brainDir, 0755))
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 	// Write a JSON source file.
 	srcDir := filepath.Join(root, "src", "locales")
@@ -57,7 +57,7 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 
 	proj := &Project{
 		Root:      root,
-		ConfigDir: brainDir,
+		ConfigDir: bowrainDir,
 		Config:    cfg,
 	}
 
@@ -135,7 +135,7 @@ func containsSubstr(s, sub string) bool {
 func TestNewSourceConnector_RequiresServer(t *testing.T) {
 	proj := &Project{
 		Root:      t.TempDir(),
-		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
+		ConfigDir: filepath.Join(t.TempDir(), ".bowrain"),
 		Config:    &Config{},
 	}
 
@@ -147,7 +147,7 @@ func TestNewSourceConnector_RequiresServer(t *testing.T) {
 func TestNewSourceConnector_RequiresURL(t *testing.T) {
 	proj := &Project{
 		Root:      t.TempDir(),
-		ConfigDir: filepath.Join(t.TempDir(), ".brain"),
+		ConfigDir: filepath.Join(t.TempDir(), ".bowrain"),
 		Config:    &Config{Server: &ServerConfig{ProjectID: "p1"}},
 	}
 

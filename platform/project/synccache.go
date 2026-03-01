@@ -11,7 +11,7 @@ import (
 const syncCacheFile = ".sync-cache"
 
 // SyncCache tracks the last known server state for incremental sync.
-// It is stored in .brain/.sync-cache and is gitignored.
+// It is stored in .bowrain/.sync-cache and is gitignored.
 type SyncCache struct {
 	ServerURL  string                `json:"server_url"`
 	ProjectID  string                `json:"project_id"`
@@ -27,7 +27,7 @@ type FileCache struct {
 	Blocks map[string]string `json:"blocks"` // blockID → contentHash
 }
 
-// LoadSyncCache loads the sync cache from .brain/.sync-cache.
+// LoadSyncCache loads the sync cache from .bowrain/.sync-cache.
 // Returns an empty cache if the file doesn't exist or is corrupt.
 func LoadSyncCache(configDir string) *SyncCache {
 	data, err := os.ReadFile(filepath.Join(configDir, syncCacheFile))
@@ -45,7 +45,7 @@ func LoadSyncCache(configDir string) *SyncCache {
 	return &cache
 }
 
-// Save persists the sync cache to .brain/.sync-cache.
+// Save persists the sync cache to .bowrain/.sync-cache.
 func (c *SyncCache) Save(configDir string) error {
 	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {

@@ -3,15 +3,15 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Brain CLI
+# Bowrain CLI
 
-Brain is the project companion CLI for Bowrain — the localization platform. It manages `.brain/` projects in your repository and syncs with Bowrain Server for team collaboration.
+Bowrain CLI is the project companion CLI for the Bowrain localization platform. It manages `.bowrain/` projects in your repository and syncs with Bowrain Server for team collaboration.
 
-## What is Brain?
+## What is Bowrain CLI?
 
-Brain is to Bowrain Server as **git is to GitHub** — a local-first project management tool that:
+Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first project management tool that:
 
-- Initializes and manages `.brain/` projects in your repository
+- Initializes and manages `.bowrain/` projects in your repository
 - Runs translation flows (AI, MT, TM, QA) on project files
 - Syncs changes with Bowrain Server via push/pull
 - Provides project status, diff, and configuration commands
@@ -20,7 +20,7 @@ Brain is to Bowrain Server as **git is to GitHub** — a local-first project man
 
 ### Project Model
 
-`.brain/` directories (like `.git/`) contain:
+`.bowrain/` directories (like `.git/`) contain:
 - **config.yaml** — project settings, file mappings, locales
 - **flows/** — custom YAML flow definitions
 - **.sync-cache** — sync cache (gitignored, local only)
@@ -33,12 +33,12 @@ Composable pipelines that process files through tools:
 # Run built-in AI translation flow
 brain flow run ai-translate
 
-# Create custom flows in .brain/flows/my-flow.yaml
+# Create custom flows in .bowrain/flows/my-flow.yaml
 # Run custom flow
 brain flow run my-flow
 ```
 
-Flows automatically process all files matching `.brain/config.yaml` mappings.
+Flows automatically process all files matching `.bowrain/config.yaml` mappings.
 
 ### Server Sync
 
@@ -63,13 +63,13 @@ brain config project.name "My App"     # Set project name
 brain config --global server.url https://bowrain.example.com  # Set global server URL
 ```
 
-## When to Use Brain
+## When to Use Bowrain CLI
 
-Use Brain CLI when you:
+Use Bowrain CLI when you:
 
-- **Manage localization projects** with `.brain/` configuration
+- **Manage localization projects** with `.bowrain/` configuration
 - **Sync with Bowrain Server** for team collaboration
-- **Run project-based flows** defined in `.brain/flows/`
+- **Run project-based flows** defined in `.bowrain/flows/`
 - **Want automation** via CI/CD pipelines
 
 Use kapi CLI when you:
@@ -109,7 +109,7 @@ brain status
 
 ## Next Steps
 
-- [Project Model](/docs/brain-cli/project-model)
-- [Commands Reference](/docs/brain-cli/commands/init)
-- [Flows](/docs/brain-cli/flows/overview)
-- [Use Cases](/docs/brain-cli/use-cases/website-translation)
+- [Project Model](/docs/bowrain-cli/project-model)
+- [Commands Reference](/docs/bowrain-cli/commands/init)
+- [Flows](/docs/bowrain-cli/flows/overview)
+- [Use Cases](/docs/bowrain-cli/use-cases/website-translation)

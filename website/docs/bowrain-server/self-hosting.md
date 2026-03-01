@@ -233,7 +233,7 @@ Add a cron job for regular backups:
 
 ## CLI Connection
 
-Connect the Brain CLI to your self-hosted server:
+Connect the Bowrain CLI to your self-hosted server:
 
 ```bash
 brain auth login --server https://bowrain.example.com

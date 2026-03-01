@@ -43,18 +43,18 @@ brain push --force
 
 ## What Happens
 
-1. **Read local files** via FormatRegistry (using `.brain/config.yaml` mappings)
+1. **Read local files** via FormatRegistry (using `.bowrain/config.yaml` mappings)
 2. **Extract blocks** from each file (streaming Parts -> Blocks)
 3. **Compute block hashes** using `BlockIdentity` (SHA-256)
-4. **Compare with `.brain/.sync-cache`** to identify changed blocks
+4. **Compare with `.bowrain/.sync-cache`** to identify changed blocks
 5. **Send changed blocks** to server via `POST /api/v1/projects/:id/sync/push`
    - Batched at 1000 blocks per request
    - Server enforces batch limits and body size (50MB)
-6. **Update `.brain/.sync-cache`** with new hashes and sync cursor
+6. **Update `.bowrain/.sync-cache`** with new hashes and sync cursor
 
 ## Content Hashing
 
-Brain uses content-addressed blocks for efficient sync:
+Bowrain CLI uses content-addressed blocks for efficient sync:
 
 ```
 content_hash = sha256(normalized_source_text)
@@ -65,7 +65,7 @@ where 5 changed will only transfer those 5 blocks.
 
 ## Sync Cache
 
-Push state is tracked in `.brain/.sync-cache` (auto-gitignored):
+Push state is tracked in `.bowrain/.sync-cache` (auto-gitignored):
 
 ```json
 {
@@ -94,9 +94,9 @@ The sync cache can be safely deleted — it will be regenerated on the next push
 
 ## Related Commands
 
-- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch changes from server
-- [`brain status`](/docs/brain-cli/commands/status) — Show what will be pushed
-- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed changes
+- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
+- [`brain status`](/docs/bowrain-cli/commands/status) — Show what will be pushed
+- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

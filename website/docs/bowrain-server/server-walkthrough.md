@@ -131,7 +131,7 @@ invites, see usage counts, and revoke invites that are no longer needed.
 
 ## CLI Connection
 
-Connect the Brain CLI to your server for command-line workflows:
+Connect the Bowrain CLI to your server for command-line workflows:
 
 ```bash
 brain auth login --server http://localhost:8080

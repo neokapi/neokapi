@@ -22,7 +22,7 @@ With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
 Use --global to read/write the global config file (~/.config/kapi/kapi.yaml).
-Without --global, reads/writes the project config file (.brain/config.yaml).
+Without --global, reads/writes the project config file (.bowrain/config.yaml).
 
 Examples:
   brain config project.name                       # Print project name
@@ -80,7 +80,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no .brain/ project found (run 'brain init' first, or use --global)")
+		return fmt.Errorf("no .bowrain/ project found (run 'brain init' first, or use --global)")
 	}
 
 	configPath := filepath.Join(proj.ConfigDir, project.ConfigFile)

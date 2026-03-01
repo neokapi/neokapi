@@ -70,11 +70,11 @@ const GokapiFeatures: ProductItem[] = [
 
 const BowrainFeatures: ProductItem[] = [
   {
-    title: 'Brain CLI',
+    title: 'Bowrain CLI',
     description:
       'Git-like project management for localization. Initialize projects, sync with servers, run flows, and manage terminology from the terminal.',
-    link: '/docs/brain-cli/overview',
-    linkText: 'Brain CLI',
+    link: '/docs/bowrain-cli/overview',
+    linkText: 'Bowrain CLI',
   },
   {
     title: 'Visual Editor',
@@ -126,7 +126,7 @@ function HomepageFeatures() {
           Bowrain Platform
         </Heading>
         <p className="text--center margin-bottom--lg">
-          Full-stack localization platform with <Link to="/docs/brain-cli/overview">Brain CLI</Link>, visual editor, and server.
+          Full-stack localization platform with <Link to="/docs/bowrain-cli/overview">Bowrain CLI</Link>, visual editor, and server.
         </p>
         <div className="row">
           {BowrainFeatures.map((props, idx) => (

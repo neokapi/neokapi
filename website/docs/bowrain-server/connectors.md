@@ -15,7 +15,7 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 | **Design** | Figma, Sketch | UI text strings from designs |
 | **Code** | GitHub, GitLab, Bitbucket | Localization files in repos |
 | **Marketing** | HubSpot, Marketo | Campaign and email content |
-| **File** | Brain CLI | Local file sync |
+| **File** | Bowrain CLI | Local file sync |
 
 ## How Connectors Work
 
@@ -27,9 +27,9 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 External System ←→ Connector ←→ Bowrain Server ←→ Translators
 ```
 
-## File Connector (Brain CLI)
+## File Connector (Bowrain CLI)
 
-Brain CLI acts as a file connector:
+Bowrain CLI acts as a file connector:
 
 ```bash
 # Initialize connection to server
@@ -42,7 +42,7 @@ brain pull
 brain push -m "Translate new features"
 ```
 
-See [Brain CLI documentation](/docs/brain-cli/overview) for details.
+See [Bowrain CLI documentation](/docs/bowrain-cli/overview) for details.
 
 ## Server-Side Connectors
 
@@ -97,7 +97,7 @@ action:
 
 Server-side connectors are under development. Currently supported:
 
-- **File connector** via Brain CLI (placeholder)
+- **File connector** via Bowrain CLI (placeholder)
 - **GitHub connector** (in progress)
 - **Contentful connector** (planned)
 
@@ -105,6 +105,6 @@ Server-side connectors are under development. Currently supported:
 
 ## Next Steps
 
-- [Brain CLI](/docs/brain-cli/overview)
+- [Bowrain CLI](/docs/bowrain-cli/overview)
 - [Automation](/docs/bowrain-server/automation)
 - [Workspaces](/docs/bowrain-server/workspaces)

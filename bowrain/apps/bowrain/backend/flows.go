@@ -109,15 +109,15 @@ func infoToFlowDef(info FlowDefinitionInfo) flow.FlowDefinition {
 }
 
 func (a *App) flowStore() *flow.FlowStore {
-	dir := filepath.Join(defaultBrainDir(), "flows")
+	dir := filepath.Join(defaultBowrainDir(), "flows")
 	return flow.NewFlowStore(dir)
 }
 
-func defaultBrainDir() string {
+func defaultBowrainDir() string {
 	if home, err := os.UserHomeDir(); err == nil {
-		return filepath.Join(home, ".brain")
+		return filepath.Join(home, ".bowrain")
 	}
-	return ".brain"
+	return ".bowrain"
 }
 
 // ListFlowDefinitions returns all flow definitions (built-in + user).

@@ -12,7 +12,7 @@ The repository is a **multi-module monorepo** with six Go modules:
 - **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base used by both kapi and brain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, version), output formatting, Viper-based app config. Depends on framework only. No platform dependency.
 - **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
 - **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
-- **Brain** (`github.com/gokapi/gokapi/brain`) — project sync companion CLI: manages `.brain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
+- **Brain** (`github.com/gokapi/gokapi/brain`) — project sync companion CLI (Bowrain CLI): manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
 - **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite storage. Depends on framework + platform. No CLI dependency.
 
 Both **kapi** and **brain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., brain adds project flow support via a `RegistryResolver` hook).
@@ -76,7 +76,7 @@ For the multi-module structure:
 - CLI packages: `cd cli && go build ./...`
 - Platform packages: `cd platform && go build ./...`
 - Kapi CLI: `cd kapi && go build ./...`
-- Brain CLI: `cd brain && go build ./...`
+- Bowrain CLI: `cd brain && go build ./...`
 - Bowrain packages: `cd bowrain && go build ./...`
 - With `go.work`, all modules resolve cross-module imports automatically
 - `GOWORK=off go build ./...` verifies framework module isolation
@@ -123,7 +123,7 @@ gokapi/
 │   ── Platform Module ───────────────────
 ├── platform/
 │   ├── go.mod             # module github.com/gokapi/gokapi/platform (framework only)
-│   ├── project/           # .brain/ project model (types, config, sync cache)
+│   ├── project/           # .bowrain/ project model (types, config, sync cache)
 │   ├── auth/              # Auth types, JWT, device flow client
 │   ├── connector/         # Connector interfaces + base types
 │   ├── client/            # REST client for bowrain API
@@ -142,7 +142,7 @@ gokapi/
 │   ── Brain Module ──────────────────────
 ├── brain/
 │   ├── go.mod             # module github.com/gokapi/gokapi/brain (framework + cli + platform)
-│   └── cmd/brain/         # Brain CLI (project cmds + shared CLI base)
+│   └── cmd/brain/         # Bowrain CLI (project cmds + shared CLI base)
 │       └── output/        # Brain-specific output types
 │
 │   ── Bowrain Module ────────────────────
@@ -176,13 +176,13 @@ gokapi/
 └── Makefile               # Multi-module build targets
 ```
 
-### Brain Project Model (.brain/ Directories)
+### Bowrain Project Model (.bowrain/ Directories)
 
-Brain uses a git-like project model with `.brain/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
+Bowrain CLI uses a git-like project model with `.bowrain/` directories ([AD-016](docs/ad/016-kapi-project-model.md)):
 
 ```
 my-app/
-├── .brain/
+├── .bowrain/
 │   ├── config.yaml      # Project configuration
 │   ├── flows/           # Flow definitions (YAML)
 │   │   └── pseudo.yaml
@@ -195,15 +195,15 @@ my-app/
 
 **Key brain CLI commands:**
 ```bash
-brain init                    # Create .brain/ project
+brain init                    # Create .bowrain/ project
 brain status                  # Show sync state (like git status)
 brain pull                    # Fetch from Bowrain Server → update local files
 brain push                    # Send local files → update Bowrain Server
-brain flow run <flow-name>    # Execute flow from .brain/flows/
+brain flow run <flow-name>    # Execute flow from .bowrain/flows/
 brain serve                   # Start local dashboard (web UI)
 ```
 
-**All brain commands require a `.brain/` project.** The CLI searches upward from the current directory (like git) to find the project root.
+**All brain commands require a `.bowrain/` project.** The CLI searches upward from the current directory (like git) to find the project root.
 
 **Key kapi CLI commands (standalone, no project needed):**
 ```bash
@@ -215,7 +215,7 @@ kapi presets list             # List available presets
 
 **Role Separation:**
 - **Kapi** = standalone file-processing tool, demonstrates gokapi's power as open-source toolchain
-- **Brain** = project sync companion CLI, focuses on DX and project simplicity for Bowrain
+- **Bowrain CLI** (brain binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
 - **Shared CLI base** (`cli/`) = common commands (formats, plugins, tools, flows, presets, termbase, version) used by both kapi and brain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 
@@ -294,7 +294,7 @@ There are four independent video recording pipelines:
 1. **Bowrain (desktop GUI)** — 13 scenarios x 2 themes (dark + light) in `bowrain/apps/bowrain/frontend/e2e/recordings.spec.ts`. Uses real bowrain-server via Wails dev mode for recordings/screenshots. Mocks (`mock-backend.ts`) are used for e2e unit tests only.
 2. **Web app** — 8 scenarios x 2 themes (dark + light) in `bowrain/apps/web/e2e/recordings.spec.ts`. Requires a running bowrain-server with Keycloak OIDC.
 3. **Kapi CLI** — VHS terminal recordings from `.tape` files in `website/tapes/` (3 standalone kapi demos). No server required.
-4. **Brain CLI** — VHS terminal recordings from `.tape` files in `bowrain/e2e/tapes/` (10 brain demos, some need server).
+4. **Bowrain CLI** — VHS terminal recordings from `.tape` files in `bowrain/e2e/tapes/` (10 brain demos, some need server).
 
 ### How to regenerate
 
@@ -317,7 +317,7 @@ docker compose down -v
 # 3. Kapi CLI recordings (no server needed)
 make kapi-recordings             # runs tapes + copies to website/static/video/kapi/
 
-# 4. Brain CLI recordings (needs VHS + server)
+# 4. Bowrain CLI recordings (needs VHS + server)
 make brain-recordings            # runs tapes + copies to website/static/video/brain/
 
 # Or generate everything at once:
@@ -336,7 +336,7 @@ make fetch-docs-assets           # downloads tarball from docs-assets GitHub rel
 # - On release: automatically triggered by version tags
 # - Nightly: scheduled at 2 AM UTC
 #
-# All four systems (Bowrain, Web app, Kapi CLI, Brain CLI) run in parallel jobs.
+# All four systems (Bowrain, Web app, Kapi CLI, Bowrain CLI) run in parallel jobs.
 # A publish-assets job creates a tarball and uploads it to the "docs-assets"
 # GitHub release. The docs deploy workflow fetches this tarball before building.
 # Assets are NOT stored in git.

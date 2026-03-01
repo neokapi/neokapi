@@ -34,7 +34,7 @@ var initCmd = &cobra.Command{
 	Short: "Set up a new project",
 	Long: `Set up a new brain project in the current directory.
 
-Creates the .brain/ folder with your project configuration and an example flow.
+Creates the .bowrain/ folder with your project configuration and an example flow.
 
 In interactive mode (default when stdin is a terminal), presents a guided setup
 wizard. Use flags for non-interactive CI/CD usage.
@@ -56,10 +56,10 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("get current directory: %w", err)
 	}
 
-	// Fail fast if .brain/ already exists — before any server calls or prompts.
-	brainDir := filepath.Join(cwd, project.BrainDir)
-	if _, err := os.Stat(brainDir); err == nil {
-		return fmt.Errorf(".brain/ directory already exists at %s", cwd)
+	// Fail fast if .bowrain/ already exists — before any server calls or prompts.
+	bowrainDir := filepath.Join(cwd, project.BowrainDir)
+	if _, err := os.Stat(bowrainDir); err == nil {
+		return fmt.Errorf(".bowrain/ directory already exists at %s", cwd)
 	}
 
 	var result *output.InitOutput

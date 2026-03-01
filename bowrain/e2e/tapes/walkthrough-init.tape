@@ -34,7 +34,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "ls .brain/"
+Type "ls .bowrain/"
 Enter
 Sleep 2s
 

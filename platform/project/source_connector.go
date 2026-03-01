@@ -30,13 +30,13 @@ type BrainSourceConnector struct {
 // NewSourceConnector creates a SourceConnector for the given project.
 func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BrainSourceConnector, error) {
 	if project.Config.Server == nil {
-		return nil, fmt.Errorf("no server configuration in .brain/config.yaml")
+		return nil, fmt.Errorf("no server configuration in .bowrain/config.yaml")
 	}
 	if project.Config.Server.URL == "" {
-		return nil, fmt.Errorf("server URL not configured in .brain/config.yaml")
+		return nil, fmt.Errorf("server URL not configured in .bowrain/config.yaml")
 	}
 	if project.Config.Server.ProjectID == "" {
-		return nil, fmt.Errorf("server project_id not configured in .brain/config.yaml")
+		return nil, fmt.Errorf("server project_id not configured in .bowrain/config.yaml")
 	}
 
 	cache := LoadSyncCache(project.ConfigDir)
@@ -206,7 +206,7 @@ func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatu
 	}, nil
 }
 
-// Configure is a no-op for the brain source connector (configured via .brain/config.yaml).
+// Configure is a no-op for the brain source connector (configured via .bowrain/config.yaml).
 func (c *BrainSourceConnector) Configure(config map[string]string) error {
 	return nil
 }
