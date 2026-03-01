@@ -6,12 +6,12 @@ slug: /bowrain/project-walkthrough
 
 # Project Walkthrough
 
-This guide demonstrates the Brain project model — a git-like `.brain/` directory
+This guide demonstrates the Bowrain project model — a git-like `.bowrain/` directory
 for managing localization workflows.
 
 ## Step 1: Initialize a Project
 
-Create a new Brain project in your application directory:
+Create a new Bowrain project in your application directory:
 
 ```bash
 cd my-app/
@@ -29,7 +29,7 @@ This creates:
 
 ```
 my-app/
-├── .brain/
+├── .bowrain/
 │   ├── config.yaml       # Project settings
 │   ├── flows/            # Custom workflow definitions
 │   ├── .sync-cache       # Sync cache (gitignored)
@@ -44,7 +44,7 @@ my-app/
 
 ## Step 2: Configure File Mappings
 
-Edit `.brain/config.yaml` to map your local files to the project structure:
+Edit `.bowrain/config.yaml` to map your local files to the project structure:
 
 ```yaml
 project:
@@ -75,7 +75,7 @@ mappings:
 
 ## Step 3: Create a Translation Flow
 
-Define a custom workflow in `.brain/flows/translate-with-qa.yaml`:
+Define a custom workflow in `.bowrain/flows/translate-with-qa.yaml`:
 
 ```yaml
 name: translate-with-qa
@@ -84,7 +84,7 @@ description: AI translation with terminology enforcement and QA checks
 steps:
   - tool: term-lookup
     config:
-      termbase: .brain/termbase.tbx
+      termbase: .bowrain/termbase.tbx
 
   - tool: ai-translate
     config:
@@ -94,7 +94,7 @@ steps:
 
   - tool: term-enforce
     config:
-      termbase: .brain/termbase.tbx
+      termbase: .bowrain/termbase.tbx
       required: true
 
   - tool: qa-check
@@ -115,7 +115,7 @@ brain flow run translate-with-qa
 ```
 
 The flow automatically:
-- Reads files matching `.brain/config.yaml` mappings
+- Reads files matching `.bowrain/config.yaml` mappings
 - Uses configured source/target locales
 - Processes through all tools in sequence
 - Writes results back to local files
@@ -187,7 +187,7 @@ brain auth claim
 ```
 
 The claim transfers your anonymous local project into your personal workspace
-on the server, preserving all files and translations. Your `.brain/config.yaml`
+on the server, preserving all files and translations. Your `.bowrain/config.yaml`
 is updated with the server connection details.
 
 ### Option B: Interactive Init
@@ -225,7 +225,7 @@ brain status
 
 Configure pre-push hooks to catch issues before upload:
 
-Edit `.brain/config.yaml`:
+Edit `.bowrain/config.yaml`:
 
 ```yaml
 hooks:
@@ -264,23 +264,23 @@ Push aborted. Fix issues or use --force to bypass.
 Commit your project configuration to git:
 
 ```bash
-git add .brain/config.yaml .brain/flows/
-git commit -m "Add Brain project configuration"
+git add .bowrain/config.yaml .bowrain/flows/
+git commit -m "Add Bowrain project configuration"
 ```
 
 **Do NOT commit:**
-- `.brain/.sync-cache` — auto-gitignored (local sync cache)
-- `.brain/.server-token` — auto-gitignored (auth credentials)
+- `.bowrain/.sync-cache` — auto-gitignored (local sync cache)
+- `.bowrain/.server-token` — auto-gitignored (auth credentials)
 
 `brain init` creates a `.gitignore` automatically.
 
 ## Project Discovery
 
-Brain searches for `.brain/` by walking up the directory tree (like git):
+Bowrain CLI searches for `.bowrain/` by walking up the directory tree (like git):
 
 ```bash
 cd my-app/src/locales/fr/
-brain status  # Finds .brain/ at ../../../.brain/
+brain status  # Finds .bowrain/ at ../../../.bowrain/
 brain flow run translate-with-qa  # Works from any subdirectory
 ```
 
@@ -293,7 +293,7 @@ All commands work from anywhere within the project tree.
 If you don't need team collaboration:
 
 1. `brain init` — initialize project (choose "Local only")
-2. Define flows in `.brain/flows/`
+2. Define flows in `.bowrain/flows/`
 3. `brain flow run <flow>` — process files
 4. Commit results to git
 
@@ -313,8 +313,8 @@ For team collaboration with Bowrain Server:
 
 Think of it as **git for localization content**:
 
-| Git | Brain |
-|-----|-------|
+| Git | Bowrain CLI |
+|-----|------------|
 | `git clone` | `brain init` (Sign in) |
 | `git status` | `brain status` |
 | `git diff` | `brain diff` |
@@ -325,12 +325,12 @@ Think of it as **git for localization content**:
 
 ## Next Steps
 
-Now that you have a Brain project:
+Now that you have a Bowrain project:
 
-- **Explore flows**: [`brain flow list`](/docs/brain-cli/commands/flow)
+- **Explore flows**: [`brain flow list`](/docs/bowrain-cli/commands/flow)
 - **Manage terminology**: [Terminology features](/docs/features/terminology)
-- **Serve locally**: [`brain serve`](/docs/brain-cli/commands/serve)
-- **Understand sync**: [Push](/docs/brain-cli/commands/push) and [Pull](/docs/brain-cli/commands/pull)
+- **Serve locally**: [`brain serve`](/docs/bowrain-cli/commands/serve)
+- **Understand sync**: [Push](/docs/bowrain-cli/commands/push) and [Pull](/docs/bowrain-cli/commands/pull)
 - **Read ADs**: [Architecture decisions](/docs/ad/001-vision)
 
 For team deployments, see [Bowrain Server](/docs/developer/server).

@@ -12,7 +12,7 @@ Bowrain is the full-stack localization platform built on the gokapi framework. I
 
 Bowrain brings the power of gokapi's processing engine to teams:
 
-- **Brain CLI** — project companion CLI that syncs local files with Bowrain Server (like git for translations)
+- **Bowrain CLI** — project companion CLI that syncs local files with Bowrain Server (like git for translations)
 - **Bowrain Web** — browser-based translation editor with split preview, TM, and terminology
 - **Bowrain Desktop** — native cross-platform app with offline support
 - **Bowrain Server** — REST API server with workspaces, connectors, automation, and content store
@@ -20,7 +20,7 @@ Bowrain brings the power of gokapi's processing engine to teams:
 ## How It Fits Together
 
 ```
-Developer (Brain CLI)          Translator (Web/Desktop)
+Developer (Bowrain CLI)          Translator (Web/Desktop)
      |                              |
      |  brain push                  |  Open editor
      |-------------->               |-------------->
@@ -29,11 +29,11 @@ Developer (Brain CLI)          Translator (Web/Desktop)
      |  brain pull                  |  Save translations
 ```
 
-The developer initializes a `.brain/` project, pushes source content to the server, and pulls back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support.
+The developer initializes a `.bowrain/` project, pushes source content to the server, and pulls back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support.
 
 ## Key Features
 
-- **Project model** — `.brain/` directories (like `.git/`) manage localization projects
+- **Project model** — `.bowrain/` directories (like `.git/`) manage localization projects
 - **Push/pull sync** — Content-addressed incremental sync (only changed blocks transfer)
 - **Visual editor** — Split preview, focus view, and grid view for translation
 - **Translation memory** — Built-in Sievepen TM with fuzzy matching
@@ -46,9 +46,9 @@ The developer initializes a `.brain/` project, pushes source content to the serv
 
 ## Getting Started
 
-- [Installation](/docs/bowrain/installation) — install Brain CLI, Bowrain Desktop, or Bowrain Server
+- [Installation](/docs/bowrain/installation) — install Bowrain CLI, Bowrain Desktop, or Bowrain Server
 - [Quick Start](/docs/bowrain/quickstart) — initialize a project and sync with Bowrain
-- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.brain/` project model
+- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.bowrain/` project model
 
 ## Standalone File Processing
 

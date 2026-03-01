@@ -16,7 +16,7 @@ Hooks are flows that run automatically during `brain push` and `brain pull`:
 
 ## Configuration
 
-Define hooks in `.brain/config.yaml`:
+Define hooks in `.bowrain/config.yaml`:
 
 ```yaml
 hooks:
@@ -40,7 +40,7 @@ Pre-push hooks run **before** `brain push` uploads content to Bowrain Server.
 
 ### Example
 
-`.brain/config.yaml`:
+`.bowrain/config.yaml`:
 
 ```yaml
 hooks:
@@ -73,7 +73,7 @@ Hooks can be configured to block or warn:
 
 ```yaml
 # Create a flow that fails on violations
-# .brain/flows/strict-qa.yaml
+# .bowrain/flows/strict-qa.yaml
 name: strict-qa
 description: Strict QA checks that block push
 
@@ -108,7 +108,7 @@ Post-pull hooks run **after** `brain pull` fetches content from the server.
 
 ### Example
 
-`.brain/config.yaml`:
+`.bowrain/config.yaml`:
 
 ```yaml
 hooks:
@@ -155,7 +155,7 @@ brain push --force
 
 Hooks run as regular flows:
 
-1. **Read files**: Load files matching `.brain/config.yaml` mappings
+1. **Read files**: Load files matching `.bowrain/config.yaml` mappings
 2. **Process blocks**: Run each tool in the hook sequence
 3. **Check results**: If any tool exits with error, abort operation
 4. **Write files**: Save processed content back to local files
@@ -220,7 +220,7 @@ Use different hooks per environment:
 brain push --no-hooks
 
 # Staging: medium
-# .brain/config.yaml has qa-check only
+# .bowrain/config.yaml has qa-check only
 
 # Production: strict
 # Production branch has qa-check + term-enforce + spell-check
@@ -229,11 +229,11 @@ brain push --no-hooks
 Or use environment-specific configs:
 
 ```yaml
-# .brain/config.dev.yaml
+# .bowrain/config.dev.yaml
 hooks:
   pre-push: []
 
-# .brain/config.prod.yaml
+# .bowrain/config.prod.yaml
 hooks:
   pre-push:
     - qa-check
@@ -258,7 +258,7 @@ Current behavior: hooks are documented in config but not executed.
 
 ## Next Steps
 
-- [Custom Flows](/docs/brain-cli/flows/custom-flows)
-- [Push Command](/docs/brain-cli/commands/push)
-- [Pull Command](/docs/brain-cli/commands/pull)
+- [Custom Flows](/docs/bowrain-cli/flows/custom-flows)
+- [Push Command](/docs/bowrain-cli/commands/push)
+- [Pull Command](/docs/bowrain-cli/commands/pull)
 - [QA Checks](/docs/features/qa-checks)

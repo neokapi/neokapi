@@ -84,4 +84,4 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 
 - [Installation](/docs/getting-started/installation) — install kapi CLI
 - [Quick Start](/docs/getting-started/quickstart) — process your first file
-- [Bowrain Platform](/docs/bowrain/introduction) — team collaboration with Brain CLI, web editor, and server
+- [Bowrain Platform](/docs/bowrain/introduction) — team collaboration with Bowrain CLI, web editor, and server

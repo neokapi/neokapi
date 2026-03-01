@@ -36,7 +36,7 @@ type App struct {
 
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
-	// Brain sets this to resolve registries from .brain/ project config.
+	// Brain sets this to resolve registries from .bowrain/ project config.
 	RegistryResolver func() []config.RegistryEntry
 }
 

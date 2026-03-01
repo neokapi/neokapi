@@ -6,11 +6,11 @@ slug: /bowrain/quickstart
 
 # Quick Start
 
-Get started with Brain CLI and Bowrain in 5 minutes.
+Get started with the Bowrain CLI in 5 minutes.
 
 ## Initialize a Project
 
-Create a `.brain/` project directory (like `.git` for localization):
+Create a `.bowrain/` project directory (like `.git` for localization):
 
 ```bash
 brain init
@@ -29,7 +29,7 @@ Or skip the wizard with flags:
 brain init --name "My Project" --source en-US --targets fr-FR,de-DE
 ```
 
-This creates `.brain/config.yaml` with project settings and flow definitions.
+This creates `.bowrain/config.yaml` with project settings and flow definitions.
 
 ## Translate Files
 
@@ -39,8 +39,8 @@ Run the built-in AI translation flow:
 brain flow run ai-translate
 ```
 
-Brain automatically:
-- Reads files matching your `.brain/config.yaml` mappings
+Bowrain CLI automatically:
+- Reads files matching your `.bowrain/config.yaml` mappings
 - Translates from source to target locales
 - Writes results back to local files
 
@@ -66,7 +66,7 @@ brain status
 
 ## Create a Custom Flow
 
-Define a workflow in `.brain/flows/my-flow.yaml`:
+Define a workflow in `.bowrain/flows/my-flow.yaml`:
 
 ```yaml
 name: my-flow
@@ -101,4 +101,4 @@ brain flow run my-flow
 - **Full walkthrough**: See [Project Walkthrough](/docs/bowrain/project-walkthrough)
 - **Connect to server**: Use interactive `brain init` and choose "Sign in to Bowrain"
 - **Explore flows**: `brain flow list`
-- **CLI reference**: [Brain CLI](/docs/brain-cli/commands/init)
+- **CLI reference**: [Bowrain CLI](/docs/bowrain-cli/commands/init)

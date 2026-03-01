@@ -13,8 +13,8 @@ import (
 func TestLoadConfig(t *testing.T) {
 	t.Run("load valid config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		brainDir := filepath.Join(tmpDir, ".brain")
-		require.NoError(t, os.MkdirAll(brainDir, 0755))
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 		configYAML := `project:
   name: Test Project
@@ -38,10 +38,10 @@ hooks:
   post-pull:
     - segmentation
 `
-		configPath := filepath.Join(brainDir, "config.yaml")
+		configPath := filepath.Join(bowrainDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte(configYAML), 0644))
 
-		cfg, err := LoadConfig(brainDir)
+		cfg, err := LoadConfig(bowrainDir)
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
@@ -69,22 +69,22 @@ hooks:
 
 	t.Run("config file not found", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		brainDir := filepath.Join(tmpDir, ".brain")
-		require.NoError(t, os.MkdirAll(brainDir, 0755))
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
-		_, err := LoadConfig(brainDir)
+		_, err := LoadConfig(bowrainDir)
 		require.Error(t, err)
 	})
 
 	t.Run("invalid YAML", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		brainDir := filepath.Join(tmpDir, ".brain")
-		require.NoError(t, os.MkdirAll(brainDir, 0755))
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
-		configPath := filepath.Join(brainDir, "config.yaml")
+		configPath := filepath.Join(bowrainDir, "config.yaml")
 		require.NoError(t, os.WriteFile(configPath, []byte("invalid: yaml: content:"), 0644))
 
-		_, err := LoadConfig(brainDir)
+		_, err := LoadConfig(bowrainDir)
 		require.Error(t, err)
 	})
 }
@@ -92,8 +92,8 @@ hooks:
 func TestSaveConfig(t *testing.T) {
 	t.Run("save and reload config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		brainDir := filepath.Join(tmpDir, ".brain")
-		require.NoError(t, os.MkdirAll(brainDir, 0755))
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -118,16 +118,16 @@ func TestSaveConfig(t *testing.T) {
 			},
 		}
 
-		err := SaveConfig(brainDir, cfg)
+		err := SaveConfig(bowrainDir, cfg)
 		require.NoError(t, err)
 
 		// Verify file exists
-		configPath := filepath.Join(brainDir, "config.yaml")
+		configPath := filepath.Join(bowrainDir, "config.yaml")
 		_, err = os.Stat(configPath)
 		require.NoError(t, err)
 
 		// Reload and verify
-		reloaded, err := LoadConfig(brainDir)
+		reloaded, err := LoadConfig(bowrainDir)
 		require.NoError(t, err)
 
 		assert.Equal(t, cfg.Project.Name, reloaded.Project.Name)
@@ -141,8 +141,8 @@ func TestSaveConfig(t *testing.T) {
 
 	t.Run("save minimal config", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		brainDir := filepath.Join(tmpDir, ".brain")
-		require.NoError(t, os.MkdirAll(brainDir, 0755))
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 		cfg := &Config{
 			Project: ProjectMeta{
@@ -151,11 +151,11 @@ func TestSaveConfig(t *testing.T) {
 			},
 		}
 
-		err := SaveConfig(brainDir, cfg)
+		err := SaveConfig(bowrainDir, cfg)
 		require.NoError(t, err)
 
 		// Verify file exists
-		configPath := filepath.Join(brainDir, "config.yaml")
+		configPath := filepath.Join(bowrainDir, "config.yaml")
 		_, err = os.Stat(configPath)
 		require.NoError(t, err)
 	})
@@ -163,25 +163,25 @@ func TestSaveConfig(t *testing.T) {
 
 func TestGetSetConfigValue(t *testing.T) {
 	dir := t.TempDir()
-	brainDir := filepath.Join(dir, BrainDir)
-	require.NoError(t, os.MkdirAll(brainDir, 0755))
+	bowrainDir := filepath.Join(dir, BowrainDir)
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 	cfg := DefaultConfig()
 	cfg.Project.Name = "test-project"
-	require.NoError(t, SaveConfig(brainDir, cfg))
+	require.NoError(t, SaveConfig(bowrainDir, cfg))
 
 	// Read existing value.
-	assert.Equal(t, "test-project", GetConfigValue(brainDir, "project.name"))
-	assert.Equal(t, "en", GetConfigValue(brainDir, "project.source_locale"))
+	assert.Equal(t, "test-project", GetConfigValue(bowrainDir, "project.name"))
+	assert.Equal(t, "en", GetConfigValue(bowrainDir, "project.source_locale"))
 
 	// Set a new value.
-	require.NoError(t, SetConfigValue(brainDir, "project.name", "renamed"))
-	assert.Equal(t, "renamed", GetConfigValue(brainDir, "project.name"))
+	require.NoError(t, SetConfigValue(bowrainDir, "project.name", "renamed"))
+	assert.Equal(t, "renamed", GetConfigValue(bowrainDir, "project.name"))
 
 	// Set a nested value that didn't exist before.
-	require.NoError(t, SetConfigValue(brainDir, "server.url", "https://example.com"))
-	assert.Equal(t, "https://example.com", GetConfigValue(brainDir, "server.url"))
+	require.NoError(t, SetConfigValue(bowrainDir, "server.url", "https://example.com"))
+	assert.Equal(t, "https://example.com", GetConfigValue(bowrainDir, "server.url"))
 
 	// Unset key returns empty.
-	assert.Equal(t, "", GetConfigValue(brainDir, "nonexistent.key"))
+	assert.Equal(t, "", GetConfigValue(bowrainDir, "nonexistent.key"))
 }

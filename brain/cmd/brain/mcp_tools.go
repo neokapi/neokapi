@@ -45,7 +45,7 @@ func registerBrainTools(server *mcp.Server, a *cli.App) {
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_config",
-		Description: "Read project configuration from .brain/config.yaml",
+		Description: "Read project configuration from .bowrain/config.yaml",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPConfigOutput, error) {
 		return handleProjectConfig()
 	})
@@ -269,7 +269,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return nil, MCPLsOutput{}, fmt.Errorf("no .brain/ project found (run 'brain init' first): %w", err)
+		return nil, MCPLsOutput{}, fmt.Errorf("no .bowrain/ project found (run 'brain init' first): %w", err)
 	}
 
 	if input.Stats || input.Dirty {

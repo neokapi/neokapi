@@ -27,7 +27,7 @@ as the source project. The walkthrough has seven steps:
 
 ## Prerequisites
 
-- **Brain CLI** installed ([Installation](/docs/bowrain/installation))
+- **Bowrain CLI** installed ([Installation](/docs/bowrain/installation))
 - **Bowrain Server** running locally or in Docker ([Self-Hosting](/docs/bowrain-server/self-hosting))
 - **Node.js 18+** (for the example Docusaurus site)
 
@@ -43,7 +43,7 @@ brain --version
 
 ## Step 1: Initialize the Project
 
-Navigate to the example Docusaurus project and create a Brain project. You can
+Navigate to the example Docusaurus project and create a Bowrain project. You can
 create an anonymous project and receive a claim link by email:
 
 ```bash
@@ -58,13 +58,13 @@ Or create an anonymous project and get the claim URL printed directly:
 brain init --anonymous --name "Docusaurus E2E Demo" --source en
 ```
 
-This creates a `.brain/` directory with the project configuration and prints a
+This creates a `.bowrain/` directory with the project configuration and prints a
 **claim URL** (or sends it via email) that you'll use in [Step 4](#step-4-claim-the-project):
 
 ```
 Creating project on https://bowrain.example.com...
-Initialized .brain/ project in: /path/to/examples/docusaurus-e2e
-Configuration: /path/to/examples/docusaurus-e2e/.brain/config.yaml
+Initialized .bowrain/ project in: /path/to/examples/docusaurus-e2e
+Configuration: /path/to/examples/docusaurus-e2e/.bowrain/config.yaml
 
 Project created: proj_abc123
 Claim URL: https://bowrain.example.com/claim/clm_def456
@@ -124,7 +124,7 @@ Upload the source content to the Bowrain Server:
 brain push
 ```
 
-Brain reads the file mappings from `.brain/config.yaml`, parses each file using
+Bowrain CLI reads the file mappings from `.bowrain/config.yaml`, parses each file using
 the appropriate format reader (JSON, Markdown, etc.), and uploads the
 translatable blocks to the server.
 
@@ -283,7 +283,7 @@ npm run serve
 
 ## Next Steps
 
-- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.brain/` project model
-- [Website Translation](/docs/brain-cli/use-cases/website-translation) — production workflow with CI/CD integration
-- [Flows](/docs/brain-cli/flows/overview) — create custom translation pipelines
+- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.bowrain/` project model
+- [Website Translation](/docs/bowrain-cli/use-cases/website-translation) — production workflow with CI/CD integration
+- [Flows](/docs/bowrain-cli/flows/overview) — create custom translation pipelines
 - [Self-Hosting](/docs/bowrain-server/self-hosting) — deploy your own Bowrain Server

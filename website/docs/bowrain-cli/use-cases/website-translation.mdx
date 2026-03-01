@@ -5,18 +5,18 @@ sidebar_label: Website Translation
 
 # Use Case: Translating a Website
 
-This guide walks through a complete workflow for translating website content using brain CLI and Bowrain's visual editor.
+This guide walks through a complete workflow for translating website content using the Bowrain CLI and Bowrain's visual editor.
 
 ## Overview
 
-1. **CLI**: Initialize a Brain project and configure file mappings
+1. **CLI**: Initialize a Bowrain project and configure file mappings
 2. **CLI**: Run translation flows (AI, TM, QA)
 3. **Bowrain**: Open local project in visual editor for manual review
 4. **CLI**: Push to Bowrain Server for team collaboration (optional)
 
 ## Step 1: Initialize Project
 
-Create a Brain project in your website repository:
+Create a Bowrain project in your website repository:
 
 ```bash
 # Initialize project with source and target locales
@@ -26,11 +26,11 @@ brain init --name "Website Translation" --source en-US --targets fr-FR,de-DE,ja-
 # Check word count for cost estimation
 brain word-count content/**/*.md
 
-# Configure file mappings in .brain/config.yaml
+# Configure file mappings in .bowrain/config.yaml
 # Edit to map your local files to translation items
 ```
 
-Example `.brain/config.yaml`:
+Example `.bowrain/config.yaml`:
 
 ```yaml
 project:
@@ -62,7 +62,7 @@ brain flow list
 brain flow run ai-translate
 
 # Or create a custom flow with QA checks
-# .brain/flows/translate-website.yaml:
+# .bowrain/flows/translate-website.yaml:
 # name: translate-website
 # description: Translate website content with AI and QA
 # steps:
@@ -78,7 +78,7 @@ brain flow run translate-website
 
 ### Flow-Based Translation
 
-Brain flows are composable pipelines that run on your local files:
+Bowrain CLI flows are composable pipelines that run on your local files:
 
 - **ai-translate**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
 - **tm-leverage**: Pre-fill translations from translation memory
@@ -86,7 +86,7 @@ Brain flows are composable pipelines that run on your local files:
 - **term-enforce**: Validate terminology compliance
 - **segmentation**: Split source text into sentences
 
-Flows automatically process all files matching your `.brain/config.yaml` mappings.
+Flows automatically process all files matching your `.bowrain/config.yaml` mappings.
 
 ## Step 3: Review in Bowrain (Optional)
 
@@ -117,7 +117,7 @@ Bowrain offers multiple views for different translation tasks:
 
 ### Using Terminology
 
-1. Import a termbase (TBX, CSV, JSON) into `.brain/termbase.tbx`
+1. Import a termbase (TBX, CSV, JSON) into `.bowrain/termbase.tbx`
 2. Add `term-lookup` to your flow to show terminology suggestions
 3. Add `term-enforce` to validate required terms are used correctly
 4. The Context panel in Bowrain shows matched terms per block
@@ -142,30 +142,30 @@ brain pull
 
 The push/pull workflow is similar to git:
 
-| Git | Brain |
-|-----|-------|
+| Git | Bowrain CLI |
+|-----|------------|
 | `git status` | `brain status` |
 | `git diff` | `brain diff` |
 | `git pull` | `brain pull` |
 | `git push` | `brain push` |
 
-Brain uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
+Bowrain CLI uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
 
 ## Tips
 
-- **Initialize projects with `brain init`** to set up `.brain/` configuration
-- **Define custom flows** in `.brain/flows/` for your specific translation workflow
+- **Initialize projects with `brain init`** to set up `.bowrain/` configuration
+- **Define custom flows** in `.bowrain/flows/` for your specific translation workflow
 - **Use `tm-leverage` flow** to auto-fill translations from translation memory
-- **Import terminology** as `.brain/termbase.tbx` and add `term-lookup` to your flow
+- **Import terminology** as `.bowrain/termbase.tbx` and add `term-lookup` to your flow
 - **Run `pseudo-translate` flow** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
-- **Commit `.brain/config.yaml`** to git, but not `.brain/.sync-cache` (auto-gitignored)
+- **Commit `.bowrain/config.yaml`** to git, but not `.bowrain/.sync-cache` (auto-gitignored)
 - **Check `brain status`** before pushing to see what changed
 
 ## Related
 
 - [Project Walkthrough](/docs/bowrain/project-walkthrough)
-- [brain init](/docs/brain-cli/commands/init)
-- [brain flow](/docs/brain-cli/commands/flow)
-- [brain push](/docs/brain-cli/commands/push) and [brain pull](/docs/brain-cli/commands/pull)
+- [brain init](/docs/bowrain-cli/commands/init)
+- [brain flow](/docs/bowrain-cli/commands/flow)
+- [brain push](/docs/bowrain-cli/commands/push) and [brain pull](/docs/bowrain-cli/commands/pull)
 - [Bowrain Walkthroughs](/docs/bowrain-desktop/walkthroughs)

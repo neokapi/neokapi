@@ -91,7 +91,7 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 
 	if s.Project.Server == "" {
 		fmt.Fprintln(w, "\nNot connected to a server.")
-		fmt.Fprintln(w, "  Run 'brain init' with a server or set one in .brain/config.yaml")
+		fmt.Fprintln(w, "  Run 'brain init' with a server or set one in .bowrain/config.yaml")
 		return nil
 	}
 
@@ -163,7 +163,7 @@ type InitOutput struct {
 }
 
 func (o InitOutput) FormatText(w io.Writer) error {
-	fmt.Fprintf(w, "Initialized .brain/ project in: %s\n", o.Root)
+	fmt.Fprintf(w, "Initialized .bowrain/ project in: %s\n", o.Root)
 	fmt.Fprintf(w, "Configuration: %s\n", o.ConfigDir)
 
 	if o.ProjectID != "" {
@@ -193,7 +193,7 @@ func (o InitOutput) FormatText(w io.Writer) error {
 		}
 	} else {
 		fmt.Fprintln(w, "Next steps:")
-		fmt.Fprintln(w, "  1. Edit .brain/config.yaml to configure your project")
+		fmt.Fprintln(w, "  1. Edit .bowrain/config.yaml to configure your project")
 		fmt.Fprintln(w, "  2. Add file mappings to sync with Bowrain Server")
 		fmt.Fprintln(w, "  3. Run: brain auth login")
 		fmt.Fprintln(w, "  4. Run: brain pull to sync translations")

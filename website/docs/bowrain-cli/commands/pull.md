@@ -46,11 +46,11 @@ brain pull --force
 
 ## What Happens
 
-1. **Read sync cursor** from `.brain/.sync-cache`
+1. **Read sync cursor** from `.bowrain/.sync-cache`
 2. **Query server** via `GET /api/v1/projects/:id/sync/pull?cursor=X&locales=...`
    - Server returns only changes since the cursor (O(changes), not O(total))
    - Paginated: follows `has_more` until all changes are consumed
-3. **Update `.brain/.sync-cache`** with new cursor
+3. **Update `.bowrain/.sync-cache`** with new cursor
 
 ## Locale Scoping
 
@@ -74,9 +74,9 @@ This is efficient because the server's change log is indexed by locale.
 
 ## Related Commands
 
-- [`brain push`](/docs/brain-cli/commands/push) — Send local changes to server
-- [`brain status`](/docs/brain-cli/commands/status) — Show sync state
-- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed changes
+- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
+- [`brain status`](/docs/bowrain-cli/commands/status) — Show sync state
+- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 

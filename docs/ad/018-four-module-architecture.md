@@ -37,7 +37,7 @@ framework (core/)
 | CLI | `github.com/gokapi/gokapi/cli` | Shared CLI base: App struct, command factories, output formatting, app config |
 | Platform | `github.com/gokapi/gokapi/platform` | Shared platform types: project model, auth, connector interfaces, REST client |
 | Kapi | `github.com/gokapi/gokapi/kapi` | Standalone CLI tool for local file processing |
-| Brain | `github.com/gokapi/gokapi/brain` | Project sync companion CLI (init, push, pull, auth, status) |
+| Brain | `github.com/gokapi/gokapi/brain` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
 | Bowrain | `github.com/gokapi/gokapi/bowrain` | REST server, desktop app, SQLite storage, OIDC, connectors |
 
 ### Directory Layout
@@ -92,7 +92,7 @@ This allows existing bowrain code to continue importing `bowrain/auth` while the
 
 ### RegistryResolver Hook
 
-The CLI module has no platform dependency, but brain needs to resolve plugin registries from `.brain/` project config. This is handled via a `RegistryResolver` hook on the CLI `App` struct:
+The CLI module has no platform dependency, but brain needs to resolve plugin registries from `.bowrain/` project config. This is handled via a `RegistryResolver` hook on the CLI `App` struct:
 
 ```go
 // cli/app.go
@@ -127,7 +127,7 @@ All modules target Go 1.26+. The Makefile provides per-module build, test, vet, 
 
 - kapi CLI binary has no platform, SQLite, Wails, or OIDC dependencies
 - CLI and platform evolve independently — CLI changes don't affect bowrain, platform changes don't affect kapi
-- Brain CLI is decoupled from bowrain's heavy dependencies (SQLite, Wails, Echo, keyring)
+- Bowrain CLI (brain binary) is decoupled from bowrain's heavy dependencies (SQLite, Wails, Echo, keyring)
 - Framework packages under `core/` give a cleaner repository root
 - Six `go.mod` files to maintain, but `go.work` makes daily development seamless
 - GoReleaser, CI, Dockerfile, and Makefile all handle multi-module builds

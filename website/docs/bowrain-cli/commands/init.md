@@ -5,7 +5,7 @@ sidebar_position: 1
 
 # brain init
 
-Initialize a new Brain project in the current directory. Creates a `.brain/` directory
+Initialize a new Bowrain project in the current directory. Creates a `.bowrain/` directory
 with configuration, flow definitions, and sync state tracking.
 
 ## Usage
@@ -57,14 +57,14 @@ brain init --server https://bowrain.example.com --project abc123
 
 ## What Happens
 
-1. Checks that `.brain/` does not already exist (fails fast if it does)
-2. Creates `.brain/` directory in the current folder
+1. Checks that `.bowrain/` does not already exist (fails fast if it does)
+2. Creates `.bowrain/` directory in the current folder
 3. Generates `config.yaml` with project settings
 4. Creates `flows/` subdirectory with an example flow definition
-5. Adds `.brain/.gitignore` to exclude sync state and tokens
+5. Adds `.bowrain/.gitignore` to exclude sync state and tokens
 6. Optionally creates a project on the Bowrain Server and configures the connection
 
-After initialization, the directory becomes a Brain project. You can run `brain status`,
+After initialization, the directory becomes a Bowrain project. You can run `brain status`,
 `brain flow run`, and other commands from anywhere within the project tree.
 
 ## Options
@@ -92,7 +92,7 @@ brain init --anonymous --name "My App" --source en --json
 ```json
 {
   "root": "/path/to/my-app",
-  "config_dir": "/path/to/my-app/.brain/config.yaml",
+  "config_dir": "/path/to/my-app/.bowrain/config.yaml",
   "project_id": "proj_abc123",
   "server": "https://bowrain.example.com",
   "claim_token": "clm_def456",
@@ -102,7 +102,7 @@ brain init --anonymous --name "My App" --source en --json
 
 ## Configuration File
 
-`brain init` creates `.brain/config.yaml` with this structure:
+`brain init` creates `.bowrain/config.yaml` with this structure:
 
 ```yaml
 project:
@@ -155,23 +155,23 @@ brain config --global server.url https://bowrain.example.com
 
 ## Project Discovery
 
-Once initialized, Brain searches for `.brain/` by walking up the directory tree
+Once initialized, Bowrain CLI searches for `.bowrain/` by walking up the directory tree
 (like git). You can run commands from any subdirectory:
 
 ```bash
 cd my-project/src/locales/
-brain status  # Finds .brain/ at ../../.brain/
+brain status  # Finds .bowrain/ at ../../.bowrain/
 ```
 
 ## Version Control
 
 **Commit to git:**
-- `.brain/config.yaml` — project settings
-- `.brain/flows/*.yaml` — flow definitions
+- `.bowrain/config.yaml` — project settings
+- `.bowrain/flows/*.yaml` — flow definitions
 
 **Do NOT commit:**
-- `.brain/.sync-cache` — sync cache (auto-gitignored)
-- `.brain/.server-token` — auth token (auto-gitignored)
+- `.bowrain/.sync-cache` — sync cache (auto-gitignored)
+- `.bowrain/.server-token` — auth token (auto-gitignored)
 
 `brain init` automatically adds these to `.gitignore`.
 
@@ -179,7 +179,7 @@ brain status  # Finds .brain/ at ../../.brain/
 
 After initialization:
 
-1. **Edit mappings** in `.brain/config.yaml` to match your file structure
-2. **Create flows** in `.brain/flows/` for your translation workflows
+1. **Edit mappings** in `.bowrain/config.yaml` to match your file structure
+2. **Create flows** in `.bowrain/flows/` for your translation workflows
 3. **Run flows**: `brain flow list` and `brain flow run <flow-name>`
 4. **Connect to server**: `brain pull` and `brain push` (if server configured)

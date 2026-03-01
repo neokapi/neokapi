@@ -122,7 +122,7 @@ FILE: src/locales/en/buttons.json <-> ui/strings/buttons
 
 `brain diff` compares block-level content between local files and server state:
 
-1. **Read local files** via FormatRegistry (respecting `.brain/config.yaml` mappings)
+1. **Read local files** via FormatRegistry (respecting `.bowrain/config.yaml` mappings)
 2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
 3. **Compute block hashes** using `BlockIdentity` (source text + metadata)
 4. **Match blocks** by ID and hash across local/remote
@@ -161,9 +161,9 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`brain status`](/docs/brain-cli/commands/status) — Show which files changed (summary)
-- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch remote changes
-- [`brain push`](/docs/brain-cli/commands/push) — Send local changes
+- [`brain status`](/docs/bowrain-cli/commands/status) — Show which files changed (summary)
+- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch remote changes
+- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes
 
 ## When to Use
 

@@ -6,7 +6,7 @@ slug: /bowrain/installation
 
 # Installation
 
-## Brain CLI
+## Bowrain CLI
 
 ### Homebrew (macOS/Linux)
 
@@ -61,7 +61,7 @@ For production deployments, see [Self-Hosting](/docs/bowrain-server/self-hosting
 ```bash
 git clone https://github.com/gokapi/gokapi.git
 cd gokapi
-make build-brain       # Brain CLI → bin/brain
+make build-brain       # Bowrain CLI → bin/brain
 make build-server      # Bowrain Server → bin/bowrain-server
 make build-all         # All binaries
 ```

@@ -23,7 +23,7 @@ Examples:
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .brain/ project found (run 'brain init' first): %w", err)
+			return fmt.Errorf("no .bowrain/ project found (run 'brain init' first): %w", err)
 		}
 
 		var result output.RmOutput

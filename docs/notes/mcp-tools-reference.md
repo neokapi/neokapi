@@ -178,13 +178,13 @@ List all available processing tools (built-in and plugin-provided).
 
 ## Brain MCP Server
 
-Started via `brain mcp`. Requires a `.brain/` project directory (discovered by searching upward from the current directory).
+Started via `brain mcp`. Requires a `.bowrain/` project directory (discovered by searching upward from the current directory).
 
 **Server info:** `{"name": "brain", "version": "<version>"}`
 
 ### `project_config`
 
-Read project configuration from `.brain/config.yaml`.
+Read project configuration from `.bowrain/config.yaml`.
 
 **Input:** none
 
@@ -192,7 +192,7 @@ Read project configuration from `.brain/config.yaml`.
 ```json
 {
   "root": "/path/to/project",
-  "config_path": "/path/to/project/.brain/config.yaml",
+  "config_path": "/path/to/project/.bowrain/config.yaml",
   "project_name": "my-app",
   "source_locale": "en",
   "target_locales": ["fr", "de", "ja"],
@@ -215,7 +215,7 @@ Show project sync status including pending push/pull counts and server connectio
 {
   "project": {
     "root": "/path/to/project",
-    "config_dir": "/path/to/project/.brain/config.yaml",
+    "config_dir": "/path/to/project/.bowrain/config.yaml",
     "server": "https://bowrain.example.com",
     "project_id": "proj-123"
   },
@@ -312,7 +312,7 @@ Download translations from the Bowrain Server and update local files.
 
 ### `list_flows`
 
-List available processing flows (built-in and project-defined from `.brain/flows/`).
+List available processing flows (built-in and project-defined from `.bowrain/flows/`).
 
 **Input:** none
 
@@ -344,7 +344,7 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 
 ## Testing
 
-MCP handlers are tested by calling the handler functions directly with test fixtures — no MCP transport needed. Kapi tests use format fixture files from `core/formats/json/testdata/`. Brain tests create temporary `.brain/` projects via `project.InitProject()`.
+MCP handlers are tested by calling the handler functions directly with test fixtures — no MCP transport needed. Kapi tests use format fixture files from `core/formats/json/testdata/`. Brain tests create temporary `.bowrain/` projects via `project.InitProject()`.
 
 The MCP handshake can be verified manually:
 

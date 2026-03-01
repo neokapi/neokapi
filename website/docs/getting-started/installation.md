@@ -43,4 +43,4 @@ kapi version
 
 ## Bowrain Platform
 
-For the Bowrain platform (Brain CLI, desktop app, server), see [Bowrain Installation](/docs/bowrain/installation).
+For the Bowrain platform (Bowrain CLI, desktop app, server), see [Bowrain Installation](/docs/bowrain/installation).

@@ -219,14 +219,14 @@ official registry.
 
 **Registry configuration** follows a three-level resolution:
 
-1. **Project config** (`.brain/config.yaml`) — `registries:` list. When present,
+1. **Project config** (`.bowrain/config.yaml`) — `registries:` list. When present,
    overrides global config entirely (no merging).
 2. **Global config** (`~/.config/kapi/kapi.yaml`) — `registries:` list. Managed
    via `kapi registry add/remove/list`.
 3. **Fallback** — `plugins.registry` single URL, or the hardcoded official URL.
 
 ```yaml
-# ~/.config/kapi/kapi.yaml or .brain/config.yaml
+# ~/.config/kapi/kapi.yaml or .bowrain/config.yaml
 registries:
   - name: official
     url: https://gokapi.github.io/registry/plugins.json

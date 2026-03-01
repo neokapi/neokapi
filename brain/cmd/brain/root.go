@@ -21,7 +21,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage: true,
 	Long: `brain manages localization projects, syncing content with Bowrain Server.
 
-Initialize a .brain/ project in your repository, then push/pull translations,
+Initialize a .bowrain/ project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		app.Config = cliconfig.NewAppConfig()
@@ -69,7 +69,7 @@ func init() {
 }
 
 // projectFlowFallback is called when a flow name doesn't match a built-in
-// flow definition. It checks for a project flow in .brain/flows/.
+// flow definition. It checks for a project flow in .bowrain/flows/.
 func projectFlowFallback(cmd *cobra.Command, flowName string, args []string) error {
 	proj, err := findProject()
 	if err != nil {
@@ -78,7 +78,7 @@ func projectFlowFallback(cmd *cobra.Command, flowName string, args []string) err
 	return runProjectFlow(cmd, proj, flowName, args)
 }
 
-// listProjectFlows returns flow info entries from .brain/flows/.
+// listProjectFlows returns flow info entries from .bowrain/flows/.
 func listProjectFlows() []clioutput.FlowInfo {
 	proj, err := findProject()
 	if err != nil {
@@ -117,7 +117,7 @@ func newPresetsValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",
 		Short: "Validate project preset configuration",
-		Long:  `Validate that all preset references in .brain/config.yaml are valid.`,
+		Long:  `Validate that all preset references in .bowrain/config.yaml are valid.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runPresetsValidate(cmd)
 		},

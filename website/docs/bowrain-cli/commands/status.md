@@ -22,7 +22,7 @@ brain status
 
 # Example output (connected to server):
 # Project root: /Users/me/my-project
-# Config:       /Users/me/my-project/.brain/config.yaml
+# Config:       /Users/me/my-project/.bowrain/config.yaml
 #
 # Local blocks: 142
 # Pending push: 3 blocks changed locally
@@ -30,10 +30,10 @@ brain status
 
 # Example output (no server configured):
 # Project root: /Users/me/my-project
-# Config:       /Users/me/my-project/.brain/config.yaml
+# Config:       /Users/me/my-project/.bowrain/config.yaml
 #
 # Sync status requires a Bowrain server connection.
-#   Configure server in /Users/me/my-project/.brain/config.yaml
+#   Configure server in /Users/me/my-project/.bowrain/config.yaml
 ```
 
 ## What It Shows
@@ -41,17 +41,17 @@ brain status
 ### Local State
 
 - **Local blocks**: Total number of translatable blocks found in local files
-- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.brain/.sync-cache`)
+- **Pending push**: Blocks that changed locally since last push (based on content hash diff against `.bowrain/.sync-cache`)
 - **Pending pull**: Remote changes available on the server since last pull
 
 ### Server Connection
 
-- Requires `server.url` and `server.project_id` in `.brain/config.yaml`
+- Requires `server.url` and `server.project_id` in `.bowrain/config.yaml`
 - If not configured, shows a message directing you to configure the server
 
 ### Sync Cache
 
-Status is tracked in `.brain/.sync-cache` (auto-gitignored):
+Status is tracked in `.bowrain/.sync-cache` (auto-gitignored):
 
 ```json
 {
@@ -79,7 +79,7 @@ until the next sync re-establishes the baseline.
 
 1. **Scan local files** via FormatRegistry (using config mappings)
 2. **Extract blocks** and compute content hashes
-3. **Diff hashes** against `.brain/.sync-cache` -> count changed blocks (pending push)
+3. **Diff hashes** against `.bowrain/.sync-cache` -> count changed blocks (pending push)
 4. **Query server** for changes since last sync cursor -> count pending pull (if cursor > 0)
 
 ## Exit Codes
@@ -89,9 +89,9 @@ until the next sync re-establishes the baseline.
 
 ## Related Commands
 
-- [`brain diff`](/docs/brain-cli/commands/diff) — Show detailed line-by-line changes
-- [`brain pull`](/docs/brain-cli/commands/pull) — Fetch changes from server
-- [`brain push`](/docs/brain-cli/commands/push) — Send local changes to server
+- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed line-by-line changes
+- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
+- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
 
 ## When to Use
 

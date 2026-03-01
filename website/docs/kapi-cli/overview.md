@@ -54,7 +54,7 @@ Use Kapi CLI when you:
 - **Run in CI/CD** for automated file processing
 - **Evaluate formats** — list supported formats, check file compatibility
 
-For project management, server sync, and team collaboration, use the [Brain CLI](/docs/brain-cli/overview) instead.
+For project management, server sync, and team collaboration, use the [Bowrain CLI](/docs/bowrain-cli/overview) instead.
 
 ## Installation
 

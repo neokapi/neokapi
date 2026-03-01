@@ -40,7 +40,7 @@ If no directory is given, the current directory is used.`,
 
 		proj, err := project.FindProject(absPath)
 		if err != nil {
-			return fmt.Errorf("no .brain/ project found in %s (run 'brain init' first)", absPath)
+			return fmt.Errorf("no .bowrain/ project found in %s (run 'brain init' first)", absPath)
 		}
 
 		addr := fmt.Sprintf("localhost:%d", servePort)

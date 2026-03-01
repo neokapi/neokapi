@@ -147,7 +147,7 @@ var authClaimCmd = &cobra.Command{
 	Short: "Claim a project into your workspace",
 	Long: `Take ownership of a project by providing a claim token.
 
-If no token is given, it is read from .brain/config.yaml.
+If no token is given, it is read from .bowrain/config.yaml.
 Requires authentication (run 'brain auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
@@ -159,13 +159,13 @@ Requires authentication (run 'brain auth login' first).`,
 		if len(args) > 0 {
 			claimToken = args[0]
 		} else {
-			// Try to read from .brain/config.yaml.
+			// Try to read from .bowrain/config.yaml.
 			proj, err := project.FindProject("")
 			if err != nil {
-				return fmt.Errorf("no claim token provided and no .brain/ project found")
+				return fmt.Errorf("no claim token provided and no .bowrain/ project found")
 			}
 			if proj.Config.Server == nil || proj.Config.Server.ClaimToken == "" {
-				return fmt.Errorf("no claim_token in .brain/config.yaml — provide token as argument")
+				return fmt.Errorf("no claim_token in .bowrain/config.yaml — provide token as argument")
 			}
 			claimToken = proj.Config.Server.ClaimToken
 		}
@@ -198,14 +198,14 @@ Requires authentication (run 'brain auth login' first).`,
 			return fmt.Errorf("decode claim response: %w", err)
 		}
 
-		// Update .brain/config.yaml: remove claim_token, update project_id.
+		// Update .bowrain/config.yaml: remove claim_token, update project_id.
 		proj, err := project.FindProject("")
 		if err == nil && proj.Config.Server != nil {
 			proj.Config.Server.ClaimToken = ""
 			proj.Config.Server.ProjectID = result.ProjectID
 			proj.Config.Server.Workspace = result.WorkspaceSlug
 			if saveErr := project.SaveConfig(proj.ConfigDir, proj.Config); saveErr != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not update .brain/config.yaml: %v\n", saveErr)
+				fmt.Fprintf(os.Stderr, "Warning: could not update .bowrain/config.yaml: %v\n", saveErr)
 			}
 		}
 

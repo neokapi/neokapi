@@ -5,7 +5,7 @@ title: flow
 
 # brain flow
 
-Run multi-step processing flows. Flows are primarily defined in `.brain/flows/` (project-based),
+Run multi-step processing flows. Flows are primarily defined in `.bowrain/flows/` (project-based),
 but built-in flows are also available.
 
 ## Synopsis
@@ -19,7 +19,7 @@ brain flow list
 
 The `flow run` command executes a named processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
 
-**Project-based flows**: If a `.brain/` project exists, flows are loaded from `.brain/flows/*.yaml` files. This is the primary mode for Brain.
+**Project-based flows**: If a `.bowrain/` project exists, flows are loaded from `.bowrain/flows/*.yaml` files. This is the primary mode for Bowrain CLI.
 
 **Built-in flows**: Built-in flows can also be executed with explicit flags.
 
@@ -72,10 +72,10 @@ specific to `flow run` and tool commands. They are not global flags.
 
 ## Project-Based Flows
 
-If you've initialized a Brain project with `brain init`, create custom flows in `.brain/flows/`:
+If you've initialized a Bowrain project with `brain init`, create custom flows in `.bowrain/flows/`:
 
 ```yaml
-# .brain/flows/translate-review.yaml
+# .bowrain/flows/translate-review.yaml
 name: translate-review
 description: Translate with AI then run QA checks
 
@@ -104,12 +104,12 @@ Run with:
 brain flow run translate-review
 ```
 
-Project flows automatically use file mappings and locales from `.brain/config.yaml`.
+Project flows automatically use file mappings and locales from `.bowrain/config.yaml`.
 No need to specify `--input`, `--output`, `--source-lang`, or `--target-lang`.
 
 ## Built-in Flows
 
-Without a `.brain/` project, you can still use built-in flows with explicit flags:
+Without a `.bowrain/` project, you can still use built-in flows with explicit flags:
 
 ```bash
 brain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr

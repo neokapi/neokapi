@@ -19,7 +19,7 @@ With no arguments, prints the path to the config file.
 With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
-By default, operates on the project config file (`.brain/config.yaml`).
+By default, operates on the project config file (`.bowrain/config.yaml`).
 Use `--global` to read/write the global config file (`~/.config/brain/brain.yaml`).
 
 ## Examples
@@ -50,7 +50,7 @@ brain config --global server.url https://bowrain.example.com
 
 ## Config Keys
 
-### Project Config (`.brain/config.yaml`)
+### Project Config (`.bowrain/config.yaml`)
 
 | Key | Description | Example |
 |-----|-------------|---------|
@@ -65,7 +65,7 @@ brain config --global server.url https://bowrain.example.com
 | Key | Description | Example |
 |-----|-------------|---------|
 | `server.url` | Default server URL for all projects | `https://bowrain.example.com` |
-| `plugin_directory` | Plugin directory path | `/home/user/.brain/plugins` |
+| `plugin_directory` | Plugin directory path | `/home/user/.bowrain/plugins` |
 
 ## Global vs Project Config
 

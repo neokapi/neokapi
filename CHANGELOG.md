@@ -5,7 +5,7 @@
 ### Multi-Registry Support
 - **Multiple plugin registries**: Configure multiple plugin registries (e.g., official + company-internal) at global or project level
 - **`kapi registry` command**: `add`, `remove`, `list` subcommands for managing global registries in `~/.config/kapi/kapi.yaml`
-- **Project-level registries**: `registries` field in `.brain/config.yaml` overrides global registries for team portability
+- **Project-level registries**: `registries` field in `.bowrain/config.yaml` overrides global registries for team portability
 - **Multi-registry resolution**: Install/update tries registries in order (first match wins); search/list merges results from all registries
 - **`--registry` flag**: Pin plugin operations to a specific named registry (orthogonal to existing `--channel` flag)
 - **Backward compatible**: Existing `plugins.registry` single-URL config continues to work as a registry named "default"

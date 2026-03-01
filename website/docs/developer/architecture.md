@@ -144,7 +144,7 @@ gokapi/                              ── Framework Module ──
 │                                    ── Platform Module ──
 ├── platform/
 │   ├── go.mod                       # module github.com/gokapi/gokapi/platform (framework only)
-│   ├── project/                     # .brain/ project model (types, config, sync cache)
+│   ├── project/                     # .bowrain/ project model (types, config, sync cache)
 │   ├── auth/                        # Auth types, JWT, device flow client
 │   ├── connector/                   # Connector interfaces + base types
 │   ├── client/                      # REST client for bowrain API
@@ -161,7 +161,7 @@ gokapi/                              ── Framework Module ──
 │                                    ── Brain Module ──
 ├── brain/
 │   ├── go.mod                       # module github.com/gokapi/gokapi/brain (framework + cli + platform)
-│   └── cmd/brain/                   # Brain CLI (project cmds + shared CLI base)
+│   └── cmd/brain/                   # Bowrain CLI (project cmds + shared CLI base)
 │       └── output/                  # Brain-specific output types
 │
 │                                    ── Bowrain Module ──

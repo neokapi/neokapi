@@ -125,8 +125,8 @@ const config: Config = {
               to: '/docs/bowrain/introduction',
             },
             {
-              label: 'Brain CLI',
-              to: '/docs/brain-cli/overview',
+              label: 'Bowrain CLI',
+              to: '/docs/bowrain-cli/overview',
             },
             {
               label: 'Bowrain Web',
