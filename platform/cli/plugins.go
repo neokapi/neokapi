@@ -11,7 +11,6 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/platform/cli/output"
 	"github.com/gokapi/gokapi/platform/config"
-	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -527,10 +526,13 @@ func channelRegistryURL(baseURL, channel string) string {
 func (a *App) resolveRegistries(cmd *cobra.Command) []config.RegistryEntry {
 	var entries []config.RegistryEntry
 
-	// Try project config first.
-	if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
-		entries = proj.Config.Registries
-	} else {
+	// Try hook-provided registries first (e.g., from .brain/ project config).
+	if a.RegistryResolver != nil {
+		if resolved := a.RegistryResolver(); len(resolved) > 0 {
+			entries = resolved
+		}
+	}
+	if len(entries) == 0 {
 		entries = a.Config.Registries()
 	}
 

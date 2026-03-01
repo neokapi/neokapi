@@ -33,6 +33,11 @@ type App struct {
 	Encoding   string
 	SourceLang string
 	TargetLang string
+
+	// RegistryResolver is an optional hook for resolving plugin registries.
+	// When set, it is called before falling back to the config-based registries.
+	// Brain sets this to resolve registries from .brain/ project config.
+	RegistryResolver func() []config.RegistryEntry
 }
 
 // AddPersistentFlags registers global flags on the root command.

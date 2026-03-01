@@ -25,6 +25,16 @@ Initialize a .brain/ project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		app.Config = config.NewAppConfig()
+		app.RegistryResolver = func() []config.RegistryEntry {
+			if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
+				entries := make([]config.RegistryEntry, len(proj.Config.Registries))
+				for i, r := range proj.Config.Registries {
+					entries[i] = config.RegistryEntry{Name: r.Name, URL: r.URL, Channels: r.Channels}
+				}
+				return entries
+			}
+			return nil
+		}
 		app.Init()
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
