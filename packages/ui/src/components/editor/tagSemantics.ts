@@ -1,5 +1,6 @@
 import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry, type ColorScheme } from "../../vocabularies";
+import { isDeletable, isCloneable } from "./tagConstraints";
 
 // Re-export ColorScheme as TagColorScheme for backward compatibility.
 export type TagColorScheme = ColorScheme;
@@ -97,7 +98,7 @@ export interface TagValidationResult {
 }
 
 export interface TagValidationIssue {
-  type: "missing_tag" | "extra_tag" | "unpaired";
+  type: "missing_tag" | "extra_tag" | "unpaired" | "deleted_non_deletable" | "cloned_non_cloneable";
   message: string;
 }
 
@@ -120,6 +121,13 @@ export function validateTags(sourceSpans: SpanInfo[], targetSpans: SpanInfo[]): 
   const sourceCounts = tagFingerprints(sourceSpans);
   const targetCounts = tagFingerprints(targetSpans);
 
+  // Build a map from fingerprint → first matching source SpanInfo (for constraint checks).
+  const sourceSpanByKey = new Map<string, SpanInfo>();
+  for (const s of sourceSpans) {
+    const k = `${s.type}|${s.span_type}`;
+    if (!sourceSpanByKey.has(k)) sourceSpanByKey.set(k, s);
+  }
+
   // Check for missing tags
   for (const [key, sourceCount] of sourceCounts) {
     const targetCount = targetCounts.get(key) || 0;
@@ -130,10 +138,18 @@ export function validateTags(sourceSpans: SpanInfo[], targetSpans: SpanInfo[]): 
       const info = registry.lookup(tagType);
       const label = info?.label ?? tagType;
       const missing = sourceCount - targetCount;
-      errors.push({
-        type: "missing_tag",
-        message: `Missing ${missing} ${spanType} "${label}" tag${missing > 1 ? "s" : ""}`,
-      });
+      const representative = sourceSpanByKey.get(key);
+      if (representative && !isDeletable(representative)) {
+        errors.push({
+          type: "deleted_non_deletable",
+          message: `Missing ${missing} non-deletable ${spanType} "${label}" tag${missing > 1 ? "s" : ""}`,
+        });
+      } else {
+        errors.push({
+          type: "missing_tag",
+          message: `Missing ${missing} ${spanType} "${label}" tag${missing > 1 ? "s" : ""}`,
+        });
+      }
     }
   }
 
@@ -147,10 +163,18 @@ export function validateTags(sourceSpans: SpanInfo[], targetSpans: SpanInfo[]): 
       const info = registry.lookup(tagType);
       const label = info?.label ?? tagType;
       const extra = targetCount - sourceCount;
-      warnings.push({
-        type: "extra_tag",
-        message: `Extra ${extra} ${spanType} "${label}" tag${extra > 1 ? "s" : ""}`,
-      });
+      const representative = sourceSpanByKey.get(key);
+      if (representative && !isCloneable(representative)) {
+        errors.push({
+          type: "cloned_non_cloneable",
+          message: `Duplicated ${extra} non-cloneable ${spanType} "${label}" tag${extra > 1 ? "s" : ""}`,
+        });
+      } else {
+        warnings.push({
+          type: "extra_tag",
+          message: `Extra ${extra} ${spanType} "${label}" tag${extra > 1 ? "s" : ""}`,
+        });
+      }
     }
   }
 
