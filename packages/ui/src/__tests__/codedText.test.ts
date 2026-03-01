@@ -148,14 +148,14 @@ describe("segmentsToCodedText", () => {
 
 describe("spanLabel", () => {
   it("labels bold opening as 'B>'", () => {
-    expect(spanLabel(span("opening", "b", "<b>"))).toBe("B>");
+    expect(spanLabel(span("opening", "fmt:bold", "<b>"))).toBe("B>");
   });
 
   it("labels italic closing as '/I'", () => {
-    expect(spanLabel(span("closing", "i", "</i>"))).toBe("/I");
+    expect(spanLabel(span("closing", "fmt:italic", "</i>"))).toBe("/I");
   });
 
   it("labels break placeholder as 'br'", () => {
-    expect(spanLabel(span("placeholder", "br", "<br/>"))).toBe("br");
+    expect(spanLabel(span("placeholder", "struct:break", "<br/>"))).toBe("br");
   });
 });

@@ -34,7 +34,8 @@ const (
 // Span represents an inline markup element within a Fragment.
 type Span struct {
 	SpanType    SpanType
-	Type        string // Semantic type (e.g., "bold", "link", "image")
+	Type        string // Semantic type from vocabulary (e.g., "fmt:bold", "link:hyperlink")
+	SubType     string // Format-specific refinement (e.g., "html:b", "md:strong")
 	ID          string
 	Data        string // Original markup data (e.g., "<b>")
 	OuterData   string

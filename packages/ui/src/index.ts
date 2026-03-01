@@ -76,6 +76,8 @@ export type {
   SemanticCategory, TagColorScheme, SpanPairInfo,
   TagValidationResult, TagValidationIssue,
 } from "./components/editor/tagSemantics";
+export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
+export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
 
 // Context
 export { AuthProvider, useAuth } from "./context/AuthContext";

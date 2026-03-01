@@ -90,6 +90,7 @@ type SpanMessage struct {
 	EquivText     string                      `protobuf:"bytes,11,opt,name=equiv_text,json=equivText,proto3" json:"equiv_text,omitempty"`      // Equivalent text representation
 	CanReorder    bool                        `protobuf:"varint,12,opt,name=can_reorder,json=canReorder,proto3" json:"can_reorder,omitempty"`  // Whether code can be reordered
 	Annotations   map[string]*AnnotationEntry `protobuf:"bytes,13,rep,name=annotations,proto3" json:"annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SubType       string                      `protobuf:"bytes,14,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"` // Format-specific refinement (e.g., "html:b", "md:strong")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -213,6 +214,13 @@ func (x *SpanMessage) GetAnnotations() map[string]*AnnotationEntry {
 		return x.Annotations
 	}
 	return nil
+}
+
+func (x *SpanMessage) GetSubType() string {
+	if x != nil {
+		return x.SubType
+	}
+	return ""
 }
 
 // FragmentMessage represents text content with inline Spans.
@@ -2052,7 +2060,7 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"(core/plugin/proto/v2/gokapi_bridge.proto\x12\x10gokapi.bridge.v2\"9\n" +
 	"\x0fAnnotationEntry\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"\x8c\x04\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\xa7\x04\n" +
 	"\vSpanMessage\x12\x1b\n" +
 	"\tspan_type\x18\x01 \x01(\x05R\bspanType\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -2071,7 +2079,8 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"equiv_text\x18\v \x01(\tR\tequivText\x12\x1f\n" +
 	"\vcan_reorder\x18\f \x01(\bR\n" +
 	"canReorder\x12P\n" +
-	"\vannotations\x18\r \x03(\v2..gokapi.bridge.v2.SpanMessage.AnnotationsEntryR\vannotations\x1aa\n" +
+	"\vannotations\x18\r \x03(\v2..gokapi.bridge.v2.SpanMessage.AnnotationsEntryR\vannotations\x12\x19\n" +
+	"\bsub_type\x18\x0e \x01(\tR\asubType\x1aa\n" +
 	"\x10AnnotationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x127\n" +
 	"\x05value\x18\x02 \x01(\v2!.gokapi.bridge.v2.AnnotationEntryR\x05value:\x028\x01\"e\n" +

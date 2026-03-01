@@ -61,6 +61,13 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
+	// Check if the source fragment has inline spans.
+	frag := block.FirstFragment()
+	if frag != nil && frag.HasSpans() {
+		return t.handleBlockWithSpans(part, block, frag)
+	}
+
+	// Plain text translation.
 	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
 		Source:       sourceText,
 		SourceLocale: t.sourceLocale,
@@ -72,7 +79,39 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	}
 
 	block.SetTargetText(t.targetLocale, resp.Translation)
+	t.annotateTranslation(block, resp)
+	return part, nil
+}
 
+// handleBlockWithSpans translates a block that contains inline spans.
+// Uses PlaceholderText to preserve span structure through the LLM.
+func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Block, frag *model.Fragment) (*model.Part, error) {
+	// Use placeholder text so the LLM can preserve tag positions.
+	sourceText := frag.PlaceholderText()
+
+	prompt := fmt.Sprintf(
+		"Translate the following text from %s to %s. Preserve all XML tags exactly as they appear (do not modify, add, or remove any tags). Return only the translated text with tags.\n\n%s",
+		t.sourceLocale, t.targetLocale, sourceText,
+	)
+
+	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
+		Source:       prompt,
+		SourceLocale: t.sourceLocale,
+		TargetLocale: t.targetLocale,
+		Glossary:     t.glossary,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("ai-translate: %w", err)
+	}
+
+	// Reconstruct Fragment from the LLM response.
+	targetFrag := model.ParsePlaceholderText(resp.Translation, frag.Spans)
+	block.SetTargetFragment(t.targetLocale, targetFrag)
+	t.annotateTranslation(block, resp)
+	return part, nil
+}
+
+func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *provider.TranslateResponse) {
 	if block.Annotations == nil {
 		block.Annotations = make(map[string]model.Annotation)
 	}
@@ -83,6 +122,4 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		Score:     resp.Confidence,
 		MatchType: "ai",
 	}
-
-	return part, nil
 }

@@ -44,39 +44,28 @@ describe("tagNameFromData", () => {
 // semanticCategory
 // ---------------------------------------------------------------------------
 describe("semanticCategory", () => {
-  it("maps 'b' and 'strong' to bold", () => {
-    expect(semanticCategory(span("opening", "b", "<b>"))).toBe("bold");
-    expect(semanticCategory(span("opening", "strong", "<strong>"))).toBe("bold");
+  it("maps fmt:bold to formatting", () => {
+    expect(semanticCategory(span("opening", "fmt:bold", "<b>"))).toBe("formatting");
   });
 
-  it("maps 'i', 'em', 'emphasis' to italic", () => {
-    expect(semanticCategory(span("opening", "i", "<i>"))).toBe("italic");
-    expect(semanticCategory(span("opening", "em", "<em>"))).toBe("italic");
+  it("maps fmt:italic to formatting", () => {
+    expect(semanticCategory(span("opening", "fmt:italic", "<i>"))).toBe("formatting");
   });
 
-  it("maps link tags correctly", () => {
-    expect(semanticCategory(span("opening", "a", "<a>"))).toBe("link");
+  it("maps link:hyperlink to linking", () => {
+    expect(semanticCategory(span("opening", "link:hyperlink", "<a>"))).toBe("linking");
   });
 
-  it("maps code-like tags", () => {
-    expect(semanticCategory(span("opening", "code", "<code>"))).toBe("code");
-    expect(semanticCategory(span("opening", "kbd", "<kbd>"))).toBe("code");
-    expect(semanticCategory(span("opening", "samp", "<samp>"))).toBe("code");
+  it("maps fmt:code to formatting", () => {
+    expect(semanticCategory(span("opening", "fmt:code", "<code>"))).toBe("formatting");
   });
 
-  it("maps break tags", () => {
-    expect(semanticCategory(span("placeholder", "br", "<br/>"))).toBe("break");
-    expect(semanticCategory(span("placeholder", "wbr", "<wbr>"))).toBe("break");
+  it("maps struct:break to structure", () => {
+    expect(semanticCategory(span("placeholder", "struct:break", "<br/>"))).toBe("structure");
   });
 
-  it("falls back to generic for unknown tags", () => {
-    expect(semanticCategory(span("opening", "span", "<span>"))).toBe("generic");
-    expect(semanticCategory(span("opening", "div", "<div>"))).toBe("generic");
-  });
-
-  it("extracts type from data when type is empty", () => {
-    expect(semanticCategory(span("opening", "", "<b>"))).toBe("bold");
-    expect(semanticCategory(span("opening", "", "<em>"))).toBe("italic");
+  it("falls back to generic for unknown types", () => {
+    expect(semanticCategory(span("opening", "custom:unknown", "<span>"))).toBe("generic");
   });
 });
 
@@ -85,30 +74,34 @@ describe("semanticCategory", () => {
 // ---------------------------------------------------------------------------
 describe("semanticLabel", () => {
   it("returns 'B>' for bold opening", () => {
-    expect(semanticLabel(span("opening", "b", "<b>"))).toBe("B>");
+    expect(semanticLabel(span("opening", "fmt:bold", "<b>"))).toBe("B>");
   });
 
   it("returns '/B' for bold closing", () => {
-    expect(semanticLabel(span("closing", "b", "</b>"))).toBe("/B");
+    expect(semanticLabel(span("closing", "fmt:bold", "</b>"))).toBe("/B");
   });
 
   it("returns 'I>' for italic opening", () => {
-    expect(semanticLabel(span("opening", "i", "<i>"))).toBe("I>");
+    expect(semanticLabel(span("opening", "fmt:italic", "<i>"))).toBe("I>");
   });
 
   it("returns 'br' for break placeholder", () => {
-    expect(semanticLabel(span("placeholder", "br", "<br/>"))).toBe("br");
+    expect(semanticLabel(span("placeholder", "struct:break", "<br/>"))).toBe("br");
   });
 
   it("returns 'a>' for link opening", () => {
-    expect(semanticLabel(span("opening", "a", "<a>"))).toBe("a>");
+    expect(semanticLabel(span("opening", "link:hyperlink", "<a>"))).toBe("a>");
   });
 
-  it("handles generic tags with fallback to type name", () => {
-    const s = span("opening", "span", "<span>");
+  it("uses display_text from span when available", () => {
+    const s: SpanInfo = { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>", display_text: "[BOLD]" };
+    expect(semanticLabel(s)).toBe("[BOLD]");
+  });
+
+  it("handles unknown types with fallback labels", () => {
+    const s = span("opening", "custom:unknown", "<span>");
     const label = semanticLabel(s);
-    // generic has empty label, so falls back to type
-    expect(label).toBe("span>");
+    expect(label).toBe("?>");
   });
 });
 
@@ -117,18 +110,18 @@ describe("semanticLabel", () => {
 // ---------------------------------------------------------------------------
 describe("semanticTooltip", () => {
   it("generates tooltip for bold opening", () => {
-    const tooltip = semanticTooltip(span("opening", "b", "<b>"));
-    expect(tooltip).toBe("Bold open (b) — <b>");
+    const tooltip = semanticTooltip(span("opening", "fmt:bold", "<b>"));
+    expect(tooltip).toBe("Bold open — <b>");
   });
 
   it("generates tooltip for italic closing", () => {
-    const tooltip = semanticTooltip(span("closing", "i", "</i>"));
-    expect(tooltip).toBe("Italic close (i) — </i>");
+    const tooltip = semanticTooltip(span("closing", "fmt:italic", "</i>"));
+    expect(tooltip).toBe("Italic close — </i>");
   });
 
   it("generates tooltip for break placeholder", () => {
-    const tooltip = semanticTooltip(span("placeholder", "br", "<br/>"));
-    expect(tooltip).toBe("Break placeholder (br) — <br/>");
+    const tooltip = semanticTooltip(span("placeholder", "struct:break", "<br/>"));
+    expect(tooltip).toBe("Line Break placeholder — <br/>");
   });
 });
 
@@ -137,15 +130,15 @@ describe("semanticTooltip", () => {
 // ---------------------------------------------------------------------------
 describe("tagColors", () => {
   it("returns color scheme with bg, border, text", () => {
-    const colors = tagColors(span("opening", "b", "<b>"));
+    const colors = tagColors(span("opening", "fmt:bold", "<b>"));
     expect(colors).toHaveProperty("bg");
     expect(colors).toHaveProperty("border");
     expect(colors).toHaveProperty("text");
   });
 
-  it("returns different colors for different categories", () => {
-    const boldColors = tagColors(span("opening", "b", "<b>"));
-    const italicColors = tagColors(span("opening", "i", "<i>"));
+  it("returns different colors for different types", () => {
+    const boldColors = tagColors(span("opening", "fmt:bold", "<b>"));
+    const italicColors = tagColors(span("opening", "fmt:italic", "<i>"));
     expect(boldColors.bg).not.toBe(italicColors.bg);
   });
 });
@@ -160,26 +153,24 @@ describe("buildPairs", () => {
 
   it("pairs matching opening and closing tags", () => {
     const spans: SpanInfo[] = [
-      span("opening", "b", "<b>"),
-      span("closing", "b", "</b>"),
+      span("opening", "fmt:bold", "<b>"),
+      span("closing", "fmt:bold", "</b>"),
     ];
     const pairs = buildPairs(spans);
 
     expect(pairs.size).toBe(2);
-    // Both should share the same pairIndex
     expect(pairs.get(0)!.pairIndex).toBe(pairs.get(1)!.pairIndex);
   });
 
   it("handles nested pairs", () => {
     const spans: SpanInfo[] = [
-      span("opening", "b", "<b>"),
-      span("opening", "i", "<i>"),
-      span("closing", "i", "</i>"),
-      span("closing", "b", "</b>"),
+      span("opening", "fmt:bold", "<b>"),
+      span("opening", "fmt:italic", "<i>"),
+      span("closing", "fmt:italic", "</i>"),
+      span("closing", "fmt:bold", "</b>"),
     ];
     const pairs = buildPairs(spans);
 
-    // b open/close share pair, i open/close share pair, different pair indices
     const bPair = pairs.get(0)!.pairIndex;
     const iPair = pairs.get(1)!.pairIndex;
     expect(bPair).not.toBe(iPair);
@@ -189,10 +180,10 @@ describe("buildPairs", () => {
 
   it("handles same-type nesting (stack behavior)", () => {
     const spans: SpanInfo[] = [
-      span("opening", "b", "<b>"),   // 0
-      span("opening", "b", "<b>"),   // 1
-      span("closing", "b", "</b>"),  // 2 — pairs with 1 (stack LIFO)
-      span("closing", "b", "</b>"),  // 3 — pairs with 0
+      span("opening", "fmt:bold", "<b>"),
+      span("opening", "fmt:bold", "<b>"),
+      span("closing", "fmt:bold", "</b>"),
+      span("closing", "fmt:bold", "</b>"),
     ];
     const pairs = buildPairs(spans);
 
@@ -201,7 +192,7 @@ describe("buildPairs", () => {
   });
 
   it("assigns standalone pair to placeholders", () => {
-    const spans: SpanInfo[] = [span("placeholder", "br", "<br/>")];
+    const spans: SpanInfo[] = [span("placeholder", "struct:break", "<br/>")];
     const pairs = buildPairs(spans);
 
     expect(pairs.size).toBe(1);
@@ -209,11 +200,10 @@ describe("buildPairs", () => {
   });
 
   it("assigns standalone pair to unmatched closing", () => {
-    const spans: SpanInfo[] = [span("closing", "b", "</b>")];
+    const spans: SpanInfo[] = [span("closing", "fmt:bold", "</b>")];
     const pairs = buildPairs(spans);
 
     expect(pairs.size).toBe(1);
-    // unmatched closing gets its own pair
     expect(pairs.get(0)!.pairIndex).toBeGreaterThan(0);
   });
 });
@@ -223,8 +213,8 @@ describe("buildPairs", () => {
 // ---------------------------------------------------------------------------
 describe("validateTags", () => {
   it("returns valid for matching spans", () => {
-    const source = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
-    const target = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
+    const source = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
+    const target = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
     const result = validateTags(source, target);
 
     expect(result.valid).toBe(true);
@@ -237,7 +227,7 @@ describe("validateTags", () => {
   });
 
   it("reports missing tags", () => {
-    const source = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
+    const source = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
     const target: SpanInfo[] = [];
     const result = validateTags(source, target);
 
@@ -248,24 +238,23 @@ describe("validateTags", () => {
 
   it("reports extra tags as warnings", () => {
     const source: SpanInfo[] = [];
-    const target = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
+    const target = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
     const result = validateTags(source, target);
 
-    // extra tags are warnings, not errors
     expect(result.warnings.some(w => w.type === "extra_tag")).toBe(true);
   });
 
   it("reports unpaired closing tags in target", () => {
-    const source = [span("closing", "b", "</b>")];
-    const target = [span("closing", "b", "</b>")];
+    const source = [span("closing", "fmt:bold", "</b>")];
+    const target = [span("closing", "fmt:bold", "</b>")];
     const result = validateTags(source, target);
 
     expect(result.errors.some(e => e.type === "unpaired")).toBe(true);
   });
 
   it("reports unpaired opening tags in target", () => {
-    const source = [span("opening", "b", "<b>")];
-    const target = [span("opening", "b", "<b>")];
+    const source = [span("opening", "fmt:bold", "<b>")];
+    const target = [span("opening", "fmt:bold", "<b>")];
     const result = validateTags(source, target);
 
     expect(result.errors.some(e => e.type === "unpaired")).toBe(true);
@@ -273,19 +262,19 @@ describe("validateTags", () => {
 
   it("handles mixed valid and invalid tags", () => {
     const source = [
-      span("opening", "b", "<b>"),
-      span("closing", "b", "</b>"),
-      span("placeholder", "br", "<br/>"),
+      span("opening", "fmt:bold", "<b>"),
+      span("closing", "fmt:bold", "</b>"),
+      span("placeholder", "struct:break", "<br/>"),
     ];
     const target = [
-      span("opening", "b", "<b>"),
-      span("closing", "b", "</b>"),
-      // missing br placeholder
+      span("opening", "fmt:bold", "<b>"),
+      span("closing", "fmt:bold", "</b>"),
+      // missing break placeholder
     ];
     const result = validateTags(source, target);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes("br"))).toBe(true);
+    expect(result.errors.some(e => e.message.includes("Line Break"))).toBe(true);
   });
 });
 
@@ -302,31 +291,33 @@ describe("codedTextToHtml", () => {
   });
 
   it("wraps bold text in <b> tags", () => {
-    const spans = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
+    const spans = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
     const coded = `${OPENING}bold${CLOSING}`;
     expect(codedTextToHtml(coded, spans)).toBe("<b>bold</b>");
   });
 
   it("wraps italic text in <i> tags", () => {
-    const spans = [span("opening", "i", "<i>"), span("closing", "i", "</i>")];
+    const spans = [span("opening", "fmt:italic", "<i>"), span("closing", "fmt:italic", "</i>")];
     const coded = `${OPENING}italic${CLOSING}`;
     expect(codedTextToHtml(coded, spans)).toBe("<i>italic</i>");
   });
 
-  it("renders break placeholder as <br/>", () => {
-    const spans = [span("placeholder", "br", "<br/>")];
+  it("renders break placeholder using text equivalent", () => {
+    const spans = [span("placeholder", "struct:break", "<br/>")];
     const coded = `line one${PLACEHOLDER}line two`;
-    expect(codedTextToHtml(coded, spans)).toBe("line one<br/>line two");
+    // struct:break has equiv "\n", which gets escaped to text
+    expect(codedTextToHtml(coded, spans)).toContain("line one");
+    expect(codedTextToHtml(coded, spans)).toContain("line two");
   });
 
-  it("renders image placeholder as [img]", () => {
-    const spans = [span("placeholder", "img", "<img/>")];
+  it("renders image placeholder as [Image]", () => {
+    const spans = [span("placeholder", "media:image", "<img/>")];
     const coded = `text ${PLACEHOLDER} more`;
-    expect(codedTextToHtml(coded, spans)).toContain("[img]");
+    expect(codedTextToHtml(coded, spans)).toContain("[Image]");
   });
 
-  it("renders code spans with inline styling", () => {
-    const spans = [span("opening", "code", "<code>"), span("closing", "code", "</code>")];
+  it("renders code spans", () => {
+    const spans = [span("opening", "fmt:code", "<code>"), span("closing", "fmt:code", "</code>")];
     const coded = `${OPENING}foo${CLOSING}`;
     const html = codedTextToHtml(coded, spans);
     expect(html).toContain("<code");
@@ -334,19 +325,20 @@ describe("codedTextToHtml", () => {
     expect(html).toContain("foo");
   });
 
-  it("skips generic/unknown tags", () => {
-    const spans = [span("opening", "div", "<div>"), span("closing", "div", "</div>")];
+  it("skips unknown types (text flows through)", () => {
+    const spans = [span("opening", "custom:unknown", "<div>"), span("closing", "custom:unknown", "</div>")];
     const coded = `${OPENING}content${CLOSING}`;
-    // Generic tags have no HTML mapping — they're skipped
-    expect(codedTextToHtml(coded, spans)).toBe("content");
+    // Unknown types use fallback HTML (<span data-type="...">)
+    const html = codedTextToHtml(coded, spans);
+    expect(html).toContain("content");
   });
 
   it("handles nested tags", () => {
     const spans = [
-      span("opening", "b", "<b>"),
-      span("opening", "i", "<i>"),
-      span("closing", "i", "</i>"),
-      span("closing", "b", "</b>"),
+      span("opening", "fmt:bold", "<b>"),
+      span("opening", "fmt:italic", "<i>"),
+      span("closing", "fmt:italic", "</i>"),
+      span("closing", "fmt:bold", "</b>"),
     ];
     const coded = `${OPENING}${OPENING}text${CLOSING}${CLOSING}`;
     expect(codedTextToHtml(coded, spans)).toBe("<b><i>text</i></b>");

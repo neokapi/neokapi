@@ -121,10 +121,16 @@ type ProjectItemResponse struct {
 
 // SpanInfoResponse describes an inline span element.
 type SpanInfoResponse struct {
-	SpanType string `json:"span_type"`
-	Type     string `json:"type"`
-	ID       string `json:"id"`
-	Data     string `json:"data"`
+	SpanType    string `json:"span_type"`
+	Type        string `json:"type"`
+	ID          string `json:"id"`
+	Data        string `json:"data"`
+	SubType     string `json:"sub_type,omitempty"`
+	DisplayText string `json:"display_text,omitempty"`
+	EquivText   string `json:"equiv_text,omitempty"`
+	Deletable   bool   `json:"deletable,omitempty"`
+	Cloneable   bool   `json:"cloneable,omitempty"`
+	CanReorder  bool   `json:"can_reorder,omitempty"`
 }
 
 // BlockInfoResponse is a serializable representation of a translatable block.
@@ -1052,10 +1058,16 @@ func editorSpanToInfo(s *model.Span) SpanInfoResponse {
 		spanType = "placeholder"
 	}
 	return SpanInfoResponse{
-		SpanType: spanType,
-		Type:     s.Type,
-		ID:       s.ID,
-		Data:     s.Data,
+		SpanType:    spanType,
+		Type:        s.Type,
+		ID:          s.ID,
+		Data:        s.Data,
+		SubType:     s.SubType,
+		DisplayText: s.DisplayText,
+		EquivText:   s.EquivText,
+		Deletable:   s.Deletable,
+		Cloneable:   s.Cloneable,
+		CanReorder:  s.CanReorder,
 	}
 }
 
@@ -1070,10 +1082,16 @@ func editorInfoToSpan(si SpanInfoResponse) *model.Span {
 		st = model.SpanPlaceholder
 	}
 	return &model.Span{
-		SpanType: st,
-		Type:     si.Type,
-		ID:       si.ID,
-		Data:     si.Data,
+		SpanType:    st,
+		Type:        si.Type,
+		ID:          si.ID,
+		Data:        si.Data,
+		SubType:     si.SubType,
+		DisplayText: si.DisplayText,
+		EquivText:   si.EquivText,
+		Deletable:   si.Deletable,
+		Cloneable:   si.Cloneable,
+		CanReorder:  si.CanReorder,
 	}
 }
 
