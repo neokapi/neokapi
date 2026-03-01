@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/gokapi/gokapi/platform/cli"
-	"github.com/gokapi/gokapi/platform/config"
+	"github.com/gokapi/gokapi/cli"
+	"github.com/gokapi/gokapi/cli/config"
 	"github.com/spf13/cobra"
 )
 

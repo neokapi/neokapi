@@ -2,7 +2,7 @@ package cli
 
 import (
 	"github.com/gokapi/gokapi/core/version"
-	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/cli"
-	clioutput "github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/cli"
+	clioutput "github.com/gokapi/gokapi/cli/output"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/modelcontextprotocol/go-sdk/mcp"

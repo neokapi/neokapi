@@ -10,8 +10,8 @@ import (
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/platform/cli/output"
-	"github.com/gokapi/gokapi/platform/config"
+	"github.com/gokapi/gokapi/cli/output"
+	"github.com/gokapi/gokapi/cli/config"
 	"github.com/spf13/cobra"
 )
 

@@ -6,18 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation.
 
-The repository is a **multi-module monorepo** with four Go modules:
+The repository is a **multi-module monorepo** with six Go modules:
 
 - **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system. All framework Go packages live under `core/`. Zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC).
-- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types, interfaces, client code, and **shared CLI base** used by both kapi and bowrain: project model, auth types, connector interfaces, REST client, configuration, CLI command factories (`platform/cli/`). No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring). Includes Cobra for the shared CLI base.
-- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + platform (uses shared CLI base). No heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
-- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, **brain CLI** (project sync companion), connectors, authentication, persistent SQLite storage. Depends on framework + platform.
+- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base used by both kapi and brain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, version), output formatting, Viper-based app config. Depends on framework only. No platform dependency.
+- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
+- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
+- **Brain** (`github.com/gokapi/gokapi/brain`) — project sync companion CLI: manages `.brain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
+- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite storage. Depends on framework + platform. No CLI dependency.
 
-Both **kapi** and **brain** CLIs share a common base in `platform/cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., brain adds project flow support via hooks).
+Both **kapi** and **brain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., brain adds project flow support via a `RegistryResolver` hook).
 
-The **brain CLI** (`bowrain/cmd/brain/`) manages localization projects and syncs with Bowrain Server (init, push, pull, auth, status, etc.). It lives in the bowrain module alongside bowrain-server.
-
-A `go.work` file at the root coordinates the four modules for local development. Kapi and bowrain have no dependency on each other (but both depend on platform).
+A `go.work` file at the root coordinates the six modules for local development. CLI and platform have zero cross-dependency. Kapi and bowrain have no dependency on each other.
 
 ## Build & Test Commands
 
@@ -26,20 +26,22 @@ make build              # Build kapi CLI → bin/kapi
 make build-brain        # Build brain CLI → bin/brain
 make build-server       # Build REST server → bin/bowrain-server
 make build-all          # Build all Go binaries
-make test               # Run all tests (all four modules)
+make test               # Run all tests (all modules)
 make test-framework     # Run framework tests only
+make test-cli           # Run cli module tests only
 make test-platform      # Run platform module tests only
 make test-kapi          # Run kapi CLI tests only
+make test-brain         # Run brain CLI tests only
 make test-bowrain       # Run bowrain tests only
 make test-unit          # Unit tests only (-short flag)
 make test-race          # Tests with race detector
 make test-verbose       # Verbose test output
 make cover              # Coverage report → coverage/coverage.html
 make fmt                # Format Go source (gofmt -w -s)
-make vet                # Run go vet (all four modules)
-make lint               # Run golangci-lint (all four modules)
+make vet                # Run go vet (all modules)
+make lint               # Run golangci-lint (all modules)
 make check              # fmt + vet + lint
-make deps               # Download and tidy Go modules (all four)
+make deps               # Download and tidy Go modules (all modules)
 make proto              # Generate gRPC code from protobuf definitions
 ```
 
@@ -69,15 +71,18 @@ cd website && npm run build          # Production build → website/build/
 
 Always prefer `make` targets over raw `go build` / `go test` commands. The Makefile handles prerequisites (e.g. `make build` requires `make web-build` first for the embedded web UI) and places binaries in `bin/` rather than the repo root. Use direct `go test` only when targeting a specific package or test function.
 
-For the four-module structure:
+For the multi-module structure:
 - Framework packages build from the root: `go build ./...`
+- CLI packages: `cd cli && go build ./...`
 - Platform packages: `cd platform && go build ./...`
 - Kapi CLI: `cd kapi && go build ./...`
+- Brain CLI: `cd brain && go build ./...`
 - Bowrain packages: `cd bowrain && go build ./...`
-- With `go.work`, all four modules resolve cross-module imports automatically
+- With `go.work`, all modules resolve cross-module imports automatically
 - `GOWORK=off go build ./...` verifies framework module isolation
-- `GOWORK=off bash -c "cd platform && go build ./..."` verifies platform isolation
-- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (depends on platform, not bowrain/sqlite/wails)
+- `GOWORK=off bash -c "cd cli && go build ./..."` verifies cli isolation (no platform dep)
+- `GOWORK=off bash -c "cd platform && go build ./..."` verifies platform isolation (no cli dep)
+- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no platform dep)
 
 ## Architecture
 
@@ -85,7 +90,7 @@ For the four-module structure:
 
 ```
 gokapi/
-├── go.work                # Workspace: use . ./platform ./kapi ./bowrain
+├── go.work                # Workspace: use . ./cli ./platform ./kapi ./brain ./bowrain
 ├── go.mod                 # module github.com/gokapi/gokapi (framework)
 │
 │   ── Framework Module ──────────────────
@@ -109,28 +114,38 @@ gokapi/
 │   └── testutil/          # Shared test helpers
 ├── examples/              # Plugin examples
 │
+│   ── CLI Module ────────────────────────
+├── cli/
+│   ├── go.mod             # module github.com/gokapi/gokapi/cli (framework only)
+│   ├── config/            # Viper-based app configuration (~/.config/kapi/)
+│   └── output/            # Shared output formatting + types (used by kapi & brain)
+│
 │   ── Platform Module ───────────────────
 ├── platform/
-│   ├── go.mod             # module github.com/gokapi/gokapi/platform
-│   ├── cli/               # Shared CLI base (App struct, command factories)
-│   │   └── output/        # Shared output formatting + types (used by kapi & brain)
-│   ├── project/           # .kapi/ project model (types, config, sync cache)
+│   ├── go.mod             # module github.com/gokapi/gokapi/platform (framework only)
+│   ├── project/           # .brain/ project model (types, config, sync cache)
 │   ├── auth/              # Auth types, JWT, device flow client
 │   ├── connector/         # Connector interfaces + base types
 │   ├── client/            # REST client for bowrain API
-│   ├── config/            # Viper-based app configuration (~/.config/kapi/)
+│   ├── config/            # Auth persistence (StoredAuth, LoadAuth, SaveAuth)
 │   ├── store/             # ContentStore interface + domain types
 │   ├── event/             # Event types + bus interface
 │   └── credentials/       # Provider credential management
 │
 │   ── Kapi Module ───────────────────────
 ├── kapi/
-│   ├── go.mod             # module github.com/gokapi/gokapi/kapi (depends on platform)
+│   ├── go.mod             # module github.com/gokapi/gokapi/kapi (framework + cli)
 │   └── cmd/kapi/          # Thin root cmd wiring shared CLI commands
+│
+│   ── Brain Module ──────────────────────
+├── brain/
+│   ├── go.mod             # module github.com/gokapi/gokapi/brain (framework + cli + platform)
+│   └── cmd/brain/         # Brain CLI (project cmds + shared CLI base)
+│       └── output/        # Brain-specific output types
 │
 │   ── Bowrain Module ────────────────────
 ├── bowrain/
-│   ├── go.mod             # module github.com/gokapi/gokapi/bowrain
+│   ├── go.mod             # module github.com/gokapi/gokapi/bowrain (framework + platform)
 │   ├── auth/              # OIDC, AuthStore, SQLite auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)
 │   ├── store/             # SQLite ContentStore implementation
@@ -143,8 +158,6 @@ gokapi/
 │   ├── termbase/          # SQLite TermBase implementation
 │   ├── proto/v1/          # gRPC protobuf definitions
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
-│   ├── cmd/brain/         # Brain CLI (brain-specific cmds + shared CLI base)
-│   │   └── output/        # Brain-specific output types
 │   └── apps/
 │       ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
 │       ├── web/           # SaaS web UI
@@ -202,7 +215,7 @@ kapi presets list             # List available presets
 **Role Separation:**
 - **Kapi** = standalone file-processing tool, demonstrates gokapi's power as open-source toolchain
 - **Brain** = project sync companion CLI, focuses on DX and project simplicity for Bowrain
-- **Shared CLI base** (`platform/cli/`) = common commands (formats, plugins, tools, flows, presets, termbase, version) used by both kapi and brain
+- **Shared CLI base** (`cli/`) = common commands (formats, plugins, tools, flows, presets, termbase, version) used by both kapi and brain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 
 ### Streaming Pipeline

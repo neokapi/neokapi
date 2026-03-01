@@ -7,7 +7,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
-	"github.com/gokapi/gokapi/platform/cli/output"
+	"github.com/gokapi/gokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

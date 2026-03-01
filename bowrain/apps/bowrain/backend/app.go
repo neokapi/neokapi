@@ -21,7 +21,6 @@ import (
 	"github.com/gokapi/gokapi/core/termbase"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/core/version"
-	"github.com/gokapi/gokapi/platform/config"
 	platconn "github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/store"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -124,7 +123,7 @@ func newAppWithStore(cs store.ContentStore) *App {
 func (a *App) LoadPlugins() {
 	pluginDir := os.Getenv("KAPI_PLUGIN_DIR")
 	if pluginDir == "" {
-		pluginDir = config.NewAppConfig().PluginDirectory()
+		pluginDir = defaultPluginDir()
 	}
 
 	pl := loader.NewPluginLoader(pluginDir, nil)
@@ -135,6 +134,14 @@ func (a *App) LoadPlugins() {
 	a.pluginMu.Lock()
 	a.pluginLoader = pl
 	a.pluginMu.Unlock()
+}
+
+// defaultPluginDir returns the default plugin directory.
+func defaultPluginDir() string {
+	if dir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(dir, "gokapi", "plugins")
+	}
+	return "./plugins"
 }
 
 // SetApplication stores the Wails v3 application reference for dialog and event access.

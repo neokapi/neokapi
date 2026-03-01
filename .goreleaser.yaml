@@ -9,8 +9,10 @@ before:
     - mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
     - go mod tidy
+    - bash -c "cd cli && go mod tidy"
     - bash -c "cd platform && go mod tidy"
     - bash -c "cd kapi && go mod tidy"
+    - bash -c "cd brain && go mod tidy"
     - bash -c "cd bowrain && go mod tidy"
 
 builds:
@@ -37,7 +39,7 @@ builds:
       - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
 
   - id: brain
-    dir: bowrain
+    dir: brain
     main: ./cmd/brain
     binary: brain
     env:

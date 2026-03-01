@@ -21,13 +21,15 @@ Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://g
 
 ## Repository Layout
 
-Four Go modules coordinated by `go.work`:
+Six Go modules coordinated by `go.work`:
 
 | Module | Path | Description |
 |--------|------|-------------|
 | **Framework** | `core/` | Content model, format readers/writers, processing tools, pipeline executor, plugin system |
-| **Platform** | `platform/` | Shared types, interfaces, REST client, config |
-| **Kapi** | `kapi/` | CLI tool for local file processing and server sync |
+| **CLI** | `cli/` | Shared CLI base, command factories, output formatting, app config |
+| **Platform** | `platform/` | Shared platform types, auth, connector interfaces, REST client |
+| **Kapi** | `kapi/` | Standalone CLI tool for local file processing |
+| **Brain** | `brain/` | Project sync companion CLI (init, push, pull, auth, status) |
 | **Bowrain** | `bowrain/` | Server, desktop app, SQLite storage, auth, connectors |
 
 See [AD-018](docs/ad/018-four-module-architecture.md) for the full rationale.

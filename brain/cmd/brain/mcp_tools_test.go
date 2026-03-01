@@ -8,7 +8,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/platform/cli"
+	"github.com/gokapi/gokapi/cli"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

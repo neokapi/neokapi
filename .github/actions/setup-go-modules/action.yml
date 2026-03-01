@@ -1,5 +1,5 @@
 name: Setup Go & Modules
-description: Install Go, download modules for all four modules, and create embed placeholders
+description: Install Go, download modules for all modules, and create embed placeholders
 
 inputs:
   go-version:
@@ -18,8 +18,10 @@ runs:
       shell: bash
       run: |
         go mod download && go mod verify
-        cd platform && go mod download && go mod verify
+        cd cli && go mod download && go mod verify
+        cd ../platform && go mod download && go mod verify
         cd ../kapi && go mod download && go mod verify
+        cd ../brain && go mod download && go mod verify
         cd ../bowrain && go mod download && go mod verify
 
     - name: Create embed placeholders
