@@ -24,7 +24,7 @@
 set -euo pipefail
 
 REPO="gokapi/okapi-bridge"
-BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v2.3.1}"
+BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v2.3.2}"
 OKAPI_VERSION="${OKAPI_VERSION:-1.48.0}"
 ASSET_NAME="okapi-bridge-${BRIDGE_VERSION}-okapi${OKAPI_VERSION}.tar.gz"
 
