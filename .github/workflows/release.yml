@@ -53,8 +53,10 @@ jobs:
       - name: Download modules
         run: |
           go mod download && go mod verify
-          cd platform && go mod download && go mod verify
+          cd cli && go mod download && go mod verify
+          cd ../platform && go mod download && go mod verify
           cd ../kapi && go mod download && go mod verify
+          cd ../brain && go mod download && go mod verify
           cd ../bowrain && go mod download && go mod verify
 
       - name: Reset go.work.sum
