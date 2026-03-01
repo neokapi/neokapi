@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'gokapi',
   tagline: 'Open, AI-native localization platform in Go',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   url: 'https://gokapi.github.io',
   baseUrl: '/',
