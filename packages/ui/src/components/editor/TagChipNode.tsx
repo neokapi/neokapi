@@ -12,6 +12,7 @@ import {
 import { createElement } from "react";
 import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
+import { isDeletable } from "./tagConstraints";
 
 export type SerializedTagChipNode = Spread<
   { spanInfo: SpanInfo },
@@ -80,7 +81,8 @@ export class TagChipNode extends DecoratorNode<ReactNode> {
   }
 
   decorate(): ReactNode {
-    return createElement(TagChipComponent, { spanInfo: this.__spanInfo });
+    const locked = !isDeletable(this.__spanInfo);
+    return createElement(TagChipComponent, { spanInfo: this.__spanInfo, locked });
   }
 }
 

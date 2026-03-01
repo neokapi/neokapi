@@ -41,6 +41,7 @@ type QACheckConfig struct {
 	CheckEmptyTarget        bool
 	CheckTargetSameAsSource bool
 	CheckTerminology        bool // Placeholder for future terminology integration
+	CheckSpanConstraints    bool // Check non-deletable/non-cloneable span constraint violations
 }
 
 // ToolName returns the tool name this config applies to.
@@ -55,6 +56,7 @@ func (c *QACheckConfig) Reset() {
 	c.CheckEmptyTarget = true
 	c.CheckTargetSameAsSource = true
 	c.CheckTerminology = false
+	c.CheckSpanConstraints = true
 }
 
 // Validate checks configuration validity.
@@ -75,6 +77,7 @@ func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
 		CheckEmptyTarget:        true,
 		CheckTargetSameAsSource: true,
 		CheckTerminology:        false,
+		CheckSpanConstraints:    true,
 	}
 }
 
@@ -176,11 +179,87 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 			})
 		}
 
+		// Check: span constraint violations.
+		if conf.CheckSpanConstraints {
+			sourceFrag := block.FirstFragment()
+			if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
+				targetSegs := block.Targets[conf.TargetLocale]
+				if len(targetSegs) > 0 {
+					targetFrag := targetSegs[0].Content
+					issues = append(issues, checkSpanConstraints(sourceFrag, targetFrag)...)
+				}
+			}
+		}
+
 		storeQAIssues(block, issues)
 
 		return part, nil
 	}
 	return t
+}
+
+// spanFingerprint returns a string key for matching spans: "type|spanType".
+func spanFingerprint(s *model.Span) string {
+	return s.Type + "|" + s.SpanType.String()
+}
+
+// checkSpanConstraints compares source and target span counts, reporting
+// violations where non-deletable spans are missing or non-cloneable spans
+// are duplicated.
+func checkSpanConstraints(source, target *model.Fragment) []QAIssue {
+	sourceCounts := spanFingerprints(source.Spans)
+	targetCounts := spanFingerprints(target.Spans)
+
+	// Build a map from fingerprint → Span (for constraint lookup).
+	spanByKey := make(map[string]*model.Span)
+	for _, s := range source.Spans {
+		spanByKey[spanFingerprint(s)] = s
+	}
+
+	var issues []QAIssue
+
+	// Non-deletable span missing from target.
+	for key, srcCount := range sourceCounts {
+		tgtCount := targetCounts[key]
+		if tgtCount < srcCount {
+			s := spanByKey[key]
+			if s != nil && !s.Deletable {
+				missing := srcCount - tgtCount
+				issues = append(issues, QAIssue{
+					Type:     "non-deletable-span-missing",
+					Severity: QASeverityError,
+					Message:  fmt.Sprintf("Non-deletable %s span %q is missing from target (%d missing)", s.SpanType, s.Type, missing),
+				})
+			}
+		}
+	}
+
+	// Non-cloneable span duplicated in target.
+	for key, tgtCount := range targetCounts {
+		srcCount := sourceCounts[key]
+		if tgtCount > srcCount {
+			s := spanByKey[key]
+			if s != nil && !s.Cloneable {
+				extra := tgtCount - srcCount
+				issues = append(issues, QAIssue{
+					Type:     "non-cloneable-span-duplicated",
+					Severity: QASeverityError,
+					Message:  fmt.Sprintf("Non-cloneable %s span %q was duplicated in target (%d extra)", s.SpanType, s.Type, extra),
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+// spanFingerprints counts spans by type|spanType fingerprint.
+func spanFingerprints(spans []*model.Span) map[string]int {
+	counts := make(map[string]int)
+	for _, s := range spans {
+		counts[spanFingerprint(s)]++
+	}
+	return counts
 }
 
 // storeQAIssues writes QA findings to Block.Properties.
