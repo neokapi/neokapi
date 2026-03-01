@@ -60,6 +60,7 @@ message SpanMessage {
   string equiv_text = 11;   // Equivalent text representation
   bool can_reorder = 12;    // Whether code can be reordered
   map<string, AnnotationEntry> annotations = 13;
+  string sub_type = 14;   // Format-specific refinement (e.g., "html:b", "md:strong")
 }
 
 // FragmentMessage represents text content with inline Spans.

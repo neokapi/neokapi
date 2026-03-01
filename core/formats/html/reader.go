@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -35,15 +36,32 @@ var nonTranslatableElements = map[atom.Atom]bool{
 	atom.Script: true, atom.Style: true,
 }
 
+// htmlSemanticTypes maps HTML element names to vocabulary semantic types.
+var htmlSemanticTypes = map[string]string{
+	"b": "fmt:bold", "strong": "fmt:bold",
+	"i": "fmt:italic", "em": "fmt:italic",
+	"u": "fmt:underline",
+	"s": "fmt:strikethrough", "del": "fmt:strikethrough", "strike": "fmt:strikethrough",
+	"a":    "link:hyperlink",
+	"code": "fmt:code", "kbd": "fmt:code", "samp": "fmt:code", "tt": "fmt:code",
+	"sub":  "fmt:subscript", "sup": "fmt:superscript",
+	"mark": "fmt:highlight",
+	"br":   "struct:break", "hr": "struct:break",
+	"img":  "media:image",
+}
+
 // Reader implements DataFormatReader for HTML files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg   *Config
+	vocab *model.VocabularyRegistry
 }
 
 // NewReader creates a new HTML reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	vocab := model.NewVocabularyRegistry()
+	_ = vocab.LoadDefaults()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "html",
@@ -52,7 +70,8 @@ func NewReader() *Reader {
 			FormatExtensions:  []string{".html", ".htm", ".xhtml"},
 			Cfg:               cfg,
 		},
-		cfg: cfg,
+		cfg:   cfg,
+		vocab: vocab,
 	}
 }
 
@@ -198,45 +217,81 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, n *ht
 }
 
 // collectInlineContent collects all text and inline elements from a block element
-// into a single Fragment with Spans.
+// into a single Fragment with Spans using sequential IDs and semantic types.
 func (r *Reader) collectInlineContent(n *html.Node) *model.Fragment {
 	frag := &model.Fragment{}
-	r.collectFromNode(n, frag)
+	spanCounter := 0
+	r.collectFromNode(n, frag, &spanCounter)
 	return frag
 }
 
-func (r *Reader) collectFromNode(n *html.Node, frag *model.Fragment) {
+func (r *Reader) collectFromNode(n *html.Node, frag *model.Fragment, spanCounter *int) {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
 			frag.AppendText(child.Data)
 		case html.ElementNode:
 			if isInlineElement(child) {
+				semType := htmlSemanticType(child.Data)
+				subType := "html:" + child.Data
+
 				if selfClosingElements[child.DataAtom] {
+					*spanCounter++
+					id := strconv.Itoa(*spanCounter)
+					info := r.vocab.LookupOrFallback(semType)
 					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanPlaceholder,
-						Type:     child.Data,
-						ID:       child.Data,
-						Data:     r.renderTag(child),
+						SpanType:    model.SpanPlaceholder,
+						Type:        semType,
+						SubType:     subType,
+						ID:          id,
+						Data:        r.renderTag(child),
+						DisplayText: info.Display.Placeholder,
+						EquivText:   info.Equiv,
+						Deletable:   info.Constraints.Deletable,
+						Cloneable:   info.Constraints.Cloneable,
+						CanReorder:  info.Constraints.Reorderable,
 					})
 				} else {
+					*spanCounter++
+					id := strconv.Itoa(*spanCounter)
+					info := r.vocab.LookupOrFallback(semType)
 					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanOpening,
-						Type:     child.Data,
-						ID:       child.Data,
-						Data:     r.renderOpenTag(child),
+						SpanType:    model.SpanOpening,
+						Type:        semType,
+						SubType:     subType,
+						ID:          id,
+						Data:        r.renderOpenTag(child),
+						DisplayText: info.Display.Open,
+						EquivText:   info.Equiv,
+						Deletable:   info.Constraints.Deletable,
+						Cloneable:   info.Constraints.Cloneable,
+						CanReorder:  info.Constraints.Reorderable,
 					})
-					r.collectFromNode(child, frag)
+					r.collectFromNode(child, frag, spanCounter)
 					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanClosing,
-						Type:     child.Data,
-						ID:       child.Data,
-						Data:     fmt.Sprintf("</%s>", child.Data),
+						SpanType:    model.SpanClosing,
+						Type:        semType,
+						SubType:     subType,
+						ID:          id,
+						Data:        fmt.Sprintf("</%s>", child.Data),
+						DisplayText: info.Display.Close,
+						EquivText:   info.Equiv,
+						Deletable:   info.Constraints.Deletable,
+						Cloneable:   info.Constraints.Cloneable,
+						CanReorder:  info.Constraints.Reorderable,
 					})
 				}
 			}
 		}
 	}
+}
+
+// htmlSemanticType returns the vocabulary semantic type for an HTML element name.
+func htmlSemanticType(element string) string {
+	if t, ok := htmlSemanticTypes[strings.ToLower(element)]; ok {
+		return t
+	}
+	return "code:markup"
 }
 
 // hasTextContent returns true if the node contains text content (directly or via inline children).

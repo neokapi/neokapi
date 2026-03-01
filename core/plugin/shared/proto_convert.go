@@ -207,6 +207,7 @@ func SpanToProto(s *model.Span) *pb.SpanMessage {
 	return &pb.SpanMessage{
 		SpanType:    int32(s.SpanType),
 		Type:        s.Type,
+		SubType:     s.SubType,
 		Id:          s.ID,
 		Data:        s.Data,
 		OuterData:   s.OuterData,
@@ -226,6 +227,7 @@ func ProtoToSpan(msg *pb.SpanMessage) *model.Span {
 	return &model.Span{
 		SpanType:    model.SpanType(msg.SpanType),
 		Type:        msg.Type,
+		SubType:     msg.SubType,
 		ID:          msg.Id,
 		Data:        msg.Data,
 		OuterData:   msg.OuterData,

@@ -656,9 +656,15 @@ func (x *EditorProjectResponse) GetProject() *EditorProjectInfo {
 type SpanInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpanType      string                 `protobuf:"bytes,1,opt,name=span_type,json=spanType,proto3" json:"span_type,omitempty"` // "opening", "closing", "placeholder"
-	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`                         // Semantic type from vocabulary (e.g., "fmt:bold")
 	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
-	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	Data          string                 `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`                                  // Original markup (e.g., "<b>")
+	SubType       string                 `protobuf:"bytes,5,opt,name=sub_type,json=subType,proto3" json:"sub_type,omitempty"`             // Format-specific refinement (e.g., "html:b")
+	DisplayText   string                 `protobuf:"bytes,6,opt,name=display_text,json=displayText,proto3" json:"display_text,omitempty"` // Human-readable label (e.g., "[B]")
+	EquivText     string                 `protobuf:"bytes,7,opt,name=equiv_text,json=equivText,proto3" json:"equiv_text,omitempty"`       // Plain text equivalent (e.g., "\n" for breaks)
+	Deletable     bool                   `protobuf:"varint,8,opt,name=deletable,proto3" json:"deletable,omitempty"`
+	Cloneable     bool                   `protobuf:"varint,9,opt,name=cloneable,proto3" json:"cloneable,omitempty"`
+	CanReorder    bool                   `protobuf:"varint,10,opt,name=can_reorder,json=canReorder,proto3" json:"can_reorder,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -719,6 +725,48 @@ func (x *SpanInfo) GetData() string {
 		return x.Data
 	}
 	return ""
+}
+
+func (x *SpanInfo) GetSubType() string {
+	if x != nil {
+		return x.SubType
+	}
+	return ""
+}
+
+func (x *SpanInfo) GetDisplayText() string {
+	if x != nil {
+		return x.DisplayText
+	}
+	return ""
+}
+
+func (x *SpanInfo) GetEquivText() string {
+	if x != nil {
+		return x.EquivText
+	}
+	return ""
+}
+
+func (x *SpanInfo) GetDeletable() bool {
+	if x != nil {
+		return x.Deletable
+	}
+	return false
+}
+
+func (x *SpanInfo) GetCloneable() bool {
+	if x != nil {
+		return x.Cloneable
+	}
+	return false
+}
+
+func (x *SpanInfo) GetCanReorder() bool {
+	if x != nil {
+		return x.CanReorder
+	}
+	return false
 }
 
 type BlockInfo struct {
@@ -3415,12 +3463,21 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\"V\n" +
 	"\x15EditorProjectResponse\x12=\n" +
-	"\aproject\x18\x01 \x01(\v2#.gokapi.server.v1.EditorProjectInfoR\aproject\"_\n" +
+	"\aproject\x18\x01 \x01(\v2#.gokapi.server.v1.EditorProjectInfoR\aproject\"\x99\x02\n" +
 	"\bSpanInfo\x12\x1b\n" +
 	"\tspan_type\x18\x01 \x01(\tR\bspanType\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
 	"\x02id\x18\x03 \x01(\tR\x02id\x12\x12\n" +
-	"\x04data\x18\x04 \x01(\tR\x04data\"\xf7\x04\n" +
+	"\x04data\x18\x04 \x01(\tR\x04data\x12\x19\n" +
+	"\bsub_type\x18\x05 \x01(\tR\asubType\x12!\n" +
+	"\fdisplay_text\x18\x06 \x01(\tR\vdisplayText\x12\x1d\n" +
+	"\n" +
+	"equiv_text\x18\a \x01(\tR\tequivText\x12\x1c\n" +
+	"\tdeletable\x18\b \x01(\bR\tdeletable\x12\x1c\n" +
+	"\tcloneable\x18\t \x01(\bR\tcloneable\x12\x1f\n" +
+	"\vcan_reorder\x18\n" +
+	" \x01(\bR\n" +
+	"canReorder\"\xf7\x04\n" +
 	"\tBlockInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12!\n" +

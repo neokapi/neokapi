@@ -15,22 +15,22 @@ import type {
 // Spans (inline markup tags)
 // ---------------------------------------------------------------------------
 
-export const boldOpen: SpanInfo = { span_type: "opening", type: "b", id: "1", data: "<b>" };
-export const boldClose: SpanInfo = { span_type: "closing", type: "b", id: "1", data: "</b>" };
-export const italicOpen: SpanInfo = { span_type: "opening", type: "i", id: "2", data: "<i>" };
-export const italicClose: SpanInfo = { span_type: "closing", type: "i", id: "2", data: "</i>" };
-export const linkOpen: SpanInfo = { span_type: "opening", type: "a", id: "3", data: '<a href="https://example.com">' };
-export const linkClose: SpanInfo = { span_type: "closing", type: "a", id: "3", data: "</a>" };
-export const codeOpen: SpanInfo = { span_type: "opening", type: "code", id: "4", data: "<code>" };
-export const codeClose: SpanInfo = { span_type: "closing", type: "code", id: "4", data: "</code>" };
-export const lineBreak: SpanInfo = { span_type: "placeholder", type: "br", id: "5", data: "<br/>" };
-export const imgTag: SpanInfo = { span_type: "placeholder", type: "img", id: "6", data: '<img src="logo.png"/>' };
-export const underlineOpen: SpanInfo = { span_type: "opening", type: "u", id: "7", data: "<u>" };
-export const underlineClose: SpanInfo = { span_type: "closing", type: "u", id: "7", data: "</u>" };
-export const strikeOpen: SpanInfo = { span_type: "opening", type: "s", id: "8", data: "<s>" };
-export const strikeClose: SpanInfo = { span_type: "closing", type: "s", id: "8", data: "</s>" };
-export const supOpen: SpanInfo = { span_type: "opening", type: "sup", id: "9", data: "<sup>" };
-export const supClose: SpanInfo = { span_type: "closing", type: "sup", id: "9", data: "</sup>" };
+export const boldOpen: SpanInfo = { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" };
+export const boldClose: SpanInfo = { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" };
+export const italicOpen: SpanInfo = { span_type: "opening", type: "fmt:italic", id: "2", data: "<i>" };
+export const italicClose: SpanInfo = { span_type: "closing", type: "fmt:italic", id: "2", data: "</i>" };
+export const linkOpen: SpanInfo = { span_type: "opening", type: "link:hyperlink", id: "3", data: '<a href="https://example.com">' };
+export const linkClose: SpanInfo = { span_type: "closing", type: "link:hyperlink", id: "3", data: "</a>" };
+export const codeOpen: SpanInfo = { span_type: "opening", type: "fmt:code", id: "4", data: "<code>" };
+export const codeClose: SpanInfo = { span_type: "closing", type: "fmt:code", id: "4", data: "</code>" };
+export const lineBreak: SpanInfo = { span_type: "placeholder", type: "struct:break", id: "5", data: "<br/>" };
+export const imgTag: SpanInfo = { span_type: "placeholder", type: "media:image", id: "6", data: '<img src="logo.png"/>' };
+export const underlineOpen: SpanInfo = { span_type: "opening", type: "fmt:underline", id: "7", data: "<u>" };
+export const underlineClose: SpanInfo = { span_type: "closing", type: "fmt:underline", id: "7", data: "</u>" };
+export const strikeOpen: SpanInfo = { span_type: "opening", type: "fmt:strikethrough", id: "8", data: "<s>" };
+export const strikeClose: SpanInfo = { span_type: "closing", type: "fmt:strikethrough", id: "8", data: "</s>" };
+export const supOpen: SpanInfo = { span_type: "opening", type: "fmt:superscript", id: "9", data: "<sup>" };
+export const supClose: SpanInfo = { span_type: "closing", type: "fmt:superscript", id: "9", data: "</sup>" };
 
 // Markdown-style spans (semantic types, delimiter data)
 export const mdBoldOpen: SpanInfo = { span_type: "opening", type: "bold", id: "1", data: "**" };
@@ -405,10 +405,10 @@ export const navigationBlocks: BlockInfo[] = [
     source: "Initialize a new project by running kapi init in your project directory. This creates a .kapi folder with default configuration files.",
     source_coded: `Initialize a new project by running ${O}kapi init${C} in your project directory. This creates a ${O}.kapi${C} folder with default configuration files.`,
     source_spans: [
-      { span_type: "opening", type: "code", id: "10", data: "<code>" },
-      { span_type: "closing", type: "code", id: "10", data: "</code>" },
-      { span_type: "opening", type: "code", id: "11", data: "<code>" },
-      { span_type: "closing", type: "code", id: "11", data: "</code>" },
+      { span_type: "opening", type: "fmt:code", id: "10", data: "<code>" },
+      { span_type: "closing", type: "fmt:code", id: "10", data: "</code>" },
+      { span_type: "opening", type: "fmt:code", id: "11", data: "<code>" },
+      { span_type: "closing", type: "fmt:code", id: "11", data: "</code>" },
     ],
     targets: { "fr-FR": `Initialisez un nouveau projet en ex\u00e9cutant ${O}kapi init${C} dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier ${O}.kapi${C} avec la configuration par d\u00e9faut.`, "de-DE": "" },
     targets_coded: { "fr-FR": `Initialisez un nouveau projet en ex\u00e9cutant ${O}kapi init${C} dans votre r\u00e9pertoire de projet. Cela cr\u00e9e un dossier ${O}.kapi${C} avec la configuration par d\u00e9faut.`, "de-DE": "" },
@@ -443,10 +443,10 @@ export const navigationBlocks: BlockInfo[] = [
     source: "The configuration file supports multiple target locales, custom flows, and provider settings. Edit config.yaml in the .kapi directory to customize your translation workflow.",
     source_coded: `The configuration file supports multiple target locales, custom flows, and provider settings. Edit ${O}config.yaml${C} in the ${O}.kapi${C} directory to customize your translation workflow.`,
     source_spans: [
-      { span_type: "opening", type: "code", id: "12", data: "<code>" },
-      { span_type: "closing", type: "code", id: "12", data: "</code>" },
-      { span_type: "opening", type: "code", id: "13", data: "<code>" },
-      { span_type: "closing", type: "code", id: "13", data: "</code>" },
+      { span_type: "opening", type: "fmt:code", id: "12", data: "<code>" },
+      { span_type: "closing", type: "fmt:code", id: "12", data: "</code>" },
+      { span_type: "opening", type: "fmt:code", id: "13", data: "<code>" },
+      { span_type: "closing", type: "fmt:code", id: "13", data: "</code>" },
     ],
     targets: { "fr-FR": `Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez ${O}config.yaml${C} dans le r\u00e9pertoire ${O}.kapi${C} pour personnaliser votre workflow.`, "de-DE": "" },
     targets_coded: { "fr-FR": `Le fichier de configuration prend en charge plusieurs locales cibles. Modifiez ${O}config.yaml${C} dans le r\u00e9pertoire ${O}.kapi${C} pour personnaliser votre workflow.`, "de-DE": "" },

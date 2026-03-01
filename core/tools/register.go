@@ -76,4 +76,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.Register("qa-check", func() tool.Tool {
 		return NewQACheckTool(NewQACheckConfig(model.LocaleEnglish))
 	})
+
+	reg.Register("span-classify", func() tool.Tool {
+		return NewSpanClassifyTool(&SpanClassifyConfig{})
+	})
 }

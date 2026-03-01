@@ -202,10 +202,16 @@ func spanToInfo(s *model.Span) SpanInfo {
 		spanType = "placeholder"
 	}
 	return SpanInfo{
-		SpanType: spanType,
-		Type:     s.Type,
-		ID:       s.ID,
-		Data:     s.Data,
+		SpanType:    spanType,
+		Type:        s.Type,
+		ID:          s.ID,
+		Data:        s.Data,
+		SubType:     s.SubType,
+		DisplayText: s.DisplayText,
+		EquivText:   s.EquivText,
+		Deletable:   s.Deletable,
+		Cloneable:   s.Cloneable,
+		CanReorder:  s.CanReorder,
 	}
 }
 
@@ -352,10 +358,16 @@ func infoToSpan(si SpanInfo) *model.Span {
 		st = model.SpanPlaceholder
 	}
 	return &model.Span{
-		SpanType: st,
-		Type:     si.Type,
-		ID:       si.ID,
-		Data:     si.Data,
+		SpanType:    st,
+		Type:        si.Type,
+		ID:          si.ID,
+		Data:        si.Data,
+		SubType:     si.SubType,
+		DisplayText: si.DisplayText,
+		EquivText:   si.EquivText,
+		Deletable:   si.Deletable,
+		Cloneable:   si.Cloneable,
+		CanReorder:  si.CanReorder,
 	}
 }
 

@@ -41,10 +41,16 @@ type ProjectItem struct {
 
 // SpanInfo describes an inline span element for the frontend.
 type SpanInfo struct {
-	SpanType string `json:"span_type"` // "opening", "closing", "placeholder"
-	Type     string `json:"type"`      // "bold", "link", "break", etc.
-	ID       string `json:"id"`
-	Data     string `json:"data"` // original markup: "<b>", "</b>", "<br/>"
+	SpanType    string `json:"span_type"`              // "opening", "closing", "placeholder"
+	Type        string `json:"type"`                   // Semantic type from vocabulary (e.g., "fmt:bold")
+	ID          string `json:"id"`
+	Data        string `json:"data"`                   // original markup: "<b>", "</b>", "<br/>"
+	SubType     string `json:"sub_type,omitempty"`     // Format-specific refinement (e.g., "html:b")
+	DisplayText string `json:"display_text,omitempty"` // Human-readable label (e.g., "[B]")
+	EquivText   string `json:"equiv_text,omitempty"`   // Plain text equivalent
+	Deletable   bool   `json:"deletable,omitempty"`
+	Cloneable   bool   `json:"cloneable,omitempty"`
+	CanReorder  bool   `json:"can_reorder,omitempty"`
 }
 
 // BlockInfo is a serializable representation of a translatable block.

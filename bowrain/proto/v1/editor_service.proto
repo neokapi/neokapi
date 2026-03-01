@@ -120,10 +120,16 @@ message EditorProjectResponse {
 // --- Block messages ---
 
 message SpanInfo {
-  string span_type = 1;  // "opening", "closing", "placeholder"
-  string type = 2;
+  string span_type = 1;      // "opening", "closing", "placeholder"
+  string type = 2;            // Semantic type from vocabulary (e.g., "fmt:bold")
   string id = 3;
-  string data = 4;
+  string data = 4;            // Original markup (e.g., "<b>")
+  string sub_type = 5;        // Format-specific refinement (e.g., "html:b")
+  string display_text = 6;    // Human-readable label (e.g., "[B]")
+  string equiv_text = 7;      // Plain text equivalent (e.g., "\n" for breaks)
+  bool deletable = 8;
+  bool cloneable = 9;
+  bool can_reorder = 10;
 }
 
 message BlockInfo {
