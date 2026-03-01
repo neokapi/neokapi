@@ -109,10 +109,15 @@ recursively: HTML in JSON in YAML is three levels deep with no special cases.
 
 Text with inline formatting is represented as Fragments using coded text.
 Unicode Private Use Area (PUA) markers replace inline markup (bold, italic,
-links, etc.) within the text stream. Each marker maps to a `Span` that records
-the original markup. This allows tools and translation engines to process plain
-text with positional codes, reconstructing the original markup on output.
-Fragment is the text-with-markup representation used throughout the system.
+links, etc.) within the text stream. Each marker maps to a `Span` carrying
+six layers of metadata: native markup for roundtrip fidelity, sequential
+identity, semantic type from a format-independent vocabulary, display text,
+text equivalent, and editing constraints. This allows tools and translation
+engines to process plain text with positional codes while the full inline
+code semantics are preserved for TM matching, AI translation, and editor
+rendering. Fragment is the text-with-markup representation used throughout
+the system. See [AD-022](./022-inline-code-model.md) for the full inline
+code model, semantic type vocabulary, and rendering projections.
 
 ### Dynamic Properties
 
