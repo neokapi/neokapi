@@ -3,7 +3,7 @@
   "workspaces": [
     "packages/ui",
     "bowrain/apps/web",
-    "bowrain/apps/kapi-web",
+    "kapi/apps/kapi-web",
     "bowrain/apps/bowrain/frontend"
   ],
   "devDependencies": {

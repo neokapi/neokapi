@@ -178,8 +178,7 @@ gokapi/                              ── Framework Module ──
 │   ├── cmd/bowrain-server/          # Echo v4 REST API server
 │   └── apps/
 │       ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
-│       ├── web/                     # SaaS web UI
-│       └── kapi-web/               # kapi serve web UI
+│       └── web/                     # SaaS web UI
 │
 │   ── Non-Go Assets ──
 ├── packages/ui/                     # Shared React component library (@gokapi/ui)

@@ -16,7 +16,7 @@ The root `package.json` declares an NPM workspace encompassing all four frontend
   "workspaces": [
     "packages/ui",
     "bowrain/apps/web",
-    "bowrain/apps/kapi-web",
+    "kapi/apps/kapi-web",
     "bowrain/apps/bowrain/frontend"
   ]
 }
@@ -30,7 +30,7 @@ Note that `bowrain/apps/keycloak-theme` is intentionally excluded from the works
 |---------|-------------|---------|-----------------|
 | `packages/ui` | `@gokapi/ui` | Shared React component library | shadcn-glass-ui, Tailwind v4, Radix UI |
 | `bowrain/apps/web` | `gokapi-web` | SaaS web UI (bowrain-server) | React 19, Lexical, Tailwind v4 |
-| `bowrain/apps/kapi-web` | `gokapi-kapi-web` | Kapi serve web UI | React 19, Lexical, Tailwind v4 |
+| `kapi/apps/kapi-web` | `gokapi-kapi-web` | Kapi serve web UI | React 19, Lexical, Tailwind v4 |
 | `bowrain/apps/bowrain/frontend` | `bowrain` | Wails v3 desktop app frontend | React 19, Wails runtime, XYFlow, Lexical |
 
 All four projects share React 19, Tailwind CSS v4, and TypeScript 5.8+. The three app projects consume `@gokapi/ui` through Vite path aliases rather than npm package resolution.
@@ -67,7 +67,7 @@ packages/ui (npm install)
     |         |
     |         +---> bowrain/apps/web (npm run build)
     |         |
-    |         +---> bowrain/apps/kapi-web (npm run build)
+    |         +---> kapi/apps/kapi-web (npm run build)
     |
     +---> bowrain/apps/bowrain/frontend (npm run build)
 ```
@@ -127,7 +127,7 @@ Each project maintains its own `package-lock.json`:
 package-lock.json                           # Root workspace
 packages/ui/package-lock.json               # Shared UI
 bowrain/apps/web/package-lock.json          # Web app
-bowrain/apps/kapi-web/package-lock.json     # Kapi web
+kapi/apps/kapi-web/package-lock.json     # Kapi web
 bowrain/apps/bowrain/frontend/package-lock.json  # Desktop frontend
 bowrain/apps/keycloak-theme/package-lock.json    # Keycloak theme (outside workspace)
 ```
@@ -141,7 +141,7 @@ Before committing frontend changes, the following checks must pass:
 ```bash
 cd packages/ui && npm ci && npx tsc          # Shared UI builds
 cd bowrain/apps/web && npm ci && npm run build   # Web app builds
-cd bowrain/apps/kapi-web && npm ci && npm run build  # Kapi web builds
+cd kapi/apps/kapi-web && npm ci && npm run build  # Kapi web builds
 ```
 
 The Bowrain desktop frontend build is verified separately through `make frontend-build`. The Keycloak theme build is verified via `make keycloak-theme`.

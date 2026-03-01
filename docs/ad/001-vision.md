@@ -144,8 +144,6 @@ bowrain/                   ── Platform Module ──
   cmd/bowrain-server/  Echo v4 REST API server + gRPC services
   apps/bowrain/   Wails v3 desktop app (Go + React 19/TypeScript/Vite)
   apps/web/       SaaS web UI
-  apps/kapi-web/  kapi serve web UI
-  packages/ui/    shared React component library (@gokapi/ui)
 
 website/          Docusaurus 3 documentation site
 ```

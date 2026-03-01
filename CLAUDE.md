@@ -135,7 +135,9 @@ gokapi/
 │   ── Kapi Module ───────────────────────
 ├── kapi/
 │   ├── go.mod             # module github.com/gokapi/gokapi/kapi (framework + cli)
-│   └── cmd/kapi/          # Thin root cmd wiring shared CLI commands
+│   ├── cmd/kapi/          # Thin root cmd wiring shared CLI commands
+│   └── apps/
+│       └── kapi-web/      # kapi serve web UI
 │
 │   ── Brain Module ──────────────────────
 ├── brain/
@@ -160,8 +162,7 @@ gokapi/
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
 │   └── apps/
 │       ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
-│       ├── web/           # SaaS web UI
-│       └── kapi-web/      # kapi serve web UI
+│       └── web/           # SaaS web UI
 │
 │   ── Shared Frontend ───────────────────
 ├── packages/
@@ -354,7 +355,7 @@ All screenshots and recordings must run against real gokapi infrastructure. Spec
 
 Before committing any UI-related change:
 
-1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `bowrain/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
+1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `kapi/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
 2. All unit tests pass (`cd packages/ui && npm test`)
 3. All 3 frontend production builds succeed
 4. All screenshots regenerated to `website/static/img/`

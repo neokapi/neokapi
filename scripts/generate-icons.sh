@@ -22,8 +22,8 @@
 #     bowrain/apps/web/public/icon-192.png             (192x192)
 #     bowrain/apps/web/public/icon-512.png             (512x512)
 #   Kapi web:
-#     bowrain/apps/kapi-web/public/favicon.ico         (16,32,48px)
-#     bowrain/apps/kapi-web/public/apple-touch-icon.png (180x180)
+#     kapi/apps/kapi-web/public/favicon.ico         (16,32,48px)
+#     kapi/apps/kapi-web/public/apple-touch-icon.png (180x180)
 
 set -euo pipefail
 
@@ -156,7 +156,7 @@ resize 512 "$REPO_ROOT/bowrain/apps/web/public/icon-512.png"
 
 # --- 6. Kapi web: favicon.ico + apple-touch-icon ---
 echo "  kapi-web icons"
-make_favicon "$REPO_ROOT/bowrain/apps/kapi-web/public/favicon.ico"
-resize 180 "$REPO_ROOT/bowrain/apps/kapi-web/public/apple-touch-icon.png"
+make_favicon "$REPO_ROOT/kapi/apps/kapi-web/public/favicon.ico"
+resize 180 "$REPO_ROOT/kapi/apps/kapi-web/public/apple-touch-icon.png"
 
 echo "Done. Generated all icons."

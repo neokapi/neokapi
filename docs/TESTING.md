@@ -279,17 +279,17 @@ npm run e2e:recordings    # requires Docker backend
 
 **Configuration:** `playwright.config.ts` — connects to the real backend (defaults to `http://localhost:8080`, overridable via `BOWRAIN_URL` env var). Tests authenticate via device auth flow, create workspaces/projects, seed TM entries and terminology, then capture screenshots in both `dark/` and `light/` subdirectories for the documentation site.
 
-#### kapi-web (`bowrain/apps/kapi-web`)
+#### kapi-web (`kapi/apps/kapi-web`)
 
 ```
-bowrain/apps/kapi-web/e2e/
+kapi/apps/kapi-web/e2e/
 ├── screenshots.spec.ts   — Screenshots with mock API
 └── mock-api.ts           — In-memory API mock via page.route()
 ```
 
 **Running:**
 ```bash
-cd bowrain/apps/kapi-web
+cd kapi/apps/kapi-web
 npx playwright test
 ```
 
@@ -322,7 +322,7 @@ cd packages/ui && npm test
 cd bowrain/apps/bowrain/frontend && npx playwright test
 
 # E2E — kapi-web (mock API, no backend)
-cd bowrain/apps/kapi-web && npx playwright test
+cd kapi/apps/kapi-web && npx playwright test
 
 # E2E — web (requires Docker backend)
 cd bowrain/apps/web && npm run e2e:screenshots

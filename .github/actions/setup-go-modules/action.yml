@@ -28,5 +28,5 @@ runs:
       shell: bash
       run: |
         mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-        mkdir -p bowrain/apps/kapi-web/dist && echo placeholder > bowrain/apps/kapi-web/dist/index.html
+        mkdir -p kapi/apps/kapi-web/dist && echo placeholder > kapi/apps/kapi-web/dist/index.html
         mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
