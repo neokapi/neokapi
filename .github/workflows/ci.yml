@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   # ── Detect which modules changed ──────────────────────────────────────────
   changes:
@@ -135,7 +139,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run platform tests
-        run: cd platform && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1 || true
+        run: |
+          cd platform
+          go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1 || true
 
       - name: Convert to JUnit XML
         if: always()
@@ -178,7 +184,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run kapi tests
-        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1 || true
+        run: |
+          cd kapi
+          go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1 || true
 
       - name: Convert to JUnit XML
         if: always()
