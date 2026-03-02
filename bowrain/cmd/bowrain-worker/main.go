@@ -29,6 +29,9 @@ func main() {
 		log.Fatal("BOWRAIN_DATABASE_URL or BOWRAIN_STORE is required")
 	}
 
+	dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
+	azureClientID := os.Getenv("AZURE_CLIENT_ID")
+
 	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
 	natsURL := os.Getenv("BOWRAIN_NATS_URL")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
@@ -41,17 +44,22 @@ func main() {
 	var jobStore jobs.JobStore
 
 	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
-		pgdb, err := storage.OpenPostgres(dbURL)
+		var pgdb *storage.PgDB
+		var err error
+		if dbAuth == "azure" {
+			pgdb, err = storage.OpenPostgresAzure(dbURL, azureClientID)
+		} else {
+			pgdb, err = storage.OpenPostgres(dbURL)
+		}
 		if err != nil {
 			log.Fatalf("Worker: open PostgreSQL: %v", err)
 		}
 		defer pgdb.Close()
 
-		pgCS, err := bstore.NewPostgresStore(dbURL)
+		pgCS, err := bstore.NewPostgresStoreFromDB(pgdb)
 		if err != nil {
 			log.Fatalf("Worker: open PostgreSQL content store: %v", err)
 		}
-		defer pgCS.Close()
 		cs = pgCS
 
 		pgJS, err := jobs.NewPgJobStore(pgdb)

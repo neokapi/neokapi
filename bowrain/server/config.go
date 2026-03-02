@@ -23,9 +23,20 @@ type ServerConfig struct {
 
 	// DatabaseURL is a database connection string. Supported schemes:
 	//   - postgres://user:pass@host/db  → PostgreSQL via pgx
+	//   - postgresql://user@host/db     → PostgreSQL via pgx
 	//   - sqlite:///path/to/file.db     → SQLite (same as StorePath)
 	// When set, takes precedence over StorePath.
 	DatabaseURL string
+
+	// DatabaseAuth selects the PostgreSQL authentication method.
+	// "azure" uses Entra ID managed identity tokens (passwordless).
+	// Empty or any other value uses password from the DatabaseURL.
+	DatabaseAuth string
+
+	// AzureClientID is the client ID of the user-assigned managed identity
+	// for Azure Entra ID database authentication. Only used when
+	// DatabaseAuth is "azure".
+	AzureClientID string
 
 	// Auth
 	JWTSecret        string

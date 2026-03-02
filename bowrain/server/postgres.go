@@ -16,7 +16,20 @@ func openPostgresStores(databaseURL string) (store.ContentStore, auth.AuthStore,
 	if err != nil {
 		return nil, nil, fmt.Errorf("open PostgreSQL: %w", err)
 	}
+	return initPostgresStores(db)
+}
 
+// openPostgresStoresAzure opens PostgreSQL-backed stores using Azure
+// Managed Identity for authentication (passwordless).
+func openPostgresStoresAzure(databaseURL, clientID string) (store.ContentStore, auth.AuthStore, error) {
+	db, err := storage.OpenPostgresAzure(databaseURL, clientID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
+	}
+	return initPostgresStores(db)
+}
+
+func initPostgresStores(db *storage.PgDB) (store.ContentStore, auth.AuthStore, error) {
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	if err != nil {
 		db.Close()

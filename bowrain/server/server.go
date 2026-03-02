@@ -99,7 +99,14 @@ func NewServer(cfg ServerConfig) *Server {
 	}
 
 	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
-		cs, as, err := openPostgresStores(dbURL)
+		var cs store.ContentStore
+		var as auth.AuthStore
+		var err error
+		if cfg.DatabaseAuth == "azure" {
+			cs, as, err = openPostgresStoresAzure(dbURL, cfg.AzureClientID)
+		} else {
+			cs, as, err = openPostgresStores(dbURL)
+		}
 		if err != nil {
 			log.Printf("WARNING: failed to open PostgreSQL stores: %v", err)
 		} else {
