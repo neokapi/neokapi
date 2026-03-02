@@ -44,6 +44,12 @@ func main() {
 	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
 		cfg.DatabaseURL = envDBURL
 	}
+	if envDBAuth := os.Getenv("BOWRAIN_DATABASE_AUTH"); envDBAuth != "" {
+		cfg.DatabaseAuth = envDBAuth
+	}
+	if envClientID := os.Getenv("AZURE_CLIENT_ID"); envClientID != "" {
+		cfg.AzureClientID = envClientID
+	}
 	if envJWT := os.Getenv("BOWRAIN_JWT_SECRET"); envJWT != "" {
 		cfg.JWTSecret = envJWT
 	}
