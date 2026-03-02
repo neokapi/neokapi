@@ -25,7 +25,7 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 
 - Linux (amd64, arm64)
 - macOS (amd64, arm64)
-- Windows (amd64)
+- Windows (amd64, arm64)
 
 ## Building from Source
 

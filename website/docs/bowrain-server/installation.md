@@ -100,6 +100,11 @@ curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-serve
 tar xzf bowrain-server-linux-amd64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
 
+# Linux (ARM64)
+curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-server-linux-arm64.tar.gz
+tar xzf bowrain-server-linux-arm64.tar.gz
+sudo mv bowrain-server /usr/local/bin/
+
 # macOS (Apple Silicon)
 curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-server-darwin-arm64.tar.gz
 tar xzf bowrain-server-darwin-arm64.tar.gz
