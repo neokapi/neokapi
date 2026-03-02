@@ -102,11 +102,11 @@ The inline code (`kapi init`) and link are preserved exactly, while you translat
 i18n files often contain variables and ICU message format expressions:
 
 **Example source:**
-> Hello {userName}, you have {count} new messages.
+> Hello \{userName\}, you have \{count\} new messages.
 
 The variables `{userName}` and `{count}` appear as orange tag chips and are marked as required. You cannot delete them, but you can rearrange them to match your target language's word order:
 
-> Bonjour {userName}, vous avez {count} nouveaux messages.
+> Bonjour \{userName\}, vous avez \{count\} nouveaux messages.
 
 ### XLIFF Exchange Files
 
