@@ -358,8 +358,8 @@ export function VisualEditorLayout({
         {/* ── Inline editor card ────────────────────────────────── */}
         <div
           ref={cardRef}
-          className="absolute z-10 left-1/2 -translate-x-1/2"
-          style={{ top: spacerY + 32 }}
+          className="absolute z-10 left-0 right-0 px-4"
+          style={{ top: spacerY + 32, transition: 'top 0.25s ease' }}
         >
           <VisualEditorCard
             block={currentBlock}
