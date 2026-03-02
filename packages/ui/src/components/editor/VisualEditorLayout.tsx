@@ -229,7 +229,7 @@ export function VisualEditorLayout({
   }
 
   return (
-    <div ref={scrollRef} className="relative w-full h-full overflow-y-auto" data-testid="visual-editor-layout">
+    <div ref={scrollRef} className="relative w-full h-full overflow-y-auto flex flex-col" data-testid="visual-editor-layout">
       {/* ── Sticky toolbar ───────────────────────────────────────── */}
       <div
         className={cn(
@@ -337,7 +337,7 @@ export function VisualEditorLayout({
 
       {/* ── Preview + inline card container ───────────────────────── */}
       <div
-        className="relative"
+        className="relative flex-1"
         style={{
           marginRight: showTermSidebar ? 260 : 0,
           minHeight: cardHeight > 0 ? spacerY + cardHeight + 96 : undefined,
@@ -387,6 +387,8 @@ export function VisualEditorLayout({
             onAddNote={onAddNote}
             onDeleteNote={onDeleteNote}
             onTermCreate={onTermCreate}
+            onPrev={selectedIndex > 0 ? () => onNavigate(selectedIndex - 1) : undefined}
+            onNext={selectedIndex < blocks.length - 1 ? () => onNavigate(selectedIndex + 1) : undefined}
           />
         </div>
       </div>

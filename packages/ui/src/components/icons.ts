@@ -6,6 +6,7 @@ export {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
+  ChevronUp,
   Sun,
   Moon,
   FileCode,

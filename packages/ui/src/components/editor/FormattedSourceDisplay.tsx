@@ -133,10 +133,20 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
             }
           }
           // No visible element
+        } else if (span.type === "struct:break") {
+          // Line break — render as return symbol + actual break
+          elements.push(
+            <span key={i}>
+              <span style={lineBreakSymbolStyle} title="Line break">
+                {"\u23CE"}
+              </span>
+              <br />
+            </span>,
+          );
         } else {
           // Placeholder — render as small inline pill
           const info = getDefaultRegistry().lookupOrFallback(span.type);
-          const label = info.chipLabel.placeholder ?? info.label ?? "?";
+          const label = span.display_text ?? info.chipLabel.placeholder ?? info.label ?? "?";
 
           elements.push(
             <span
@@ -161,6 +171,13 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
 
   return <span>{rendered}</span>;
 }
+
+const lineBreakSymbolStyle: React.CSSProperties = {
+  color: "rgba(107,114,128,0.8)",
+  fontSize: 12,
+  userSelect: "none",
+  cursor: "default",
+};
 
 const placeholderStyle: React.CSSProperties = {
   display: "inline-flex",

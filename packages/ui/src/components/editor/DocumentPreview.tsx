@@ -178,13 +178,13 @@ export function DocumentPreview({
     );
   }
 
-  // In inline mode, iframe expands to full content height (no internal scrollbar)
+  // In inline mode, iframe fills available space but expands for tall content
   const effectiveIframeStyle: React.CSSProperties = inlineMode
-    ? { ...iframeStyle, height: iframeContentHeight > 0 ? iframeContentHeight : "100%" }
+    ? { ...iframeStyle, height: "100%", minHeight: iframeContentHeight > 0 ? iframeContentHeight : undefined }
     : iframeStyle;
 
   const effectiveContainerStyle: React.CSSProperties = inlineMode
-    ? { ...containerStyle, height: "auto" }
+    ? containerStyle
     : containerStyle;
 
   return (

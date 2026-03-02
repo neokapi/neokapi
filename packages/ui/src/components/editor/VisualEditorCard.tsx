@@ -16,7 +16,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { cn } from "../../lib/utils";
-import { Check, X, ChevronDown, ChevronRight, AlertTriangle, Info, Code } from "../icons";
+import { Check, X, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, Info, Code } from "../icons";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -52,6 +52,9 @@ export interface VisualEditorCardProps {
   onDeleteNote?: (noteId: string) => void;
   // Term creation (enrich mode)
   onTermCreate?: (req: AddConceptRequest) => Promise<void>;
+  // Navigation
+  onPrev?: () => void;
+  onNext?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -117,6 +120,8 @@ export function VisualEditorCard({
   onAddNote,
   onDeleteNote,
   onTermCreate,
+  onPrev,
+  onNext,
 }: VisualEditorCardProps) {
   const [tmExpanded, setTmExpanded] = useState(true);
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -178,6 +183,28 @@ export function VisualEditorCard({
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              disabled={!onPrev || blockIndex === 0}
+              onClick={onPrev}
+              className="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title="Previous block"
+              data-testid="prev-block-btn"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              disabled={!onNext || blockIndex >= totalBlocks - 1}
+              onClick={onNext}
+              className="inline-flex items-center justify-center w-5 h-5 rounded text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title="Next block"
+              data-testid="next-block-btn"
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          </div>
           <span className="text-xs font-medium text-muted-foreground">
             Block {blockIndex + 1}/{totalBlocks}
           </span>
