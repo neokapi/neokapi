@@ -29,11 +29,15 @@ func previewBoilerplateStart() string {
 <style>
   html, body { overflow: hidden; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; padding: 16px; color: #1a1a2e; }
-  kat-block { cursor: pointer; border-radius: 2px; transition: background-color 0.15s; display: inline; }
-  kat-block:hover { background-color: rgba(59,130,246,0.15); }
-  kat-block.kat-selected { background-color: rgba(59,130,246,0.25); outline: 2px solid #3b82f6; }
+  kat-block { border-radius: 2px; display: inline; }
+  .kat-wrapper { cursor: pointer; position: relative; border-radius: 6px; padding: 6px 8px; margin: -6px -8px; transition: background-color 0.15s; }
+  .kat-wrapper:hover:not(.kat-active-line) { background-color: rgba(59,130,246,0.04); }
+  @keyframes kat-fade-in { from { opacity: 0 } to { opacity: 1 } }
+  .kat-active-line { position: relative; background: rgba(59,130,246,0.08); border-radius: 6px; padding: 6px 8px; margin: -6px -8px; animation: kat-fade-in 0.15s ease; }
+  .kat-active-line::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #3b82f6; border-radius: 2px 0 0 2px; }
   kat-block.kat-presence { outline-offset: 2px; }
   .kat-presence-label { position: absolute; top: -18px; left: 0; font-size: 10px; padding: 1px 4px; border-radius: 3px; color: white; pointer-events: none; white-space: nowrap; z-index: 10; }
+  code { background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; font-family: ui-monospace, monospace; }
   #kat-editor-spacer { transition: height 0.15s ease-out; }
 </style>
 </head>
@@ -50,9 +54,14 @@ func previewBoilerplateEnd() string {
 	return `
 <script>
   document.querySelectorAll('kat-block').forEach(el => {
-    el.addEventListener('click', () => {
-      window.parent.postMessage({ type: 'kat-block-click', blockId: el.id }, '*');
-    });
+    const w = el.closest('p,div,li,h1,h2,h3,h4,h5,h6,td,th,blockquote') || el.parentElement;
+    if (w) w.classList.add('kat-wrapper');
+  });
+  document.addEventListener('click', (e) => {
+    e.preventDefault();
+    let b = e.target.closest ? e.target.closest('kat-block') : null;
+    if (!b) { const w = e.target.closest ? e.target.closest('.kat-wrapper') : null; if (w) b = w.querySelector('kat-block'); }
+    if (b) window.parent.postMessage({ type: 'kat-block-click', blockId: b.id }, '*');
   });
 
   // Report content height to parent
@@ -65,12 +74,17 @@ func previewBoilerplateEnd() string {
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'kat-select-block') {
       document.querySelector('.kat-selected')?.classList.remove('kat-selected');
+      document.querySelector('.kat-active-line')?.classList.remove('kat-active-line');
       const el = document.getElementById(e.data.blockId);
-      if (el) { el.classList.add('kat-selected'); }
+      if (el) {
+        el.classList.add('kat-selected');
+        const wrapper = el.closest('p,div,li,h1,h2,h3,h4,h5,h6,td,th,blockquote') || el;
+        wrapper.classList.add('kat-active-line');
+      }
     }
     if (e.data?.type === 'kat-update-block') {
       const el = document.getElementById(e.data.blockId);
-      if (el) el.textContent = e.data.text || '';
+      if (el) { if (e.data.html) el.innerHTML = e.data.html; else el.textContent = e.data.text || ''; }
     }
     if (e.data?.type === 'kat-insert-spacer') {
       var old = document.getElementById('kat-editor-spacer');

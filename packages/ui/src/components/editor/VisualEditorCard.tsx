@@ -138,9 +138,9 @@ export function VisualEditorCard({
 
   const sourceSpans = block.source_spans || [];
   const sourceCodedText = block.source_coded || block.source;
-  const targetText = block.targets_coded?.[targetLocale] || block.targets[targetLocale] || "";
+  const targetText = block.targets[targetLocale] || "";
   const targetCodedText = block.targets_coded?.[targetLocale] || block.targets[targetLocale] || "";
-  const targetSpans: SpanInfo[] = [];
+  const hasTargetSpans = block.has_spans && !!block.targets_coded?.[targetLocale];
 
   const qaErrors = qaIssues?.filter((i) => i.severity === "error") || [];
   const qaWarnings = qaIssues?.filter((i) => i.severity === "warning") || [];
@@ -177,7 +177,7 @@ export function VisualEditorCard({
 
   return (
     <div
-      className="visual-editor-card w-[640px] rounded-xl p-0"
+      className="visual-editor-card w-full rounded-xl p-0"
       data-testid="visual-editor-card"
     >
       {/* ── Header ─────────────────────────────────────────── */}
@@ -388,7 +388,7 @@ export function VisualEditorCard({
         {editorMode === "translate" && isEditing ? (
           <TargetCellEditor
             initialCodedText={targetCodedText}
-            initialSpans={targetSpans}
+            initialSpans={[]}
             sourceSpans={sourceSpans}
             onSave={onSave}
             onCancel={onCancel}
@@ -402,7 +402,11 @@ export function VisualEditorCard({
             onClick={editorMode === "translate" && !isEditing ? onStartEditing : undefined}
             data-testid="target-display"
           >
-            {targetText || (
+            {hasTargetSpans ? (
+              <FormattedSourceDisplay codedText={targetCodedText} spans={sourceSpans} />
+            ) : targetText ? (
+              <span>{targetText}</span>
+            ) : (
               <span className="text-muted-foreground italic text-xs">Click to translate...</span>
             )}
           </div>

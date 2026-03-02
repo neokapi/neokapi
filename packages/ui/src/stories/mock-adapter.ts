@@ -74,7 +74,7 @@ function generatePreviewHTML(blocks: BlockInfo[]): string {
 (function(){
 var spacer=null;
 function rh(){parent.postMessage({type:"kat-content-height",height:document.documentElement.scrollHeight},"*")}
-function sel(id){document.querySelectorAll("kat-block").forEach(function(el){el.classList.toggle("kat-selected",el.dataset.blockId===id)})}
+function sel(id){document.querySelectorAll("kat-block").forEach(function(el){el.classList.toggle("kat-selected",el.dataset.blockId===id)});var ow=document.querySelector(".kat-active-line");if(ow)ow.classList.remove("kat-active-line");var sb=document.querySelector('kat-block[data-block-id="'+id+'"]');if(sb){var w=sb.closest("h1,h2,h3,p,div,li,td,th")||sb.parentElement;if(w)w.classList.add("kat-active-line")}}
 function ins(bid,h){
   rem();
   var b=document.querySelector('kat-block[data-block-id="'+bid+'"]');
@@ -86,7 +86,8 @@ function ins(bid,h){
   parent.postMessage({type:"kat-spacer-position",y:r.top+window.scrollY,contentHeight:document.documentElement.scrollHeight},"*");
 }
 function rem(){if(spacer&&spacer.parentNode){spacer.parentNode.removeChild(spacer);spacer=null}rh()}
-document.addEventListener("click",function(e){var b=e.target.closest?e.target.closest("kat-block"):null;if(b)parent.postMessage({type:"kat-block-click",blockId:b.dataset.blockId},"*")});
+document.querySelectorAll("kat-block").forEach(function(el){var w=el.closest("h1,h2,h3,p,div,li,td,th")||el.parentElement;if(w)w.classList.add("kat-wrapper")});
+document.addEventListener("click",function(e){e.preventDefault();var b=e.target.closest?e.target.closest("kat-block"):null;if(!b){var w=e.target.closest?e.target.closest(".kat-wrapper"):null;if(w)b=w.querySelector("kat-block")}if(b)parent.postMessage({type:"kat-block-click",blockId:b.dataset.blockId},"*")});
 window.addEventListener("message",function(e){
   var d=e.data;if(!d||!d.type)return;
   if(d.type==="kat-select-block")sel(d.blockId);
@@ -94,7 +95,7 @@ window.addEventListener("message",function(e){
   if(d.type==="kat-remove-spacer")rem();
   if(d.type==="kat-update-block"){
     var el=document.querySelector('kat-block[data-block-id="'+d.blockId+'"]');
-    if(el){el.textContent=d.html;rh()}
+    if(el){if(d.html)el.innerHTML=d.html;else el.textContent=d.text||"";rh()}
   }
 });
 parent.postMessage({type:"kat-iframe-ready"},"*");setTimeout(rh,0);
@@ -106,15 +107,18 @@ parent.postMessage({type:"kat-iframe-ready"},"*");setTimeout(rh,0);
 <head>
 <style>
 *{box-sizing:border-box}
-body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:40px 56px 80px;line-height:1.7;color:#1e293b;background:#fff}
-kat-block{display:inline;cursor:pointer;border-radius:3px;transition:background .15s ease,outline-color .15s ease;outline:2px solid transparent;outline-offset:2px}
-kat-block:hover{background:rgba(99,102,241,.06)}
-kat-block.kat-selected{background:rgba(99,102,241,.1);outline-color:rgba(99,102,241,.4)}
+body{font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif;margin:0;padding:40px 16px 80px;line-height:1.7;color:#1e293b;background:#fff}
+kat-block{display:inline;border-radius:3px}
+.kat-wrapper{cursor:pointer;position:relative;border-radius:6px;padding:6px 8px;margin:-6px -8px;transition:background .15s ease}
+.kat-wrapper:hover:not(.kat-active-line){background:rgba(59,130,246,0.04)}
+@keyframes kat-fade-in{from{opacity:0}to{opacity:1}}
+.kat-active-line{position:relative;background:rgba(59,130,246,0.08);border-radius:6px;padding:6px 8px;margin:-6px -8px;animation:kat-fade-in .15s ease}
+.kat-active-line::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:#3b82f6;border-radius:2px 0 0 2px}
 .kat-spacer{display:block;transition:height .25s ease}
 h1{font-size:32px;font-weight:700;margin:0 0 12px;line-height:1.3}
 h2{font-size:22px;font-weight:600;margin:32px 0 8px;line-height:1.3;color:#334155}
 p{margin:0 0 16px;font-size:16px}
-code{background:#f1f5f9;padding:2px 6px;border-radius:4px;font-size:14px;font-family:ui-monospace,monospace}
+code{background:#e2e8f0;padding:1px 5px;border-radius:4px;font-size:0.9em;font-family:ui-monospace,monospace}
 b{font-weight:600}
 a{color:#6366f1;text-decoration:underline}
 </style>
