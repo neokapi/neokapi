@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
+import { getDefaultRegistry } from "../../vocabularies";
 import { parseCodedSegments } from "./codedText";
 import {
-  semanticCategory, semanticTooltip, tagColors,
-  type SemanticCategory, type TagColorScheme,
+  semanticTooltip, tagColors,
+  type TagColorScheme,
 } from "./tagSemantics";
 
 interface FormattedSourceDisplayProps {
@@ -11,20 +12,34 @@ interface FormattedSourceDisplayProps {
   spans: SpanInfo[];
 }
 
-/** CSS formatting per semantic category applied to enclosed text. */
-const categoryStyle: Record<SemanticCategory, React.CSSProperties> = {
-  bold: { fontWeight: 700 },
-  italic: { fontStyle: "italic" },
-  underline: { textDecoration: "underline" },
-  strikethrough: { textDecoration: "line-through" },
-  link: { textDecoration: "underline", color: "rgb(34, 197, 94)" },
-  code: { fontFamily: "monospace", borderRadius: 2 },
-  subscript: { verticalAlign: "sub", fontSize: "smaller" },
-  superscript: { verticalAlign: "super", fontSize: "smaller" },
-  image: {},
-  break: {},
-  generic: {},
+/** Map HTML open tags from the vocabulary to CSS styles for preview rendering. */
+const htmlTagStyle: Record<string, React.CSSProperties> = {
+  "<b>": { fontWeight: 700 },
+  "<strong>": { fontWeight: 700 },
+  "<i>": { fontStyle: "italic" },
+  "<em>": { fontStyle: "italic" },
+  "<u>": { textDecoration: "underline" },
+  "<s>": { textDecoration: "line-through" },
+  "<del>": { textDecoration: "line-through" },
+  "<a>": { textDecoration: "underline", color: "rgb(34, 197, 94)" },
+  "<code>": { fontFamily: "monospace", borderRadius: 2 },
+  "<sub>": { verticalAlign: "sub", fontSize: "smaller" },
+  "<sup>": { verticalAlign: "super", fontSize: "smaller" },
 };
+
+/** Derive CSS style from a span's vocabulary HTML rendering. */
+function spanStyle(spanType: string): React.CSSProperties {
+  const info = getDefaultRegistry().lookupOrFallback(spanType);
+  const openTag = info.html.open;
+  if (openTag) {
+    // Normalize: extract just the tag name portion, e.g. '<b>' from '<b class="x">'
+    const match = openTag.match(/^<(\w+)/);
+    if (match) {
+      return htmlTagStyle[`<${match[1]}>`] ?? {};
+    }
+  }
+  return {};
+}
 
 /** Reduce tag bg opacity from ~0.15 to ~0.08 for a subtle tint. */
 function tintBg(colors: TagColorScheme): string {
@@ -38,7 +53,7 @@ function codeBg(colors: TagColorScheme): string {
 
 interface StackEntry {
   span: SpanInfo;
-  category: SemanticCategory;
+  style: React.CSSProperties;
   colors: TagColorScheme;
 }
 
@@ -68,11 +83,10 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
         const textDecorations: string[] = [];
 
         for (const entry of stack) {
-          const catStyle = categoryStyle[entry.category];
-          Object.assign(mergedStyle, catStyle);
+          Object.assign(mergedStyle, entry.style);
           // Collect text-decoration values for merging
-          if (catStyle.textDecoration) {
-            textDecorations.push(catStyle.textDecoration as string);
+          if (entry.style.textDecoration) {
+            textDecorations.push(entry.style.textDecoration as string);
           }
         }
 
@@ -83,7 +97,8 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
         // Background tint from innermost span
         if (stack.length > 0) {
           const inner = stack[stack.length - 1];
-          const bg = inner.category === "code"
+          const isCode = inner.style.fontFamily === "monospace";
+          const bg = isCode
             ? codeBg(inner.colors)
             : tintBg(inner.colors);
           mergedStyle.backgroundColor = bg;
@@ -104,11 +119,10 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
       } else {
         // Tag segment
         const span = seg.spanInfo;
-        const category = semanticCategory(span);
         const colors = tagColors(span);
 
         if (span.span_type === "opening") {
-          stack.push({ span, category, colors });
+          stack.push({ span, style: spanStyle(span.type), colors });
           // No visible element — formatting applied to enclosed text
         } else if (span.span_type === "closing") {
           // Pop matching entry
@@ -121,10 +135,8 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
           // No visible element
         } else {
           // Placeholder — render as small inline pill
-          const label =
-            category === "break" ? "br"
-            : category === "image" ? "img"
-            : span.type || "?";
+          const info = getDefaultRegistry().lookupOrFallback(span.type);
+          const label = info.chipLabel.placeholder ?? info.label ?? "?";
 
           elements.push(
             <span
