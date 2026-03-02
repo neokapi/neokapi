@@ -29,9 +29,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w
       - -X github.com/gokapi/gokapi/core/version.Version={{.Version}}
@@ -51,9 +48,6 @@ builds:
     goarch:
       - amd64
       - arm64
-    ignore:
-      - goos: windows
-        goarch: arm64
     ldflags:
       - -s -w
       - -X github.com/gokapi/gokapi/core/version.Version={{.Version}}
