@@ -1,31 +1,48 @@
 import { useState, useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
-import { buildPairs, semanticLabel } from "./tagSemantics";
+import { buildPairs, semanticLabel, semanticCategory } from "./tagSemantics";
 import { isCloneable } from "./tagConstraints";
 
 interface TagPaletteProps {
   sourceSpans: SpanInfo[];
   onInsert: (spanInfo: SpanInfo) => void;
   usedSpans?: SpanInfo[];
+  /** Show vocabulary category separators when spans cross categories. */
+  showCategoryGroups?: boolean;
 }
 
 interface PairGroup {
   pairIndex: number;
+  category: string;
   spans: { span: SpanInfo; sourceIndex: number }[];
 }
+
+// ---------------------------------------------------------------------------
+// Category display helpers
+// ---------------------------------------------------------------------------
+
+const categoryShortLabels: Record<string, string> = {
+  formatting: "Format",
+  linking: "Links",
+  media: "Media",
+  structure: "Structure",
+  code: "Code",
+  generic: "Other",
+};
 
 /**
  * Horizontal strip of source spans as clickable buttons for inserting into the target editor.
  * Tags are grouped by pairs, with used tags dimmed and hover highlighting within pairs.
+ * When spans cross multiple vocabulary categories, category labels are shown.
  */
-export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps) {
+export function TagPalette({ sourceSpans, onInsert, usedSpans, showCategoryGroups }: TagPaletteProps) {
   if (sourceSpans.length === 0) return null;
 
   const pairs = useMemo(() => buildPairs(sourceSpans), [sourceSpans]);
   const [hoveredPairIndex, setHoveredPairIndex] = useState<number | null>(null);
 
-  // Build pair groups for display
+  // Build pair groups for display with category info
   const groups = useMemo(() => {
     const groupMap = new Map<number, PairGroup>();
     const ordered: number[] = [];
@@ -36,7 +53,11 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
       const { pairIndex } = pairInfo;
 
       if (!groupMap.has(pairIndex)) {
-        groupMap.set(pairIndex, { pairIndex, spans: [] });
+        groupMap.set(pairIndex, {
+          pairIndex,
+          category: semanticCategory(sourceSpans[i]),
+          spans: [],
+        });
         ordered.push(pairIndex);
       }
       groupMap.get(pairIndex)!.spans.push({ span: sourceSpans[i], sourceIndex: i });
@@ -44,6 +65,14 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
 
     return ordered.map((idx) => groupMap.get(idx)!);
   }, [sourceSpans, pairs]);
+
+  // Determine if we have multiple categories (for separator display)
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    for (const g of groups) cats.add(g.category);
+    return cats;
+  }, [groups]);
+  const multiCategory = showCategoryGroups !== false && categories.size > 1;
 
   // Build used-tag counts by fingerprint for dimming
   const usedCounts = useMemo(() => {
@@ -71,39 +100,56 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans }: TagPaletteProps
     return false;
   }
 
+  // Render groups, inserting category separators if multi-category
+  let lastCategory = "";
+
   return (
     <div style={paletteStyle}>
       <span style={labelStyle}>Tags:</span>
-      {groups.map((group) => (
-        <div key={group.pairIndex} style={groupContainerStyle}>
-          <span style={pairLabelStyle}>{group.pairIndex}</span>
-          {group.spans.map(({ span, sourceIndex }) => {
-            const dimmed = isDimmed(span);
-            const blocked = dimmed && !isCloneable(span);
-            const label = semanticLabel(span);
-            return (
-              <button
-                key={sourceIndex}
-                onClick={() => { if (!blocked) onInsert(span); }}
-                onMouseEnter={() => setHoveredPairIndex(group.pairIndex)}
-                onMouseLeave={() => setHoveredPairIndex(null)}
-                style={{ ...buttonStyle, cursor: blocked ? "not-allowed" : "pointer" }}
-                title={blocked ? `"${label}" cannot be duplicated` : `Insert tag (Ctrl+${sourceIndex + 1})`}
-                disabled={blocked}
-                data-testid={`tag-palette-${sourceIndex}`}
-              >
-                <TagChipComponent
-                  spanInfo={span}
-                  index={sourceIndex + 1}
-                  pairIndex={group.pairIndex}
-                  highlighted={hoveredPairIndex === group.pairIndex}
-                  dimmed={dimmed}
-                />
-              </button>
-            );
-          })}
-        </div>
-      ))}
+      {groups.map((group) => {
+        const showSep = multiCategory && group.category !== lastCategory;
+        lastCategory = group.category;
+
+        return (
+          <div key={group.pairIndex} style={{ display: "contents" }}>
+            {/* Category separator */}
+            {showSep && (
+              <span style={categorySepStyle}>
+                {categoryShortLabels[group.category] || group.category}
+              </span>
+            )}
+            <div style={groupContainerStyle}>
+              <span style={pairLabelStyle}>{group.pairIndex}</span>
+              {group.spans.map(({ span, sourceIndex }) => {
+                const dimmed = isDimmed(span);
+                const blocked = dimmed && !isCloneable(span);
+                const label = semanticLabel(span);
+                return (
+                  <button
+                    key={sourceIndex}
+                    onClick={() => { if (!blocked) onInsert(span); }}
+                    onMouseEnter={() => setHoveredPairIndex(group.pairIndex)}
+                    onMouseLeave={() => setHoveredPairIndex(null)}
+                    style={{ ...buttonStyle, cursor: blocked ? "not-allowed" : "pointer" }}
+                    title={blocked ? `"${label}" cannot be duplicated` : `Insert tag (Ctrl+${sourceIndex + 1})`}
+                    disabled={blocked}
+                    data-testid={`tag-palette-${sourceIndex}`}
+                  >
+                    <TagChipComponent
+                      spanInfo={span}
+                      index={sourceIndex + 1}
+                      pairIndex={group.pairIndex}
+                      highlighted={hoveredPairIndex === group.pairIndex}
+                      dimmed={dimmed}
+                      showConstraints
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -152,4 +198,14 @@ const buttonStyle: React.CSSProperties = {
   padding: 0,
   cursor: "pointer",
   display: "inline-flex",
+};
+
+const categorySepStyle: React.CSSProperties = {
+  fontSize: 9,
+  fontWeight: 600,
+  color: "var(--text-secondary)",
+  opacity: 0.6,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  padding: "0 2px",
 };

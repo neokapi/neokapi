@@ -1,5 +1,6 @@
 import type { SpanInfo } from "../../types/api";
-import { tagColors, semanticLabel, semanticTooltip } from "./tagSemantics";
+import { tagColors, semanticLabel, semanticTooltip, semanticCategory } from "./tagSemantics";
+import { resolveConstraints } from "./tagConstraints";
 
 interface TagChipComponentProps {
   spanInfo: SpanInfo;
@@ -8,14 +9,15 @@ interface TagChipComponentProps {
   highlighted?: boolean;  // partner-tag hover glow
   dimmed?: boolean;       // already-used in palette
   locked?: boolean;       // non-deletable tag (dashed border, lock tooltip)
+  showConstraints?: boolean; // show constraint indicator icons
 }
 
-export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed, locked }: TagChipComponentProps) {
+export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed, locked, showConstraints }: TagChipComponentProps) {
   const colors = tagColors(spanInfo);
   const label = semanticLabel(spanInfo);
-  const tooltip = locked
-    ? `${semanticTooltip(spanInfo)} (locked — cannot be removed)`
-    : semanticTooltip(spanInfo);
+  const constraints = resolveConstraints(spanInfo);
+  const autoLocked = locked ?? !constraints.deletable;
+  const tooltip = buildTooltip(spanInfo, constraints, autoLocked);
 
   return (
     <span
@@ -23,7 +25,7 @@ export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimm
         ...chipStyle,
         backgroundColor: colors.bg,
         borderColor: colors.border,
-        borderStyle: locked ? "dashed" : "solid",
+        borderStyle: autoLocked ? "dashed" : "solid",
         color: colors.text,
         boxShadow: highlighted ? `0 0 0 2px ${colors.border}` : undefined,
         opacity: dimmed ? 0.4 : undefined,
@@ -31,16 +33,36 @@ export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimm
       title={tooltip}
       contentEditable={false}
       data-tag-chip
+      data-span-type={spanInfo.type}
+      data-category={semanticCategory(spanInfo)}
     >
       {index !== undefined && (
         <span style={indexStyle}>{index}</span>
       )}
       {label}
+      {showConstraints && !constraints.deletable && (
+        <span style={constraintIconStyle} aria-label="required">*</span>
+      )}
       {pairIndex !== undefined && (
         <span style={pairBadgeStyle}>{pairIndex}</span>
       )}
     </span>
   );
+}
+
+/** Build a rich tooltip that includes semantic info, raw data, and constraint hints. */
+function buildTooltip(
+  span: SpanInfo,
+  constraints: { deletable: boolean; cloneable: boolean; reorderable: boolean },
+  locked: boolean,
+): string {
+  const base = semanticTooltip(span);
+  const hints: string[] = [];
+  if (locked || !constraints.deletable) hints.push("required in translation");
+  if (!constraints.cloneable) hints.push("cannot be duplicated");
+  if (!constraints.reorderable) hints.push("position is fixed");
+  if (hints.length === 0) return base;
+  return `${base}\n${hints.join(" · ")}`;
 }
 
 const chipStyle: React.CSSProperties = {
@@ -75,5 +97,13 @@ const pairBadgeStyle: React.CSSProperties = {
   opacity: 0.5,
   marginLeft: 2,
   verticalAlign: "super",
+  lineHeight: 1,
+};
+
+const constraintIconStyle: React.CSSProperties = {
+  fontSize: 9,
+  fontWeight: 700,
+  opacity: 0.7,
+  marginLeft: 1,
   lineHeight: 1,
 };

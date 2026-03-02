@@ -87,11 +87,18 @@ When a project has multiple target locales, a dropdown in the toolbar lets you s
 
 ### Inline Tags
 
-Many document formats contain inline markup (bold, links, placeholders, etc.) represented as coded text tags. The editor renders these as colored chips in the source text. When editing:
+Many document formats contain inline markup (bold, links, placeholders, etc.) that the editor handles automatically. In the default **formatted view**, text appears with its natural formatting applied — bold looks bold, links are underlined, code is monospace. You can switch to the **code view** (click the `</>` button) to see abstract tag chips.
 
-- Tags must be preserved in the target to maintain document structure
-- The tag validation bar warns about missing or mismatched tags
-- In focus mode, use **Ctrl+1** through **Ctrl+9** to insert tags from the tag palette
+When editing translations with inline tags:
+
+- **Flexible tags** (bold, italic, links) can be freely removed, duplicated, or rearranged
+- **Required tags** (variables, placeholders, line breaks) must be kept in the translation — the editor prevents accidental deletion and shows them with dashed borders
+- The **tag palette** below the editor shows all source tags as clickable buttons grouped by category
+- The **validation bar** warns in real time about missing required tags or duplicated non-cloneable tags
+- Use **Ctrl+1** through **Ctrl+9** to insert tags from the tag palette
+- Click the **tag summary badge** in the header to expand the inline code legend, which lists all tag types with their constraints
+
+The editor provides the same seamless experience regardless of file format — HTML, Markdown, XLIFF, and all other formats present tags identically because they share the same vocabulary system. See [Inline Formatting](/docs/features/inline-formatting) for more details.
 
 ## Context Panel
 
