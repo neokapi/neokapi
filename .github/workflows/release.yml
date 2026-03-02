@@ -128,9 +128,11 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - { platform: linux/amd64, os: ubuntu-latest }
-          - { platform: windows/amd64, os: windows-latest }
-          - { platform: darwin/universal, os: macos-latest }
+          - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
+          - { platform: windows/amd64, os: windows-latest, arch: amd64 }
+          - { platform: windows/arm64, os: windows-latest, arch: arm64 }
+          - { platform: darwin/universal, os: macos-latest, arch: universal }
     runs-on: ${{ matrix.build.os }}
     steps:
       - uses: actions/checkout@v4
@@ -181,7 +183,7 @@ jobs:
         if: runner.os == 'Windows'
         working-directory: bowrain/apps/bowrain
         shell: bash
-        run: wails3 generate syso -arch amd64 -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_amd64.syso
+        run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
 
       - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
@@ -197,6 +199,7 @@ jobs:
         shell: bash
         env:
           GOOS: windows
+          GOARCH: ${{ matrix.build.arch }}
           CGO_ENABLED: "0"
         run: |
           go build -tags production -trimpath -buildvcs=false -ldflags="-w -s -H windowsgui" -o bin/Bowrain.exe
@@ -354,26 +357,26 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
+          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
         uses: softprops/action-gh-release@v2
         with:
-          files: "bowrain-${{ steps.version.outputs.VERSION }}-windows-amd64.zip"
+          files: "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       # Linux: Create tarball
       - name: Create tarball
         if: runner.os == 'Linux'
         run: |
-          tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz" \
+          tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
             -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
         uses: softprops/action-gh-release@v2
         with:
-          files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-amd64.tar.gz"
+          files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
   update-bowrain-cask:
     name: Update Bowrain Cask
