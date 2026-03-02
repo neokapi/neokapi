@@ -10,6 +10,8 @@ import { TargetCellEditor } from "./TargetCellEditor";
 import { HighlightedSource } from "./HighlightedSource";
 import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
+import { InlineCodeLegend } from "./InlineCodeLegend";
+import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
@@ -124,6 +126,7 @@ export function VisualEditorCard({
   const [termPopoverOpen, setTermPopoverOpen] = useState(false);
   const [selectedSourceText, setSelectedSourceText] = useState("");
   const [codeView, setCodeView] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
 
   const status = getBlockStatus(block, targetLocale);
   const sc = statusConfig[status];
@@ -203,6 +206,13 @@ export function VisualEditorCard({
               <Info className="w-2.5 h-2.5" />
               {qaWarnings.length}
             </button>
+          )}
+          {/* Vocabulary badge showing inline tag summary */}
+          {sourceSpans.length > 0 && (
+            <FormatVocabularyBadge
+              spans={sourceSpans}
+              onClick={() => setShowLegend((v) => !v)}
+            />
           )}
         </div>
         <Tabs
@@ -302,6 +312,16 @@ export function VisualEditorCard({
           </div>
         </div>
       </div>
+
+      {/* ── Inline code legend (expandable) ─────────────── */}
+      {showLegend && sourceSpans.length > 0 && (
+        <div className="px-4 pb-2" data-testid="inline-code-legend">
+          <InlineCodeLegend
+            spans={sourceSpans}
+            onClose={() => setShowLegend(false)}
+          />
+        </div>
+      )}
 
       {/* ── Term creation popover (enrich mode) ─────────── */}
       {editorMode === "enrich" && onTermCreate && (

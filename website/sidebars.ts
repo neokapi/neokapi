@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
       label: 'Features',
       items: [
         'features/formats',
+        'features/inline-formatting',
         'features/translation-memory',
         'features/terminology',
         'features/ai-translation',
@@ -58,6 +59,7 @@ const sidebars: SidebarsConfig = {
         'developer/plugins',
         'developer/java-bridge',
         'developer/testing',
+        'developer/vocabularies',
       ],
     },
     {

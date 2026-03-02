@@ -10,6 +10,8 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
+import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyBadge";
+import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
 import type { SpanInfo } from "../../types/api";
 import {
   simpleBoldCodedText, simpleBoldSpans,
@@ -316,6 +318,75 @@ export const AllCategories: Story = {
               </div>
             </div>
           ))}
+        </Section>
+      </div>
+    );
+  },
+};
+
+/**
+ * Full vocabulary-driven experience showing badge, legend, and formatted
+ * rendering working together — the complete translator workflow.
+ */
+export const VocabularyDrivenExperience: Story = {
+  render: () => {
+    const allSpans: SpanInfo[] = [
+      { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
+      { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
+      { span_type: "opening", type: "link:hyperlink", id: "2", data: '<a href="https://example.com">' },
+      { span_type: "closing", type: "link:hyperlink", id: "2", data: "</a>" },
+      { span_type: "opening", type: "fmt:code", id: "3", data: "<code>" },
+      { span_type: "closing", type: "fmt:code", id: "3", data: "</code>" },
+      { span_type: "placeholder", type: "code:variable", id: "4", data: "{version}", display_text: "{version}", deletable: false, cloneable: false, can_reorder: true },
+      { span_type: "placeholder", type: "struct:break", id: "5", data: "<br/>" },
+    ];
+
+    const codedText = `${O}Download${C} the latest ${O}release${C} (${O}v${C}${P}).${P}Visit the ${O}docs${C} for details.`;
+
+    return (
+      <div style={{ maxWidth: 640, padding: 16 }}>
+        <Section title="Vocabulary-Driven Experience">
+          <p style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>
+            The complete translator workflow: vocabulary badge summarizes tag
+            categories at a glance, the formatted view shows text naturally,
+            and the legend explains each tag type with its constraints.
+          </p>
+
+          {/* Badge */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
+              Vocabulary Badge
+            </div>
+            <FormatVocabularyBadge spans={allSpans} />
+          </div>
+
+          {/* Formatted view */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
+              Formatted View
+            </div>
+            <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+              <FormattedSourceDisplay codedText={codedText} spans={allSpans} />
+            </div>
+          </div>
+
+          {/* Code view */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
+              Code View
+            </div>
+            <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+              <SourceCellDisplay codedText={codedText} spans={allSpans} />
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div>
+            <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
+              Inline Code Legend
+            </div>
+            <InlineCodeLegend spans={allSpans} onClose={() => {}} />
+          </div>
         </Section>
       </div>
     );
