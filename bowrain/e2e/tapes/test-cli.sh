@@ -63,7 +63,7 @@ echo "Building kapi..."
 
 # Build brain
 echo "Building brain..."
-(cd ../../.. && cd bowrain && go build -o ../bin/brain ./cmd/brain) || {
+(cd ../../.. && cd brain && go build -o ../bin/brain ./cmd/brain) || {
   echo -e "${RED}Failed to build brain${NC}"
   exit 1
 }
