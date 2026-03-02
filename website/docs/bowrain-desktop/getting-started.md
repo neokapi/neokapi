@@ -18,8 +18,8 @@ brew install --cask gokapi/tap/bowrain
 Download the latest release from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
 
 - **macOS**: Universal DMG (Intel + Apple Silicon)
-- **Windows**: ZIP archive
-- **Linux**: Tarball (amd64)
+- **Windows**: ZIP archive (amd64, arm64)
+- **Linux**: Tarball (amd64, arm64)
 
 ## First Project
 

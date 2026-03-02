@@ -16,7 +16,11 @@ brew install gokapi/tap/brain
 
 ### Binary Downloads
 
-Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/gokapi/gokapi/releases) page.
+Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/gokapi/gokapi/releases) page:
+
+- Linux (amd64, arm64)
+- macOS (amd64, arm64)
+- Windows (amd64, arm64)
 
 ### Go Install
 
@@ -42,8 +46,8 @@ brew install --cask gokapi/tap/bowrain
 
 Download from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
 - macOS (universal DMG)
-- Linux (amd64)
-- Windows (amd64)
+- Linux (amd64, arm64)
+- Windows (amd64, arm64)
 
 ## Bowrain Server
 

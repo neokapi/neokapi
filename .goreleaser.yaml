@@ -151,3 +151,12 @@ release:
     ```
     docker pull ghcr.io/gokapi/bowrain-server:{{ .Version }}
     ```
+
+    ## Platform Support
+
+    | Component | Linux amd64 | Linux arm64 | macOS (universal) | Windows amd64 | Windows arm64 |
+    |-----------|:-----------:|:-----------:|:------------------:|:-------------:|:-------------:|
+    | kapi CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
+    | bowrain CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
+    | Bowrain Desktop | ✓ | ✓ | ✓ | ✓ | ✓ |
+    | Docker (server) | ✓ | ✓ | — | — | — |
