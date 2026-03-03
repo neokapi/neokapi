@@ -9,7 +9,7 @@ const links: [string, string][] = [
   ["bowrain/dark", path.join(staticVideo, "bowrain", "dark")],
   ["bowrain/light", path.join(staticVideo, "bowrain", "light")],
   ["kapi", path.join(staticVideo, "kapi")],
-  ["brain", path.join(staticVideo, "brain")],
+  ["bowrain-cli", path.join(staticVideo, "bowrain-cli")],
   ["web-app/dark", path.join(staticVideo, "web-app", "dark")],
   ["web-app/light", path.join(staticVideo, "web-app", "light")],
 ];

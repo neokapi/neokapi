@@ -11,7 +11,7 @@ slug: /bowrain/installation
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install gokapi/tap/brain
+brew install gokapi/tap/bowrain-cli
 ```
 
 ### Binary Downloads
@@ -25,13 +25,13 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 ### Go Install
 
 ```bash
-go install github.com/gokapi/gokapi/bowrain/cmd/brain@latest
+go install github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain@latest
 ```
 
 ### Verify
 
 ```bash
-brain version
+bowrain version
 ```
 
 ## Bowrain Desktop
@@ -65,7 +65,7 @@ For production deployments, see [Self-Hosting](/docs/bowrain-server/self-hosting
 ```bash
 git clone https://github.com/gokapi/gokapi.git
 cd gokapi
-make build-brain       # Bowrain CLI → bin/brain
+make build-bowrain      # Bowrain CLI → bin/bowrain
 make build-server      # Bowrain Server → bin/bowrain-server
 make build-all         # All binaries
 ```

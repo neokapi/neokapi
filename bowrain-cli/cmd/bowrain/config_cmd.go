@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/cli/config"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -25,11 +25,11 @@ Use --global to read/write the global config file (~/.config/kapi/kapi.yaml).
 Without --global, reads/writes the project config file (.bowrain/config.yaml).
 
 Examples:
-  brain config project.name                       # Print project name
-  brain config project.name "My Project"          # Set project name
-  brain config server.url                         # Print project server URL
-  brain config --global server.url                # Print global server URL
-  brain config --global server.url https://bowrain.example.com  # Set global server URL`,
+  bowrain config project.name                       # Print project name
+  bowrain config project.name "My Project"          # Set project name
+  bowrain config server.url                         # Print project server URL
+  bowrain config --global server.url                # Print global server URL
+  bowrain config --global server.url https://bowrain.example.com  # Set global server URL`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: runConfig,
 }
@@ -80,7 +80,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 func runConfigProject(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no .bowrain/ project found (run 'brain init' first, or use --global)")
+		return fmt.Errorf("no .bowrain/ project found (run 'bowrain init' first, or use --global)")
 	}
 
 	configPath := filepath.Join(proj.ConfigDir, project.ConfigFile)

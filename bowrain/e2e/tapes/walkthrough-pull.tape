@@ -18,7 +18,7 @@ Type "# Pull changes from server"
 Enter
 Sleep 500ms
 
-Type "brain pull"
+Type "bowrain pull"
 Enter
 Sleep 3s
 
@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "brain status"
+Type "bowrain status"
 Enter
 Sleep 2s
 

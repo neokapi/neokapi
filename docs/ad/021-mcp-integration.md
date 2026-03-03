@@ -7,7 +7,7 @@ title: "AD-021: MCP Integration"
 
 ## Context
 
-AI agents (Claude, GPT, Cursor, etc.) benefit from structured access to localization tools and project state. Both the **kapi** and **brain** CLIs need a machine-friendly interface that goes beyond shell scripting — one that lets agents discover capabilities, call tools with typed parameters, and receive structured JSON responses.
+AI agents (Claude, GPT, Cursor, etc.) benefit from structured access to localization tools and project state. Both the **kapi** and **bowrain** CLIs need a machine-friendly interface that goes beyond shell scripting — one that lets agents discover capabilities, call tools with typed parameters, and receive structured JSON responses.
 
 The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open standard for exposing tool capabilities to AI agents over a JSON-RPC transport. It provides tool discovery, typed input/output schemas, and a simple stdio transport that integrates with Claude Desktop, VS Code, and other MCP clients.
 
@@ -18,7 +18,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) is an open 
 Each CLI exposes its own MCP server via a `mcp` subcommand:
 
 - **`kapi mcp`** — Ad-hoc file processing tools. No project directory required. Operates on individual files.
-- **`brain mcp`** — Project management tools. Requires a `.bowrain/` project directory ([AD-016](./016-kapi-project-model.md)). Manages sync state with Bowrain Server.
+- **`bowrain mcp`** — Project management tools. Requires a `.bowrain/` project directory ([AD-016](./016-kapi-project-model.md)). Manages sync state with Bowrain Server.
 
 Both servers use the official Go MCP SDK (`github.com/modelcontextprotocol/go-sdk`) and communicate over newline-delimited JSON-RPC on stdio (`StdioTransport`).
 
@@ -26,7 +26,7 @@ Both servers use the official Go MCP SDK (`github.com/modelcontextprotocol/go-sd
 
 The separation mirrors the existing CLI architecture ([AD-013](./013-cli-and-server.md)):
 - **Kapi** = standalone file tool, no project or server dependency
-- **Brain** = project sync companion, `.bowrain/` context required
+- **Bowrain CLI** = project sync companion, `.bowrain/` context required
 
 Combining them would force agents to reason about when project context is needed. Keeping them separate lets agents connect to the appropriate server based on the task.
 
@@ -45,7 +45,7 @@ Combining them would force agents to reason about when project context is needed
 
 Kapi tools reuse the same infrastructure as CLI commands: `FormatRegistry` for format detection and reader/writer creation, `FlowExecutor` for pipeline orchestration, and built-in tool constructors for flow chains.
 
-### Brain MCP Tools
+### Bowrain CLI MCP Tools
 
 | Tool | Description | Key Parameters |
 |------|-------------|----------------|
@@ -56,7 +56,7 @@ Kapi tools reuse the same infrastructure as CLI commands: `FormatRegistry` for f
 | `project_pull` | Download translations from server | `locales?[]`, `force?`, `dry_run?` |
 | `list_flows` | List available flows (built-in + project) | — |
 
-Brain tools reuse `project.FindProject("")`, `project.NewSourceConnector()`, `project.NewLocalConnector()`, and `connector.PushOptions`/`PullOptions` — the same functions as the existing CLI commands.
+Bowrain CLI tools reuse `project.FindProject("")`, `project.NewSourceConnector()`, `project.NewLocalConnector()`, and `connector.PushOptions`/`PullOptions` — the same functions as the existing CLI commands.
 
 ### Wiring Pattern
 
@@ -101,8 +101,8 @@ MCP clients configure the servers in their settings. For Claude Desktop (`claude
       "command": "kapi",
       "args": ["mcp"]
     },
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
@@ -111,7 +111,7 @@ MCP clients configure the servers in their settings. For Claude Desktop (`claude
 
 ### Dependency Placement
 
-The MCP SDK is added independently to `kapi/go.mod` and `bowrain/go.mod`. No shared `platform/mcp/` package — the server bootstrap is trivial (5 lines) and doesn't warrant a shared abstraction. This preserves the module isolation established in [AD-018](./018-four-module-architecture.md).
+The MCP SDK is added independently to `kapi/go.mod` and `bowrain-cli/go.mod`. No shared `platform/mcp/` package — the server bootstrap is trivial (5 lines) and doesn't warrant a shared abstraction. This preserves the module isolation established in [AD-018](./018-four-module-architecture.md).
 
 See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool specifications with input/output schemas.
 
@@ -137,4 +137,4 @@ See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool
 
 - **Module isolation preserved** — kapi and bowrain add the SDK independently, no shared platform abstraction needed.
 
-- **Extensible** — new tools can be registered by adding handlers to `registerKapiTools()` or `registerBrainTools()` without protocol changes.
+- **Extensible** — new tools can be registered by adding handlers to `registerKapiTools()` or `registerBowrainTools()` without protocol changes.

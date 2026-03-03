@@ -243,9 +243,9 @@ jobs:
           path: website/static/video/kapi/
           retention-days: 30
 
-  # ── Brain CLI Recordings (VHS, needs server) ─────────────────────────────────
-  brain-recordings:
-    name: Brain Recordings (VHS)
+  # ── Bowrain CLI Recordings (VHS, needs server) ──────────────────────────────
+  bowrain-cli-recordings:
+    name: Bowrain CLI Recordings (VHS)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -254,8 +254,8 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - name: Build kapi + brain CLIs
-        run: make build build-brain
+      - name: Build kapi + Bowrain CLIs
+        run: make build build-bowrain
 
       - name: Install VHS
         run: |
@@ -277,7 +277,7 @@ jobs:
       - name: Start full stack (pre-built Docker images)
         run: docker compose -f e2e/compose.yaml up -d --wait
 
-      - name: Generate brain recordings
+      - name: Generate Bowrain CLI recordings
         timeout-minutes: 30
         working-directory: bowrain/e2e/tapes
         run: |
@@ -293,18 +293,18 @@ jobs:
         if: always()
         run: docker compose -f e2e/compose.yaml down -v
 
-      - name: Upload brain assets
+      - name: Upload Bowrain CLI assets
         uses: actions/upload-artifact@v4
         with:
-          name: brain-assets
-          path: website/static/video/brain/
+          name: bowrain-cli-assets
+          path: website/static/video/bowrain-cli/
           retention-days: 30
 
   # ── Render Polished Videos (Remotion) ─────────────────────────────────────────
   render-videos:
     name: Render Polished Videos
     runs-on: ubuntu-latest
-    needs: [bowrain-assets, web-app-assets, kapi-recordings, brain-recordings]
+    needs: [bowrain-assets, web-app-assets, kapi-recordings, bowrain-cli-recordings]
     steps:
       - uses: actions/checkout@v4
 
@@ -320,7 +320,7 @@ jobs:
 
       - name: Assemble raw recordings for Remotion
         run: |
-          mkdir -p website/static/video/bowrain website/static/video/web-app website/static/video/kapi website/static/video/brain
+          mkdir -p website/static/video/bowrain website/static/video/web-app website/static/video/kapi website/static/video/bowrain-cli
 
           for theme in dark light; do
             if [ -d "raw-recordings/bowrain-assets-${theme}/video/bowrain/${theme}" ]; then
@@ -338,8 +338,8 @@ jobs:
             cp raw-recordings/kapi-assets/* website/static/video/kapi/ 2>/dev/null || true
           fi
 
-          if [ -d "raw-recordings/brain-assets" ]; then
-            cp raw-recordings/brain-assets/* website/static/video/brain/ 2>/dev/null || true
+          if [ -d "raw-recordings/bowrain-cli-assets" ]; then
+            cp raw-recordings/bowrain-cli-assets/* website/static/video/bowrain-cli/ 2>/dev/null || true
           fi
 
           echo "Raw recordings assembled:"
@@ -374,7 +374,7 @@ jobs:
   publish-assets:
     name: Publish Assets to Release
     runs-on: ubuntu-latest
-    needs: [bowrain-assets, web-app-assets, kapi-recordings, brain-recordings, render-videos]
+    needs: [bowrain-assets, web-app-assets, kapi-recordings, bowrain-cli-recordings, render-videos]
     steps:
       - uses: actions/checkout@v4
 
@@ -398,11 +398,11 @@ jobs:
           path: downloaded-assets/kapi
           name: kapi-assets
 
-      - name: Download Brain assets
+      - name: Download Bowrain CLI assets
         uses: actions/download-artifact@v4
         with:
-          path: downloaded-assets/brain
-          name: brain-assets
+          path: downloaded-assets/bowrain-cli
+          name: bowrain-cli-assets
 
       - name: Download polished videos
         uses: actions/download-artifact@v4
@@ -426,9 +426,9 @@ jobs:
           mkdir -p assembled/video/kapi
           cp downloaded-assets/kapi/* assembled/video/kapi/ 2>/dev/null || true
 
-          # Brain CLI recordings
-          mkdir -p assembled/video/brain
-          cp downloaded-assets/brain/* assembled/video/brain/ 2>/dev/null || true
+          # Bowrain CLI recordings
+          mkdir -p assembled/video/bowrain-cli
+          cp downloaded-assets/bowrain-cli/* assembled/video/bowrain-cli/ 2>/dev/null || true
 
           # Polished videos (Remotion)
           mkdir -p assembled/video/polished

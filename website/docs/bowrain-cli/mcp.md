@@ -12,7 +12,7 @@ Bowrain CLI exposes project management capabilities as an [MCP](https://modelcon
 Start the MCP server:
 
 ```bash
-brain mcp
+bowrain mcp
 ```
 
 This launches a JSON-RPC server on stdio. You don't run it manually — your AI tool starts it as a subprocess. The server requires a `.bowrain/` project directory (it searches upward from the working directory, like git).
@@ -30,17 +30,17 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ```json
 {
   "mcpServers": {
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-Restart Claude Desktop. Brain tools will appear in the tool picker.
+Restart Claude Desktop. Bowrain CLI tools will appear in the tool picker.
 
-**Using both servers together:** You can register kapi and brain side by side. Use kapi for standalone file operations and brain for project workflows:
+**Using both servers together:** You can register kapi and bowrain side by side. Use kapi for standalone file operations and bowrain for project workflows:
 
 ```json
 {
@@ -49,8 +49,8 @@ Restart Claude Desktop. Brain tools will appear in the tool picker.
       "command": "kapi",
       "args": ["mcp"]
     },
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
@@ -64,15 +64,15 @@ Add to your project's `.mcp.json` file (or create it at the repository root):
 ```json
 {
   "mcpServers": {
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
 }
 ```
 
-Claude Code will automatically discover and connect to the brain MCP server.
+Claude Code will automatically discover and connect to the bowrain MCP server.
 
 ### VS Code (GitHub Copilot / Copilot Chat)
 
@@ -81,8 +81,8 @@ Add to `.vscode/mcp.json` in your project:
 ```json
 {
   "servers": {
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
@@ -95,8 +95,8 @@ Or add to your VS Code settings (`.vscode/settings.json`):
 {
   "mcp": {
     "servers": {
-      "brain": {
-        "command": "brain",
+      "bowrain": {
+        "command": "bowrain",
         "args": ["mcp"]
       }
     }
@@ -111,8 +111,8 @@ Add to your Cursor MCP config (`~/.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
@@ -126,8 +126,8 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "brain": {
-      "command": "brain",
+    "bowrain": {
+      "command": "bowrain",
       "args": ["mcp"]
     }
   }
@@ -135,7 +135,7 @@ Add to your Windsurf MCP config (`~/.windsurf/mcp.json`):
 ```
 
 :::tip
-If `brain` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/local/bin/brain` or `$HOME/go/bin/brain`).
+If `bowrain` is not in your `$PATH`, use the full path to the binary (e.g. `/usr/local/bin/bowrain` or `$HOME/go/bin/bowrain`).
 :::
 
 ## Available Tools
@@ -249,9 +249,9 @@ No parameters.
 
 ## How It Works
 
-Brain MCP uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
+Bowrain CLI MCP uses the same infrastructure as the CLI commands — `project.FindProject()` for project discovery, `NewSourceConnector()` for server sync, and `NewLocalConnector()` for local file operations. The MCP server simply exposes these as typed, discoverable tools over the [Model Context Protocol](https://modelcontextprotocol.io/) stdio transport.
 
-No server process, ports, or authentication needed. Your AI tool launches `brain mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
+No server process, ports, or authentication needed. Your AI tool launches `bowrain mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 ## Related
 

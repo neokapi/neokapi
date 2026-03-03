@@ -1,5 +1,5 @@
-# VHS Tape: brain init demo
-# Shows initializing a new brain project
+# VHS Tape: Bowrain CLI init demo
+# Shows initializing a new bowrain project
 
 Output output/init.webm
 
@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "brain init --help"
+Type "bowrain init --help"
 Enter
 Sleep 3s
 

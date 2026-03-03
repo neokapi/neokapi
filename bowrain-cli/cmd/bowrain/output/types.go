@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// AddEntry represents a single pattern added by brain add.
+// AddEntry represents a single pattern added by bowrain add.
 type AddEntry struct {
 	Pattern string `json:"pattern"`
 	Format  string `json:"format,omitempty"`
@@ -14,7 +14,7 @@ type AddEntry struct {
 	Skipped bool   `json:"skipped,omitempty"`
 }
 
-// AddOutput represents the result of brain add.
+// AddOutput represents the result of bowrain add.
 type AddOutput struct {
 	Added []AddEntry `json:"added"`
 }
@@ -34,7 +34,7 @@ func (o AddOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// RmEntry represents a single pattern processed by brain rm.
+// RmEntry represents a single pattern processed by bowrain rm.
 type RmEntry struct {
 	Pattern string `json:"pattern"`
 	Action  string `json:"action"`           // "removed", "excluded", "already_excluded"
@@ -42,7 +42,7 @@ type RmEntry struct {
 	Files   int    `json:"files,omitempty"`  // only for "excluded"
 }
 
-// RmOutput represents the result of brain rm.
+// RmOutput represents the result of bowrain rm.
 type RmOutput struct {
 	Entries []RmEntry `json:"entries"`
 }
@@ -91,7 +91,7 @@ func (s StatusOutput) FormatText(w io.Writer) error {
 
 	if s.Project.Server == "" {
 		fmt.Fprintln(w, "\nNot connected to a server.")
-		fmt.Fprintln(w, "  Run 'brain init' with a server or set one in .bowrain/config.yaml")
+		fmt.Fprintln(w, "  Run 'bowrain init' with a server or set one in .bowrain/config.yaml")
 		return nil
 	}
 
@@ -150,7 +150,7 @@ func (a AuthStatusOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// InitOutput represents the result of brain init.
+// InitOutput represents the result of bowrain init.
 type InitOutput struct {
 	Root       string `json:"root"`
 	ConfigDir  string `json:"config_dir"`
@@ -181,7 +181,7 @@ func (o InitOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w)
 	if o.Server != "" {
 		fmt.Fprintln(w, "Next steps:")
-		fmt.Fprintln(w, "  1. Run: brain push    — upload content to the server")
+		fmt.Fprintln(w, "  1. Run: bowrain push    — upload content to the server")
 		if o.ClaimEmail != "" {
 			fmt.Fprintln(w, "  2. Check your email for the claim link to take ownership")
 			fmt.Fprintln(w, "  3. Invite translators from the web dashboard")
@@ -195,8 +195,8 @@ func (o InitOutput) FormatText(w io.Writer) error {
 		fmt.Fprintln(w, "Next steps:")
 		fmt.Fprintln(w, "  1. Edit .bowrain/config.yaml to configure your project")
 		fmt.Fprintln(w, "  2. Add file mappings to sync with Bowrain Server")
-		fmt.Fprintln(w, "  3. Run: brain auth login")
-		fmt.Fprintln(w, "  4. Run: brain pull to sync translations")
+		fmt.Fprintln(w, "  3. Run: bowrain auth login")
+		fmt.Fprintln(w, "  4. Run: bowrain pull to sync translations")
 	}
 
 	return nil
@@ -211,7 +211,7 @@ type LsEntry struct {
 	Dirty  int    `json:"dirty,omitempty"`
 }
 
-// LsOutput represents the result of brain ls.
+// LsOutput represents the result of bowrain ls.
 type LsOutput struct {
 	Files    []LsEntry `json:"files"`
 	Total    int       `json:"total"`
@@ -281,7 +281,7 @@ func (o LsOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PullOutput represents the result of brain pull.
+// PullOutput represents the result of bowrain pull.
 type PullOutput struct {
 	BlocksPulled int  `json:"blocks_pulled"`
 	LocalesCount int  `json:"locales_count"`
@@ -306,7 +306,7 @@ func (o PullOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// PushOutput represents the result of brain push.
+// PushOutput represents the result of bowrain push.
 type PushOutput struct {
 	BlocksPushed int  `json:"blocks_pushed"`
 	WordCount    int  `json:"word_count"`
@@ -328,7 +328,7 @@ func (o PushOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// ConfigOutput represents the result of brain config.
+// ConfigOutput represents the result of bowrain config.
 type ConfigOutput struct {
 	Path   string `json:"path,omitempty"`
 	Key    string `json:"key,omitempty"`
@@ -348,7 +348,7 @@ func (o ConfigOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthLoginOutput represents the result of brain auth login.
+// AuthLoginOutput represents the result of bowrain auth login.
 type AuthLoginOutput struct {
 	Server string `json:"server"`
 	User   string `json:"user,omitempty"`
@@ -363,7 +363,7 @@ func (o AuthLoginOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthLogoutOutput represents the result of brain auth logout.
+// AuthLogoutOutput represents the result of bowrain auth logout.
 type AuthLogoutOutput struct {
 	WasLoggedIn bool `json:"was_logged_in"`
 }
@@ -377,7 +377,7 @@ func (o AuthLogoutOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
-// AuthClaimOutput represents the result of brain auth claim.
+// AuthClaimOutput represents the result of bowrain auth claim.
 type AuthClaimOutput struct {
 	ProjectID     string `json:"project_id"`
 	WorkspaceSlug string `json:"workspace_slug"`

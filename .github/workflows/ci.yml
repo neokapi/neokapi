@@ -20,11 +20,11 @@ jobs:
       cli: ${{ github.event_name == 'push' || steps.filter.outputs.cli }}
       platform: ${{ github.event_name == 'push' || steps.filter.outputs.platform }}
       kapi: ${{ github.event_name == 'push' || steps.filter.outputs.kapi }}
-      brain: ${{ github.event_name == 'push' || steps.filter.outputs.brain }}
+      bowrain_cli: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_cli }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
-      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.brain || steps.filter.outputs.bowrain }}
+      any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,7 +59,7 @@ jobs:
           else
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths brain     '^brain/'
+          check_paths bowrain_cli '^bowrain-cli/'
           # bowrain: anything under bowrain/ except the frontend app dirs
           if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/apps/(web|bowrain/frontend)/' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
@@ -270,11 +270,11 @@ jobs:
           path: kapi/kapi.out
           retention-days: 1
 
-  test-brain:
-    name: Test (brain)
+  test-bowrain-cli:
+    name: Test (Bowrain CLI)
     runs-on: ubuntu-latest
     needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.brain == 'true')
+    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true')
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -282,27 +282,27 @@ jobs:
       - name: Install go-junit-report
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
-      - name: Run brain tests
+      - name: Run Bowrain CLI tests
         run: |
-          cd brain
-          go test -race -coverprofile=brain.out -covermode=atomic -json ./... > ../test-results-brain.json 2>&1 || true
+          cd bowrain-cli
+          go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1 || true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-brain.json -out junit-brain.xml
+        run: go-junit-report -in test-results-bowrain-cli.json -out junit-bowrain-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Brain Tests
-          path: junit-brain.xml
+          name: Bowrain CLI Tests
+          path: junit-bowrain-cli.xml
           reporter: java-junit
 
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-brain.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' test-results-bowrain-cli.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -311,8 +311,8 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-brain
-          path: brain/brain.out
+          name: coverage-bowrain-cli
+          path: bowrain-cli/bowrain-cli.out
           retention-days: 1
 
   test-bowrain:
@@ -365,7 +365,7 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
-    needs: [test-framework, test-cli, test-platform, test-kapi, test-brain, test-bowrain]
+    needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-cli, test-bowrain]
     if: always() && !cancelled()
     steps:
       - uses: actions/checkout@v4
@@ -385,7 +385,7 @@ jobs:
             echo "mode: atomic" > coverage.out
           fi
           # Append remaining files (skip header line)
-          for f in cli.out platform.out kapi.out brain.out bowrain.out; do
+          for f in cli.out platform.out kapi.out bowrain-cli.out bowrain.out; do
             if [ -f "$f" ]; then
               tail -n +2 "$f" >> coverage.out
             fi
@@ -447,12 +447,12 @@ jobs:
           working-directory: kapi
           args: --timeout=5m ./...
 
-      - name: Lint brain
+      - name: Lint Bowrain CLI
         uses: golangci/golangci-lint-action@v7
         with:
           install-mode: binary
           version: latest
-          working-directory: brain
+          working-directory: bowrain-cli
           args: --timeout=5m ./...
 
       - name: Install Linux dependencies for Wails
@@ -506,8 +506,8 @@ jobs:
       - name: Build kapi CLI
         run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
 
-      - name: Build brain CLI
-        run: cd brain && go build -o ../bin/brain ./cmd/brain
+      - name: Build Bowrain CLI
+        run: cd bowrain-cli && go build -o ../bin/bowrain ./cmd/bowrain
 
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
@@ -524,8 +524,8 @@ jobs:
       - name: Verify kapi module isolation
         run: GOWORK=off bash -c "cd kapi && go build ./..."
 
-      - name: Verify brain module isolation
-        run: GOWORK=off bash -c "cd brain && go build ./..."
+      - name: Verify Bowrain CLI module isolation
+        run: GOWORK=off bash -c "cd bowrain-cli && go build ./..."
 
       - name: Verify kapi has no platform dep
         run: |

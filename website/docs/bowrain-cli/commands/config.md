@@ -3,14 +3,14 @@ title: config
 sidebar_position: 2
 ---
 
-# brain config
+# bowrain config
 
 View or set configuration values for the current project or global settings.
 
 ## Usage
 
 ```bash
-brain config [key] [value] [flags]
+bowrain config [key] [value] [flags]
 ```
 
 ## Description
@@ -20,33 +20,33 @@ With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
 By default, operates on the project config file (`.bowrain/config.yaml`).
-Use `--global` to read/write the global config file (`~/.config/brain/brain.yaml`).
+Use `--global` to read/write the global config file (`~/.config/bowrain/bowrain.yaml`).
 
 ## Examples
 
 ```bash
 # Show path to project config
-brain config
+bowrain config
 
 # Read a project config value
-brain config project.name
-brain config server.url
+bowrain config project.name
+bowrain config server.url
 
 # Set a project config value
-brain config project.name "My Project"
+bowrain config project.name "My Project"
 
 # Read global config
-brain config --global server.url
+bowrain config --global server.url
 
 # Set global config (applies to all projects)
-brain config --global server.url https://bowrain.example.com
+bowrain config --global server.url https://bowrain.example.com
 ```
 
 ## Options
 
 | Flag | Description |
 |------|-------------|
-| `--global` | Use global config file (`~/.config/brain/brain.yaml`) instead of project config |
+| `--global` | Use global config file (`~/.config/bowrain/bowrain.yaml`) instead of project config |
 
 ## Config Keys
 
@@ -60,7 +60,7 @@ brain config --global server.url https://bowrain.example.com
 | `server.project_id` | Server project ID | `proj_abc123` |
 | `server.workspace` | Workspace slug | `my-team` |
 
-### Global Config (`~/.config/brain/brain.yaml`)
+### Global Config (`~/.config/bowrain/bowrain.yaml`)
 
 | Key | Description | Example |
 |-----|-------------|---------|
@@ -72,14 +72,14 @@ brain config --global server.url https://bowrain.example.com
 Global config provides defaults that apply to all projects. Project config
 overrides global values for the current project.
 
-For example, set the server URL globally so all `brain init` commands use it:
+For example, set the server URL globally so all `bowrain init` commands use it:
 
 ```bash
-brain config --global server.url https://bowrain.example.com
+bowrain config --global server.url https://bowrain.example.com
 ```
 
 Then override it for a specific project if needed:
 
 ```bash
-brain config server.url https://staging.bowrain.example.com
+bowrain config server.url https://staging.bowrain.example.com
 ```

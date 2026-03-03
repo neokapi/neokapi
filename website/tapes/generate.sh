@@ -2,7 +2,7 @@
 # Generate kapi CLI demo videos using VHS
 # Requires: vhs (brew install charmbracelet/tap/vhs)
 #
-# For brain CLI demos, see bowrain/e2e/tapes/
+# For Bowrain CLI demos, see bowrain/e2e/tapes/
 
 set -e
 

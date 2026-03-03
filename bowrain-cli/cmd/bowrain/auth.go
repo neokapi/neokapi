@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	cliconfig "github.com/gokapi/gokapi/cli/config"
 	"github.com/gokapi/gokapi/platform/auth"
 	"github.com/gokapi/gokapi/platform/config"
@@ -148,11 +148,11 @@ var authClaimCmd = &cobra.Command{
 	Long: `Take ownership of a project by providing a claim token.
 
 If no token is given, it is read from .bowrain/config.yaml.
-Requires authentication (run 'brain auth login' first).`,
+Requires authentication (run 'bowrain auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
 		if err != nil {
-			return fmt.Errorf("not authenticated — run: brain auth login")
+			return fmt.Errorf("not authenticated — run: bowrain auth login")
 		}
 
 		var claimToken string

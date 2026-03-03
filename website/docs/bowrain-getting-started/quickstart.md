@@ -13,7 +13,7 @@ Get started with the Bowrain CLI in 5 minutes.
 Create a `.bowrain/` project directory (like `.git` for localization):
 
 ```bash
-brain init
+bowrain init
 ```
 
 The interactive wizard guides you through setup:
@@ -26,7 +26,7 @@ The interactive wizard guides you through setup:
 Or skip the wizard with flags:
 
 ```bash
-brain init --name "My Project" --source en-US --targets fr-FR,de-DE
+bowrain init --name "My Project" --source en-US --targets fr-FR,de-DE
 ```
 
 This creates `.bowrain/config.yaml` with project settings and flow definitions.
@@ -36,7 +36,7 @@ This creates `.bowrain/config.yaml` with project settings and flow definitions.
 Run the built-in AI translation flow:
 
 ```bash
-brain flow run ai-translate
+bowrain flow run ai-translate
 ```
 
 Bowrain CLI automatically:
@@ -49,19 +49,19 @@ Bowrain CLI automatically:
 Push translations to the server for team collaboration:
 
 ```bash
-brain push -m "Translate UI strings"
+bowrain push -m "Translate UI strings"
 ```
 
 Pull translations from teammates:
 
 ```bash
-brain pull
+bowrain pull
 ```
 
 Check sync status:
 
 ```bash
-brain status
+bowrain status
 ```
 
 ## Create a Custom Flow
@@ -80,25 +80,25 @@ steps:
 Run it:
 
 ```bash
-brain flow run my-flow
+bowrain flow run my-flow
 ```
 
 ## Key Commands
 
 | Command | Description |
 |---------|-------------|
-| `brain init` | Initialize a project |
-| `brain status` | Show sync state |
-| `brain flow run` | Execute a workflow |
-| `brain flow list` | List available flows |
-| `brain push` | Upload to server |
-| `brain pull` | Fetch from server |
-| `brain config` | View or set configuration |
-| `brain serve` | Open local web editor |
+| `bowrain init` | Initialize a project |
+| `bowrain status` | Show sync state |
+| `bowrain flow run` | Execute a workflow |
+| `bowrain flow list` | List available flows |
+| `bowrain push` | Upload to server |
+| `bowrain pull` | Fetch from server |
+| `bowrain config` | View or set configuration |
+| `bowrain serve` | Open local web editor |
 
 ## Next Steps
 
 - **Full walkthrough**: See [Project Walkthrough](/docs/bowrain/project-walkthrough)
-- **Connect to server**: Use interactive `brain init` and choose "Sign in to Bowrain"
-- **Explore flows**: `brain flow list`
+- **Connect to server**: Use interactive `bowrain init` and choose "Sign in to Bowrain"
+- **Explore flows**: `bowrain flow list`
 - **CLI reference**: [Bowrain CLI](/docs/bowrain-cli/commands/init)

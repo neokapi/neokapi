@@ -15,14 +15,14 @@ Create a new Bowrain project in your application directory:
 
 ```bash
 cd my-app/
-brain init
+bowrain init
 ```
 
 The interactive wizard guides you through setup. Choose **Local only** for a
 local-only project, or use flags to skip the wizard:
 
 ```bash
-brain init --name "My App Localization" --source en-US --targets fr-FR,de-DE,ja-JP
+bowrain init --name "My App Localization" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
 This creates:
@@ -111,7 +111,7 @@ steps:
 Execute your custom flow:
 
 ```bash
-brain flow run translate-with-qa
+bowrain flow run translate-with-qa
 ```
 
 The flow automatically:
@@ -148,7 +148,7 @@ Flow completed: 200 blocks translated
 View what changed:
 
 ```bash
-brain status
+bowrain status
 ```
 
 **Output:**
@@ -167,7 +167,7 @@ Modified local files:
   M src/locales/fr/buttons.json
 
 No server configured
-Run 'brain auth login' to connect to a server
+Run 'bowrain auth login' to connect to a server
 ```
 
 ## Step 6: Connect to Bowrain Server (Optional)
@@ -180,10 +180,10 @@ If you already initialized a local project and want to move it to a server:
 
 ```bash
 # Authenticate with the server
-brain auth login --server https://bowrain.example.com
+bowrain auth login --server https://bowrain.example.com
 
 # Claim your local project into your personal workspace
-brain auth claim
+bowrain auth claim
 ```
 
 The claim transfers your anonymous local project into your personal workspace
@@ -192,11 +192,11 @@ is updated with the server connection details.
 
 ### Option B: Interactive Init
 
-Re-run `brain init` and choose **Sign in to Bowrain** to create a new
+Re-run `bowrain init` and choose **Sign in to Bowrain** to create a new
 server-connected project from scratch:
 
 ```bash
-brain init
+bowrain init
 # → Choose "Sign in to Bowrain"
 # → Authenticate via browser (device flow)
 # → Select workspace (or create a new one)
@@ -209,16 +209,16 @@ Once connected, you can sync with the server:
 
 ```bash
 # Push local translations to server
-brain push -m "Translate UI strings for v2.0 release"
+bowrain push -m "Translate UI strings for v2.0 release"
 
 # Pull translations from team members
-brain pull
+bowrain pull
 
 # Show differences before pushing
-brain diff
+bowrain diff
 
 # Check sync status
-brain status
+bowrain status
 ```
 
 ## Step 7: Add Quality Hooks
@@ -240,7 +240,7 @@ hooks:
 When you push, hooks run automatically:
 
 ```bash
-brain push -m "Update translations"
+bowrain push -m "Update translations"
 ```
 
 **Output with hook failure:**
@@ -272,7 +272,7 @@ git commit -m "Add Bowrain project configuration"
 - `.bowrain/.sync-cache` — auto-gitignored (local sync cache)
 - `.bowrain/.server-token` — auto-gitignored (auth credentials)
 
-`brain init` creates a `.gitignore` automatically.
+`bowrain init` creates a `.gitignore` automatically.
 
 ## Project Discovery
 
@@ -280,8 +280,8 @@ Bowrain CLI searches for `.bowrain/` by walking up the directory tree (like git)
 
 ```bash
 cd my-app/src/locales/fr/
-brain status  # Finds .bowrain/ at ../../../.bowrain/
-brain flow run translate-with-qa  # Works from any subdirectory
+bowrain status  # Finds .bowrain/ at ../../../.bowrain/
+bowrain flow run translate-with-qa  # Works from any subdirectory
 ```
 
 All commands work from anywhere within the project tree.
@@ -292,9 +292,9 @@ All commands work from anywhere within the project tree.
 
 If you don't need team collaboration:
 
-1. `brain init` — initialize project (choose "Local only")
+1. `bowrain init` — initialize project (choose "Local only")
 2. Define flows in `.bowrain/flows/`
-3. `brain flow run <flow>` — process files
+3. `bowrain flow run <flow>` — process files
 4. Commit results to git
 
 No server required. Perfect for individual translators or small teams using git directly.
@@ -303,33 +303,33 @@ No server required. Perfect for individual translators or small teams using git 
 
 For team collaboration with Bowrain Server:
 
-1. `brain auth login --server <URL>` — authenticate with the server
-2. `brain auth claim` — claim your local project into a workspace, or re-run `brain init` with "Sign in to Bowrain"
-3. `brain pull` — fetch latest translations
+1. `bowrain auth login --server <URL>` — authenticate with the server
+2. `bowrain auth claim` — claim your local project into a workspace, or re-run `bowrain init` with "Sign in to Bowrain"
+3. `bowrain pull` — fetch latest translations
 4. Edit files locally or run flows
-5. `brain diff` — review changes
-6. `brain push -m "message"` — upload to server
+5. `bowrain diff` — review changes
+6. `bowrain push -m "message"` — upload to server
 7. Repeat
 
 Think of it as **git for localization content**:
 
 | Git | Bowrain CLI |
 |-----|------------|
-| `git clone` | `brain init` (Sign in) |
-| `git status` | `brain status` |
-| `git diff` | `brain diff` |
-| `git pull` | `brain pull` |
+| `git clone` | `bowrain init` (Sign in) |
+| `git status` | `bowrain status` |
+| `git diff` | `bowrain diff` |
+| `git pull` | `bowrain pull` |
 | `git add` | (automatic — based on file mappings) |
-| `git commit -m` | `brain push -m` |
-| `git push` | (part of `brain push`) |
+| `git commit -m` | `bowrain push -m` |
+| `git push` | (part of `bowrain push`) |
 
 ## Next Steps
 
 Now that you have a Bowrain project:
 
-- **Explore flows**: [`brain flow list`](/docs/bowrain-cli/commands/flow)
+- **Explore flows**: [`bowrain flow list`](/docs/bowrain-cli/commands/flow)
 - **Manage terminology**: [Terminology features](/docs/features/terminology)
-- **Serve locally**: [`brain serve`](/docs/bowrain-cli/commands/serve)
+- **Serve locally**: [`bowrain serve`](/docs/bowrain-cli/commands/serve)
 - **Understand sync**: [Push](/docs/bowrain-cli/commands/push) and [Pull](/docs/bowrain-cli/commands/pull)
 - **Read ADs**: [Architecture decisions](/docs/ad/001-vision)
 

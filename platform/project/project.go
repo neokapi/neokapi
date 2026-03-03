@@ -173,7 +173,7 @@ type ServerConfig struct {
 	ProjectID  string `yaml:"project_id"`
 	Workspace  string `yaml:"workspace,omitempty"`
 	ClaimToken string `yaml:"claim_token,omitempty"`
-	// Auth token comes from brain auth login (stored separately)
+	// Auth token comes from bowrain auth login (stored separately)
 }
 
 // PluginsConfig specifies plugin dependencies.

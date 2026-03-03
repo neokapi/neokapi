@@ -31,11 +31,11 @@ Composable pipelines that process files through tools:
 
 ```bash
 # Run built-in AI translation flow
-brain flow run ai-translate
+bowrain flow run ai-translate
 
 # Create custom flows in .bowrain/flows/my-flow.yaml
 # Run custom flow
-brain flow run my-flow
+bowrain flow run my-flow
 ```
 
 Flows automatically process all files matching `.bowrain/config.yaml` mappings.
@@ -45,10 +45,10 @@ Flows automatically process all files matching `.bowrain/config.yaml` mappings.
 Push/pull workflow similar to git:
 
 ```bash
-brain status    # Show local changes
-brain diff      # Compare local vs. server
-brain pull      # Fetch from server
-brain push -m "message"  # Upload to server
+bowrain status    # Show local changes
+bowrain diff      # Compare local vs. server
+bowrain pull      # Fetch from server
+bowrain push -m "message"  # Upload to server
 ```
 
 Only changed blocks transfer (content-addressed sync).
@@ -58,9 +58,9 @@ Only changed blocks transfer (content-addressed sync).
 View or set project and global configuration values:
 
 ```bash
-brain config project.name              # Print project name
-brain config project.name "My App"     # Set project name
-brain config --global server.url https://bowrain.example.com  # Set global server URL
+bowrain config project.name              # Print project name
+bowrain config project.name "My App"     # Set project name
+bowrain config --global server.url https://bowrain.example.com  # Set global server URL
 ```
 
 ## When to Use Bowrain CLI
@@ -87,7 +87,7 @@ Use Bowrain Desktop/Web when you:
 
 ```bash
 # macOS
-brew install gokapi/tap/brain
+brew install gokapi/tap/bowrain-cli
 
 # Download binary
 # Visit https://github.com/gokapi/gokapi/releases
@@ -98,13 +98,13 @@ brew install gokapi/tap/brain
 ```bash
 # Initialize project
 cd my-app/
-brain init --name "My App" --source en-US --targets fr-FR,de-DE
+bowrain init --name "My App" --source en-US --targets fr-FR,de-DE
 
 # Run translation flow
-brain flow run ai-translate
+bowrain flow run ai-translate
 
 # Check status
-brain status
+bowrain status
 ```
 
 ## Next Steps

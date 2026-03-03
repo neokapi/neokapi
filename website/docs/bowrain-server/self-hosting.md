@@ -236,7 +236,7 @@ Add a cron job for regular backups:
 Connect the Bowrain CLI to your self-hosted server:
 
 ```bash
-brain auth login --server https://bowrain.example.com
+bowrain auth login --server https://bowrain.example.com
 ```
 
 This starts a device authorization flow. Open the URL shown in your terminal,

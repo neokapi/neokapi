@@ -18,7 +18,7 @@ Type "# Push changes to server"
 Enter
 Sleep 500ms
 
-Type "brain push"
+Type "bowrain push"
 Enter
 Sleep 3s
 
@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "brain status"
+Type "bowrain status"
 Enter
 Sleep 2s
 

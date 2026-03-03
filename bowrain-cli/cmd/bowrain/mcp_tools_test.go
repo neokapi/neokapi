@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func brainTestApp() *cli.App {
+func bowrainTestApp() *cli.App {
 	a := &cli.App{}
 	a.FormatReg = registry.NewFormatRegistry()
 	formats.RegisterAll(a.FormatReg)
@@ -78,7 +78,7 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 }
 
 func TestHandleProjectLsFast(t *testing.T) {
-	a := brainTestApp()
+	a := bowrainTestApp()
 	tmpDir := t.TempDir()
 
 	writeTestFile(t, tmpDir, "locales/en.json", `{"hello": "world"}`)
@@ -104,7 +104,7 @@ func TestHandleProjectLsFast(t *testing.T) {
 }
 
 func TestHandleProjectLsPathFilter(t *testing.T) {
-	a := brainTestApp()
+	a := bowrainTestApp()
 	tmpDir := t.TempDir()
 
 	writeTestFile(t, tmpDir, "locales/en.json", `{"hello": "world"}`)
@@ -132,10 +132,10 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 	assert.Equal(t, "locales/en.json", out.Files[0].Path)
 }
 
-func TestHandleBrainListFlows(t *testing.T) {
-	a := brainTestApp()
+func TestHandleBowrainListFlows(t *testing.T) {
+	a := bowrainTestApp()
 
-	_, out, err := handleBrainListFlows(a)
+	_, out, err := handleBowrainListFlows(a)
 	require.NoError(t, err)
 	assert.NotEmpty(t, out.Flows)
 	assert.Equal(t, len(out.Flows), out.Total)

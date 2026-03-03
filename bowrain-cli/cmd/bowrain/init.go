@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/preset"
@@ -32,7 +32,7 @@ var (
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Set up a new project",
-	Long: `Set up a new brain project in the current directory.
+	Long: `Set up a new bowrain project in the current directory.
 
 Creates the .bowrain/ folder with your project configuration and an example flow.
 
@@ -42,7 +42,7 @@ wizard. Use flags for non-interactive CI/CD usage.
 The server URL is determined from (first match wins):
   1. --server flag
   2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
-  3. Existing auth state (from brain auth login)
+  3. Existing auth state (from bowrain auth login)
   4. Built-in default (http://localhost:8080)
 
 Use --anonymous to create a project without signing in.
@@ -88,9 +88,9 @@ func resolveServerURL() string {
 }
 
 const serverURLHelp = `Server URL not configured. Set it via one of:
-  brain config --global server.url https://bowrain.example.com
+  bowrain config --global server.url https://bowrain.example.com
   export KAPI_SERVER_URL=https://bowrain.example.com
-  brain init --server https://bowrain.example.com`
+  bowrain init --server https://bowrain.example.com`
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
 func parseTargetLocales(s string) []model.LocaleID {
@@ -132,7 +132,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		}
 		auth, err := loadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("not authenticated with server (run: brain auth login)")
+			return nil, fmt.Errorf("not authenticated with server (run: bowrain auth login)")
 		}
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)

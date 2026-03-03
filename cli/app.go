@@ -1,5 +1,5 @@
 // Package cli provides a shared CLI base for gokapi CLI tools.
-// Both kapi and brain build on this package, selecting which commands to expose.
+// Both kapi and bowrain build on this package, selecting which commands to expose.
 package cli
 
 import (
@@ -16,7 +16,7 @@ import (
 )
 
 // App holds shared CLI state that is initialized during PersistentPreRun.
-// Both kapi and brain create an App instance and attach shared commands.
+// Both kapi and bowrain create an App instance and attach shared commands.
 type App struct {
 	FormatReg    *registry.FormatRegistry
 	PluginLoader *loader.PluginLoader

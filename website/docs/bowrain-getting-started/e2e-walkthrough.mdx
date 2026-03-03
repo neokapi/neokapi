@@ -35,8 +35,8 @@ as the source project. The walkthrough has seven steps:
 # Start the server stack (Keycloak + Bowrain)
 docker compose up -d --wait
 
-# Verify brain is installed
-brain --version
+# Verify bowrain is installed
+bowrain --version
 ```
 
 ---
@@ -49,13 +49,13 @@ create an anonymous project and receive a claim link by email:
 ```bash
 cd examples/docusaurus-e2e
 
-brain init --name "Docusaurus E2E Demo" --email alex@example.com
+bowrain init --name "Docusaurus E2E Demo" --email alex@example.com
 ```
 
 Or create an anonymous project and get the claim URL printed directly:
 
 ```bash
-brain init --anonymous --name "Docusaurus E2E Demo" --source en
+bowrain init --anonymous --name "Docusaurus E2E Demo" --source en
 ```
 
 This creates a `.bowrain/` directory with the project configuration and prints a
@@ -70,7 +70,7 @@ Project created: proj_abc123
 Claim URL: https://bowrain.example.com/claim/clm_def456
 
 Next steps:
-  1. Run: brain push    — upload content to the server
+  1. Run: bowrain push    — upload content to the server
   2. Open the claim URL to take ownership of the project
   3. Invite translators from the web dashboard
 ```
@@ -78,12 +78,12 @@ Next steps:
 Use `--json` for machine-readable output in CI/CD pipelines.
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/brain/walkthrough-init.webm" type="video/webm" />
+  <source src="/video/bowrain-cli/walkthrough-init.webm" type="video/webm" />
 </video>
 
 :::tip
-The server URL is resolved from `BRAIN_SERVER_URL` environment variable or existing
-auth state. Set it once and `brain init` picks it up automatically.
+The server URL is resolved from `BOWRAIN_SERVER_URL` environment variable or existing
+auth state. Set it once and `bowrain init` picks it up automatically.
 :::
 
 ---
@@ -95,7 +95,7 @@ i18n setup works. Pseudo-translation replaces characters with accented variants
 and adds padding to catch truncation bugs:
 
 ```bash
-brain pseudo-translate i18n/en/code.json \
+bowrain pseudo-translate i18n/en/code.json \
   --target-lang qps \
   --output i18n/qps/code.json
 ```
@@ -111,7 +111,7 @@ You'll see text like `[!!! Hëëëröööö Tîîîtlëëë !!!]` in the UI — 
 truncation or layout issues become immediately visible.
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/brain/walkthrough-pseudo.webm" type="video/webm" />
+  <source src="/video/bowrain-cli/walkthrough-pseudo.webm" type="video/webm" />
 </video>
 
 ---
@@ -121,7 +121,7 @@ truncation or layout issues become immediately visible.
 Upload the source content to the Bowrain Server:
 
 ```bash
-brain push
+bowrain push
 ```
 
 Bowrain CLI reads the file mappings from `.bowrain/config.yaml`, parses each file using
@@ -142,7 +142,7 @@ Done. 74 blocks pushed.
 ```
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/brain/walkthrough-push.webm" type="video/webm" />
+  <source src="/video/bowrain-cli/walkthrough-push.webm" type="video/webm" />
 </video>
 
 ---
@@ -165,8 +165,8 @@ The claim flow:
 
 :::tip
 The claim URL is a one-time-use token. Once claimed, the project belongs to your
-workspace and the CLI remembers the association for future `brain push` and
-`brain pull` commands.
+workspace and the CLI remembers the association for future `bowrain push` and
+`bowrain pull` commands.
 :::
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
@@ -242,7 +242,7 @@ Once translation is complete, pull the finished translations back into your
 codebase:
 
 ```bash
-brain pull --locale nb --locale fr
+bowrain pull --locale nb --locale fr
 ```
 
 This downloads all translated content and writes it to the mapped file paths:
@@ -264,7 +264,7 @@ npm run serve
 ```
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
-  <source src="/video/brain/walkthrough-pull.webm" type="video/webm" />
+  <source src="/video/bowrain-cli/walkthrough-pull.webm" type="video/webm" />
 </video>
 
 ---
@@ -273,13 +273,13 @@ npm run serve
 
 | Step | Tool | What Happens |
 |------|------|-------------|
-| 1. Initialize | `brain init --anonymous` | Creates project on server, generates claim URL |
-| 2. Pseudo-translate | `brain pseudo-translate` | Generate test translations for UI validation |
-| 3. Push | `brain push` | Uploads source content to Bowrain Server |
+| 1. Initialize | `bowrain init --anonymous` | Creates project on server, generates claim URL |
+| 2. Pseudo-translate | `bowrain pseudo-translate` | Generate test translations for UI validation |
+| 3. Push | `bowrain push` | Uploads source content to Bowrain Server |
 | 4. Claim | Web browser / email | Developer claims the anonymous project |
 | 5. Invite | Web app / API | Admin invites translator to workspace |
 | 6. Translate | Web / Desktop | Translator works on content |
-| 7. Pull | `brain pull` | Downloads translated files into codebase |
+| 7. Pull | `bowrain pull` | Downloads translated files into codebase |
 
 ## Next Steps
 

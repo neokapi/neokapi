@@ -13,10 +13,10 @@ var mcpCmd = &cobra.Command{
 	SilenceErrors: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		server := mcp.NewServer(
-			&mcp.Implementation{Name: "brain", Version: version.Version},
+			&mcp.Implementation{Name: "bowrain", Version: version.Version},
 			nil,
 		)
-		registerBrainTools(server, app)
+		registerBowrainTools(server, app)
 		return server.Run(cmd.Context(), &mcp.StdioTransport{})
 	},
 }

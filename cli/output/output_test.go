@@ -104,13 +104,13 @@ func TestVersionOutputText(t *testing.T) {
 func TestVersionOutputTextFull(t *testing.T) {
 	var buf bytes.Buffer
 	v := VersionOutput{
-		Program:   "brain",
+		Program:   "bowrain",
 		Version:   "1.2.3",
 		Commit:    "abc1234",
 		BuildDate: "2025-01-01",
 	}
 	err := v.FormatText(&buf)
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "brain 1.2.3")
+	assert.Contains(t, buf.String(), "bowrain 1.2.3")
 	assert.Contains(t, buf.String(), "abc1234")
 }

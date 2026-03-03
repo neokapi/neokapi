@@ -29,7 +29,7 @@ Six Go modules coordinated by `go.work`:
 | **CLI** | `cli/` | Shared CLI base, command factories, output formatting, app config |
 | **Platform** | `platform/` | Shared platform types, auth, connector interfaces, REST client |
 | **Kapi** | `kapi/` | Standalone CLI tool for local file processing |
-| **Brain** | `brain/` | Project sync companion CLI (init, push, pull, auth, status) |
+| **Bowrain CLI** | `bowrain-cli/` | Project sync companion CLI (init, push, pull, auth, status) |
 | **Bowrain** | `bowrain/` | Server, desktop app, SQLite storage, auth, connectors |
 
 See [AD-018](docs/ad/018-four-module-architecture.md) for the full rationale.

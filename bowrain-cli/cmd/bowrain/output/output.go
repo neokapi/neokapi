@@ -1,6 +1,6 @@
-// Package output provides output formatting for the brain CLI.
+// Package output provides output formatting for the Bowrain CLI.
 // Shared formatting (Print, GetFormat, AddFlags) is delegated to
-// platform/cli/output. This package keeps brain-specific output types.
+// platform/cli/output. This package keeps Bowrain CLI-specific output types.
 package output
 
 import (
@@ -16,7 +16,7 @@ const (
 	FormatJSON = shared.FormatJSON
 )
 
-// Re-export shared functions so brain commands can use output.Print etc.
+// Re-export shared functions so bowrain commands can use output.Print etc.
 func AddFlags(cmd *cobra.Command)                           { shared.AddFlags(cmd) }
 func AddPersistentFlags(cmd *cobra.Command)                 { shared.AddPersistentFlags(cmd) }
 func GetFormat(cmd *cobra.Command) Format                   { return shared.GetFormat(cmd) }

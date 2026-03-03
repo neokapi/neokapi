@@ -21,7 +21,7 @@ runs:
         cd cli && go mod download && go mod verify
         cd ../platform && go mod download && go mod verify
         cd ../kapi && go mod download && go mod verify
-        cd ../brain && go mod download && go mod verify
+        cd ../bowrain-cli && go mod download && go mod verify
         cd ../bowrain && go mod download && go mod verify
 
     - name: Create embed placeholders

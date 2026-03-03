@@ -2,7 +2,7 @@
 
 VHS tape files for generating standalone `kapi` CLI demo videos.
 
-For brain CLI recordings, see [`bowrain/e2e/tapes/`](../../bowrain/e2e/tapes/).
+For Bowrain CLI recordings, see [`bowrain/e2e/tapes/`](../../bowrain/e2e/tapes/).
 
 ## Prerequisites
 

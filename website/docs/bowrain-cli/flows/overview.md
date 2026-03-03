@@ -39,13 +39,13 @@ Bowrain CLI includes several built-in flows:
 
 ```bash
 # List available flows
-brain flow list
+bowrain flow list
 
 # Run a flow (project-based)
-brain flow run ai-translate
+bowrain flow run ai-translate
 
 # Standalone mode (without .bowrain/ project)
-brain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+bowrain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Custom Flows
@@ -88,7 +88,7 @@ steps:
 Run with:
 
 ```bash
-brain flow run translate-with-qa
+bowrain flow run translate-with-qa
 ```
 
 ## Flow Tools

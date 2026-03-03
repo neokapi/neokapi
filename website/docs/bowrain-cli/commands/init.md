@@ -3,7 +3,7 @@ title: init
 sidebar_position: 1
 ---
 
-# brain init
+# bowrain init
 
 Initialize a new Bowrain project in the current directory. Creates a `.bowrain/` directory
 with configuration, flow definitions, and sync state tracking.
@@ -11,14 +11,14 @@ with configuration, flow definitions, and sync state tracking.
 ## Usage
 
 ```bash
-brain init [flags]
+bowrain init [flags]
 ```
 
 ## Interactive Mode
 
-When run in a terminal without flags, `brain init` presents an interactive wizard.
+When run in a terminal without flags, `bowrain init` presents an interactive wizard.
 
-**If you are already signed in** (via `brain auth login`), the wizard goes straight
+**If you are already signed in** (via `bowrain auth login`), the wizard goes straight
 to workspace selection, then project name and source locale.
 
 **If you are not signed in**, the wizard offers four paths:
@@ -40,19 +40,19 @@ existing workspace or create a new one.
 
 ```bash
 # Interactive mode (recommended)
-brain init
+bowrain init
 
 # Non-interactive: local project with locales
-brain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+bowrain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 
 # Non-interactive: anonymous project (prints claim URL)
-brain init --anonymous --name "My App" --source en
+bowrain init --anonymous --name "My App" --source en
 
 # Non-interactive: anonymous project with email claim
-brain init --name "My App" --email alex@example.com
+bowrain init --name "My App" --email alex@example.com
 
 # Non-interactive: connect to existing server project
-brain init --server https://bowrain.example.com --project abc123
+bowrain init --server https://bowrain.example.com --project abc123
 ```
 
 ## What Happens
@@ -64,8 +64,8 @@ brain init --server https://bowrain.example.com --project abc123
 5. Adds `.bowrain/.gitignore` to exclude sync state and tokens
 6. Optionally creates a project on the Bowrain Server and configures the connection
 
-After initialization, the directory becomes a Bowrain project. You can run `brain status`,
-`brain flow run`, and other commands from anywhere within the project tree.
+After initialization, the directory becomes a Bowrain project. You can run `bowrain status`,
+`bowrain flow run`, and other commands from anywhere within the project tree.
 
 ## Options
 
@@ -74,7 +74,7 @@ After initialization, the directory becomes a Bowrain project. You can run `brai
 | `--name` | Project name | Directory name |
 | `--source` | Source locale code (BCP 47) | `en` |
 | `--targets` | Comma-separated target locale codes | (none) |
-| `--server` | Bowrain Server URL | `BRAIN_SERVER_URL` or config |
+| `--server` | Bowrain Server URL | `BOWRAIN_SERVER_URL` or config |
 | `--project` | Server project ID (connect to existing) | (none) |
 | `--anonymous` | Create anonymous project (prints claim URL) | `false` |
 | `--email` | Create anonymous project, send claim email | (none) |
@@ -86,7 +86,7 @@ After initialization, the directory becomes a Bowrain project. You can run `brai
 Use `--json` for machine-readable output (useful in CI/CD):
 
 ```bash
-brain init --anonymous --name "My App" --source en --json
+bowrain init --anonymous --name "My App" --source en --json
 ```
 
 ```json
@@ -102,7 +102,7 @@ brain init --anonymous --name "My App" --source en --json
 
 ## Configuration File
 
-`brain init` creates `.bowrain/config.yaml` with this structure:
+`bowrain init` creates `.bowrain/config.yaml` with this structure:
 
 ```yaml
 project:
@@ -142,15 +142,15 @@ hooks:
 The server URL is resolved from (first match wins):
 
 1. `--server` flag
-2. `BRAIN_SERVER_URL` environment variable
-3. `server.url` in global config (`~/.config/brain/brain.yaml`)
-4. Existing auth state (from `brain auth login`)
+2. `BOWRAIN_SERVER_URL` environment variable
+3. `server.url` in global config (`~/.config/bowrain/bowrain.yaml`)
+4. Existing auth state (from `bowrain auth login`)
 5. Built-in default (`http://localhost:8080`)
 
 Set it once globally with:
 
 ```bash
-brain config --global server.url https://bowrain.example.com
+bowrain config --global server.url https://bowrain.example.com
 ```
 
 ## Project Discovery
@@ -160,7 +160,7 @@ Once initialized, Bowrain CLI searches for `.bowrain/` by walking up the directo
 
 ```bash
 cd my-project/src/locales/
-brain status  # Finds .bowrain/ at ../../.bowrain/
+bowrain status  # Finds .bowrain/ at ../../.bowrain/
 ```
 
 ## Version Control
@@ -173,7 +173,7 @@ brain status  # Finds .bowrain/ at ../../.bowrain/
 - `.bowrain/.sync-cache` — sync cache (auto-gitignored)
 - `.bowrain/.server-token` — auth token (auto-gitignored)
 
-`brain init` automatically adds these to `.gitignore`.
+`bowrain init` automatically adds these to `.gitignore`.
 
 ## Next Steps
 
@@ -181,5 +181,5 @@ After initialization:
 
 1. **Edit mappings** in `.bowrain/config.yaml` to match your file structure
 2. **Create flows** in `.bowrain/flows/` for your translation workflows
-3. **Run flows**: `brain flow list` and `brain flow run <flow-name>`
-4. **Connect to server**: `brain pull` and `brain push` (if server configured)
+3. **Run flows**: `bowrain flow list` and `bowrain flow run <flow-name>`
+4. **Connect to server**: `bowrain pull` and `bowrain push` (if server configured)

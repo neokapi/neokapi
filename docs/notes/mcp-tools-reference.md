@@ -176,11 +176,11 @@ List all available processing tools (built-in and plugin-provided).
 
 ---
 
-## Brain MCP Server
+## Bowrain CLI MCP Server
 
-Started via `brain mcp`. Requires a `.bowrain/` project directory (discovered by searching upward from the current directory).
+Started via `bowrain mcp`. Requires a `.bowrain/` project directory (discovered by searching upward from the current directory).
 
-**Server info:** `{"name": "brain", "version": "<version>"}`
+**Server info:** `{"name": "bowrain", "version": "<version>"}`
 
 ### `project_config`
 
@@ -338,13 +338,13 @@ Project-defined flows include a `steps` count. Built-in flows always have `sourc
 | `kapi/cmd/kapi/mcp_cmd.go` | Cobra subcommand, server bootstrap |
 | `kapi/cmd/kapi/mcp_tools.go` | 8 tool handlers + input/output types |
 | `kapi/cmd/kapi/mcp_tools_test.go` | Unit tests for kapi MCP handlers |
-| `bowrain/cmd/brain/mcp_cmd.go` | Cobra subcommand, server bootstrap |
-| `bowrain/cmd/brain/mcp_tools.go` | 6 tool handlers + input/output types |
-| `bowrain/cmd/brain/mcp_tools_test.go` | Unit tests for brain MCP handlers |
+| `bowrain-cli/cmd/bowrain/mcp_cmd.go` | Cobra subcommand, server bootstrap |
+| `bowrain-cli/cmd/bowrain/mcp_tools.go` | 6 tool handlers + input/output types |
+| `bowrain-cli/cmd/bowrain/mcp_tools_test.go` | Unit tests for Bowrain CLI MCP handlers |
 
 ## Testing
 
-MCP handlers are tested by calling the handler functions directly with test fixtures — no MCP transport needed. Kapi tests use format fixture files from `core/formats/json/testdata/`. Brain tests create temporary `.bowrain/` projects via `project.InitProject()`.
+MCP handlers are tested by calling the handler functions directly with test fixtures — no MCP transport needed. Kapi tests use format fixture files from `core/formats/json/testdata/`. Bowrain CLI tests create temporary `.bowrain/` projects via `project.InitProject()`.
 
 The MCP handshake can be verified manually:
 

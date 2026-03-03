@@ -9,7 +9,7 @@ Hooks are automatic tool chains that run before/after sync operations to enforce
 
 ## What Are Hooks?
 
-Hooks are flows that run automatically during `brain push` and `brain pull`:
+Hooks are flows that run automatically during `bowrain push` and `bowrain pull`:
 
 - **pre-push**: Run before uploading to server (quality gates)
 - **post-pull**: Run after fetching from server (post-processing)
@@ -29,7 +29,7 @@ hooks:
 
 ## Pre-Push Hooks
 
-Pre-push hooks run **before** `brain push` uploads content to Bowrain Server.
+Pre-push hooks run **before** `bowrain push` uploads content to Bowrain Server.
 
 ### Use Cases
 
@@ -49,10 +49,10 @@ hooks:
     - term-enforce
 ```
 
-When you run `brain push`, these tools run on local content:
+When you run `bowrain push`, these tools run on local content:
 
 ```bash
-$ brain push -m "Translate new features"
+$ bowrain push -m "Translate new features"
 
 Running pre-push hooks: [qa-check, term-enforce]
 ok qa-check: 0 issues found
@@ -97,7 +97,7 @@ hooks:
 
 ## Post-Pull Hooks
 
-Post-pull hooks run **after** `brain pull` fetches content from the server.
+Post-pull hooks run **after** `bowrain pull` fetches content from the server.
 
 ### Use Cases
 
@@ -117,10 +117,10 @@ hooks:
     - term-lookup
 ```
 
-When you run `brain pull`:
+When you run `bowrain pull`:
 
 ```bash
-$ brain pull
+$ bowrain pull
 
 Pulling from: https://bowrain.example.com
 Project: abc123
@@ -141,10 +141,10 @@ Skip hooks with `--no-hooks`:
 
 ```bash
 # Skip all hooks
-brain push --no-hooks
+bowrain push --no-hooks
 
 # Use --force to bypass quality gates but still run hooks
-brain push --force
+bowrain push --force
 ```
 
 **Difference:**
@@ -217,7 +217,7 @@ Use different hooks per environment:
 
 ```bash
 # Development: lenient
-brain push --no-hooks
+bowrain push --no-hooks
 
 # Staging: medium
 # .bowrain/config.yaml has qa-check only

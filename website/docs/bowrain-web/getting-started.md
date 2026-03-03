@@ -11,7 +11,7 @@ This guide walks you through first login, workspace creation, and translating yo
 
 You need a running Bowrain Server. Choose one of:
 
-- **Local mode**: Run `brain serve` for single-user, no-auth local development
+- **Local mode**: Run `bowrain serve` for single-user, no-auth local development
 - **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](../bowrain-server/installation.md))
 
 ## Starting the Server
@@ -19,7 +19,7 @@ You need a running Bowrain Server. Choose one of:
 ### Local Mode
 
 ```bash
-brain serve
+bowrain serve
 ```
 
 Open `http://localhost:8080` in your browser. No authentication is required — you are automatically signed in as a local user with a pre-created workspace.

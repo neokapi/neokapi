@@ -1,5 +1,5 @@
 #!/bin/bash
-# Test brain CLI commands used in VHS demos
+# Test Bowrain CLI commands used in VHS demos
 # Run before generating recordings to catch issues early
 #
 # For kapi CLI tests, see website/tapes/test-cli.sh
@@ -50,7 +50,7 @@ test_cmd() {
 }
 
 echo "============================================"
-echo "Brain CLI Demo Tests"
+echo "Bowrain CLI Demo Tests"
 echo "============================================"
 echo ""
 
@@ -61,10 +61,10 @@ echo "Building kapi..."
   exit 1
 }
 
-# Build brain
-echo "Building brain..."
-(cd ../../.. && cd brain && go build -o ../bin/brain ./cmd/brain) || {
-  echo -e "${RED}Failed to build brain${NC}"
+# Build bowrain
+echo "Building bowrain..."
+(cd ../../.. && cd bowrain-cli && go build -o ../bin/bowrain ./cmd/bowrain) || {
+  echo -e "${RED}Failed to build bowrain${NC}"
   exit 1
 }
 
@@ -75,7 +75,7 @@ export KAPI_PLUGIN_DIR=/tmp/kapi-no-plugins
 mkdir -p "$KAPI_PLUGIN_DIR"
 
 echo -e "${GREEN}kapi built${NC}"
-echo -e "${GREEN}brain built${NC}"
+echo -e "${GREEN}bowrain built${NC}"
 echo ""
 
 # Test sample files
@@ -86,25 +86,25 @@ echo ""
 
 # overview.tape commands
 echo "overview.tape commands:"
-test_cmd "brain --help" "brain --help" "Usage:"
-test_cmd "brain init --help" "brain init --help" ""
-test_cmd "brain status --help" "brain status --help" ""
+test_cmd "bowrain --help" "bowrain --help" "Usage:"
+test_cmd "bowrain init --help" "bowrain init --help" ""
+test_cmd "bowrain status --help" "bowrain status --help" ""
 echo ""
 
 # init.tape commands
 echo "init.tape commands:"
-test_cmd "brain init --help" "brain init --help" ""
+test_cmd "bowrain init --help" "bowrain init --help" ""
 echo ""
 
 # auth.tape commands
 echo "auth.tape commands:"
-test_cmd "brain auth --help" "brain auth --help" "authentication"
-test_cmd "brain auth status" "brain auth status" ""
+test_cmd "bowrain auth --help" "bowrain auth --help" "authentication"
+test_cmd "bowrain auth status" "bowrain auth status" ""
 echo ""
 
 # serve.tape commands
 echo "serve.tape commands:"
-test_cmd "brain serve --help" "brain serve --help" "Open a local web dashboard"
+test_cmd "bowrain serve --help" "bowrain serve --help" "Open a local web dashboard"
 echo ""
 
 # create-project.tape commands

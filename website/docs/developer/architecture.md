@@ -107,7 +107,7 @@ notifications. See [AD-001](/docs/ad/001-vision) and
 ```
 gokapi/                              ── Framework Module ──
 ├── go.mod                           # module github.com/gokapi/gokapi
-├── go.work                          # workspace: use . ./cli ./platform ./kapi ./brain ./bowrain
+├── go.work                          # workspace: use . ./cli ./platform ./kapi ./bowrain-cli ./bowrain
 │
 ├── core/                            # All framework Go packages
 │   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
@@ -158,11 +158,11 @@ gokapi/                              ── Framework Module ──
 │   ├── go.mod                       # module github.com/gokapi/gokapi/kapi (framework + cli)
 │   └── cmd/kapi/                    # Thin root cmd wiring shared CLI commands
 │
-│                                    ── Brain Module ──
-├── brain/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/brain (framework + cli + platform)
-│   └── cmd/brain/                   # Bowrain CLI (project cmds + shared CLI base)
-│       └── output/                  # Brain-specific output types
+│                                    ── Bowrain CLI Module ──
+├── bowrain-cli/
+│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain-cli (framework + cli + platform)
+│   └── cmd/bowrain/                 # Bowrain CLI (project cmds + shared CLI base)
+│       └── output/                  # Bowrain CLI-specific output types
 │
 │                                    ── Bowrain Module ──
 ├── bowrain/

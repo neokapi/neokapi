@@ -1,4 +1,4 @@
-# VHS Tape: brain serve demo
+# VHS Tape: Bowrain CLI serve demo
 # Shows the local dashboard server
 
 Output output/serve.webm
@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "brain serve --help"
+Type "bowrain serve --help"
 Enter
 Sleep 3s
 
