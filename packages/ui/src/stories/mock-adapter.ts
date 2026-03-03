@@ -174,6 +174,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     deleteInvite: noop,
     acceptInvite: notImpl,
 
+    // --- API Tokens -----------------------------------------------------
+    listApiTokens: async () => [],
+    createApiToken: notImpl,
+    deleteApiToken: noop,
+
     // --- Claim ----------------------------------------------------------
     claimProject: notImpl,
 
