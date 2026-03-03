@@ -79,10 +79,10 @@ bowrain plugins remove <name>             # remove all versions
 
 ## Plugin Directory
 
-Plugins are stored in `~/.config/gokapi/plugins/`. Multiple versions can be installed side-by-side:
+Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be installed side-by-side:
 
 ```
-~/.config/gokapi/plugins/
+~/.config/kapi/plugins/
   okapi/
     1.46.0/
       version.json

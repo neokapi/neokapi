@@ -29,7 +29,7 @@ func NewAppConfig() *AppConfig {
 	v.SetDefault("flow.channelBuffer", 64)
 	pluginDir := "./plugins"
 	if configDir, err := os.UserConfigDir(); err == nil {
-		pluginDir = filepath.Join(configDir, "gokapi", "plugins")
+		pluginDir = filepath.Join(configDir, "kapi", "plugins")
 	}
 	v.SetDefault("plugins.directory", pluginDir)
 	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
