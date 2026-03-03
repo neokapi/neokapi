@@ -52,6 +52,7 @@ export { TranslationEditor } from "./components/TranslationEditor";
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
 export { InviteManager } from "./components/InviteManager";
+export { ApiTokenManager } from "./components/ApiTokenManager";
 
 // Editor components
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
@@ -120,6 +121,7 @@ export type {
   LocaleInfo, FormatInfo, ToolInfo,
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  ApiToken, CreateApiTokenResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
