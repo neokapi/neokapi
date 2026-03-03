@@ -29,6 +29,7 @@ okapi-surefire/
 node_modules/
 dist/
 *.tsbuildinfo
+**/public/version.json
 
 # Wails
 **/build/bin/

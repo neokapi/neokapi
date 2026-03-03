@@ -80,6 +80,16 @@ export interface ProjectItem {
 export interface ConfigResponse {
   mode: "standalone" | "server";
   version: string;
+  commit: string;
+  build_date: string;
+}
+
+/** Static version.json served alongside the web SPA */
+export interface WebVersionInfo {
+  version: string;
+  commit: string;
+  build_date: string;
+  component: string;
 }
 
 // ---------------------------------------------------------------------------

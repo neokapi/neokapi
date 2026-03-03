@@ -30,11 +30,18 @@ permissions:
 
 jobs:
   image-tag:
-    name: Compute Image Tag
+    name: Compute Image Tag & Version
     runs-on: ubuntu-latest
     outputs:
       value: ${{ steps.tag.outputs.value }}
+      version: ${{ steps.meta.outputs.version }}
+      commit: ${{ steps.meta.outputs.commit }}
+      build_date: ${{ steps.meta.outputs.build_date }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Compute image tag
         id: tag
         env:
@@ -48,12 +55,24 @@ jobs:
             echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Compute build metadata
+        id: meta
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          echo "version=$(git describe --tags --always 2>/dev/null || echo dev)" >> "$GITHUB_OUTPUT"
+          echo "commit=${GH_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build Server Images
     needs: image-tag
     uses: ./.github/workflows/build-server-images.yml
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
+      version: ${{ needs.image-tag.outputs.version }}
+      commit: ${{ needs.image-tag.outputs.commit }}
+      build-date: ${{ needs.image-tag.outputs.build_date }}
 
   trigger-deploy:
     name: Trigger Deploy

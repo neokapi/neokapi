@@ -154,6 +154,7 @@ kapi-web-deps: ## Install kapi web UI dependencies
 	cd $(KAPI_WEB_DIR) && $(NPM) install
 
 kapi-web-build: ui-build kapi-web-deps ## Build kapi web UI for production
+	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"kapi-web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(KAPI_WEB_DIR)/public/version.json
 	cd $(KAPI_WEB_DIR) && $(NPM) run build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
@@ -162,6 +163,7 @@ web-deps: ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && $(NPM) install
 
 web-build: ui-build web-deps ## Build SaaS web UI for production
+	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
 	cd $(WEB_DIR) && $(NPM) run build
 
 # ── Keycloak Theme ─────────────────────────────────────────────────────────
@@ -177,11 +179,11 @@ DOCKER_WEB_IMAGE      := ghcr.io/gokapi/bowrain-web
 DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
 
 docker-server: ## Build server and worker images
-	docker build -f docker/bowrain-server/Dockerfile -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
-	docker build -f docker/bowrain-worker/Dockerfile -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
+	docker build -f docker/bowrain-server/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
+	docker build -f docker/bowrain-worker/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest .
 
 docker-web: ## Build web UI image
-	docker build -f docker/bowrain-web/Dockerfile -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest .
+	docker build -f docker/bowrain-web/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest .
 
 docker-keycloak: ## Build keycloak image
 	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest .

@@ -1,11 +1,53 @@
-import { useWorkspace, InviteManager, GlassCard } from "@gokapi/ui";
+import { useState, useEffect } from "react";
+import { useWorkspace, useApi, GlassCard, InviteManager, type ConfigResponse, type WebVersionInfo } from "@gokapi/ui";
 
-function SettingsField({ label, value }: { label: string; value: string }) {
+function SettingsField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
       <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
-      <div className="text-sm text-foreground mt-1">{value}</div>
+      <div className={`text-sm text-foreground mt-1 ${mono ? "font-mono text-xs" : ""}`}>{value}</div>
     </div>
+  );
+}
+
+function VersionSection() {
+  const api = useApi();
+  const [serverInfo, setServerInfo] = useState<ConfigResponse | null>(null);
+  const [webInfo, setWebInfo] = useState<WebVersionInfo | null>(null);
+
+  useEffect(() => {
+    api.getConfig().then(setServerInfo).catch(() => {});
+    fetch("/version.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setWebInfo)
+      .catch(() => {});
+  }, [api]);
+
+  if (!serverInfo && !webInfo) return null;
+
+  return (
+    <GlassCard intensity="subtle" className="p-6">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold">Version</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">Build information</p>
+      </div>
+      <div className="grid gap-4">
+        {serverInfo && (
+          <>
+            <SettingsField label="Server Version" value={serverInfo.version} />
+            <SettingsField label="Server Commit" value={serverInfo.commit} mono />
+            <SettingsField label="Server Build Date" value={serverInfo.build_date} />
+          </>
+        )}
+        {webInfo && (
+          <>
+            <SettingsField label="Web Version" value={webInfo.version} />
+            <SettingsField label="Web Commit" value={webInfo.commit} mono />
+            <SettingsField label="Web Build Date" value={webInfo.build_date} />
+          </>
+        )}
+      </div>
+    </GlassCard>
   );
 }
 
@@ -35,6 +77,7 @@ export function SettingsIndexRoute() {
         </div>
       </GlassCard>
       <InviteManager workspace={activeWorkspace} />
+      <VersionSection />
     </div>
   );
 }

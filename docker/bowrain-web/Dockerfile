@@ -24,4 +24,12 @@ FROM nginx:1-alpine
 RUN rm /etc/nginx/conf.d/default.conf
 COPY docker/bowrain-web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=web-builder /src/bowrain/apps/web/dist /usr/share/nginx/html
+
+# Inject build info as a static JSON file served alongside the SPA.
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+RUN printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' \
+    "$VERSION" "$COMMIT" "$BUILD_DATE" > /usr/share/nginx/html/version.json
+
 EXPOSE 80
