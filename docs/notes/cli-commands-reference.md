@@ -216,5 +216,5 @@ gRPC streaming enables real-time flow progress, block updates, and event subscri
 **CI-friendly features:**
 - `--json` flag for machine-readable output
 - Exit codes: 0 (success), 1 (error), 2 (conflict)
-- `KAPI_AUTH_TOKEN` environment variable (bypass device flow)
+- `KAPI_AUTH_TOKEN` environment variable (planned — bypass device flow)
 - `--no-hooks` flag to skip interactive hooks

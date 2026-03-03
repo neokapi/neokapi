@@ -431,14 +431,7 @@ func (a *App) SelectWorkspace(slug string) error {
 // Tokens: OS keychain via go-keyring
 
 func desktopAuthFilePath() string {
-	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
-		return filepath.Join(dir, "auth.json")
-	}
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = filepath.Join(os.Getenv("HOME"), ".config")
-	}
-	return filepath.Join(configDir, "bowrain-desktop", "auth.json")
+	return filepath.Join(desktopConfigDir(), "auth.json")
 }
 
 func saveDesktopAuth(a *storedDesktopAuth) error {

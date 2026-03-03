@@ -98,7 +98,7 @@ func InitProject(root string, cfg *Config) (*Project, error) {
 	}
 
 	gitignorePath := filepath.Join(bowrainDir, ".gitignore")
-	gitignoreContent := "# Brain sync cache (local only)\n.sync-cache\n"
+	gitignoreContent := "# Bowrain sync cache (local only)\n.sync-cache\n"
 	if err := os.WriteFile(gitignorePath, []byte(gitignoreContent), 0644); err != nil {
 		return nil, fmt.Errorf("create .gitignore: %w", err)
 	}

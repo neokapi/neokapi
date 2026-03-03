@@ -354,13 +354,22 @@ func (a *App) stopReconnect() {
 	}
 }
 
-// defaultStorePath returns the path for the persistent SQLite store.
-func defaultStorePath() string {
+// desktopConfigDir returns the bowrain-desktop config directory.
+// Respects BOWRAIN_DESKTOP_CONFIG_DIR env var for testing.
+func desktopConfigDir() string {
+	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
+		return dir
+	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	dir := filepath.Join(configDir, "bowrain-desktop")
+	return filepath.Join(configDir, "bowrain-desktop")
+}
+
+// defaultStorePath returns the path for the persistent SQLite store.
+func defaultStorePath() string {
+	dir := desktopConfigDir()
 	os.MkdirAll(dir, 0755)
 	return filepath.Join(dir, "bowrain.db")
 }

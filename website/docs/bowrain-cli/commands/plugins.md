@@ -104,7 +104,7 @@ Once installed, additional formats (DOCX, XLSX, EPUB, etc.) appear in `bowrain f
 
 ## Version Pinning
 
-Pin a specific plugin version in `bowrain.yaml`:
+Pin a specific plugin version in `kapi.yaml`:
 
 ```yaml
 plugins:
