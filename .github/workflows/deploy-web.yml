@@ -30,6 +30,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute build metadata
+        id: meta
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          echo "version=$(git describe --tags --always 2>/dev/null || echo dev)" >> "$GITHUB_OUTPUT"
+          echo "commit=${GH_SHA::7}" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Login to ghcr.io
         uses: docker/login-action@v3
@@ -50,6 +61,10 @@ jobs:
           tags: |
             ghcr.io/gokapi/bowrain-web:${{ github.sha }}
             ghcr.io/gokapi/bowrain-web:latest
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
           cache-from: type=gha,scope=bowrain-web
           cache-to: type=gha,mode=max,scope=bowrain-web
 

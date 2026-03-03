@@ -109,7 +109,7 @@ export { useTools } from "./hooks/useTools";
 
 // Types
 export type {
-  User, Workspace, Membership, ProjectInfo, ProjectItem, ConfigResponse,
+  User, Workspace, Membership, ProjectInfo, ProjectItem, ConfigResponse, WebVersionInfo,
   SpanInfo, BlockInfo, UpdateBlockRequest, UpdateBlockTargetCodedRequest,
   AITranslateFileRequest, TranslationStats, WordCountResult,
   ProviderConfig, ProviderConfigWithKey,

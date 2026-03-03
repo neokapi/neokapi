@@ -26,8 +26,13 @@ RUN go mod download \
 COPY . .
 RUN mkdir -p kapi/apps/kapi-web/dist && echo placeholder > kapi/apps/kapi-web/dist/index.html
 
-# Build only the server binary.
-RUN CGO_ENABLED=0 cd bowrain && go build -ldflags="-s -w" -o /out/bowrain-server ./cmd/bowrain-server
+# Build only the server binary (version injected via build args).
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
+RUN CGO_ENABLED=0 cd bowrain && go build \
+    -ldflags="-s -w -X github.com/gokapi/gokapi/core/version.Version=${VERSION} -X github.com/gokapi/gokapi/core/version.Commit=${COMMIT} -X github.com/gokapi/gokapi/core/version.BuildDate=${BUILD_DATE}" \
+    -o /out/bowrain-server ./cmd/bowrain-server
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────
 FROM alpine:3.21

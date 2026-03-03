@@ -141,7 +141,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
   return {
     // --- Config ---------------------------------------------------------
-    getConfig: async () => ({ mode: "standalone", version: "0.0.0-storybook" }),
+    getConfig: async () => ({ mode: "standalone", version: "0.0.0-storybook", commit: "storybook", build_date: "unknown" }),
 
     // --- Auth -----------------------------------------------------------
     getCurrentUser: async () => ({

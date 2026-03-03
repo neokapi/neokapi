@@ -7,6 +7,21 @@ on:
         description: 'Image tag'
         required: true
         type: string
+      version:
+        description: 'Version string (e.g. 0.3.0 or v0.3.0-5-gabcdef)'
+        required: false
+        type: string
+        default: 'dev'
+      commit:
+        description: 'Git commit short SHA'
+        required: false
+        type: string
+        default: 'unknown'
+      build-date:
+        description: 'Build date (ISO 8601)'
+        required: false
+        type: string
+        default: 'unknown'
 
 jobs:
   build:
@@ -37,6 +52,10 @@ jobs:
           tags: |
             ghcr.io/gokapi/bowrain-server:${{ inputs.image-tag }}
             ghcr.io/gokapi/bowrain-server:latest
+          build-args: |
+            VERSION=${{ inputs.version }}
+            COMMIT=${{ inputs.commit }}
+            BUILD_DATE=${{ inputs.build-date }}
           cache-from: |
             type=gha,scope=bowrain-server
             type=gha,scope=bowrain-worker
@@ -51,6 +70,10 @@ jobs:
           tags: |
             ghcr.io/gokapi/bowrain-worker:${{ inputs.image-tag }}
             ghcr.io/gokapi/bowrain-worker:latest
+          build-args: |
+            VERSION=${{ inputs.version }}
+            COMMIT=${{ inputs.commit }}
+            BUILD_DATE=${{ inputs.build-date }}
           cache-from: |
             type=gha,scope=bowrain-worker
             type=gha,scope=bowrain-server

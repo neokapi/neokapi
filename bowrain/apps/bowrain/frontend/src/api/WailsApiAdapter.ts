@@ -24,7 +24,7 @@ export class WailsApiAdapter implements ApiAdapter {
   // --- Server config ---
   async getConfig(): Promise<ConfigResponse> {
     const v = await Backend.GetVersion();
-    return { mode: "standalone", version: v.version };
+    return { mode: "standalone", version: v.version, commit: v.commit, build_date: v.build_date };
   }
 
   // --- Auth (not applicable in desktop) ---

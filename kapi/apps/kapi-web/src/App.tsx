@@ -18,6 +18,7 @@ import {
   type Workspace,
   type ProjectInfo,
   type ConfigResponse,
+  type WebVersionInfo,
   ThemeProvider,
 } from "@gokapi/ui";
 import { LoginPage } from "./auth/LoginPage";
@@ -188,6 +189,46 @@ function MemoryView() {
   );
 }
 
+function VersionInfo() {
+  const adapter = useApi();
+  const [serverInfo, setServerInfo] = useState<ConfigResponse | null>(null);
+  const [webInfo, setWebInfo] = useState<WebVersionInfo | null>(null);
+
+  useEffect(() => {
+    adapter.getConfig().then(setServerInfo).catch(() => {});
+    fetch("/version.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setWebInfo)
+      .catch(() => {});
+  }, [adapter]);
+
+  if (!serverInfo && !webInfo) return null;
+
+  return (
+    <>
+      <div className="mt-6 mb-2">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Version</div>
+      </div>
+      <div className="grid gap-4">
+        {serverInfo && (
+          <>
+            <SettingsField label="Server Version" value={serverInfo.version} />
+            <SettingsField label="Server Commit" value={serverInfo.commit} />
+            <SettingsField label="Server Build Date" value={serverInfo.build_date} />
+          </>
+        )}
+        {webInfo && (
+          <>
+            <SettingsField label="Web Version" value={webInfo.version} />
+            <SettingsField label="Web Commit" value={webInfo.commit} />
+            <SettingsField label="Web Build Date" value={webInfo.build_date} />
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 function SettingsView({ workspace }: { workspace: Workspace | null }) {
   if (!workspace) return <EmptyState message="Select a workspace" />;
   return (
@@ -198,6 +239,7 @@ function SettingsView({ workspace }: { workspace: Workspace | null }) {
         <SettingsField label="Slug" value={workspace.slug} />
         <SettingsField label="Description" value={workspace.description || "No description"} />
         <SettingsField label="Your Role" value={workspace.role} />
+        <VersionInfo />
       </div>
     </div>
   );
