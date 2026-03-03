@@ -255,7 +255,7 @@ jobs:
           go-version: "1.26.0"
 
       - name: Build kapi + Bowrain CLIs
-        run: make build build-bowrain
+        run: make build build-bowrain-cli
 
       - name: Install VHS
         run: |
