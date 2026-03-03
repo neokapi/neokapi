@@ -47,27 +47,27 @@ SERVER_TAPES="workspaces walkthrough-init walkthrough-push walkthrough-pull"
 # Check if server-backed recordings are possible.
 SERVER_AVAILABLE=false
 STARTED_SERVER=false
-KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
+BOWRAIN_SERVER_URL="${BOWRAIN_SERVER_URL:-http://localhost:8080}"
 
-if curl -sf "${KAPI_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
+if curl -sf "${BOWRAIN_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
   echo ""
-  echo "Server already running at $KAPI_SERVER_URL"
+  echo "Server already running at $BOWRAIN_SERVER_URL"
   SERVER_AVAILABLE=true
-  export KAPI_SERVER_URL
+  export BOWRAIN_SERVER_URL
 
   # Obtain auth token for server-backed tapes if not already provided.
   if [ -z "${BOWRAIN_TOKEN:-}" ]; then
     echo "  Acquiring auth token..."
     START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
-      "${KAPI_SERVER_URL}/api/v1/auth/device/start") || true
+      "${BOWRAIN_SERVER_URL}/api/v1/auth/device/start") || true
     if [ -n "$START_RESP" ]; then
       DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
       USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
       curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
-        "${KAPI_SERVER_URL}/api/v1/auth/device/verify" > /dev/null
+        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/verify" > /dev/null
       TOKEN_RESP=$(curl -sf -X POST \
         -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
-        "${KAPI_SERVER_URL}/api/v1/auth/device/poll")
+        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/poll")
       export BOWRAIN_TOKEN
       BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
       # Create default workspace for demos.
@@ -75,7 +75,7 @@ if curl -sf "${KAPI_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
         -H "Authorization: Bearer $BOWRAIN_TOKEN" \
         -H "Content-Type: application/json" \
         -d '{"name":"Personal","slug":"personal"}' \
-        "${KAPI_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
+        "${BOWRAIN_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
       echo "  Token obtained."
     else
       echo "  Warning: could not acquire auth token."
@@ -114,9 +114,9 @@ else
   echo "Docker not available. Server-backed tapes will be skipped."
 fi
 
-# Set KAPI_SERVER_URL for walkthrough tapes when server is available.
+# Set BOWRAIN_SERVER_URL for walkthrough tapes when server is available.
 if [ "$SERVER_AVAILABLE" = true ]; then
-  export KAPI_SERVER_URL="${KAPI_SERVER_URL:-http://localhost:8080}"
+  export BOWRAIN_SERVER_URL="${BOWRAIN_SERVER_URL:-http://localhost:8080}"
 fi
 
 # Set up clean walkthrough directory for walkthrough tapes.
