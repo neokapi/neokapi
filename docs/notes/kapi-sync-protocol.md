@@ -177,4 +177,4 @@ GET  /api/v1/projects/:id/changes     # Raw change log query
 
 The server maintains an append-only change log (`change_log` table) that records every mutation to a project's blocks. Each entry has a monotonic sequence number (`seq`). Sync queries are O(changes) via indexed cursor lookup -- the server never needs to diff entire version snapshots.
 
-Authentication uses the token from `kapi auth login` stored at `~/.config/kapi/auth.json` ([AD-015](/docs/ad/015-auth-and-workspaces)).
+Authentication uses the token from `bowrain auth login` stored at `~/.config/bowrain/auth.json` ([AD-015](/docs/ad/015-auth-and-workspaces)).

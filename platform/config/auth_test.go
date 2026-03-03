@@ -30,7 +30,7 @@ func TestLoadAuthFromEnvVarWithoutServerURL(t *testing.T) {
 
 func TestLoadAuthEnvVarTakesPrecedence(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 	t.Setenv("BOWRAIN_AUTH_TOKEN", "env-token")
 	t.Setenv("BOWRAIN_SERVER_URL", "https://env-server.example.com")
 
@@ -49,7 +49,7 @@ func TestLoadAuthEnvVarTakesPrecedence(t *testing.T) {
 
 func TestLoadAuthFromDisk(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 
 	require.NoError(t, SaveAuth(StoredAuth{
 		ServerURL:   "https://bowrain.example.com",
@@ -64,7 +64,7 @@ func TestLoadAuthFromDisk(t *testing.T) {
 
 func TestLoadAuthNoDiskFile(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", dir)
+	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
 
 	_, err := LoadAuth()
 	assert.Error(t, err)

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// StoredAuth is the auth token persisted at ~/.config/kapi/auth.json.
+// StoredAuth is the auth token persisted at ~/.config/bowrain/auth.json.
 type StoredAuth struct {
 	ServerURL    string     `json:"server_url"`
 	AccessToken  string     `json:"access_token"`
@@ -25,14 +25,14 @@ type StoredUser struct {
 
 // AuthFilePath returns the path to the auth token file.
 func AuthFilePath() string {
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+	if dir := os.Getenv("BOWRAIN_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "auth.json")
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "kapi", "auth.json")
+	return filepath.Join(configDir, "bowrain", "auth.json")
 }
 
 // SaveAuth persists auth credentials to disk.
