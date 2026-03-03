@@ -125,19 +125,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Bowrain Web',
-      items: [
-        'bowrain-web/overview',
-        'bowrain-web/getting-started',
-        'bowrain-web/translation-editor',
-        'bowrain-web/translation-memory',
-        'bowrain-web/terminology',
-        'bowrain-web/walkthroughs',
-        'bowrain-web/demo-videos',
-      ],
-    },
-    {
-      type: 'category',
       label: 'Bowrain Desktop',
       items: [
         'bowrain-desktop/overview',
@@ -154,10 +141,16 @@ const sidebars: SidebarsConfig = {
       label: 'Bowrain Server',
       items: [
         'bowrain-server/overview',
+        'bowrain-server/web-overview',
+        'bowrain-server/getting-started',
+        'bowrain-server/translation-editor',
+        'bowrain-server/translation-memory',
+        'bowrain-server/terminology',
+        'bowrain-server/walkthroughs',
         'bowrain-server/workspaces',
         'bowrain-server/connectors',
         'bowrain-server/automation',
-        'bowrain-server/server-walkthrough',
+        'bowrain-server/demo-videos',
       ],
     },
     {

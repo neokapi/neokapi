@@ -186,5 +186,5 @@ curl http://localhost:8080/api/v1/health
 ## Next Steps
 
 - [Configuration](/docs/bowrain-server/configuration) — all environment variables and CLI flags
-- [Server Walkthrough](/docs/bowrain-server/server-walkthrough) — first login, workspaces, invitations
+- [Getting Started](/docs/bowrain-server/getting-started) — first login, workspaces, invitations
 - [Self-Hosting](/docs/bowrain-server/self-hosting) — production deployment with TLS and backups
