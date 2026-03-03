@@ -44,7 +44,7 @@ The host launches each plugin, performs a version handshake, queries capabilitie
 Multiple versions of the same plugin (or bundle) can be installed side-by-side:
 
 ```
-~/.config/gokapi/plugins/
+~/.config/kapi/plugins/
   okapi/
     1.46.0/
       version.json

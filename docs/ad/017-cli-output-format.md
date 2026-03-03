@@ -189,7 +189,7 @@ Example JSON outputs:
       "version": "1.5.0",
       "status": "running",
       "formats": 46,
-      "path": "/home/user/.config/gokapi/plugins/okapi-bridge"
+      "path": "/home/user/.config/kapi/plugins/okapi-bridge"
     }
   ]
 }

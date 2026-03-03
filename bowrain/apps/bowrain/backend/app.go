@@ -139,7 +139,7 @@ func (a *App) LoadPlugins() {
 // defaultPluginDir returns the default plugin directory.
 func defaultPluginDir() string {
 	if dir, err := os.UserConfigDir(); err == nil {
-		return filepath.Join(dir, "gokapi", "plugins")
+		return filepath.Join(dir, "kapi", "plugins")
 	}
 	return "./plugins"
 }

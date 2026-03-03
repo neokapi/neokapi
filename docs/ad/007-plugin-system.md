@@ -80,7 +80,7 @@ Multiple versions of the same plugin can be installed side-by-side using a
 versioned directory layout:
 
 ```
-~/.config/gokapi/plugins/
+~/.config/kapi/plugins/
   okapi/
     1.46.0/
       version.json
