@@ -47,7 +47,7 @@ type ConnectionInfo struct {
 	Workspace string          `json:"workspace,omitempty"`
 }
 
-// storedDesktopAuth holds non-secret auth metadata persisted at ~/.config/bowrain/auth.json.
+// storedDesktopAuth holds non-secret auth metadata persisted at <UserConfigDir>/bowrain-desktop/auth.json.
 // Tokens are stored in the OS keychain (macOS Keychain, Windows Credential Manager, etc.).
 type storedDesktopAuth struct {
 	ServerURL string            `json:"server_url"`
@@ -427,18 +427,18 @@ func (a *App) SelectWorkspace(slug string) error {
 }
 
 // --- Auth persistence ---
-// Non-secret metadata: ~/.config/bowrain/auth.json
+// Non-secret metadata: <UserConfigDir>/bowrain-desktop/auth.json
 // Tokens: OS keychain via go-keyring
 
 func desktopAuthFilePath() string {
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
+	if dir := os.Getenv("BOWRAIN_DESKTOP_CONFIG_DIR"); dir != "" {
 		return filepath.Join(dir, "auth.json")
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "bowrain", "auth.json")
+	return filepath.Join(configDir, "bowrain-desktop", "auth.json")
 }
 
 func saveDesktopAuth(a *storedDesktopAuth) error {

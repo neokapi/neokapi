@@ -356,11 +356,11 @@ func (a *App) stopReconnect() {
 
 // defaultStorePath returns the path for the persistent SQLite store.
 func defaultStorePath() string {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		home = "."
+		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	dir := filepath.Join(home, ".config", "bowrain")
+	dir := filepath.Join(configDir, "bowrain-desktop")
 	os.MkdirAll(dir, 0755)
 	return filepath.Join(dir, "bowrain.db")
 }

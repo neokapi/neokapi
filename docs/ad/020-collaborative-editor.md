@@ -117,7 +117,7 @@ Desktop auth uses OAuth 2.0 Authorization Code with PKCE (RFC 7636):
 
 **Token storage is split for security:**
 - **Secrets** (access token, refresh token): Stored in OS keyring (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-- **Metadata** (server URL, expiry, user info): Stored in `~/.config/bowrain/auth.json`
+- **Metadata** (server URL, expiry, user info): Stored in `<UserConfigDir>/bowrain-desktop/auth.json`
 
 This ensures tokens are never written to plaintext files and benefit from OS-level encryption and access control.
 

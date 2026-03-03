@@ -44,13 +44,14 @@ func NewStore(filePath string) *Store {
 	return s
 }
 
-// DefaultPath returns the default config file path (~/.config/bowrain/providers.json).
+// DefaultPath returns the default config file path (e.g. ~/.config/bowrain/providers.json on Linux).
+// Used by bowrain-server, bowrain-worker, and bowrain desktop app.
 func DefaultPath() string {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		home = "."
+		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(home, ".config", "bowrain", "providers.json")
+	return filepath.Join(configDir, "bowrain", "providers.json")
 }
 
 // List returns all stored provider configs.
