@@ -33,13 +33,13 @@ Bowrain CLI acts as a file connector:
 
 ```bash
 # Initialize connection to server
-brain init --server https://bowrain.example.com --project abc123
+bowrain init --server https://bowrain.example.com --project abc123
 
 # Pull translations from server
-brain pull
+bowrain pull
 
 # Push local changes to server
-brain push -m "Translate new features"
+bowrain push -m "Translate new features"
 ```
 
 See [Bowrain CLI documentation](/docs/bowrain-cli/overview) for details.

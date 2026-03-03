@@ -13,13 +13,13 @@ COPY go.mod go.sum go.work ./
 COPY cli/go.mod cli/go.sum ./cli/
 COPY platform/go.mod platform/go.sum ./platform/
 COPY kapi/go.mod kapi/go.sum ./kapi/
-COPY brain/go.mod brain/go.sum ./brain/
+COPY bowrain-cli/go.mod bowrain-cli/go.sum ./bowrain-cli/
 COPY bowrain/go.mod bowrain/go.sum ./bowrain/
 RUN go mod download \
     && cd cli && go mod download \
     && cd ../platform && go mod download \
     && cd ../kapi && go mod download \
-    && cd ../brain && go mod download \
+    && cd ../bowrain-cli && go mod download \
     && cd ../bowrain && go mod download
 
 # Copy source.

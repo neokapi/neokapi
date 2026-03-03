@@ -1,4 +1,4 @@
-# VHS Tape: brain auth demo
+# VHS Tape: Bowrain CLI auth demo
 # Shows authentication commands
 
 Output output/auth.webm
@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "brain auth --help"
+Type "bowrain auth --help"
 Enter
 Sleep 3s
 
@@ -17,7 +17,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "brain auth status"
+Type "bowrain auth status"
 Enter
 Sleep 2s
 

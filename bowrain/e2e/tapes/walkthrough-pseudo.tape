@@ -18,7 +18,7 @@ Type "# Run pseudo-translation flow"
 Enter
 Sleep 500ms
 
-Type "brain flow run pseudo"
+Type "bowrain flow run pseudo"
 Enter
 Sleep 3s
 
@@ -26,7 +26,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "brain status"
+Type "bowrain status"
 Enter
 Sleep 3s
 

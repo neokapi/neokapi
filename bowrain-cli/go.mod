@@ -1,4 +1,4 @@
-module github.com/gokapi/gokapi/brain
+module github.com/gokapi/gokapi/bowrain-cli
 
 go 1.26.0
 

@@ -18,7 +18,7 @@ MODULE      := github.com/gokapi/gokapi
 CLI_MOD     := github.com/gokapi/gokapi/cli
 PLATFORM    := github.com/gokapi/gokapi/platform
 KAPI_MOD    := github.com/gokapi/gokapi/kapi
-BRAIN_MOD   := github.com/gokapi/gokapi/brain
+BOWRAIN_CLI := github.com/gokapi/gokapi/bowrain-cli
 BOWRAIN     := github.com/gokapi/gokapi/bowrain
 CLI_PKG     := $(KAPI_MOD)/cmd/kapi
 SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
@@ -45,14 +45,14 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-brain test-bowrain lint fmt vet proto clean install cover tools help \
+.PHONY: all build build-bowrain-cli build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
+        test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-brain test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
-        screenshots recordings kapi-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
+        screenshots recordings kapi-recordings bowrain-cli-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
         videos-deps videos-setup videos-studio videos-render \
         docs-deps docs-dev docs-build docs-serve \
         test-bridge-json test-native-json generate-test-comparison generate-test-stubs
@@ -96,21 +96,26 @@ build-worker: ## Build the Bowrain worker
 build-bowrain: frontend-build ## Build the Bowrain desktop app
 	cd bowrain/apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
-build-brain: ## Build brain CLI
+build-bowrain-cli: ## Build Bowrain CLI
 	@mkdir -p $(BIN_DIR)
-	cd brain && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/brain ./cmd/brain
+	cd bowrain-cli && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain ./cmd/bowrain
+	@ln -sf bowrain $(BIN_DIR)/brain
+
+build-brain: build-bowrain-cli ## Alias for build-bowrain-cli (backward compat)
 
 build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
 	@mkdir -p $(BIN_DIR)
 	cd bowrain/apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o ../../../$(BIN_DIR)/bowrain-headless .
 
-build-all: build build-brain build-server build-worker ## Build all Go binaries
+build-all: build build-bowrain-cli build-server build-worker ## Build all Go binaries
 
 install: ## Install kapi CLI to GOPATH/bin
 	cd kapi && $(GO) install $(LDFLAGS) ./cmd/kapi
 
-install-brain: ## Install brain CLI to GOPATH/bin
-	cd brain && $(GO) install $(LDFLAGS) ./cmd/brain
+install-bowrain-cli: ## Install Bowrain CLI to GOPATH/bin
+	cd bowrain-cli && $(GO) install $(LDFLAGS) ./cmd/bowrain
+
+install-brain: install-bowrain-cli ## Alias for install-bowrain-cli (backward compat)
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -243,10 +248,12 @@ recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
 kapi-recordings: build ## Generate kapi CLI demo videos (VHS)
 	./website/tapes/generate.sh
 
-brain-recordings: build build-brain ## Generate brain CLI demo videos (VHS)
+bowrain-cli-recordings: build build-bowrain-cli ## Generate Bowrain CLI demo videos (VHS)
 	./bowrain/e2e/tapes/generate.sh
 
-cli-recordings: kapi-recordings brain-recordings ## Generate all CLI demo videos
+brain-recordings: bowrain-cli-recordings ## Alias for bowrain-cli-recordings (backward compat)
+
+cli-recordings: kapi-recordings bowrain-cli-recordings ## Generate all CLI demo videos
 
 docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
 
@@ -283,7 +290,7 @@ test: ## Run all tests (all modules)
 	cd cli && $(GOTEST) ./... -count=1
 	cd platform && $(GOTEST) ./... -count=1
 	cd kapi && $(GOTEST) ./... -count=1
-	cd brain && $(GOTEST) ./... -count=1
+	cd bowrain-cli && $(GOTEST) ./... -count=1
 	cd bowrain && $(GOTEST) ./... -count=1
 
 test-fast: ## Run all tests with caching (fast local iteration)
@@ -291,7 +298,7 @@ test-fast: ## Run all tests with caching (fast local iteration)
 	cd cli && $(GOTEST) ./...
 	cd platform && $(GOTEST) ./...
 	cd kapi && $(GOTEST) ./...
-	cd brain && $(GOTEST) ./...
+	cd bowrain-cli && $(GOTEST) ./...
 	cd bowrain && $(GOTEST) ./...
 
 test-parallel: ## Run all tests in parallel (all modules concurrently)
@@ -299,7 +306,7 @@ test-parallel: ## Run all tests in parallel (all modules concurrently)
 	(cd cli && $(GOTEST) ./... -count=1) & \
 	(cd platform && $(GOTEST) ./... -count=1) & \
 	(cd kapi && $(GOTEST) ./... -count=1) & \
-	(cd brain && $(GOTEST) ./... -count=1) & \
+	(cd bowrain-cli && $(GOTEST) ./... -count=1) & \
 	(cd bowrain && $(GOTEST) ./... -count=1) & \
 	wait
 
@@ -308,7 +315,7 @@ test-unit: ## Run unit tests only (exclude integration)
 	cd cli && $(GOTEST) ./... -count=1 -short
 	cd platform && $(GOTEST) ./... -count=1 -short
 	cd kapi && $(GOTEST) ./... -count=1 -short
-	cd brain && $(GOTEST) ./... -count=1 -short
+	cd bowrain-cli && $(GOTEST) ./... -count=1 -short
 	cd bowrain && $(GOTEST) ./... -count=1 -short
 
 test-race: ## Run tests with race detector
@@ -316,7 +323,7 @@ test-race: ## Run tests with race detector
 	cd cli && $(GOTEST) ./... -count=1 -race
 	cd platform && $(GOTEST) ./... -count=1 -race
 	cd kapi && $(GOTEST) ./... -count=1 -race
-	cd brain && $(GOTEST) ./... -count=1 -race
+	cd bowrain-cli && $(GOTEST) ./... -count=1 -race
 	cd bowrain && $(GOTEST) ./... -count=1 -race
 
 test-framework: ## Run framework tests only
@@ -331,8 +338,10 @@ test-cli: ## Run cli module tests only
 test-kapi: ## Run kapi CLI tests only
 	cd kapi && $(GOTEST) ./... -count=1
 
-test-brain: ## Run brain CLI tests only
-	cd brain && $(GOTEST) ./... -count=1
+test-bowrain-cli: ## Run Bowrain CLI tests only
+	cd bowrain-cli && $(GOTEST) ./... -count=1
+
+test-brain: test-bowrain-cli ## Alias for test-bowrain-cli (backward compat)
 
 test-bowrain: ## Run bowrain tests only
 	cd bowrain && $(GOTEST) ./... -count=1
@@ -393,7 +402,7 @@ test-verbose: ## Run tests with verbose output
 	cd cli && $(GOTEST) ./... -count=1 -v
 	cd platform && $(GOTEST) ./... -count=1 -v
 	cd kapi && $(GOTEST) ./... -count=1 -v
-	cd brain && $(GOTEST) ./... -count=1 -v
+	cd bowrain-cli && $(GOTEST) ./... -count=1 -v
 	cd bowrain && $(GOTEST) ./... -count=1 -v
 
 cover: ## Run tests with coverage
@@ -402,13 +411,13 @@ cover: ## Run tests with coverage
 	cd cli && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/cli.out -covermode=atomic
 	cd platform && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/platform.out -covermode=atomic
 	cd kapi && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/kapi.out -covermode=atomic
-	cd brain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/brain.out -covermode=atomic
+	cd bowrain-cli && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/bowrain-cli.out -covermode=atomic
 	cd bowrain && $(GOTEST) ./... -count=1 -coverprofile=../$(COVER_DIR)/bowrain.out -covermode=atomic
 	cat $(COVER_DIR)/framework.out > $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/cli.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/platform.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/kapi.out >> $(COVER_DIR)/coverage.out
-	tail -n +2 $(COVER_DIR)/brain.out >> $(COVER_DIR)/coverage.out
+	tail -n +2 $(COVER_DIR)/bowrain-cli.out >> $(COVER_DIR)/coverage.out
 	tail -n +2 $(COVER_DIR)/bowrain.out >> $(COVER_DIR)/coverage.out
 	$(GO) tool cover -html=$(COVER_DIR)/coverage.out -o $(COVER_DIR)/coverage.html
 	@echo "Coverage report: $(COVER_DIR)/coverage.html"
@@ -423,7 +432,7 @@ vet: ## Run go vet
 	cd cli && $(GOVET) ./...
 	cd platform && $(GOVET) ./...
 	cd kapi && $(GOVET) ./...
-	cd brain && $(GOVET) ./...
+	cd bowrain-cli && $(GOVET) ./...
 	cd bowrain && $(GOVET) ./...
 
 lint: ## Run golangci-lint
@@ -432,7 +441,7 @@ ifdef GOLANGCI_LINT
 	cd cli && $(GOLANGCI_LINT) run ./...
 	cd platform && $(GOLANGCI_LINT) run ./...
 	cd kapi && $(GOLANGCI_LINT) run ./...
-	cd brain && $(GOLANGCI_LINT) run ./...
+	cd bowrain-cli && $(GOLANGCI_LINT) run ./...
 	cd bowrain && $(GOLANGCI_LINT) run ./...
 else
 	@echo "golangci-lint not installed. Run 'make tools' to install."
@@ -494,7 +503,7 @@ deps: ## Download and tidy dependencies
 	cd cli && $(GO) mod download && $(GO) mod tidy
 	cd platform && $(GO) mod download && $(GO) mod tidy
 	cd kapi && $(GO) mod download && $(GO) mod tidy
-	cd brain && $(GO) mod download && $(GO) mod tidy
+	cd bowrain-cli && $(GO) mod download && $(GO) mod tidy
 	cd bowrain && $(GO) mod download && $(GO) mod tidy
 
 deps-update: ## Update all dependencies
@@ -506,8 +515,8 @@ deps-update: ## Update all dependencies
 	cd platform && $(GO) mod tidy
 	cd kapi && $(GO) get -u ./...
 	cd kapi && $(GO) mod tidy
-	cd brain && $(GO) get -u ./...
-	cd brain && $(GO) mod tidy
+	cd bowrain-cli && $(GO) get -u ./...
+	cd bowrain-cli && $(GO) mod tidy
 	cd bowrain && $(GO) get -u ./...
 	cd bowrain && $(GO) mod tidy
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -14,19 +14,19 @@ var addFormat string
 var addCmd = &cobra.Command{
 	Use:   "add <pattern> [pattern...]",
 	Short: "Add files to the project",
-	Long: `Add file patterns to this project so brain knows which files to process.
+	Long: `Add file patterns to this project so bowrain knows which files to process.
 
 Patterns support ** for recursive matching.
 
 Examples:
-  brain add "src/**/*.html"
-  brain add "locales/*.json" --format json
-  brain add "src/**/*.html" "content/**/*.md"`,
+  bowrain add "src/**/*.html"
+  bowrain add "locales/*.json" --format json
+  bowrain add "src/**/*.html" "content/**/*.md"`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		proj, err := project.FindProject("")
 		if err != nil {
-			return fmt.Errorf("no .bowrain/ project found (run 'brain init' first): %w", err)
+			return fmt.Errorf("no .bowrain/ project found (run 'bowrain init' first): %w", err)
 		}
 
 		var result output.AddOutput

@@ -5,6 +5,6 @@ use (
 	./cli
 	./platform
 	./kapi
-	./brain
+	./bowrain-cli
 	./bowrain
 )

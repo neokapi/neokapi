@@ -39,7 +39,7 @@ title: Release Process
 
 The tag push triggers `.github/workflows/release.yml`, which runs these jobs:
 
-1. **GoReleaser** — builds the `kapi` and `brain` CLIs for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formulae in `gokapi/homebrew-tap`
+1. **GoReleaser** — builds the `kapi` and `bowrain` CLIs for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formulae in `gokapi/homebrew-tap`
 
 2. **Build Bowrain** (matrix: linux/amd64, linux/arm64, windows/amd64, windows/arm64, darwin/universal) — builds the Bowrain desktop app for each platform. Each entry packages its artifact (DMG for macOS, ZIP for Windows, tarball for Linux) and uploads to the GitHub release
 

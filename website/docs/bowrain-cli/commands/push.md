@@ -3,7 +3,7 @@ title: push
 sidebar_position: 5
 ---
 
-# brain push
+# bowrain push
 
 Send local file changes to Bowrain Server. Only transfers modified blocks
 (incremental sync using content hashing).
@@ -11,23 +11,23 @@ Send local file changes to Bowrain Server. Only transfers modified blocks
 ## Usage
 
 ```bash
-brain push [paths...] [flags]
+bowrain push [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Push all local changes to server
-brain push
+bowrain push
 
 # Push specific files
-brain push src/locales/en/
+bowrain push src/locales/en/
 
 # Show what would be pushed without uploading
-brain push --dry-run
+bowrain push --dry-run
 
 # Force re-push all blocks (ignoring sync cache)
-brain push --force
+bowrain push --force
 
 # Example output:
 # Pushed 47 blocks (scanned 12 files)
@@ -94,9 +94,9 @@ The sync cache can be safely deleted — it will be regenerated on the next push
 
 ## Related Commands
 
-- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
-- [`brain status`](/docs/bowrain-cli/commands/status) — Show what will be pushed
-- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
+- [`bowrain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
+- [`bowrain status`](/docs/bowrain-cli/commands/status) — Show what will be pushed
+- [`bowrain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 
@@ -111,6 +111,6 @@ Think of it as `git push` for localization content.
 
 ## Best Practices
 
-1. **Run `brain status`** before pushing to see what changed
+1. **Run `bowrain status`** before pushing to see what changed
 2. **Pull first** if working with a team to avoid conflicts
 3. **Use `--dry-run`** when unsure about what will be uploaded

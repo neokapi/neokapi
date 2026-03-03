@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generate brain CLI demo videos using VHS
+# Generate Bowrain CLI demo videos using VHS
 # Requires: vhs (brew install charmbracelet/tap/vhs)
 #
 # Some tapes require a running bowrain-server (via Docker or manually started).
@@ -20,7 +20,7 @@ fi
 
 # Run CLI tests first
 echo "============================================"
-echo "Running brain CLI tests before recording..."
+echo "Running Bowrain CLI tests before recording..."
 echo "============================================"
 echo ""
 
@@ -32,7 +32,7 @@ fi
 
 echo ""
 
-# Add bin to PATH (kapi + brain were built by test-cli.sh)
+# Add bin to PATH (kapi + bowrain were built by test-cli.sh)
 export PATH="$SCRIPT_DIR/../../../bin:$PATH"
 
 # Use isolated config for recordings
@@ -141,7 +141,7 @@ fi
 echo ""
 
 # Generate all tapes
-echo "Generating brain CLI demo videos..."
+echo "Generating Bowrain CLI demo videos..."
 echo ""
 
 failed=0
@@ -198,7 +198,7 @@ if [ $failed -gt 0 ]; then
 fi
 
 # Copy to docs
-DOCS_VIDEO_DIR="$SCRIPT_DIR/../../../website/static/video/brain"
+DOCS_VIDEO_DIR="$SCRIPT_DIR/../../../website/static/video/bowrain-cli"
 mkdir -p "$DOCS_VIDEO_DIR"
 
 echo ""

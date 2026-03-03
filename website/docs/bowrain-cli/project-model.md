@@ -105,7 +105,7 @@ Bowrain CLI searches for `.bowrain/` by walking up the directory tree (like git)
 
 ```bash
 cd my-app/src/locales/fr/
-brain status  # Finds .bowrain/ at ../../../.bowrain/
+bowrain status  # Finds .bowrain/ at ../../../.bowrain/
 ```
 
 All commands work from any subdirectory within the project.
@@ -124,7 +124,7 @@ Files that should NOT be committed (auto-gitignored):
 - `.bowrain/.sync-cache` — local sync cache (block hashes + cursor)
 - `.bowrain/.server-token` — authentication token
 
-`brain init` automatically creates `.bowrain/.gitignore` with these entries.
+`bowrain init` automatically creates `.bowrain/.gitignore` with these entries.
 
 ## Initialization
 
@@ -132,7 +132,7 @@ Create a new Bowrain project:
 
 ```bash
 cd my-app/
-brain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
+bowrain init --name "My App" --source en-US --targets fr-FR,de-DE,ja-JP
 ```
 
 This creates:
@@ -146,15 +146,15 @@ This creates:
 Connect an existing project to Bowrain Server:
 
 ```bash
-brain init --server https://bowrain.example.com --project abc123
+bowrain init --server https://bowrain.example.com --project abc123
 ```
 
 This updates `.bowrain/config.yaml` with server details. You can then:
 
 ```bash
-brain push    # Upload local source blocks to server
-brain pull    # Fetch translated blocks from server
-brain status  # Show sync state (pending push/pull)
+bowrain push    # Upload local source blocks to server
+bowrain pull    # Fetch translated blocks from server
+bowrain status  # Show sync state (pending push/pull)
 ```
 
 ## Next Steps

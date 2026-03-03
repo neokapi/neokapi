@@ -3,7 +3,7 @@ title: serve
 sidebar_position: 10
 ---
 
-# brain serve
+# bowrain serve
 
 Start a local web-based project editor — like `jupyter notebook` for translation
 projects. No authentication or server setup required.
@@ -11,20 +11,20 @@ projects. No authentication or server setup required.
 ## Usage
 
 ```bash
-brain serve [directory] [flags]
+bowrain serve [directory] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Open a project directory
-brain serve ./my-project/
+bowrain serve ./my-project/
 
 # Use a custom port
-brain serve ./my-project/ --port 4000
+bowrain serve ./my-project/ --port 4000
 
 # Don't auto-open the browser
-brain serve ./my-project/ --no-open
+bowrain serve ./my-project/ --no-open
 ```
 
 ## What Happens
@@ -44,7 +44,7 @@ brain serve ./my-project/ --no-open
 
 ## When to Use
 
-`brain serve` is ideal for:
+`bowrain serve` is ideal for:
 
 - **Quick edits** to a translation project without installing Bowrain
 - **Remote editing** via SSH port forwarding
@@ -56,7 +56,7 @@ For full multi-user collaboration with workspaces and access control, use
 
 ## Comparison
 
-| Feature | `brain serve` | `bowrain-server` |
+| Feature | `bowrain serve` | `bowrain-server` |
 |---------|-------------|-----------------|
 | Auth required | No | Yes (SSO) |
 | Workspaces | No (single project) | Yes (multi-workspace) |

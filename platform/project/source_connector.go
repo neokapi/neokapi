@@ -17,7 +17,7 @@ import (
 	"github.com/gokapi/gokapi/platform/connector"
 )
 
-// BrainSourceConnector implements connector.SourceConnector for local brain projects.
+// BrainSourceConnector implements connector.SourceConnector for local bowrain-cli projects.
 // It communicates with a Bowrain server via REST API.
 type BrainSourceConnector struct {
 	project   *Project
@@ -49,7 +49,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	case srv.Workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("workspace sync requires authentication: run 'brain auth login'")
+			return nil, fmt.Errorf("workspace sync requires authentication: run 'bowrain auth login'")
 		}
 		if authInfo.ServerURL != srv.URL {
 			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, srv.URL)
@@ -206,7 +206,7 @@ func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatu
 	}, nil
 }
 
-// Configure is a no-op for the brain source connector (configured via .bowrain/config.yaml).
+// Configure is a no-op for the Bowrain CLI source connector (configured via .bowrain/config.yaml).
 func (c *BrainSourceConnector) Configure(config map[string]string) error {
 	return nil
 }

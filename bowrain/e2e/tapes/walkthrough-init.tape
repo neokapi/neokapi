@@ -1,5 +1,5 @@
 # VHS Tape: walkthrough part 1 — project init
-# Initializes a brain project in an existing codebase
+# Initializes a bowrain project in an existing codebase
 # Requires: running bowrain-server, WALKTHROUGH_DIR set
 
 Output output/walkthrough-init.webm
@@ -22,11 +22,11 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "# Initialize a brain project"
+Type "# Initialize a bowrain project"
 Enter
 Sleep 500ms
 
-Type "brain init"
+Type "bowrain init"
 Enter
 Sleep 3s
 
@@ -42,7 +42,7 @@ Type ""
 Enter
 Sleep 500ms
 
-Type "brain status"
+Type "bowrain status"
 Enter
 Sleep 3s
 

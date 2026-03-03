@@ -3,7 +3,7 @@ title: status
 sidebar_position: 2
 ---
 
-# brain status
+# bowrain status
 
 Show the sync state between local files and Bowrain Server. Displays local block
 count, pending changes, and last sync timestamp.
@@ -11,14 +11,14 @@ count, pending changes, and last sync timestamp.
 ## Usage
 
 ```bash
-brain status
+bowrain status
 ```
 
 ## Examples
 
 ```bash
 # Show current project status
-brain status
+bowrain status
 
 # Example output (connected to server):
 # Project root: /Users/me/my-project
@@ -75,7 +75,7 @@ until the next sync re-establishes the baseline.
 
 ## How It Works
 
-`brain status` performs:
+`bowrain status` performs:
 
 1. **Scan local files** via FormatRegistry (using config mappings)
 2. **Extract blocks** and compute content hashes
@@ -89,13 +89,13 @@ until the next sync re-establishes the baseline.
 
 ## Related Commands
 
-- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed line-by-line changes
-- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
-- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
+- [`bowrain diff`](/docs/bowrain-cli/commands/diff) — Show detailed line-by-line changes
+- [`bowrain pull`](/docs/bowrain-cli/commands/pull) — Fetch changes from server
+- [`bowrain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
 
 ## When to Use
 
-Run `brain status` to:
+Run `bowrain status` to:
 
 - **Check before push** to see what will be uploaded
 - **Check after pull** to verify sync succeeded

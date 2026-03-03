@@ -63,4 +63,4 @@ are separated into [Implementation Notes](/docs/notes/index).
 | [017](017-cli-output-format.md) | CLI Output Format Flags | JSON/YAML/table/text output, machine-readable piping |
 | [018](018-four-module-architecture.md) | Four-Module Monorepo Architecture | framework/platform/kapi/bowrain module separation |
 | [020](020-collaborative-editor.md) | Collaborative Editor | EditorService gRPC, streaming presence, offline-first desktop |
-| [021](021-mcp-integration.md) | MCP Integration | MCP servers for kapi and brain, tool specifications, stdio transport |
+| [021](021-mcp-integration.md) | MCP Integration | MCP servers for kapi and bowrain, tool specifications, stdio transport |

@@ -22,11 +22,11 @@ Bowrain brings the power of gokapi's processing engine to teams:
 ```
 Developer (Bowrain CLI)          Translator (Web/Desktop)
      |                              |
-     |  brain push                  |  Open editor
+     |  bowrain push                  |  Open editor
      |-------------->               |-------------->
      |               Bowrain Server |
      |<--------------               |<--------------
-     |  brain pull                  |  Save translations
+     |  bowrain pull                  |  Save translations
 ```
 
 The developer initializes a `.bowrain/` project, pushes source content to the server, and pulls back translations. Translators work in the web app or desktop app with a visual editor, translation memory, and terminology support.

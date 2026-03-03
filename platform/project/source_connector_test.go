@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// setupTestProject creates a temporary brain project with a JSON source file and
+// setupTestProject creates a temporary bowrain project with a JSON source file and
 // a mock Bowrain server. Returns the project, format registry, and cleanup func.
 func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.FormatRegistry) {
 	t.Helper()

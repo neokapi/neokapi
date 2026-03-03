@@ -12,7 +12,7 @@ before:
     - bash -c "cd cli && go mod tidy"
     - bash -c "cd platform && go mod tidy"
     - bash -c "cd kapi && go mod tidy"
-    - bash -c "cd brain && go mod tidy"
+    - bash -c "cd bowrain-cli && go mod tidy"
     - bash -c "cd bowrain && go mod tidy"
 
 builds:
@@ -35,10 +35,10 @@ builds:
       - -X github.com/gokapi/gokapi/core/version.Commit={{.Commit}}
       - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
 
-  - id: brain
-    dir: brain
-    main: ./cmd/brain
-    binary: brain
+  - id: bowrain-cli
+    dir: bowrain-cli
+    main: ./cmd/bowrain
+    binary: bowrain
     env:
       - CGO_ENABLED=0
     goos:
@@ -63,9 +63,9 @@ archives:
       - goos: windows
         formats: [zip]
 
-  - id: brain
+  - id: bowrain-cli
     ids:
-      - brain
+      - bowrain-cli
     name_template: "bowrain-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
@@ -89,7 +89,7 @@ brews:
 
   - name: bowrain-cli
     ids:
-      - brain
+      - bowrain-cli
     repository:
       owner: gokapi
       name: homebrew-tap
@@ -100,10 +100,10 @@ brews:
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
     extra_install: |
-      bin.install_symlink bin/"brain" => "bowrain"
+      bin.install_symlink bin/"bowrain" => "brain"
     test: |
-      system "#{bin}/brain", "version"
       system "#{bin}/bowrain", "version"
+      system "#{bin}/brain", "version"
 
 checksum:
   name_template: "checksums.txt"

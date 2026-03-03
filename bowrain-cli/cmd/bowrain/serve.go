@@ -40,7 +40,7 @@ If no directory is given, the current directory is used.`,
 
 		proj, err := project.FindProject(absPath)
 		if err != nil {
-			return fmt.Errorf("no .bowrain/ project found in %s (run 'brain init' first)", absPath)
+			return fmt.Errorf("no .bowrain/ project found in %s (run 'bowrain init' first)", absPath)
 		}
 
 		addr := fmt.Sprintf("localhost:%d", servePort)
@@ -72,8 +72,8 @@ If no directory is given, the current directory is used.`,
 		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			fmt.Fprintf(w, `<!DOCTYPE html>
-<html><head><title>brain — %s</title></head><body>
-<h1>brain project: %s</h1>
+<html><head><title>bowrain — %s</title></head><body>
+<h1>bowrain project: %s</h1>
 <p>Root: %s</p>
 <p>Source locale: %s</p>
 <p>API: <a href="/api/project">/api/project</a> | <a href="/api/flows">/api/flows</a></p>

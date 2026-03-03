@@ -1,5 +1,5 @@
-# VHS Tape: brain overview demo
-# Quick overview of brain CLI capabilities
+# VHS Tape: Bowrain CLI overview demo
+# Quick overview of Bowrain CLI capabilities
 
 Output output/overview.webm
 
@@ -9,7 +9,7 @@ Set Height 600
 Set Theme "Dracula"
 Set Padding 20
 
-Type "brain --help"
+Type "bowrain --help"
 Enter
 Sleep 3s
 
@@ -21,7 +21,7 @@ Type "# Initialize a new project"
 Enter
 Sleep 500ms
 
-Type "brain init --help"
+Type "bowrain init --help"
 Enter
 Sleep 3s
 
@@ -33,7 +33,7 @@ Type "# Check project status"
 Enter
 Sleep 500ms
 
-Type "brain status --help"
+Type "bowrain status --help"
 Enter
 Sleep 2s
 

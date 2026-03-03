@@ -1,5 +1,5 @@
 // Package output provides consistent output formatting for gokapi CLI tools.
-// Both kapi and brain CLIs use this package to output results in text or JSON format.
+// Both kapi and bowrain CLIs use this package to output results in text or JSON format.
 package output
 
 import (

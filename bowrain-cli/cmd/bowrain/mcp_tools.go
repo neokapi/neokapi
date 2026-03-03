@@ -13,8 +13,8 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// registerBrainTools registers all brain MCP tools on the given server.
-func registerBrainTools(server *mcp.Server, a *cli.App) {
+// registerBowrainTools registers all Bowrain CLI MCP tools on the given server.
+func registerBowrainTools(server *mcp.Server, a *cli.App) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "project_status",
 		Description: "Show project sync status including pending push/pull counts and server connection",
@@ -54,7 +54,7 @@ func registerBrainTools(server *mcp.Server, a *cli.App) {
 		Name:        "list_flows",
 		Description: "List available processing flows (built-in and project-defined)",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input struct{}) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
-		return handleBrainListFlows(a)
+		return handleBowrainListFlows(a)
 	})
 }
 
@@ -269,7 +269,7 @@ func handleProjectPull(ctx context.Context, a *cli.App, input MCPPullInput) (*mc
 func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return nil, MCPLsOutput{}, fmt.Errorf("no .bowrain/ project found (run 'brain init' first): %w", err)
+		return nil, MCPLsOutput{}, fmt.Errorf("no .bowrain/ project found (run 'bowrain init' first): %w", err)
 	}
 
 	if input.Stats || input.Dirty {
@@ -372,7 +372,7 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 	return nil, out, nil
 }
 
-func handleBrainListFlows(a *cli.App) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
+func handleBowrainListFlows(a *cli.App) (*mcp.CallToolResult, MCPListFlowsOutput, error) {
 	builtinFlows := []clioutput.FlowInfo{
 		{Name: "ai-translate", Description: "Translate content using AI/LLM"},
 		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},

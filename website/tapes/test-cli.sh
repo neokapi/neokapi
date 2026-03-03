@@ -2,7 +2,7 @@
 # Test kapi CLI commands used in VHS demos
 # Run before generating recordings to catch issues early
 #
-# For brain CLI tests, see bowrain/e2e/tapes/test-cli.sh
+# For Bowrain CLI tests, see bowrain/e2e/tapes/test-cli.sh
 
 set -e
 

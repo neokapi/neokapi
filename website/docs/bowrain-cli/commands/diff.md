@@ -3,7 +3,7 @@ title: diff
 sidebar_position: 3
 ---
 
-# brain diff
+# bowrain diff
 
 Show detailed differences between local files and Bowrain Server content. Displays
 block-level changes with source and target text diffs.
@@ -11,29 +11,29 @@ block-level changes with source and target text diffs.
 ## Usage
 
 ```bash
-brain diff [paths...] [flags]
+bowrain diff [paths...] [flags]
 ```
 
 ## Examples
 
 ```bash
 # Show all differences in the project
-brain diff
+bowrain diff
 
 # Show differences for specific files
-brain diff src/locales/en/messages.json
+bowrain diff src/locales/en/messages.json
 
 # Show differences for a directory
-brain diff src/locales/
+bowrain diff src/locales/
 
 # Show only added/removed blocks (no modified)
-brain diff --status added,removed
+bowrain diff --status added,removed
 
 # Use unified diff format (like git diff)
-brain diff --format unified
+bowrain diff --format unified
 
 # Example output:
-# diff --brain a/ui/strings/messages b/ui/strings/messages
+# diff --bowrain a/ui/strings/messages b/ui/strings/messages
 # --- a/src/locales/en/messages.json (remote)
 # +++ b/src/locales/en/messages.json (local)
 #
@@ -59,7 +59,7 @@ brain diff --format unified
 ### Unified Format
 
 ```diff
-diff --brain a/ui/strings/buttons b/ui/strings/buttons
+diff --bowrain a/ui/strings/buttons b/ui/strings/buttons
 --- a/src/locales/en/buttons.json (remote: sha256:abc123)
 +++ b/src/locales/en/buttons.json (local: sha256:def456)
 
@@ -120,7 +120,7 @@ FILE: src/locales/en/buttons.json <-> ui/strings/buttons
 
 ## How It Works
 
-`brain diff` compares block-level content between local files and server state:
+`bowrain diff` compares block-level content between local files and server state:
 
 1. **Read local files** via FormatRegistry (respecting `.bowrain/config.yaml` mappings)
 2. **Fetch remote content** via `POST /api/v1/.../diff` server endpoint
@@ -148,7 +148,7 @@ This enables efficient incremental sync — only changed blocks transfer over th
 
 :::warning Work in Progress
 
-`brain diff` is currently a **placeholder**. Full implementation requires:
+`bowrain diff` is currently a **placeholder**. Full implementation requires:
 
 - Server API endpoint: `POST /api/v1/workspaces/:ws/projects/:id/diff`
 - Block-level content comparison
@@ -161,15 +161,15 @@ Current behavior: prints a message indicating the feature is not yet implemented
 
 ## Related Commands
 
-- [`brain status`](/docs/bowrain-cli/commands/status) — Show which files changed (summary)
-- [`brain pull`](/docs/bowrain-cli/commands/pull) — Fetch remote changes
-- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes
+- [`bowrain status`](/docs/bowrain-cli/commands/status) — Show which files changed (summary)
+- [`bowrain pull`](/docs/bowrain-cli/commands/pull) — Fetch remote changes
+- [`bowrain push`](/docs/bowrain-cli/commands/push) — Send local changes
 
 ## When to Use
 
-Use `brain diff` to:
+Use `bowrain diff` to:
 
 - **Review changes** before pushing to the server
 - **Understand conflicts** when both local and remote changed
 - **Generate reports** for translation review (JSON output)
-- **Debug sync issues** when `brain status` shows unexpected state
+- **Debug sync issues** when `bowrain status` shows unexpected state

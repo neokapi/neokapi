@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/cli"
 	cliconfig "github.com/gokapi/gokapi/cli/config"
 	clioutput "github.com/gokapi/gokapi/cli/output"
@@ -16,10 +16,10 @@ import (
 var app = &cli.App{}
 
 var rootCmd = &cobra.Command{
-	Use:          "brain",
+	Use:          "bowrain",
 	Short:        "Manage localization projects",
 	SilenceUsage: true,
-	Long: `brain manages localization projects, syncing content with Bowrain Server.
+	Long: `bowrain manages localization projects, syncing content with Bowrain Server.
 
 Initialize a .bowrain/ project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
@@ -55,13 +55,13 @@ func init() {
 	rootCmd.AddCommand(app.NewRegistryCmd())
 	rootCmd.AddCommand(app.NewToolsCmd())
 
-	// Shared presets command + brain-specific validate subcommand.
+	// Shared presets command + Bowrain CLI-specific validate subcommand.
 	presetsCmd := app.NewPresetsCmd()
 	presetsCmd.AddCommand(newPresetsValidateCmd())
 	rootCmd.AddCommand(presetsCmd)
 
 	rootCmd.AddCommand(app.NewTermbaseCmd())
-	rootCmd.AddCommand(app.NewVersionCmd("brain"))
+	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
 
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
@@ -112,7 +112,7 @@ func listProjectFlows() []clioutput.FlowInfo {
 	return flows
 }
 
-// newPresetsValidateCmd creates the brain-specific "presets validate" subcommand.
+// newPresetsValidateCmd creates the Bowrain CLI-specific "presets validate" subcommand.
 func newPresetsValidateCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",

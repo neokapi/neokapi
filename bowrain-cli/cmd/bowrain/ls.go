@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gokapi/gokapi/brain/cmd/brain/output"
+	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
 )
@@ -24,17 +24,17 @@ Without flags, shows file paths and detected formats. Use --stats for block
 and word counts, --dirty to show only files with local changes.
 
 Examples:
-  brain ls
-  brain ls src/
-  brain ls --stats
-  brain ls --dirty`,
+  bowrain ls
+  bowrain ls src/
+  bowrain ls --stats
+  bowrain ls --dirty`,
 	RunE: runLs,
 }
 
 func runLs(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
-		return fmt.Errorf("no .bowrain/ project found (run 'brain init' first): %w", err)
+		return fmt.Errorf("no .bowrain/ project found (run 'bowrain init' first): %w", err)
 	}
 
 	if lsStats || lsDirty {

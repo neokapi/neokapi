@@ -3,7 +3,7 @@ title: pull
 sidebar_position: 4
 ---
 
-# brain pull
+# bowrain pull
 
 Fetch changes from Bowrain Server. Uses cursor-based incremental sync to
 transfer only blocks that changed since the last pull.
@@ -11,26 +11,26 @@ transfer only blocks that changed since the last pull.
 ## Usage
 
 ```bash
-brain pull [flags]
+bowrain pull [flags]
 ```
 
 ## Examples
 
 ```bash
 # Pull all changes from server
-brain pull
+bowrain pull
 
 # Pull only French translations
-brain pull --locale fr-FR
+bowrain pull --locale fr-FR
 
 # Pull multiple locales
-brain pull --locale fr-FR --locale de-DE
+bowrain pull --locale fr-FR --locale de-DE
 
 # Show what would be pulled without making changes
-brain pull --dry-run
+bowrain pull --dry-run
 
 # Force pull from beginning (ignore sync cursor)
-brain pull --force
+bowrain pull --force
 
 # Example output:
 # Pulled 12 blocks for 2 locales
@@ -59,10 +59,10 @@ without downloading everything:
 
 ```bash
 # Only French
-brain pull --locale fr-FR
+bowrain pull --locale fr-FR
 
 # French and German
-brain pull --locale fr-FR --locale de-DE
+bowrain pull --locale fr-FR --locale de-DE
 ```
 
 This is efficient because the server's change log is indexed by locale.
@@ -74,9 +74,9 @@ This is efficient because the server's change log is indexed by locale.
 
 ## Related Commands
 
-- [`brain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
-- [`brain status`](/docs/bowrain-cli/commands/status) — Show sync state
-- [`brain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
+- [`bowrain push`](/docs/bowrain-cli/commands/push) — Send local changes to server
+- [`bowrain status`](/docs/bowrain-cli/commands/status) — Show sync state
+- [`bowrain diff`](/docs/bowrain-cli/commands/diff) — Show detailed changes
 
 ## When to Use
 
