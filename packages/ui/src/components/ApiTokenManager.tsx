@@ -19,13 +19,28 @@ interface ApiTokenManagerProps {
   workspace: Workspace;
 }
 
+/** Format a Date as YYYY-MM-DD for the date input value. */
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Default expiry: 30 days from now. */
+function defaultExpiry(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 30);
+  return toDateString(d);
+}
+
 export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const api = useApi();
   const [tokens, setTokens] = useState<ApiToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [name, setName] = useState("");
-  const [expireDays, setExpireDays] = useState("");
+  const [expiresAt, setExpiresAt] = useState(defaultExpiry);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [createdToken, setCreatedToken] = useState<CreateApiTokenResponse | null>(null);
@@ -51,15 +66,15 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     setCreating(true);
     setError("");
     try {
-      const days = expireDays ? parseInt(expireDays, 10) : 0;
-      if (expireDays && (isNaN(days) || days < 0)) {
-        setError("Expiration must be a positive number of days");
-        setCreating(false);
-        return;
-      }
+      // Compute days from today to the selected date.
+      const target = new Date(expiresAt + "T00:00:00");
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const diffMs = target.getTime() - now.getTime();
+      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
       const resp = await api.createApiToken(workspace.slug, name.trim(), days);
       setCreatedToken(resp);
-      // Add to the list (without plaintext token)
       setTokens((prev) => [
         {
           id: resp.id,
@@ -99,7 +114,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       setName("");
-      setExpireDays("");
+      setExpiresAt(defaultExpiry());
       setError("");
       setCreatedToken(null);
       setCopied(false);
@@ -108,7 +123,15 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   };
 
   const isExpired = (t: ApiToken) =>
-    t.expires_at !== null && new Date(t.expires_at) < new Date();
+    t.expires_at != null && new Date(t.expires_at) < new Date();
+
+  const formatExpiry = (expiresAtVal: string | null): string => {
+    if (expiresAtVal == null) return "Never";
+    const d = new Date(expiresAtVal);
+    if (isNaN(d.getTime())) return "Never";
+    if (d < new Date()) return "Expired";
+    return d.toLocaleDateString();
+  };
 
   const canManage = workspace.role === "owner" || workspace.role === "admin";
 
@@ -176,11 +199,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
-                          {t.expires_at === null
-                            ? "Never"
-                            : expired
-                              ? "Expired"
-                              : new Date(t.expires_at).toLocaleDateString()}
+                          {formatExpiry(t.expires_at)}
                         </span>
                       </td>
                       <td className="px-4 py-2.5">
@@ -255,16 +274,14 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 />
               </div>
               <div>
-                <Label className="text-muted-foreground">Expires in (days)</Label>
+                <Label className="text-muted-foreground">Expiry Date</Label>
                 <Input
-                  type="number"
-                  min="0"
-                  value={expireDays}
-                  onChange={(e) => setExpireDays(e.target.value)}
-                  placeholder="0 (never)"
+                  type="date"
+                  value={expiresAt}
+                  min={toDateString(new Date())}
+                  onChange={(e) => setExpiresAt(e.target.value)}
                   className="mt-1"
                   data-testid="token-expire-input"
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
                 />
               </div>
               {error && (
@@ -287,7 +304,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 </Button>
                 <Button
                   onClick={handleCreate}
-                  disabled={creating || !name.trim()}
+                  disabled={creating || !name.trim() || !expiresAt}
                   data-testid="token-submit-btn"
                 >
                   {creating ? "Creating..." : "Create"}

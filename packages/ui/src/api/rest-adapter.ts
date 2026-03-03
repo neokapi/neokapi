@@ -104,6 +104,7 @@ export class RestApiAdapter implements ApiAdapter {
           const body = await retry.text();
           throw new Error(`${retry.status}: ${body}`);
         }
+        if (retry.status === 204) return undefined as T;
         return retry.json();
       }
       this.onSessionExpired?.();
@@ -112,6 +113,7 @@ export class RestApiAdapter implements ApiAdapter {
       const body = await resp.text();
       throw new Error(`${resp.status}: ${body}`);
     }
+    if (resp.status === 204) return undefined as T;
     return resp.json();
   }
 
