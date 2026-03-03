@@ -211,13 +211,13 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		// Protected auth routes (require valid token)
 		authProtected := authGroup.Group("")
-		authProtected.Use(AuthMiddleware(s.Config.JWTSecret))
+		authProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		authProtected.GET("/me", s.HandleAuthMe)
 		authProtected.POST("/logout", s.HandleAuthLogout)
 
 		// JWT-protected routes: project CRUD, blocks, versions, changes.
 		jwtProtected := v1.Group("")
-		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret))
+		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		jwtProtected.POST("/projects", s.HandleCreateProject)
 		jwtProtected.GET("/projects", s.HandleListProjects)
 		jwtProtected.GET("/projects/:id", s.HandleGetProject)
@@ -242,7 +242,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		// Workspace endpoints (require auth + workspace membership)
 		wsGroup := v1.Group("/workspaces")
-		wsGroup.Use(AuthMiddleware(s.Config.JWTSecret))
+		wsGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		wsGroup.POST("", s.HandleCreateWorkspace)
 		wsGroup.GET("", s.HandleListWorkspaces)
 
@@ -263,6 +263,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.POST("/invites", s.HandleCreateInvite)
 		wsSpecific.GET("/invites", s.HandleListInvites)
 		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
+
+		// API token routes (workspace-scoped).
+		wsSpecific.POST("/tokens", s.HandleCreateToken)
+		wsSpecific.GET("/tokens", s.HandleListTokens)
+		wsSpecific.DELETE("/tokens/:id", s.HandleDeleteToken)
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
 	}
