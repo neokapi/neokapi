@@ -389,6 +389,85 @@ func (o AuthClaimOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// TokenCreateOutput represents the result of bowrain auth token create.
+type TokenCreateOutput struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Token       string     `json:"token"`
+	TokenPrefix string     `json:"token_prefix"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+}
+
+func (o TokenCreateOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Token created: %s\n", o.Name)
+	fmt.Fprintf(w, "ID:     %s\n", o.ID)
+	fmt.Fprintf(w, "Prefix: %s\n", o.TokenPrefix)
+	if o.ExpiresAt != nil {
+		fmt.Fprintf(w, "Expires: %s\n", o.ExpiresAt.Format("2006-01-02 15:04:05"))
+	}
+	fmt.Fprintf(w, "\n  %s\n\n", o.Token)
+	fmt.Fprintln(w, "Save this token — it will not be shown again.")
+	return nil
+}
+
+// TokenListOutput represents the result of bowrain auth token list.
+type TokenListOutput struct {
+	Tokens []TokenEntry `json:"tokens"`
+}
+
+// TokenEntry represents a single API token in list output.
+type TokenEntry struct {
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	TokenPrefix string     `json:"token_prefix"`
+	LastUsedAt  *time.Time `json:"last_used_at,omitempty"`
+	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+func (o TokenListOutput) FormatText(w io.Writer) error {
+	if len(o.Tokens) == 0 {
+		fmt.Fprintln(w, "No API tokens.")
+		return nil
+	}
+
+	nameW := 4 // "NAME"
+	for _, t := range o.Tokens {
+		if len(t.Name) > nameW {
+			nameW = len(t.Name)
+		}
+	}
+	nameW += 2
+
+	fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, "NAME", "PREFIX", "LAST USED", "EXPIRES", "ID")
+	fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, "----", "------", "---------", "-------", "--")
+
+	for _, t := range o.Tokens {
+		lastUsed := "never"
+		if t.LastUsedAt != nil {
+			lastUsed = t.LastUsedAt.Format("2006-01-02 15:04")
+		}
+		expires := "never"
+		if t.ExpiresAt != nil {
+			expires = t.ExpiresAt.Format("2006-01-02 15:04")
+		}
+		fmt.Fprintf(w, "  %-*s %-10s %-20s %-20s %s\n", nameW, t.Name, t.TokenPrefix, lastUsed, expires, t.ID)
+	}
+
+	fmt.Fprintf(w, "\n%d token(s)\n", len(o.Tokens))
+	return nil
+}
+
+// TokenDeleteOutput represents the result of bowrain auth token delete.
+type TokenDeleteOutput struct {
+	ID string `json:"id"`
+}
+
+func (o TokenDeleteOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Token %s deleted.\n", o.ID)
+	return nil
+}
+
 // PresetsValidateOutput represents the result of preset validation.
 type PresetsValidateOutput struct {
 	Valid  bool     `json:"valid"`
