@@ -198,23 +198,24 @@ gRPC streaming enables real-time flow progress, block updates, and event subscri
 
 ```yaml
 # GitHub Actions example
-- name: Authenticate with Bowrain Server
-  run: kapi auth login --server $\{{ secrets.BOWRAIN_SERVER }}
-  env:
-    KAPI_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
-
 - name: Pull latest translations
-  run: kapi pull
+  run: bowrain pull
+  env:
+    BOWRAIN_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
+    BOWRAIN_SERVER_URL: $\{{ secrets.BOWRAIN_SERVER }}
 
 - name: Run pseudo-translation flow
-  run: kapi flow run pseudo
+  run: bowrain flow run pseudo
 
 - name: Push changes if tests pass
-  run: kapi push --message "CI: Update translations"
+  run: bowrain push --message "CI: Update translations"
+  env:
+    BOWRAIN_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
+    BOWRAIN_SERVER_URL: $\{{ secrets.BOWRAIN_SERVER }}
 ```
 
 **CI-friendly features:**
 - `--json` flag for machine-readable output
 - Exit codes: 0 (success), 1 (error), 2 (conflict)
-- `KAPI_AUTH_TOKEN` environment variable (planned — bypass device flow)
+- `BOWRAIN_AUTH_TOKEN` environment variable (bypasses device flow login)
 - `--no-hooks` flag to skip interactive hooks

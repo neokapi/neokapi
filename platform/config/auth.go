@@ -48,8 +48,17 @@ func SaveAuth(a StoredAuth) error {
 	return os.WriteFile(path, data, 0600)
 }
 
-// LoadAuth reads persisted auth credentials from disk.
+// LoadAuth returns auth credentials. It checks the BOWRAIN_AUTH_TOKEN
+// environment variable first (for CI/CD), then falls back to persisted
+// credentials on disk. When using the env var, BOWRAIN_SERVER_URL should
+// also be set so server URL validation succeeds.
 func LoadAuth() (*StoredAuth, error) {
+	if token := os.Getenv("BOWRAIN_AUTH_TOKEN"); token != "" {
+		return &StoredAuth{
+			ServerURL:   os.Getenv("BOWRAIN_SERVER_URL"),
+			AccessToken: token,
+		}, nil
+	}
 	data, err := os.ReadFile(AuthFilePath())
 	if err != nil {
 		return nil, err
