@@ -99,7 +99,7 @@ The Bowrain Desktop app uses OAuth 2.0 Authorization Code with PKCE
 4. Server redirects to `bowrain://auth/callback` with tokens
 5. OS routes the URL protocol to the app's handler
 6. Tokens are split: secrets in OS keyring (macOS Keychain, Windows Credential
-   Manager, Linux Secret Service), metadata in `~/.config/bowrain/auth.json`
+   Manager, Linux Secret Service), metadata in `~/.config/kapi/auth.json`
 
 See [AD-020](./020-collaborative-editor.md) for the full desktop connection
 architecture.

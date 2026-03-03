@@ -35,7 +35,7 @@ func NewAppConfig() *AppConfig {
 	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
 
 	// Explicit env bindings for keys that don't follow simple prefix rules.
-	_ = v.BindEnv("server.url", "KAPI_SERVER_URL")
+	_ = v.BindEnv("server.url", "BOWRAIN_SERVER_URL")
 
 	return &AppConfig{v: v}
 }
@@ -179,7 +179,10 @@ func parseStringSlice(raw any) []string {
 }
 
 // ServerURL returns the configured Bowrain Server URL.
-// Resolved from config file (server.url) or KAPI_SERVER_URL env var.
+// Resolved from config file (server.url) or BOWRAIN_SERVER_URL env var.
+// Note: the config file and directory use the shared "kapi" namespace
+// (~/.config/kapi/kapi.yaml), but the server URL env var uses BOWRAIN_
+// since it refers to the Bowrain Server.
 func (c *AppConfig) ServerURL() string {
 	return c.v.GetString("server.url")
 }

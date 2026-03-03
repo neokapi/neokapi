@@ -33,12 +33,12 @@ var authLoginCmd = &cobra.Command{
 
 Server URL is resolved from (first match wins):
   1. --server flag
-  2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
+  2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
   3. Built-in default (http://localhost:8080)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		serverURL := resolveServerURLFrom(authServerURL)
 		if serverURL == "" {
-			return fmt.Errorf("server URL not configured — set KAPI_SERVER_URL or use --server")
+			return fmt.Errorf("server URL not configured — set BOWRAIN_SERVER_URL or use --server")
 		}
 		_, err := performLogin(cmd, serverURL)
 		return err
@@ -231,7 +231,7 @@ func resolveServerURLFrom(explicit string) string {
 	if explicit != "" {
 		return explicit
 	}
-	// Check global config (includes KAPI_SERVER_URL env via Viper BindEnv).
+	// Check global config (includes BOWRAIN_SERVER_URL env via Viper BindEnv).
 	cfg := cliconfig.NewAppConfig()
 	_ = cfg.Load()
 	if u := cfg.ServerURL(); u != "" {

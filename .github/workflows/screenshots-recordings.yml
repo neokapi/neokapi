@@ -282,7 +282,7 @@ jobs:
         working-directory: bowrain/e2e/tapes
         run: |
           export PATH="$PWD/../../../bin:$PATH"
-          export KAPI_SERVER_URL=http://localhost:8080
+          export BOWRAIN_SERVER_URL=http://localhost:8080
 
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           export DISPLAY=:99

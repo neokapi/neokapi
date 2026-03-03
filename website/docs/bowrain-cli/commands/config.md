@@ -20,7 +20,7 @@ With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
 By default, operates on the project config file (`.bowrain/config.yaml`).
-Use `--global` to read/write the global config file (`~/.config/bowrain/bowrain.yaml`).
+Use `--global` to read/write the global config file (`~/.config/kapi/kapi.yaml`).
 
 ## Examples
 
@@ -46,7 +46,7 @@ bowrain config --global server.url https://bowrain.example.com
 
 | Flag | Description |
 |------|-------------|
-| `--global` | Use global config file (`~/.config/bowrain/bowrain.yaml`) instead of project config |
+| `--global` | Use global config file (`~/.config/kapi/kapi.yaml`) instead of project config |
 
 ## Config Keys
 
@@ -60,7 +60,7 @@ bowrain config --global server.url https://bowrain.example.com
 | `server.project_id` | Server project ID | `proj_abc123` |
 | `server.workspace` | Workspace slug | `my-team` |
 
-### Global Config (`~/.config/bowrain/bowrain.yaml`)
+### Global Config (`~/.config/kapi/kapi.yaml`)
 
 | Key | Description | Example |
 |-----|-------------|---------|

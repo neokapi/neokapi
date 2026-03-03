@@ -41,7 +41,7 @@ wizard. Use flags for non-interactive CI/CD usage.
 
 The server URL is determined from (first match wins):
   1. --server flag
-  2. KAPI_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
+  2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
   3. Existing auth state (from bowrain auth login)
   4. Built-in default (http://localhost:8080)
 
@@ -89,7 +89,7 @@ func resolveServerURL() string {
 
 const serverURLHelp = `Server URL not configured. Set it via one of:
   bowrain config --global server.url https://bowrain.example.com
-  export KAPI_SERVER_URL=https://bowrain.example.com
+  export BOWRAIN_SERVER_URL=https://bowrain.example.com
   bowrain init --server https://bowrain.example.com`
 
 // parseTargetLocales splits a comma-separated locale string into a slice.
@@ -128,7 +128,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	if initProjectID != "" {
 		serverURL := resolveServerURL()
 		if serverURL == "" {
-			return nil, fmt.Errorf("--server or KAPI_SERVER_URL is required when --project is specified")
+			return nil, fmt.Errorf("--server or BOWRAIN_SERVER_URL is required when --project is specified")
 		}
 		auth, err := loadAuth()
 		if err != nil {
