@@ -27,7 +27,7 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full co
 
 ### Authentication
 
-The `kapi auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via OIDC ([AD-015](./015-auth-and-workspaces.md)). The token is stored at `~/.config/kapi/auth.json` and automatically attached to API requests.
+The `kapi auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via OIDC ([AD-015](./015-auth-and-workspaces.md)). The token is stored at `~/.config/bowrain/auth.json` and automatically attached to API requests.
 
 ### Bowrain Server
 

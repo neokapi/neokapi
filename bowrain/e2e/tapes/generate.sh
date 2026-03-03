@@ -37,6 +37,7 @@ export PATH="$SCRIPT_DIR/../../../bin:$PATH"
 
 # Use isolated config for recordings
 export KAPI_CONFIG_DIR="$(mktemp -d)"
+export BOWRAIN_CONFIG_DIR="$(mktemp -d)"
 
 # Create output directory
 mkdir -p output
@@ -187,7 +188,7 @@ if [ "$STARTED_SERVER" = true ]; then
 fi
 
 # Clean up temp dirs
-rm -rf "$KAPI_CONFIG_DIR"
+rm -rf "$KAPI_CONFIG_DIR" "$BOWRAIN_CONFIG_DIR"
 if [ -n "$WALKTHROUGH_DIR" ]; then
   rm -rf "$(dirname "$WALKTHROUGH_DIR")"
 fi

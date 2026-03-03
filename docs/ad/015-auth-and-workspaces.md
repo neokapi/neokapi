@@ -86,7 +86,7 @@ The CLI authenticates using RFC 8628 (Device Authorization Grant):
 2. Server returns a user code and verification URL
 3. User opens the URL in a browser and enters the code
 4. CLI polls the token endpoint until the user authorizes
-5. Token is stored at `~/.config/kapi/auth.json`
+5. Token is stored at `~/.config/bowrain/auth.json`
 
 ### PKCE + Authorization Code for Desktop
 

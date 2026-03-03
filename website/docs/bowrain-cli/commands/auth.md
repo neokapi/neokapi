@@ -29,7 +29,7 @@ Waiting for authorization...
 Logged in as translator@example.com
 ```
 
-The access token is stored at `~/.config/kapi/auth.json` and used
+The access token is stored at `~/.config/bowrain/auth.json` and used
 automatically by other CLI commands.
 
 ### auth status
@@ -77,7 +77,7 @@ redirect is not available.
 
 ## Token Storage
 
-Tokens are stored in `~/.config/kapi/auth.json`:
+Tokens are stored in `~/.config/bowrain/auth.json`:
 
 ```json
 {
