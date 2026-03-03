@@ -11,7 +11,7 @@ gokapi exposes its functionality through two application entry points:
 - **Kapi CLI** — Command-line tool for file-based localization workflows
 - **Bowrain Server** — Multi-user platform for team collaboration and integrations
 
-The CLI must reflect the **project-based architecture** ([AD-016](./016-kapi-project-model.md)). All commands operate within a `.kapi/` project directory. The server provides both REST (for external integrations and webhooks) and gRPC (for Bowrain desktop app streaming) APIs.
+The CLI must reflect the **project-based architecture** ([AD-016](./016-kapi-project-model.md)). All commands operate within a `.bowrain/` project directory. The server provides both REST (for external integrations and webhooks) and gRPC (for Bowrain desktop app streaming) APIs.
 
 **This AD establishes the role separation:**
 - **Kapi** = local file tool, git-like project model, can sync with Bowrain Server
@@ -21,13 +21,13 @@ The CLI must reflect the **project-based architecture** ([AD-016](./016-kapi-pro
 
 ### Kapi CLI: Project-Based Commands
 
-The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.kapi/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `flow`, `serve`, `auth`, `termbase`, `formats`, `tools`, `plugins`, and `registry`.
+The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.bowrain/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `flow`, `serve`, `auth`, `termbase`, `formats`, `tools`, `plugins`, and `registry`.
 
 See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full command tree, `kapi init` workflows, `kapi pull/push` algorithms, and all command details.
 
 ### Authentication
 
-The `kapi auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via OIDC ([AD-015](./015-auth-and-workspaces.md)). The token is stored at `~/.config/bowrain/auth.json` and automatically attached to API requests.
+The `bowrain auth` command group enables CLI users to authenticate against a Bowrain Server instance using OAuth 2.0 Device Authorization Grant (RFC 8628) via OIDC ([AD-015](./015-auth-and-workspaces.md)). The token is stored at `~/.config/bowrain/auth.json` and automatically attached to API requests.
 
 ### Bowrain Server
 
@@ -57,11 +57,11 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full RE
 
 - **Store-based CLI** (`kapi store`): Mixes server concerns into the CLI. The ContentStore is a server-side persistence layer; Kapi should only interact via API.
 
-- **Global config** (no project directories): Makes collaboration harder. The `.kapi/` directory model enables team workflows (check config into git, .sync-cache gitignored) and git-like mental model.
+- **Global config** (no project directories): Makes collaboration harder. The `.bowrain/` directory model enables team workflows (check config into git, .sync-cache gitignored) and git-like mental model.
 
 ## Consequences
 
-- **Kapi is project-based** — all commands require a `.kapi/` directory, enforcing clean project structure and enabling stateful operations.
+- **Kapi is project-based** — all commands require a `.bowrain/` directory, enforcing clean project structure and enabling stateful operations.
 
 - **`kapi init`** is the entry point, analogous to `git init` or `npm init`.
 
@@ -69,7 +69,7 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full RE
 
 - **`kapi status/diff`** show sync state without modifying files, enabling safe inspection before pull/push.
 
-- **Flow system** is simplified — flows run on local files, defined in `.kapi/flows/*.yaml`, no server interaction.
+- **Flow system** is simplified — flows run on local files, defined in `.bowrain/flows/*.yaml`, no server interaction.
 
 - **`kapi serve`** becomes a project dashboard showing local + remote state, not just a generic web UI.
 
@@ -77,7 +77,7 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full RE
 
 - **REST + gRPC dual protocol** serves both external integrations (REST) and Bowrain desktop app real-time requirements (gRPC).
 
-- **OAuth device flow authentication** (`kapi auth`) makes CI/CD integration seamless with stored tokens.
+- **OAuth device flow authentication** (`bowrain auth`) makes CI/CD integration seamless with stored tokens.
 
 - **Workspace-scoped API routes** enforce multi-tenancy at the HTTP layer, complementing the domain-level workspace model ([AD-015](./015-auth-and-workspaces.md)).
 
@@ -87,4 +87,4 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full RE
 
 - Kapi positions itself as **the file connector** for Bowrain Server — it handles files, the server handles integrations ([AD-005](./005-connector-system.md)).
 
-- `kapi ls/add/rm` manage the project's file tracking without server interaction — they operate purely on `.kapi/config.yaml` and local files.
+- `kapi ls/add/rm` manage the project's file tracking without server interaction — they operate purely on `.bowrain/config.yaml` and local files.

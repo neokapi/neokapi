@@ -68,7 +68,7 @@ func TestListPlugins(t *testing.T) {
 	app := NewApp()
 	plugins := app.ListPlugins()
 	// Should return a non-nil slice (may contain plugins if the user has
-	// plugins installed in ~/.kapi/plugins).
+	// plugins installed in ~/.config/gokapi/plugins).
 	assert.NotNil(t, plugins)
 }
 
