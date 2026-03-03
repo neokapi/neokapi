@@ -72,4 +72,24 @@ var authMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "create api_tokens table",
+		SQL: `
+			CREATE TABLE api_tokens (
+				id           TEXT PRIMARY KEY,
+				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				token_hash   TEXT UNIQUE NOT NULL,
+				token_prefix TEXT NOT NULL,
+				scopes       TEXT NOT NULL DEFAULT '["*"]',
+				last_used_at TIMESTAMPTZ,
+				expires_at   TIMESTAMPTZ,
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_api_tokens_workspace ON api_tokens(workspace_id);
+			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
+		`,
+	},
 }

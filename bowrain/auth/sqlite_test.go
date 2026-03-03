@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -315,5 +317,180 @@ func TestDeleteUserCascadesRefreshTokens(t *testing.T) {
 
 	// Refresh token should be cascaded.
 	_, err = s.ValidateRefreshTokenByHash(ctx, "cascadehash")
+	assert.Error(t, err)
+}
+
+// ---------------------------------------------------------------------------
+// API Tokens
+// ---------------------------------------------------------------------------
+
+func makeTokenHash(plaintext string) string {
+	h := sha256.Sum256([]byte(plaintext))
+	return hex.EncodeToString(h[:])
+}
+
+func TestCreateAndGetAPIToken(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "token@example.com", Name: "Token User"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "Token WS", Slug: "token-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	plaintext := "bwt_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tokenHash := makeTokenHash(plaintext)
+
+	tok := &platauth.APIToken{
+		UserID:      u.ID,
+		WorkspaceID: w.ID,
+		Name:        "CI Token",
+		TokenPrefix: plaintext[:8],
+		Scopes:      `["*"]`,
+	}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, tokenHash))
+	assert.NotEmpty(t, tok.ID)
+	assert.False(t, tok.CreatedAt.IsZero())
+
+	got, err := s.GetAPITokenByHash(ctx, tokenHash)
+	require.NoError(t, err)
+	assert.Equal(t, tok.ID, got.ID)
+	assert.Equal(t, u.ID, got.UserID)
+	assert.Equal(t, w.ID, got.WorkspaceID)
+	assert.Equal(t, "CI Token", got.Name)
+	assert.Equal(t, "bwt_0123", got.TokenPrefix)
+	assert.Equal(t, `["*"]`, got.Scopes)
+	assert.Nil(t, got.LastUsedAt)
+	assert.Nil(t, got.ExpiresAt)
+}
+
+func TestListAPITokens(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "list-tok@example.com", Name: "List"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "List WS", Slug: "list-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	tok1 := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "Token 1", TokenPrefix: "bwt_0001"}
+	tok2 := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "Token 2", TokenPrefix: "bwt_0002"}
+	require.NoError(t, s.CreateAPIToken(ctx, tok1, "hash1"))
+	require.NoError(t, s.CreateAPIToken(ctx, tok2, "hash2"))
+
+	tokens, err := s.ListAPITokens(ctx, w.ID)
+	require.NoError(t, err)
+	assert.Len(t, tokens, 2)
+}
+
+func TestDeleteAPIToken(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "del-tok@example.com", Name: "Del"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "Del WS", Slug: "del-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	tok := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "Temp", TokenPrefix: "bwt_temp"}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, "temphash"))
+
+	require.NoError(t, s.DeleteAPIToken(ctx, tok.ID))
+
+	_, err := s.GetAPITokenByHash(ctx, "temphash")
+	assert.Error(t, err)
+}
+
+func TestDeleteAPITokenNotFound(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	err := s.DeleteAPIToken(ctx, "nonexistent-id")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestUpdateAPITokenLastUsed(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "lastused@example.com", Name: "LastUsed"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "LU WS", Slug: "lu-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	tok := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "LU Token", TokenPrefix: "bwt_lu00"}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, "luhash"))
+
+	require.NoError(t, s.UpdateAPITokenLastUsed(ctx, tok.ID))
+
+	got, err := s.GetAPITokenByHash(ctx, "luhash")
+	require.NoError(t, err)
+	assert.NotNil(t, got.LastUsedAt)
+}
+
+func TestAPITokenWithExpiration(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "exp-tok@example.com", Name: "Exp"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "Exp WS", Slug: "exp-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	expiry := time.Now().Add(30 * 24 * time.Hour).Truncate(time.Second)
+	tok := &platauth.APIToken{
+		UserID:      u.ID,
+		WorkspaceID: w.ID,
+		Name:        "Expiring Token",
+		TokenPrefix: "bwt_exp0",
+		ExpiresAt:   &expiry,
+	}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, "exphash"))
+
+	got, err := s.GetAPITokenByHash(ctx, "exphash")
+	require.NoError(t, err)
+	require.NotNil(t, got.ExpiresAt)
+	assert.WithinDuration(t, expiry, *got.ExpiresAt, time.Second)
+}
+
+func TestDeleteUserCascadesAPITokens(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "cascade-at@example.com", Name: "CascadeAT"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "Cascade AT WS", Slug: "cascade-at-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+	require.NoError(t, s.AddMember(ctx, w.ID, u.ID, platauth.RoleMember))
+
+	tok := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "Cascade", TokenPrefix: "bwt_casc"}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, "cascadehash_at"))
+
+	// Delete user via raw SQL.
+	_, err := s.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, u.ID)
+	require.NoError(t, err)
+
+	// Token should be cascaded.
+	_, err = s.GetAPITokenByHash(ctx, "cascadehash_at")
+	assert.Error(t, err)
+}
+
+func TestDeleteWorkspaceCascadesAPITokens(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	u := &platauth.User{Email: "cascade-ws@example.com", Name: "CascadeWS"}
+	require.NoError(t, s.CreateUser(ctx, u))
+	w := &platauth.Workspace{Name: "Cascade WS", Slug: "cascade-ws-at"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	tok := &platauth.APIToken{UserID: u.ID, WorkspaceID: w.ID, Name: "WSCascade", TokenPrefix: "bwt_wcas"}
+	require.NoError(t, s.CreateAPIToken(ctx, tok, "cascadehash_ws"))
+
+	require.NoError(t, s.DeleteWorkspace(ctx, w.ID))
+
+	// Token should be cascaded.
+	_, err := s.GetAPITokenByHash(ctx, "cascadehash_ws")
 	assert.Error(t, err)
 }
