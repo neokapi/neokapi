@@ -45,8 +45,11 @@ func (a *App) getOrCreateTM() (*sqltm.SQLiteTM, error) {
 	}
 	tmPath := a.tmPath
 	if tmPath == "" {
-		home, _ := os.UserHomeDir()
-		tmDir := filepath.Join(home, ".config", "bowrain", "tm")
+		configDir, err := os.UserConfigDir()
+		if err != nil {
+			configDir = filepath.Join(os.Getenv("HOME"), ".config")
+		}
+		tmDir := filepath.Join(configDir, "bowrain-desktop", "tm")
 		os.MkdirAll(tmDir, 0755)
 		tmPath = filepath.Join(tmDir, "default.db")
 	}

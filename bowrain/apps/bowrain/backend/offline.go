@@ -162,11 +162,11 @@ func (q *OfflineQueue) Close() error {
 
 // defaultQueuePath returns the default path for the offline queue database.
 func defaultQueuePath() string {
-	home, err := os.UserHomeDir()
+	configDir, err := os.UserConfigDir()
 	if err != nil {
-		home = "."
+		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	dir := filepath.Join(home, ".config", "bowrain")
+	dir := filepath.Join(configDir, "bowrain-desktop")
 	os.MkdirAll(dir, 0755)
 	return filepath.Join(dir, "offline-queue.db")
 }

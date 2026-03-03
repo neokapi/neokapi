@@ -121,7 +121,7 @@ func TestDiscoverGRPCAddrHTTPSWithPort(t *testing.T) {
 func TestSaveAndLoadDesktopAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	stored := &storedDesktopAuth{
 		ServerURL:   "http://localhost:8080",
@@ -154,7 +154,7 @@ func TestSaveAndLoadDesktopAuth(t *testing.T) {
 
 func TestLoadDesktopAuthMissing(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	_, err := loadDesktopAuth()
 	require.Error(t, err)
@@ -163,7 +163,7 @@ func TestLoadDesktopAuthMissing(t *testing.T) {
 func TestSaveDesktopAuthPermissions(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	stored := &storedDesktopAuth{
 		ServerURL:   "http://localhost:8080",
@@ -192,7 +192,7 @@ func TestSaveDesktopAuthPermissions(t *testing.T) {
 func TestDesktopAuthJSONFormat(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	stored := &storedDesktopAuth{
 		ServerURL:    "http://localhost:8080",
@@ -272,7 +272,7 @@ func TestDisconnectResetsState(t *testing.T) {
 func TestLogoutRemovesAuthFile(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	// Save auth first.
 	stored := &storedDesktopAuth{
@@ -295,7 +295,7 @@ func TestLogoutRemovesAuthFile(t *testing.T) {
 
 func TestConnectToServerNoStoredAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	err := app.ConnectToServer("http://localhost:8080")
@@ -309,7 +309,7 @@ func TestConnectToServerNoStoredAuth(t *testing.T) {
 func TestConnectToServerExpiredToken(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	// Save expired auth.
 	stored := &storedDesktopAuth{
@@ -335,7 +335,7 @@ func TestCancelLogin(t *testing.T) {
 
 func TestTryAutoConnectNoAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	app.TryAutoConnect()
@@ -405,7 +405,7 @@ func TestHandleDeepLinkMissingID(t *testing.T) {
 func TestTryAutoConnectExpiredAuth(t *testing.T) {
 	keyring.MockInit()
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	stored := &storedDesktopAuth{
 		ServerURL:   "http://localhost:8080",

@@ -42,7 +42,7 @@ func TestTryReconnectNoServerURL(t *testing.T) {
 
 func TestTryReconnectNoAuth(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
+	t.Setenv("BOWRAIN_DESKTOP_CONFIG_DIR", tmpDir)
 
 	app := newTestApp(t)
 	app.mu.Lock()

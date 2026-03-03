@@ -165,7 +165,7 @@ badge with user name, yellow "Offline" badge with pending changes count, or
 grey "Local" when working standalone.
 
 **Auth persistence:** Credentials are stored at
-`~/.config/bowrain/desktop-auth.json` and auto-loaded on startup for seamless
+`<UserConfigDir>/bowrain-desktop/auth.json` and auto-loaded on startup for seamless
 reconnection.
 
 **gRPC Client (`ServerClient`):** Wraps the generated `EditorServiceClient`

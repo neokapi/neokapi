@@ -73,7 +73,7 @@ Bowrain imports from `@gokapi/ui` and provides a Wails-specific API adapter that
 When the gRPC connection drops, the app transitions to `offline` state and continues working against the local cache:
 
 - **Local cache** -- On project open, blocks are fetched from the server and stored locally. Reads always serve from the local ContentStore (fast). Writes go to the server first; on success, the local cache updates
-- **Offline queue** -- On write failure (network error), mutations are queued in a SQLite-backed `OfflineQueue` at `~/.config/bowrain/offline-queue.db`. Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`, `delete_tm_entry`, `add_concept`, `delete_concept`
+- **Offline queue** -- On write failure (network error), mutations are queued in a SQLite-backed `OfflineQueue` at `<UserConfigDir>/bowrain-desktop/offline-queue.db`. Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`, `delete_tm_entry`, `add_concept`, `delete_concept`
 - **Reconnection** -- A background goroutine (`reconnectLoop`) pings the server with exponential backoff (2s -> 30s cap, 10% jitter). On successful reconnect, pending changes replay in FIFO order, and the `WatchProject` stream resumes
 - **Frontend indicators** -- The header shows "Offline" with a count of pending changes (e.g., "3 pending"). When reconnected, the count clears and the status returns to "Connected"
 
