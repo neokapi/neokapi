@@ -60,9 +60,11 @@ jobs:
         env:
           GH_SHA: ${{ github.sha }}
         run: |
-          echo "version=$(git describe --tags --always 2>/dev/null || echo dev)" >> "$GITHUB_OUTPUT"
-          echo "commit=${GH_SHA::7}" >> "$GITHUB_OUTPUT"
-          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$(git describe --tags --always 2>/dev/null || echo dev)"
+            echo "commit=${GH_SHA::7}"
+            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build Server Images
