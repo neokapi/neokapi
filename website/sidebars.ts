@@ -117,6 +117,7 @@ const sidebars: SidebarsConfig = {
           label: 'Use Cases',
           items: [
             'bowrain-cli/use-cases/website-translation',
+            'bowrain-cli/use-cases/github-actions',
           ],
         },
         'bowrain-cli/mcp',
