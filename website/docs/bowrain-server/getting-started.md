@@ -12,7 +12,7 @@ This guide walks you through first login, workspace creation, and translating yo
 You need a running Bowrain Server. Choose one of:
 
 - **Local mode**: Run `bowrain serve` for single-user, no-auth local development
-- **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](../bowrain-server/installation.md))
+- **Server mode**: Deploy Bowrain Server with Docker Compose (see [Installation](./installation.md))
 
 ## Starting the Server
 
@@ -114,6 +114,59 @@ Click **Pseudo** in the toolbar to generate pseudo-translations — useful for t
 ## Exporting
 
 Click the **Export** button in the toolbar to download the translated file in its original format with all translations applied.
+
+## Inviting Team Members
+
+Invite colleagues to your workspace using the invitation system:
+
+1. Go to **Settings** in the sidebar
+2. Scroll to the **Invitations** section
+3. Enter the email address of the person to invite
+4. Select a role:
+   - **Admin** — manage projects and members
+   - **Member** — translate and review content
+   - **Viewer** — read-only access
+5. Click **Invite**
+
+This creates an invite link. You can:
+- **Copy the link** and share it directly (via Slack, email, etc.)
+- If SMTP is configured, the invite is also sent by email automatically
+
+When the invited person clicks the link, they are directed to authenticate
+with the identity provider. After signing in (or registering), they are
+added to the workspace with the assigned role.
+
+You can manage pending invitations in the Settings page — view active
+invites, see usage counts, and revoke invites that are no longer needed.
+
+## CLI Connection
+
+Connect the Bowrain CLI to your server for command-line workflows:
+
+```bash
+bowrain auth login --server http://localhost:8080
+```
+
+This starts a [device authorization flow](https://www.rfc-editor.org/rfc/rfc8628):
+
+1. The CLI displays a URL and a one-time code
+2. Open the URL in your browser
+3. Enter the code to authorize the CLI
+4. The CLI receives a token and stores it locally
+
+After login, CLI commands automatically authenticate with the server.
+
+### Claiming Anonymous Projects
+
+If you started with `bowrain init` locally (without a server connection), you
+can claim that project into your server workspace:
+
+```bash
+bowrain auth claim
+```
+
+This transfers the anonymous local project into your personal workspace on
+the server, preserving all files and translations.
 
 ## What's Next
 

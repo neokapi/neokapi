@@ -80,7 +80,7 @@ const BowrainFeatures: ProductItem[] = [
     title: 'Visual Editor',
     description:
       'Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.',
-    link: '/docs/bowrain-web/overview',
+    link: '/docs/bowrain-server/web-overview',
     linkText: 'Bowrain Web',
   },
   {

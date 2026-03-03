@@ -130,7 +130,7 @@ const config: Config = {
             },
             {
               label: 'Bowrain Web',
-              to: '/docs/bowrain-web/overview',
+              to: '/docs/bowrain-server/web-overview',
             },
           ],
         },

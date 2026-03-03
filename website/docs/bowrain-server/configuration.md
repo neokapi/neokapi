@@ -103,6 +103,6 @@ See the [Installation guide](/docs/bowrain-server/installation) for a complete D
 
 ## Next Steps
 
-- [Server Walkthrough](/docs/bowrain-server/server-walkthrough) — first login, workspaces, invitations
+- [Getting Started](/docs/bowrain-server/getting-started) — first login, workspaces, invitations
 - [Workspaces](/docs/bowrain-server/workspaces) — workspace concepts and API reference
 - [Automation](/docs/bowrain-server/automation) — CI/CD integration
