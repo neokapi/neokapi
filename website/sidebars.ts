@@ -138,7 +138,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Bowrain Server',
+      label: 'Bowrain Web',
       items: [
         'bowrain-server/overview',
         'bowrain-server/web-overview',
