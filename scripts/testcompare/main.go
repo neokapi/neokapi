@@ -741,19 +741,13 @@ func merge(
 						baseK = annKey{n, className, tc.Name[:idx]}
 					}
 
-					// Check for skip annotation (try exact key, then base key for parameterized tests)
+					// Check for skip annotation (saved, applied later as fallback)
+					var skipAnn *skipAnnotation
 					if sa, ok := skipMap[k]; ok {
-						tcm.TestState = "skipped"
-						tcm.SkipReason = sa.Reason
-						testCases = append(testCases, tcm)
-						continue
-					}
-					if baseK != k {
+						skipAnn = &sa
+					} else if baseK != k {
 						if sa, ok := skipMap[baseK]; ok {
-							tcm.TestState = "skipped"
-							tcm.SkipReason = sa.Reason
-							testCases = append(testCases, tcm)
-							continue
+							skipAnn = &sa
 						}
 					}
 
@@ -795,6 +789,21 @@ func merge(
 					tcm.TestState = determineTestState(tcm, n,
 						bridgeTestStatus, nativeTestStatus,
 						bridgeSkipMsgs, nativeSkipMsgs)
+
+					// Apply skip annotation as fallback: only mark "skipped" if
+					// no bridge or native test was found. If a mapping exists,
+					// the skip annotation is superseded by the implementation.
+					if skipAnn != nil {
+						if tcm.TestState == "unmapped" {
+							tcm.TestState = "skipped"
+							tcm.SkipReason = skipAnn.Reason
+						} else {
+							// Keep the skip reason as context even when implemented
+							if tcm.SkipReason == "" {
+								tcm.SkipReason = skipAnn.Reason
+							}
+						}
+					}
 
 					// For unmapped tests, check for okapi-unmapped: annotation
 					if tcm.TestState == "unmapped" {

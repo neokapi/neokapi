@@ -318,6 +318,62 @@ func TestParseGoTestResults_SubtestGrouping(t *testing.T) {
 	assert.Equal(t, 0, results.subtestCounts["html"]["TestBar"])
 }
 
+func TestMerge_SkipDoesNotOverrideBridgeAnnotation(t *testing.T) {
+	// A native okapi-skip: should not hide an existing bridge okapi: annotation.
+	// This was the bug causing HtmlConfigurationSupportTest to show "—" for bridge.
+	okapi := map[string]*FilterResult{
+		"html": {
+			Suites: []Suite{{
+				Name: "HtmlConfigurationSupportTest",
+				Tests: []Test{
+					{Name: "test_EXCLUDE", ClassName: "net.sf.okapi.filters.html.HtmlConfigurationSupportTest", Status: "pass"},
+					{Name: "test_INCLUDE", ClassName: "net.sf.okapi.filters.html.HtmlConfigurationSupportTest", Status: "pass"},
+				},
+				Total: 2, Passed: 2,
+			}},
+			Total: 2, Passed: 2,
+		},
+	}
+
+	// Bridge has annotations for both tests
+	bridgeAnns := []annotation{
+		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_EXCLUDE", GoTest: "TestConfigSupport_Exclude", Filter: "html", File: "config_test.go", Line: 85},
+		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_INCLUDE", GoTest: "TestConfigSupport_Include", Filter: "html", File: "config_test.go", Line: 108},
+	}
+
+	// Native has okapi-skip for both (the bug trigger)
+	nativeSkips := []skipAnnotation{
+		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_EXCLUDE", Reason: "Java YAML config subsystem", Filter: "html"},
+		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_INCLUDE", Reason: "Java YAML config subsystem", Filter: "html"},
+	}
+
+	bridgeStatus := map[string]string{
+		"html/TestConfigSupport_Exclude": "pass",
+		"html/TestConfigSupport_Include": "pass",
+	}
+
+	data := merge(okapi, nil, nil,
+		bridgeAnns, nil,
+		nil, nativeSkips,
+		nil, nil,
+		bridgeStatus, nil,
+		nil, nil,
+		nil, nil,
+		"", "", "", "")
+
+	require.Len(t, data.Filters, 1)
+	tcs := data.Filters[0].TestCases
+	require.Len(t, tcs, 2)
+
+	for _, tc := range tcs {
+		assert.NotEmpty(t, tc.BridgeTest, "test %s bridge should be mapped", tc.JavaMethod)
+		assert.Equal(t, "pass", tc.BridgeStatus, "test %s bridge should pass", tc.JavaMethod)
+		assert.Equal(t, "implemented", tc.TestState, "test %s should be implemented, not skipped", tc.JavaMethod)
+		// Skip reason preserved as context
+		assert.Equal(t, "Java YAML config subsystem", tc.SkipReason)
+	}
+}
+
 func TestMerge_SubtestCounts(t *testing.T) {
 	okapi := map[string]*FilterResult{
 		"html": {
