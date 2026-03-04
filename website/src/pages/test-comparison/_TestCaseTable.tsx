@@ -295,9 +295,23 @@ export default function TestCaseTable({
                   </td>
                   <td className={styles.testCaseStatus}>
                     <StatusCell status={tc.bridgeStatus} />
+                    {tc.bridgeSubtests != null && tc.bridgeSubtests > 0 && (
+                      <span
+                        className={styles.subtestCount}
+                        title={`${tc.bridgeSubtests} subtests`}>
+                        +{tc.bridgeSubtests}
+                      </span>
+                    )}
                   </td>
                   <td className={styles.testCaseStatus}>
                     <StatusCell status={tc.nativeStatus} />
+                    {tc.nativeSubtests != null && tc.nativeSubtests > 0 && (
+                      <span
+                        className={styles.subtestCount}
+                        title={`${tc.nativeSubtests} subtests`}>
+                        +{tc.nativeSubtests}
+                      </span>
+                    )}
                   </td>
                 </tr>
                 {isExpanded && (

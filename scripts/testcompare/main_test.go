@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -252,6 +253,7 @@ func TestMerge_ParameterizedJUnitTests(t *testing.T) {
 		nil, nil,
 		bridgeStatus, nil,
 		nil, nil,
+		nil, nil,
 		"", "", "", "")
 
 	require.Len(t, data.Filters, 1)
@@ -284,6 +286,78 @@ func findTCM(tcs []TestCaseMatch, method string) *TestCaseMatch {
 		}
 	}
 	return nil
+}
+
+func TestParseGoTestResults_SubtestGrouping(t *testing.T) {
+	dir := t.TempDir()
+	jsonl := filepath.Join(dir, "bridge.jsonl")
+
+	lines := []string{
+		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/okf_html","Test":"TestFoo","Elapsed":0.1}`,
+		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/okf_html","Test":"TestFoo/sub1","Elapsed":0.01}`,
+		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/okf_html","Test":"TestFoo/sub2","Elapsed":0.02}`,
+		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/okf_html","Test":"TestBar","Elapsed":0.05}`,
+	}
+	require.NoError(t, os.WriteFile(jsonl, []byte(strings.Join(lines, "\n")), 0o644))
+
+	results := parseGoTestResults(jsonl, bridgeFilterFromPkg)
+
+	require.Contains(t, results.filters, "html")
+	fr := results.filters["html"]
+
+	// Total includes all tests + subtests
+	assert.Equal(t, 4, fr.Total)
+	// Funcs counts only top-level test functions (no "/" in name)
+	assert.Equal(t, 2, fr.Funcs)
+	// Suite-level Funcs
+	assert.Equal(t, 2, fr.Suites[0].Funcs)
+
+	// Subtest counts
+	require.Contains(t, results.subtestCounts, "html")
+	assert.Equal(t, 2, results.subtestCounts["html"]["TestFoo"])
+	assert.Equal(t, 0, results.subtestCounts["html"]["TestBar"])
+}
+
+func TestMerge_SubtestCounts(t *testing.T) {
+	okapi := map[string]*FilterResult{
+		"html": {
+			Suites: []Suite{{
+				Name: "HtmlSnippetsTest",
+				Tests: []Test{
+					{Name: "testFoo", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
+				},
+				Total: 1, Passed: 1,
+			}},
+			Total: 1, Passed: 1,
+		},
+	}
+
+	bridgeAnns := []annotation{
+		{JavaClass: "HtmlSnippetsTest", JavaMethod: "testFoo", GoTest: "TestFoo", Filter: "html", File: "test.go", Line: 10},
+	}
+
+	bridgeStatus := map[string]string{
+		"html/TestFoo": "pass",
+	}
+
+	bridgeSubtestCounts := map[string]map[string]int{
+		"html": {"TestFoo": 3},
+	}
+
+	data := merge(okapi, nil, nil,
+		bridgeAnns, nil,
+		nil, nil,
+		nil, nil,
+		bridgeStatus, nil,
+		nil, nil,
+		bridgeSubtestCounts, nil,
+		"", "", "", "")
+
+	require.Len(t, data.Filters, 1)
+	tcs := data.Filters[0].TestCases
+	require.Len(t, tcs, 1)
+	assert.Equal(t, 3, tcs[0].BridgeSubtests)
+	assert.Equal(t, 0, tcs[0].NativeSubtests)
 }
 
 func TestFilterFromPath(t *testing.T) {

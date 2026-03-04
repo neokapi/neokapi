@@ -430,6 +430,13 @@
   font-family: var(--ifm-font-family-monospace);
 }
 
+/* Subtest count indicator */
+.subtestCount {
+  font-size: 0.7rem;
+  color: var(--ifm-color-emphasis-400);
+  margin-left: 0.25rem;
+}
+
 /* ── Responsive ── */
 @media (max-width: 996px) {
   .filterHeader {

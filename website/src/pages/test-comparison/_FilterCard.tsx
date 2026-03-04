@@ -61,7 +61,20 @@ function StatColumn({result}: {result: FilterResult | null}) {
         <div className={styles.progressBar}>
           <div className={styles.progressFill} style={{width: `${pct}%`}} />
         </div>
-        <span className={styles.totalLabel}>{result.total}</span>
+        <span className={styles.totalLabel}>
+          {result.funcs != null && result.funcs < result.total ? (
+            <>
+              {result.funcs}
+              <span
+                className={styles.subtestCount}
+                title={`${result.total} including subtests`}>
+                ({result.total})
+              </span>
+            </>
+          ) : (
+            result.total
+          )}
+        </span>
       </div>
     </div>
   );

@@ -67,15 +67,31 @@ export default function SummaryBar({
         <>
           <div className={styles.statCard}>
             <div className={styles.statValue}>
-              {summary.totalTestsBridge}
+              {summary.totalFuncsBridge ?? summary.totalTestsBridge}
             </div>
-            <div className={styles.statLabel}>Bridge Mapped</div>
+            <div className={styles.statLabel}>Bridge Tests</div>
+            {summary.totalFuncsBridge != null &&
+              summary.totalFuncsBridge < summary.totalTestsBridge && (
+                <div
+                  className={styles.subtestCount}
+                  title={`${summary.totalTestsBridge} including subtests`}>
+                  ({summary.totalTestsBridge} incl. subtests)
+                </div>
+              )}
           </div>
           <div className={styles.statCard}>
             <div className={styles.statValue}>
-              {summary.totalTestsNative}
+              {summary.totalFuncsNative ?? summary.totalTestsNative}
             </div>
-            <div className={styles.statLabel}>Native Mapped</div>
+            <div className={styles.statLabel}>Native Tests</div>
+            {summary.totalFuncsNative != null &&
+              summary.totalFuncsNative < summary.totalTestsNative && (
+                <div
+                  className={styles.subtestCount}
+                  title={`${summary.totalTestsNative} including subtests`}>
+                  ({summary.totalTestsNative} incl. subtests)
+                </div>
+              )}
           </div>
         </>
       )}

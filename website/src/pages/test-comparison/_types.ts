@@ -17,6 +17,8 @@ export interface Summary {
   totalTestsBridge: number;
   totalTestsNative: number;
   coveragePct: number;
+  totalFuncsBridge?: number;
+  totalFuncsNative?: number;
   // Backward compat (old JSON may have these)
   totalFiltersGokapi?: number;
   totalTestsGokapi?: number;
@@ -40,6 +42,7 @@ export interface FilterResult {
   failed: number;
   skipped: number;
   errors: number;
+  funcs?: number;
 }
 
 export interface TestSuite {
@@ -93,6 +96,10 @@ export interface TestCaseRow {
   skipReason?: string;
   /** Test state: implemented, pending, skipped, or unmapped. */
   testState?: TestState;
+  /** Number of Go subtests under the bridge test function. */
+  bridgeSubtests?: number;
+  /** Number of Go subtests under the native test function. */
+  nativeSubtests?: number;
 }
 
 /** Wire format from the Go testcompare tool (annotation-based). */
@@ -111,6 +118,8 @@ export interface TestCaseMatch {
   nativeLine?: number;
   skipReason?: string;
   testState?: TestState;
+  bridgeSubtests?: number;
+  nativeSubtests?: number;
 }
 
 export interface CoverageStats {
@@ -169,6 +178,8 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     nativeLine: m.nativeLine,
     skipReason: m.skipReason,
     testState: m.testState,
+    bridgeSubtests: m.bridgeSubtests,
+    nativeSubtests: m.nativeSubtests,
   }));
 }
 
@@ -253,6 +264,8 @@ export function normalizeSummary(s: Summary): Summary {
     totalTestsBridge: s.totalTestsBridge ?? s.totalTestsGokapi ?? 0,
     totalFiltersNative: s.totalFiltersNative ?? 0,
     totalTestsNative: s.totalTestsNative ?? 0,
+    totalFuncsBridge: s.totalFuncsBridge,
+    totalFuncsNative: s.totalFuncsNative,
     coveragePct: s.coveragePct ?? 0,
   };
 }
