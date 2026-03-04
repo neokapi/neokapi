@@ -295,14 +295,30 @@ func parseSurefire(dir string) map[string]*FilterResult {
 			case tc.Skipped != nil:
 				st = "skip"
 			}
+
+			// Deduplicate parameterized JUnit tests (e.g. "testFoo[0: ...]").
+			// Collapse to the base method name, keeping the worst status.
+			name := tc.Name
+			if idx := strings.IndexByte(name, '['); idx >= 0 {
+				name = name[:idx]
+			}
+			if existing := findTest(s.Tests, name); existing != nil {
+				existing.Status = worseStatus(existing.Status, st)
+				existing.DurationMs += tc.Time * 1000
+				continue
+			}
+
 			s.Tests = append(s.Tests, Test{
-				Name:       tc.Name,
+				Name:       name,
 				ClassName:  tc.ClassName,
 				Status:     st,
 				DurationMs: tc.Time * 1000,
 			})
+		}
+
+		for _, t := range s.Tests {
 			s.Total++
-			switch st {
+			switch t.Status {
 			case "pass":
 				s.Passed++
 			case "fail":
@@ -328,6 +344,26 @@ func parseSurefire(dir string) map[string]*FilterResult {
 	}
 
 	return out
+}
+
+// findTest returns a pointer to the test with the given name, or nil.
+func findTest(tests []Test, name string) *Test {
+	for i := range tests {
+		if tests[i].Name == name {
+			return &tests[i]
+		}
+	}
+	return nil
+}
+
+// worseStatus returns the more severe of two test statuses.
+// Priority: fail > error > skip > pass.
+func worseStatus(a, b string) string {
+	prio := map[string]int{"fail": 3, "error": 2, "skip": 1, "pass": 0}
+	if prio[a] >= prio[b] {
+		return a
+	}
+	return b
 }
 
 // goTestResults holds parsed Go test results along with skip message data.
@@ -732,31 +768,19 @@ func merge(
 						OkapiFile:   okapiSourceFile(n, tc.ClassName),
 					}
 
-					// Build annotation lookup key. For parameterized JUnit tests
-					// (e.g. "testFoo[0: ...]"), also try the base method name
-					// since // okapi: annotations use the unparameterized name.
+					// Build annotation lookup key.
+					// Parameterized JUnit tests are already deduplicated
+					// in parseSurefire, so tc.Name is the base method name.
 					k := annKey{n, className, tc.Name}
-					baseK := k
-					if idx := strings.IndexByte(tc.Name, '['); idx >= 0 {
-						baseK = annKey{n, className, tc.Name[:idx]}
-					}
 
 					// Check for skip annotation (saved, applied later as fallback)
 					var skipAnn *skipAnnotation
 					if sa, ok := skipMap[k]; ok {
 						skipAnn = &sa
-					} else if baseK != k {
-						if sa, ok := skipMap[baseK]; ok {
-							skipAnn = &sa
-						}
 					}
 
-					// Look up bridge annotation (try exact key, then base key)
-					bKey := k
-					if len(bridgeAnnMap[k]) == 0 && baseK != k {
-						bKey = baseK
-					}
-					if infos := bridgeAnnMap[bKey]; len(infos) > 0 {
+					// Look up bridge annotation
+					if infos := bridgeAnnMap[k]; len(infos) > 0 {
 						tcm.BridgeTest = infos[0].GoTest
 						tcm.BridgeFile = infos[0].File
 						tcm.BridgeLine = infos[0].Line
@@ -768,12 +792,8 @@ func merge(
 						}
 					}
 
-					// Look up native annotation (try exact key, then base key)
-					nKey := k
-					if len(nativeAnnMap[k]) == 0 && baseK != k {
-						nKey = baseK
-					}
-					if infos := nativeAnnMap[nKey]; len(infos) > 0 {
+					// Look up native annotation
+					if infos := nativeAnnMap[k]; len(infos) > 0 {
 						tcm.NativeTest = infos[0].GoTest
 						tcm.NativeFile = infos[0].File
 						tcm.NativeLine = infos[0].Line
@@ -807,13 +827,7 @@ func merge(
 
 					// For unmapped tests, check for okapi-unmapped: annotation
 					if tcm.TestState == "unmapped" {
-						unmK := k
-						if baseK != k {
-							if _, ok := unmappedMap[k]; !ok {
-								unmK = baseK
-							}
-						}
-						if ua, ok := unmappedMap[unmK]; ok {
+						if ua, ok := unmappedMap[k]; ok {
 							tcm.SkipReason = ua.Reason
 						}
 					}
