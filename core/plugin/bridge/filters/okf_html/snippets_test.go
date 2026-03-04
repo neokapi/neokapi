@@ -1089,8 +1089,7 @@ func TestSnippets_InlineCdata(t *testing.T) {
 
 // okapi: HtmlSnippetsTest#testEmptyGroupAtEnd
 func TestSnippets_EmptyGroupAtEnd(t *testing.T) {
-	// The bridge does not support the custom "elements" filter parameter, so
-	// <g/> is treated as an unknown inline tag and collapses whitespace.
+	// With default config, <g/> is an unknown inline tag.
 	snippet := "Empty group at the end <g/>"
 	output := snippetRoundtripDefault(t, snippet)
 	assert.Contains(t, output, "Empty group at the end")

@@ -12,6 +12,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// findDataPartWithProperty finds the first Data part that has the given property key.
+func findDataPartWithProperty(parts []*model.Part, key string) *model.Data {
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			d, ok := p.Resource.(*model.Data)
+			if ok && d.Properties != nil {
+				if _, exists := d.Properties[key]; exists {
+					return d
+				}
+			}
+		}
+	}
+	return nil
+}
+
 // TestEvents_WithDefaultConfig verifies that several key tests also pass when
 // using the non-wellformed (default HTML) configuration. The Java test runs
 // testMetaTagContent, testLang, testXmlLang, testMETATagWithLanguage, and
@@ -32,39 +47,40 @@ func TestEvents_WithDefaultConfig(t *testing.T) {
 		assert.Contains(t, texts, "one,two,three")
 	})
 
-	// testLang: extract lang attribute — the bridge does not expose language
-	// as a Data property; we verify the element parses without error.
+	// testLang: extract lang attribute as a source property on the Data part.
 	t.Run("Lang", func(t *testing.T) {
 		parts := readHTML(t, `<dummy lang="en"/>`, params)
-		require.NotEmpty(t, parts, "should produce parts for lang attribute")
-		assert.Equal(t, model.PartLayerStart, parts[0].Type)
-		assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+		require.NotEmpty(t, parts)
+		dp := findDataPartWithProperty(parts, "language")
+		require.NotNil(t, dp, "should have Data part with language property")
+		assert.Equal(t, "en", dp.Properties["language"])
 	})
 
-	// testXmlLang: extract xml:lang attribute
+	// testXmlLang: extract xml:lang attribute as a source property.
 	t.Run("XmlLang", func(t *testing.T) {
 		parts := readHTML(t, `<yyy xml:lang="en"/>`, params)
-		require.NotEmpty(t, parts, "should produce parts for xml:lang attribute")
-		assert.Equal(t, model.PartLayerStart, parts[0].Type)
-		assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+		require.NotEmpty(t, parts)
+		dp := findDataPartWithProperty(parts, "language")
+		require.NotNil(t, dp, "should have Data part with language property")
+		assert.Equal(t, "en", dp.Properties["language"])
 	})
 
-	// testMETATagWithLanguage: meta Content-Language
+	// testMETATagWithLanguage: meta Content-Language stored as language property.
 	t.Run("METATagWithLanguage", func(t *testing.T) {
 		parts := readHTML(t, `<meta http-equiv="Content-Language" content="en"/>`, params)
 		require.NotEmpty(t, parts)
-		// The bridge produces a Data part for the meta tag structure.
-		assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-			"should have Data part for meta tag")
+		dp := findDataPartWithProperty(parts, "language")
+		require.NotNil(t, dp, "should have Data part with language property")
+		assert.Equal(t, "en", dp.Properties["language"])
 	})
 
-	// testMETATagWithEncoding: meta Content-Type with charset
+	// testMETATagWithEncoding: meta Content-Type charset stored as encoding property.
 	t.Run("METATagWithEncoding", func(t *testing.T) {
 		parts := readHTML(t, `<meta http-equiv="Content-Type" content="text/html; charset=ISO-2022-JP">`, params)
 		require.NotEmpty(t, parts)
-		// The bridge produces a Data part for the meta tag structure.
-		assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-			"should have Data part for meta tag")
+		dp := findDataPartWithProperty(parts, "encoding")
+		require.NotNil(t, dp, "should have Data part with encoding property")
+		assert.Equal(t, "ISO-2022-JP", dp.Properties["encoding"])
 	})
 }
 
@@ -92,16 +108,16 @@ func TestEvents_HtmlKeywordsNotExtracted(t *testing.T) {
 		"should have Data part for meta tag structure")
 }
 
-// TestEvents_BaseTag verifies that <base> tag is parsed without error.
-// The bridge does not expose writableLocalizableAttributes as Data properties.
+// TestEvents_BaseTag verifies that <base> tag's href attribute is extracted
+// as a source property on the Data part.
 // okapi: HtmlEventTest#baseTag
 func TestEvents_BaseTag(t *testing.T) {
 	parts := readHTMLDefault(t, `<base href="https://www.example.com/" target="_top">`)
 
-	// The base tag produces a Data part for the element structure.
 	require.NotEmpty(t, parts)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for base tag")
+	dp := findDataPartWithProperty(parts, "href")
+	require.NotNil(t, dp, "should have Data part with href property")
+	assert.Equal(t, "https://www.example.com/", dp.Properties["href"])
 }
 
 // TestEvents_MetaTagContent verifies that meta keywords content is extracted as
@@ -148,25 +164,27 @@ func TestEvents_PWithAttributes(t *testing.T) {
 		}
 		if b.SourceText() == "Text of p" {
 			assert.Equal(t, "paragraph", b.Type, "p element block type should be 'paragraph'")
+			// The dir attribute should appear as a source property on the block.
+			require.NotNil(t, b.Properties, "paragraph block should have properties")
+			assert.Equal(t, "rtl", b.Properties["dir"], "dir property should be 'rtl'")
 		}
 	}
 }
 
-// TestEvents_Lang verifies that lang attribute on an element is parsed without
-// error. The bridge does not expose language as a Data property.
+// TestEvents_Lang verifies that the lang attribute is extracted as a
+// "language" source property on a Data part.
 // okapi: HtmlEventTest#testLang
 func TestEvents_Lang(t *testing.T) {
 	parts := readHTMLDefault(t, `<dummy lang="en"/>`)
 
 	require.NotEmpty(t, parts)
-	assert.Equal(t, model.PartLayerStart, parts[0].Type)
-	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for element with lang")
+	dp := findDataPartWithProperty(parts, "language")
+	require.NotNil(t, dp, "should have Data part with language property")
+	assert.Equal(t, "en", dp.Properties["language"])
 }
 
 // TestEvents_IdOnP verifies that a <p> element with an id attribute produces
-// a block whose name includes the id value.
+// a block with the id as a source property and name derived from the id.
 // okapi: HtmlEventTest#testIdOnP
 func TestEvents_IdOnP(t *testing.T) {
 	parts := readHTMLDefault(t, `<p id="foo"/>`)
@@ -178,44 +196,61 @@ func TestEvents_IdOnP(t *testing.T) {
 
 	b := blocks[0]
 	assert.Equal(t, "paragraph", b.Type, "block type should be 'paragraph'")
-	// The block name should incorporate the id.
 	assert.Contains(t, b.Name, "foo", "block name should contain the id value")
-	// The id should appear in properties.
-	if b.Properties != nil {
-		if id, ok := b.Properties["id"]; ok {
-			assert.Equal(t, "foo", id)
-		}
-	}
+	require.NotNil(t, b.Properties, "block should have properties")
+	assert.Equal(t, "foo", b.Properties["id"], "id source property should be 'foo'")
 }
 
-// TestEvents_XmlLang verifies that xml:lang attribute is parsed without error.
-// The bridge does not expose language as a Data property.
+// TestEvents_XmlLang verifies that xml:lang attribute is extracted as a
+// "language" source property on a Data part.
 // okapi: HtmlEventTest#testXmlLang
 func TestEvents_XmlLang(t *testing.T) {
 	parts := readHTMLDefault(t, `<yyy xml:lang="en"/>`)
 
 	require.NotEmpty(t, parts)
-	assert.Equal(t, model.PartLayerStart, parts[0].Type)
-	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for element with xml:lang")
+	dp := findDataPartWithProperty(parts, "language")
+	require.NotNil(t, dp, "should have Data part with language property")
+	assert.Equal(t, "en", dp.Properties["language"])
 }
 
 // TestEvents_ComplexEmptyElement verifies extraction of an element with mixed
-// attributes. The bridge does not support custom element configuration or
-// expose writableLocalizableAttributes as Data properties.
+// attributes: translatable (trans), writable localizable (write), and
+// read-only localizable (readonly). Uses dummyConfiguration.yml equivalent.
 // okapi: HtmlEventTest#testComplexEmptyElement
 func TestEvents_ComplexEmptyElement(t *testing.T) {
-	// The bridge does not support the custom "elements" filter parameter,
-	// so we verify with default config: the element parses without error
-	// and produces a Data part.
-	parts := readHTMLDefault(t, `<dummy write="w" readonly="ro" trans="tu1"/>`)
+	pool, cfg := bridgetest.SharedBridge(t)
+	params := map[string]any{
+		"elements": map[string]any{
+			"dummy": map[string]any{
+				"ruleTypes":                      []string{"ATTRIBUTES_ONLY"},
+				"translatableAttributes":         []string{"trans"},
+				"writableLocalizableAttributes":  []string{"write"},
+				"readOnlyLocalizableAttributes":  []string{"readonly"},
+			},
+		},
+	}
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
+		`<dummy write="w" readonly="ro" trans="tu1"/>`,
+		"test.html", mimeType, params)
 
+	// The Java test expects:
+	// - A referent TextUnit with id content "tu1" (the trans attribute value)
+	// - A DocumentPart with source properties: write="w", readonly="ro"
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for element")
+
+	// Should have a translatable block for the trans attribute.
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "should have a translatable block for the trans attribute")
+	assert.Equal(t, "tu1", blocks[0].SourceText())
+	assert.True(t, blocks[0].IsReferent, "trans attribute block should be referent")
+
+	// Should have a Data part with the writable attribute as a source property.
+	dataParts := bridgetest.DataParts(parts)
+	require.NotEmpty(t, dataParts, "should have a Data part for the element")
+	dp := dataParts[0].Resource.(*model.Data)
+	assert.Equal(t, "w", dp.Properties["write"], "write attribute should be extracted as source property")
 }
 
 // TestEvents_PWithInlines verifies that a paragraph with inline bold and anchor
@@ -278,8 +313,7 @@ func TestEvents_PWithInlineAnchorAndAmpersand(t *testing.T) {
 	assert.Contains(t, text, "Before")
 	assert.Contains(t, text, "after.")
 
-	// The bridge does not expose href as a Data property, but the anchor
-	// should appear as a placeholder span in the fragment.
+	// The anchor should appear as a placeholder span in the fragment.
 	frag := paraBlock.FirstFragment()
 	require.NotNil(t, frag)
 	var hasPlaceholder bool
@@ -353,39 +387,40 @@ func TestEvents_PWithProcessingInstruction(t *testing.T) {
 }
 
 // TestEvents_METATagWithLanguage verifies that a meta Content-Language tag
-// is parsed without error. The bridge does not expose language as a Data property.
+// stores the language as a source property on a Data part.
 // okapi: HtmlEventTest#testMETATagWithLanguage
 func TestEvents_METATagWithLanguage(t *testing.T) {
 	parts := readHTMLDefault(t, `<meta http-equiv="Content-Language" content="en"/>`)
 
 	require.NotEmpty(t, parts)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for meta tag")
+	dp := findDataPartWithProperty(parts, "language")
+	require.NotNil(t, dp, "should have Data part with language property")
+	assert.Equal(t, "en", dp.Properties["language"])
 }
 
 // TestEvents_METATagWithEncoding verifies that a meta Content-Type tag with a
-// charset declaration is parsed without error. The bridge does not expose
-// encoding as a Data property.
+// charset declaration stores the encoding as a source property on a Data part.
 // okapi: HtmlEventTest#testMETATagWithEncoding
 func TestEvents_METATagWithEncoding(t *testing.T) {
 	parts := readHTMLDefault(t,
 		`<meta http-equiv="Content-Type" content="text/html; charset=ISO-2022-JP">`)
 
 	require.NotEmpty(t, parts)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for meta tag")
+	dp := findDataPartWithProperty(parts, "encoding")
+	require.NotNil(t, dp, "should have Data part with encoding property")
+	assert.Equal(t, "ISO-2022-JP", dp.Properties["encoding"])
 }
 
 // TestEvents_MetaWithCharsetAttribute verifies that a meta tag with a direct
-// charset attribute is parsed without error. The bridge does not expose
-// encoding as a Data property.
+// charset attribute stores the encoding as a source property on a Data part.
 // okapi: HtmlEventTest#testMetaWithCharsetAttribute
 func TestEvents_MetaWithCharsetAttribute(t *testing.T) {
 	parts := readHTMLDefault(t, `<meta charset="ISO-2022-JP">`)
 
 	require.NotEmpty(t, parts)
-	assert.Greater(t, countPartsByType(parts, model.PartData), 0,
-		"should have Data part for meta tag")
+	dp := findDataPartWithProperty(parts, "encoding")
+	require.NotNil(t, dp, "should have Data part with encoding property")
+	assert.Equal(t, "ISO-2022-JP", dp.Properties["encoding"])
 }
 
 // TestEvents_PWithInlines2 verifies extraction of a paragraph with bold inline
@@ -443,7 +478,8 @@ func TestEvents_PWithInlines2(t *testing.T) {
 }
 
 // TestEvents_TableGroups verifies that table content is extracted as text units.
-// The bridge does not emit GroupStart/GroupEnd for table/tr elements.
+// Group events for table/tr require element rule YAML config (GROUP rule type),
+// which is not yet supported through filter params. We verify content extraction.
 // okapi: HtmlEventTest#testTableGroups
 func TestEvents_TableGroups(t *testing.T) {
 	parts := readHTMLDefault(t, `<table id="100"><tr><td>text</td></tr></table>`)
@@ -461,8 +497,8 @@ func TestEvents_TableGroups(t *testing.T) {
 }
 
 // TestEvents_GroupInPara verifies that an embedded list inside a paragraph
-// extracts list items and surrounding paragraph text.
-// The bridge does not emit GroupStart/GroupEnd events.
+// extracts list items and surrounding paragraph text. Group events for ul/li
+// require element rule YAML config (GROUP rule type).
 // okapi: HtmlEventTest#testGroupInPara
 func TestEvents_GroupInPara(t *testing.T) {
 	snippet := "<p>Text before list:" +
@@ -497,8 +533,8 @@ func TestEvents_GroupInPara(t *testing.T) {
 
 // TestEvents_PropertyInEmptyParagraph verifies that an empty paragraph with a
 // dir property does not produce a null reference error. The Java test checks
-// that the skeleton's property parent is not null. The bridge does not expose
-// dir as a Data or Block property.
+// that the skeleton's property parent is not null. The empty <p> with only
+// whitespace content does not produce a Block (it becomes Data parts).
 // okapi: HtmlEventTest#testPropertyInEmptyParagraph
 func TestEvents_PropertyInEmptyParagraph(t *testing.T) {
 	parts := readHTMLDefault(t, "<p dir=\"test\"> </p>\n")
