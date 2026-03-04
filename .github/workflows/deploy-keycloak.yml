@@ -43,7 +43,7 @@ jobs:
   build:
     name: Build Keycloak Image
     needs: image-tag
-    uses: ./.github/workflows/build-keycloak-image.yml
+    uses: ./.github/workflows/_build-keycloak-image.yml
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
 

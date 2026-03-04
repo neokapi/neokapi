@@ -23,7 +23,7 @@ permissions:
 jobs:
   build:
     name: Build Web Assets
-    uses: ./.github/workflows/build-web.yml
+    uses: ./.github/workflows/_build-web.yml
 
   docker:
     name: Build Web Docker Image
