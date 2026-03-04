@@ -86,16 +86,18 @@ git checkout "v${OKAPI_VERSION}" --quiet
 echo "  Checked out v${OKAPI_VERSION}"
 
 # ---------------------------------------------------------------------------
-# Run Maven tests to generate Surefire XML.
+# Run Maven verify to generate Surefire + Failsafe XML.
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "=== Running Maven tests (mvn test -pl okapi/filters -T4) ==="
+echo "=== Running Maven verify (mvn verify -pl okapi/filters -T4) ==="
 echo "  This may take several minutes..."
 
-# Run with failure ignore so we get reports for all tests (even failing ones).
+# Run verify (not just test) to include Failsafe integration tests (*IT.java).
+# This generates both target/surefire-reports/ and target/failsafe-reports/.
 # -T4 runs 4 threads for faster builds.
-mvn test \
+# Failure ignore ensures we get reports even when tests fail.
+mvn verify \
     -pl okapi/filters \
     -am \
     -T4 \
@@ -103,19 +105,20 @@ mvn test \
     -q \
     2>&1 | tail -5
 
-echo "  Maven tests complete."
+echo "  Maven verify complete."
 
 # ---------------------------------------------------------------------------
-# Collect Surefire XML into a flat per-filter structure.
+# Collect Surefire + Failsafe XML into a flat per-filter structure.
 #
 # Layout: okapi-surefire/{filter}/TEST-*.xml
 #
-# We glob the Surefire output from Maven's target directories and copy each
-# XML into a directory named after the filter module.
+# We glob both surefire-reports/ (unit tests) and failsafe-reports/
+# (integration tests, *IT.java) from Maven's target directories and copy
+# each XML into a directory named after the filter module.
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "=== Collecting Surefire XML reports ==="
+echo "=== Collecting Surefire + Failsafe XML reports ==="
 
 WORK_DIR="$(mktemp -d)"
 trap 'rm -rf "$WORK_DIR"' EXIT
@@ -126,28 +129,34 @@ mkdir -p "$OUT"
 TOTAL_FILES=0
 TOTAL_FILTERS=0
 
-for surefire_dir in "$OKAPI_DIR"/okapi/filters/*/target/surefire-reports; do
-    if [ ! -d "$surefire_dir" ]; then
+# Collect from both surefire-reports (unit) and failsafe-reports (integration).
+for report_dir in "$OKAPI_DIR"/okapi/filters/*/target/surefire-reports "$OKAPI_DIR"/okapi/filters/*/target/failsafe-reports; do
+    if [ ! -d "$report_dir" ]; then
         continue
     fi
 
     # Extract filter name from path (e.g. .../filters/html/target/... → html)
-    filter_path="${surefire_dir%/target/surefire-reports}"
+    filter_path="${report_dir%/target/*}"
     filter="$(basename "$filter_path")"
 
     # Count XML files.
-    xml_count=$(find "$surefire_dir" -name "TEST-*.xml" -type f | wc -l | tr -d ' ')
+    xml_count=$(find "$report_dir" -name "TEST-*.xml" -type f | wc -l | tr -d ' ')
     if [ "$xml_count" -eq 0 ]; then
         continue
     fi
 
-    # Copy XML files to flat structure.
+    # Copy XML files to flat structure (may merge surefire + failsafe for same filter).
     mkdir -p "$OUT/$filter"
-    cp "$surefire_dir"/TEST-*.xml "$OUT/$filter/"
+    cp "$report_dir"/TEST-*.xml "$OUT/$filter/"
+done
 
-    # Parse pass/fail/skip counts for sanity check.
+# Print per-filter stats from the collected output.
+for filter_dir in "$OUT"/*/; do
+    filter="$(basename "$filter_dir")"
+    xml_count=$(find "$filter_dir" -name "TEST-*.xml" -type f | wc -l | tr -d ' ')
+
     pass=0 fail=0 skip=0 error=0
-    for xml_file in "$OUT/$filter"/TEST-*.xml; do
+    for xml_file in "$filter_dir"/TEST-*.xml; do
         # Extract counts from the testsuite element (macOS-compatible sed).
         suite_tests=$(sed -n 's/.*tests="\([0-9]*\)".*/\1/p' "$xml_file" 2>/dev/null | head -1)
         suite_tests="${suite_tests:-0}"

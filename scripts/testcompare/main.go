@@ -252,12 +252,17 @@ func parseSurefire(dir string) map[string]*FilterResult {
 	out := map[string]*FilterResult{}
 
 	// Support two directory layouts:
-	// 1. Nested (local Okapi checkout): {dir}/{filter}/target/surefire-reports/TEST-*.xml
+	// 1. Nested (local Okapi checkout): {dir}/{filter}/target/{surefire,failsafe}-reports/TEST-*.xml
 	// 2. Flat (fetched from release):   {dir}/{filter}/TEST-*.xml
 	matches, err := filepath.Glob(filepath.Join(dir, "*", "target", "surefire-reports", "TEST-*.xml"))
 	if err != nil {
 		log.Fatalf("glob: %v", err)
 	}
+	failsafeMatches, err := filepath.Glob(filepath.Join(dir, "*", "target", "failsafe-reports", "TEST-*.xml"))
+	if err != nil {
+		log.Fatalf("glob: %v", err)
+	}
+	matches = append(matches, failsafeMatches...)
 	flatMatches, err := filepath.Glob(filepath.Join(dir, "*", "TEST-*.xml"))
 	if err != nil {
 		log.Fatalf("glob: %v", err)
