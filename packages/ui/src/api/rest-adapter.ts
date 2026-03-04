@@ -8,6 +8,7 @@ import type {
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
 } from "../types/api";
 
@@ -103,6 +104,7 @@ export class RestApiAdapter implements ApiAdapter {
           const body = await retry.text();
           throw new Error(`${retry.status}: ${body}`);
         }
+        if (retry.status === 204) return undefined as T;
         return retry.json();
       }
       this.onSessionExpired?.();
@@ -111,6 +113,7 @@ export class RestApiAdapter implements ApiAdapter {
       const body = await resp.text();
       throw new Error(`${resp.status}: ${body}`);
     }
+    if (resp.status === 204) return undefined as T;
     return resp.json();
   }
 
@@ -244,6 +247,25 @@ export class RestApiAdapter implements ApiAdapter {
 
   async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
     await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites/${inviteId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ── API Tokens ─────────────────────────────────────────────────────────
+
+  async listApiTokens(workspaceSlug: string): Promise<ApiToken[]> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens`);
+  }
+
+  async createApiToken(workspaceSlug: string, name: string, expireDays: number): Promise<CreateApiTokenResponse> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens`, {
+      method: "POST",
+      body: JSON.stringify({ name, expire_days: expireDays }),
+    });
+  }
+
+  async deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens/${tokenId}`, {
       method: "DELETE",
     });
   }

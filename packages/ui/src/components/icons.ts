@@ -45,4 +45,5 @@ export {
   Monitor,
   Bell,
   Code,
+  KeyRound,
 } from "lucide-react";

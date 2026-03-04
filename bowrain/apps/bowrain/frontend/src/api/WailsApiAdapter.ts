@@ -8,6 +8,7 @@ import type {
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
 } from "@gokapi/ui";
 
@@ -61,6 +62,11 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteInvite(): Promise<void> { throw new Error("Not supported in desktop mode"); }
   async acceptInvite(): Promise<AcceptInviteResponse> { throw new Error("Not supported in desktop mode"); }
   async claimProject(): Promise<ClaimProjectResponse> { throw new Error("Not supported in desktop mode"); }
+
+  // --- API Tokens (not applicable in desktop) ---
+  async listApiTokens(): Promise<ApiToken[]> { return []; }
+  async createApiToken(): Promise<CreateApiTokenResponse> { throw new Error("Not supported in desktop mode"); }
+  async deleteApiToken(): Promise<void> { throw new Error("Not supported in desktop mode"); }
 
   // --- Projects ---
   async listProjects(): Promise<ProjectInfo[]> {

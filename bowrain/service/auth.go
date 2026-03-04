@@ -202,6 +202,56 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 	return inv, nil
 }
 
+// CreateAPIToken generates a new API token for the given user and workspace.
+// Returns the APIToken (with ID populated) and the plaintext token (shown once).
+func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, name string, expiresAt *time.Time) (*platauth.APIToken, string, error) {
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err != nil {
+		return nil, "", fmt.Errorf("generate api token: %w", err)
+	}
+	plaintext := "bwt_" + hex.EncodeToString(tokenBytes)
+
+	hash := sha256.Sum256([]byte(plaintext))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	token := &platauth.APIToken{
+		UserID:      userID,
+		WorkspaceID: workspaceID,
+		Name:        name,
+		TokenPrefix: plaintext[:8], // "bwt_" + first 4 hex chars
+		Scopes:      `["*"]`,
+		ExpiresAt:   expiresAt,
+	}
+
+	if err := s.store.CreateAPIToken(ctx, token, tokenHash); err != nil {
+		return nil, "", err
+	}
+
+	return token, plaintext, nil
+}
+
+// ValidateAPIToken validates a plaintext API token and returns the associated token record.
+func (s *AuthService) ValidateAPIToken(ctx context.Context, plaintext string) (*platauth.APIToken, error) {
+	hash := sha256.Sum256([]byte(plaintext))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	token, err := s.store.GetAPITokenByHash(ctx, tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("invalid api token")
+	}
+
+	if token.ExpiresAt != nil && time.Now().After(*token.ExpiresAt) {
+		return nil, fmt.Errorf("api token expired")
+	}
+
+	// Fire-and-forget last-used update.
+	go func() {
+		_ = s.store.UpdateAPITokenLastUsed(context.Background(), token.ID)
+	}()
+
+	return token, nil
+}
+
 // AcceptInvite adds a user to the workspace if the invite is valid.
 func (s *AuthService) AcceptInvite(ctx context.Context, code, userID string) error {
 	inv, err := s.store.GetInviteByCode(ctx, code)

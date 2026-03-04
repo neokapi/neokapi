@@ -25,6 +25,30 @@ export interface Membership {
   user: User;
 }
 
+/** API token (stored; no plaintext) */
+export interface ApiToken {
+  id: string;
+  user_id: string;
+  workspace_id: string;
+  name: string;
+  token_prefix: string;
+  scopes: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+/** API token creation response — includes the plaintext token (shown once) */
+export interface CreateApiTokenResponse {
+  id: string;
+  name: string;
+  token_prefix: string;
+  token: string;
+  scopes: string;
+  expires_at: string | null;
+  created_at: string;
+}
+
 /** Workspace invite */
 export interface Invite {
   id: string;

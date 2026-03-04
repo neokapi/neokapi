@@ -114,6 +114,26 @@ var authMigrations = []storage.Migration{
 			CREATE INDEX idx_users_oidc_sub ON users(oidc_sub);
 		`,
 	},
+	{
+		Version:     9,
+		Description: "create api_tokens table",
+		SQL: `
+			CREATE TABLE api_tokens (
+				id           TEXT PRIMARY KEY,
+				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				token_hash   TEXT UNIQUE NOT NULL,
+				token_prefix TEXT NOT NULL,
+				scopes       TEXT NOT NULL DEFAULT '["*"]',
+				last_used_at TEXT,
+				expires_at   TEXT,
+				created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_api_tokens_workspace ON api_tokens(workspace_id);
+			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -614,6 +634,119 @@ func (s *SQLiteAuthStore) RevokeUserRefreshTokens(ctx context.Context, userID st
 	_, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE user_id = ?`, userID)
 	if err != nil {
 		return fmt.Errorf("revoke user refresh tokens: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// API Tokens
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteAuthStore) CreateAPIToken(ctx context.Context, token *platauth.APIToken, tokenHash string) error {
+	if token.ID == "" {
+		token.ID = uuid.NewString()
+	}
+	if token.CreatedAt.IsZero() {
+		token.CreatedAt = time.Now().UTC()
+	}
+	if token.Scopes == "" {
+		token.Scopes = `["*"]`
+	}
+
+	var expiresStr *string
+	if token.ExpiresAt != nil {
+		s := token.ExpiresAt.Format(time.RFC3339)
+		expiresStr = &s
+	}
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO api_tokens (id, user_id, workspace_id, name, token_hash, token_prefix, scopes, expires_at, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		token.ID, token.UserID, token.WorkspaceID, token.Name, tokenHash,
+		token.TokenPrefix, token.Scopes, expiresStr, token.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("insert api token: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) GetAPITokenByHash(ctx context.Context, tokenHash string) (*platauth.APIToken, error) {
+	var tok platauth.APIToken
+	var lastUsedStr, expiresStr, createdStr *string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		 FROM api_tokens WHERE token_hash = ?`, tokenHash).
+		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+			&tok.Scopes, &lastUsedStr, &expiresStr, &createdStr)
+	if err != nil {
+		return nil, fmt.Errorf("get api token: %w", err)
+	}
+	if lastUsedStr != nil {
+		t, _ := time.Parse(time.RFC3339, *lastUsedStr)
+		tok.LastUsedAt = &t
+	}
+	if expiresStr != nil {
+		t, _ := time.Parse(time.RFC3339, *expiresStr)
+		tok.ExpiresAt = &t
+	}
+	if createdStr != nil {
+		tok.CreatedAt, _ = time.Parse(time.RFC3339, *createdStr)
+	}
+	return &tok, nil
+}
+
+func (s *SQLiteAuthStore) ListAPITokens(ctx context.Context, workspaceID string) ([]*platauth.APIToken, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		 FROM api_tokens WHERE workspace_id = ?
+		 ORDER BY created_at DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list api tokens: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.APIToken, 0)
+	for rows.Next() {
+		var tok platauth.APIToken
+		var lastUsedStr, expiresStr, createdStr *string
+		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+			&tok.Scopes, &lastUsedStr, &expiresStr, &createdStr); err != nil {
+			return nil, fmt.Errorf("scan api token: %w", err)
+		}
+		if lastUsedStr != nil {
+			t, _ := time.Parse(time.RFC3339, *lastUsedStr)
+			tok.LastUsedAt = &t
+		}
+		if expiresStr != nil {
+			t, _ := time.Parse(time.RFC3339, *expiresStr)
+			tok.ExpiresAt = &t
+		}
+		if createdStr != nil {
+			tok.CreatedAt, _ = time.Parse(time.RFC3339, *createdStr)
+		}
+		result = append(result, &tok)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteAuthStore) DeleteAPIToken(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM api_tokens WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete api token: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("api token %s not found", id)
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) UpdateAPITokenLastUsed(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE api_tokens SET last_used_at = ? WHERE id = ?`, now, id)
+	if err != nil {
+		return fmt.Errorf("update api token last used: %w", err)
 	}
 	return nil
 }
