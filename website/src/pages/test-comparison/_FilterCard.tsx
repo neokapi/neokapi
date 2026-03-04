@@ -27,34 +27,62 @@ function StatColumn({result}: {result: FilterResult | null}) {
     );
   }
   const pct = result.total > 0 ? (result.passed / result.total) * 100 : 0;
+  const hasFuncs = result.funcs != null && result.funcs < result.total;
   return (
     <div className={styles.sideColumn}>
       <div className={styles.badgeRow}>
-        <span
-          className="badge badge--success"
-          title={`${result.passed} passed`}>
-          {result.passed}
-        </span>
-        {result.failed > 0 && (
-          <span
-            className="badge badge--danger"
-            title={`${result.failed} failed`}>
-            {result.failed}
-          </span>
-        )}
-        {result.errors > 0 && (
-          <span
-            className="badge badge--danger"
-            title={`${result.errors} errors`}>
-            {result.errors} err
-          </span>
-        )}
-        {result.skipped > 0 && (
-          <span
-            className="badge badge--warning"
-            title={`${result.skipped} skipped`}>
-            {result.skipped}
-          </span>
+        {hasFuncs ? (
+          <>
+            {result.failed + result.errors > 0 ? (
+              <span
+                className="badge badge--danger"
+                title={`${result.failed + result.errors} failing (of ${result.total} incl. subtests)`}>
+                {result.failed + result.errors} failing
+              </span>
+            ) : (
+              <span
+                className="badge badge--success"
+                title={`${result.passed} passed (of ${result.total} incl. subtests)`}>
+                all passing
+              </span>
+            )}
+            {result.skipped > 0 && (
+              <span
+                className="badge badge--warning"
+                title={`${result.skipped} skipped (of ${result.total} incl. subtests)`}>
+                {result.skipped} skipped
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <span
+              className="badge badge--success"
+              title={`${result.passed} passed`}>
+              {result.passed}
+            </span>
+            {result.failed > 0 && (
+              <span
+                className="badge badge--danger"
+                title={`${result.failed} failed`}>
+                {result.failed}
+              </span>
+            )}
+            {result.errors > 0 && (
+              <span
+                className="badge badge--danger"
+                title={`${result.errors} errors`}>
+                {result.errors} err
+              </span>
+            )}
+            {result.skipped > 0 && (
+              <span
+                className="badge badge--warning"
+                title={`${result.skipped} skipped`}>
+                {result.skipped}
+              </span>
+            )}
+          </>
         )}
       </div>
       <div className={styles.barRow}>
@@ -62,7 +90,7 @@ function StatColumn({result}: {result: FilterResult | null}) {
           <div className={styles.progressFill} style={{width: `${pct}%`}} />
         </div>
         <span className={styles.totalLabel}>
-          {result.funcs != null && result.funcs < result.total ? (
+          {hasFuncs ? (
             <>
               {result.funcs}
               <span
