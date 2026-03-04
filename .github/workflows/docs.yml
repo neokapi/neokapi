@@ -36,8 +36,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if gh release view docs-assets > /dev/null 2>&1; then
-            gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp 2>/dev/null && \
-              tar xzf /tmp/docs-assets.tar.gz -C website/static || true
+            if gh release download docs-assets --pattern 'docs-assets.tar.gz' --dir /tmp 2>/dev/null; then
+              tar xzf /tmp/docs-assets.tar.gz -C website/static
+            fi
             echo "Fetched docs assets:"
             du -sh website/static/img website/static/video 2>/dev/null || true
 
