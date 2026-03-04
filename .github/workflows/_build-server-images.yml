@@ -1,4 +1,4 @@
-name: Build Server Images
+name: _Build Server Images
 
 on:
   workflow_call:
