@@ -217,6 +217,75 @@ func TestBuildTestStatusMap_Nil(t *testing.T) {
 	assert.Empty(t, m)
 }
 
+func TestMerge_ParameterizedJUnitTests(t *testing.T) {
+	// Surefire XML reports parameterized JUnit tests with [N: ...] suffixes.
+	// The merge function should match these to annotations that use the
+	// unparameterized base method name.
+	okapi := map[string]*FilterResult{
+		"html": {
+			Suites: []Suite{{
+				Name: "HtmlSnippetsTest",
+				Tests: []Test{
+					{Name: "testFoo[0: case0]", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
+					{Name: "testFoo[1: case1]", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
+					{Name: "testBar", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
+				},
+				Total: 3, Passed: 3,
+			}},
+			Total: 3, Passed: 3,
+		},
+	}
+
+	bridgeAnns := []annotation{
+		{JavaClass: "HtmlSnippetsTest", JavaMethod: "testFoo", GoTest: "TestSnippets_Foo", Filter: "html", File: "test.go", Line: 10},
+		{JavaClass: "HtmlSnippetsTest", JavaMethod: "testBar", GoTest: "TestSnippets_Bar", Filter: "html", File: "test.go", Line: 20},
+	}
+
+	bridgeStatus := map[string]string{
+		"html/TestSnippets_Foo": "pass",
+		"html/TestSnippets_Bar": "pass",
+	}
+
+	data := merge(okapi, nil, nil,
+		bridgeAnns, nil,
+		nil, nil,
+		nil, nil,
+		bridgeStatus, nil,
+		nil, nil,
+		"", "", "", "")
+
+	require.Len(t, data.Filters, 1)
+	tcs := data.Filters[0].TestCases
+
+	// All 3 test cases should be mapped (2 parameterized + 1 regular)
+	for _, tc := range tcs {
+		assert.NotEmpty(t, tc.BridgeTest, "test %s should be mapped", tc.JavaMethod)
+		assert.Equal(t, "implemented", tc.TestState, "test %s should be implemented", tc.JavaMethod)
+	}
+
+	// Parameterized cases should map to the same Go test
+	fooCase0 := findTCM(tcs, "testFoo[0: case0]")
+	fooCase1 := findTCM(tcs, "testFoo[1: case1]")
+	require.NotNil(t, fooCase0)
+	require.NotNil(t, fooCase1)
+	assert.Equal(t, "TestSnippets_Foo", fooCase0.BridgeTest)
+	assert.Equal(t, "TestSnippets_Foo", fooCase1.BridgeTest)
+
+	// Regular case should map normally
+	barCase := findTCM(tcs, "testBar")
+	require.NotNil(t, barCase)
+	assert.Equal(t, "TestSnippets_Bar", barCase.BridgeTest)
+}
+
+func findTCM(tcs []TestCaseMatch, method string) *TestCaseMatch {
+	for i := range tcs {
+		if tcs[i].JavaMethod == method {
+			return &tcs[i]
+		}
+	}
+	return nil
+}
+
 func TestFilterFromPath(t *testing.T) {
 	tests := []struct {
 		path string
