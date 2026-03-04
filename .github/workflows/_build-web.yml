@@ -1,4 +1,4 @@
-name: Build Web Assets
+name: _Build Web Assets
 
 on:
   workflow_call:

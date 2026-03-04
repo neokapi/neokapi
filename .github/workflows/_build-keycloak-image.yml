@@ -1,4 +1,4 @@
-name: Build Keycloak Image
+name: _Build Keycloak Image
 
 on:
   workflow_call:
