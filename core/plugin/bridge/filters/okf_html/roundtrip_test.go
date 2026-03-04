@@ -24,7 +24,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// in the html/ test resource directory using EventComparator for
 	// semantic comparison. 98959751.html is a known failing file.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_html/roundtrip/*.html", mimeType, nil,
+		tdDir+"/okf_html/*.html", mimeType, nil,
 		"98959751.html")
 }
 
@@ -34,7 +34,7 @@ func TestRoundTrip_TestFilesHTM(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_html/roundtrip/*.htm", mimeType, nil)
+		tdDir+"/okf_html/*.htm", mimeType, nil)
 }
 
 // okapi: RoundTripHtmlIT#htmlFiles (xhtml extension)
@@ -43,7 +43,7 @@ func TestRoundTrip_TestFilesXHTML(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_html/roundtrip/*.xhtml", mimeType, nil)
+		tdDir+"/okf_html/xhtml/*.xhtml", mimeType, nil)
 }
 
 // okapi: RoundTripHtmlIT#htmlFilesSerialized
@@ -56,6 +56,6 @@ func TestRoundTrip_TestFilesSerialized(t *testing.T) {
 	// handled transparently, so we run the same roundtrip with event
 	// comparison on the full set of HTML files.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_html/roundtrip/*.html", mimeType, nil,
+		tdDir+"/okf_html/*.html", mimeType, nil,
 		"98959751.html")
 }
