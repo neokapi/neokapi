@@ -205,6 +205,17 @@ func TranslatableBlocks(parts []*model.Part) []*model.Block {
 	return blocks
 }
 
+// DataParts returns all Data parts from a part list.
+func DataParts(parts []*model.Part) []*model.Part {
+	var result []*model.Part
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
 // TestdataDir returns the path to the versioned okapi-testdata directory at
 // the repo root (e.g. okapi-testdata/1.48.0-v2/). It finds the most recent
 // version subdirectory automatically. Fails the test if no version has been

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-03T22:17:56Z",
+  "generatedAt": "2026-03-04T06:26:52Z",
   "okapiVersion": "",
   "gokapiVersion": "",
   "filters": [
@@ -1172,7 +1172,7 @@
               {
                 "name": "TestBom_DetectBom",
                 "status": "fail",
-                "durationMs": 90
+                "durationMs": 70
               },
               {
                 "name": "TestBom_DetectUnicodeLittleBom",
@@ -2015,7 +2015,7 @@
             "failed": 168,
             "skipped": 0,
             "errors": 0,
-            "durationMs": 90
+            "durationMs": 70
           }
         ],
         "total": 168,
@@ -13409,7 +13409,7 @@
               {
                 "name": "TestExtract_SimpleDocx",
                 "status": "fail",
-                "durationMs": 90
+                "durationMs": 70
               },
               {
                 "name": "TestExtract_DocxLayerStructure",
@@ -13632,7 +13632,7 @@
             "failed": 44,
             "skipped": 0,
             "errors": 0,
-            "durationMs": 90
+            "durationMs": 70
           }
         ],
         "total": 44,
@@ -18355,7 +18355,7 @@
               {
                 "name": "TestExtract_SimplePlainText",
                 "status": "fail",
-                "durationMs": 90
+                "durationMs": 100
               },
               {
                 "name": "TestExtract_MultipleLines",
@@ -18403,7 +18403,7 @@
             "failed": 9,
             "skipped": 20,
             "errors": 0,
-            "durationMs": 90
+            "durationMs": 100
           }
         ],
         "total": 29,
@@ -24801,7 +24801,7 @@
               {
                 "name": "TestRoundTrip_Simple",
                 "status": "fail",
-                "durationMs": 90
+                "durationMs": 80
               },
               {
                 "name": "TestRoundTrip_WithTarget",
@@ -24964,7 +24964,7 @@
             "failed": 32,
             "skipped": 233,
             "errors": 0,
-            "durationMs": 90
+            "durationMs": 80
           }
         ],
         "total": 265,
@@ -27623,7 +27623,7 @@
               {
                 "name": "TestRoundTrip_TestFiles",
                 "status": "fail",
-                "durationMs": 100
+                "durationMs": 90
               },
               {
                 "name": "TestExtract_SimpleXLIFF2",
@@ -27701,7 +27701,7 @@
             "failed": 15,
             "skipped": 26,
             "errors": 0,
-            "durationMs": 100
+            "durationMs": 90
           }
         ],
         "total": 41,
