@@ -60,6 +60,8 @@ type ComparisonData struct {
 	GeneratedAt   string             `json:"generatedAt"`
 	OkapiVersion  string             `json:"okapiVersion"`
 	GokapiVersion string             `json:"gokapiVersion"`
+	GoCommitSHA   string             `json:"goCommitSHA,omitempty"`
+	OkapiTag      string             `json:"okapiTag,omitempty"`
 	Filters       []FilterComparison `json:"filters"`
 	Summary       Summary            `json:"summary"`
 }
@@ -115,10 +117,15 @@ type TestCaseMatch struct {
 	JavaClass    string `json:"javaClass"`
 	JavaMethod   string `json:"javaMethod"`
 	OkapiStatus  string `json:"okapiStatus"`
+	OkapiFile    string `json:"okapiFile,omitempty"`
 	BridgeTest   string `json:"bridgeTest,omitempty"`
 	BridgeStatus string `json:"bridgeStatus"`
+	BridgeFile   string `json:"bridgeFile,omitempty"`
+	BridgeLine   int    `json:"bridgeLine,omitempty"`
 	NativeTest   string `json:"nativeTest,omitempty"`
 	NativeStatus string `json:"nativeStatus"`
+	NativeFile   string `json:"nativeFile,omitempty"`
+	NativeLine   int    `json:"nativeLine,omitempty"`
 	SkipReason   string `json:"skipReason,omitempty"`
 	TestState    string `json:"testState"` // "implemented" | "pending" | "skipped" | "unmapped"
 }
@@ -141,6 +148,8 @@ type annotation struct {
 	JavaMethod string
 	GoTest     string
 	Filter     string // normalized filter name (e.g. "html", "json")
+	File       string // relative file path (e.g. "core/plugin/bridge/filters/okf_html/events_test.go")
+	Line       int    // 1-based line number of the func Test... declaration
 }
 
 // skipAnnotation marks a Java test as not applicable to Go.
@@ -149,10 +158,13 @@ type skipAnnotation struct {
 	JavaMethod string
 	Reason     string
 	Filter     string
+	File       string // relative file path
+	Line       int    // 1-based line number of the // okapi-skip: comment
 }
 
 var annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
 var skipAnnotRe = regexp.MustCompile(`^//\s*okapi-skip:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
+var unmappedAnnotRe = regexp.MustCompile(`^//\s*okapi-unmapped:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
 var funcTestRe = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 
 func main() {
@@ -168,6 +180,8 @@ func main() {
 	outFile := flag.String("out", "", "output JSON file path")
 	okapiVer := flag.String("okapi-version", "", "Okapi version label")
 	gokapiVer := flag.String("gokapi-version", "", "gokapi version label")
+	goCommit := flag.String("go-commit", "", "Go repo commit SHA (for GitHub source links)")
+	okapiTag := flag.String("okapi-tag", "", "Okapi version tag (for GitLab source links, e.g. v1.48.0)")
 	flag.Parse()
 
 	if *okapiDir == "" || *outFile == "" {
@@ -207,9 +221,10 @@ func main() {
 	data := merge(okapi, bridgeResults.filters, nativeResults.filters,
 		bridgeAR.annotations, nativeAR.annotations,
 		bridgeAR.skips, nativeAR.skips,
+		bridgeAR.unmapped, nativeAR.unmapped,
 		bridgeTestStatus, nativeTestStatus,
 		bridgeResults.skipMsgs, nativeResults.skipMsgs,
-		*okapiVer, *gokapiVer)
+		*okapiVer, *gokapiVer, *goCommit, *okapiTag)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
@@ -447,10 +462,11 @@ func lastSegment(s string) string {
 	return s
 }
 
-// annotationResult holds both regular and skip annotations from source scanning.
+// annotationResult holds regular, skip, and unmapped annotations from source scanning.
 type annotationResult struct {
 	annotations []annotation
 	skips       []skipAnnotation
+	unmapped    []skipAnnotation // okapi-unmapped: annotations (same shape as skips)
 }
 
 // parseAnnotations scans Go source files for // okapi: and // okapi-skip: annotations.
@@ -476,14 +492,16 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 		ar := parseFileAnnotations(path, kind)
 		result.annotations = append(result.annotations, ar.annotations...)
 		result.skips = append(result.skips, ar.skips...)
+		result.unmapped = append(result.unmapped, ar.unmapped...)
 	}
 
 	fmt.Printf("parsed %d %s annotations + %d skips from %d files\n",
-		len(result.annotations), kind, len(result.skips), len(matches))
+		len(result.annotations), kind, len(result.skips)+len(result.unmapped), len(matches))
 	return result
 }
 
-// parseFileAnnotations parses a single Go test file for // okapi: and // okapi-skip: annotations.
+// parseFileAnnotations parses a single Go test file for // okapi:, // okapi-skip:,
+// and // okapi-unmapped: annotations. Tracks file paths and line numbers.
 func parseFileAnnotations(path, kind string) annotationResult {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -500,7 +518,8 @@ func parseFileAnnotations(path, kind string) annotationResult {
 	var result annotationResult
 	var pending []struct{ class, method string }
 
-	for _, line := range lines {
+	for lineNo, line := range lines {
+		lineNum := lineNo + 1 // 1-based
 		trimmed := strings.TrimSpace(line)
 
 		// Check for // okapi-skip: annotation
@@ -510,6 +529,21 @@ func parseFileAnnotations(path, kind string) annotationResult {
 				JavaMethod: m[2],
 				Reason:     strings.TrimSpace(m[3]),
 				Filter:     filter,
+				File:       path,
+				Line:       lineNum,
+			})
+			continue
+		}
+
+		// Check for // okapi-unmapped: annotation
+		if m := unmappedAnnotRe.FindStringSubmatch(trimmed); m != nil {
+			result.unmapped = append(result.unmapped, skipAnnotation{
+				JavaClass:  m[1],
+				JavaMethod: m[2],
+				Reason:     strings.TrimSpace(m[3]),
+				Filter:     filter,
+				File:       path,
+				Line:       lineNum,
 			})
 			continue
 		}
@@ -529,6 +563,8 @@ func parseFileAnnotations(path, kind string) annotationResult {
 					JavaMethod: p.method,
 					GoTest:     goTestName,
 					Filter:     filter,
+					File:       path,
+					Line:       lineNum,
 				})
 			}
 			pending = nil
@@ -578,34 +614,51 @@ func buildTestStatusMap(results map[string]*FilterResult) map[string]string {
 	return out
 }
 
+// annInfo holds the Go test name plus source location for an annotation.
+type annInfo struct {
+	GoTest string
+	File   string
+	Line   int
+}
+
 func merge(
 	okapi, bridge, native map[string]*FilterResult,
 	bridgeAnns, nativeAnns []annotation,
 	bridgeSkips, nativeSkips []skipAnnotation,
+	bridgeUnmapped, nativeUnmapped []skipAnnotation,
 	bridgeTestStatus, nativeTestStatus map[string]string,
 	bridgeSkipMsgs, nativeSkipMsgs map[string]string,
-	okapiVer, gokapiVer string,
+	okapiVer, gokapiVer, goCommit, okapiTagVal string,
 ) *ComparisonData {
-	// Build annotation lookup: filter → javaClass#method → []GoTestName
+	// Build annotation lookup: filter → javaClass#method → []annInfo
 	type annKey struct{ filter, class, method string }
-	bridgeAnnMap := map[annKey][]string{}
+	bridgeAnnMap := map[annKey][]annInfo{}
 	for _, a := range bridgeAnns {
 		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
-		bridgeAnnMap[k] = append(bridgeAnnMap[k], a.GoTest)
+		bridgeAnnMap[k] = append(bridgeAnnMap[k], annInfo{a.GoTest, a.File, a.Line})
 	}
-	nativeAnnMap := map[annKey][]string{}
+	nativeAnnMap := map[annKey][]annInfo{}
 	for _, a := range nativeAnns {
 		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
-		nativeAnnMap[k] = append(nativeAnnMap[k], a.GoTest)
+		nativeAnnMap[k] = append(nativeAnnMap[k], annInfo{a.GoTest, a.File, a.Line})
 	}
 
-	// Build skip annotation lookup: annKey → reason
-	skipMap := map[annKey]string{}
+	// Build skip annotation lookup: annKey → skipAnnotation (reason + source location)
+	skipMap := map[annKey]skipAnnotation{}
 	for _, s := range bridgeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s.Reason
+		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
 	}
 	for _, s := range nativeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s.Reason
+		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
+	}
+
+	// Build unmapped annotation lookup: annKey → skipAnnotation
+	unmappedMap := map[annKey]skipAnnotation{}
+	for _, u := range bridgeUnmapped {
+		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
+	}
+	for _, u := range nativeUnmapped {
+		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
 	}
 
 	// Collect all filter names
@@ -645,29 +698,34 @@ func merge(
 						JavaClass:   className,
 						JavaMethod:  tc.Name,
 						OkapiStatus: tc.Status,
+						OkapiFile:   okapiSourceFile(n, tc.ClassName),
 					}
 
 					// Check for skip annotation
 					k := annKey{n, className, tc.Name}
-					if reason, ok := skipMap[k]; ok {
+					if sa, ok := skipMap[k]; ok {
 						tcm.TestState = "skipped"
-						tcm.SkipReason = reason
+						tcm.SkipReason = sa.Reason
 						testCases = append(testCases, tcm)
 						continue
 					}
 
 					// Look up bridge annotation
-					if goTests := bridgeAnnMap[k]; len(goTests) > 0 {
-						tcm.BridgeTest = goTests[0]
-						if st, ok := bridgeTestStatus[n+"/"+goTests[0]]; ok {
+					if infos := bridgeAnnMap[k]; len(infos) > 0 {
+						tcm.BridgeTest = infos[0].GoTest
+						tcm.BridgeFile = infos[0].File
+						tcm.BridgeLine = infos[0].Line
+						if st, ok := bridgeTestStatus[n+"/"+infos[0].GoTest]; ok {
 							tcm.BridgeStatus = st
 						}
 					}
 
 					// Look up native annotation
-					if goTests := nativeAnnMap[k]; len(goTests) > 0 {
-						tcm.NativeTest = goTests[0]
-						if st, ok := nativeTestStatus[n+"/"+goTests[0]]; ok {
+					if infos := nativeAnnMap[k]; len(infos) > 0 {
+						tcm.NativeTest = infos[0].GoTest
+						tcm.NativeFile = infos[0].File
+						tcm.NativeLine = infos[0].Line
+						if st, ok := nativeTestStatus[n+"/"+infos[0].GoTest]; ok {
 							tcm.NativeStatus = st
 						}
 					}
@@ -676,6 +734,13 @@ func merge(
 					tcm.TestState = determineTestState(tcm, n,
 						bridgeTestStatus, nativeTestStatus,
 						bridgeSkipMsgs, nativeSkipMsgs)
+
+					// For unmapped tests, check for okapi-unmapped: annotation
+					if tcm.TestState == "unmapped" {
+						if ua, ok := unmappedMap[k]; ok {
+							tcm.SkipReason = ua.Reason
+						}
+					}
 
 					testCases = append(testCases, tcm)
 				}
@@ -738,6 +803,8 @@ func merge(
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
 		OkapiVersion:  okapiVer,
 		GokapiVersion: gokapiVer,
+		GoCommitSHA:   goCommit,
+		OkapiTag:      okapiTagVal,
 		Filters:       filters,
 		Summary:       sum,
 	}
@@ -821,4 +888,17 @@ func shortClassName(fqn string) string {
 		return fqn[i+1:]
 	}
 	return fqn
+}
+
+// okapiSourceFile derives the Java source file path from the surefire filter name
+// and fully-qualified class name.
+// e.g. ("html", "net.sf.okapi.filters.html.HtmlEventTest") →
+//
+//	"okapi/filters/html/src/test/java/net/sf/okapi/filters/html/HtmlEventTest.java"
+func okapiSourceFile(filter, fqClassName string) string {
+	if fqClassName == "" {
+		return ""
+	}
+	classPath := strings.ReplaceAll(fqClassName, ".", "/")
+	return "okapi/filters/" + filter + "/src/test/java/" + classPath + ".java"
 }

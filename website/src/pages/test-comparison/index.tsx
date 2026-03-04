@@ -103,7 +103,12 @@ export default function TestComparison() {
         <div className={styles.filterList}>
           <FilterColumnHeadings />
           {filtered.map((fc: FilterComparison) => (
-            <FilterCard key={fc.filterName} filter={fc} />
+            <FilterCard
+              key={fc.filterName}
+              filter={fc}
+              goCommitSHA={data.goCommitSHA}
+              okapiTag={data.okapiTag}
+            />
           ))}
           {filtered.length === 0 && <p>No filters match your search.</p>}
         </div>

@@ -5,6 +5,8 @@ import styles from './_index.module.css';
 interface Props {
   testCases: TestCaseRow[];
   filterName: string;
+  goCommitSHA?: string;
+  okapiTag?: string;
 }
 
 type FilterMode =
@@ -62,20 +64,43 @@ function statusOrder(s: string): number {
   }
 }
 
-/** Construct a GitHub source link for a bridge test. */
-function bridgeSrcPath(filterName: string): string {
-  return `core/plugin/bridge/filters/okf_${filterName}/`;
+/** Build a GitHub source URL for a Go test file+line. */
+function goSourceUrl(
+  file: string | undefined,
+  line: number | undefined,
+  commitSHA: string | undefined,
+  filterName: string,
+  kind: 'bridge' | 'native',
+): string {
+  const ref = commitSHA || 'main';
+  if (file) {
+    const base = `https://github.com/gokapi/gokapi/blob/${ref}/${file}`;
+    return line ? `${base}#L${line}` : base;
+  }
+  // Fallback to directory
+  const dir =
+    kind === 'bridge'
+      ? `core/plugin/bridge/filters/okf_${filterName}/`
+      : `core/formats/${filterName}/`;
+  return `https://github.com/gokapi/gokapi/tree/${ref}/${dir}`;
 }
 
-/** Construct a path for a native format test. */
-function nativeSrcPath(filterName: string): string {
-  return `core/formats/${filterName}/`;
+/** Build a GitLab source URL for an Okapi Java test file. */
+function okapiSourceUrl(
+  okapiFile: string | undefined,
+  okapiTag: string | undefined,
+): string | null {
+  if (!okapiFile) return null;
+  const ref = okapiTag || 'master';
+  return `https://gitlab.com/okapiframework/Okapi/-/blob/${ref}/${okapiFile}?ref_type=tags`;
 }
 
-/** GitHub repo base for source links. */
-const REPO_BASE = 'https://github.com/gokapi/gokapi/tree/main/';
-
-export default function TestCaseTable({testCases, filterName}: Props) {
+export default function TestCaseTable({
+  testCases,
+  filterName,
+  goCommitSHA,
+  okapiTag,
+}: Props) {
   const [filter, setFilter] = useState<FilterMode>('all');
   const [sort, setSort] = useState<SortMode>('name');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
@@ -244,7 +269,7 @@ export default function TestCaseTable({testCases, filterName}: Props) {
                 <tr
                   key={rowKey}
                   className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''} ${stateRowClass(tc.testState)}`}
-                  title={tc.skipReason ? `Skipped: ${tc.skipReason}` : undefined}
+                  title={tc.skipReason ? `${tc.testState === 'skipped' ? 'Skipped' : 'Unmapped'}: ${tc.skipReason}` : undefined}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleRow(rowKey);
@@ -282,69 +307,83 @@ export default function TestCaseTable({testCases, filterName}: Props) {
                         {tc.okapiStatus && tc.javaClass && (
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Okapi:</span>
-                            <code>
-                              {tc.javaClass}#{tc.testName}
-                            </code>
+                            {(() => {
+                              const url = okapiSourceUrl(tc.okapiFile, okapiTag);
+                              return url ? (
+                                <a
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}>
+                                  <code>
+                                    {tc.javaClass}#{tc.testName}
+                                  </code>
+                                </a>
+                              ) : (
+                                <code>
+                                  {tc.javaClass}#{tc.testName}
+                                </code>
+                              );
+                            })()}
+                            {tc.okapiFile && (
+                              <span className={styles.detailPath}>
+                                {tc.okapiFile}
+                              </span>
+                            )}
                           </div>
                         )}
-                        {tc.bridgeTest && (
+                        {(tc.bridgeTest || tc.bridgeStatus) && (
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Bridge:</span>
                             <a
-                              href={`${REPO_BASE}${bridgeSrcPath(filterName)}`}
+                              href={goSourceUrl(
+                                tc.bridgeFile,
+                                tc.bridgeLine,
+                                goCommitSHA,
+                                filterName,
+                                'bridge',
+                              )}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}>
-                              <code>{tc.bridgeTest}</code>
+                              <code>{tc.bridgeTest || tc.testName}</code>
                             </a>
-                            <span className={styles.detailPath}>
-                              {bridgeSrcPath(filterName)}
-                            </span>
+                            {tc.bridgeFile && (
+                              <span className={styles.detailPath}>
+                                {tc.bridgeFile}
+                                {tc.bridgeLine ? `:${tc.bridgeLine}` : ''}
+                              </span>
+                            )}
                           </div>
                         )}
-                        {tc.bridgeStatus && !tc.bridgeTest && (
-                          <div className={styles.detailItem}>
-                            <span className={styles.detailLabel}>Bridge:</span>
-                            <a
-                              href={`${REPO_BASE}${bridgeSrcPath(filterName)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}>
-                              <code>{tc.testName}</code>
-                            </a>
-                            <span className={styles.detailPath}>
-                              {bridgeSrcPath(filterName)}
-                            </span>
-                          </div>
-                        )}
-                        {tc.nativeTest && (
+                        {(tc.nativeTest || tc.nativeStatus) && (
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Native:</span>
                             <a
-                              href={`${REPO_BASE}${nativeSrcPath(filterName)}`}
+                              href={goSourceUrl(
+                                tc.nativeFile,
+                                tc.nativeLine,
+                                goCommitSHA,
+                                filterName,
+                                'native',
+                              )}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}>
-                              <code>{tc.nativeTest}</code>
+                              <code>{tc.nativeTest || tc.testName}</code>
                             </a>
-                            <span className={styles.detailPath}>
-                              {nativeSrcPath(filterName)}
-                            </span>
+                            {tc.nativeFile && (
+                              <span className={styles.detailPath}>
+                                {tc.nativeFile}
+                                {tc.nativeLine ? `:${tc.nativeLine}` : ''}
+                              </span>
+                            )}
                           </div>
                         )}
-                        {tc.nativeStatus && !tc.nativeTest && (
+                        {tc.skipReason && (
                           <div className={styles.detailItem}>
-                            <span className={styles.detailLabel}>Native:</span>
-                            <a
-                              href={`${REPO_BASE}${nativeSrcPath(filterName)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}>
-                              <code>{tc.testName}</code>
-                            </a>
-                            <span className={styles.detailPath}>
-                              {nativeSrcPath(filterName)}
-                            </span>
+                            <span className={styles.detailLabel}>Reason:</span>
+                            <span>{tc.skipReason}</span>
                           </div>
                         )}
                         {!tc.okapiStatus &&
