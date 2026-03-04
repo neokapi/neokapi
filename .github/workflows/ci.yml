@@ -141,7 +141,6 @@ jobs:
           name: test-results-native
           path: test-results-framework.json
           retention-days: 1
-          retention-days: 1
 
   test-platform:
     name: Test (platform)
