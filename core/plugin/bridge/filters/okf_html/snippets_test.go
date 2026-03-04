@@ -746,12 +746,21 @@ func TestSnippets_ComplexTable(t *testing.T) {
 // okapi: HtmlSnippetsTest#testTextDirectionClarification
 func TestSnippets_TextDirectionClarification(t *testing.T) {
 	tests := []struct {
-		name    string
-		snippet string
+		name     string
+		snippet  string
+		tgtLang  model.LocaleID
+		expected string
 	}{
 		{
 			name: "rtl_with_dir_rtl",
 			snippet: "<!DOCTYPE html>\n" +
+				"<html dir=\"rtl\">\n" +
+				"<body>\n" +
+				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"</body>\n" +
+				"</html>\n",
+			tgtLang: "ar",
+			expected: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
 				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
@@ -766,11 +775,25 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
 				"</body>\n" +
 				"</html>\n",
+			tgtLang: "ar",
+			expected: "<!DOCTYPE html>\n" +
+				"<html dir=\"rtl\">\n" +
+				"<body>\n" +
+				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"</body>\n" +
+				"</html>\n",
 		},
 		{
 			name: "rtl_no_dir",
 			snippet: "<!DOCTYPE html>\n" +
 				"<html>\n" +
+				"<body>\n" +
+				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"</body>\n" +
+				"</html>\n",
+			tgtLang: "ar",
+			expected: "<!DOCTYPE html>\n" +
+				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
 				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
 				"</body>\n" +
@@ -784,6 +807,13 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 				"<p>Some text.</p>\n" +
 				"</body>\n" +
 				"</html>\n",
+			tgtLang: "en",
+			expected: "<!DOCTYPE html>\n" +
+				"<html>\n" +
+				"<body>\n" +
+				"<p>Some text.</p>\n" +
+				"</body>\n" +
+				"</html>\n",
 		},
 		{
 			name: "ltr_with_dir_ltr",
@@ -793,10 +823,24 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 				"<p>Some text.</p>\n" +
 				"</body>\n" +
 				"</html>\n",
+			tgtLang: "en",
+			expected: "<!DOCTYPE html>\n" +
+				"<html>\n" +
+				"<body>\n" +
+				"<p>Some text.</p>\n" +
+				"</body>\n" +
+				"</html>\n",
 		},
 		{
 			name: "ltr_no_dir",
 			snippet: "<!DOCTYPE html>\n" +
+				"<html>\n" +
+				"<body>\n" +
+				"<p>Some text.</p>\n" +
+				"</body>\n" +
+				"</html>\n",
+			tgtLang: "en",
+			expected: "<!DOCTYPE html>\n" +
 				"<html>\n" +
 				"<body>\n" +
 				"<p>Some text.</p>\n" +
@@ -811,13 +855,23 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
 				"</body>\n" +
 				"</html>\n",
+			tgtLang: "ar",
+			expected: "<!DOCTYPE html>\n" +
+				"<html dir=\"rtl\" translate=\"no\">\n" +
+				"<body>\n" +
+				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"</body>\n" +
+				"</html>\n",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parts := readHTMLDefault(t, tc.snippet)
-			assert.NotEmpty(t, parts, "should produce parts")
+			pool, cfg := bridgetest.SharedBridge(t)
+			result := bridgetest.RoundTripWithLocales(t, pool, cfg, filterClass,
+				[]byte(tc.snippet), "test.html", mimeType, nil,
+				"en", tc.tgtLang)
+			assert.Equal(t, tc.expected, string(result.Output))
 		})
 	}
 }
