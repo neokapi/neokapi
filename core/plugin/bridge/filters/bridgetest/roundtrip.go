@@ -208,7 +208,7 @@ func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bridge
 	require.NoError(t, err, "globbing test files")
 
 	if len(files) == 0 {
-		t.Skipf("no test files matching %s", globPattern)
+		t.Fatalf("no test files matching %s (check glob pattern and testdata directory)", globPattern)
 	}
 
 	for _, f := range files {
