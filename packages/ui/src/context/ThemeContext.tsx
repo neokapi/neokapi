@@ -82,6 +82,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isDark = theme === "dark";
       }
       document.documentElement.classList.toggle("dark", isDark);
+      // Tell native browser controls (date pickers, scrollbars, etc.) to use the right scheme.
+      document.documentElement.style.colorScheme = isDark ? "dark" : "light";
       // Activate shadcn-glass-ui semantic tokens (--semantic-*, --orb-*, --bg-*, --sidebar-*).
       document.documentElement.setAttribute("data-theme", isDark ? "aurora" : "light");
     };
