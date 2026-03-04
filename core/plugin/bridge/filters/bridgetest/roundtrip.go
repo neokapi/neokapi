@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -355,7 +356,11 @@ func compareLayers(t *testing.T, prefix string, ep, ap *model.Part) {
 	// Layer ID and Name are derived from the temp file URI on the Java side,
 	// so they differ between reads. Compare stable fields only.
 	assert.Equal(t, el.MimeType, al.MimeType, "%s: layer mime type", prefix)
-	assert.Equal(t, el.Encoding, al.Encoding, "%s: layer encoding", prefix)
+	// Encoding names are case-insensitive per IANA charset registry (e.g.,
+	// "utf-8" and "UTF-8" are equivalent). The Java bridge may normalize
+	// the encoding to uppercase on re-read, so use case-insensitive comparison.
+	assert.True(t, strings.EqualFold(el.Encoding, al.Encoding),
+		"%s: layer encoding (case-insensitive): expected %q, got %q", prefix, el.Encoding, al.Encoding)
 	assert.Equal(t, el.Locale, al.Locale, "%s: layer locale", prefix)
 }
 
