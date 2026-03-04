@@ -75,6 +75,8 @@ type Summary struct {
 	TotalTestsBridge   int     `json:"totalTestsBridge"`
 	TotalTestsNative   int     `json:"totalTestsNative"`
 	CoveragePct        float64 `json:"coveragePct"`
+	TotalFuncsBridge   int     `json:"totalFuncsBridge,omitempty"`
+	TotalFuncsNative   int     `json:"totalFuncsNative,omitempty"`
 }
 
 type FilterComparison struct {
@@ -93,6 +95,7 @@ type FilterResult struct {
 	Failed  int     `json:"failed"`
 	Skipped int     `json:"skipped"`
 	Errors  int     `json:"errors"`
+	Funcs   int     `json:"funcs,omitempty"`
 }
 
 type Suite struct {
@@ -104,6 +107,7 @@ type Suite struct {
 	Skipped    int     `json:"skipped"`
 	Errors     int     `json:"errors"`
 	DurationMs float64 `json:"durationMs"`
+	Funcs      int     `json:"funcs,omitempty"`
 }
 
 type Test struct {
@@ -127,7 +131,9 @@ type TestCaseMatch struct {
 	NativeFile   string `json:"nativeFile,omitempty"`
 	NativeLine   int    `json:"nativeLine,omitempty"`
 	SkipReason   string `json:"skipReason,omitempty"`
-	TestState    string `json:"testState"` // "implemented" | "pending" | "skipped" | "unmapped"
+	TestState      string `json:"testState"`                  // "implemented" | "pending" | "skipped" | "unmapped"
+	BridgeSubtests int    `json:"bridgeSubtests,omitempty"`
+	NativeSubtests int    `json:"nativeSubtests,omitempty"`
 }
 
 type CoverageStats struct {
@@ -224,6 +230,7 @@ func main() {
 		bridgeAR.unmapped, nativeAR.unmapped,
 		bridgeTestStatus, nativeTestStatus,
 		bridgeResults.skipMsgs, nativeResults.skipMsgs,
+		bridgeResults.subtestCounts, nativeResults.subtestCounts,
 		*okapiVer, *gokapiVer, *goCommit, *okapiTag)
 
 	b, err := json.MarshalIndent(data, "", "  ")
@@ -325,8 +332,9 @@ func parseSurefire(dir string) map[string]*FilterResult {
 
 // goTestResults holds parsed Go test results along with skip message data.
 type goTestResults struct {
-	filters  map[string]*FilterResult
-	skipMsgs map[string]string // "pkg/TestName" → skip output message
+	filters       map[string]*FilterResult
+	skipMsgs      map[string]string          // "pkg/TestName" → skip output message
+	subtestCounts map[string]map[string]int  // filter → funcName → subtest count
 }
 
 // parseGoTestResults parses Go test JSON output using a filter extraction function.
@@ -432,7 +440,29 @@ func parseGoTestResults(path string, filterFn func(string) string) goTestResults
 		fr.Errors += s.Errors
 	}
 
-	return goTestResults{filters: out, skipMsgs: skipMsgs}
+	// Post-process: compute Funcs (top-level test function count) and subtestCounts
+	stCounts := map[string]map[string]int{}
+	for filter, fr := range out {
+		stCounts[filter] = map[string]int{}
+		filterFuncs := map[string]struct{}{}
+		for i := range fr.Suites {
+			s := &fr.Suites[i]
+			suiteFuncs := map[string]struct{}{}
+			for _, t := range s.Tests {
+				if !strings.Contains(t.Name, "/") {
+					suiteFuncs[t.Name] = struct{}{}
+					filterFuncs[t.Name] = struct{}{}
+				} else {
+					parent := t.Name[:strings.Index(t.Name, "/")]
+					stCounts[filter][parent]++
+				}
+			}
+			s.Funcs = len(suiteFuncs)
+		}
+		fr.Funcs = len(filterFuncs)
+	}
+
+	return goTestResults{filters: out, skipMsgs: skipMsgs, subtestCounts: stCounts}
 }
 
 // bridgeFilterFromPkg extracts the filter name from a bridge test package path.
@@ -628,6 +658,7 @@ func merge(
 	bridgeUnmapped, nativeUnmapped []skipAnnotation,
 	bridgeTestStatus, nativeTestStatus map[string]string,
 	bridgeSkipMsgs, nativeSkipMsgs map[string]string,
+	bridgeSubtestCounts, nativeSubtestCounts map[string]map[string]int,
 	okapiVer, gokapiVer, goCommit, okapiTagVal string,
 ) *ComparisonData {
 	// Build annotation lookup: filter → javaClass#method → []annInfo
@@ -738,6 +769,9 @@ func merge(
 						if st, ok := bridgeTestStatus[n+"/"+infos[0].GoTest]; ok {
 							tcm.BridgeStatus = st
 						}
+						if fc := bridgeSubtestCounts[n]; fc != nil {
+							tcm.BridgeSubtests = fc[infos[0].GoTest]
+						}
 					}
 
 					// Look up native annotation (try exact key, then base key)
@@ -751,6 +785,9 @@ func merge(
 						tcm.NativeLine = infos[0].Line
 						if st, ok := nativeTestStatus[n+"/"+infos[0].GoTest]; ok {
 							tcm.NativeStatus = st
+						}
+						if fc := nativeSubtestCounts[n]; fc != nil {
+							tcm.NativeSubtests = fc[infos[0].GoTest]
 						}
 					}
 
@@ -800,10 +837,12 @@ func merge(
 		if fc.Bridge != nil {
 			sum.TotalFiltersBridge++
 			sum.TotalTestsBridge += fc.Bridge.Total
+			sum.TotalFuncsBridge += fc.Bridge.Funcs
 		}
 		if fc.Native != nil {
 			sum.TotalFiltersNative++
 			sum.TotalTestsNative += fc.Native.Total
+			sum.TotalFuncsNative += fc.Native.Funcs
 		}
 		if fc.Okapi != nil && (fc.Bridge != nil || fc.Native != nil) {
 			sum.TotalFiltersBoth++
