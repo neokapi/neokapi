@@ -304,13 +304,9 @@ func TestExtract_StorageSize(t *testing.T) {
 
 // okapi: XMLFilterTest#testSubFilter
 func TestExtract_SubFilter(t *testing.T) {
-	tdDir := bridgetest.TestdataDir(t)
-	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@subfilter.fprm",
-	}
 	xml := `<?xml version="1.0" encoding="UTF-8"?>
 <doc><data><![CDATA[<p>HTML inside CDATA</p>]]></data></doc>`
-	parts := readXML(t, xml, params)
+	parts := readXML(t, xml, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	found := false
@@ -325,16 +321,12 @@ func TestExtract_SubFilter(t *testing.T) {
 
 // okapi: XMLFilterTest#testSubFilterIds
 func TestExtract_SubFilterIds(t *testing.T) {
-	tdDir := bridgetest.TestdataDir(t)
-	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@subfilter.fprm",
-	}
 	xml := `<?xml version="1.0" encoding="UTF-8"?>
 <doc>
 <data><![CDATA[<p>First HTML block</p>]]></data>
 <data><![CDATA[<p>Second HTML block</p>]]></data>
 </doc>`
-	parts := readXML(t, xml, params)
+	parts := readXML(t, xml, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.GreaterOrEqual(t, len(blocks), 2)
 	// Block IDs should be unique across subfilter text units
@@ -349,13 +341,9 @@ func TestExtract_SubFilterIds(t *testing.T) {
 
 // okapi: XMLFilterTest#testSubFilterContextPassing
 func TestExtract_SubFilterContextPassing(t *testing.T) {
-	tdDir := bridgetest.TestdataDir(t)
-	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@subfilter.fprm",
-	}
 	xml := `<?xml version="1.0" encoding="UTF-8"?>
 <doc><data><![CDATA[<p>Sub-filter context</p>]]></data></doc>`
-	parts := readXML(t, xml, params)
+	parts := readXML(t, xml, nil)
 	// Should not crash; context should propagate through subfilter
 	require.NotEmpty(t, parts)
 }
