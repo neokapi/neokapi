@@ -756,14 +756,14 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 			snippet: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 			tgtLang: "ar",
 			expected: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 		},
@@ -772,14 +772,14 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 			snippet: "<!DOCTYPE html>\n" +
 				"<html dir=\"ltr\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 			tgtLang: "ar",
 			expected: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 		},
@@ -788,14 +788,14 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 			snippet: "<!DOCTYPE html>\n" +
 				"<html>\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 			tgtLang: "ar",
 			expected: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 		},
@@ -852,14 +852,14 @@ func TestSnippets_TextDirectionClarification(t *testing.T) {
 			snippet: "<!DOCTYPE html>\n" +
 				"<html translate=\"no\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 			tgtLang: "ar",
 			expected: "<!DOCTYPE html>\n" +
 				"<html dir=\"rtl\" translate=\"no\">\n" +
 				"<body>\n" +
-				"<p>\u0628\u0639\u0636 \u0627\u0644\u0643\u0644\u0645\u0627\u062a</p>\n" +
+				"<p>بعض الكلمات</p>\n" +
 				"</body>\n" +
 				"</html>\n",
 		},
