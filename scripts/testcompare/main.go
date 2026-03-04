@@ -701,17 +701,37 @@ func merge(
 						OkapiFile:   okapiSourceFile(n, tc.ClassName),
 					}
 
-					// Check for skip annotation
+					// Build annotation lookup key. For parameterized JUnit tests
+					// (e.g. "testFoo[0: ...]"), also try the base method name
+					// since // okapi: annotations use the unparameterized name.
 					k := annKey{n, className, tc.Name}
+					baseK := k
+					if idx := strings.IndexByte(tc.Name, '['); idx >= 0 {
+						baseK = annKey{n, className, tc.Name[:idx]}
+					}
+
+					// Check for skip annotation (try exact key, then base key for parameterized tests)
 					if sa, ok := skipMap[k]; ok {
 						tcm.TestState = "skipped"
 						tcm.SkipReason = sa.Reason
 						testCases = append(testCases, tcm)
 						continue
 					}
+					if baseK != k {
+						if sa, ok := skipMap[baseK]; ok {
+							tcm.TestState = "skipped"
+							tcm.SkipReason = sa.Reason
+							testCases = append(testCases, tcm)
+							continue
+						}
+					}
 
-					// Look up bridge annotation
-					if infos := bridgeAnnMap[k]; len(infos) > 0 {
+					// Look up bridge annotation (try exact key, then base key)
+					bKey := k
+					if len(bridgeAnnMap[k]) == 0 && baseK != k {
+						bKey = baseK
+					}
+					if infos := bridgeAnnMap[bKey]; len(infos) > 0 {
 						tcm.BridgeTest = infos[0].GoTest
 						tcm.BridgeFile = infos[0].File
 						tcm.BridgeLine = infos[0].Line
@@ -720,8 +740,12 @@ func merge(
 						}
 					}
 
-					// Look up native annotation
-					if infos := nativeAnnMap[k]; len(infos) > 0 {
+					// Look up native annotation (try exact key, then base key)
+					nKey := k
+					if len(nativeAnnMap[k]) == 0 && baseK != k {
+						nKey = baseK
+					}
+					if infos := nativeAnnMap[nKey]; len(infos) > 0 {
 						tcm.NativeTest = infos[0].GoTest
 						tcm.NativeFile = infos[0].File
 						tcm.NativeLine = infos[0].Line
@@ -737,7 +761,13 @@ func merge(
 
 					// For unmapped tests, check for okapi-unmapped: annotation
 					if tcm.TestState == "unmapped" {
-						if ua, ok := unmappedMap[k]; ok {
+						unmK := k
+						if baseK != k {
+							if _, ok := unmappedMap[k]; !ok {
+								unmK = baseK
+							}
+						}
+						if ua, ok := unmappedMap[unmK]; ok {
 							tcm.SkipReason = ua.Reason
 						}
 					}
