@@ -286,9 +286,10 @@ func compareLayers(t *testing.T, prefix string, ep, ap *model.Part) {
 		return
 	}
 	// Layer ID and Name are derived from the temp file URI on the Java side,
-	// so they differ between reads. Encoding may also change (the write phase
-	// normalizes to UTF-8). Compare only the stable mime type field.
+	// so they differ between reads. Compare stable fields only.
 	assert.Equal(t, el.MimeType, al.MimeType, "%s: layer mime type", prefix)
+	assert.Equal(t, el.Encoding, al.Encoding, "%s: layer encoding", prefix)
+	assert.Equal(t, el.Locale, al.Locale, "%s: layer locale", prefix)
 }
 
 func compareData(t *testing.T, prefix string, ep, ap *model.Part) {
