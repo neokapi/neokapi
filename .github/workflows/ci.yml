@@ -133,6 +133,14 @@ jobs:
         with:
           name: coverage-framework
           path: framework.out
+
+      - name: Upload native test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-native
+          path: test-results-framework.json
+          retention-days: 1
           retention-days: 1
 
   test-platform:
@@ -616,3 +624,67 @@ jobs:
             echo "Tests failed"
             exit 1
           fi
+
+      - name: Upload bridge test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-bridge
+          path: test-results-bridge.json
+          retention-days: 1
+
+  # ── Update test comparison dashboard ────────────────────────────────────
+  test-comparison:
+    name: Test Comparison
+    runs-on: ubuntu-latest
+    needs: [test-framework, test-bridge-filters]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.0"
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+
+      - name: Fetch Okapi Surefire data
+        run: bash scripts/fetch-okapi-surefire.sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Generate test comparison
+        run: |
+          mkdir -p website/static/data
+          go run ./scripts/testcompare \
+            -okapi-dir okapi-surefire/1.48.0-v1 \
+            -gotest-bridge-json test-results-bridge.json \
+            -gotest-native-json test-results-framework.json \
+            -bridge-src core/plugin/bridge/filters \
+            -native-src core/formats \
+            -out website/static/data/test-comparison.json
+
+      - name: Upload to docs-assets release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Upload test-comparison.json to the docs-assets release
+          # (delete old asset first if it exists)
+          gh release upload docs-assets \
+            website/static/data/test-comparison.json \
+            --clobber 2>/dev/null || \
+          gh release create docs-assets \
+            website/static/data/test-comparison.json \
+            --title "Documentation Assets" \
+            --notes "Auto-generated documentation assets (screenshots, recordings, test data)"
+
+      - name: Trigger docs deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docs.yml
