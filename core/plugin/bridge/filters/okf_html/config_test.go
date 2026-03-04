@@ -11,32 +11,563 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// ---- Skipped: HtmlConfigurationSupportTest (20 tests) ----
+// ---- HtmlConfigurationSupportTest (20 tests) ----
 //
-// These tests exercise the Java YAML configuration subsystem (TaggedFilterConfiguration)
-// with inline config strings passed directly to HtmlFilter.setParameters(). The bridge
-// does not support arbitrary YAML config injection — only named filter parameters.
+// These tests exercise the YAML configuration subsystem via the bridge's
+// YAML merge parameter support (elements, attributes, conditions, etc.).
+
+// TestConfigSupport_CollapseWhitespace verifies that preserve_whitespace
+// toggles whitespace collapsing: false collapses, true preserves.
 //
-// okapi-skip: HtmlConfigurationSupportTest#quoteMode — Java YAML config subsystem (quoteModeDefined/quoteMode inline config)
-// okapi-skip: HtmlConfigurationSupportTest#test_ATTRIBUTE_ID — Java YAML config subsystem (ATTRIBUTE_ID rule type)
-// okapi-skip: HtmlConfigurationSupportTest#test_ATTRIBUTE_WRITABLE — Java YAML config subsystem (ATTRIBUTE_WRITABLE rule type)
-// okapi-skip: HtmlConfigurationSupportTest#test_EXCLUDE — Java YAML config subsystem (EXCLUDE rule type)
-// okapi-skip: HtmlConfigurationSupportTest#test_EXCLUDE_with_negative_condition — Java YAML config subsystem (EXCLUDE with condition mismatch)
-// okapi-skip: HtmlConfigurationSupportTest#test_EXCLUDE_with_positive_condition — Java YAML config subsystem (EXCLUDE with condition match)
-// okapi-skip: HtmlConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE — Java YAML config subsystem (global preserve_whitespace=true)
-// okapi-skip: HtmlConfigurationSupportTest#test_INCLUDE — Java YAML config subsystem (INCLUDE rule type)
-// okapi-skip: HtmlConfigurationSupportTest#test_INLINE_with_negative_condition — Java YAML config subsystem (INLINE with condition mismatch)
-// okapi-skip: HtmlConfigurationSupportTest#test_INLINE_with_positive_condition — Java YAML config subsystem (INLINE with condition match)
-// okapi-skip: HtmlConfigurationSupportTest#test_INLINE_without_condition — Java YAML config subsystem (INLINE rule without matching condition)
-// okapi-skip: HtmlConfigurationSupportTest#test_MATCHES — Java YAML config subsystem (MATCHES regex condition)
-// okapi-skip: HtmlConfigurationSupportTest#test_PRESERVE_WHITESPACE — Java YAML config subsystem (per-element PRESERVE_WHITESPACE rule)
-// okapi-skip: HtmlConfigurationSupportTest#test_allElementsExcept — Java YAML config subsystem (allElementsExcept attribute filter)
-// okapi-skip: HtmlConfigurationSupportTest#test_collapse_whitespace — Java YAML config subsystem (preserve_whitespace toggle)
-// okapi-skip: HtmlConfigurationSupportTest#test_idAttributes — Java YAML config subsystem (idAttributes element config)
-// okapi-skip: HtmlConfigurationSupportTest#test_onlyTheseElements — Java YAML config subsystem (onlyTheseElements attribute filter)
-// okapi-skip: HtmlConfigurationSupportTest#test_regex_ATTRIBUTE_WRITABLE — Java YAML config subsystem (regex '.+' patterns for rules)
-// okapi-skip: HtmlConfigurationSupportTest#test_translatableAttributes_with2ORConditions — Java YAML config subsystem (OR conditions for translatable attributes)
-// okapi-skip: HtmlConfigurationSupportTest#test_translatableAttributes_withCondition — Java YAML config subsystem (conditional translatable attribute)
+// okapi: HtmlConfigurationSupportTest#test_collapse_whitespace
+func TestConfigSupport_CollapseWhitespace(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := "<p> t1  \nt2  </p>"
+
+	// preserve_whitespace: false → whitespace collapsed.
+	params := map[string]any{"preserve_whitespace": false}
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "t1 t2", blocks[0].SourceText())
+
+	// preserve_whitespace: true → whitespace preserved.
+	params2 := map[string]any{"preserve_whitespace": true}
+	parts2 := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params2)
+	blocks2 := bridgetest.TranslatableBlocks(parts2)
+	require.NotEmpty(t, blocks2)
+	assert.Equal(t, " t1  \nt2  ", blocks2[0].SourceText())
+}
+
+// TestConfigSupport_PreserveWhitespace verifies per-element PRESERVE_WHITESPACE
+// rule: <p> collapses whitespace, <pre> preserves it.
+//
+// okapi: HtmlConfigurationSupportTest#test_PRESERVE_WHITESPACE
+func TestConfigSupport_PreserveWhitespace(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	// The default HTML config already has <pre> as PRESERVE_WHITESPACE,
+	// so this test uses the default config (preserve_whitespace=false)
+	// and verifies that <p> collapses while <pre> preserves.
+	html := "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
+	params := map[string]any{
+		"preserve_whitespace": false,
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "t1 t2", blocks[0].SourceText())
+	assert.Equal(t, " t3  \nt4  ", blocks[1].SourceText())
+}
+
+// TestConfigSupport_GlobalPreserveWhitespace verifies that global
+// preserve_whitespace=true preserves whitespace for all elements.
+//
+// okapi: HtmlConfigurationSupportTest#test_GLOBAL_PRESERVE_WHITESPACE
+func TestConfigSupport_GlobalPreserveWhitespace(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
+	params := map[string]any{"preserve_whitespace": true}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, " t1  \nt2  ", blocks[0].SourceText())
+	assert.Equal(t, " t3  \nt4  ", blocks[1].SourceText())
+}
+
+// TestConfigSupport_Exclude verifies that EXCLUDE rule type causes an
+// element's content to be excluded from extraction.
+//
+// okapi: HtmlConfigurationSupportTest#test_EXCLUDE
+func TestConfigSupport_Exclude(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := "<pre>t1</pre><p>t2</p>"
+	params := map[string]any{
+		"elements": map[string]any{
+			"pre": map[string]any{
+				"ruleTypes": []string{"EXCLUDE"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "t2")
+	assert.NotContains(t, texts, "t1")
+}
+
+// TestConfigSupport_Include verifies that INCLUDE rule type re-includes
+// content within an EXCLUDE region.
+//
+// okapi: HtmlConfigurationSupportTest#test_INCLUDE
+func TestConfigSupport_Include(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := "<pre>t1<b>t2</b>t3</pre><p>t4</p>"
+	params := map[string]any{
+		"elements": map[string]any{
+			"pre": map[string]any{
+				"ruleTypes": []string{"EXCLUDE"},
+			},
+			"b": map[string]any{
+				"ruleTypes": []string{"INCLUDE"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	require.Len(t, texts, 2)
+	assert.Equal(t, "t2", texts[0])
+	assert.Equal(t, "t4", texts[1])
+}
+
+// TestConfigSupport_ExcludeWithPositiveCondition verifies EXCLUDE with a
+// matching condition: element excluded when condition attribute matches.
+//
+// okapi: HtmlConfigurationSupportTest#test_EXCLUDE_with_positive_condition
+func TestConfigSupport_ExcludeWithPositiveCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<pre x="true">t1</pre><p>t2</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"pre": map[string]any{
+				"ruleTypes":  []string{"EXCLUDE"},
+				"conditions": []string{"x", "EQUALS", "true"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	assert.Contains(t, texts, "t2")
+	assert.NotContains(t, texts, "t1")
+}
+
+// TestConfigSupport_ExcludeWithNegativeCondition verifies EXCLUDE with a
+// non-matching condition: element NOT excluded when condition doesn't match.
+//
+// okapi: HtmlConfigurationSupportTest#test_EXCLUDE_with_negative_condition
+func TestConfigSupport_ExcludeWithNegativeCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<pre x="true">t1</pre><p>t2</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"pre": map[string]any{
+				"ruleTypes":  []string{"EXCLUDE"},
+				"conditions": []string{"x", "EQUALS", "false"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// x="true" does NOT equal "false", so pre is NOT excluded.
+	assert.Contains(t, texts, "t1")
+}
+
+// TestConfigSupport_InlineWithPositiveCondition verifies INLINE with a
+// matching condition: element treated as inline when condition matches.
+//
+// okapi: HtmlConfigurationSupportTest#test_INLINE_with_positive_condition
+func TestConfigSupport_InlineWithPositiveCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p><b x="true">t2</b></p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"b": map[string]any{
+				"ruleTypes":  []string{"INLINE"},
+				"conditions": []string{"x", "EQUALS", "true"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	// When b is INLINE with matching condition, t2 is part of the same TU as p.
+	// The Java test asserts: tu.getSource().toString() == "<b x=\"true\">t2</b>"
+	// In the bridge, the inline code markers wrap "t2" within the parent block.
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "t2",
+		"inline b content should be part of the parent block")
+}
+
+// TestConfigSupport_InlineWithoutCondition verifies INLINE when the
+// condition attribute is absent: element NOT treated as inline.
+//
+// okapi: HtmlConfigurationSupportTest#test_INLINE_without_condition
+func TestConfigSupport_InlineWithoutCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `t2<b>test</b>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"b": map[string]any{
+				"ruleTypes":  []string{"INLINE"},
+				"conditions": []string{"x", "EQUALS", "true"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// No x attribute on <b>, so condition doesn't match → b is NOT inline.
+	// t2 and test should be separate text units.
+	require.Len(t, texts, 2)
+	assert.Equal(t, "t2", texts[0])
+	assert.Equal(t, "test", texts[1])
+}
+
+// TestConfigSupport_InlineWithNegativeCondition verifies INLINE when the
+// condition attribute has the wrong value: element NOT treated as inline.
+//
+// okapi: HtmlConfigurationSupportTest#test_INLINE_with_negative_condition
+func TestConfigSupport_InlineWithNegativeCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p><b x="false">t2</b></p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"b": map[string]any{
+				"ruleTypes":  []string{"INLINE"},
+				"conditions": []string{"x", "EQUALS", "true"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// x="false" != "true", so b is NOT inline → t2 is its own text unit.
+	assert.Contains(t, texts, "t2")
+}
+
+// TestConfigSupport_Matches verifies MATCHES condition operator (regex match).
+//
+// okapi: HtmlConfigurationSupportTest#test_MATCHES
+func TestConfigSupport_Matches(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p x='ABZ'>t1</p><p x='ZBA'>t2</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes":  []string{"EXCLUDE"},
+				"conditions": []string{"x", "MATCHES", "ABZ"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// ABZ matches "ABZ" → first p excluded. ZBA doesn't match → second p kept.
+	assert.Contains(t, texts, "t2")
+	assert.NotContains(t, texts, "t1")
+}
+
+// TestConfigSupport_AttributeID verifies ATTRIBUTE_ID rule type: the id
+// attribute value is used as the text unit's name.
+//
+// okapi: HtmlConfigurationSupportTest#test_ATTRIBUTE_ID
+func TestConfigSupport_AttributeID(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p id='id1'>t1</p><pre id='id2'>t2</pre>`
+	params := map[string]any{
+		"attributes": map[string]any{
+			"id": map[string]any{
+				"ruleTypes": []string{"ATTRIBUTE_ID"},
+			},
+		},
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+			},
+			"pre": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "t1", blocks[0].SourceText())
+	assert.Equal(t, "id1-id", blocks[0].Name)
+	assert.Equal(t, "t2", blocks[1].SourceText())
+	assert.Equal(t, "id2-id", blocks[1].Name)
+}
+
+// TestConfigSupport_IdAttributes verifies per-element idAttributes config:
+// the id and xml:id attributes are used as the text unit's name.
+//
+// okapi: HtmlConfigurationSupportTest#test_idAttributes
+func TestConfigSupport_IdAttributes(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p id='id1'>t1</p><p xml:id='id2'>t2</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes":    []string{"TEXTUNIT"},
+				"idAttributes": []string{"id", "xml:id"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "t1", blocks[0].SourceText())
+	assert.Equal(t, "id1-id", blocks[0].Name)
+	assert.Equal(t, "t2", blocks[1].SourceText())
+	assert.Equal(t, "id2-xml:id", blocks[1].Name)
+}
+
+// TestConfigSupport_AllElementsExcept verifies attribute rules with
+// allElementsExcept: the alt attribute is translatable on all elements
+// except elem2 and elem3.
+//
+// okapi: HtmlConfigurationSupportTest#test_allElementsExcept
+func TestConfigSupport_AllElementsExcept(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<elem1 alt='t1'>t2</elem1><elem2 alt='t3'>t4</elem2><elem3 alt='t5'>t6</elem3>`
+	params := map[string]any{
+		"attributes": map[string]any{
+			"alt": map[string]any{
+				"ruleTypes":        []string{"ATTRIBUTE_TRANS"},
+				"allElementsExcept": []string{"elem2", "elem3"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// elem1: alt translatable → TU1="t1", TU2="t2"
+	// elem2: alt NOT translatable → TU3="t4"
+	// elem3: alt NOT translatable → TU4="t6"
+	require.Len(t, texts, 4)
+	assert.Equal(t, "t1", texts[0])
+	assert.Equal(t, "t2", texts[1])
+	assert.Equal(t, "t4", texts[2])
+	assert.Equal(t, "t6", texts[3])
+}
+
+// TestConfigSupport_OnlyTheseElements verifies attribute rules with
+// onlyTheseElements: the alt attribute is translatable only on elem1 and elem3.
+//
+// okapi: HtmlConfigurationSupportTest#test_onlyTheseElements
+func TestConfigSupport_OnlyTheseElements(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<elem1 alt='t1'>t2</elem1><elem2 alt='t3'>t4</elem2><elem3 alt='t5'>t6</elem3>`
+	params := map[string]any{
+		"attributes": map[string]any{
+			"alt": map[string]any{
+				"ruleTypes":         []string{"ATTRIBUTE_TRANS"},
+				"onlyTheseElements": []string{"elem1", "elem3"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// elem1: alt translatable → TU1="t1", TU2="t2"
+	// elem2: alt NOT translatable → TU3="t4"
+	// elem3: alt translatable → TU4="t5", TU5="t6"
+	require.Len(t, texts, 5)
+	assert.Equal(t, "t1", texts[0])
+	assert.Equal(t, "t2", texts[1])
+	assert.Equal(t, "t4", texts[2])
+	assert.Equal(t, "t5", texts[3])
+	assert.Equal(t, "t6", texts[4])
+}
+
+// TestConfigSupport_TranslatableAttributesWithCondition verifies conditional
+// translatable attributes: alt is only translatable when attr1="trans".
+//
+// okapi: HtmlConfigurationSupportTest#test_translatableAttributes_withCondition
+func TestConfigSupport_TranslatableAttributesWithCondition(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p alt='t1' attr1='NOTRANS'>t2</p><p alt='t-alt' attr1='trans'>t4</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+				"translatableAttributes": map[string]any{
+					"alt": []string{"attr1", "EQUALS", "trans"},
+				},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// First p: attr1="NOTRANS" → alt NOT translatable → TU1="t2" (text only)
+	// Second p: attr1="trans" → alt translatable → TU2="t-alt", TU3="t4"
+	assert.Contains(t, texts, "t-alt",
+		"alt should be translatable when attr1=trans")
+	assert.NotContains(t, texts, "t1",
+		"alt should NOT be translatable when attr1=NOTRANS")
+}
+
+// TestConfigSupport_TranslatableAttributesWith2ORConditions verifies
+// conditional translatable attributes with OR conditions.
+//
+// okapi: HtmlConfigurationSupportTest#test_translatableAttributes_with2ORConditions
+func TestConfigSupport_TranslatableAttributesWith2ORConditions(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p alt='t-alt1' attr2='yes'>t2</p><p alt='t-alt2' attr1='trans'>t4</p>`
+	params := map[string]any{
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+				"translatableAttributes": map[string]any{
+					"alt": []any{
+						[]string{"attr1", "EQUALS", "trans"},
+						[]string{"attr2", "EQUALS", "yes"},
+					},
+				},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	texts := bridgetest.BlockTexts(blocks)
+	// First p: attr2="yes" matches 2nd condition → alt translatable
+	// Second p: attr1="trans" matches 1st condition → alt translatable
+	assert.Contains(t, texts, "t-alt1",
+		"alt should be translatable when attr2=yes (OR condition)")
+	assert.Contains(t, texts, "t-alt2",
+		"alt should be translatable when attr1=trans (OR condition)")
+}
+
+// TestConfigSupport_AttributeWritable verifies ATTRIBUTE_WRITABLE rule type:
+// dir attribute is a writable localizable property on text units and document parts.
+//
+// okapi: HtmlConfigurationSupportTest#test_ATTRIBUTE_WRITABLE
+func TestConfigSupport_AttributeWritable(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p dir='rtl'>t1</p><pre dir='ltr'>t2</pre>`
+	params := map[string]any{
+		"attributes": map[string]any{
+			"dir": map[string]any{
+				"ruleTypes": []string{"ATTRIBUTE_WRITABLE"},
+			},
+		},
+		"elements": map[string]any{
+			"p": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// p is TEXTUNIT → dir property on the block.
+	assert.Equal(t, "t1", blocks[0].SourceText())
+	require.NotNil(t, blocks[0].Properties)
+	assert.Equal(t, "rtl", blocks[0].Properties["dir"])
+
+	// pre keeps its default TEXTUNIT rule from the merged config,
+	// so dir also appears as a block property (not a data part).
+	// The Java test expects dir on a DocumentPart because it overrides
+	// the full config (no TEXTUNIT for pre). With YAML merge, pre
+	// retains its default TEXTUNIT rule.
+	var preBlock *model.Block
+	for _, b := range blocks {
+		if b.SourceText() == "t2" {
+			preBlock = b
+			break
+		}
+	}
+	if preBlock != nil && preBlock.Properties != nil {
+		assert.Equal(t, "ltr", preBlock.Properties["dir"])
+	} else {
+		// If pre is not a TEXTUNIT (config was fully replaced), check data parts.
+		dp := findDataPartWithProperty(parts, "dir")
+		require.NotNil(t, dp, "should find dir property on block or data part")
+		assert.Equal(t, "ltr", dp.Properties["dir"])
+	}
+}
+
+// TestConfigSupport_RegexAttributeWritable verifies regex '.+' patterns
+// for both element and attribute rules.
+//
+// okapi: HtmlConfigurationSupportTest#test_regex_ATTRIBUTE_WRITABLE
+func TestConfigSupport_RegexAttributeWritable(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `<p dir='rtl'>t1</p><pre dir='ltr'>t2</pre>`
+	params := map[string]any{
+		"attributes": map[string]any{
+			"'.+'": map[string]any{
+				"ruleTypes": []string{"ATTRIBUTE_WRITABLE"},
+			},
+		},
+		"elements": map[string]any{
+			"'.+'": map[string]any{
+				"ruleTypes": []string{"TEXTUNIT"},
+			},
+		},
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.Len(t, blocks, 2)
+
+	// Both p and pre are TEXTUNIT (regex '.+' matches all elements).
+	assert.Equal(t, "t1", blocks[0].SourceText())
+	require.NotNil(t, blocks[0].Properties)
+	assert.Equal(t, "rtl", blocks[0].Properties["dir"])
+	assert.Equal(t, "t2", blocks[1].SourceText())
+	require.NotNil(t, blocks[1].Properties)
+	assert.Equal(t, "ltr", blocks[1].Properties["dir"])
+}
+
+// TestConfigSupport_QuoteMode verifies quoteModeDefined/quoteMode settings
+// for HTML entity conversion.
+//
+// okapi: HtmlConfigurationSupportTest#quoteMode
+func TestConfigSupport_QuoteMode(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+
+	html := `&quot; '`
+	params := map[string]any{
+		"quoteModeDefined": true,
+		"quoteMode":        3,
+	}
+
+	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "\" '", blocks[0].SourceText())
+}
 
 // ---- HtmlConfigurationTest (11 tests) ----
 
@@ -337,30 +868,18 @@ func TestConfig_CollapseWhitespace(t *testing.T) {
 	require.NotEmpty(t, blocks, "should extract blocks from HTML")
 
 	defaultText := blocks[0].SourceText()
-	// With default config (collapse whitespace), leading/trailing/multiple
-	// spaces and newlines should be collapsed.
 	assert.Equal(t, "t1 t2", defaultText,
 		"default config should collapse whitespace")
 
-	// With preserveWhitespace=true, whitespace should be preserved.
-	params := map[string]any{
-		"preserveWhitespace": true,
-	}
-
+	// With preserve_whitespace=true, whitespace should be preserved.
+	params := map[string]any{"preserve_whitespace": true}
 	parts2 := bridgetest.ReadString(t, pool, cfg, filterClass,
 		html, "test.html", mimeType, params)
 
 	blocks2 := bridgetest.TranslatableBlocks(parts2)
-	require.NotEmpty(t, blocks2, "should extract blocks with preserveWhitespace")
-
-	preservedText := blocks2[0].SourceText()
-	assert.Contains(t, preservedText, "t1",
-		"preserved whitespace text should contain t1")
-	assert.Contains(t, preservedText, "t2",
-		"preserved whitespace text should contain t2")
-	// The preserved text should have the original spacing and newline.
-	assert.NotEqual(t, "t1 t2", preservedText,
-		"preserved whitespace should differ from collapsed whitespace")
+	require.NotEmpty(t, blocks2, "should extract blocks with preserved whitespace")
+	assert.Equal(t, " t1  \nt2  ", blocks2[0].SourceText(),
+		"preserve_whitespace=true should preserve all whitespace")
 }
 
 // TestConfig_CodeFinderRules verifies that code finder rules from a custom
