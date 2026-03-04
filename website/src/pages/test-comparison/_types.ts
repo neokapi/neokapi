@@ -2,6 +2,8 @@ export interface TestComparisonData {
   generatedAt: string;
   okapiVersion: string;
   gokapiVersion: string;
+  goCommitSHA?: string;
+  okapiTag?: string;
   filters: FilterComparison[];
   summary: Summary;
 }
@@ -69,15 +71,25 @@ export interface TestCaseRow {
   javaClass: string;
   /** Okapi status or empty string. */
   okapiStatus: string;
+  /** Okapi source file path (relative to Okapi repo root). */
+  okapiFile?: string;
   /** Bridge Go test name, empty if not mapped. */
   bridgeTest: string;
   /** Bridge status or empty string. */
   bridgeStatus: string;
+  /** Bridge test source file path (relative to gokapi repo root). */
+  bridgeFile?: string;
+  /** Bridge test source line number (1-based). */
+  bridgeLine?: number;
   /** Native Go test name, empty if not mapped. */
   nativeTest: string;
   /** Native status or empty string. */
   nativeStatus: string;
-  /** Skip reason (for skipped tests). */
+  /** Native test source file path (relative to gokapi repo root). */
+  nativeFile?: string;
+  /** Native test source line number (1-based). */
+  nativeLine?: number;
+  /** Skip/unmapped reason. */
   skipReason?: string;
   /** Test state: implemented, pending, skipped, or unmapped. */
   testState?: TestState;
@@ -88,10 +100,15 @@ export interface TestCaseMatch {
   javaClass: string;
   javaMethod: string;
   okapiStatus: string;
+  okapiFile?: string;
   bridgeTest: string;
   bridgeStatus: string;
+  bridgeFile?: string;
+  bridgeLine?: number;
   nativeTest: string;
   nativeStatus: string;
+  nativeFile?: string;
+  nativeLine?: number;
   skipReason?: string;
   testState?: TestState;
 }
@@ -141,10 +158,15 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     testName: m.javaMethod,
     javaClass: shortClass(m.javaClass),
     okapiStatus: m.okapiStatus ?? '',
+    okapiFile: m.okapiFile,
     bridgeTest: m.bridgeTest ?? '',
     bridgeStatus: m.bridgeStatus ?? '',
+    bridgeFile: m.bridgeFile,
+    bridgeLine: m.bridgeLine,
     nativeTest: m.nativeTest ?? '',
     nativeStatus: m.nativeStatus ?? '',
+    nativeFile: m.nativeFile,
+    nativeLine: m.nativeLine,
     skipReason: m.skipReason,
     testState: m.testState,
   }));

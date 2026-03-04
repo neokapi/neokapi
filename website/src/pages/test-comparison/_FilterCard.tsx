@@ -5,6 +5,8 @@ import styles from './_index.module.css';
 
 interface Props {
   filter: FilterComparison;
+  goCommitSHA?: string;
+  okapiTag?: string;
 }
 
 function statusColor(filter: FilterComparison): string {
@@ -103,7 +105,7 @@ export function FilterColumnHeadings() {
   );
 }
 
-export default function FilterCard({filter}: Props) {
+export default function FilterCard({filter, goCommitSHA, okapiTag}: Props) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -134,6 +136,8 @@ export default function FilterCard({filter}: Props) {
             <TestCaseTable
               testCases={filter.testCases}
               filterName={filter.filterName}
+              goCommitSHA={goCommitSHA}
+              okapiTag={okapiTag}
             />
           ) : (
             <p className={styles.noData}>No test data available.</p>

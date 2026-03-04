@@ -668,6 +668,8 @@ jobs:
             -gotest-native-json test-results-framework.json \
             -bridge-src core/plugin/bridge/filters \
             -native-src core/formats \
+            -go-commit ${{ github.sha }} \
+            -okapi-tag v1.48.0 \
             -out website/static/data/test-comparison.json
 
       - name: Upload to docs-assets release
