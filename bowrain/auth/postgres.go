@@ -438,6 +438,87 @@ func (s *PostgresAuthStore) RevokeUserRefreshTokens(ctx context.Context, userID 
 }
 
 // ---------------------------------------------------------------------------
+// API Tokens
+// ---------------------------------------------------------------------------
+
+func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.APIToken, tokenHash string) error {
+	if token.ID == "" {
+		token.ID = uuid.NewString()
+	}
+	if token.CreatedAt.IsZero() {
+		token.CreatedAt = time.Now().UTC()
+	}
+	if token.Scopes == "" {
+		token.Scopes = `["*"]`
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO api_tokens (id, user_id, workspace_id, name, token_hash, token_prefix, scopes, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		token.ID, token.UserID, token.WorkspaceID, token.Name, tokenHash,
+		token.TokenPrefix, token.Scopes, token.ExpiresAt, token.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("insert api token: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) GetAPITokenByHash(ctx context.Context, tokenHash string) (*platauth.APIToken, error) {
+	var tok platauth.APIToken
+	err := s.db.QueryRowContext(ctx,
+		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		 FROM api_tokens WHERE token_hash = $1`, tokenHash).
+		Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("get api token: %w", err)
+	}
+	return &tok, nil
+}
+
+func (s *PostgresAuthStore) ListAPITokens(ctx context.Context, workspaceID string) ([]*platauth.APIToken, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, workspace_id, name, token_prefix, scopes, last_used_at, expires_at, created_at
+		 FROM api_tokens WHERE workspace_id = $1
+		 ORDER BY created_at DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list api tokens: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.APIToken, 0)
+	for rows.Next() {
+		var tok platauth.APIToken
+		if err := rows.Scan(&tok.ID, &tok.UserID, &tok.WorkspaceID, &tok.Name, &tok.TokenPrefix,
+			&tok.Scopes, &tok.LastUsedAt, &tok.ExpiresAt, &tok.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan api token: %w", err)
+		}
+		result = append(result, &tok)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresAuthStore) DeleteAPIToken(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM api_tokens WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("delete api token: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("api token %s not found", id)
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) UpdateAPITokenLastUsed(ctx context.Context, id string) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE api_tokens SET last_used_at = NOW() WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("update api token last used: %w", err)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
 // Scan helpers (PostgreSQL — uses time.Time directly for TIMESTAMPTZ)
 // ---------------------------------------------------------------------------
 

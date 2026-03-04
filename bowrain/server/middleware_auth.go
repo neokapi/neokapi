@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
 	platauth "github.com/gokapi/gokapi/platform/auth"
@@ -12,22 +14,6 @@ import (
 )
 
 const sessionCookieName = "bowrain_session"
-
-// validateBearerToken extracts and validates a JWT from a "Bearer <token>" Authorization header.
-// Returns the validated claims or nil if the header is absent or not a Bearer token.
-// If the header is present but the token is invalid, it returns an error string.
-func validateBearerToken(c echo.Context, jwtSecret string) (*platauth.Claims, string) {
-	header := c.Request().Header.Get("Authorization")
-	if header == "" || !strings.HasPrefix(header, "Bearer ") {
-		return nil, ""
-	}
-	token := strings.TrimPrefix(header, "Bearer ")
-	claims, err := platauth.ValidateToken(token, jwtSecret)
-	if err != nil {
-		return nil, "invalid token: " + err.Error()
-	}
-	return claims, ""
-}
 
 // validateSessionCookie extracts and validates a JWT from the bowrain_session cookie.
 func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
@@ -49,23 +35,33 @@ func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 	c.Set("name", claims.Name)
 }
 
-// AuthMiddleware validates JWT tokens from the Authorization header (Bearer)
-// or the bowrain_session cookie and sets user claims on the Echo context.
-func AuthMiddleware(jwtSecret string) echo.MiddlewareFunc {
+// AuthMiddleware validates JWT tokens from the Authorization header (Bearer),
+// API tokens (Bearer bwt_*), or the bowrain_session cookie and sets user
+// claims on the Echo context.
+func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Try Bearer header first.
-			claims, errMsg := validateBearerToken(c, jwtSecret)
-			if errMsg != "" {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: errMsg})
-			}
-			if claims != nil {
+			header := c.Request().Header.Get("Authorization")
+			if strings.HasPrefix(header, "Bearer ") {
+				token := strings.TrimPrefix(header, "Bearer ")
+
+				// API token (bwt_ prefix).
+				if strings.HasPrefix(token, "bwt_") && authStore != nil {
+					return handleAPIToken(c, next, token, authStore)
+				}
+
+				// JWT token.
+				claims, err := platauth.ValidateToken(token, jwtSecret)
+				if err != nil {
+					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+				}
 				setClaimsOnContext(c, claims)
 				return next(c)
 			}
 
 			// Fall back to session cookie.
-			claims = validateSessionCookie(c, jwtSecret)
+			claims := validateSessionCookie(c, jwtSecret)
 			if claims != nil {
 				setClaimsOnContext(c, claims)
 				return next(c)
@@ -74,6 +70,40 @@ func AuthMiddleware(jwtSecret string) echo.MiddlewareFunc {
 			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization"})
 		}
 	}
+}
+
+// handleAPIToken validates a bwt_ API token, looks up the user, and sets context.
+func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authStore auth.AuthStore) error {
+	ctx := c.Request().Context()
+
+	hash := sha256.Sum256([]byte(token))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	apiToken, err := authStore.GetAPITokenByHash(ctx, tokenHash)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid api token"})
+	}
+
+	if apiToken.ExpiresAt != nil && time.Now().After(*apiToken.ExpiresAt) {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "api token expired"})
+	}
+
+	user, err := authStore.GetUser(ctx, apiToken.UserID)
+	if err != nil {
+		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "token user not found"})
+	}
+
+	c.Set("user_id", user.ID)
+	c.Set("email", user.Email)
+	c.Set("name", user.Name)
+	c.Set("api_token_id", apiToken.ID)
+
+	// Fire-and-forget last-used update.
+	go func() {
+		_ = authStore.UpdateAPITokenLastUsed(context.Background(), apiToken.ID)
+	}()
+
+	return next(c)
 }
 
 // ClaimOrAuthMiddleware accepts either a JWT (Bearer), a ClaimToken for sync routes,
@@ -105,17 +135,25 @@ func ClaimOrAuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 			}
 
 			// Try Bearer header.
-			claims, errMsg := validateBearerToken(c, jwtSecret)
-			if errMsg != "" {
-				return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: errMsg})
-			}
-			if claims != nil {
+			if strings.HasPrefix(header, "Bearer ") {
+				token := strings.TrimPrefix(header, "Bearer ")
+
+				// API token (bwt_ prefix).
+				if strings.HasPrefix(token, "bwt_") && authStore != nil {
+					return handleAPIToken(c, next, token, authStore)
+				}
+
+				// JWT token.
+				claims, err := platauth.ValidateToken(token, jwtSecret)
+				if err != nil {
+					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
+				}
 				setClaimsOnContext(c, claims)
 				return next(c)
 			}
 
 			// Fall back to session cookie.
-			claims = validateSessionCookie(c, jwtSecret)
+			claims := validateSessionCookie(c, jwtSecret)
 			if claims != nil {
 				setClaimsOnContext(c, claims)
 				return next(c)

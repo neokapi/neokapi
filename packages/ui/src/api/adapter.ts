@@ -7,6 +7,7 @@ import type {
   ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
   BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
+  ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
 } from "../types/api";
 
@@ -39,6 +40,11 @@ export interface ApiAdapter {
   createInvite(workspaceSlug: string, email: string, role: string, maxUses: number): Promise<Invite>;
   deleteInvite(workspaceSlug: string, inviteId: string): Promise<void>;
   acceptInvite(code: string): Promise<AcceptInviteResponse>;
+
+  // API Tokens
+  listApiTokens(workspaceSlug: string): Promise<ApiToken[]>;
+  createApiToken(workspaceSlug: string, name: string, expireDays: number): Promise<CreateApiTokenResponse>;
+  deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void>;
 
   // Claim
   claimProject(claimToken: string): Promise<ClaimProjectResponse>;

@@ -44,6 +44,13 @@ type AuthStore interface {
 	IncrementInviteUseCount(ctx context.Context, inviteID string) error
 	DeleteInvite(ctx context.Context, inviteID string) error
 
+	// API tokens
+	CreateAPIToken(ctx context.Context, token *platauth.APIToken, tokenHash string) error
+	GetAPITokenByHash(ctx context.Context, tokenHash string) (*platauth.APIToken, error)
+	ListAPITokens(ctx context.Context, workspaceID string) ([]*platauth.APIToken, error)
+	DeleteAPIToken(ctx context.Context, id string) error
+	UpdateAPITokenLastUsed(ctx context.Context, id string) error
+
 	// Refresh tokens
 	StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error)
 	ValidateRefreshTokenByHash(ctx context.Context, tokenHash string) (userID string, err error)

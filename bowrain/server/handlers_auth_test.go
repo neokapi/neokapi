@@ -979,7 +979,7 @@ func TestAuthMiddlewareCookieFallback(t *testing.T) {
 	token := generateTestToken(t, jwtSecret)
 
 	e := echo.New()
-	e.Use(AuthMiddleware(jwtSecret))
+	e.Use(AuthMiddleware(jwtSecret, nil))
 	e.GET("/api/v1/auth/me", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
 			"user_id": c.Get("user_id").(string),
@@ -1013,7 +1013,7 @@ func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
 	require.NoError(t, err)
 
 	e := echo.New()
-	e.Use(AuthMiddleware(jwtSecret))
+	e.Use(AuthMiddleware(jwtSecret, nil))
 	e.GET("/test", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"user_id": c.Get("user_id").(string)})
 	})
@@ -1033,7 +1033,7 @@ func TestAuthMiddlewareBearerPrecedence(t *testing.T) {
 
 func TestAuthMiddlewareNeitherHeaderNorCookie(t *testing.T) {
 	e := echo.New()
-	e.Use(AuthMiddleware("test-secret"))
+	e.Use(AuthMiddleware("test-secret", nil))
 	e.GET("/test", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, nil)
 	})

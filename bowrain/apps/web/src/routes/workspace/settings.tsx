@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWorkspace, useApi, GlassCard, InviteManager, type ConfigResponse, type WebVersionInfo } from "@gokapi/ui";
+import { useWorkspace, useApi, GlassCard, InviteManager, ApiTokenManager, type ConfigResponse, type WebVersionInfo } from "@gokapi/ui";
 
 function SettingsField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
@@ -77,6 +77,7 @@ export function SettingsIndexRoute() {
         </div>
       </GlassCard>
       <InviteManager workspace={activeWorkspace} />
+      <ApiTokenManager workspace={activeWorkspace} />
       <VersionSection />
     </div>
   );

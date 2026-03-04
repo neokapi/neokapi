@@ -70,6 +70,9 @@ function createMockAdapter(): ApiAdapter {
     addBlockNote: vi.fn(),
     listBlockNotes: vi.fn(),
     deleteBlockNote: vi.fn(),
+    listApiTokens: vi.fn(),
+    createApiToken: vi.fn(),
+    deleteApiToken: vi.fn(),
   } as ApiAdapter;
 }
 
