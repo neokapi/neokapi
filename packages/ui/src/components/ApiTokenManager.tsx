@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "./ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 import { KeyRound, Trash2, Copy, Clock } from "./icons";
 
@@ -27,12 +28,28 @@ function toDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-/** Default expiry: 30 days from now. */
-function defaultExpiry(): string {
+/** Format a Date as "Mon DD, YYYY" for display. */
+function formatShortDate(d: Date): string {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/** Add days to today and return as YYYY-MM-DD. */
+function addDays(days: number): string {
   const d = new Date();
-  d.setDate(d.getDate() + 30);
+  d.setDate(d.getDate() + days);
   return toDateString(d);
 }
+
+type ExpiryPreset = "7" | "30" | "60" | "90" | "custom" | "never";
+
+const PRESETS: { value: ExpiryPreset; days: number | null; label: string }[] = [
+  { value: "7", days: 7, label: "7 days" },
+  { value: "30", days: 30, label: "30 days" },
+  { value: "60", days: 60, label: "60 days" },
+  { value: "90", days: 90, label: "90 days" },
+  { value: "custom", days: null, label: "Custom" },
+  { value: "never", days: null, label: "No expiration" },
+];
 
 export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const api = useApi();
@@ -40,7 +57,8 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [name, setName] = useState("");
-  const [expiresAt, setExpiresAt] = useState(defaultExpiry);
+  const [expiryPreset, setExpiryPreset] = useState<ExpiryPreset>("30");
+  const [customDate, setCustomDate] = useState(addDays(30));
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [createdToken, setCreatedToken] = useState<CreateApiTokenResponse | null>(null);
@@ -61,18 +79,37 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     loadTokens();
   }, [loadTokens]);
 
+  /** Compute expire_days from the current expiry selection. */
+  const getExpireDays = (): number => {
+    if (expiryPreset === "never") return 0;
+    if (expiryPreset === "custom") {
+      const target = new Date(customDate + "T00:00:00");
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      return Math.max(1, Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+    }
+    return parseInt(expiryPreset, 10);
+  };
+
+  /** Display label for the currently selected expiry. */
+  const getExpiryLabel = (): string => {
+    if (expiryPreset === "never") return "No expiration";
+    if (expiryPreset === "custom") {
+      const d = new Date(customDate + "T00:00:00");
+      return isNaN(d.getTime()) ? "Custom" : `Custom (${formatShortDate(d)})`;
+    }
+    const days = parseInt(expiryPreset, 10);
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return `${days} days (${formatShortDate(d)})`;
+  };
+
   const handleCreate = async () => {
     if (!name.trim()) return;
     setCreating(true);
     setError("");
     try {
-      // Compute days from today to the selected date.
-      const target = new Date(expiresAt + "T00:00:00");
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const diffMs = target.getTime() - now.getTime();
-      const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-
+      const days = getExpireDays();
       const resp = await api.createApiToken(workspace.slug, name.trim(), days);
       setCreatedToken(resp);
       setTokens((prev) => [
@@ -114,12 +151,22 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       setName("");
-      setExpiresAt(defaultExpiry());
+      setExpiryPreset("30");
+      setCustomDate(addDays(30));
       setError("");
       setCreatedToken(null);
       setCopied(false);
     }
     setShowDialog(open);
+  };
+
+  const handlePresetChange = (value: string) => {
+    const preset = value as ExpiryPreset;
+    setExpiryPreset(preset);
+    // When switching to custom, seed with 30 days from now
+    if (preset === "custom") {
+      setCustomDate(addDays(30));
+    }
   };
 
   const isExpired = (t: ApiToken) =>
@@ -274,16 +321,40 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 />
               </div>
               <div>
-                <Label className="text-muted-foreground">Expiry Date</Label>
-                <Input
-                  type="date"
-                  value={expiresAt}
-                  min={toDateString(new Date())}
-                  onChange={(e) => setExpiresAt(e.target.value)}
-                  className="mt-1"
-                  data-testid="token-expire-input"
-                />
+                <Label className="text-muted-foreground">Expiration</Label>
+                <Select value={expiryPreset} onValueChange={handlePresetChange}>
+                  <SelectTrigger className="mt-1" data-testid="token-expiry-select">
+                    <SelectValue>{getExpiryLabel()}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRESETS.map((p) => (
+                      <SelectItem key={p.value} value={p.value}>
+                        {p.days != null
+                          ? `${p.label} (${formatShortDate((() => { const d = new Date(); d.setDate(d.getDate() + p.days); return d; })())})`
+                          : p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {expiryPreset !== "never" && (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    The token will expire on the selected date
+                  </p>
+                )}
               </div>
+              {expiryPreset === "custom" && (
+                <div>
+                  <Label className="text-muted-foreground">Select date</Label>
+                  <Input
+                    type="date"
+                    value={customDate}
+                    min={toDateString(new Date())}
+                    onChange={(e) => setCustomDate(e.target.value)}
+                    className="mt-1"
+                    data-testid="token-custom-date-input"
+                  />
+                </div>
+              )}
               {error && (
                 <AlertGlass variant="destructive">
                   <AlertGlassDescription>{error}</AlertGlassDescription>
@@ -304,7 +375,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 </Button>
                 <Button
                   onClick={handleCreate}
-                  disabled={creating || !name.trim() || !expiresAt}
+                  disabled={creating || !name.trim() || (expiryPreset === "custom" && !customDate)}
                   data-testid="token-submit-btn"
                 >
                   {creating ? "Creating..." : "Create"}
