@@ -219,21 +219,20 @@ func TestBuildTestStatusMap_Nil(t *testing.T) {
 }
 
 func TestMerge_ParameterizedJUnitTests(t *testing.T) {
-	// Surefire XML reports parameterized JUnit tests with [N: ...] suffixes.
-	// The merge function should match these to annotations that use the
-	// unparameterized base method name.
+	// parseSurefire deduplicates parameterized JUnit tests (e.g. "testFoo[0: ...]")
+	// into a single entry with the base method name. The Okapi data passed to
+	// merge already has deduplicated names, so merge sees "testFoo" once.
 	okapi := map[string]*FilterResult{
 		"html": {
 			Suites: []Suite{{
 				Name: "HtmlSnippetsTest",
 				Tests: []Test{
-					{Name: "testFoo[0: case0]", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
-					{Name: "testFoo[1: case1]", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
+					{Name: "testFoo", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
 					{Name: "testBar", ClassName: "net.sf.okapi.filters.html.HtmlSnippetsTest", Status: "pass"},
 				},
-				Total: 3, Passed: 3,
+				Total: 2, Passed: 2,
 			}},
-			Total: 3, Passed: 3,
+			Total: 2, Passed: 2,
 		},
 	}
 
@@ -259,24 +258,63 @@ func TestMerge_ParameterizedJUnitTests(t *testing.T) {
 	require.Len(t, data.Filters, 1)
 	tcs := data.Filters[0].TestCases
 
-	// All 3 test cases should be mapped (2 parameterized + 1 regular)
+	// Both test cases should be mapped
+	require.Len(t, tcs, 2)
 	for _, tc := range tcs {
 		assert.NotEmpty(t, tc.BridgeTest, "test %s should be mapped", tc.JavaMethod)
 		assert.Equal(t, "implemented", tc.TestState, "test %s should be implemented", tc.JavaMethod)
 	}
 
-	// Parameterized cases should map to the same Go test
-	fooCase0 := findTCM(tcs, "testFoo[0: case0]")
-	fooCase1 := findTCM(tcs, "testFoo[1: case1]")
-	require.NotNil(t, fooCase0)
-	require.NotNil(t, fooCase1)
-	assert.Equal(t, "TestSnippets_Foo", fooCase0.BridgeTest)
-	assert.Equal(t, "TestSnippets_Foo", fooCase1.BridgeTest)
+	fooCase := findTCM(tcs, "testFoo")
+	require.NotNil(t, fooCase)
+	assert.Equal(t, "TestSnippets_Foo", fooCase.BridgeTest)
 
-	// Regular case should map normally
 	barCase := findTCM(tcs, "testBar")
 	require.NotNil(t, barCase)
 	assert.Equal(t, "TestSnippets_Bar", barCase.BridgeTest)
+}
+
+func TestParseSurefire_DeduplicatesParameterized(t *testing.T) {
+	// Create a Surefire XML with parameterized test cases.
+	dir := t.TempDir()
+	filterDir := filepath.Join(dir, "html")
+	require.NoError(t, os.MkdirAll(filterDir, 0o755))
+
+	xml := `<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="net.sf.okapi.filters.html.HtmlSnippetsTest" tests="4">
+  <testcase name="testFoo[0: case0]" classname="net.sf.okapi.filters.html.HtmlSnippetsTest" time="0.01"/>
+  <testcase name="testFoo[1: case1]" classname="net.sf.okapi.filters.html.HtmlSnippetsTest" time="0.02"/>
+  <testcase name="testFoo[2: case2]" classname="net.sf.okapi.filters.html.HtmlSnippetsTest" time="0.03">
+    <failure message="boom"/>
+  </testcase>
+  <testcase name="testBar" classname="net.sf.okapi.filters.html.HtmlSnippetsTest" time="0.05"/>
+</testsuite>`
+	require.NoError(t, os.WriteFile(filepath.Join(filterDir, "TEST-net.sf.okapi.filters.html.HtmlSnippetsTest.xml"), []byte(xml), 0o644))
+
+	result := parseSurefire(dir)
+	require.Contains(t, result, "html")
+
+	fr := result["html"]
+	require.Len(t, fr.Suites, 1)
+	suite := fr.Suites[0]
+
+	// 3 parameterized instances of testFoo should collapse into 1 entry
+	assert.Equal(t, 2, suite.Total, "should have 2 tests after dedup")
+	assert.Equal(t, 2, fr.Total)
+
+	// testFoo should exist with base name and worst status (fail > pass)
+	fooTest := findTest(suite.Tests, "testFoo")
+	require.NotNil(t, fooTest, "testFoo should exist as deduped entry")
+	assert.Equal(t, "fail", fooTest.Status, "should keep worst status")
+
+	// testBar should be unchanged
+	barTest := findTest(suite.Tests, "testBar")
+	require.NotNil(t, barTest)
+	assert.Equal(t, "pass", barTest.Status)
+
+	// Counts should reflect deduped entries
+	assert.Equal(t, 1, suite.Passed)
+	assert.Equal(t, 1, suite.Failed)
 }
 
 func findTCM(tcs []TestCaseMatch, method string) *TestCaseMatch {
