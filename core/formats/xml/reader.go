@@ -1,10 +1,12 @@
 package xml
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -15,8 +17,13 @@ import (
 // Reader implements DataFormatReader for XML files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg      *Config
+	resolver format.SubfilterResolver
+	layerSeq int
 }
+
+// Ensure Reader implements SubfilterAware.
+var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new XML reader.
 func NewReader() *Reader {
@@ -31,6 +38,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSubfilterResolver sets the resolver for creating sub-format readers.
+func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	r.resolver = resolver
 }
 
 // SetConfig applies a new configuration.
@@ -138,10 +150,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if text == "" {
 				continue
 			}
+			elemPath := strings.Join(elementStack, ".")
 			if r.isTranslatableElement(elementStack) {
+				// Check for subfilter match
+				if mapping := r.matchSubfilter(elemPath); mapping != nil && r.resolver != nil {
+					r.emitSubfiltered(ctx, ch, text, elemPath, layer.ID, mapping, &blockCounter, &dataCounter)
+					continue
+				}
 				blockCounter++
 				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
-				block.Name = strings.Join(elementStack, ".")
+				block.Name = elemPath
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
@@ -149,7 +167,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				dataCounter++
 				data := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
-					Name: strings.Join(elementStack, "."),
+					Name: elemPath,
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 					return
@@ -199,6 +217,91 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 	case <-ctx.Done():
 		return false
 	}
+}
+
+// matchSubfilter checks if the given element path matches any configured subfilter mapping.
+func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
+	for i := range r.cfg.Subfilters {
+		sf := &r.cfg.Subfilters[i]
+		if matchGlob(sf.Pattern, path) {
+			return sf
+		}
+	}
+	return nil
+}
+
+// emitSubfiltered emits a child layer with content parsed by the subfilter format reader.
+func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult, content, path, parentLayerID string, mapping *format.SubfilterMapping, blockCounter, dataCounter *int) {
+	subReader, err := r.resolver.ResolveReader(mapping.Format)
+	if err != nil {
+		// Fall back to plain block
+		*blockCounter++
+		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), content)
+		block.Name = path
+		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		return
+	}
+
+	r.layerSeq++
+	childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+
+	childLayer := &model.Layer{
+		ID:       childLayerID,
+		Name:     path,
+		Format:   mapping.Format,
+		Locale:   locale,
+		ParentID: parentLayerID,
+		Properties: map[string]string{
+			"subfilter.source":      "xml",
+			"subfilter.elementPath": path,
+		},
+	}
+
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+		return
+	}
+
+	subDoc := &model.RawDocument{
+		URI:          path,
+		SourceLocale: locale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader([]byte(content))),
+	}
+	if err := subReader.Open(ctx, subDoc); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("xml: subfilter open for %s: %w", path, err)}
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	for pr := range subReader.Read(ctx) {
+		if pr.Error != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xml: subfilter read for %s: %w", path, pr.Error)}
+			break
+		}
+		// Skip the sub-reader's document-level layer events
+		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
+			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
+				continue
+			}
+		}
+		r.emit(ctx, ch, pr.Part)
+	}
+	subReader.Close()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+}
+
+// matchGlob matches a path against a glob pattern using dot-separated segments.
+func matchGlob(pattern, path string) bool {
+	patternNorm := strings.ReplaceAll(pattern, ".", "/")
+	pathNorm := strings.ReplaceAll(path, ".", "/")
+	matched, _ := filepath.Match(patternNorm, pathNorm)
+	return matched
 }
 
 // Close releases resources.
