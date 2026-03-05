@@ -1,6 +1,6 @@
 //go:build integration
 
-package rainbowkit
+package xini
 
 import (
 	"os"
@@ -14,10 +14,16 @@ import (
 
 // --- rainbowkit surefire: Java-internal MergingInfo tests ---
 //
+// okapi-filter: rainbowkit
 // okapi-unmapped: MergingInfoTest#testSimpleWrite — Java-internal serialization test
 // okapi-unmapped: MergingInfoTest#testSimpleWriteAndRead — Java-internal serialization test
 // okapi-unmapped: MergingInfoTest#testSimpleWriteAndReadBase64 — Java-internal serialization test
 // okapi-unmapped: MergingInfoTest#testSimpleWriteBase64 — Java-internal serialization test
+//
+// --- xini surefire: XINIRainbowKit reader/writer tests ---
+// (These Java test classes live in the xini Maven module, not rainbowkit)
+//
+// okapi-filter: xini
 
 // ---------------------------------------------------------------------------
 // XINIRainbowKitReaderTest
