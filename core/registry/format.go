@@ -285,6 +285,19 @@ func parseSemverParts(s string) [3]int {
 	return parts
 }
 
+// Ensure FormatRegistry implements SubfilterResolver.
+var _ format.SubfilterResolver = (*FormatRegistry)(nil)
+
+// ResolveReader creates a new reader for the named format. Implements SubfilterResolver.
+func (r *FormatRegistry) ResolveReader(name string) (format.DataFormatReader, error) {
+	return r.NewReader(name)
+}
+
+// ResolveWriter creates a new writer for the named format. Implements SubfilterResolver.
+func (r *FormatRegistry) ResolveWriter(name string) (format.DataFormatWriter, error) {
+	return r.NewWriter(name)
+}
+
 // Detector returns the FormatDetector backed by this registry.
 func (r *FormatRegistry) Detector() *format.FormatDetector {
 	return r.detector
