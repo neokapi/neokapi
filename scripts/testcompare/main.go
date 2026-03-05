@@ -221,6 +221,12 @@ func main() {
 		nativeAR = parseAnnotations(*nativeSrc, "native")
 	}
 
+	// Merge test results through filterAliases before building status maps.
+	// E.g. bridge results from "html5" are consolidated into "its" (the Okapi
+	// surefire filter name), so status lookups by Okapi filter name succeed.
+	mergeAliasedGoResults(&bridgeResults, filterAliases)
+	mergeAliasedGoResults(&nativeResults, filterAliases)
+
 	// Build Go test status maps from results
 	bridgeTestStatus := buildTestStatusMap(bridgeResults.filters)
 	nativeTestStatus := buildTestStatusMap(nativeResults.filters)
@@ -726,6 +732,91 @@ var filterAliases = map[string][]string{
 	"ttml":       {"subtitles"},    // okf_ttml/ covers surefire subtitles/
 	"vtt":        {"subtitles"},    // okf_vtt/ covers surefire subtitles/
 	"xini":       {"rainbowkit"},   // okf_xini/ covers surefire rainbowkit/
+}
+
+// mergeAliasedGoResults consolidates Go test results from alias source filters
+// into their target filters. For example, if aliases maps "html5" → ["its"],
+// test results keyed under "html5" are merged into "its" and the "html5" entry
+// is removed. This covers the filters map, skipMsgs, and subtestCounts so that
+// all downstream lookups use the Okapi surefire filter name.
+func mergeAliasedGoResults(results *goTestResults, aliases map[string][]string) {
+	if results == nil {
+		return
+	}
+	mergeFilterResults(results.filters, aliases)
+	mergeStringMap(results.skipMsgs, aliases)
+	mergeSubtestCounts(results.subtestCounts, aliases)
+}
+
+// mergeFilterResults moves FilterResult entries from alias sources to targets.
+func mergeFilterResults(m map[string]*FilterResult, aliases map[string][]string) {
+	if m == nil {
+		return
+	}
+	for src, targets := range aliases {
+		srcResult := m[src]
+		if srcResult == nil {
+			continue
+		}
+		for _, tgt := range targets {
+			existing := m[tgt]
+			if existing == nil {
+				m[tgt] = srcResult
+			} else {
+				existing.Suites = append(existing.Suites, srcResult.Suites...)
+				existing.Total += srcResult.Total
+				existing.Passed += srcResult.Passed
+				existing.Failed += srcResult.Failed
+				existing.Skipped += srcResult.Skipped
+				existing.Errors += srcResult.Errors
+				existing.Funcs += srcResult.Funcs
+			}
+		}
+		delete(m, src)
+	}
+}
+
+// mergeStringMap re-keys "src/TestName" → "tgt/TestName" entries in skipMsgs.
+func mergeStringMap(m map[string]string, aliases map[string][]string) {
+	if m == nil {
+		return
+	}
+	for src, targets := range aliases {
+		prefix := src + "/"
+		for key, val := range m {
+			if strings.HasPrefix(key, prefix) {
+				testName := key[len(prefix):]
+				for _, tgt := range targets {
+					m[tgt+"/"+testName] = val
+				}
+				delete(m, key)
+			}
+		}
+	}
+}
+
+// mergeSubtestCounts moves subtestCounts entries from alias sources to targets.
+func mergeSubtestCounts(m map[string]map[string]int, aliases map[string][]string) {
+	if m == nil {
+		return
+	}
+	for src, targets := range aliases {
+		srcCounts := m[src]
+		if srcCounts == nil {
+			continue
+		}
+		for _, tgt := range targets {
+			existing := m[tgt]
+			if existing == nil {
+				m[tgt] = srcCounts
+			} else {
+				for fn, count := range srcCounts {
+					existing[fn] += count
+				}
+			}
+		}
+		delete(m, src)
+	}
 }
 
 func merge(
