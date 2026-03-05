@@ -454,6 +454,64 @@ func TestMerge_SubtestCounts(t *testing.T) {
 	assert.Equal(t, 0, tcs[0].NativeSubtests)
 }
 
+func TestMergeAliasedGoResults(t *testing.T) {
+	aliases := map[string][]string{
+		"html5": {"its"},
+		"xml":   {"its"},
+	}
+
+	results := goTestResults{
+		filters: map[string]*FilterResult{
+			"html5": {Total: 10, Passed: 8, Failed: 2, Funcs: 5,
+				Suites: []Suite{{Name: "okf_html5", Total: 10, Passed: 8, Failed: 2}}},
+			"xml": {Total: 20, Passed: 18, Failed: 2, Funcs: 10,
+				Suites: []Suite{{Name: "okf_xml", Total: 20, Passed: 18, Failed: 2}}},
+			"json": {Total: 5, Passed: 5, Funcs: 3,
+				Suites: []Suite{{Name: "okf_json", Total: 5, Passed: 5}}},
+		},
+		skipMsgs: map[string]string{
+			"html5/TestA": "skip output A",
+			"xml/TestB":   "skip output B",
+			"json/TestC":  "skip output C",
+		},
+		subtestCounts: map[string]map[string]int{
+			"html5": {"TestA": 3},
+			"xml":   {"TestB": 5},
+			"json":  {"TestC": 2},
+		},
+	}
+
+	mergeAliasedGoResults(&results, aliases)
+
+	// html5 and xml should be gone
+	assert.Nil(t, results.filters["html5"])
+	assert.Nil(t, results.filters["xml"])
+
+	// its should have merged results
+	its := results.filters["its"]
+	require.NotNil(t, its)
+	assert.Equal(t, 30, its.Total)
+	assert.Equal(t, 26, its.Passed)
+	assert.Equal(t, 4, its.Failed)
+	assert.Equal(t, 15, its.Funcs)
+	assert.Len(t, its.Suites, 2)
+
+	// json should be untouched
+	assert.Equal(t, 5, results.filters["json"].Total)
+
+	// skipMsgs re-keyed
+	assert.Equal(t, "skip output A", results.skipMsgs["its/TestA"])
+	assert.Equal(t, "skip output B", results.skipMsgs["its/TestB"])
+	assert.Equal(t, "skip output C", results.skipMsgs["json/TestC"])
+	assert.Empty(t, results.skipMsgs["html5/TestA"])
+	assert.Empty(t, results.skipMsgs["xml/TestB"])
+
+	// subtestCounts re-keyed
+	assert.Equal(t, 3, results.subtestCounts["its"]["TestA"])
+	assert.Equal(t, 5, results.subtestCounts["its"]["TestB"])
+	assert.Equal(t, 2, results.subtestCounts["json"]["TestC"])
+}
+
 func TestFilterFromPath(t *testing.T) {
 	tests := []struct {
 		path string
