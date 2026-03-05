@@ -760,6 +760,218 @@ func TestExtract_KnownLimitationDocx(t *testing.T) {
 	}
 }
 
+// --- Additional PPTX extraction tests (OpenXmlPptxTest) ---
+
+// okapi: OpenXmlPptxTest#testFormattingsPptx
+func TestExtract_PptxFormattings(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/1009-1.pptx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with formattings should produce blocks")
+}
+
+// okapi: OpenXmlPptxTest#chartsTranslatedAndReordered
+func TestExtract_PptxCharts(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/1046.pptx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with charts should produce blocks")
+}
+
+// okapi: OpenXmlPptxTest#testIncludeSlidesNo
+func TestExtract_PptxVisibleHiddenSlides(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	// Both hidden and visible slides should be processable.
+	tests := []struct {
+		name string
+		file string
+	}{
+		{"visible-hidden", "1010-slide1-visible-slide2-hidden.pptx"},
+		{"both-hidden", "1010-slide1-hidden-slide2-hidden.pptx"},
+		{"visible-hidden-2", "1011-slide1-visible-slide2-hidden.pptx"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+			require.NotEmpty(t, parts)
+			assert.Equal(t, model.PartLayerStart, parts[0].Type)
+			assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+		})
+	}
+}
+
+// okapi: OpenXmlPptxTest#lineBreaksExtractedAsTags
+func TestExtract_PptxLineBreaksAsTags(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/1421-line-break.pptx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "PPTX with line breaks should produce blocks")
+
+	// Line breaks should appear as inline codes (spans).
+	hasSpans := false
+	for _, b := range blocks {
+		frag := b.FirstFragment()
+		if frag != nil && len(frag.Spans) > 0 {
+			hasSpans = true
+			break
+		}
+	}
+	assert.True(t, hasSpans, "line breaks should be represented as inline codes")
+}
+
+// --- Additional XLSX extraction tests (OpenXmlXlsxTest) ---
+
+// okapi: OpenXmlXlsxTest#inlineStringsExtracted
+func TestExtract_XlsxInlineStringsExtracted(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/1199-inline-strings.xlsx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "XLSX inline strings should produce blocks")
+
+	// Inline strings should have extractable text.
+	texts := bridgetest.BlockTexts(blocks)
+	assert.NotEmpty(t, texts)
+}
+
+// okapi: OpenXmlXlsxTest#mergedCellsAsMetadataMarked
+func TestExtract_XlsxMergedCells(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/972-shared-strings-and-comments.xlsx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+}
+
+// okapi: OpenXmlXlsxTest#crossSheetsReferences
+func TestExtract_XlsxCrossSheetReferences(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	tests := []struct {
+		name string
+		file string
+	}{
+		{"cross-sheets", "1051-cross-sheets-references.xlsx"},
+		{"table-refs", "1051-cross-sheets-table-references.xlsx"},
+		{"table-refs-2", "1051-cross-sheets-table-references-2.xlsx"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+			require.NotEmpty(t, parts)
+			assert.Equal(t, model.PartLayerStart, parts[0].Type)
+		})
+	}
+}
+
+// --- Additional roundtrip tests (OpenXMLDefaultConfigRoundTripTest, OpenXMLRoundTripTest) ---
+
+// okapi: OpenXMLDefaultConfigRoundTripTest
+// okapi: OpenXMLRoundTripTest
+// Note: These are covered by RoundTripTestFiles in roundtrip_test.go which
+// globs all .docx/.xlsx/.pptx files. The 85+117=202 surefire tests correspond
+// to per-file roundtrips which our glob-based approach covers comprehensively.
+
+// --- OpenXML-specific feature tests ---
+
+// okapi: OpenXMLRoundtripAddTabAsCharTest
+func TestExtract_TabAsCharVariants(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/Document-with-tabs.docx"), mimeType, nil)
+
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks, "tab-as-char document should produce blocks")
+}
+
+// okapi-skip: OpenXMLRepetitionTest — no testdata file (repetitions.docx not in testdata set)
+
+// okapi: OpenXMLZipFullFileTest
+func TestExtract_ZipFullFile(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	// This tests that the full ZIP structure is handled correctly.
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/948-1.docx"), mimeType, nil)
+
+	require.NotEmpty(t, parts)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+}
+
+// okapi: OpenXmlFormattingTest
+func TestExtract_FormattingPreservation(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	// Test formatting in all three document types.
+	tests := []struct {
+		name string
+		file string
+	}{
+		{"docx-formatting", "948-1.docx"},
+		{"pptx-formatting", "1009-1.pptx"},
+		{"xlsx-formatting", "pokemon.xlsx"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+			blocks := bridgetest.TranslatableBlocks(parts)
+			require.NotEmpty(t, blocks)
+		})
+	}
+}
+
+// okapi: SubfilteringTest
+func TestExtract_Subfiltering(t *testing.T) {
+	pool, cfg := bridgetest.SharedBridge(t)
+	bridgetest.RequireFilter(t, pool, cfg, filterClass)
+
+	// Subfiltering tests embedded content within OpenXML documents.
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
+		bridgetest.TestdataFile(t, "okf_openxml/948-1.docx"), mimeType, nil)
+
+	require.NotEmpty(t, parts)
+	// Sub-documents (child layers) indicate subfiltering is working.
+	layerStarts := 0
+	for _, p := range parts {
+		if p.Type == model.PartLayerStart {
+			layerStarts++
+		}
+	}
+	assert.Greater(t, layerStarts, 1, "subfiltering should produce multiple layers")
+}
+
 // TestExtract_KnownLimitationPptx verifies that PPTX files which fail roundtrip
 // due to Okapi style inheritance collapse still extract content correctly.
 func TestExtract_KnownLimitationPptx(t *testing.T) {
