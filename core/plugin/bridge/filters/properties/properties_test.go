@@ -277,8 +277,25 @@ func TestExtract_IdGenerationDefaultConfig(t *testing.T) {
 	assert.Equal(t, 3, len(blocks), "issue_216.properties should produce 3 text units with default config")
 }
 
-// okapi-blocked: PropertiesFilterTest#testIdGeneration_subfiltersConfig — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testIdGeneration_subfiltersConfig
 func TestExtract_IdGenerationSubfiltersConfig(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
+	pool, cfg := bridgetest.SharedBridge(t)
+	path := bridgetest.TestdataFile(t, "okf_properties/issue_216.properties")
+
+	params := map[string]any{
+		"subfilter": "okf_html",
+	}
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
+
+	require.NotEmpty(t, parts)
+	blocks := bridgetest.TranslatableBlocks(parts)
+	// With subfilter, HTML content produces additional blocks
+	require.NotEmpty(t, blocks, "subfiltered properties file should produce blocks")
+
+	// Verify block IDs are unique
+	ids := make(map[string]bool)
+	for _, b := range blocks {
+		assert.False(t, ids[b.ID], "duplicate block ID: %s", b.ID)
+		ids[b.ID] = true
+	}
 }
