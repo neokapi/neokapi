@@ -69,7 +69,7 @@ func readTestFile(path string) ([]byte, error) {
 
 // ---- WikiFilterTest (11 tests) ----
 
-// okapi-skip: WikiFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getMimeType)
+// okapi-unmapped: WikiFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getMimeType)
 
 // okapi: WikiFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {

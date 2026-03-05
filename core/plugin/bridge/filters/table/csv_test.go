@@ -377,7 +377,7 @@ func TestCSV_RecordId(t *testing.T) {
 }
 
 // okapi: CommaSeparatedValuesFilterTest#testDoubleExtraction
-// okapi-skip: Skipped in Java — Property Types difference
+// okapi-unmapped: Skipped in Java — Property Types difference
 func TestCSV_DoubleExtraction(t *testing.T) {
 	t.Skip("Skipped in Java surefire: Property Types difference: [filter-only, display] vs [filter-only]")
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi-skip: WsxzPackageFilterTests#testInformation — Java-only API test (IFilter.getName/getMimeType)
+// okapi-unmapped: WsxzPackageFilterTests#testInformation — Java-only API test (IFilter.getName/getMimeType)
 
 // okapi: WsxzPackageFilterTests#testSimpleRead
 func TestSimpleRead(t *testing.T) {

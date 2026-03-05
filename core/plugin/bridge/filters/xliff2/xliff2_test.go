@@ -350,9 +350,9 @@ func TestExtract_GroupStructure(t *testing.T) {
 	assert.True(t, hasGroupEnd, "should have GroupEnd for </group>")
 }
 
-// okapi-skip: XLIFF2FilterTest#testWriteXLIFF2AsXliff12 -- cross-format conversion (XLIFF 2 to XLIFF 1.2) is not supported through the bridge
-// okapi-skip: XLIFF2FilterTest#testMetadataXLIFF2intoXliff12 -- cross-format conversion to XLIFF 1.2 is Java-specific
-// okapi-skip: XLIFF2FilterTest#testSegmentStateAndSubstateXLIFF2intoXliff12 -- cross-format conversion to XLIFF 1.2 is Java-specific
+// okapi-unmapped: XLIFF2FilterTest#testWriteXLIFF2AsXliff12 -- cross-format conversion (XLIFF 2 to XLIFF 1.2) is not supported through the bridge
+// okapi-unmapped: XLIFF2FilterTest#testMetadataXLIFF2intoXliff12 -- cross-format conversion to XLIFF 1.2 is Java-specific
+// okapi-unmapped: XLIFF2FilterTest#testSegmentStateAndSubstateXLIFF2intoXliff12 -- cross-format conversion to XLIFF 1.2 is Java-specific
 
 // okapi: XLIFF2FilterTest#testIgnoreable
 func TestExtract_Ignoreable(t *testing.T) {

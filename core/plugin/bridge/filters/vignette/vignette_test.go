@@ -51,7 +51,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
 }
 
-// okapi-skip: VignetteFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getConfigurations)
+// okapi-unmapped: VignetteFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getConfigurations)
 
 // okapi: VignetteFilterTest#testDoubleExtraction
 func TestRoundTrip_DoubleExtraction(t *testing.T) {

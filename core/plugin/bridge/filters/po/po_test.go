@@ -86,8 +86,8 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 	return n
 }
 
-// okapi-skip: POFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getMimeType)
-// okapi-skip: POFilterTest#testSourceOnly — Java-only API test (source-only extraction mode)
+// okapi-unmapped: POFilterTest#testDefaultInfo — Java-only API test (IFilter.getDisplayName/getMimeType)
+// okapi-unmapped: POFilterTest#testSourceOnly — Java-only API test (source-only extraction mode)
 
 // okapi: POFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {

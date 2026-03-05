@@ -1436,7 +1436,7 @@ func TestExtract_AllowedCharsModification(t *testing.T) {
 	require.NotEmpty(t, blocks)
 }
 
-// okapi-skip: XLIFFFilterTest#testAddedCloneCode — Java clone API
+// okapi-unmapped: XLIFFFilterTest#testAddedCloneCode — Java clone API
 
 // okapi: XLIFFFilterTest#testSdlTagDefs
 func TestExtract_SdlTagDefs(t *testing.T) {

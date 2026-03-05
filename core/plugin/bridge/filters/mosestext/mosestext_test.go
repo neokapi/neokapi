@@ -56,7 +56,7 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 // MosesTextFilterTest.java (16 tests in surefire)
 // ---------------------------------------------------------------------------
 
-// okapi-skip: MosesTextFilterTest#testDefaultInfo — Java-only API test (IFilter.getParameters/getName/getConfigurations)
+// okapi-unmapped: MosesTextFilterTest#testDefaultInfo — Java-only API test (IFilter.getParameters/getName/getConfigurations)
 
 // okapi: MosesTextFilterTest#testStartDocument
 // surefire: TEST-net.sf.okapi.filters.mosestext.MosesTextFilterTest.xml — testStartDocument
@@ -412,9 +412,9 @@ func TestWriter_MultilineOutput(t *testing.T) {
 	assert.Contains(t, output, "Text 3.")
 }
 
-// okapi-skip: MosesTextFilterWriterTest#testOutputFromXLIFF01 — requires XLIFF filter as input, not applicable to bridge extraction
-// okapi-skip: MosesTextFilterWriterTest#testFileOutputFromXLIFF01 — requires XLIFF filter as input, not applicable to bridge extraction
-// okapi-skip: MosesTextFilterWriterTest#testOutputFromXLIFF02 — requires XLIFF filter as input, not applicable to bridge extraction
+// okapi-unmapped: MosesTextFilterWriterTest#testOutputFromXLIFF01 — requires XLIFF filter as input, not applicable to bridge extraction
+// okapi-unmapped: MosesTextFilterWriterTest#testFileOutputFromXLIFF01 — requires XLIFF filter as input, not applicable to bridge extraction
+// okapi-unmapped: MosesTextFilterWriterTest#testOutputFromXLIFF02 — requires XLIFF filter as input, not applicable to bridge extraction
 
 // ---------------------------------------------------------------------------
 // Additional extraction tests (mapped to MosesTextFilterTest subtests)

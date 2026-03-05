@@ -25,4 +25,4 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	)
 }
 
-// okapi-skip: TranstableXliffCompareIT — XLIFF compare tests are Java-only (compare extracted XLIFF output)
+// okapi-unmapped: TranstableXliffCompareIT — XLIFF compare tests are Java-only (compare extracted XLIFF output)

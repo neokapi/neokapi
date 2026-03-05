@@ -164,16 +164,16 @@ func TestExtract_Foo(t *testing.T) {
 
 	ar := parseFileAnnotations(testFile, "bridge")
 
-	// Should have 1 regular annotation + 2 skip annotations
+	// Should have 1 regular annotation + 2 unmapped annotations (from legacy okapi-skip)
 	assert.Len(t, ar.annotations, 1)
 	assert.Equal(t, "HtmlSnippetsTest", ar.annotations[0].JavaClass)
 	assert.Equal(t, "testFoo", ar.annotations[0].JavaMethod)
 
-	assert.Len(t, ar.skips, 2)
-	assert.Equal(t, "HtmlConfigurationSupportTest", ar.skips[0].JavaClass)
-	assert.Equal(t, "test_EXCLUDE", ar.skips[0].JavaMethod)
-	assert.Equal(t, "Java YAML config subsystem", ar.skips[0].Reason)
-	assert.Equal(t, "html", ar.skips[0].Filter)
+	assert.Len(t, ar.unmapped, 2)
+	assert.Equal(t, "HtmlConfigurationSupportTest", ar.unmapped[0].JavaClass)
+	assert.Equal(t, "test_EXCLUDE", ar.unmapped[0].JavaMethod)
+	assert.Equal(t, "Java YAML config subsystem", ar.unmapped[0].Reason)
+	assert.Equal(t, "html", ar.unmapped[0].Filter)
 }
 
 func TestComputeCoverage(t *testing.T) {
@@ -182,18 +182,20 @@ func TestComputeCoverage(t *testing.T) {
 		{JavaClass: "A", JavaMethod: "m2", OkapiStatus: "pass", BridgeTest: "TestM2", BridgeStatus: "fail", TestState: "implemented"},
 		{JavaClass: "A", JavaMethod: "m3", OkapiStatus: "pass", TestState: "unmapped"},
 		{JavaClass: "A", JavaMethod: "m4", OkapiStatus: "pass", NativeTest: "TestM4", NativeStatus: "pass", TestState: "implemented"},
-		{JavaClass: "A", JavaMethod: "m5", OkapiStatus: "pass", TestState: "skipped", SkipReason: "Java config"},
+		{JavaClass: "A", JavaMethod: "m5", OkapiStatus: "pass", TestState: "not-applicable", SkipReason: "Java config"},
 		{JavaClass: "A", JavaMethod: "m6", OkapiStatus: "pass", BridgeTest: "TestM6", BridgeStatus: "skip", TestState: "pending"},
+		{JavaClass: "A", JavaMethod: "m7", OkapiStatus: "skip", TestState: "okapi-skip"},
 	}
 
 	cs := computeCoverage(testCases)
-	assert.Equal(t, 6, cs.TotalOkapi)
+	assert.Equal(t, 7, cs.TotalOkapi)
 	assert.Equal(t, 3, cs.BridgeMapped)
 	assert.Equal(t, 1, cs.BridgePassing)
 	assert.Equal(t, 1, cs.NativeMapped)
 	assert.Equal(t, 1, cs.NativePassing)
-	assert.InDelta(t, 50.0, cs.CoveragePct, 0.01) // 3/6 = 50%
-	assert.Equal(t, 1, cs.SkippedCount)
+	assert.InDelta(t, 60.0, cs.CoveragePct, 0.01) // 3/(7-1-1) = 3/5 = 60%
+	assert.Equal(t, 1, cs.IgnoredCount)
+	assert.Equal(t, 1, cs.OkapiSkipCount)
 	assert.Equal(t, 1, cs.PendingCount)
 }
 
@@ -252,7 +254,6 @@ func TestMerge_ParameterizedJUnitTests(t *testing.T) {
 
 	data := merge(okapi, nil, nil,
 		bridgeAnns, nil,
-		nil, nil,
 		nil, nil,
 		bridgeStatus, nil,
 		nil, nil,
@@ -360,9 +361,8 @@ func TestParseGoTestResults_SubtestGrouping(t *testing.T) {
 	assert.Equal(t, 0, results.subtestCounts["html"]["TestBar"])
 }
 
-func TestMerge_SkipDoesNotOverrideBridgeAnnotation(t *testing.T) {
-	// A native okapi-skip: should not hide an existing bridge okapi: annotation.
-	// This was the bug causing HtmlConfigurationSupportTest to show "—" for bridge.
+func TestMerge_UnmappedDoesNotOverrideBridgeAnnotation(t *testing.T) {
+	// A native okapi-unmapped: should not hide an existing bridge okapi: annotation.
 	okapi := map[string]*FilterResult{
 		"html": {
 			Suites: []Suite{{
@@ -383,8 +383,8 @@ func TestMerge_SkipDoesNotOverrideBridgeAnnotation(t *testing.T) {
 		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_INCLUDE", GoTest: "TestConfigSupport_Include", Filter: "html", File: "config_test.go", Line: 108},
 	}
 
-	// Native has okapi-skip for both (the bug trigger)
-	nativeSkips := []skipAnnotation{
+	// Native has okapi-unmapped for both — should not override bridge implementation
+	nativeUnmapped := []skipAnnotation{
 		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_EXCLUDE", Reason: "Java YAML config subsystem", Filter: "html"},
 		{JavaClass: "HtmlConfigurationSupportTest", JavaMethod: "test_INCLUDE", Reason: "Java YAML config subsystem", Filter: "html"},
 	}
@@ -396,8 +396,7 @@ func TestMerge_SkipDoesNotOverrideBridgeAnnotation(t *testing.T) {
 
 	data := merge(okapi, nil, nil,
 		bridgeAnns, nil,
-		nil, nativeSkips,
-		nil, nil,
+		nil, nativeUnmapped,
 		bridgeStatus, nil,
 		nil, nil,
 		nil, nil,
@@ -410,9 +409,7 @@ func TestMerge_SkipDoesNotOverrideBridgeAnnotation(t *testing.T) {
 	for _, tc := range tcs {
 		assert.NotEmpty(t, tc.BridgeTest, "test %s bridge should be mapped", tc.JavaMethod)
 		assert.Equal(t, "pass", tc.BridgeStatus, "test %s bridge should pass", tc.JavaMethod)
-		assert.Equal(t, "implemented", tc.TestState, "test %s should be implemented, not skipped", tc.JavaMethod)
-		// Skip reason preserved as context
-		assert.Equal(t, "Java YAML config subsystem", tc.SkipReason)
+		assert.Equal(t, "implemented", tc.TestState, "test %s should be implemented, not not-applicable", tc.JavaMethod)
 	}
 }
 
@@ -444,7 +441,6 @@ func TestMerge_SubtestCounts(t *testing.T) {
 
 	data := merge(okapi, nil, nil,
 		bridgeAnns, nil,
-		nil, nil,
 		nil, nil,
 		bridgeStatus, nil,
 		nil, nil,

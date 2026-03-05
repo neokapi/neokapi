@@ -483,7 +483,7 @@ func TestExtract_InlineCodeFinderNewLineCharacter(t *testing.T) {
 }
 
 // okapi: JSONFilterTest#testDefaultInfo
-// okapi-skip: JSONFilterTest#testDefaultInfo — Java-specific API: tests filter metadata (name, display name, configurations)
+// okapi-unmapped: JSONFilterTest#testDefaultInfo — Java-specific API: tests filter metadata (name, display name, configurations)
 func TestExtract_DefaultInfo(t *testing.T) {
 	t.Skip("Java-specific: tests filter metadata API (getName, getDisplayName, getConfigurations)")
 }
@@ -741,7 +741,7 @@ func TestExtract_VariableMaxWidthInNestedObjects(t *testing.T) {
 
 // ---- JsonSnippetParserTest (1 test) ----
 
-// okapi-skip: JsonSnippetParserTest#testSingleObject — Java-specific: tests internal parser tokenization, not filter behavior
+// okapi-unmapped: JsonSnippetParserTest#testSingleObject — Java-specific: tests internal parser tokenization, not filter behavior
 func TestParse_SingleObject(t *testing.T) {
 	t.Skip("Java-specific: tests internal parser tokenization API")
 }
