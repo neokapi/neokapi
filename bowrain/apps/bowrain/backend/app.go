@@ -237,8 +237,9 @@ var toolCategory = map[string]string{
 	"qa-check":       "validate",
 	"term-check":     "validate",
 	// enrich tools
-	"tag-protect": "enrich",
-	"tm-leverage": "enrich",
+	"tag-protect":      "enrich",
+	"tm-leverage":      "enrich",
+	"layer-processor":  "transform",
 	// AI tools
 	"ai-translate":   "transform",
 	"ai-qa":          "validate",
