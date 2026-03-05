@@ -61,7 +61,7 @@ Files to include in the `okapi-testdata` GitHub release:
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_rainbowkit`
+### Package: `core/plugin/bridge/filters/rainbowkit`
 
 Build tag: `//go:build integration`
 
@@ -135,10 +135,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_rainbowkit/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/rainbowkit/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_rainbowkit/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/rainbowkit/
 ```
 
 ### Success criteria

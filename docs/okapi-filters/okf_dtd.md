@@ -82,7 +82,7 @@ cp okapi/filters/dtd/src/test/resources/Test02.dtd okapi-testdata/okf_dtd/
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_dtd`
+### Package: `core/plugin/bridge/filters/dtd`
 
 Build tag: `//go:build integration`
 
@@ -124,8 +124,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_dtd/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_dtd/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/dtd/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/dtd/
 ```
 
 ### Success criteria

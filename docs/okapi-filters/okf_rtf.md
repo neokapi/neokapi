@@ -86,7 +86,7 @@ cp okapi/filters/rtf/src/test/resources/net/sf/okapi/filters/rtf/*.rtf okapi-tes
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_rtf`
+### Package: `core/plugin/bridge/filters/rtf`
 
 Build tag: `//go:build integration`
 
@@ -127,8 +127,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_rtf/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_rtf/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/rtf/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/rtf/
 ```
 
 ### Success criteria

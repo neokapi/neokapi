@@ -83,7 +83,7 @@ cp -r integration-tests/okapi/src/test/resources/table/tab/ okapi-testdata/okf_t
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_tabseparatedvalues`
+### Package: `core/plugin/bridge/filters/tabseparatedvalues`
 
 Build tag: `//go:build integration`
 
@@ -122,10 +122,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_tabseparatedvalues/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/tabseparatedvalues/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_tabseparatedvalues/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/tabseparatedvalues/
 ```
 
 ### Success criteria

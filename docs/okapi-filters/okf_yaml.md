@@ -94,7 +94,7 @@ cp -r integration-tests/okapi/src/test/resources/yaml/* okapi-testdata/okf_yaml/
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_yaml`
+### Package: `core/plugin/bridge/filters/yaml`
 
 Build tag: `//go:build integration`
 
@@ -134,8 +134,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_yaml/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_yaml/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/yaml/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/yaml/
 ```
 
 ### Success criteria
@@ -166,7 +166,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_yaml/`)
+### Bridge Tests (`core/plugin/bridge/filters/yaml/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

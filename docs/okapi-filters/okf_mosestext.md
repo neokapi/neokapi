@@ -75,7 +75,7 @@ cp okapi/filters/mosestext/src/test/resources/Test02.txt okapi-testdata/okf_mose
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_mosestext`
+### Package: `core/plugin/bridge/filters/mosestext`
 
 Build tag: `//go:build integration`
 
@@ -100,8 +100,8 @@ func TestExtract_entries(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_mosestext/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_mosestext/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/mosestext/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/mosestext/
 ```
 
 ### Success criteria

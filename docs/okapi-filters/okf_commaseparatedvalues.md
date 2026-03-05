@@ -131,7 +131,7 @@ cp okapi/filters/table/src/test/resources/okf_table@*.fprm okapi-testdata/okf_co
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_commaseparatedvalues`
+### Package: `core/plugin/bridge/filters/commaseparatedvalues`
 
 Build tag: `//go:build integration`
 
@@ -188,10 +188,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_commaseparatedvalues/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/commaseparatedvalues/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_commaseparatedvalues/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/commaseparatedvalues/
 ```
 
 ### Success criteria

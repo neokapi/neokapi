@@ -74,7 +74,7 @@ cp okapi/filters/vignette/src/test/resources/Test01.xml okapi-testdata/okf_vigne
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_vignette`
+### Package: `core/plugin/bridge/filters/vignette`
 
 Build tag: `//go:build integration`
 
@@ -124,10 +124,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_vignette/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/vignette/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_vignette/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/vignette/
 ```
 
 ### Success criteria

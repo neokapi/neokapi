@@ -98,7 +98,7 @@ cp okapi/filters/properties/src/test/resources/*.fprm okapi-testdata/okf_propert
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_properties`
+### Package: `core/plugin/bridge/filters/properties`
 
 Build tag: `//go:build integration`
 
@@ -145,8 +145,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_properties/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_properties/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/properties/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/properties/
 ```
 
 ### Success criteria
@@ -175,7 +175,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_properties/`)
+### Bridge Tests (`core/plugin/bridge/filters/properties/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

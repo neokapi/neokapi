@@ -57,7 +57,7 @@ cp okapi/filters/epub/src/test/resources/net/sf/okapi/filters/epub/*.epub okapi-
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_epub`
+### Package: `core/plugin/bridge/filters/epub`
 
 Build tag: `//go:build integration`
 
@@ -97,8 +97,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_epub/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_epub/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/epub/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/epub/
 ```
 
 ### Success criteria

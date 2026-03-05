@@ -169,7 +169,7 @@ cp -r integration-tests/okapi/src/test/resources/json/metarules okapi-testdata/o
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_json`
+### Package: `core/plugin/bridge/filters/json`
 
 Build tag: `//go:build integration`
 
@@ -287,10 +287,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_json/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/json/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_json/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/json/
 ```
 
 ### Success criteria
@@ -321,7 +321,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_json/`)
+### Bridge Tests (`core/plugin/bridge/filters/json/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

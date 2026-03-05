@@ -143,7 +143,7 @@ cp -r integration-tests/okapi/src/test/resources/xliff/* okapi-testdata/okf_xlif
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_xliff`
+### Package: `core/plugin/bridge/filters/xliff`
 
 Build tag: `//go:build integration`
 
@@ -174,8 +174,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_xliff/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_xliff/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/xliff/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/xliff/
 ```
 
 ### Success criteria
@@ -206,7 +206,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_xliff/`)
+### Bridge Tests (`core/plugin/bridge/filters/xliff/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

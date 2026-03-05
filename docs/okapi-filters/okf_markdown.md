@@ -342,7 +342,7 @@ cp -r integration-tests/okapi/src/test/resources/markdown/* okapi-testdata/okf_m
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_markdown`
+### Package: `core/plugin/bridge/filters/markdown`
 
 Build tag: `//go:build integration`
 
@@ -411,8 +411,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_markdown/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_markdown/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/markdown/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/markdown/
 ```
 
 ### Success criteria
@@ -448,7 +448,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_markdown/`)
+### Bridge Tests (`core/plugin/bridge/filters/markdown/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|
