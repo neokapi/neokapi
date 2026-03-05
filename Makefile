@@ -46,7 +46,7 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-bowrain-cli build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-bridge-filters fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-brain test-bowrain lint fmt vet proto clean install cover tools help \
+        test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-brain test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         keycloak-theme \
@@ -373,6 +373,9 @@ fetch-okapi-surefire: ## Download Okapi Surefire XML reports from GitHub release
 
 test-bridge-filters: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter integration tests (requires Java)
 	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+
+test-bridge-pool: fetch-bridge-jar fetch-bridge-testdata ## Run bridge tests with shared JVM pool (faster, default 4 JVMs)
+	@GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) bash scripts/run-bridge-tests.sh $(or $(BRIDGE_POOL_SIZE),4)
 
 test-bridge-json: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter tests with JSON output
 	@mkdir -p $(COVER_DIR)

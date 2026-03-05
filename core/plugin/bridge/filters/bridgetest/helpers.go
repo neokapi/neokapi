@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -41,6 +42,37 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	t.Helper()
 
 	sharedOnce.Do(func() {
+		// External bridge mode: connect to pre-started JVM(s).
+		if addrs := os.Getenv("GOKAPI_BRIDGE_ADDRS"); addrs != "" {
+			addrList := strings.Split(addrs, ",")
+			var trimmed []string
+			for _, a := range addrList {
+				a = strings.TrimSpace(a)
+				if a != "" {
+					trimmed = append(trimmed, a)
+				}
+			}
+			if len(trimmed) == 0 {
+				sharedErr = errFatal("GOKAPI_BRIDGE_ADDRS is set but contains no valid addresses")
+				return
+			}
+
+			sharedPool = bridge.NewBridgePool(len(trimmed), log.Default())
+			for _, addr := range trimmed {
+				cfg := bridge.BridgeConfig{Address: addr}
+				b := bridge.NewJavaBridge(cfg, log.Default())
+				if err := b.Start(); err != nil {
+					sharedErr = errFatalf("connecting to external bridge at %s: %v", addr, err)
+					return
+				}
+				sharedPool.Seed(b)
+			}
+			// Use first address as the shared config (for pool.Acquire fallback).
+			sharedCfg = bridge.BridgeConfig{Address: trimmed[0]}
+			return
+		}
+
+		// Subprocess mode: start a JVM per binary.
 		jar := os.Getenv("GOKAPI_BRIDGE_JAR")
 		if jar == "" {
 			sharedErr = errFatal("GOKAPI_BRIDGE_JAR not set — run scripts/fetch-okapi-bridge.sh")
