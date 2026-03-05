@@ -608,7 +608,7 @@ jobs:
           echo "Started 4 bridge JVMs: $GOKAPI_BRIDGE_ADDRS"
 
       - name: Run bridge filter integration tests
-        run: go test -race -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash scripts/go-test-progress.sh > test-results-bridge.json || true
+        run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash scripts/go-test-progress.sh > test-results-bridge.json || true
         timeout-minutes: 30
 
       - name: Stop bridge JVM pool
