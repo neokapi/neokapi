@@ -95,7 +95,7 @@ const html5MimeType = "text/html"
 func readHTML5(t *testing.T, snippet string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	return bridgetest.ReadString(t, pool, cfg, filterClass, snippet, "test.html", mimeType, filterParams)
+	return bridgetest.ReadString(t, pool, cfg, html5FilterClass, snippet, "test.html", html5MimeType, filterParams)
 }
 
 // readHTML5Default parses an HTML5 snippet with default (nil) params.
@@ -113,7 +113,7 @@ func html5AllBlocks(parts []*model.Part) []*model.Block {
 func html5SnippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, []byte(snippet), "test.html", mimeType, filterParams)
+	result := bridgetest.RoundTrip(t, pool, cfg, html5FilterClass, []byte(snippet), "test.html", html5MimeType, filterParams)
 	return string(result.Output)
 }
 
@@ -339,7 +339,7 @@ func TestExtract_WithinTextLocal(t *testing.T) {
 func TestExtract_Link(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, "okf_html5/test02.html")
-	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from test02.html")
@@ -380,11 +380,11 @@ func TestExtract_OpenTwice(t *testing.T) {
 	path := bridgetest.TestdataFile(t, "okf_html5/test01.html")
 
 	// First read.
-	parts1 := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts1 := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 	blocks1 := bridgetest.FilterBlocks(parts1)
 
 	// Second read -- same file.
-	parts2 := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts2 := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 	blocks2 := bridgetest.FilterBlocks(parts2)
 
 	require.NotEmpty(t, blocks1, "first read should produce blocks")

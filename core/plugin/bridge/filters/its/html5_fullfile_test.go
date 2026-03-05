@@ -18,7 +18,7 @@ import (
 func TestFullFile_WhiteSpaces(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, "okf_html5/testWhiteSpaces.html")
-	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.GreaterOrEqual(t, len(blocks), 2,
@@ -47,7 +47,7 @@ func TestFullFile_WhiteSpaces(t *testing.T) {
 func TestFullFile_TranslateOverriddenByRule(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, "okf_html5/test01.html")
-	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from test01.html")
@@ -135,7 +135,7 @@ func TestFullFile_DATAContentOutput(t *testing.T) {
 	}
 
 	// Roundtrip to verify DATA content is preserved in output.
-	output := snippetRoundtrip(t, html, nil)
+	output := html5SnippetRoundtrip(t, html, nil)
 	assert.Contains(t, output, "body { color: red; }",
 		"style content should be preserved in roundtrip output")
 	assert.Contains(t, output, "var x = 1",
@@ -149,7 +149,7 @@ func TestFullFile_DATAContentOutput(t *testing.T) {
 func TestFullFile_LQIExternalXMLStandoff(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, "okf_html5/lqi-test1.html")
-	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from lqi-test1.html")
