@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_html5
+package its
 
 import (
 	"strings"
@@ -88,8 +88,8 @@ import (
 // okapi-unmapped: TraversalTest#testlangVsXmlLangInXHtml — Java-internal ITS traversal test
 // okapi-unmapped: VariableResolverTest#testQuotation — Java-internal ITS variable resolver test
 
-const filterClass = "net.sf.okapi.filters.its.html5.HTML5Filter"
-const mimeType = "text/html"
+const html5FilterClass = "net.sf.okapi.filters.its.html5.HTML5Filter"
+const html5MimeType = "text/html"
 
 // readHTML5 parses an HTML5 snippet with custom filter params and returns the parts.
 func readHTML5(t *testing.T, snippet string, filterParams map[string]any) []*model.Part {
@@ -105,12 +105,12 @@ func readHTML5Default(t *testing.T, snippet string) []*model.Part {
 }
 
 // allBlocks returns all blocks (translatable and non-translatable) from parts.
-func allBlocks(parts []*model.Part) []*model.Block {
+func html5AllBlocks(parts []*model.Part) []*model.Block {
 	return bridgetest.FilterBlocks(parts)
 }
 
 // snippetRoundtrip roundtrips an HTML5 snippet and returns the output string.
-func snippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
+func html5SnippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, []byte(snippet), "test.html", mimeType, filterParams)
@@ -118,7 +118,7 @@ func snippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any)
 }
 
 // findBlockContaining returns the first block whose source text contains the given substring.
-func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
+func html5FindBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), substr) {
 			return b
@@ -128,7 +128,7 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 }
 
 // countPartsByType counts parts of a given type.
-func countPartsByType(parts []*model.Part, pt model.PartType) int {
+func html5CountPartsByType(parts []*model.Part, pt model.PartType) int {
 	count := 0
 	for _, p := range parts {
 		if p.Type == pt {

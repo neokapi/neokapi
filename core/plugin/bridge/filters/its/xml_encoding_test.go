@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_xml
+package its
 
 import (
 	"os"

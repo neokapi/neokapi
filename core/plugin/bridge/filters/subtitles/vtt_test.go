@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_vtt
+package subtitles
 
 import (
 	"strings"
@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const filterClass = "net.sf.okapi.filters.vtt.VTTFilter"
-const mimeType = "text/vtt"
+const vttFilterClass = "net.sf.okapi.filters.vtt.VTTFilter"
+const vttMimeType = "text/vtt"
 
 // readVTT parses a VTT snippet with custom filter params and returns the parts.
 func readVTT(t *testing.T, snippet string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	return bridgetest.ReadString(t, pool, cfg, filterClass, snippet, "test.vtt", mimeType, filterParams)
+	return bridgetest.ReadString(t, pool, cfg, vttFilterClass, snippet, "test.vtt", vttMimeType, filterParams)
 }
 
 // readVTTDefault parses a VTT snippet with default (nil) params.
@@ -29,20 +29,20 @@ func readVTTDefault(t *testing.T, snippet string) []*model.Part {
 }
 
 // allBlocks returns all blocks (translatable and non-translatable) from parts.
-func allBlocks(parts []*model.Part) []*model.Block {
+func vttAllBlocks(parts []*model.Part) []*model.Block {
 	return bridgetest.FilterBlocks(parts)
 }
 
 // snippetRoundtrip roundtrips a VTT snippet and returns the output string.
-func snippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
+func vttSnippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, []byte(snippet), "test.vtt", mimeType, filterParams)
+	result := bridgetest.RoundTrip(t, pool, cfg, vttFilterClass, []byte(snippet), "test.vtt", vttMimeType, filterParams)
 	return string(result.Output)
 }
 
 // findBlockContaining finds a block whose source text contains the given substring.
-func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
+func vttFindBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), substr) {
 			return b
@@ -96,7 +96,7 @@ func TestExtract_Simple(t *testing.T) {
 }
 
 // okapi: VTTFilterTest#testMergeCaptions
-func TestExtract_MergeCaptions(t *testing.T) {
+func TestExtract_VTT_MergeCaptions(t *testing.T) {
 	// When the first cue ends with a comma (no sentence-ending punctuation),
 	// the VTT filter merges it with the next cue into a single text unit.
 	snippet := "WEBVTT\n" +
@@ -192,13 +192,13 @@ func TestExtract_QuotePunctuation(t *testing.T) {
 	require.GreaterOrEqual(t, len(blocks), 2, "quote-terminated cues should not merge")
 
 	// First cue: "'Thanks everyone for joining us today.'"
-	found1 := findBlockContaining(blocks, "Thanks everyone")
+	found1 := vttFindBlockContaining(blocks, "Thanks everyone")
 	require.NotNil(t, found1, "should find first cue")
 	assert.Contains(t, found1.SourceText(), "'Thanks everyone")
 	assert.Contains(t, found1.SourceText(), "today.'")
 
 	// Second cue: "'I am so excited to be with you.'"
-	found2 := findBlockContaining(blocks, "I am so excited")
+	found2 := vttFindBlockContaining(blocks, "I am so excited")
 	require.NotNil(t, found2, "should find second cue")
 	assert.Contains(t, found2.SourceText(), "'I am so excited")
 	assert.Contains(t, found2.SourceText(), "you.'")
@@ -248,12 +248,12 @@ func TestExtract_EmptyCaption(t *testing.T) {
 		"to be with you."
 
 	parts := readVTTDefault(t, snippet)
-	blocks := allBlocks(parts)
+	blocks := vttAllBlocks(parts)
 
 	require.GreaterOrEqual(t, len(blocks), 2, "should extract both empty and non-empty cues")
 
 	// The non-empty cue should have the expected text.
-	found := findBlockContaining(blocks, "I am so excited")
+	found := vttFindBlockContaining(blocks, "I am so excited")
 	require.NotNil(t, found, "should find the non-empty cue")
 	assert.Contains(t, found.SourceText(), "be with you")
 }
@@ -280,7 +280,7 @@ func TestWriter_ProcessTextUnit(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "orange")
 	assert.Contains(t, output, "00:00:02.680")
@@ -294,7 +294,7 @@ func TestWriter_ProcessTextUnitSplitLines(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "00:00:02.680")
 	assert.Contains(t, output, "orange")
@@ -312,7 +312,7 @@ func TestWriter_ProcessTextUnitSplitCaptionsLines(t *testing.T) {
 		"00:00:04.800 --> 00:00:06.960\n" +
 		"and it is delicious.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "-->")
 	assert.Contains(t, output, "orange")
@@ -330,7 +330,7 @@ func TestWriter_ProcessTextUnitSplitCaptionsLineOverflow(t *testing.T) {
 		"00:00:04.800 --> 00:00:06.960\n" +
 		"and it is delicious.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "orange")
 	assert.Contains(t, output, "delicious")
@@ -350,7 +350,7 @@ func TestWriter_ProcessTextUnitSplitCaptionsCaptionOverflow(t *testing.T) {
 		"00:00:06.960 --> 00:00:09.100\n" +
 		"that lives in Africa.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "hippopotamus")
 	assert.Contains(t, output, "Africa")
@@ -364,7 +364,7 @@ func TestWriter_ProcessTextUnitWithCues(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720 align:middle line:84%\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "orange")
 	// Cue settings should survive roundtrip.
@@ -410,7 +410,7 @@ func TestWriter_ProcessTextUnitKeepTimings(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "00:00:02.680")
 	assert.Contains(t, output, "00:00:04.720")
 	assert.Contains(t, output, "orange")
@@ -425,7 +425,7 @@ func TestWriter_ProcessTextUnitWithChapters(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "orange")
 	assert.Contains(t, output, "00:00:02.680")
@@ -471,7 +471,7 @@ func TestWriter_Overflow(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is an orange.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "orange")
 }
@@ -484,7 +484,7 @@ func TestWriter_WithLongWords(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.820\n" +
 		"Lo rem ip sumdolo rsi tamet cons extetur.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "sumdolo")
 	assert.Contains(t, output, "extetur")
@@ -498,7 +498,7 @@ func TestWriter_WithFewWords(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.820\n" +
 		"Lorem ipsumdolor sit amet.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "Lorem")
 	assert.Contains(t, output, "amet")
@@ -528,7 +528,7 @@ func TestWriter_DontSplitWords(t *testing.T) {
 		"00:00:02.680 --> 00:00:04.720\n" +
 		"This is a hippopotamus.\n"
 
-	output := snippetRoundtrip(t, snippet, nil)
+	output := vttSnippetRoundtrip(t, snippet, nil)
 	assert.Contains(t, output, "WEBVTT")
 	assert.Contains(t, output, "hippopotamus")
 }
@@ -597,7 +597,7 @@ func TestWriter_WrongParameters(t *testing.T) {
 
 // ---- General structure tests ----
 
-func TestExtract_LayerStructure(t *testing.T) {
+func TestExtract_VTT_LayerStructure(t *testing.T) {
 	snippet := "WEBVTT\n" +
 		"\n" +
 		"00:00:00.000 --> 00:00:01.000\n" +
@@ -610,7 +610,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type, "last part should be LayerEnd")
 }
 
-func TestExtract_BlockIDs(t *testing.T) {
+func TestExtract_VTT_BlockIDs(t *testing.T) {
 	snippet := "WEBVTT\n" +
 		"\n" +
 		"00:00:00.000 --> 00:00:01.000\n" +
@@ -643,11 +643,11 @@ func TestExtract_OpenTwice(t *testing.T) {
 		"Hello world\n"
 
 	// First read.
-	parts1 := bridgetest.ReadString(t, pool, cfg, filterClass, snippet, "test.vtt", mimeType, nil)
+	parts1 := bridgetest.ReadString(t, pool, cfg, vttFilterClass, snippet, "test.vtt", vttMimeType, nil)
 	blocks1 := bridgetest.FilterBlocks(parts1)
 
 	// Second read of the same content.
-	parts2 := bridgetest.ReadString(t, pool, cfg, filterClass, snippet, "test.vtt", mimeType, nil)
+	parts2 := bridgetest.ReadString(t, pool, cfg, vttFilterClass, snippet, "test.vtt", vttMimeType, nil)
 	blocks2 := bridgetest.FilterBlocks(parts2)
 
 	require.NotEmpty(t, blocks1, "first read should produce blocks")
@@ -672,8 +672,8 @@ func TestExtract_SnippetRoundtrip(t *testing.T) {
 		"to be with you.\n"
 
 	pool, cfg := bridgetest.SharedBridge(t)
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,
-		[]byte(snippet), "test.vtt", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, vttFilterClass,
+		[]byte(snippet), "test.vtt", vttMimeType, nil)
 }
 
 func TestExtract_MultilineCueText(t *testing.T) {
