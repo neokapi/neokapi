@@ -85,17 +85,6 @@ type UpdateBlockTargetCodedRequest struct {
 	Spans        []SpanInfo `json:"spans"`
 }
 
-// AITranslateFileRequest holds parameters for AI-translating an item.
-type AITranslateFileRequest struct {
-	ProjectID        string `json:"project_id"`
-	ItemName         string `json:"item_name"`
-	TargetLocale     string `json:"target_locale"`
-	Provider         string `json:"provider"`
-	APIKey           string `json:"api_key"`
-	Model            string `json:"model"`
-	ProviderConfigID string `json:"provider_config_id,omitempty"`
-}
-
 // TranslationStats holds statistics about a translation operation.
 type TranslationStats struct {
 	TotalBlocks      int `json:"total_blocks"`

@@ -8,11 +8,9 @@ import (
 	"sync"
 
 	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
@@ -37,7 +35,6 @@ type App struct {
 	tb           *termbase.InMemoryTermBase // lazily initialized
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
-	credentials  *credentials.Store
 	connectorReg *platconn.Registry
 	eventBus     *event.ChannelEventBus
 
@@ -100,7 +97,6 @@ func newAppWithStore(cs store.ContentStore) *App {
 		formatReg:    reg,
 		toolReg:      toolReg,
 		store:        cs,
-		credentials:  credentials.NewStore(credentials.DefaultPath()),
 		connectorReg: connReg,
 		eventBus:     event.NewChannelEventBus(),
 		connState:    StateDisconnected,
@@ -381,19 +377,3 @@ func (a *App) DetectFormat(filePath string) (string, error) {
 	return a.formatReg.Detector().DetectByExtension(ext)
 }
 
-func createProvider(name, apiKey, modelName string) provider.LLMProvider {
-	cfg := provider.Config{
-		APIKey: apiKey,
-		Model:  modelName,
-	}
-	switch name {
-	case "anthropic":
-		return provider.NewAnthropicProvider(cfg)
-	case "openai":
-		return provider.NewOpenAIProvider(cfg)
-	case "ollama":
-		return provider.NewOllamaProvider(cfg)
-	default:
-		return provider.NewMockProvider()
-	}
-}

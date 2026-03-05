@@ -1,11 +1,7 @@
 package backend
 
 import (
-	"context"
 	"fmt"
-
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/core/ai/provider"
 )
 
 // ProviderConfigInfo is the frontend-facing provider config (no API key).
@@ -27,72 +23,46 @@ type SaveProviderRequest struct {
 	APIKey       string `json:"api_key"`
 }
 
-func toProviderConfigInfo(c credentials.ProviderConfig) ProviderConfigInfo {
-	return ProviderConfigInfo{
-		ID:           c.ID,
-		Name:         c.Name,
-		ProviderType: c.ProviderType,
-		Model:        c.Model,
-		BaseURL:      c.BaseURL,
+// ListProviderConfigs returns all saved AI provider configurations from the server.
+func (a *App) ListProviderConfigs() ([]ProviderConfigInfo, error) {
+	if !a.isConnected() {
+		return nil, fmt.Errorf("AI provider management requires a server connection")
 	}
+	a.mu.RLock()
+	ws := a.activeWS
+	a.mu.RUnlock()
+	return a.remote.ListProviderConfigs(ws)
 }
 
-func (r SaveProviderRequest) toCredentials() credentials.ProviderConfig {
-	return credentials.ProviderConfig{
-		ID:           r.ID,
-		Name:         r.Name,
-		ProviderType: r.ProviderType,
-		Model:        r.Model,
-		BaseURL:      r.BaseURL,
-	}
-}
-
-// ListProviderConfigs returns all saved AI provider configurations.
-func (a *App) ListProviderConfigs() []ProviderConfigInfo {
-	configs := a.credentials.List()
-	out := make([]ProviderConfigInfo, len(configs))
-	for i, c := range configs {
-		out[i] = toProviderConfigInfo(c)
-	}
-	return out
-}
-
-// SaveProviderConfig creates or updates a provider configuration.
-// If the API key is non-empty, it is stored in the OS keychain.
+// SaveProviderConfig creates or updates a provider configuration on the server.
 func (a *App) SaveProviderConfig(req SaveProviderRequest) (*ProviderConfigInfo, error) {
-	saved := a.credentials.Upsert(req.toCredentials())
-
-	if req.APIKey != "" {
-		if err := a.credentials.SetAPIKey(saved.ID, req.APIKey); err != nil {
-			return nil, fmt.Errorf("save API key: %w", err)
-		}
+	if !a.isConnected() {
+		return nil, fmt.Errorf("AI provider management requires a server connection")
 	}
-
-	result := toProviderConfigInfo(saved)
-	return &result, nil
+	a.mu.RLock()
+	ws := a.activeWS
+	a.mu.RUnlock()
+	return a.remote.SaveProviderConfig(ws, req)
 }
 
-// DeleteProviderConfig removes a provider configuration and its API key.
+// DeleteProviderConfig removes a provider configuration on the server.
 func (a *App) DeleteProviderConfig(id string) error {
-	if err := a.credentials.Remove(id); err != nil {
-		return err
+	if !a.isConnected() {
+		return fmt.Errorf("AI provider management requires a server connection")
 	}
-	// Best-effort delete from keyring (may not exist)
-	_ = a.credentials.DeleteAPIKey(id)
-	return nil
+	a.mu.RLock()
+	ws := a.activeWS
+	a.mu.RUnlock()
+	return a.remote.DeleteProviderConfig(ws, id)
 }
 
-// TestProviderConfig tests a provider configuration by sending a simple chat message.
+// TestProviderConfig tests a provider configuration via the server.
 func (a *App) TestProviderConfig(req SaveProviderRequest) error {
-	cfg := req.toCredentials()
-	p := credentials.NewProviderFromConfig(cfg, req.APIKey)
-	defer p.Close()
-
-	_, err := p.Chat(context.Background(), []provider.Message{
-		{Role: "user", Content: "Hello, respond with OK."},
-	})
-	if err != nil {
-		return fmt.Errorf("connection test failed: %w", err)
+	if !a.isConnected() {
+		return fmt.Errorf("AI provider management requires a server connection")
 	}
-	return nil
+	a.mu.RLock()
+	ws := a.activeWS
+	a.mu.RUnlock()
+	return a.remote.TestProviderConfig(ws, req)
 }

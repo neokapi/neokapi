@@ -10,7 +10,6 @@ import type {
   BlockInfo,
   UpdateBlockRequest,
   UpdateBlockTargetCodedRequest,
-  AITranslateFileRequest,
   TranslationStats,
   WordCountResult,
   ProviderConfig,
@@ -295,13 +294,6 @@ export function useEditorApi() {
     [],
   );
 
-  const aiTranslateFile = useCallback(
-    async (req: AITranslateFileRequest): Promise<TranslationStats> => {
-      return Backend.AITranslateItem(req) as Promise<TranslationStats>;
-    },
-    [],
-  );
-
   const tmTranslateFile = useCallback(
     async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
       return Backend.TMTranslateItem(projectID, fileName, targetLocale) as Promise<TranslationStats>;
@@ -363,7 +355,6 @@ export function useEditorApi() {
     updateBlockTarget,
     updateBlockTargetCoded,
     pseudoTranslateFile,
-    aiTranslateFile,
     tmTranslateFile,
     getWordCount,
     exportTranslatedFile,
@@ -377,7 +368,6 @@ export function useEditorApi() {
     updateBlockTarget,
     updateBlockTargetCoded,
     pseudoTranslateFile,
-    aiTranslateFile,
     tmTranslateFile,
     getWordCount,
     exportTranslatedFile,

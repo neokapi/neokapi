@@ -168,18 +168,7 @@ export interface UpdateBlockTargetCodedRequest {
   spans: SpanInfo[];
 }
 
-/** AI translate file request */
-export interface AITranslateFileRequest {
-  project_id: string;
-  item_name: string;
-  target_locale: string;
-  provider: string;
-  api_key: string;
-  model: string;
-  provider_config_id?: string;
-}
-
-/** Saved AI provider configuration (API keys stored in OS keychain, not here) */
+/** Saved AI provider configuration (managed server-side) */
 export interface ProviderConfig {
   id: string;
   name: string;
