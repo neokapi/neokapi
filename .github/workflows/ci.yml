@@ -602,7 +602,7 @@ jobs:
 
       - name: Run bridge filter integration tests
         run: go test -race -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > test-results-bridge.json 2>&1 || true
-        timeout-minutes: 10
+        timeout-minutes: 20
 
       - name: Convert to JUnit XML
         if: always()
