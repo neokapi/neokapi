@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_phpcontent
+package php
 
 import (
 	"testing"

@@ -221,12 +221,6 @@ func main() {
 		nativeAR = parseAnnotations(*nativeSrc, "native")
 	}
 
-	// Merge test results through filterAliases before building status maps.
-	// E.g. bridge results from "html5" are consolidated into "its" (the Okapi
-	// surefire filter name), so status lookups by Okapi filter name succeed.
-	mergeAliasedGoResults(&bridgeResults, filterAliases)
-	mergeAliasedGoResults(&nativeResults, filterAliases)
-
 	// Build Go test status maps from results
 	bridgeTestStatus := buildTestStatusMap(bridgeResults.filters)
 	nativeTestStatus := buildTestStatusMap(nativeResults.filters)
@@ -514,10 +508,15 @@ func parseGoTestResults(path string, filterFn func(string) string) goTestResults
 }
 
 // bridgeFilterFromPkg extracts the filter name from a bridge test package path.
-// e.g. ".../bridge/filters/okf_html" → "html"
+// Handles both okf_-prefixed packages (e.g. ".../okf_html" → "html") and
+// bare Maven module names (e.g. ".../its" → "its", ".../subtitles" → "subtitles").
 func bridgeFilterFromPkg(pkg string) string {
+	if !strings.Contains(pkg, "/filters/") {
+		return ""
+	}
 	seg := lastSegment(pkg)
-	if !strings.HasPrefix(seg, "okf_") {
+	// Skip non-filter packages under filters/
+	if seg == "filters" || seg == "bridgetest" {
 		return ""
 	}
 	return strings.TrimPrefix(seg, "okf_")
@@ -556,7 +555,8 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 	case "bridge":
 		patterns = []string{
 			filepath.Join(srcDir, "okf_*", "*_test.go"),
-			filepath.Join(srcDir, "*_test.go"), // files with // okapi-filter: directives
+			filepath.Join(srcDir, "*", "*_test.go"), // bare-name dirs (its/, subtitles/, php/)
+			filepath.Join(srcDir, "*_test.go"),       // files with // okapi-filter: directives
 		}
 	default:
 		patterns = []string{
@@ -564,6 +564,7 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 		}
 	}
 
+	seen := map[string]bool{}
 	var matches []string
 	for _, pattern := range patterns {
 		m, err := filepath.Glob(pattern)
@@ -571,7 +572,12 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 			log.Printf("warn: annotation glob %s: %v", pattern, err)
 			continue
 		}
-		matches = append(matches, m...)
+		for _, f := range m {
+			if !seen[f] {
+				seen[f] = true
+				matches = append(matches, f)
+			}
+		}
 	}
 
 	var result annotationResult
@@ -689,7 +695,8 @@ func filterFromPath(path, kind string) string {
 
 	switch kind {
 	case "bridge":
-		if !strings.HasPrefix(seg, "okf_") {
+		// Bridge test dirs: okf_json → json, its → its (bare Maven module name)
+		if seg == "filters" || seg == "bridgetest" {
 			return ""
 		}
 		return strings.TrimPrefix(seg, "okf_")
@@ -722,103 +729,6 @@ type annInfo struct {
 	Line   int
 }
 
-// filterAliases maps Go-derived filter names to the surefire filter names they
-// also cover. This handles cases where Okapi surefire groups tests under a
-// different filter directory than the Go package name.
-var filterAliases = map[string][]string{
-	"html5":      {"its"},          // okf_html5/ covers ITS HTML5 tests
-	"xml":        {"its"},          // okf_xml/ covers ITS XML tests
-	"phpcontent": {"php"},          // okf_phpcontent/ covers surefire php/
-	"ttml":       {"subtitles"},    // okf_ttml/ covers surefire subtitles/
-	"vtt":        {"subtitles"},    // okf_vtt/ covers surefire subtitles/
-	"xini":       {"rainbowkit"},   // okf_xini/ covers surefire rainbowkit/
-}
-
-// mergeAliasedGoResults consolidates Go test results from alias source filters
-// into their target filters. For example, if aliases maps "html5" → ["its"],
-// test results keyed under "html5" are merged into "its" and the "html5" entry
-// is removed. This covers the filters map, skipMsgs, and subtestCounts so that
-// all downstream lookups use the Okapi surefire filter name.
-func mergeAliasedGoResults(results *goTestResults, aliases map[string][]string) {
-	if results == nil {
-		return
-	}
-	mergeFilterResults(results.filters, aliases)
-	mergeStringMap(results.skipMsgs, aliases)
-	mergeSubtestCounts(results.subtestCounts, aliases)
-}
-
-// mergeFilterResults moves FilterResult entries from alias sources to targets.
-func mergeFilterResults(m map[string]*FilterResult, aliases map[string][]string) {
-	if m == nil {
-		return
-	}
-	for src, targets := range aliases {
-		srcResult := m[src]
-		if srcResult == nil {
-			continue
-		}
-		for _, tgt := range targets {
-			existing := m[tgt]
-			if existing == nil {
-				m[tgt] = srcResult
-			} else {
-				existing.Suites = append(existing.Suites, srcResult.Suites...)
-				existing.Total += srcResult.Total
-				existing.Passed += srcResult.Passed
-				existing.Failed += srcResult.Failed
-				existing.Skipped += srcResult.Skipped
-				existing.Errors += srcResult.Errors
-				existing.Funcs += srcResult.Funcs
-			}
-		}
-		delete(m, src)
-	}
-}
-
-// mergeStringMap re-keys "src/TestName" → "tgt/TestName" entries in skipMsgs.
-func mergeStringMap(m map[string]string, aliases map[string][]string) {
-	if m == nil {
-		return
-	}
-	for src, targets := range aliases {
-		prefix := src + "/"
-		for key, val := range m {
-			if strings.HasPrefix(key, prefix) {
-				testName := key[len(prefix):]
-				for _, tgt := range targets {
-					m[tgt+"/"+testName] = val
-				}
-				delete(m, key)
-			}
-		}
-	}
-}
-
-// mergeSubtestCounts moves subtestCounts entries from alias sources to targets.
-func mergeSubtestCounts(m map[string]map[string]int, aliases map[string][]string) {
-	if m == nil {
-		return
-	}
-	for src, targets := range aliases {
-		srcCounts := m[src]
-		if srcCounts == nil {
-			continue
-		}
-		for _, tgt := range targets {
-			existing := m[tgt]
-			if existing == nil {
-				m[tgt] = srcCounts
-			} else {
-				for fn, count := range srcCounts {
-					existing[fn] += count
-				}
-			}
-		}
-		delete(m, src)
-	}
-}
-
 func merge(
 	okapi, bridge, native map[string]*FilterResult,
 	bridgeAnns, nativeAnns []annotation,
@@ -830,59 +740,37 @@ func merge(
 	okapiVer, gokapiVer, goCommit, okapiTagVal string,
 ) *ComparisonData {
 	// Build annotation lookup: filter → javaClass#method → []annInfo
-	// Annotations are indexed under both their original filter name and any aliases.
 	type annKey struct{ filter, class, method string }
-
-	// filtersFor returns the original filter plus any alias targets.
-	filtersFor := func(f string) []string {
-		out := []string{f}
-		if aliases, ok := filterAliases[f]; ok {
-			out = append(out, aliases...)
-		}
-		return out
-	}
 
 	bridgeAnnMap := map[annKey][]annInfo{}
 	for _, a := range bridgeAnns {
 		info := annInfo{a.GoTest, a.File, a.Line}
-		for _, f := range filtersFor(a.Filter) {
-			k := annKey{f, a.JavaClass, a.JavaMethod}
-			bridgeAnnMap[k] = append(bridgeAnnMap[k], info)
-		}
+		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
+		bridgeAnnMap[k] = append(bridgeAnnMap[k], info)
 	}
 	nativeAnnMap := map[annKey][]annInfo{}
 	for _, a := range nativeAnns {
 		info := annInfo{a.GoTest, a.File, a.Line}
-		for _, f := range filtersFor(a.Filter) {
-			k := annKey{f, a.JavaClass, a.JavaMethod}
-			nativeAnnMap[k] = append(nativeAnnMap[k], info)
-		}
+		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
+		nativeAnnMap[k] = append(nativeAnnMap[k], info)
 	}
 
 	// Build skip annotation lookup: annKey → skipAnnotation (reason + source location)
 	skipMap := map[annKey]skipAnnotation{}
 	for _, s := range bridgeSkips {
-		for _, f := range filtersFor(s.Filter) {
-			skipMap[annKey{f, s.JavaClass, s.JavaMethod}] = s
-		}
+		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
 	}
 	for _, s := range nativeSkips {
-		for _, f := range filtersFor(s.Filter) {
-			skipMap[annKey{f, s.JavaClass, s.JavaMethod}] = s
-		}
+		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
 	}
 
 	// Build unmapped annotation lookup: annKey → skipAnnotation
 	unmappedMap := map[annKey]skipAnnotation{}
 	for _, u := range bridgeUnmapped {
-		for _, f := range filtersFor(u.Filter) {
-			unmappedMap[annKey{f, u.JavaClass, u.JavaMethod}] = u
-		}
+		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
 	}
 	for _, u := range nativeUnmapped {
-		for _, f := range filtersFor(u.Filter) {
-			unmappedMap[annKey{f, u.JavaClass, u.JavaMethod}] = u
-		}
+		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
 	}
 
 	// Collect all filter names

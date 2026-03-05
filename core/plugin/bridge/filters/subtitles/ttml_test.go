@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_ttml
+package subtitles
 
 import (
 	"strings"
@@ -12,14 +12,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const filterClass = "net.sf.okapi.filters.ttml.TTMLFilter"
-const mimeType = "application/ttml+xml"
+const ttmlFilterClass = "net.sf.okapi.filters.ttml.TTMLFilter"
+const ttmlMimeType = "application/ttml+xml"
 
 // readTTML parses a TTML snippet with custom filter params and returns the parts.
 func readTTML(t *testing.T, snippet string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	return bridgetest.ReadString(t, pool, cfg, filterClass, snippet, "test.ttml", mimeType, filterParams)
+	return bridgetest.ReadString(t, pool, cfg, ttmlFilterClass, snippet, "test.ttml", ttmlMimeType, filterParams)
 }
 
 // readTTMLDefault parses a TTML snippet with default (nil) params.
@@ -29,20 +29,20 @@ func readTTMLDefault(t *testing.T, snippet string) []*model.Part {
 }
 
 // allBlocks returns all blocks (translatable and non-translatable) from parts.
-func allBlocks(parts []*model.Part) []*model.Block {
+func ttmlAllBlocks(parts []*model.Part) []*model.Block {
 	return bridgetest.FilterBlocks(parts)
 }
 
 // snippetRoundtrip roundtrips a TTML snippet and returns the output string.
-func snippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
+func ttmlSnippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any) string {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, []byte(snippet), "test.ttml", mimeType, filterParams)
+	result := bridgetest.RoundTrip(t, pool, cfg, ttmlFilterClass, []byte(snippet), "test.ttml", ttmlMimeType, filterParams)
 	return string(result.Output)
 }
 
 // findBlockContaining finds a block whose source text contains the given substring.
-func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
+func ttmlFindBlockContaining(blocks []*model.Block, substr string) *model.Block {
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), substr) {
 			return b
@@ -84,7 +84,7 @@ func TestExtract_ProcessTextUnit(t *testing.T) {
 // okapi: TTMLFilterTest#testMergeCaptions
 // When adjacent captions end with a comma (trailing punctuation), the filter
 // merges them into a single text unit.
-func TestExtract_MergeCaptions(t *testing.T) {
+func TestExtract_TTML_MergeCaptions(t *testing.T) {
 	// Note: the merge snippet differs from the standard one — subtitle1 ends
 	// with a comma after "today," and subtitle2 has no trailing space after <br/>.
 	snippet := `<p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone<br/>for joining us today,</p>
@@ -154,11 +154,11 @@ func TestExtract_EmptyCaptions(t *testing.T) {
 
 	parts := readTTMLDefault(t, snippet)
 
-	blocks := allBlocks(parts)
+	blocks := ttmlAllBlocks(parts)
 	require.GreaterOrEqual(t, len(blocks), 1, "should extract at least one block")
 
 	// The non-empty subtitle should be extractable.
-	found := findBlockContaining(blocks, "I am so excited")
+	found := ttmlFindBlockContaining(blocks, "I am so excited")
 	require.NotNil(t, found, "should find the non-empty subtitle block")
 	assert.Equal(t, "I am so excited to be with you.", found.SourceText())
 }
@@ -305,7 +305,7 @@ func TestRoundTrip_BasicSnippet(t *testing.T) {
   </body>
 </tt>`
 
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, []byte(snippet), "test.ttml", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, ttmlFilterClass, []byte(snippet), "test.ttml", ttmlMimeType, nil)
 }
 
 // TestRoundTrip_MultipleSubtitles verifies roundtrip with multiple <p> elements.
@@ -322,7 +322,7 @@ func TestRoundTrip_MultipleSubtitles(t *testing.T) {
   </body>
 </tt>`
 
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, []byte(snippet), "test.ttml", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, ttmlFilterClass, []byte(snippet), "test.ttml", ttmlMimeType, nil)
 }
 
 // TestRoundTrip_WithLineBreaks verifies <br/> elements survive roundtrip.
@@ -338,7 +338,7 @@ func TestRoundTrip_WithLineBreaks(t *testing.T) {
   </body>
 </tt>`
 
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, []byte(snippet), "test.ttml", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, ttmlFilterClass, []byte(snippet), "test.ttml", ttmlMimeType, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -347,7 +347,7 @@ func TestRoundTrip_WithLineBreaks(t *testing.T) {
 
 // TestExtract_LayerStructure verifies the part stream starts with LayerStart and
 // ends with LayerEnd.
-func TestExtract_LayerStructure(t *testing.T) {
+func TestExtract_TTML_LayerStructure(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xmlns="http://www.w3.org/ns/ttml" xml:lang="EN">
   <body>
@@ -364,7 +364,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 }
 
 // TestExtract_BlockIDs verifies that each extracted block has a unique ID.
-func TestExtract_BlockIDs(t *testing.T) {
+func TestExtract_TTML_BlockIDs(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="UTF-8"?>
 <tt xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling" xml:lang="EN">
   <body>
@@ -409,7 +409,7 @@ func TestExtract_EmptyDocument(t *testing.T) {
 func TestExtract_FullDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, "okf_ttml/example1.ttml")
-	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+	parts := bridgetest.ReadFile(t, pool, cfg, ttmlFilterClass, path, ttmlMimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from example1.ttml")

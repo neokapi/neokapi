@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_html5
+package its
 
 import (
 	"testing"

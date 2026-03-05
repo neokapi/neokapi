@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_ttml
+package subtitles
 
 import (
 	"testing"
@@ -14,12 +14,12 @@ import (
 // The Java RoundTripTtmlIT runs both non-serialized and serialized modes with
 // EventComparator; in the bridge, serialization is transparent, so we use
 // AssertRoundTripEvents which re-reads the output and compares events.
-func TestRoundTrip_TestFiles(t *testing.T) {
+func TestRoundTrip_TTML_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_ttml/*.ttml", mimeType, nil)
+	bridgetest.RoundTripTestFiles(t, pool, cfg, ttmlFilterClass,
+		tdDir+"/okf_ttml/*.ttml", ttmlMimeType, nil)
 }
 
 // okapi-skip: TtmlXliffCompareIT — XLIFF compare tests require XLIFF serialization

@@ -1,6 +1,6 @@
 //go:build integration
 
-package okf_vtt
+package subtitles
 
 import (
 	"os"
@@ -15,7 +15,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	input := []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello world\n")
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.vtt", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, vttFilterClass, input, "test.vtt", vttMimeType, nil)
 }
 
 func TestRoundTrip_MultipleCues(t *testing.T) {
@@ -26,7 +26,7 @@ func TestRoundTrip_MultipleCues(t *testing.T) {
 		"First cue.\n\n" +
 		"00:00:02.000 --> 00:00:04.000\n" +
 		"Second cue.\n")
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.vtt", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, vttFilterClass, input, "test.vtt", vttMimeType, nil)
 }
 
 func TestRoundTrip_WithCueSettings(t *testing.T) {
@@ -35,7 +35,7 @@ func TestRoundTrip_WithCueSettings(t *testing.T) {
 	input := []byte("WEBVTT\n\n" +
 		"00:00:00.000 --> 00:00:02.000 align:middle line:84%\n" +
 		"Cue with settings.\n")
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.vtt", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, vttFilterClass, input, "test.vtt", vttMimeType, nil)
 }
 
 func TestRoundTrip_WithCueIDs(t *testing.T) {
@@ -48,18 +48,18 @@ func TestRoundTrip_WithCueIDs(t *testing.T) {
 		"2\n" +
 		"00:00:02.000 --> 00:00:04.000\n" +
 		"Second cue.\n")
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, input, "test.vtt", mimeType, nil)
+	bridgetest.AssertRoundTripEvents(t, pool, cfg, vttFilterClass, input, "test.vtt", vttMimeType, nil)
 }
 
 // okapi: RoundTripVttIT#vttFiles
-func TestRoundTrip_TestFiles(t *testing.T) {
+func TestRoundTrip_VTT_TestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
 	// The Java RoundTripVttIT iterates over .vtt files in the vtt/
 	// test resource directory using EventComparator for semantic comparison.
-	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_vtt/*.vtt", mimeType, nil)
+	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
+		tdDir+"/okf_vtt/*.vtt", vttMimeType, nil)
 }
 
 // okapi: RoundTripVttIT#vttSerializedFiles
@@ -71,8 +71,8 @@ func TestRoundTrip_TestFilesSerialized(t *testing.T) {
 	// serializedOutput=true. In the bridge, serialization behavior is
 	// handled transparently, so we run the same roundtrip with event
 	// comparison on the full set.
-	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_vtt/*.vtt", mimeType, nil)
+	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
+		tdDir+"/okf_vtt/*.vtt", vttMimeType, nil)
 }
 
 // okapi: VttXliffCompareIT#vttXliffCompareFiles
@@ -82,8 +82,8 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 	// Re-read the output from a roundtrip and compare event-level.
 	// This is the event-based equivalent of the XLIFF compare IT.
-	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_vtt/*.vtt", mimeType, nil)
+	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
+		tdDir+"/okf_vtt/*.vtt", vttMimeType, nil)
 }
 
 func TestRoundTrip_FullFile_Example1(t *testing.T) {
@@ -93,7 +93,7 @@ func TestRoundTrip_FullFile_Example1(t *testing.T) {
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, nil)
+	result := bridgetest.RoundTrip(t, pool, cfg, vttFilterClass, content, path, vttMimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(result.Parts)
 	require.NotEmpty(t, blocks, "example1.vtt should produce translatable blocks")
 
@@ -116,7 +116,7 @@ func TestRoundTrip_FullFile_Example2(t *testing.T) {
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, nil)
+	result := bridgetest.RoundTrip(t, pool, cfg, vttFilterClass, content, path, vttMimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(result.Parts)
 	require.NotEmpty(t, blocks, "example2.vtt should produce translatable blocks")
 
