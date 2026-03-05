@@ -1,6 +1,7 @@
 package json
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,11 @@ import (
 // string values with translated text from the blocks.
 type Writer struct {
 	format.BaseFormatWriter
+	resolver format.SubfilterResolver
 }
+
+// Ensure Writer implements SubfilterAware.
+var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new JSON writer.
 func NewWriter() *Writer {
@@ -28,12 +33,22 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSubfilterResolver sets the resolver for creating sub-format writers.
+func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	w.resolver = resolver
+}
+
 // Write consumes Parts from a channel and writes reconstructed JSON.
 // It first collects all block parts into a map keyed by block name (the JSON
 // key path), then reconstructs the original JSON structure by walking the
 // original parsed tree and replacing string values with their translations.
+//
+// Child layers (from subfiltered content) are reconstructed by writing their
+// parts through the appropriate sub-format writer, producing a string value
+// for the parent JSON key.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	blocks := make(map[string]*model.Block)
+	childLayerValues := make(map[string]string) // layer.Name (key path) → reconstructed string
 	var originalJSON []byte
 
 	for {
@@ -43,7 +58,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		case part, ok := <-parts:
 			if !ok {
 				// All parts consumed; reconstruct and write
-				return w.reconstruct(originalJSON, blocks)
+				return w.reconstruct(originalJSON, blocks, childLayerValues)
 			}
 			if part.Type == model.PartBlock {
 				block, ok := part.Resource.(*model.Block)
@@ -52,46 +67,125 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 				}
 			}
 			if part.Type == model.PartLayerStart {
-				// Capture original JSON from the layer if available
-				if layer, ok := part.Resource.(*model.Layer); ok {
-					_ = layer // Layer metadata; original data comes from blocks
+				if layer, ok := part.Resource.(*model.Layer); ok && layer.IsEmbedded() {
+					// Child layer: collect its parts and write through sub-writer
+					val, err := w.writeChildLayer(ctx, layer, parts)
+					if err != nil {
+						return fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+					}
+					childLayerValues[layer.Name] = val
 				}
 			}
 		}
 	}
 }
 
+// writeChildLayer collects parts until the matching PartLayerEnd and writes them
+// through the appropriate sub-format writer, returning the reconstructed string.
+func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
+	// Collect child parts until PartLayerEnd
+	var childParts []*model.Part
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
+			}
+			if part.Type == model.PartLayerEnd {
+				if endLayer, ok := part.Resource.(*model.Layer); ok && endLayer.ID == layer.ID {
+					goto collected
+				}
+			}
+			childParts = append(childParts, part)
+		}
+	}
+
+collected:
+	// If no resolver, concatenate block texts as fallback
+	if w.resolver == nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	subWriter, err := w.resolver.ResolveWriter(layer.Format)
+	if err != nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	var buf bytes.Buffer
+	if err := subWriter.SetOutputWriter(&buf); err != nil {
+		return "", err
+	}
+	subWriter.SetLocale(w.Locale)
+
+	// Feed child parts through sub-writer via channel
+	childCh := make(chan *model.Part, len(childParts))
+	for _, p := range childParts {
+		childCh <- p
+	}
+	close(childCh)
+
+	if err := subWriter.Write(ctx, childCh); err != nil {
+		return "", err
+	}
+	if err := subWriter.Close(); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// fallbackChildText concatenates block source/target texts when no sub-writer is available.
+func (w *Writer) fallbackChildText(parts []*model.Part) string {
+	var sb strings.Builder
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if block, ok := p.Resource.(*model.Block); ok {
+				sb.WriteString(w.blockText(block))
+			}
+		}
+	}
+	return sb.String()
+}
+
 // reconstruct builds the JSON output by creating a new structure from the
-// collected blocks. It builds a tree from block key paths and serializes it.
-func (w *Writer) reconstruct(originalJSON []byte, blocks map[string]*model.Block) error {
-	if len(blocks) == 0 {
+// collected blocks and child layer values.
+func (w *Writer) reconstruct(originalJSON []byte, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	if len(blocks) == 0 && len(childLayerValues) == 0 {
 		_, err := w.Output.Write([]byte("{}"))
 		return err
 	}
 
-	// Build a tree structure from block paths
-	root := w.buildTree(blocks)
+	// Build a tree structure from block paths and child layer values
+	root := w.buildTree(blocks, childLayerValues)
 
-	// Marshal with indentation to produce clean output
-	output, err := json.MarshalIndent(root, "", "  ")
-	if err != nil {
+	// Marshal with indentation, preserving HTML characters unescaped.
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(root); err != nil {
 		return fmt.Errorf("json writer: marshaling: %w", err)
 	}
 
-	// Add trailing newline
-	output = append(output, '\n')
-	_, err = w.Output.Write(output)
-	return err
+	_, writeErr := w.Output.Write(buf.Bytes())
+	return writeErr
 }
 
-// buildTree reconstructs a JSON value tree from the collected blocks.
+// buildTree reconstructs a JSON value tree from the collected blocks and child layer values.
 // Block names encode the key path (e.g., "nested.key", "items[0]").
-func (w *Writer) buildTree(blocks map[string]*model.Block) any {
+func (w *Writer) buildTree(blocks map[string]*model.Block, childLayerValues map[string]string) any {
 	root := make(map[string]any)
 
 	for name, block := range blocks {
 		text := w.blockText(block)
 		w.setPath(root, name, text)
+	}
+
+	// Child layer values override/supplement block values at their key paths
+	for path, val := range childLayerValues {
+		w.setPath(root, path, val)
 	}
 
 	// If the root has only array indices as keys, return as array
@@ -103,8 +197,6 @@ func (w *Writer) buildTree(blocks map[string]*model.Block) any {
 }
 
 // setPath sets a value at the given dotted/bracketed path in the tree.
-// For example, "nested.key" sets root["nested"]["key"] = value.
-// "items[0]" sets root["items"][0] = value.
 func (w *Writer) setPath(root map[string]any, path string, value any) {
 	parts := w.parsePath(path)
 	current := any(root)
@@ -113,16 +205,13 @@ func (w *Writer) setPath(root map[string]any, path string, value any) {
 		isLast := i == len(parts)-1
 
 		if idx, isIndex := w.parseIndex(part); isIndex {
-			// Array index access
 			arr := w.ensureArray(current)
 			if isLast {
 				w.setArrayIndex(arr, idx, value)
-				// Update parent to point to this array
 				if i > 0 {
 					w.setInParent(root, parts[:i], arr)
 				}
 			} else {
-				// Need to descend into array element
 				for len(*arr) <= idx {
 					*arr = append(*arr, nil)
 				}
@@ -135,7 +224,6 @@ func (w *Writer) setPath(root map[string]any, path string, value any) {
 				}
 			}
 		} else {
-			// Object key access
 			obj, ok := current.(map[string]any)
 			if !ok {
 				return
@@ -145,14 +233,12 @@ func (w *Writer) setPath(root map[string]any, path string, value any) {
 			} else {
 				next := parts[i+1]
 				if _, isIdx := w.parseIndex(next); isIdx {
-					// Next is array index; ensure we have an array
 					if _, exists := obj[part]; !exists {
 						arr := make([]any, 0)
 						obj[part] = &arr
 					}
 					current = obj[part]
 				} else {
-					// Next is object key; ensure we have a map
 					if _, exists := obj[part]; !exists {
 						obj[part] = make(map[string]any)
 					}
@@ -188,7 +274,6 @@ func (w *Writer) setInParent(root map[string]any, pathParts []string, arr *[]any
 	}
 }
 
-// ensureArray gets or creates an array pointer from the current value.
 func (w *Writer) ensureArray(current any) *[]any {
 	switch v := current.(type) {
 	case *[]any:
@@ -199,7 +284,6 @@ func (w *Writer) ensureArray(current any) *[]any {
 	}
 }
 
-// setArrayIndex sets a value at the given index in an array, growing it if needed.
 func (w *Writer) setArrayIndex(arr *[]any, idx int, value any) {
 	for len(*arr) <= idx {
 		*arr = append(*arr, nil)
@@ -207,8 +291,6 @@ func (w *Writer) setArrayIndex(arr *[]any, idx int, value any) {
 	(*arr)[idx] = value
 }
 
-// parsePath splits a path like "nested.key" or "items[0]" into components.
-// Returns ["nested", "key"] or ["items", "[0]"].
 func (w *Writer) parsePath(path string) []string {
 	var parts []string
 	current := strings.Builder{}
@@ -226,7 +308,6 @@ func (w *Writer) parsePath(path string) []string {
 				parts = append(parts, current.String())
 				current.Reset()
 			}
-			// Read until closing bracket
 			current.WriteByte('[')
 			for i++; i < len(path) && path[i] != ']'; i++ {
 				current.WriteByte(path[i])
@@ -245,8 +326,6 @@ func (w *Writer) parsePath(path string) []string {
 	return parts
 }
 
-// parseIndex checks if a path component is an array index like "[0]".
-// Returns the index and true if it is, or 0 and false otherwise.
 func (w *Writer) parseIndex(part string) (int, bool) {
 	if len(part) < 3 || part[0] != '[' || part[len(part)-1] != ']' {
 		return 0, false
@@ -258,15 +337,10 @@ func (w *Writer) parseIndex(part string) (int, bool) {
 	return idx, true
 }
 
-// tryConvertToArray checks if a map represents an array (all keys are indices)
-// and converts it to a slice if so.
 func (w *Writer) tryConvertToArray(m map[string]any) ([]any, bool) {
-	// This is a helper; at the root level we always expect an object
 	return nil, false
 }
 
-// blockText returns the text to use for a block: target text if a locale
-// is set and a target exists, otherwise source text.
 func (w *Writer) blockText(block *model.Block) string {
 	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
 		return block.TargetText(w.Locale)
