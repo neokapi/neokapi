@@ -18,10 +18,8 @@ func subfilterParams() map[string]any {
 	}
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilter — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilter
 func TestSubfilter_BasicHTML(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with \\u00E3 more <br> test</b>"
 	parts := readProps(t, snippet, subfilterParams())
 
@@ -32,10 +30,8 @@ func TestSubfilter_BasicHTML(t *testing.T) {
 	assert.Contains(t, text, "test")
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterTwoParas — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterTwoParas
 func TestSubfilter_TwoParas(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with \\u00E3 more</b> <p> test"
 	parts := readProps(t, snippet, subfilterParams())
 
@@ -46,10 +42,8 @@ func TestSubfilter_TwoParas(t *testing.T) {
 	assert.Contains(t, texts, "test")
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterWithEmbeddedMessagePH — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterWithEmbeddedMessagePH
 func TestSubfilter_EmbeddedMessagePlaceholders(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with {1} more {2} test</b>"
 	parts := readProps(t, snippet, subfilterParams())
 
@@ -61,10 +55,8 @@ func TestSubfilter_EmbeddedMessagePlaceholders(t *testing.T) {
 	assert.GreaterOrEqual(t, len(frag.Spans), 4)
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterWithHTMLEscapes — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterWithHTMLEscapes
 func TestSubfilter_HTMLEscapes(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with &amp;=amp test</b>"
 	parts := readProps(t, snippet, subfilterParams())
 
@@ -76,19 +68,15 @@ func TestSubfilter_HTMLEscapes(t *testing.T) {
 	assert.GreaterOrEqual(t, len(frag.Spans), 2)
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterOutput — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterOutput
 func TestSubfilter_Output(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with &amp;=amp test</b>\n"
 	result := snippetRoundtrip(t, snippet, subfilterParams())
 	assert.Equal(t, snippet, result)
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterOutputEscapeExtended — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterOutputEscapeExtended
 func TestSubfilter_OutputEscapeExtended(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	params := map[string]any{
 		"subfilter": "okf_html",
 	}
@@ -100,10 +88,8 @@ func TestSubfilter_OutputEscapeExtended(t *testing.T) {
 	assert.Equal(t, outSnippet, result)
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterOutputDoNotEscapeExtended — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterOutputDoNotEscapeExtended
 func TestSubfilter_OutputDoNotEscapeExtended(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	params := map[string]any{
 		"subfilter":           "okf_html",
 		"escapeExtendedChars": false,
@@ -114,10 +100,8 @@ func TestSubfilter_OutputDoNotEscapeExtended(t *testing.T) {
 	assert.Equal(t, snippet, result)
 }
 
-// okapi-blocked: PropertiesFilterTest#testWithSubfilterWithEmbeddedEscapedMessagePH — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testWithSubfilterWithEmbeddedEscapedMessagePH
 func TestSubfilter_EmbeddedEscapedMessagePlaceholders(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
 	snippet := "Key1=<b>Text with \\{1\\} more \\{2\\} test</b>"
 	parts := readProps(t, snippet, subfilterParams())
 

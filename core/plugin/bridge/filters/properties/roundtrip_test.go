@@ -47,17 +47,36 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			tdDir+"/okf_properties/Test04.properties", mimeType, nil)
 	})
 
-	// issue_216: subfilter config — blocked by bridge limitation
-	// okapi-blocked: subfilter requires FilterConfigurationMapper
+	// issue_216: subfilter config
 	t.Run("issue_216", func(t *testing.T) {
-		t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
+		params := map[string]any{
+			"subfilter": "okf_html",
+		}
+		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
+			tdDir+"/okf_properties/issue_216.properties", mimeType, params)
 	})
 }
 
-// okapi-blocked: PropertiesFilterTest#testDoubleExtractionSubFilter — bridge does not set up FilterConfigurationMapper for subfilter resolution
 // okapi: PropertiesFilterTest#testDoubleExtractionSubFilter
 func TestRoundTrip_DoubleExtractionSubFilter(t *testing.T) {
-	t.Skip("bridge limitation: Properties filter subfilter requires FilterConfigurationMapper (fcMapper is null)")
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+
+	params := map[string]any{
+		"subfilter": "okf_html",
+	}
+
+	// Test01 with subfilter
+	t.Run("Test01", func(t *testing.T) {
+		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
+			tdDir+"/okf_properties/Test01.properties", mimeType, params)
+	})
+
+	// Test04 with subfilter
+	t.Run("Test04", func(t *testing.T) {
+		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
+			tdDir+"/okf_properties/Test04.properties", mimeType, params)
+	})
 }
 
 func TestRoundTrip_Simple(t *testing.T) {
