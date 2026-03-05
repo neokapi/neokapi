@@ -24,6 +24,8 @@ const sidebars: SidebarsConfig = {
     '019-mt-providers',
     '020-collaborative-editor',
     '021-mcp-integration',
+    '022-inline-code-model',
+    '023-subfiltering-and-layers',
   ],
 };
 
