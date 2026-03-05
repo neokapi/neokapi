@@ -113,8 +113,8 @@ export class WailsApiAdapter implements ApiAdapter {
   ): Promise<TranslationStats> {
     return Backend.PseudoTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
   }
-  async aiTranslateFile(_ws: string, req: AITranslateFileRequest): Promise<TranslationStats> {
-    return Backend.AITranslateItem(req) as Promise<TranslationStats>;
+  async aiTranslateFile(_ws: string, _req: AITranslateFileRequest): Promise<TranslationStats> {
+    throw new Error("AI translation is managed by the server pipeline");
   }
   async tmTranslateFile(
     _ws: string,

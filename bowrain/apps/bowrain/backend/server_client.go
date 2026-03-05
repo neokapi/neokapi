@@ -465,6 +465,84 @@ func (c *ServerClient) ExportTermsJSON(wsSlug, name string) (string, error) {
 	return resp.JsonContent, nil
 }
 
+// --- AI provider configuration ---
+
+// ListProviderConfigs returns all provider configurations from the server (no API keys).
+func (c *ServerClient) ListProviderConfigs(wsSlug string) ([]ProviderConfigInfo, error) {
+	ctx, cancel := c.ctxWithTimeout(10 * time.Second)
+	defer cancel()
+	resp, err := c.editor.ListProviderConfigs(ctx, &pb.ListProviderConfigsRequest{
+		WorkspaceSlug: wsSlug,
+	})
+	if err != nil {
+		return nil, err
+	}
+	configs := make([]ProviderConfigInfo, len(resp.Configs))
+	for i, cfg := range resp.Configs {
+		configs[i] = ProviderConfigInfo{
+			ID:           cfg.Id,
+			Name:         cfg.Name,
+			ProviderType: cfg.ProviderType,
+			Model:        cfg.Model,
+			BaseURL:      cfg.BaseUrl,
+		}
+	}
+	return configs, nil
+}
+
+// SaveProviderConfig creates or updates a provider config on the server.
+func (c *ServerClient) SaveProviderConfig(wsSlug string, req SaveProviderRequest) (*ProviderConfigInfo, error) {
+	ctx, cancel := c.ctxWithTimeout(10 * time.Second)
+	defer cancel()
+	resp, err := c.editor.SaveProviderConfig(ctx, &pb.SaveProviderConfigRPC{
+		WorkspaceSlug: wsSlug,
+		Id:            req.ID,
+		Name:          req.Name,
+		ProviderType:  req.ProviderType,
+		Model:         req.Model,
+		BaseUrl:       req.BaseURL,
+		ApiKey:        req.APIKey,
+	})
+	if err != nil {
+		return nil, err
+	}
+	info := ProviderConfigInfo{
+		ID:           resp.Id,
+		Name:         resp.Name,
+		ProviderType: resp.ProviderType,
+		Model:        resp.Model,
+		BaseURL:      resp.BaseUrl,
+	}
+	return &info, nil
+}
+
+// DeleteProviderConfig removes a provider config on the server.
+func (c *ServerClient) DeleteProviderConfig(wsSlug, id string) error {
+	ctx, cancel := c.ctxWithTimeout(10 * time.Second)
+	defer cancel()
+	_, err := c.editor.DeleteProviderConfig(ctx, &pb.DeleteProviderConfigRequest{
+		WorkspaceSlug: wsSlug,
+		Id:            id,
+	})
+	return err
+}
+
+// TestProviderConfig tests a provider config on the server.
+func (c *ServerClient) TestProviderConfig(wsSlug string, req SaveProviderRequest) error {
+	ctx, cancel := c.ctxWithTimeout(30 * time.Second)
+	defer cancel()
+	_, err := c.editor.TestProviderConfig(ctx, &pb.TestProviderConfigRPC{
+		WorkspaceSlug: wsSlug,
+		Id:            req.ID,
+		Name:          req.Name,
+		ProviderType:  req.ProviderType,
+		Model:         req.Model,
+		BaseUrl:       req.BaseURL,
+		ApiKey:        req.APIKey,
+	})
+	return err
+}
+
 // --- Presence ---
 
 // UpdatePresence reports the user's current focus.

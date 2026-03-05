@@ -583,24 +583,8 @@ export async function injectMockBackend(page: Page) {
       return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
     };
 
-    mock[IDS.AITranslateItem] = (req: any) => {
-      const itemName = req.item_name || req.file_name;
-      const files = projectFiles[req.project_id];
-      if (!files || !files[itemName]) throw new Error("Item not found");
-      const blocks = files[itemName];
-      let translated = 0;
-      let wordCount = 0;
-      for (const b of blocks) {
-        if (b.translatable) {
-          b.targets[req.target_locale] = `[AI] ${b.source}`;
-          if (!b.properties) b.properties = {};
-          b.properties["translation-origin"] = "machine";
-          b.properties["translation-status"] = "draft";
-          translated++;
-          wordCount += b.source.split(/\s+/).length;
-        }
-      }
-      return { total_blocks: blocks.length, translated_blocks: translated, word_count: wordCount };
+    mock[IDS.AITranslateItem] = () => {
+      throw new Error("AI translation is managed by the server pipeline");
     };
 
     mock[IDS.TMTranslateItem] = (projectID: string, itemName: string, targetLocale: string) => {

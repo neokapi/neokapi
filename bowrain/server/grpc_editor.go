@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gokapi/gokapi/bowrain/credentials"
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
@@ -914,6 +916,91 @@ func busEventToProjectEvent(e platev.Event) *pb.ProjectEvent {
 	}
 
 	return nil
+}
+
+// --- AI provider configuration ---
+
+func (g *EditorGRPCServer) ListProviderConfigs(_ context.Context, _ *pb.ListProviderConfigsRequest) (*pb.ListProviderConfigsResponse, error) {
+	if g.srv.CredentialStore == nil {
+		return nil, status.Error(codes.Unavailable, "credentials not configured")
+	}
+
+	configs := g.srv.CredentialStore.List()
+	out := make([]*pb.ProviderConfigInfo, len(configs))
+	for i, cfg := range configs {
+		out[i] = &pb.ProviderConfigInfo{
+			Id:           cfg.ID,
+			Name:         cfg.Name,
+			ProviderType: cfg.ProviderType,
+			Model:        cfg.Model,
+			BaseUrl:      cfg.BaseURL,
+		}
+	}
+	return &pb.ListProviderConfigsResponse{Configs: out}, nil
+}
+
+func (g *EditorGRPCServer) SaveProviderConfig(_ context.Context, req *pb.SaveProviderConfigRPC) (*pb.ProviderConfigInfo, error) {
+	if g.srv.CredentialStore == nil {
+		return nil, status.Error(codes.Unavailable, "credentials not configured")
+	}
+
+	cfg := credentials.ProviderConfig{
+		ID:           req.Id,
+		Name:         req.Name,
+		ProviderType: req.ProviderType,
+		Model:        req.Model,
+		BaseURL:      req.BaseUrl,
+	}
+	saved := g.srv.CredentialStore.Upsert(cfg)
+
+	if req.ApiKey != "" {
+		if err := g.srv.CredentialStore.SetAPIKey(saved.ID, req.ApiKey); err != nil {
+			return nil, status.Errorf(codes.Internal, "save API key: %v", err)
+		}
+	}
+
+	return &pb.ProviderConfigInfo{
+		Id:           saved.ID,
+		Name:         saved.Name,
+		ProviderType: saved.ProviderType,
+		Model:        saved.Model,
+		BaseUrl:      saved.BaseURL,
+	}, nil
+}
+
+func (g *EditorGRPCServer) DeleteProviderConfig(_ context.Context, req *pb.DeleteProviderConfigRequest) (*emptypb.Empty, error) {
+	if g.srv.CredentialStore == nil {
+		return nil, status.Error(codes.Unavailable, "credentials not configured")
+	}
+
+	if err := g.srv.CredentialStore.Remove(req.Id); err != nil {
+		return nil, status.Errorf(codes.NotFound, "provider config not found: %v", err)
+	}
+	_ = g.srv.CredentialStore.DeleteAPIKey(req.Id) // best-effort
+	return &emptypb.Empty{}, nil
+}
+
+func (g *EditorGRPCServer) TestProviderConfig(ctx context.Context, req *pb.TestProviderConfigRPC) (*emptypb.Empty, error) {
+	if g.srv.CredentialStore == nil {
+		return nil, status.Error(codes.Unavailable, "credentials not configured")
+	}
+
+	cfg := credentials.ProviderConfig{
+		ID:           req.Id,
+		Name:         req.Name,
+		ProviderType: req.ProviderType,
+		Model:        req.Model,
+		BaseURL:      req.BaseUrl,
+	}
+	prov := credentials.NewProviderFromConfig(cfg, req.ApiKey)
+	defer prov.Close()
+
+	if _, err := prov.Chat(ctx, []provider.Message{
+		{Role: "user", Content: "Hello, respond with OK."},
+	}); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "connection test failed: %v", err)
+	}
+	return &emptypb.Empty{}, nil
 }
 
 // Ensure EditorGRPCServer implements the interface at compile time.

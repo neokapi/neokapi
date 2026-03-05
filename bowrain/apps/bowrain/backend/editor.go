@@ -4,17 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/core/ai/tools"
+	"io"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/platform/store"
-	"io"
-	"os/exec"
-	"path/filepath"
-	"runtime"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.
@@ -423,53 +422,6 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 	}
 
 	return computeStats(outParts, targetLocale), nil
-}
-
-// AITranslateItem translates all blocks using an AI provider.
-func (a *App) AITranslateItem(req AITranslateFileRequest) (*TranslationStats, error) {
-	ctx := context.Background()
-	proj, err := a.store.GetProject(ctx, req.ProjectID)
-	if err != nil {
-		return nil, err
-	}
-
-	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
-		ProjectID: req.ProjectID,
-		ItemName:  req.ItemName,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	parts := storedBlocksToParts(storedBlocks)
-
-	var prov = createProvider(req.Provider, req.APIKey, req.Model)
-	if req.ProviderConfigID != "" {
-		var provErr error
-		prov, provErr = credentials.NewProvider(a.credentials, req.ProviderConfigID)
-		if provErr != nil {
-			return nil, fmt.Errorf("resolve provider config: %w", provErr)
-		}
-	}
-
-	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: proj.SourceLocale,
-		TargetLocale: model.LocaleID(req.TargetLocale),
-	})
-
-	outParts, err := runToolOnParts(ctx, translateTool, parts)
-	if err != nil {
-		return nil, fmt.Errorf("AI translate: %w", err)
-	}
-
-	blocks := partsToBlocks(outParts)
-	if len(blocks) > 0 {
-		if err := a.store.StoreBlocksForItem(ctx, req.ProjectID, req.ItemName, blocks); err != nil {
-			return nil, fmt.Errorf("store blocks: %w", err)
-		}
-	}
-
-	return computeStats(outParts, req.TargetLocale), nil
 }
 
 // TMTranslateItem leverages translation memory to translate blocks.

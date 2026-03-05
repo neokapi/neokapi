@@ -269,20 +269,6 @@ func TestHTMLFileBlocks(t *testing.T) {
 	assert.NotEmpty(t, sources)
 }
 
-func TestAITranslateFile_MockProvider(t *testing.T) {
-	app, info, itemName := setupProjectWithFile(t)
-
-	// Use mock provider (default when provider is empty/unknown)
-	stats, err := app.AITranslateItem(AITranslateFileRequest{
-		ProjectID:    info.ID,
-		ItemName:     itemName,
-		TargetLocale: "fr",
-		Provider:     "mock",
-	})
-	require.NoError(t, err)
-	assert.Greater(t, stats.TotalBlocks, 0)
-}
-
 func TestTMTranslateFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 

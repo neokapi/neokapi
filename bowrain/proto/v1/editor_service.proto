@@ -46,6 +46,12 @@ service EditorService {
   rpc ImportTermsJSON(ImportTermsJSONRequest) returns (ImportCountResponse);
   rpc ExportTermsJSON(ExportTermsJSONRequest) returns (ExportTermsJSONResponse);
 
+  // --- AI provider configuration (admin-facing, server-managed) ---
+  rpc ListProviderConfigs(ListProviderConfigsRequest) returns (ListProviderConfigsResponse);
+  rpc SaveProviderConfig(SaveProviderConfigRPC) returns (ProviderConfigInfo);
+  rpc DeleteProviderConfig(DeleteProviderConfigRequest) returns (google.protobuf.Empty);
+  rpc TestProviderConfig(TestProviderConfigRPC) returns (google.protobuf.Empty);
+
   // --- Presence ---
   rpc UpdatePresence(UpdatePresenceRequest) returns (google.protobuf.Empty);
 
@@ -366,6 +372,49 @@ message ExportTermsJSONRequest {
 
 message ExportTermsJSONResponse {
   string json_content = 1;
+}
+
+// --- AI provider config messages ---
+
+message ProviderConfigInfo {
+  string id = 1;
+  string name = 2;
+  string provider_type = 3;
+  string model = 4;
+  string base_url = 5;
+}
+
+message ListProviderConfigsRequest {
+  string workspace_slug = 1;
+}
+
+message ListProviderConfigsResponse {
+  repeated ProviderConfigInfo configs = 1;
+}
+
+message SaveProviderConfigRPC {
+  string workspace_slug = 1;
+  string id = 2;
+  string name = 3;
+  string provider_type = 4;
+  string model = 5;
+  string base_url = 6;
+  string api_key = 7;  // stored server-side, never returned
+}
+
+message DeleteProviderConfigRequest {
+  string workspace_slug = 1;
+  string id = 2;
+}
+
+message TestProviderConfigRPC {
+  string workspace_slug = 1;
+  string id = 2;
+  string name = 3;
+  string provider_type = 4;
+  string model = 5;
+  string base_url = 6;
+  string api_key = 7;
 }
 
 // --- Presence messages ---
