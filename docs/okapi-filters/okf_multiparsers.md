@@ -71,7 +71,7 @@ cp okapi/filters/multiparsers/src/test/resources/test04.csv okapi-testdata/okf_m
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_multiparsers`
+### Package: `core/plugin/bridge/filters/multiparsers`
 
 Build tag: `//go:build integration`
 
@@ -192,10 +192,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_multiparsers/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/multiparsers/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_multiparsers/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/multiparsers/
 ```
 
 ### Success criteria

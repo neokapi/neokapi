@@ -60,7 +60,7 @@ cp okapi/filters/pdf/src/test/resources/net/sf/okapi/filters/pdf/*.PDF okapi-tes
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_pdf`
+### Package: `core/plugin/bridge/filters/pdf`
 
 Build tag: `//go:build integration`
 
@@ -119,8 +119,8 @@ func TestConfig_Separators(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_pdf/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_pdf/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/pdf/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/pdf/
 ```
 
 ### Success criteria

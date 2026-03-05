@@ -109,7 +109,7 @@ cp -r integration-tests/okapi/src/test/resources/regex/ okapi-testdata/okf_regex
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_regex`
+### Package: `core/plugin/bridge/filters/regex`
 
 Build tag: `//go:build integration`
 
@@ -144,8 +144,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_regex/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_regex/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/regex/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/regex/
 ```
 
 ### Success criteria

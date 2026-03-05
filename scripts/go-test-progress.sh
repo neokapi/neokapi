@@ -3,9 +3,9 @@
 # Stdin: go test -json stream. Stdout: passthrough (unmodified).
 #
 # Prints lines like:
-#   PASS  core/plugin/bridge/filters/okf_json (2.3s)
-#   FAIL  core/plugin/bridge/filters/okf_xml (0.8s)
-#   SKIP  core/plugin/bridge/filters/okf_pdf (0.0s)
+#   PASS  core/plugin/bridge/filters/json (2.3s)
+#   FAIL  core/plugin/bridge/filters/its (0.8s)
+#   SKIP  core/plugin/bridge/filters/pdf (0.0s)
 #
 # Usage:
 #   go test -json ./... | bash scripts/go-test-progress.sh > results.json

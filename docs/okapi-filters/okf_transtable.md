@@ -78,7 +78,7 @@ cp integration-tests/okapi/src/test/resources/transtable/test01.xml.txt okapi-te
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_transtable`
+### Package: `core/plugin/bridge/filters/transtable`
 
 Build tag: `//go:build integration`
 
@@ -115,8 +115,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_transtable/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_transtable/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/transtable/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/transtable/
 ```
 
 ### Success criteria

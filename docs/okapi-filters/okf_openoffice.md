@@ -104,7 +104,7 @@ cp integration-tests/okapi/src/test/resources/openoffice/*.odp okapi-testdata/ok
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_openoffice`
+### Package: `core/plugin/bridge/filters/openoffice`
 
 Build tag: `//go:build integration`
 
@@ -167,8 +167,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_openoffice/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_openoffice/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/openoffice/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/openoffice/
 ```
 
 ### Success criteria

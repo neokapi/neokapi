@@ -87,7 +87,7 @@ cp integration-tests/okapi/src/test/resources/archive/*.zip okapi-testdata/okf_a
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_archive`
+### Package: `core/plugin/bridge/filters/archive`
 
 Build tag: `//go:build integration`
 
@@ -137,8 +137,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_archive/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_archive/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/archive/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/archive/
 ```
 
 ### Success criteria

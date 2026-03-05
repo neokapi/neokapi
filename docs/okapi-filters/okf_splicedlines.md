@@ -60,7 +60,7 @@ cp okapi/filters/plaintext/src/test/resources/combined_lines_end.txt okapi-testd
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_splicedlines`
+### Package: `core/plugin/bridge/filters/splicedlines`
 
 Build tag: `//go:build integration`
 
@@ -117,10 +117,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_splicedlines/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/splicedlines/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_splicedlines/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/splicedlines/
 ```
 
 ### Success criteria

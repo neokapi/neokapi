@@ -401,7 +401,7 @@ cp -r integration-tests/okapi/src/test/resources/html/* okapi-testdata/okf_html/
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_html`
+### Package: `core/plugin/bridge/filters/html`
 
 Build tag: `//go:build integration`
 
@@ -545,10 +545,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_html/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/html/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_html/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/html/
 ```
 
 ### Success criteria
@@ -579,7 +579,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_html/`)
+### Bridge Tests (`core/plugin/bridge/filters/html/`)
 
 Annotated Java methods with `// okapi:` mapping:
 

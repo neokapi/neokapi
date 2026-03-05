@@ -120,7 +120,7 @@ cp -r integration-tests/okapi/src/test/resources/plaintext/* okapi-testdata/okf_
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_plaintext`
+### Package: `core/plugin/bridge/filters/plaintext`
 
 Build tag: `//go:build integration`
 
@@ -165,8 +165,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_plaintext/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_plaintext/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/plaintext/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/plaintext/
 ```
 
 ### Success criteria
@@ -195,7 +195,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_plaintext/`)
+### Bridge Tests (`core/plugin/bridge/filters/plaintext/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

@@ -35,22 +35,22 @@ type xmlTestCase struct {
 type filterConfig struct {
 	Name        string // e.g. "html"
 	SurefireDir string
-	BridgePkg   string // e.g. "core/plugin/bridge/filters/okf_html"
+	BridgePkg   string // e.g. "core/plugin/bridge/filters/html"
 	NativePkg   string // e.g. "core/formats/html" (empty if no native)
 }
 
 // phase1Filters defines all Phase 1 filters and their packages.
 var phase1Filters = []filterConfig{
-	{Name: "html", BridgePkg: "core/plugin/bridge/filters/okf_html", NativePkg: "core/formats/html"},
-	{Name: "markdown", BridgePkg: "core/plugin/bridge/filters/okf_markdown", NativePkg: "core/formats/markdown"},
-	{Name: "xliff", BridgePkg: "core/plugin/bridge/filters/okf_xliff"},
-	{Name: "xmlstream", BridgePkg: "core/plugin/bridge/filters/okf_xmlstream"},
-	{Name: "json", BridgePkg: "core/plugin/bridge/filters/okf_json", NativePkg: "core/formats/json"},
-	{Name: "po", BridgePkg: "core/plugin/bridge/filters/okf_po", NativePkg: "core/formats/po"},
-	{Name: "plaintext", BridgePkg: "core/plugin/bridge/filters/okf_plaintext", NativePkg: "core/formats/plaintext"},
-	{Name: "yaml", BridgePkg: "core/plugin/bridge/filters/okf_yaml"},
-	{Name: "xliff2", BridgePkg: "core/plugin/bridge/filters/okf_xliff2", NativePkg: "core/formats/xliff2"},
-	{Name: "properties", BridgePkg: "core/plugin/bridge/filters/okf_properties", NativePkg: "core/formats/properties"},
+	{Name: "html", BridgePkg: "core/plugin/bridge/filters/html", NativePkg: "core/formats/html"},
+	{Name: "markdown", BridgePkg: "core/plugin/bridge/filters/markdown", NativePkg: "core/formats/markdown"},
+	{Name: "xliff", BridgePkg: "core/plugin/bridge/filters/xliff"},
+	{Name: "xmlstream", BridgePkg: "core/plugin/bridge/filters/xmlstream"},
+	{Name: "json", BridgePkg: "core/plugin/bridge/filters/json", NativePkg: "core/formats/json"},
+	{Name: "po", BridgePkg: "core/plugin/bridge/filters/po", NativePkg: "core/formats/po"},
+	{Name: "plaintext", BridgePkg: "core/plugin/bridge/filters/plaintext", NativePkg: "core/formats/plaintext"},
+	{Name: "yaml", BridgePkg: "core/plugin/bridge/filters/yaml"},
+	{Name: "xliff2", BridgePkg: "core/plugin/bridge/filters/xliff2", NativePkg: "core/formats/xliff2"},
+	{Name: "properties", BridgePkg: "core/plugin/bridge/filters/properties", NativePkg: "core/formats/properties"},
 }
 
 // javaTest represents a single test method from Surefire XML.

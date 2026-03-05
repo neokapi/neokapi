@@ -141,7 +141,7 @@ cp -r integration-tests/okapi/src/test/resources/table/two_coulmns/ okapi-testda
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_table`
+### Package: `core/plugin/bridge/filters/table`
 
 Build tag: `//go:build integration`
 
@@ -224,10 +224,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_table/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/table/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_table/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/table/
 ```
 
 ### Success criteria

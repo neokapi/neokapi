@@ -99,7 +99,7 @@ cp -r integration-tests/okapi/src/test/resources/messageformat/ okapi-testdata/o
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_messageformat`
+### Package: `core/plugin/bridge/filters/messageformat`
 
 Build tag: `//go:build integration`
 
@@ -127,8 +127,8 @@ func TestExtract_messageFormat(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_messageformat/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_messageformat/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/messageformat/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/messageformat/
 ```
 
 ### Success criteria

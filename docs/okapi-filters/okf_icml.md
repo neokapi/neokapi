@@ -91,7 +91,7 @@ cp integration-tests/okapi/src/test/resources/icml/*.wcml okapi-testdata/okf_icm
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_icml`
+### Package: `core/plugin/bridge/filters/icml`
 
 Build tag: `//go:build integration`
 
@@ -170,10 +170,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_icml/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/icml/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_icml/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/icml/
 ```
 
 ### Success criteria

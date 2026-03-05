@@ -107,7 +107,7 @@ cp okapi/filters/php/src/test/resources/test01.phpcnt okapi-testdata/okf_phpcont
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_phpcontent`
+### Package: `core/plugin/bridge/filters/phpcontent`
 
 Build tag: `//go:build integration`
 
@@ -136,8 +136,8 @@ func TestExtract_phpStrings(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_phpcontent/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_phpcontent/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/phpcontent/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/phpcontent/
 ```
 
 ### Success criteria

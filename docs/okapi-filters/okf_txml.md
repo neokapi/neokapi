@@ -89,7 +89,7 @@ cp integration-tests/okapi/src/test/resources/txml/*.txml okapi-testdata/okf_txm
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_txml`
+### Package: `core/plugin/bridge/filters/txml`
 
 Build tag: `//go:build integration`
 
@@ -158,8 +158,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_txml/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_txml/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/txml/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/txml/
 ```
 
 ### Success criteria

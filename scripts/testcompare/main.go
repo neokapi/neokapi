@@ -154,7 +154,7 @@ type annotation struct {
 	JavaMethod string
 	GoTest     string
 	Filter     string // normalized filter name (e.g. "html", "json")
-	File       string // relative file path (e.g. "core/plugin/bridge/filters/okf_html/events_test.go")
+	File       string // relative file path (e.g. "core/plugin/bridge/filters/html/events_test.go")
 	Line       int    // 1-based line number of the func Test... declaration
 }
 
@@ -554,9 +554,8 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 	switch kind {
 	case "bridge":
 		patterns = []string{
-			filepath.Join(srcDir, "okf_*", "*_test.go"),
-			filepath.Join(srcDir, "*", "*_test.go"), // bare-name dirs (its/, subtitles/, php/)
-			filepath.Join(srcDir, "*_test.go"),       // files with // okapi-filter: directives
+			filepath.Join(srcDir, "*", "*_test.go"),
+			filepath.Join(srcDir, "*_test.go"), // files with // okapi-filter: directives
 		}
 	default:
 		patterns = []string{
@@ -605,9 +604,8 @@ func parseFileAnnotations(path, kind string) annotationResult {
 	filter := filterFromPath(path, kind)
 
 	// The // okapi-filter: directive explicitly sets the filter name for subsequent
-	// annotations. This is used for:
-	// - Files outside okf_* directories (e.g. simplifier_test.go → abstractmarkup)
-	// - Name mismatches between Go dir and surefire dir (e.g. okf_phpcontent → php)
+	// annotations. This is used for files that map to a different surefire dir
+	// than their parent directory (e.g. xini/rainbowkit_test.go → rainbowkit).
 
 	lines := strings.Split(string(data), "\n")
 	var result annotationResult

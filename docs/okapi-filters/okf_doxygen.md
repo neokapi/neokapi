@@ -108,7 +108,7 @@ cp integration-tests/okapi/src/test/resources/doxygen/* okapi-testdata/okf_doxyg
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_doxygen`
+### Package: `core/plugin/bridge/filters/doxygen`
 
 Build tag: `//go:build integration`
 
@@ -143,8 +143,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_doxygen/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_doxygen/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/doxygen/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/doxygen/
 ```
 
 ### Success criteria

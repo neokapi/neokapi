@@ -144,7 +144,7 @@ cp integration-tests/okapi/src/test/resources/tmx/*.tmx okapi-testdata/okf_tmx/r
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_tmx`
+### Package: `core/plugin/bridge/filters/tmx`
 
 Build tag: `//go:build integration`
 
@@ -181,8 +181,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_tmx/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_tmx/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/tmx/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/tmx/
 ```
 
 ### Success criteria

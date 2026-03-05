@@ -300,7 +300,7 @@ cp integration-tests/okapi/src/test/resources/openxml/*.pptx okapi-testdata/okf_
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_openxml`
+### Package: `core/plugin/bridge/filters/openxml`
 
 Build tag: `//go:build integration`
 
@@ -440,8 +440,8 @@ func TestXliffCompare(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_openxml/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_openxml/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/openxml/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/openxml/
 ```
 
 ### Success criteria

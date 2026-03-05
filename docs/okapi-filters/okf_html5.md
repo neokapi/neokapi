@@ -163,7 +163,7 @@ cp integration-tests/okapi/src/test/resources/htmlIts/test01-html-rules.xml okap
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_html5`
+### Package: `core/plugin/bridge/filters/html5`
 
 Build tag: `//go:build integration`
 
@@ -264,10 +264,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_html5/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/html5/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_html5/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/html5/
 ```
 
 ### Success criteria

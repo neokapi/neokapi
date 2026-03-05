@@ -150,7 +150,7 @@ cp integration-tests/okapi/src/test/resources/mif/*.mif okapi-testdata/okf_mif/r
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_mif`
+### Package: `core/plugin/bridge/filters/mif`
 
 Build tag: `//go:build integration`
 
@@ -228,8 +228,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_mif/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_mif/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/mif/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/mif/
 ```
 
 ### Success criteria

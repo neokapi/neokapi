@@ -134,7 +134,7 @@ cp integration-tests/okapi/src/test/resources/po/*.po okapi-testdata/okf_po/roun
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_po`
+### Package: `core/plugin/bridge/filters/po`
 
 Build tag: `//go:build integration`
 
@@ -174,8 +174,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_po/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_po/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/po/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/po/
 ```
 
 ### Success criteria
@@ -206,7 +206,7 @@ GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bri
 
 ## Current Go Coverage
 
-### Bridge Tests (`core/plugin/bridge/filters/okf_po/`)
+### Bridge Tests (`core/plugin/bridge/filters/po/`)
 
 | Java Method | Go Test | Status |
 |-------------|---------|--------|

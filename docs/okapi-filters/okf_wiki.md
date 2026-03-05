@@ -89,7 +89,7 @@ cp integration-tests/okapi/src/test/resources/wikitext/*.wiki okapi-testdata/okf
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_wiki`
+### Package: `core/plugin/bridge/filters/wiki`
 
 Build tag: `//go:build integration`
 
@@ -123,8 +123,8 @@ func TestRoundTrip(t *testing.T) {
 ## Verification
 
 ```bash
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_wiki/ -v
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_wiki/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/wiki/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/wiki/
 ```
 
 ### Success criteria

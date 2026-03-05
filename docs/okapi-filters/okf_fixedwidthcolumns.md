@@ -70,7 +70,7 @@ cp okapi/filters/table/src/test/resources/test_params*.txt okapi-testdata/okf_fi
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_fixedwidthcolumns`
+### Package: `core/plugin/bridge/filters/fixedwidthcolumns`
 
 Build tag: `//go:build integration`
 
@@ -122,10 +122,10 @@ func TestRoundTrip(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_fixedwidthcolumns/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/fixedwidthcolumns/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_fixedwidthcolumns/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/fixedwidthcolumns/
 ```
 
 ### Success criteria

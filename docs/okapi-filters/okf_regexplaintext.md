@@ -111,7 +111,7 @@ cp -r integration-tests/okapi/src/test/resources/regex/stringInfo/ okapi-testdat
 
 ## Go Test Migration Plan
 
-### Package: `core/plugin/bridge/filters/okf_regexplaintext`
+### Package: `core/plugin/bridge/filters/regexplaintext`
 
 Build tag: `//go:build integration`
 
@@ -176,10 +176,10 @@ func TestXliffCompare(t *testing.T) {
 
 ```bash
 # Run this filter's tests
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/okf_regexplaintext/ -v
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration ./core/plugin/bridge/filters/regexplaintext/ -v
 
 # Run with race detector
-GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/okf_regexplaintext/
+GOKAPI_BRIDGE_JAR=/path/to/jar go test -tags=integration -race ./core/plugin/bridge/filters/regexplaintext/
 ```
 
 ### Success criteria
