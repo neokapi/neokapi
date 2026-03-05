@@ -80,4 +80,8 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.Register("span-classify", func() tool.Tool {
 		return NewSpanClassifyTool(&SpanClassifyConfig{})
 	})
+
+	reg.Register("layer-processor", func() tool.Tool {
+		return NewLayerProcessorTool(&LayerProcessorConfig{})
+	})
 }
