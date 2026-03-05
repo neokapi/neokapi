@@ -600,9 +600,23 @@ jobs:
       - name: Install go-junit-report
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
+      - name: Start shared bridge JVM pool
+        run: |
+          eval "$(bash scripts/start-bridge-pool.sh 4)"
+          echo "GOKAPI_BRIDGE_ADDRS=$GOKAPI_BRIDGE_ADDRS" >> "$GITHUB_ENV"
+          echo "BRIDGE_PIDS=$BRIDGE_PIDS" >> "$GITHUB_ENV"
+          echo "Started 4 bridge JVMs: $GOKAPI_BRIDGE_ADDRS"
+
       - name: Run bridge filter integration tests
-        run: go test -race -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > test-results-bridge.json 2>&1 || true
+        run: go test -race -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash scripts/go-test-progress.sh > test-results-bridge.json || true
         timeout-minutes: 30
+
+      - name: Stop bridge JVM pool
+        if: always()
+        run: |
+          for pid in $BRIDGE_PIDS; do
+            kill "$pid" 2>/dev/null || true
+          done
 
       - name: Convert to JUnit XML
         if: always()

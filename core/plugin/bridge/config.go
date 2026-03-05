@@ -13,6 +13,11 @@ const (
 
 // BridgeConfig configures the bridge subprocess.
 type BridgeConfig struct {
+	// Address is the gRPC address of a pre-started bridge server.
+	// When set, Start() connects to this address instead of spawning a subprocess.
+	// Command and Args are ignored when Address is set.
+	Address string
+
 	// Command is the executable to run (e.g., "java").
 	Command string
 
@@ -36,6 +41,9 @@ type BridgeConfig struct {
 // PoolKey returns a stable key that uniquely identifies the bridge process
 // configuration (command + args). Used by BridgePool for bucketing.
 func (c BridgeConfig) PoolKey() string {
+	if c.Address != "" {
+		return "addr:" + c.Address
+	}
 	return c.Command + "\x00" + strings.Join(c.Args, "\x00")
 }
 

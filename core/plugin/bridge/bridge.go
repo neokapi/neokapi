@@ -58,6 +58,22 @@ func (b *JavaBridge) Start() error {
 		return fmt.Errorf("bridge already running")
 	}
 
+	// External bridge mode: connect to a pre-started server.
+	if b.cfg.Address != "" {
+		conn, err := grpc.NewClient("passthrough:///"+b.cfg.Address,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
+		)
+		if err != nil {
+			return fmt.Errorf("connecting to bridge at %s: %w", b.cfg.Address, err)
+		}
+		b.conn = conn
+		b.client = pb.NewBridgeServiceClient(conn)
+		b.running = true
+		b.logger.Printf("[bridge] connected to external bridge at %s", b.cfg.Address)
+		return nil
+	}
+
 	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...)
 	if len(b.cfg.Env) > 0 {
 		b.cmd.Env = os.Environ()
@@ -147,8 +163,9 @@ func (b *JavaBridge) Stop() error {
 	}
 	b.running = false
 
-	// Send shutdown RPC.
-	if b.client != nil {
+	// Send shutdown RPC only for subprocess-managed bridges.
+	// External bridges (Address mode) must not be shut down — they're shared.
+	if b.client != nil && b.cmd != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, _ = b.client.Shutdown(ctx, &pb.ShutdownRequest{})
 		cancel()
