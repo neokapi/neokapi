@@ -410,7 +410,7 @@ func TestOutput_MultipleLines(t *testing.T) {
 		"roundtrip should preserve second line text")
 }
 
-// okapi: DoxygenFilterTest#testOutputMultipleLineList (skipped — Issue #403)
+// okapi-skip: DoxygenFilterTest#testOutputMultipleLineList — skipped in Java surefire (Issue #403)
 func TestOutput_MultipleLineList(t *testing.T) {
 	t.Skip("Issue #403 — skipped in Java surefire as well")
 }

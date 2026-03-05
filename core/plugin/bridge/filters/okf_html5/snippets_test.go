@@ -12,6 +12,82 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- ITS surefire: HTML5 tests not yet implemented in bridge ---
+//
+// okapi-unmapped: HTML5FilterTest#testAddITSAnnotations1 — ITS annotation injection not bridged
+// okapi-unmapped: HTML5FilterTest#testAddITSAnnotations2 — ITS annotation injection not bridged
+// okapi-unmapped: HTML5FilterTest#testAddITSAnnotations3 — ITS annotation injection not bridged
+// okapi-unmapped: HTML5FilterTest#testAllowedChars — ITS allowed chars metadata not bridged
+// okapi-unmapped: HTML5FilterTest#testDomain — ITS domain annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testExternalResources — ITS external resources not bridged
+// okapi-unmapped: HTML5FilterTest#testGlobalLocQualityIssues — ITS LQI annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testLQRLocal — ITS LQR annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testLocNoteLocal — ITS localization note not bridged
+// okapi-unmapped: HTML5FilterTest#testLocalLocQualityIssues — ITS LQI annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testLocaleFilterLocal — ITS locale filter not bridged
+// okapi-unmapped: HTML5FilterTest#testMinimalHTML5Output — ITS minimal output not bridged
+// okapi-unmapped: HTML5FilterTest#testMinimalHTMLWithStandoff — ITS standoff annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testProvenanceStandoff — ITS provenance annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testSimpleOutput — ITS output roundtrip not bridged
+// okapi-unmapped: HTML5FilterTest#testStandofftLocQualityIssues — ITS standoff LQI not bridged
+// okapi-unmapped: HTML5FilterTest#testStorageSizeLocal — ITS storage size annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testStorageSizeOnAttribute — ITS storage size on attribute not bridged
+// okapi-unmapped: HTML5FilterTest#testTerminologyLocal — ITS terminology annotation not bridged
+// okapi-unmapped: HTML5FilterTest#testTextDirectionClarification — ITS text direction not bridged
+//
+// --- ITS surefire: Java-internal W3C library / ITS engine tests ---
+//
+// okapi-unmapped: ITSContentTests#testAnnotatorsRef — Java-internal ITS content API test
+// okapi-unmapped: ParametersTest#codesSimplificationParametersReadFromString — Java-internal parameters test
+// okapi-unmapped: ParametersTest#customValuesNotWrittenAsString — Java-internal parameters test
+// okapi-unmapped: ParametersTest#defaultValuesWrittenAsString — Java-internal parameters test
+// okapi-unmapped: TraversalTest#testAllowedCharsGlobal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testAllowedCharsLocal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testAnnotatorsRef — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testAnnotatorsRefBadValue — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testBadQueryLanguage — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testDomainGlobal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testExternalResourceRefGlobal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testGlobalAndLocalLanguageInfo — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testIdValueOnAttribute — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueGlobal1 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueGlobal2 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueGlobalAndLocal1 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueLocal1 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueLocalWithSpan — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLQIssueOnAttributes — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLocNote — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLocQualityRatingHtml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLocQualityRatingXml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLocalLanguageInfo — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testLocaleFilter — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testMtConfidenceGlobalHtml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testMtConfidenceLocal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testMtConfidenceLocalHtml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testPreserveSpaces — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testProvenanceLocal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testQueryLanguage — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testSimple — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testStorageSizeGlobal1 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testStorageSizeGlobal2 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testStorageSizeLocal1 — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTargetPointerAttributes — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTargetPointerGlobal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTerm — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTermLocally — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTermOnAttribute — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTermPointer — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTermPointerwithID — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTextAnalysisOnAttribute — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTextAnalysisPointerHtml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTextAnalysisSimpleHtml — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testTranslateGlobal — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testWithinText — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testWithinTextLocalSpan — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testXmlId — Java-internal ITS traversal test
+// okapi-unmapped: TraversalTest#testlangVsXmlLangInXHtml — Java-internal ITS traversal test
+// okapi-unmapped: VariableResolverTest#testQuotation — Java-internal ITS variable resolver test
+
 const filterClass = "net.sf.okapi.filters.its.html5.HTML5Filter"
 const mimeType = "text/html"
 

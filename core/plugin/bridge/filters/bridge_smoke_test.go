@@ -12,6 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- cascadingfilter surefire: CascadingFilterTest ---
+//
+// okapi-filter: cascadingfilter
+// okapi-unmapped: CascadingFilterTest#extractFeastWithStream — Java-internal cascading filter extraction test
+// okapi-unmapped: CascadingFilterTest#extractMinimalNormally — Java-internal cascading filter extraction test
+// okapi-unmapped: CascadingFilterTest#extractMinimalWithStream — Java-internal cascading filter extraction test
+// okapi-unmapped: CascadingFilterTest#extractNormally — Java-internal cascading filter extraction test
+// okapi-unmapped: CascadingFilterTest#extractWithStream — Java-internal cascading filter extraction test
+
 // TestBridgeSmoke_ListFilters verifies the bridge can start and list all
 // available Okapi filters. This is the most basic sanity check.
 func TestBridgeSmoke_ListFilters(t *testing.T) {

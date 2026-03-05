@@ -16,6 +16,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- Java-internal ICU/normalization/plural tests (not exercisable via bridge) ---
+//
+// okapi-unmapped: MessageFormatNormalizerTest#testNormalize — Java-internal ICU normalizer test
+// okapi-unmapped: MessageFormatPluralTest#testAddMultiplePluralForms — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Cardinal — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Gender — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Mixed — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_MixedDeep — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_MixedNested — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Ordinal — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Ordinal2 — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_Ordinal3 — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testAddPluralForms_OrdinalAndPlural — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testRemovePluralForms — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testWithPluralMessage2 — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatPluralTest#testWithSelectMessage — Java-internal ICU plural form test
+// okapi-unmapped: MessageFormatToFormattedTest#testCurrency — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testDuration — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testOffset — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testPercent — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testRussian — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSelectMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSelectOrdinalMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testShortPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSkipSyntaxApostrophe — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSkipSyntaxComplexPattern — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSkipSyntaxEmbedded — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSkipSyntaxEscapedBraces — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSkipSyntaxQuotedText — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testSpellout — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithComplexGenderMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithComplexPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithEmbeddedPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithMixedGenderAndPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithNestedGenderAndPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithNestedMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithNumber — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithPlural — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithPluralMessage — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithSelect — Java-internal ICU formatting test
+// okapi-unmapped: MessageFormatToFormattedTest#testWithSimpleMessage — Java-internal ICU formatting test
+// okapi-unmapped: PluralRulesDiffTest#testArabic — Java-internal ICU plural rules diff test
+// okapi-unmapped: PluralRulesDiffTest#testGerman — Java-internal ICU plural rules diff test
+// okapi-unmapped: PluralRulesDiffTest#testRomanian — Java-internal ICU plural rules diff test
+// okapi-unmapped: PluralRulesDiffTest#testRussian — Java-internal ICU plural rules diff test
+// okapi-unmapped: PluralRulesDiffTest#testSpanish — Java-internal ICU plural rules diff test
+
 const filterClass = "net.sf.okapi.filters.messageformat.MessageFormatFilter"
 const mimeType = "text/x-messageformat"
 

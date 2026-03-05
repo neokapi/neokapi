@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- rainbowkit surefire: Java-internal MergingInfo tests ---
+//
+// okapi-unmapped: MergingInfoTest#testSimpleWrite — Java-internal serialization test
+// okapi-unmapped: MergingInfoTest#testSimpleWriteAndRead — Java-internal serialization test
+// okapi-unmapped: MergingInfoTest#testSimpleWriteAndReadBase64 — Java-internal serialization test
+// okapi-unmapped: MergingInfoTest#testSimpleWriteBase64 — Java-internal serialization test
+
 // ---------------------------------------------------------------------------
 // XINIRainbowKitReaderTest
 //
