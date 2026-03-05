@@ -610,10 +610,12 @@ func TestExtraction_MergesTagsThatDifferByKerningInReferencesAndXmlStructures(t 
 // ---------------------------------------------------------------------------
 
 // okapi: IDMLFilterInParallelTest#testInMultipleThreads
+// Note: The Java test verifies thread safety by running extractions in parallel.
+// We run sequentially because each bridge JVM is single-tenant — concurrent
+// requests to the same JVM corrupt filter state.
 func TestExtraction_InParallel(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	// Run multiple extractions concurrently to verify thread safety.
 	files := []string{
 		"Test00.idml",
 		"Test01.idml",
@@ -621,16 +623,12 @@ func TestExtraction_InParallel(t *testing.T) {
 		"helloworld-1.idml",
 	}
 
-	t.Run("parallel", func(t *testing.T) {
-		for _, f := range files {
-			f := f
-			t.Run(f, func(t *testing.T) {
-				t.Parallel()
-				path := bridgetest.TestdataFile(t, "okf_idml/"+f)
-				parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
-				blocks := bridgetest.TranslatableBlocks(parts)
-				assert.NotEmpty(t, blocks, "%s should produce translatable blocks", f)
-			})
-		}
-	})
+	for _, f := range files {
+		t.Run(f, func(t *testing.T) {
+			path := bridgetest.TestdataFile(t, "okf_idml/"+f)
+			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+			blocks := bridgetest.TranslatableBlocks(parts)
+			assert.NotEmpty(t, blocks, "%s should produce translatable blocks", f)
+		})
+	}
 }
