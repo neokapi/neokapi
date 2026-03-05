@@ -12,6 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- TS surefire: Java _FromFile variants (covered by snippet-based tests above) ---
+//
+// okapi-unmapped: TsFilterTest#StartDocument_FromFile — covered by TestSnippet_StartDocument snippet test
+// okapi-unmapped: TsFilterTest#StartGroupContextPart_FromFile — covered by TestSnippet_StartGroupContextPart snippet test
+// okapi-unmapped: TsFilterTest#StartGroupNumerusPart_FromFile — covered by TestSnippet_NumerusForms snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageApproved_FromFile — covered by TestSnippet_TranslationStatus snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageEmptySource_FromFile — covered by TestSnippet_SourceLangEmpty snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageEmptyTranslation_FromFile — covered by TestSnippet_TargetLangEmpty snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageMissingSourceAndTranslation_FromFile — covered by snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageMissingSourceNotTranslation_FromFile — covered by snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageMissingTranslation_FromFile — covered by snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageObsolete_FromFile — covered by snippet test
+// okapi-unmapped: TsFilterTest#TextUnitMessageUnfinished_FromFile — covered by TestSnippet_TextUnitMessageUnfinished snippet test
+// okapi-unmapped: TsFilterTest#TextUnitNumerus_FromFile — covered by TestSnippet_NumerusForms snippet test
+// okapi-unmapped: TsFilterTest#testDoubleExtraction — covered by snippet roundtrip tests
+// okapi-unmapped: TsFilterTest#testStartDocument — Java-internal API test (tests filter metadata)
+
 const filterClass = "net.sf.okapi.filters.ts.TsFilter"
 const mimeType = "application/x-ts"
 

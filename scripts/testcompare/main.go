@@ -131,7 +131,7 @@ type TestCaseMatch struct {
 	NativeFile   string `json:"nativeFile,omitempty"`
 	NativeLine   int    `json:"nativeLine,omitempty"`
 	SkipReason   string `json:"skipReason,omitempty"`
-	TestState      string `json:"testState"`                  // "implemented" | "pending" | "skipped" | "unmapped"
+	TestState      string `json:"testState"`                  // "implemented" | "pending" | "skipped" | "unmapped" | "not-applicable"
 	BridgeSubtests int    `json:"bridgeSubtests,omitempty"`
 	NativeSubtests int    `json:"nativeSubtests,omitempty"`
 }
@@ -171,6 +171,7 @@ type skipAnnotation struct {
 var annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
 var skipAnnotRe = regexp.MustCompile(`^//\s*okapi-skip:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
 var unmappedAnnotRe = regexp.MustCompile(`^//\s*okapi-unmapped:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
+var filterDirectiveRe = regexp.MustCompile(`^//\s*okapi-filter:\s+(\S+)\s*$`)
 var funcTestRe = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 
 func main() {
@@ -544,18 +545,27 @@ type annotationResult struct {
 // srcDir is the root directory to scan (e.g. "core/plugin/bridge/filters" or "core/formats").
 // kind is "bridge" or "native" (used for debug logging).
 func parseAnnotations(srcDir, kind string) annotationResult {
-	var pattern string
+	var patterns []string
 	switch kind {
 	case "bridge":
-		pattern = filepath.Join(srcDir, "okf_*", "*_test.go")
+		patterns = []string{
+			filepath.Join(srcDir, "okf_*", "*_test.go"),
+			filepath.Join(srcDir, "*_test.go"), // files with // okapi-filter: directives
+		}
 	default:
-		pattern = filepath.Join(srcDir, "*", "*_test.go")
+		patterns = []string{
+			filepath.Join(srcDir, "*", "*_test.go"),
+		}
 	}
 
-	matches, err := filepath.Glob(pattern)
-	if err != nil {
-		log.Printf("warn: annotation glob %s: %v", pattern, err)
-		return annotationResult{}
+	var matches []string
+	for _, pattern := range patterns {
+		m, err := filepath.Glob(pattern)
+		if err != nil {
+			log.Printf("warn: annotation glob %s: %v", pattern, err)
+			continue
+		}
+		matches = append(matches, m...)
 	}
 
 	var result annotationResult
@@ -581,17 +591,31 @@ func parseFileAnnotations(path, kind string) annotationResult {
 	}
 
 	filter := filterFromPath(path, kind)
-	if filter == "" {
-		return annotationResult{}
-	}
+
+	// The // okapi-filter: directive explicitly sets the filter name for subsequent
+	// annotations. This is used for:
+	// - Files outside okf_* directories (e.g. simplifier_test.go → abstractmarkup)
+	// - Name mismatches between Go dir and surefire dir (e.g. okf_phpcontent → php)
 
 	lines := strings.Split(string(data), "\n")
 	var result annotationResult
 	var pending []struct{ class, method string }
+	activeFilter := filter
 
 	for lineNo, line := range lines {
 		lineNum := lineNo + 1 // 1-based
 		trimmed := strings.TrimSpace(line)
+
+		// Check for // okapi-filter: directive (sets active filter for subsequent annotations)
+		if m := filterDirectiveRe.FindStringSubmatch(trimmed); m != nil {
+			activeFilter = m[1]
+			continue
+		}
+
+		// Skip annotations if no filter context is available
+		if activeFilter == "" {
+			continue
+		}
 
 		// Check for // okapi-skip: annotation
 		if m := skipAnnotRe.FindStringSubmatch(trimmed); m != nil {
@@ -599,7 +623,7 @@ func parseFileAnnotations(path, kind string) annotationResult {
 				JavaClass:  m[1],
 				JavaMethod: m[2],
 				Reason:     strings.TrimSpace(m[3]),
-				Filter:     filter,
+				Filter:     activeFilter,
 				File:       path,
 				Line:       lineNum,
 			})
@@ -612,7 +636,7 @@ func parseFileAnnotations(path, kind string) annotationResult {
 				JavaClass:  m[1],
 				JavaMethod: m[2],
 				Reason:     strings.TrimSpace(m[3]),
-				Filter:     filter,
+				Filter:     activeFilter,
 				File:       path,
 				Line:       lineNum,
 			})
@@ -633,7 +657,7 @@ func parseFileAnnotations(path, kind string) annotationResult {
 					JavaClass:  p.class,
 					JavaMethod: p.method,
 					GoTest:     goTestName,
-					Filter:     filter,
+					Filter:     activeFilter,
 					File:       path,
 					Line:       lineNum,
 				})
@@ -692,6 +716,18 @@ type annInfo struct {
 	Line   int
 }
 
+// filterAliases maps Go-derived filter names to the surefire filter names they
+// also cover. This handles cases where Okapi surefire groups tests under a
+// different filter directory than the Go package name.
+var filterAliases = map[string][]string{
+	"html5":      {"its"},          // okf_html5/ covers ITS HTML5 tests
+	"xml":        {"its"},          // okf_xml/ covers ITS XML tests
+	"phpcontent": {"php"},          // okf_phpcontent/ covers surefire php/
+	"ttml":       {"subtitles"},    // okf_ttml/ covers surefire subtitles/
+	"vtt":        {"subtitles"},    // okf_vtt/ covers surefire subtitles/
+	"xini":       {"rainbowkit"},   // okf_xini/ covers surefire rainbowkit/
+}
+
 func merge(
 	okapi, bridge, native map[string]*FilterResult,
 	bridgeAnns, nativeAnns []annotation,
@@ -703,34 +739,59 @@ func merge(
 	okapiVer, gokapiVer, goCommit, okapiTagVal string,
 ) *ComparisonData {
 	// Build annotation lookup: filter → javaClass#method → []annInfo
+	// Annotations are indexed under both their original filter name and any aliases.
 	type annKey struct{ filter, class, method string }
+
+	// filtersFor returns the original filter plus any alias targets.
+	filtersFor := func(f string) []string {
+		out := []string{f}
+		if aliases, ok := filterAliases[f]; ok {
+			out = append(out, aliases...)
+		}
+		return out
+	}
+
 	bridgeAnnMap := map[annKey][]annInfo{}
 	for _, a := range bridgeAnns {
-		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
-		bridgeAnnMap[k] = append(bridgeAnnMap[k], annInfo{a.GoTest, a.File, a.Line})
+		info := annInfo{a.GoTest, a.File, a.Line}
+		for _, f := range filtersFor(a.Filter) {
+			k := annKey{f, a.JavaClass, a.JavaMethod}
+			bridgeAnnMap[k] = append(bridgeAnnMap[k], info)
+		}
 	}
 	nativeAnnMap := map[annKey][]annInfo{}
 	for _, a := range nativeAnns {
-		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
-		nativeAnnMap[k] = append(nativeAnnMap[k], annInfo{a.GoTest, a.File, a.Line})
+		info := annInfo{a.GoTest, a.File, a.Line}
+		for _, f := range filtersFor(a.Filter) {
+			k := annKey{f, a.JavaClass, a.JavaMethod}
+			nativeAnnMap[k] = append(nativeAnnMap[k], info)
+		}
 	}
 
 	// Build skip annotation lookup: annKey → skipAnnotation (reason + source location)
 	skipMap := map[annKey]skipAnnotation{}
 	for _, s := range bridgeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
+		for _, f := range filtersFor(s.Filter) {
+			skipMap[annKey{f, s.JavaClass, s.JavaMethod}] = s
+		}
 	}
 	for _, s := range nativeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
+		for _, f := range filtersFor(s.Filter) {
+			skipMap[annKey{f, s.JavaClass, s.JavaMethod}] = s
+		}
 	}
 
 	// Build unmapped annotation lookup: annKey → skipAnnotation
 	unmappedMap := map[annKey]skipAnnotation{}
 	for _, u := range bridgeUnmapped {
-		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
+		for _, f := range filtersFor(u.Filter) {
+			unmappedMap[annKey{f, u.JavaClass, u.JavaMethod}] = u
+		}
 	}
 	for _, u := range nativeUnmapped {
-		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
+		for _, f := range filtersFor(u.Filter) {
+			unmappedMap[annKey{f, u.JavaClass, u.JavaMethod}] = u
+		}
 	}
 
 	// Collect all filter names
@@ -833,6 +894,7 @@ func merge(
 					// For unmapped tests, check for okapi-unmapped: annotation
 					if tcm.TestState == "unmapped" {
 						if ua, ok := unmappedMap[k]; ok {
+							tcm.TestState = "not-applicable"
 							tcm.SkipReason = ua.Reason
 						}
 					}

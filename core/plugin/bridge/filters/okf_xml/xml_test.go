@@ -12,6 +12,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- ITS surefire: XML tests not yet implemented in bridge ---
+//
+// okapi-unmapped: BundledConfigsTest#codesSimplificationPerformed — bundled config codes simplification not bridged
+// okapi-unmapped: BundledConfigsTest#testDocBookFootnote — DocBook footnote bundled config not bridged
+// okapi-unmapped: HtmlSubFilterWrapperTest#testHtml5SubFilter — HTML subfilter wrapper not bridged
+// okapi-unmapped: HtmlSubFilterWrapperTest#testHtml5SubFilter_Blank — HTML subfilter wrapper not bridged
+// okapi-unmapped: HtmlSubFilterWrapperTest#testHtmlSubFilter — HTML subfilter wrapper not bridged
+// okapi-unmapped: HtmlSubFilterWrapperTest#testHtmlSubFilter_Blank — HTML subfilter wrapper not bridged
+// okapi-unmapped: XMLFilterTest#testCDATAEntry — CDATA entry handling not bridged
+// okapi-unmapped: XMLFilterTest#testCDATASubfilter — CDATA subfiltering not bridged
+// okapi-unmapped: XMLFilterTest#testSubfilteringEmptyCDATASection — empty CDATA subfiltering not bridged
+
 // ---------------------------------------------------------------------------
 // Extraction tests — ITS rules, translatable attributes, idValue,
 // domain, locale filtering, and other XMLFilter-specific extraction behavior.

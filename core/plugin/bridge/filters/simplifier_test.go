@@ -9,6 +9,67 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// --- abstractmarkup surefire: SimplifierRulesTest ---
+//
+// okapi-filter: abstractmarkup
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction01 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction02 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction03 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction04 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction05 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction06 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction07 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction08 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction09 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction10 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction11 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction12 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction13 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction14 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction15 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction16 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction17 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction18 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction19 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction20 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction21 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction22 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction23 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction24 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction25 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction26 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction27 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction28 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction29 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction30 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction31 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction32 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction33 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction34 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction35 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction36 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction37 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction38 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction39 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction40 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction41 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction42 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction43 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction44 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction45 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction46 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction47 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction48 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction49 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction50 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction51 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction52 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction53 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction54 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction55 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeReduction56 — Java-internal code simplification test
+// okapi-unmapped: SimplifierRulesTest#testCodeWithGandXCodes — Java-internal code simplification test
+
 // simplifierTestEntry defines a filter input to test with the simplifier.
 type simplifierTestEntry struct {
 	name        string
