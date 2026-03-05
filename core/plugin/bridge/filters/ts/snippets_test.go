@@ -12,21 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// --- TS surefire: Java _FromFile variants (covered by snippet-based tests above) ---
-//
-// okapi-unmapped: TsFilterTest#StartDocument_FromFile — covered by TestSnippet_StartDocument snippet test
-// okapi-unmapped: TsFilterTest#StartGroupContextPart_FromFile — covered by TestSnippet_StartGroupContextPart snippet test
-// okapi-unmapped: TsFilterTest#StartGroupNumerusPart_FromFile — covered by TestSnippet_NumerusForms snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageApproved_FromFile — covered by TestSnippet_TranslationStatus snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageEmptySource_FromFile — covered by TestSnippet_SourceLangEmpty snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageEmptyTranslation_FromFile — covered by TestSnippet_TargetLangEmpty snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageMissingSourceAndTranslation_FromFile — covered by snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageMissingSourceNotTranslation_FromFile — covered by snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageMissingTranslation_FromFile — covered by snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageObsolete_FromFile — covered by snippet test
-// okapi-unmapped: TsFilterTest#TextUnitMessageUnfinished_FromFile — covered by TestSnippet_TextUnitMessageUnfinished snippet test
-// okapi-unmapped: TsFilterTest#TextUnitNumerus_FromFile — covered by TestSnippet_NumerusForms snippet test
-// okapi-unmapped: TsFilterTest#testDoubleExtraction — covered by snippet roundtrip tests
 // okapi-unmapped: TsFilterTest#testStartDocument — Java-internal API test (tests filter metadata)
 
 const filterClass = "net.sf.okapi.filters.ts.TsFilter"
@@ -90,6 +75,7 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 // ---- TsFilterTest snippet-based tests ----
 
 // okapi: TsFilterTest#StartDocument
+// okapi: TsFilterTest#StartDocument_FromFile
 func TestSnippet_StartDocument(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -141,6 +127,7 @@ func TestSnippet_DocumentPartTsPart(t *testing.T) {
 }
 
 // okapi: TsFilterTest#StartGroupContextPart
+// okapi: TsFilterTest#StartGroupContextPart_FromFile
 func TestSnippet_StartGroupContextPart(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -174,6 +161,8 @@ func TestSnippet_StartGroupContextPart(t *testing.T) {
 }
 
 // okapi: TsFilterTest#TextUnitMessageUnfinished
+// okapi: TsFilterTest#TextUnitMessageUnfinished_FromFile
+// okapi: TsFilterTest#TextUnitMessageMissingTranslation_FromFile
 func TestSnippet_TextUnitMessageUnfinished(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -205,6 +194,10 @@ func TestSnippet_TextUnitMessageUnfinished(t *testing.T) {
 }
 
 // okapi: TsFilterTest#testTranslationStatus
+// okapi: TsFilterTest#TextUnitMessageApproved_FromFile
+// okapi: TsFilterTest#TextUnitMessageObsolete_FromFile
+// okapi: TsFilterTest#TextUnitMessageMissingSourceAndTranslation_FromFile
+// okapi: TsFilterTest#TextUnitMessageMissingSourceNotTranslation_FromFile
 func TestSnippet_TranslationStatus(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -634,6 +627,7 @@ func TestSnippet_GetMimeType(t *testing.T) {
 }
 
 // okapi: TsFilterTest#runTest
+// okapi: TsFilterTest#testDoubleExtraction
 func TestSnippet_RunTest(t *testing.T) {
 	// The Java runTest is a parameterized test that reads snippets. We cover
 	// this by verifying extraction and roundtrip of a simple TS document.
@@ -731,6 +725,7 @@ func TestSnippet_TargetLangNotSpecified2(t *testing.T) {
 }
 
 // okapi: TsFilterTest#testSourceLangEmpty
+// okapi: TsFilterTest#TextUnitMessageEmptySource_FromFile
 func TestSnippet_SourceLangEmpty(t *testing.T) {
 	// TS with empty sourcelanguage attribute.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
@@ -753,6 +748,7 @@ func TestSnippet_SourceLangEmpty(t *testing.T) {
 }
 
 // okapi: TsFilterTest#testTargetLangEmpty
+// okapi: TsFilterTest#TextUnitMessageEmptyTranslation_FromFile
 func TestSnippet_TargetLangEmpty(t *testing.T) {
 	// TS with empty language attribute.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
@@ -802,6 +798,8 @@ func TestSnippet_InputStream(t *testing.T) {
 // Numerus messages have multiple <numerusform> elements in the <translation>.
 //
 // okapi: TsFilterTest#testInlineCodes (numerusform part)
+// okapi: TsFilterTest#StartGroupNumerusPart_FromFile
+// okapi: TsFilterTest#TextUnitNumerus_FromFile
 func TestSnippet_NumerusForms(t *testing.T) {
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>

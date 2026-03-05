@@ -181,7 +181,7 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 		"block[2] plain text column")
 }
 
-// okapi-skip: MultiparsersFilterTests#preProcessingForMarkdownTest — Java-only internal method test (preProcessDataForMarkdown)
+// okapi-unmapped: MultiparsersFilterTests#preProcessingForMarkdownTest — Java-only internal method test (preProcessDataForMarkdown)
 
 // Note: Roundtrip tests with sub-filter params (csvFormatCols, csvAutoDetectColumnTypes)
 // are not possible through the bridge because the write phase requires a

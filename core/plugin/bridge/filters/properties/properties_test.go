@@ -39,7 +39,7 @@ func blockByName(blocks []*model.Block, name string) *model.Block {
 	return nil
 }
 
-// okapi-skip: PropertiesFilterTest#testDefaultInfo — tests Java filter metadata (name, configurations), not relevant to bridge extraction
+// okapi-unmapped: PropertiesFilterTest#testDefaultInfo — tests Java filter metadata (name, configurations), not relevant to bridge extraction
 // okapi: PropertiesFilterTest#testDefaultInfo
 func TestExtract_DefaultInfo(t *testing.T) {
 	parts := readProps(t, "key=value", nil)

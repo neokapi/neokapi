@@ -1,6 +1,6 @@
 // Package main generates Go test stub files from Okapi Surefire XML reports.
 // For each filter, it produces okapi_stubs_test.go with t.Skip("pending")
-// stubs for unmapped Java tests, and // okapi-skip: comments for tests that
+// stubs for unmapped Java tests, and // okapi-unmapped: comments for tests that
 // are not applicable to Go.
 package main
 
@@ -71,7 +71,7 @@ type classified struct {
 
 var (
 	annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
-	skipAnnotRe  = regexp.MustCompile(`^//\s*okapi-skip:\s+(\w+)#(\w+)`)
+	skipAnnotRe  = regexp.MustCompile(`^//\s*okapi-(?:skip|unmapped):\s+(\w+)#(\w+)`)
 	funcTestRe   = regexp.MustCompile(`^func\s+(Test\w+)\s*\(`)
 )
 
@@ -555,12 +555,12 @@ func generateStubFile(pkgName string, stubs, skips []classified) string {
 
 	// Write skipped tests as comments
 	if len(skips) > 0 {
-		b.WriteString("\n// ---- Skipped (not applicable to Go) ----\n//\n")
+		b.WriteString("\n// ---- Unmapped (not applicable to Go) ----\n//\n")
 
 		byClass := groupByClass(skips)
 		for _, cls := range byClass.order {
 			for _, item := range byClass.items[cls] {
-				fmt.Fprintf(&b, "// okapi-skip: %s#%s \u2014 %s\n",
+				fmt.Fprintf(&b, "// okapi-unmapped: %s#%s \u2014 %s\n",
 					item.test.ClassName, item.test.Method, item.reason)
 			}
 		}

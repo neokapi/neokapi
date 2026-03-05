@@ -131,7 +131,7 @@ func readMessageFormatExpectError(t *testing.T, snippet string) error {
 // Tests translated from MessageFormatFilterTest.java (31 tests)
 // ---------------------------------------------------------------------------
 
-// okapi-skip: MessageFormatFilterTest#testDefaultInfo — Java-specific API: tests filter metadata (name, display name, MIME type)
+// okapi-unmapped: MessageFormatFilterTest#testDefaultInfo — Java-specific API: tests filter metadata (name, display name, MIME type)
 // okapi: MessageFormatFilterTest#testDefaultInfo
 func TestExtract_DefaultInfo(t *testing.T) {
 	t.Skip("Java-specific: tests filter metadata API (getName, getMimeType)")

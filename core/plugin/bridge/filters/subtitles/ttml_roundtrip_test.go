@@ -22,5 +22,5 @@ func TestRoundTrip_TTML_TestFiles(t *testing.T) {
 		tdDir+"/okf_ttml/*.ttml", ttmlMimeType, nil)
 }
 
-// okapi-skip: TtmlXliffCompareIT — XLIFF compare tests require XLIFF serialization
+// okapi-unmapped: TtmlXliffCompareIT — XLIFF compare tests require XLIFF serialization
 // which is outside the scope of bridge filter roundtrip tests.

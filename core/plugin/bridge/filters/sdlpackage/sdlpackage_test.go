@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// okapi-skip: SdlPackageFilterTests#testInformation — Java-only API test (IFilter.getName/getMimeType/getDisplayName)
+// okapi-unmapped: SdlPackageFilterTests#testInformation — Java-only API test (IFilter.getName/getMimeType/getDisplayName)
 
 // okapi: SdlPackageFilterTests#testSimpleRead
 func TestSimpleRead(t *testing.T) {

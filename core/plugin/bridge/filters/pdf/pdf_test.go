@@ -21,7 +21,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
 }
 
-// okapi-skip: PdfFilterTest#testDefaultInfo — Java-only API test (IFilter.getParameters/getName/getConfigurations)
+// okapi-unmapped: PdfFilterTest#testDefaultInfo — Java-only API test (IFilter.getParameters/getName/getConfigurations)
 
 // okapi: PdfFilterTest#firstTextUnit
 func TestExtract_FirstTextUnit(t *testing.T) {

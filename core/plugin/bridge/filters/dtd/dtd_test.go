@@ -45,7 +45,7 @@ func blockByName(blocks []*model.Block, name string) *model.Block {
 	return nil
 }
 
-// okapi-skip: DTDFilterTest#testDefaultInfo — tests Java filter metadata (name, configurations), not relevant to bridge extraction
+// okapi-unmapped: DTDFilterTest#testDefaultInfo — tests Java filter metadata (name, configurations), not relevant to bridge extraction
 // okapi: DTDFilterTest#testDefaultInfo
 func TestExtract_DefaultInfo(t *testing.T) {
 	parts := readDTDDefault(t, `<!ENTITY greeting "Hello world">`)
@@ -54,7 +54,7 @@ func TestExtract_DefaultInfo(t *testing.T) {
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
 }
 
-// okapi-skip: DTDFilterTest#testStartDocument — tests Java StartDocument event properties (lineBreak, encoding), not directly accessible via bridge
+// okapi-unmapped: DTDFilterTest#testStartDocument — tests Java StartDocument event properties (lineBreak, encoding), not directly accessible via bridge
 // okapi: DTDFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
@@ -98,7 +98,7 @@ func TestExtract_SimpleEntry(t *testing.T) {
 	assert.Equal(t, "text2", b2.SourceText())
 }
 
-// okapi-skip: DTDFilterTest#testLineBreaks — tests Java StartDocument.getLineBreak() property for CR detection, not accessible via bridge
+// okapi-unmapped: DTDFilterTest#testLineBreaks — tests Java StartDocument.getLineBreak() property for CR detection, not accessible via bridge
 // okapi: DTDFilterTest#testLineBreaks
 func TestExtract_LineBreaks(t *testing.T) {
 	// The Java test verifies that CR line breaks are detected and stored in

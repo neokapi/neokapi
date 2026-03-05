@@ -18,9 +18,9 @@ import (
 // ICMLFilterTest — Java-only API tests (skipped)
 // ---------------------------------------------------------------------------
 
-// okapi-skip: ICMLFilterTest#createSkeletonWriter_ThenReturnNull — Java-only API test (IFilter.createSkeletonWriter)
-// okapi-skip: ICMLFilterTest#createFilterWriter_ThenReturnICMLFilterWriter — Java-only API test (IFilter.createFilterWriter)
-// okapi-skip: ICMLFilterTest#getEncoderManager_ThenReturnEncoderManager — Java-only API test (IFilter.getEncoderManager)
+// okapi-unmapped: ICMLFilterTest#createSkeletonWriter_ThenReturnNull — Java-only API test (IFilter.createSkeletonWriter)
+// okapi-unmapped: ICMLFilterTest#createFilterWriter_ThenReturnICMLFilterWriter — Java-only API test (IFilter.createFilterWriter)
+// okapi-unmapped: ICMLFilterTest#getEncoderManager_ThenReturnEncoderManager — Java-only API test (IFilter.getEncoderManager)
 
 // ---------------------------------------------------------------------------
 // ICMLFilterTest — Filter metadata tests

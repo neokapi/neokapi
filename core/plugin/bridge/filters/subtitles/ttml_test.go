@@ -264,25 +264,25 @@ func TestExtract_ProcessTextUnitNonEscapeBrMode(t *testing.T) {
 // TTMLSkeletonWriterTest.java — Writer Tests (via roundtrip)
 // ---------------------------------------------------------------------------
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnit — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnit — Java-only skeleton writer unit test
 // (constructs TextUnit + CaptionAnnotation + TTMLSkeletonPart manually; not exercisable via bridge roundtrip)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitLines — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitSplitLines — Java-only skeleton writer unit test
 // (tests maxCharsPerLine=10 line splitting with manual skeleton construction)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLines — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLines — Java-only skeleton writer unit test
 // (tests caption splitting across multiple <p> elements with manual skeleton construction)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLineOverflow — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsLineOverflow — Java-only skeleton writer unit test
 // (tests overflow line splitting behavior with maxCharsPerLine=5)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsCaptionOverflow — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitSplitCaptionsCaptionOverflow — Java-only skeleton writer unit test
 // (tests caption overflow with "hippopotamus" across 3 captions)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitWithCodes — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitWithCodes — Java-only skeleton writer unit test
 // (tests code finder integration during write with manual TextUnit + code processing)
 
-// okapi-skip: TTMLSkeletonWriterTest#testProcessTextUnitNonEscapeBrMode — Java-only skeleton writer unit test
+// okapi-unmapped: TTMLSkeletonWriterTest#testProcessTextUnitNonEscapeBrMode — Java-only skeleton writer unit test
 // (tests non-escape br mode write with manual skeleton construction)
 
 // ---------------------------------------------------------------------------

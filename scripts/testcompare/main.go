@@ -131,21 +131,22 @@ type TestCaseMatch struct {
 	NativeFile   string `json:"nativeFile,omitempty"`
 	NativeLine   int    `json:"nativeLine,omitempty"`
 	SkipReason   string `json:"skipReason,omitempty"`
-	TestState      string `json:"testState"`                  // "implemented" | "pending" | "skipped" | "unmapped" | "not-applicable"
+	TestState      string `json:"testState"`                  // "implemented" | "pending" | "unmapped" | "not-applicable" | "okapi-skip"
 	BridgeSubtests int    `json:"bridgeSubtests,omitempty"`
 	NativeSubtests int    `json:"nativeSubtests,omitempty"`
 }
 
 type CoverageStats struct {
-	TotalOkapi     int     `json:"totalOkapi"`
-	BridgeMapped   int     `json:"bridgeMapped"`
-	BridgePassing  int     `json:"bridgePassing"`
-	NativeMapped   int     `json:"nativeMapped"`
-	NativePassing  int     `json:"nativePassing"`
-	CoveragePct    float64 `json:"coveragePct"`
-	SkippedCount   int     `json:"skippedCount"`
-	PendingCount   int     `json:"pendingCount"`
-	ImplementedPct float64 `json:"implementedPct"`
+	TotalOkapi      int     `json:"totalOkapi"`
+	BridgeMapped    int     `json:"bridgeMapped"`
+	BridgePassing   int     `json:"bridgePassing"`
+	NativeMapped    int     `json:"nativeMapped"`
+	NativePassing   int     `json:"nativePassing"`
+	CoveragePct     float64 `json:"coveragePct"`
+	IgnoredCount    int     `json:"ignoredCount"`
+	OkapiSkipCount  int     `json:"okapiSkipCount"`
+	PendingCount    int     `json:"pendingCount"`
+	ImplementedPct  float64 `json:"implementedPct"`
 }
 
 // annotation maps a Go test function to its Java test counterpart.
@@ -169,6 +170,7 @@ type skipAnnotation struct {
 }
 
 var annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
+// skipAnnotRe is kept for backward compatibility but okapi-skip is now treated as okapi-unmapped.
 var skipAnnotRe = regexp.MustCompile(`^//\s*okapi-skip:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
 var unmappedAnnotRe = regexp.MustCompile(`^//\s*okapi-unmapped:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
 var filterDirectiveRe = regexp.MustCompile(`^//\s*okapi-filter:\s+(\S+)\s*$`)
@@ -227,7 +229,6 @@ func main() {
 
 	data := merge(okapi, bridgeResults.filters, nativeResults.filters,
 		bridgeAR.annotations, nativeAR.annotations,
-		bridgeAR.skips, nativeAR.skips,
 		bridgeAR.unmapped, nativeAR.unmapped,
 		bridgeTestStatus, nativeTestStatus,
 		bridgeResults.skipMsgs, nativeResults.skipMsgs,
@@ -539,11 +540,10 @@ func lastSegment(s string) string {
 	return s
 }
 
-// annotationResult holds regular, skip, and unmapped annotations from source scanning.
+// annotationResult holds regular and unmapped annotations from source scanning.
 type annotationResult struct {
 	annotations []annotation
-	skips       []skipAnnotation
-	unmapped    []skipAnnotation // okapi-unmapped: annotations (same shape as skips)
+	unmapped    []skipAnnotation // okapi-unmapped: annotations
 }
 
 // parseAnnotations scans Go source files for // okapi: and // okapi-skip: annotations.
@@ -583,17 +583,16 @@ func parseAnnotations(srcDir, kind string) annotationResult {
 	for _, path := range matches {
 		ar := parseFileAnnotations(path, kind)
 		result.annotations = append(result.annotations, ar.annotations...)
-		result.skips = append(result.skips, ar.skips...)
 		result.unmapped = append(result.unmapped, ar.unmapped...)
 	}
 
-	fmt.Printf("parsed %d %s annotations + %d skips from %d files\n",
-		len(result.annotations), kind, len(result.skips)+len(result.unmapped), len(matches))
+	fmt.Printf("parsed %d %s annotations + %d unmapped from %d files\n",
+		len(result.annotations), kind, len(result.unmapped), len(matches))
 	return result
 }
 
-// parseFileAnnotations parses a single Go test file for // okapi:, // okapi-skip:,
-// and // okapi-unmapped: annotations. Tracks file paths and line numbers.
+// parseFileAnnotations parses a single Go test file for // okapi: and // okapi-unmapped:
+// annotations. Also handles legacy // okapi-skip: as unmapped. Tracks file paths and line numbers.
 func parseFileAnnotations(path, kind string) annotationResult {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -627,9 +626,9 @@ func parseFileAnnotations(path, kind string) annotationResult {
 			continue
 		}
 
-		// Check for // okapi-skip: annotation
+		// Check for // okapi-skip: annotation (treated as unmapped for backward compat)
 		if m := skipAnnotRe.FindStringSubmatch(trimmed); m != nil {
-			result.skips = append(result.skips, skipAnnotation{
+			result.unmapped = append(result.unmapped, skipAnnotation{
 				JavaClass:  m[1],
 				JavaMethod: m[2],
 				Reason:     strings.TrimSpace(m[3]),
@@ -730,7 +729,6 @@ type annInfo struct {
 func merge(
 	okapi, bridge, native map[string]*FilterResult,
 	bridgeAnns, nativeAnns []annotation,
-	bridgeSkips, nativeSkips []skipAnnotation,
 	bridgeUnmapped, nativeUnmapped []skipAnnotation,
 	bridgeTestStatus, nativeTestStatus map[string]string,
 	bridgeSkipMsgs, nativeSkipMsgs map[string]string,
@@ -751,15 +749,6 @@ func merge(
 		info := annInfo{a.GoTest, a.File, a.Line}
 		k := annKey{a.Filter, a.JavaClass, a.JavaMethod}
 		nativeAnnMap[k] = append(nativeAnnMap[k], info)
-	}
-
-	// Build skip annotation lookup: annKey → skipAnnotation (reason + source location)
-	skipMap := map[annKey]skipAnnotation{}
-	for _, s := range bridgeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
-	}
-	for _, s := range nativeSkips {
-		skipMap[annKey{s.Filter, s.JavaClass, s.JavaMethod}] = s
 	}
 
 	// Build unmapped annotation lookup: annKey → skipAnnotation
@@ -816,12 +805,6 @@ func merge(
 					// in parseSurefire, so tc.Name is the base method name.
 					k := annKey{n, className, tc.Name}
 
-					// Check for skip annotation (saved, applied later as fallback)
-					var skipAnn *skipAnnotation
-					if sa, ok := skipMap[k]; ok {
-						skipAnn = &sa
-					}
-
 					// Look up bridge annotation
 					if infos := bridgeAnnMap[k]; len(infos) > 0 {
 						tcm.BridgeTest = infos[0].GoTest
@@ -853,27 +836,17 @@ func merge(
 						bridgeTestStatus, nativeTestStatus,
 						bridgeSkipMsgs, nativeSkipMsgs)
 
-					// Apply skip annotation as fallback: only mark "skipped" if
-					// no bridge or native test was found. If a mapping exists,
-					// the skip annotation is superseded by the implementation.
-					if skipAnn != nil {
-						if tcm.TestState == "unmapped" {
-							tcm.TestState = "skipped"
-							tcm.SkipReason = skipAnn.Reason
-						} else {
-							// Keep the skip reason as context even when implemented
-							if tcm.SkipReason == "" {
-								tcm.SkipReason = skipAnn.Reason
-							}
-						}
-					}
-
 					// For unmapped tests, check for okapi-unmapped: annotation
 					if tcm.TestState == "unmapped" {
 						if ua, ok := unmappedMap[k]; ok {
 							tcm.TestState = "not-applicable"
 							tcm.SkipReason = ua.Reason
 						}
+					}
+
+					// Mark tests that are skipped on the Java/Okapi side
+					if tcm.OkapiStatus == "skip" && tcm.TestState == "unmapped" {
+						tcm.TestState = "okapi-skip"
 					}
 
 					testCases = append(testCases, tcm)
@@ -926,13 +899,18 @@ func merge(
 		return filters[i].FilterName < filters[j].FilterName
 	})
 
-	// Overall coverage
+	// Overall coverage (excluding ignored and Java-side skipped tests from denominator)
 	if sum.TotalTestsOkapi > 0 {
 		totalMapped := 0
+		totalIgnored := 0
 		for _, fc := range filters {
 			totalMapped += fc.Coverage.BridgeMapped
+			totalIgnored += fc.Coverage.IgnoredCount + fc.Coverage.OkapiSkipCount
 		}
-		sum.CoveragePct = float64(totalMapped) / float64(sum.TotalTestsOkapi) * 100
+		effective := sum.TotalTestsOkapi - totalIgnored
+		if effective > 0 {
+			sum.CoveragePct = float64(totalMapped) / float64(effective) * 100
+		}
 	}
 
 	return &ComparisonData{
@@ -946,7 +924,7 @@ func merge(
 	}
 }
 
-// determineTestState classifies a test case into one of: implemented, pending, skipped, unmapped.
+// determineTestState classifies a test case into one of: implemented, pending, unmapped.
 func determineTestState(
 	tcm TestCaseMatch, filter string,
 	bridgeTestStatus, nativeTestStatus map[string]string,
@@ -981,14 +959,17 @@ func determineTestState(
 }
 
 // computeCoverage calculates coverage stats from test case matches.
+// Coverage denominators exclude ignored tests (not-applicable) and Java-side skipped tests (okapi-skip).
 func computeCoverage(testCases []TestCaseMatch) CoverageStats {
 	cs := CoverageStats{
 		TotalOkapi: len(testCases),
 	}
 	for _, tc := range testCases {
 		switch tc.TestState {
-		case "skipped":
-			cs.SkippedCount++
+		case "not-applicable":
+			cs.IgnoredCount++
+		case "okapi-skip":
+			cs.OkapiSkipCount++
 		case "pending":
 			cs.PendingCount++
 		}
@@ -1006,13 +987,15 @@ func computeCoverage(testCases []TestCaseMatch) CoverageStats {
 			}
 		}
 	}
-	if cs.TotalOkapi > 0 {
-		cs.CoveragePct = float64(cs.BridgeMapped) / float64(cs.TotalOkapi) * 100
+	// Effective denominator excludes ignored (not-applicable) and Java-side skipped tests.
+	effective := cs.TotalOkapi - cs.IgnoredCount - cs.OkapiSkipCount
+	if effective > 0 {
+		cs.CoveragePct = float64(cs.BridgeMapped) / float64(effective) * 100
 		implemented := cs.BridgeMapped + cs.NativeMapped - cs.PendingCount
 		if implemented < 0 {
 			implemented = 0
 		}
-		cs.ImplementedPct = float64(implemented) / float64(cs.TotalOkapi) * 100
+		cs.ImplementedPct = float64(implemented) / float64(effective) * 100
 	}
 	return cs
 }

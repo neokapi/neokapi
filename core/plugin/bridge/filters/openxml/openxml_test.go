@@ -1334,7 +1334,7 @@ func TestExtract_TabAsCharVariants(t *testing.T) {
 	require.NotEmpty(t, blocks, "tab-as-char document should produce blocks")
 }
 
-// okapi-skip: OpenXMLRepetitionTest — no testdata file (repetitions.docx not in testdata set)
+// okapi-unmapped: OpenXMLRepetitionTest — no testdata file (repetitions.docx not in testdata set)
 
 // okapi: OpenXMLZipFullFileTest
 func TestExtract_ZipFullFile(t *testing.T) {

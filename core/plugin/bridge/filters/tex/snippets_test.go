@@ -44,8 +44,8 @@ func snippetRoundtrip(t *testing.T, snippet string, filterParams map[string]any)
 
 // ---- TEXFilterTest (27 surefire tests) ----
 
-// okapi-skip: TEXFilterTest#testDefaultInfo — tests Java filter metadata/getDisplayName, not extraction behavior
-// okapi-skip: TEXFilterTest#testJava8Split — Java 8 string split compatibility, not relevant to bridge
+// okapi-unmapped: TEXFilterTest#testDefaultInfo — tests Java filter metadata/getDisplayName, not extraction behavior
+// okapi-unmapped: TEXFilterTest#testJava8Split — Java 8 string split compatibility, not relevant to bridge
 
 // okapi: TEXFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {

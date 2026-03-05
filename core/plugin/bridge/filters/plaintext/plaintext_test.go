@@ -163,9 +163,9 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 		tdDir+"/okf_plaintext/*.txt", mimeType, nil)
 }
 
-// okapi-skip: PlainTextFilterTest#testCancel — cancellation is Java-specific (filter.cancel())
-// okapi-skip: PlainTextFilterTest#testConfigurations — tests Java filter.getConfigurations() API
-// okapi-skip: PlainTextFilterTest#testSynchronization — tests Java multi-threaded filter access
+// okapi-unmapped: PlainTextFilterTest#testCancel — cancellation is Java-specific (filter.cancel())
+// okapi-unmapped: PlainTextFilterTest#testConfigurations — tests Java filter.getConfigurations() API
+// okapi-unmapped: PlainTextFilterTest#testSynchronization — tests Java multi-threaded filter access
 
 // okapi: PlainTextFilterTest#testLineNumbers
 func TestExtract_LineNumbers(t *testing.T) {
@@ -430,7 +430,7 @@ func TestPara_Skeleton5(t *testing.T) {
 	require.NotEmpty(t, blocks)
 }
 
-// okapi-skip: ParaPlainTextFilterTest#testCancel — cancellation is Java-specific
+// okapi-unmapped: ParaPlainTextFilterTest#testCancel — cancellation is Java-specific
 
 // ---- RegexPlainTextFilterTest (6 tests) ----
 // RegexPlainTextFilter is a different Java filter class. We test what we can
