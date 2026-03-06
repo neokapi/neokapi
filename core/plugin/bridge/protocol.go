@@ -68,6 +68,7 @@ type InfoData struct {
 // FilterEntry describes a single available Okapi filter.
 type FilterEntry struct {
 	FilterClass string
+	FilterID    string // Natural Okapi filter ID (e.g., "okf_html")
 	Name        string
 	DisplayName string
 	MimeTypes   []string

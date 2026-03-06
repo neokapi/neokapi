@@ -45,10 +45,10 @@ type FormatsListOutput struct {
 func (f FormatsListOutput) FormatText(w io.Writer) error {
 	fmt.Fprintln(w, "Available formats:")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
-		"FORMAT", "DISPLAY NAME", "READ", "WRITE", "SOURCE", "EXTENSIONS", "MIME TYPES")
-	fmt.Fprintf(w, "  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
-		"------", "------------", "----", "-----", "------", "----------", "----------")
+	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
+		"FORMAT", "NAME", "READ", "WRITE", "SOURCE", "EXTENSIONS", "MIME TYPES")
+	fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
+		"------", "----", "----", "-----", "------", "----------", "----------")
 
 	for _, info := range f.Formats {
 		read := "-"
@@ -60,18 +60,18 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 			write = "yes"
 		}
 		displayName := info.DisplayName
-		if len(displayName) > 20 {
-			displayName = displayName[:17] + "..."
+		if len(displayName) > 28 {
+			displayName = displayName[:25] + "..."
 		}
 		exts := strings.Join(info.Extensions, ", ")
-		if len(exts) > 18 {
-			exts = exts[:15] + "..."
+		if len(exts) > 22 {
+			exts = exts[:19] + "..."
 		}
 		mimes := strings.Join(info.MimeTypes, ", ")
-		if len(mimes) > 40 {
-			mimes = mimes[:37] + "..."
+		if len(mimes) > 44 {
+			mimes = mimes[:41] + "..."
 		}
-		fmt.Fprintf(w, "  %-20s %-22s %-6s %-6s %-12s %-20s %s\n",
+		fmt.Fprintf(w, "  %-26s %-30s %-6s %-6s %-12s %-24s %s\n",
 			info.Name, displayName, read, write, info.Source, exts, mimes)
 	}
 	fmt.Fprintf(w, "\nTotal: %d format(s)\n", f.Total)
@@ -267,12 +267,32 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 
 	if len(fmtPresets) > 0 {
 		fmt.Fprintln(w, "Format Presets:")
+
+		// Filter out default presets — they're just the format's built-in config.
+		var nonDefault []PresetEntry
 		for _, p := range fmtPresets {
-			def := ""
-			if p.IsDefault {
-				def = " (default)"
+			if !p.IsDefault {
+				nonDefault = append(nonDefault, p)
 			}
-			fmt.Fprintf(w, "  %-20s %s → %s [%s]%s\n", p.Name, p.Description, p.Format, p.Source, def)
+		}
+
+		// Group by format for readability.
+		var currentFormat string
+		first := true
+		for _, p := range nonDefault {
+			if p.Format != currentFormat {
+				currentFormat = p.Format
+				if !first {
+					fmt.Fprintln(w)
+				}
+				first = false
+				fmt.Fprintf(w, "  %s\n", currentFormat)
+			}
+			presetName := p.Name
+			if idx := strings.Index(presetName, "@"); idx >= 0 {
+				presetName = presetName[idx:]
+			}
+			fmt.Fprintf(w, "    %-30s %s\n", presetName, p.Description)
 		}
 	}
 

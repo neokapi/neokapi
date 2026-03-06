@@ -373,6 +373,7 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 // openReader detects the format, creates a reader, and opens the document.
 // Caller must call reader.Close().
 func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang string) (string, format.DataFormatReader, error) {
+	a.EnsureBridgesLoaded()
 	fmtName := formatOverride
 	if fmtName == "" {
 		ext := filepath.Ext(path)
@@ -451,6 +452,7 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 
 // executeFlow runs a named flow on a file and writes the result.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string) (string, error) {
+	a.EnsureBridgesLoaded()
 	ext := filepath.Ext(inputPath)
 	fmtName, err := a.FormatReg.Detector().DetectByExtension(ext)
 	if err != nil {

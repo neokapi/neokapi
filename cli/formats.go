@@ -35,12 +35,17 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 				}
 			}
 
+			// Hide versioned entries (e.g., "okf_html@2.8.0") when a
+			// bare-name alias exists (e.g., "okf_html"). This keeps the
+			// list clean — users see "okf_html" rather than duplicates.
+			infos = deduplicateVersionedFormats(infos)
+
 			out := output.FormatsListOutput{
-				Formats: make([]output.FormatInfo, len(infos)),
+				Formats: make([]output.FormatInfo, 0, len(infos)),
 				Total:   len(infos),
 			}
-			for i, info := range infos {
-				out.Formats[i] = output.FormatInfo{
+			for _, info := range infos {
+				out.Formats = append(out.Formats, output.FormatInfo{
 					Name:        info.Name,
 					DisplayName: info.DisplayName,
 					HasReader:   info.HasReader,
@@ -48,7 +53,7 @@ Use --mime or --ext to filter by MIME type or file extension.`,
 					Source:      info.Source,
 					Extensions:  info.Extensions,
 					MimeTypes:   info.MimeTypes,
-				}
+				})
 			}
 			return output.Print(cmd, out)
 		},
@@ -188,6 +193,32 @@ func (a *App) newFormatsSchemaCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// deduplicateVersionedFormats removes versioned entries (e.g., "okf_html@2.8.0")
+// when a bare-name entry (e.g., "okf_html") exists in the list. This avoids
+// showing duplicate entries in `formats list` output.
+func deduplicateVersionedFormats(infos []registry.FormatInfo) []registry.FormatInfo {
+	// Build a set of bare names present in the list.
+	bareNames := make(map[string]bool, len(infos))
+	for _, info := range infos {
+		if !strings.Contains(info.Name, "@") {
+			bareNames[info.Name] = true
+		}
+	}
+
+	// Filter out versioned entries whose bare name is also present.
+	result := make([]registry.FormatInfo, 0, len(infos))
+	for _, info := range infos {
+		if idx := strings.LastIndex(info.Name, "@"); idx > 0 {
+			baseName := info.Name[:idx]
+			if bareNames[baseName] {
+				continue // skip — bare-name alias covers this
+			}
+		}
+		result = append(result, info)
+	}
+	return result
 }
 
 func filterFormats(infos []registry.FormatInfo, mime, ext string) []registry.FormatInfo {

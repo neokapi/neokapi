@@ -474,6 +474,7 @@ func (b *JavaBridge) ListFilters() (*ListFiltersData, error) {
 	for _, f := range resp.Filters {
 		filters = append(filters, FilterEntry{
 			FilterClass: f.FilterClass,
+			FilterID:    f.FilterId,
 			Name:        f.Name,
 			DisplayName: f.DisplayName,
 			MimeTypes:   f.MimeTypes,

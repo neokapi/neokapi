@@ -48,6 +48,7 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 			concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 			if len(inputPaths) > 0 {
+				a.EnsureBridgesLoaded()
 				if a.TargetLang == "" {
 					if flowName == "pseudo-translate" {
 						a.TargetLang = "qps"

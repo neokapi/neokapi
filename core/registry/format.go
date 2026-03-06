@@ -86,6 +86,38 @@ func (r *FormatRegistry) RegisterWriter(name string, factory FormatWriterFactory
 	info.HasWriter = true
 }
 
+// RegisterFormatInfo registers format metadata without a reader/writer factory.
+// This is used during plugin metadata scanning so that "formats list" can show
+// bridge-provided formats before the bridge process is started.
+// When the bridge is later loaded, RegisterReader/RegisterWriter will update
+// the existing info entry with HasReader/HasWriter = true.
+func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	existing := r.getOrCreateInfo(name)
+	if info.DisplayName != "" {
+		existing.DisplayName = info.DisplayName
+	}
+	if len(info.MimeTypes) > 0 {
+		existing.MimeTypes = info.MimeTypes
+	}
+	if len(info.Extensions) > 0 {
+		existing.Extensions = info.Extensions
+	}
+	if info.Source != "" {
+		existing.Source = info.Source
+	}
+	if info.Priority != 0 {
+		existing.Priority = info.Priority
+	}
+	if info.HasReader {
+		existing.HasReader = true
+	}
+	if info.HasWriter {
+		existing.HasWriter = true
+	}
+}
+
 // SetFormatSource sets the source (provider) for a format. Use "built-in" for
 // built-in formats or the plugin name for plugin-provided formats.
 // Plugin formats automatically receive DefaultPluginPriority unless a priority

@@ -83,15 +83,28 @@ func (a *App) Init() {
 	}
 
 	a.PluginLoader = loader.NewPluginLoader(dir, logger)
-	if err := a.PluginLoader.LoadAll(a.FormatReg, nil); err != nil {
+	if err := a.PluginLoader.ScanMetadata(a.FormatReg); err != nil {
 		if !a.Quiet {
-			fmt.Fprintf(os.Stderr, "Warning: plugin loading: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Warning: plugin scan: %v\n", err)
 		}
 	}
 
 	// Apply format priority overrides from configuration.
 	for name, priority := range a.Config.FormatPriorities() {
 		a.FormatReg.SetFormatPriority(name, priority)
+	}
+}
+
+// EnsureBridgesLoaded starts bridge plugin processes if not already started.
+// Call this before any file-processing command that may use plugin formats.
+func (a *App) EnsureBridgesLoaded() {
+	if a.PluginLoader == nil || a.PluginLoader.BridgesLoaded() {
+		return
+	}
+	if err := a.PluginLoader.LoadBridges(a.FormatReg, nil); err != nil {
+		if !a.Quiet {
+			fmt.Fprintf(os.Stderr, "Warning: bridge loading: %v\n", err)
+		}
 	}
 }
 
