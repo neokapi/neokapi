@@ -30,7 +30,29 @@ var (
 	sharedErr     error
 	availableOnce sync.Once
 	availableSet  map[string]bool
+	cleanupOnce   sync.Once
 )
+
+// Run runs all tests and then cleans up the shared bridge pool. Use this from
+// TestMain in any package that calls SharedBridge:
+//
+//	func TestMain(m *testing.M) { os.Exit(bridgetest.Run(m)) }
+func Run(m *testing.M) int {
+	code := m.Run()
+	Cleanup()
+	return code
+}
+
+// Cleanup shuts down the shared bridge pool and kills any tracked bridge
+// subprocesses. Safe to call multiple times (idempotent via sync.Once).
+func Cleanup() {
+	cleanupOnce.Do(func() {
+		if sharedPool != nil {
+			sharedPool.Shutdown()
+		}
+		bridge.KillTrackedProcesses()
+	})
+}
 
 // SharedBridge returns a shared BridgePool and BridgeConfig for integration tests.
 // It starts a single JVM process and reuses it across all tests in the binary.

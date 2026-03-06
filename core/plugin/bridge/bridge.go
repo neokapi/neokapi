@@ -75,6 +75,7 @@ func (b *JavaBridge) Start() error {
 	}
 
 	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...)
+	setPdeathsig(b.cmd)
 	if len(b.cfg.Env) > 0 {
 		b.cmd.Env = os.Environ()
 		for k, v := range b.cfg.Env {
@@ -93,6 +94,7 @@ func (b *JavaBridge) Start() error {
 	if err := b.cmd.Start(); err != nil {
 		return fmt.Errorf("starting JVM: %w", err)
 	}
+	processTracker.track(b.cmd.Process)
 
 	// Read the gRPC address from the first line of stdout.
 	addrCh := make(chan addrResult, 1)
@@ -179,6 +181,8 @@ func (b *JavaBridge) Stop() error {
 	if b.cmd == nil {
 		return nil
 	}
+
+	processTracker.untrack(b.cmd.Process)
 
 	// Wait for process to exit.
 	done := make(chan error, 1)
