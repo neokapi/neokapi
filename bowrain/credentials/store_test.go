@@ -137,6 +137,10 @@ func TestMissingFileCreatesEmptyStore(t *testing.T) {
 func TestDefaultPath(t *testing.T) {
 	p := DefaultPath()
 	assert.Contains(t, p, "providers.json")
-	assert.Contains(t, p, ".config")
 	assert.Contains(t, p, "bowrain")
+
+	// On Linux the path includes .config; on macOS it uses ~/Library/Application Support.
+	configDir, _ := os.UserConfigDir()
+	assert.True(t, len(p) > 0)
+	assert.Contains(t, p, configDir)
 }
