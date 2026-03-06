@@ -341,16 +341,20 @@ test.describe("Screenshots", () => {
       await page.getByTestId("settings-tab-ai-providers").click();
       await expect(page.getByTestId("settings-ai-providers")).toBeVisible();
 
-      // Add a provider to make the page look populated
-      await page.getByTestId("add-provider-btn").click();
-      await page.getByTestId("provider-name").fill("Anthropic Claude");
-      // Click custom select to open dropdown, then select option
-      await page.getByTestId("provider-type").click();
-      await page.getByRole("option", { name: "Anthropic" }).click();
-      await page.getByTestId("provider-api-key").fill("sk-ant-***");
-      await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
-      await page.getByTestId("provider-save-btn").click();
-      await expect(page.getByText("Anthropic Claude")).toBeVisible();
+      // In server mode without a real bowrain-server, AI providers show an
+      // unavailable state. Only populate providers when the add button exists.
+      const addBtn = page.getByTestId("add-provider-btn");
+      if (await addBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await addBtn.click();
+        await page.getByTestId("provider-name").fill("Anthropic Claude");
+        // Click custom select to open dropdown, then select option
+        await page.getByTestId("provider-type").click();
+        await page.getByRole("option", { name: "Anthropic" }).click();
+        await page.getByTestId("provider-api-key").fill("sk-ant-***");
+        await page.getByTestId("provider-model").fill("claude-sonnet-4-20250514");
+        await page.getByTestId("provider-save-btn").click();
+        await expect(page.getByText("Anthropic Claude")).toBeVisible();
+      }
 
       const dir = path.join(SCREENSHOT_BASE, theme);
       await page.screenshot({ path: path.join(dir, "settings.png") });
