@@ -87,8 +87,17 @@ function AIProvidersTab() {
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  if (loading) return <p className="text-muted-foreground">Loading providers...</p>;
-  if (error) return <p className="text-destructive">Error: {error}</p>;
+  if (loading) return <div data-testid="settings-ai-providers"><p className="text-muted-foreground">Loading providers...</p></div>;
+  if (error) return (
+    <div data-testid="settings-ai-providers">
+      <Card data-testid="providers-error">
+        <CardContent className="py-6 text-center text-muted-foreground">
+          <p className="mb-2">AI providers unavailable</p>
+          <p className="text-[13px]">{error}</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   const handleAdd = () => {
     setEditing({
