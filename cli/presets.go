@@ -2,9 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/cli/output"
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/spf13/cobra"
 )
 
@@ -51,29 +52,46 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 	showCmd := &cobra.Command{
 		Use:   "show [preset-name]",
 		Short: "Show preset details",
-		Args:  cobra.ExactArgs(1),
+		Long: `Show detailed configuration for a preset.
+
+Accepts a bare preset name (searched across all formats) or the
+qualified format:preset syntax (e.g. okf_xml:AndroidStrings).`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			name := args[0]
 			reg := a.PluginLoader.Presets()
 			preset.RegisterBuiltins(reg)
 
-			// Try framework preset first.
-			fp := reg.GetFrameworkPreset(name)
-			if fp != nil {
-				entry := frameworkPresetEntry(fp)
-				show := output.PresetShowOutput{
-					Name:        entry.Name,
-					Type:        entry.Type,
-					Description: entry.Description,
-					Source:      entry.Source,
-					Mappings:    entry.Mappings,
-					Exclude:     entry.Exclude,
-				}
-				return output.Print(cmd, show)
+			// Parse format:preset syntax.
+			var formatFilter string
+			if i := strings.Index(name, ":"); i > 0 {
+				formatFilter = name[:i]
+				name = name[i+1:]
 			}
 
-			// Try format presets across all formats.
-			for _, format := range reg.FormatNames() {
+			// Try framework preset first (only if no format qualifier).
+			if formatFilter == "" {
+				fp := reg.GetFrameworkPreset(name)
+				if fp != nil {
+					entry := frameworkPresetEntry(fp)
+					show := output.PresetShowOutput{
+						Name:        entry.Name,
+						Type:        entry.Type,
+						Description: entry.Description,
+						Source:      entry.Source,
+						Mappings:    entry.Mappings,
+						Exclude:     entry.Exclude,
+					}
+					return output.Print(cmd, show)
+				}
+			}
+
+			// Try format presets — either for the specific format or across all.
+			formats := reg.FormatNames()
+			if formatFilter != "" {
+				formats = []string{formatFilter}
+			}
+			for _, format := range formats {
 				p := reg.GetFormatPreset(format, name)
 				if p != nil {
 					show := output.PresetShowOutput{
@@ -89,6 +107,9 @@ func (a *App) NewPresetsCmd() *cobra.Command {
 				}
 			}
 
+			if formatFilter != "" {
+				return fmt.Errorf("preset %q not found for format %q", name, formatFilter)
+			}
 			return fmt.Errorf("preset %q not found", name)
 		},
 	}
