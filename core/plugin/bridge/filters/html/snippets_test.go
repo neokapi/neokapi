@@ -219,7 +219,7 @@ func TestSnippets_AltInImg(t *testing.T) {
 // okapi: HtmlSnippetsTest#imgStartTagOnlyHandledWithWellFormedConfiguration
 func TestSnippets_ImgStartTagOnlyHandledWithWellFormedConfiguration(t *testing.T) {
 	snippet := `<html><body><p><a href="foo.html"><img src="bar.png"></a></p></body></html>`
-	parts := readHTMLWithParams(t, snippet, map[string]any{"assumeWellformed": true})
+	parts := readHTMLWithParams(t, snippet, map[string]any{"parser": map[string]any{"assumeWellformed": true}})
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
@@ -231,7 +231,7 @@ func TestSnippets_ImgStartTagOnlyHandledWithWellFormedConfiguration(t *testing.T
 // okapi: HtmlSnippetsTest#paramStartTagOnlyHandledWithWellFormedConfiguration
 func TestSnippets_ParamStartTagOnlyHandledWithWellFormedConfiguration(t *testing.T) {
 	snippet := `<html><body><p><object id="obj1"><param name="param1"></object></p></body></html>`
-	parts := readHTMLWithParams(t, snippet, map[string]any{"assumeWellformed": true})
+	parts := readHTMLWithParams(t, snippet, map[string]any{"parser": map[string]any{"assumeWellformed": true}})
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -244,7 +244,7 @@ func TestSnippets_AreaStartTagOnlyHandledWithWellFormedConfiguration(t *testing.
 		`<area alt="Area 1">` +
 		`</map>` +
 		`</p></body></html>`
-	parts := readHTMLWithParams(t, snippet, map[string]any{"assumeWellformed": true})
+	parts := readHTMLWithParams(t, snippet, map[string]any{"parser": map[string]any{"assumeWellformed": true}})
 	blocks := bridgetest.TranslatableBlocks(parts)
 	texts := bridgetest.BlockTexts(blocks)
 	assert.Contains(t, texts, "Area 1")
@@ -1263,8 +1263,10 @@ func TestSnippets_PropertyInTextUnitConvertedToDocumentPart(t *testing.T) {
 func TestSnippets_PreserveCharacterEntitiesSimple(t *testing.T) {
 	snippet := "<p>& and &amp;</p>"
 	params := map[string]any{
-		"preserve_character_entities": true,
-		"preserve_whitespace":        true,
+		"parser": map[string]any{
+			"preserveCharacterEntities": true,
+			"preserveWhitespace":        true,
+		},
 	}
 	parts := readHTMLWithParams(t, snippet, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -1277,8 +1279,10 @@ func TestSnippets_PreserveCharacterEntitiesSimple(t *testing.T) {
 func TestSnippets_PreserveCharacterEntitiesWithInlineElements(t *testing.T) {
 	snippet := "<p><u>& and &amp;</u></p>"
 	params := map[string]any{
-		"preserve_character_entities": true,
-		"preserve_whitespace":        true,
+		"parser": map[string]any{
+			"preserveCharacterEntities": true,
+			"preserveWhitespace":        true,
+		},
 	}
 	parts := readHTMLWithParams(t, snippet, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -1291,8 +1295,10 @@ func TestSnippets_PreserveCharacterEntitiesWithInlineElements(t *testing.T) {
 func TestSnippets_PreserveCharacterEntitiesMultipleTypes(t *testing.T) {
 	snippet := "<p>&lt; &amp; &gt; &nbsp;</p>"
 	params := map[string]any{
-		"preserve_character_entities": true,
-		"preserve_whitespace":        true,
+		"parser": map[string]any{
+			"preserveCharacterEntities": true,
+			"preserveWhitespace":        true,
+		},
 	}
 	parts := readHTMLWithParams(t, snippet, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -1305,8 +1311,10 @@ func TestSnippets_PreserveCharacterEntitiesMultipleTypes(t *testing.T) {
 func TestSnippets_NoPreserveCharacterEntitiesMultipleTypes(t *testing.T) {
 	snippet := "<p>&lt; &amp; &gt; &nbsp;</p>"
 	params := map[string]any{
-		"preserve_character_entities": false,
-		"preserve_whitespace":        true,
+		"parser": map[string]any{
+			"preserveCharacterEntities": false,
+			"preserveWhitespace":        true,
+		},
 	}
 	parts := readHTMLWithParams(t, snippet, params)
 	blocks := bridgetest.TranslatableBlocks(parts)

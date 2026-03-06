@@ -381,8 +381,10 @@ func TestSnippets_ComplexEmptyElement(t *testing.T) {
 func TestSnippets_InlineAndExclude(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -407,8 +409,10 @@ func TestSnippets_InlineAndExclude(t *testing.T) {
 func TestSnippets_InlineAndExclude2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -433,8 +437,10 @@ func TestSnippets_InlineAndExclude2(t *testing.T) {
 func TestSnippets_InlineAndNotExclude(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE"},
@@ -459,8 +465,10 @@ func TestSnippets_InlineAndNotExclude(t *testing.T) {
 func TestSnippets_InlineAndExcludeEmbedded(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -486,8 +494,10 @@ func TestSnippets_InlineAndExcludeEmbedded(t *testing.T) {
 func TestSnippets_InlineAndNotExcludeEmbedded(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE"},
@@ -513,8 +523,10 @@ func TestSnippets_InlineAndNotExcludeEmbedded(t *testing.T) {
 func TestSnippets_InlineAndExcludeWithTwoExcludes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},

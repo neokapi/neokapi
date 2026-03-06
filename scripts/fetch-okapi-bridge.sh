@@ -16,7 +16,7 @@
 #   GITHUB_TOKEN         — GitHub token for authenticated requests (required;
 #                          must have access to gokapi/okapi-bridge).
 #   GH_TOKEN             — Alternative token variable (used by gh CLI).
-#   OKAPI_BRIDGE_VERSION — Bridge version tag (default: v2.3.6).
+#   OKAPI_BRIDGE_VERSION — Bridge version tag (default: v2.6.0).
 #   OKAPI_VERSION        — Okapi Framework version suffix (default: 1.48.0).
 #   FORCE_FETCH          — If set (e.g. FORCE_FETCH=1), re-download even when
 #                          the JAR already exists.
@@ -24,7 +24,7 @@
 set -euo pipefail
 
 REPO="gokapi/okapi-bridge"
-BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v2.3.6}"
+BRIDGE_VERSION="${OKAPI_BRIDGE_VERSION:-v2.6.0}"
 OKAPI_VERSION="${OKAPI_VERSION:-1.48.0}"
 ASSET_NAME="okapi-bridge-${BRIDGE_VERSION}-okapi${OKAPI_VERSION}.tar.gz"
 
@@ -34,8 +34,10 @@ TOKEN="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
 BRIDGE_DIR="$HOME/.cache/gokapi/bridge/${BRIDGE_VERSION}-okapi${OKAPI_VERSION}"
 JAR_PATH="$BRIDGE_DIR/okapi-bridge.jar"
 
+SCHEMAS_DIR="$BRIDGE_DIR/schemas"
+
 # Skip if already present and not forced.
-if [ -f "$JAR_PATH" ] && [ "${FORCE_FETCH:-}" = "" ]; then
+if [ -f "$JAR_PATH" ] && [ -d "$SCHEMAS_DIR" ] && [ "${FORCE_FETCH:-}" = "" ]; then
     echo "okapi-bridge.jar already exists at $JAR_PATH. Set FORCE_FETCH=1 to re-download."
     echo "GOKAPI_BRIDGE_JAR=$JAR_PATH"
     exit 0
@@ -96,22 +98,24 @@ fi
 
 echo "  Download succeeded."
 
-# Extract the JAR from the tarball.
-echo "Extracting JAR..."
-tar -xzf "$TMPDIR/bridge.tar.gz" -C "$TMPDIR/" --include='*/gokapi-bridge-jar-with-dependencies.jar' --strip-components=0 2>/dev/null \
-    || tar -xzf "$TMPDIR/bridge.tar.gz" -C "$TMPDIR/"
+# Extract the full tarball (JAR, schemas, manifest).
+echo "Extracting bridge assets..."
+mkdir -p "$BRIDGE_DIR"
+tar -xzf "$TMPDIR/bridge.tar.gz" -C "$BRIDGE_DIR/" --strip-components=1 2>/dev/null \
+    || tar -xzf "$TMPDIR/bridge.tar.gz" -C "$BRIDGE_DIR/"
 
-# Find the JAR (may be at root or in a subdirectory depending on tar structure).
-JAR_FILE=$(find "$TMPDIR" -name 'gokapi-bridge-jar-with-dependencies.jar' -type f | head -1)
+# Rename the JAR to a stable name.
+JAR_FILE=$(find "$BRIDGE_DIR" -name 'gokapi-bridge-jar-with-dependencies.jar' -type f | head -1)
 
 if [ -z "$JAR_FILE" ]; then
     echo "ERROR: JAR not found in tarball." >&2
     exit 1
 fi
 
-# Move to target location.
-mkdir -p "$BRIDGE_DIR"
-mv "$JAR_FILE" "$JAR_PATH"
+if [ "$JAR_FILE" != "$JAR_PATH" ]; then
+    mv "$JAR_FILE" "$JAR_PATH"
+fi
 
-echo "Installed to $JAR_PATH"
+SCHEMA_COUNT=$(find "$BRIDGE_DIR/schemas" -name '*.schema.json' 2>/dev/null | wc -l | tr -d ' ')
+echo "Installed to $BRIDGE_DIR ($SCHEMA_COUNT schemas)"
 echo "GOKAPI_BRIDGE_JAR=$JAR_PATH"

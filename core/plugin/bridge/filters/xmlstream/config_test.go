@@ -65,7 +65,7 @@ func TestConfigSupport_Include(t *testing.T) {
 func TestConfigSupport_PreserveWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"preserve_whitespace": false,
+		"parser": map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			"p": map[string]any{
 				"ruleTypes": []string{"TEXTUNIT"},
@@ -88,7 +88,7 @@ func TestConfigSupport_PreserveWhitespace(t *testing.T) {
 func TestConfigSupport_GlobalPreserveWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"preserve_whitespace": true,
+		"parser": map[string]any{"preserveWhitespace": true},
 		"elements": map[string]any{
 			"p": map[string]any{
 				"ruleTypes": []string{"TEXTUNIT"},
@@ -114,7 +114,7 @@ func TestConfigSupport_CollapseWhitespace(t *testing.T) {
 	xml := "<?xml version=\"1.0\" encoding=\"UTF-8\"?><doc><p> t1  \nt2  </p></doc>"
 
 	params := map[string]any{
-		"preserve_whitespace": false,
+		"parser": map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			"p": map[string]any{
 				"ruleTypes": []string{"TEXTUNIT"},
@@ -127,7 +127,7 @@ func TestConfigSupport_CollapseWhitespace(t *testing.T) {
 	assert.Equal(t, "t1 t2", blocks[0].SourceText())
 
 	params2 := map[string]any{
-		"preserve_whitespace": true,
+		"parser": map[string]any{"preserveWhitespace": true},
 		"elements": map[string]any{
 			"p": map[string]any{
 				"ruleTypes": []string{"TEXTUNIT"},
@@ -530,8 +530,10 @@ func TestConfigSupport_OnlyTheseElements(t *testing.T) {
 func TestConfigSupport_InlineWithExclude(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -556,8 +558,10 @@ func TestConfigSupport_InlineWithExclude(t *testing.T) {
 func TestConfigSupport_InlineWithExcludeStandalone(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"tag1": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -580,8 +584,10 @@ func TestConfigSupport_InlineWithExcludeStandalone(t *testing.T) {
 func TestConfigSupport_InlineWithExcludeRegexTrick(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"assumeWellformed":    true,
-		"preserve_whitespace": true,
+		"parser": map[string]any{
+			"assumeWellformed":    true,
+			"preserveWhitespace": true,
+		},
 		"elements": map[string]any{
 			"'tag\\d+'": map[string]any{
 				"ruleTypes": []string{"INLINE", "EXCLUDE"},
@@ -619,8 +625,8 @@ func TestConfigSupport_InlineWithExcludeRegexTrick(t *testing.T) {
 func TestConfigSupport_Issue282(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"exclude_by_default":  true,
-		"preserve_whitespace": false,
+		"exclude_by_default": true,
+		"parser":             map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			".*": map[string]any{
 				"ruleTypes":  []string{"INCLUDE"},
@@ -645,8 +651,8 @@ func TestConfigSupport_Issue282(t *testing.T) {
 func TestConfigSupport_Issue282EmptyElements(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"exclude_by_default":  true,
-		"preserve_whitespace": false,
+		"exclude_by_default": true,
+		"parser":             map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			".*": map[string]any{
 				"ruleTypes":  []string{"INCLUDE"},
@@ -742,7 +748,7 @@ func TestConfig_ExcludeByDefault(t *testing.T) {
 func TestConfig_PreserveWhiteSpace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"preserve_whitespace": true,
+		"parser": map[string]any{"preserveWhitespace": true},
 	}
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?><doc><text>  preserved  </text></doc>",
@@ -757,7 +763,7 @@ func TestConfig_PreserveWhiteSpace(t *testing.T) {
 func TestConfig_CollapseWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"preserve_whitespace": false,
+		"parser": map[string]any{"preserveWhitespace": false},
 	}
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
 		"<?xml version=\"1.0\" encoding=\"UTF-8\"?><doc><text>  t1  \nt2  </text></doc>",
@@ -863,9 +869,9 @@ func TestConfig_TextUnitCodeTypes(t *testing.T) {
 func TestConfig_CodeFinderRules(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
-		"preserve_whitespace": false,
-		"useCodeFinder":       true,
-		"codeFinderRules":     "#v1\ncount.i=2\nrule0=[eE]\nrule1=\\bVAR\\d\\b",
+		"parser":          map[string]any{"preserveWhitespace": false},
+		"useCodeFinder":   true,
+		"codeFinderRules": "#v1\ncount.i=2\nrule0=[eE]\nrule1=\\bVAR\\d\\b",
 		"elements": map[string]any{
 			"p": map[string]any{
 				"ruleTypes": []string{"TEXTUNIT"},
