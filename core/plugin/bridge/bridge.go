@@ -225,7 +225,7 @@ func (b *JavaBridge) Open(params OpenParams) error {
 	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
 	defer cancel()
 
-	resp, err := b.client.Open(ctx, &pb.OpenRequest{
+	req := &pb.OpenRequest{
 		FilterClass:  params.FilterClass,
 		Uri:          params.URI,
 		SourceLocale: params.SourceLocale,
@@ -235,7 +235,16 @@ func (b *JavaBridge) Open(params OpenParams) error {
 		MimeType:     params.MimeType,
 		FilterParams: encodeFilterParams(params.FilterParams),
 		SourcePath:   params.SourcePath,
-	})
+	}
+
+	// Prefer content_ref when a source path is available to avoid byte transfer.
+	if params.SourcePath != "" {
+		req.ContentRef = &pb.ContentRef{
+			Location: &pb.ContentRef_Path{Path: params.SourcePath},
+		}
+	}
+
+	resp, err := b.client.Open(ctx, req)
 	if err != nil {
 		return fmt.Errorf("open: %w", err)
 	}
@@ -289,18 +298,25 @@ func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 		return nil, fmt.Errorf("write: %w", err)
 	}
 
+	header := &pb.WriteHeader{
+		FilterClass:     params.FilterClass,
+		Locale:          params.Locale,
+		Encoding:        params.Encoding,
+		OriginalContent: params.OriginalContent,
+		FilterParams:    encodeFilterParams(params.FilterParams),
+		SourcePath:      params.SourcePath,
+	}
+
+	// Prefer content_ref when a source path is available.
+	if params.SourcePath != "" {
+		header.OriginalContentRef = &pb.ContentRef{
+			Location: &pb.ContentRef_Path{Path: params.SourcePath},
+		}
+	}
+
 	// Send header first.
 	if err := stream.Send(&pb.WriteChunk{
-		Chunk: &pb.WriteChunk_Header{
-			Header: &pb.WriteHeader{
-				FilterClass:     params.FilterClass,
-				Locale:          params.Locale,
-				Encoding:        params.Encoding,
-				OriginalContent: params.OriginalContent,
-				FilterParams:    encodeFilterParams(params.FilterParams),
-				SourcePath:      params.SourcePath,
-			},
-		},
+		Chunk: &pb.WriteChunk_Header{Header: header},
 	}); err != nil {
 		return nil, fmt.Errorf("write header: %w", err)
 	}
@@ -328,8 +344,12 @@ func (b *JavaBridge) Write(params WriteParams) ([]byte, error) {
 // WriteStream sends translated parts one-by-one from a channel to the Java bridge
 // and receives the reconstructed document. Unlike Write, it never accumulates all
 // parts in memory — parts are streamed directly from the pipeline channel to gRPC.
+//
+// When SourcePath is set, original_content_ref is populated so Java reads from
+// disk instead of receiving bytes over gRPC. When OutputPath is set, output_ref
+// tells Java to write directly to disk.
 func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
-	parts <-chan *model.Part) ([]byte, error) {
+	parts <-chan *model.Part) (*WriteStreamResult, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -341,16 +361,32 @@ func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
 		return nil, fmt.Errorf("write: %w", err)
 	}
 
+	header := &pb.WriteHeader{
+		FilterClass:     params.FilterClass,
+		Locale:          params.Locale,
+		Encoding:        params.Encoding,
+		OriginalContent: params.OriginalContent,
+		FilterParams:    encodeFilterParams(params.FilterParams),
+		SourcePath:      params.SourcePath,
+	}
+
+	// Prefer content_ref when a source path is available.
+	if params.SourcePath != "" {
+		header.OriginalContentRef = &pb.ContentRef{
+			Location: &pb.ContentRef_Path{Path: params.SourcePath},
+		}
+	}
+
+	// When an output path is set, tell Java to write directly to disk.
+	if params.OutputPath != "" {
+		header.OutputRef = &pb.OutputRef{
+			Destination: &pb.OutputRef_Path{Path: params.OutputPath},
+		}
+	}
+
 	// Send header first.
 	if err := stream.Send(&pb.WriteChunk{
-		Chunk: &pb.WriteChunk_Header{Header: &pb.WriteHeader{
-			FilterClass:     params.FilterClass,
-			Locale:          params.Locale,
-			Encoding:        params.Encoding,
-			OriginalContent: params.OriginalContent,
-			FilterParams:    encodeFilterParams(params.FilterParams),
-			SourcePath:      params.SourcePath,
-		}},
+		Chunk: &pb.WriteChunk_Header{Header: header},
 	}); err != nil {
 		return nil, fmt.Errorf("write header: %w", err)
 	}
@@ -373,7 +409,10 @@ func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
 	if resp.Error != "" {
 		return nil, fmt.Errorf("write: %s", resp.Error)
 	}
-	return resp.Output, nil
+	return &WriteStreamResult{
+		Output:     resp.Output,
+		OutputPath: resp.OutputPath,
+	}, nil
 }
 
 // CloseFilter releases the current filter resources in the JVM.

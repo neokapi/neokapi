@@ -225,7 +225,11 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return fmt.Errorf("set output: %w", err)
 	}
 
-	if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+	// Prefer passing the file path over loading content bytes when the writer
+	// supports it. This avoids duplicating the file in memory for gRPC transfer.
+	if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
+		sps.SetSourcePath(inputPath)
+	} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
 		ocs.SetOriginalContent(inputContent)
 	}
 

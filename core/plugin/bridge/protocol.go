@@ -41,9 +41,18 @@ type WriteStreamParams struct {
 	FilterClass     string
 	Locale          string
 	Encoding        string
-	OriginalContent []byte
+	OriginalContent []byte         // Legacy: inline original document bytes
 	FilterParams    map[string]any
 	SourcePath      string // Optional absolute file path; Java reads from disk when set
+	OutputPath      string // When set, Java writes output directly to this path
+}
+
+// WriteStreamResult holds the output of a WriteStream call.
+// When OutputPath was used, the output bytes are empty and OutputPath
+// indicates where Java wrote the file directly.
+type WriteStreamResult struct {
+	Output     []byte // Inline output bytes (empty when OutputPath was used)
+	OutputPath string // Path where output was written (empty when inline)
 }
 
 // --- Response data types ---

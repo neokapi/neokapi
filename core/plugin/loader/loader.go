@@ -31,6 +31,14 @@ type OriginalContentSetter interface {
 	SetOriginalContent(content []byte)
 }
 
+// SourcePathSetter is implemented by writers that can read the original
+// document from a file path instead of receiving content bytes.
+// When the file is on a shared filesystem, this avoids loading the entire
+// document into memory and transferring it over gRPC.
+type SourcePathSetter interface {
+	SetSourcePath(path string)
+}
+
 // PluginInfo describes a loaded plugin.
 type PluginInfo struct {
 	Name    string

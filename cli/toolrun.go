@@ -240,7 +240,11 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			return fmt.Errorf("set output %s: %w", outputPath, err)
 		}
 
-		if ocs, ok := writer.(loader.OriginalContentSetter); ok {
+		// Prefer passing the file path over loading content bytes when the writer
+		// supports it. This avoids duplicating the file in memory for gRPC transfer.
+		if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(filePath) {
+			sps.SetSourcePath(filePath)
+		} else if ocs, ok := writer.(loader.OriginalContentSetter); ok {
 			ocs.SetOriginalContent(content)
 		}
 
