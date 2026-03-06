@@ -24,10 +24,45 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// FormatMapping maps a glob pattern to a format reference string.
+type FormatMapping struct {
+	Pattern string // glob pattern (matched against filename)
+	Format  string // format reference (e.g. "okf_openxml:wellFormed")
+}
+
+// ParseFormatMappings parses "-m" flag values in "pattern=format" form.
+func ParseFormatMappings(values []string) ([]FormatMapping, error) {
+	mappings := make([]FormatMapping, 0, len(values))
+	for _, v := range values {
+		i := strings.LastIndex(v, "=")
+		if i <= 0 {
+			return nil, fmt.Errorf("invalid format mapping %q: expected pattern=format", v)
+		}
+		mappings = append(mappings, FormatMapping{
+			Pattern: v[:i],
+			Format:  v[i+1:],
+		})
+	}
+	return mappings, nil
+}
+
+// matchFormatMapping returns the format for the first mapping whose pattern
+// matches the file's base name. Returns "" if no mapping matches.
+func matchFormatMapping(filePath string, mappings []FormatMapping) string {
+	base := filepath.Base(filePath)
+	for _, m := range mappings {
+		if matched, _ := filepath.Match(m.Pattern, base); matched {
+			return m.Format
+		}
+	}
+	return ""
+}
+
 // ToolRunConfig configures RunToolOnFiles.
 type ToolRunConfig struct {
 	ToolName       string
 	Files          []string
+	FormatMappings []FormatMapping
 	Concurrency    int
 	JSONOutput     bool
 	FailOnUnknown  bool
@@ -132,7 +167,11 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 }
 
 func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath string, collector flow.Collector, commonDir string, progress *mpb.Progress) error {
-	fmtName := a.FormatFlag
+	// Resolve format: mapping > global -f flag > auto-detect by extension.
+	fmtName := matchFormatMapping(filePath, cfg.FormatMappings)
+	if fmtName == "" {
+		fmtName = a.FormatFlag
+	}
 	if fmtName == "" {
 		ext := filepath.Ext(filePath)
 		detected, err := a.FormatReg.DetectByExtension(ext)
