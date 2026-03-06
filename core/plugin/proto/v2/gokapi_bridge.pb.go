@@ -1493,24 +1493,209 @@ func (x *ListFiltersResponse) GetFilters() []*FilterEntry {
 	return nil
 }
 
+// ContentRef allows passing content as a file path instead of inline bytes.
+// Java prefers content_ref when set, falling back to legacy content/source_path.
+type ContentRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Location:
+	//
+	//	*ContentRef_Inline
+	//	*ContentRef_Path
+	//	*ContentRef_Uri
+	Location      isContentRef_Location `protobuf_oneof:"location"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContentRef) Reset() {
+	*x = ContentRef{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContentRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContentRef) ProtoMessage() {}
+
+func (x *ContentRef) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContentRef.ProtoReflect.Descriptor instead.
+func (*ContentRef) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ContentRef) GetLocation() isContentRef_Location {
+	if x != nil {
+		return x.Location
+	}
+	return nil
+}
+
+func (x *ContentRef) GetInline() []byte {
+	if x != nil {
+		if x, ok := x.Location.(*ContentRef_Inline); ok {
+			return x.Inline
+		}
+	}
+	return nil
+}
+
+func (x *ContentRef) GetPath() string {
+	if x != nil {
+		if x, ok := x.Location.(*ContentRef_Path); ok {
+			return x.Path
+		}
+	}
+	return ""
+}
+
+func (x *ContentRef) GetUri() string {
+	if x != nil {
+		if x, ok := x.Location.(*ContentRef_Uri); ok {
+			return x.Uri
+		}
+	}
+	return ""
+}
+
+type isContentRef_Location interface {
+	isContentRef_Location()
+}
+
+type ContentRef_Inline struct {
+	Inline []byte `protobuf:"bytes,1,opt,name=inline,proto3,oneof"` // Inline bytes (same as legacy content field)
+}
+
+type ContentRef_Path struct {
+	Path string `protobuf:"bytes,2,opt,name=path,proto3,oneof"` // Local filesystem path
+}
+
+type ContentRef_Uri struct {
+	Uri string `protobuf:"bytes,3,opt,name=uri,proto3,oneof"` // Remote/local URI (file://, s3://, gs://)
+}
+
+func (*ContentRef_Inline) isContentRef_Location() {}
+
+func (*ContentRef_Path) isContentRef_Location() {}
+
+func (*ContentRef_Uri) isContentRef_Location() {}
+
+// OutputRef specifies where to write output directly on disk.
+// When set, Java writes output directly to this path instead of returning bytes.
+type OutputRef struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Destination:
+	//
+	//	*OutputRef_Path
+	//	*OutputRef_Uri
+	Destination   isOutputRef_Destination `protobuf_oneof:"destination"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OutputRef) Reset() {
+	*x = OutputRef{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OutputRef) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OutputRef) ProtoMessage() {}
+
+func (x *OutputRef) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OutputRef.ProtoReflect.Descriptor instead.
+func (*OutputRef) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *OutputRef) GetDestination() isOutputRef_Destination {
+	if x != nil {
+		return x.Destination
+	}
+	return nil
+}
+
+func (x *OutputRef) GetPath() string {
+	if x != nil {
+		if x, ok := x.Destination.(*OutputRef_Path); ok {
+			return x.Path
+		}
+	}
+	return ""
+}
+
+func (x *OutputRef) GetUri() string {
+	if x != nil {
+		if x, ok := x.Destination.(*OutputRef_Uri); ok {
+			return x.Uri
+		}
+	}
+	return ""
+}
+
+type isOutputRef_Destination interface {
+	isOutputRef_Destination()
+}
+
+type OutputRef_Path struct {
+	Path string `protobuf:"bytes,1,opt,name=path,proto3,oneof"` // Local filesystem path
+}
+
+type OutputRef_Uri struct {
+	Uri string `protobuf:"bytes,2,opt,name=uri,proto3,oneof"` // Remote/local URI
+}
+
+func (*OutputRef_Path) isOutputRef_Destination() {}
+
+func (*OutputRef_Uri) isOutputRef_Destination() {}
+
 type OpenRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
 	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
 	SourceLocale  string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	Encoding      string                 `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	Content       []byte                 `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"`
+	Content       []byte                 `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"` // Legacy: inline document bytes
 	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
 	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	TargetLocale  string                 `protobuf:"bytes,8,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
-	SourcePath    string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"` // Optional absolute file path on disk.
+	SourcePath    string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`  // Legacy: absolute file path on disk
+	ContentRef    *ContentRef            `protobuf:"bytes,10,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"` // Preferred: file reference (path avoids byte transfer)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *OpenRequest) Reset() {
 	*x = OpenRequest{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1522,7 +1707,7 @@ func (x *OpenRequest) String() string {
 func (*OpenRequest) ProtoMessage() {}
 
 func (x *OpenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1535,7 +1720,7 @@ func (x *OpenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenRequest.ProtoReflect.Descriptor instead.
 func (*OpenRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{20}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *OpenRequest) GetFilterClass() string {
@@ -1601,6 +1786,13 @@ func (x *OpenRequest) GetSourcePath() string {
 	return ""
 }
 
+func (x *OpenRequest) GetContentRef() *ContentRef {
+	if x != nil {
+		return x.ContentRef
+	}
+	return nil
+}
+
 type OpenResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
@@ -1610,7 +1802,7 @@ type OpenResponse struct {
 
 func (x *OpenResponse) Reset() {
 	*x = OpenResponse{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1622,7 +1814,7 @@ func (x *OpenResponse) String() string {
 func (*OpenResponse) ProtoMessage() {}
 
 func (x *OpenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1635,7 +1827,7 @@ func (x *OpenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpenResponse.ProtoReflect.Descriptor instead.
 func (*OpenResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{21}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *OpenResponse) GetError() string {
@@ -1653,7 +1845,7 @@ type ReadRequest struct {
 
 func (x *ReadRequest) Reset() {
 	*x = ReadRequest{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1665,7 +1857,7 @@ func (x *ReadRequest) String() string {
 func (*ReadRequest) ProtoMessage() {}
 
 func (x *ReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[22]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1678,7 +1870,7 @@ func (x *ReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReadRequest.ProtoReflect.Descriptor instead.
 func (*ReadRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{22}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{24}
 }
 
 // WriteChunk is sent as a client stream for the Write RPC.
@@ -1695,7 +1887,7 @@ type WriteChunk struct {
 
 func (x *WriteChunk) Reset() {
 	*x = WriteChunk{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1707,7 +1899,7 @@ func (x *WriteChunk) String() string {
 func (*WriteChunk) ProtoMessage() {}
 
 func (x *WriteChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[23]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1720,7 +1912,7 @@ func (x *WriteChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteChunk.ProtoReflect.Descriptor instead.
 func (*WriteChunk) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{23}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *WriteChunk) GetChunk() isWriteChunk_Chunk {
@@ -1766,20 +1958,22 @@ func (*WriteChunk_Part) isWriteChunk_Chunk() {}
 
 // WriteHeader is the first message in a Write stream.
 type WriteHeader struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass     string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	Locale          string                 `protobuf:"bytes,2,opt,name=locale,proto3" json:"locale,omitempty"`
-	Encoding        string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	OriginalContent []byte                 `protobuf:"bytes,4,opt,name=original_content,json=originalContent,proto3" json:"original_content,omitempty"`
-	FilterParams    map[string]string      `protobuf:"bytes,5,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SourcePath      string                 `protobuf:"bytes,6,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"` // Optional absolute path to original file.
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	FilterClass        string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
+	Locale             string                 `protobuf:"bytes,2,opt,name=locale,proto3" json:"locale,omitempty"`
+	Encoding           string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"`
+	OriginalContent    []byte                 `protobuf:"bytes,4,opt,name=original_content,json=originalContent,proto3" json:"original_content,omitempty"` // Legacy: inline original document bytes
+	FilterParams       map[string]string      `protobuf:"bytes,5,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	SourcePath         string                 `protobuf:"bytes,6,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`                           // Legacy: absolute path to original file
+	OriginalContentRef *ContentRef            `protobuf:"bytes,7,opt,name=original_content_ref,json=originalContentRef,proto3" json:"original_content_ref,omitempty"` // Preferred: file reference for original content
+	OutputRef          *OutputRef             `protobuf:"bytes,8,opt,name=output_ref,json=outputRef,proto3" json:"output_ref,omitempty"`                              // When set, Java writes output directly to this path
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *WriteHeader) Reset() {
 	*x = WriteHeader{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1791,7 +1985,7 @@ func (x *WriteHeader) String() string {
 func (*WriteHeader) ProtoMessage() {}
 
 func (x *WriteHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[24]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1804,7 +1998,7 @@ func (x *WriteHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteHeader.ProtoReflect.Descriptor instead.
 func (*WriteHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{24}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *WriteHeader) GetFilterClass() string {
@@ -1849,17 +2043,32 @@ func (x *WriteHeader) GetSourcePath() string {
 	return ""
 }
 
+func (x *WriteHeader) GetOriginalContentRef() *ContentRef {
+	if x != nil {
+		return x.OriginalContentRef
+	}
+	return nil
+}
+
+func (x *WriteHeader) GetOutputRef() *OutputRef {
+	if x != nil {
+		return x.OutputRef
+	}
+	return nil
+}
+
 type WriteResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`
+	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"` // Inline output bytes (empty when output_ref was used)
 	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	OutputPath    string                 `protobuf:"bytes,3,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"` // Path where output was written (set when output_ref was used)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WriteResponse) Reset() {
 	*x = WriteResponse{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1871,7 +2080,7 @@ func (x *WriteResponse) String() string {
 func (*WriteResponse) ProtoMessage() {}
 
 func (x *WriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[25]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1884,7 +2093,7 @@ func (x *WriteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WriteResponse.ProtoReflect.Descriptor instead.
 func (*WriteResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{25}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *WriteResponse) GetOutput() []byte {
@@ -1901,6 +2110,13 @@ func (x *WriteResponse) GetError() string {
 	return ""
 }
 
+func (x *WriteResponse) GetOutputPath() string {
+	if x != nil {
+		return x.OutputPath
+	}
+	return ""
+}
+
 type CloseRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1909,7 +2125,7 @@ type CloseRequest struct {
 
 func (x *CloseRequest) Reset() {
 	*x = CloseRequest{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1921,7 +2137,7 @@ func (x *CloseRequest) String() string {
 func (*CloseRequest) ProtoMessage() {}
 
 func (x *CloseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[26]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1934,7 +2150,7 @@ func (x *CloseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseRequest.ProtoReflect.Descriptor instead.
 func (*CloseRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{26}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{28}
 }
 
 type CloseResponse struct {
@@ -1946,7 +2162,7 @@ type CloseResponse struct {
 
 func (x *CloseResponse) Reset() {
 	*x = CloseResponse{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1958,7 +2174,7 @@ func (x *CloseResponse) String() string {
 func (*CloseResponse) ProtoMessage() {}
 
 func (x *CloseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[27]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1971,7 +2187,7 @@ func (x *CloseResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CloseResponse.ProtoReflect.Descriptor instead.
 func (*CloseResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{27}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CloseResponse) GetError() string {
@@ -1989,7 +2205,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2001,7 +2217,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[28]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2014,7 +2230,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{28}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{30}
 }
 
 type ShutdownResponse struct {
@@ -2025,7 +2241,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2037,7 +2253,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[29]
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2050,7 +2266,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{29}
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{31}
 }
 
 var File_core_plugin_proto_v2_gokapi_bridge_proto protoreflect.FileDescriptor
@@ -2226,7 +2442,18 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"extensions\x18\x05 \x03(\tR\n" +
 	"extensions\"N\n" +
 	"\x13ListFiltersResponse\x127\n" +
-	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\x97\x03\n" +
+	"\afilters\x18\x01 \x03(\v2\x1d.gokapi.bridge.v2.FilterEntryR\afilters\"\\\n" +
+	"\n" +
+	"ContentRef\x12\x18\n" +
+	"\x06inline\x18\x01 \x01(\fH\x00R\x06inline\x12\x14\n" +
+	"\x04path\x18\x02 \x01(\tH\x00R\x04path\x12\x12\n" +
+	"\x03uri\x18\x03 \x01(\tH\x00R\x03uriB\n" +
+	"\n" +
+	"\blocation\"D\n" +
+	"\tOutputRef\x12\x14\n" +
+	"\x04path\x18\x01 \x01(\tH\x00R\x04path\x12\x12\n" +
+	"\x03uri\x18\x02 \x01(\tH\x00R\x03uriB\r\n" +
+	"\vdestination\"\xd6\x03\n" +
 	"\vOpenRequest\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
@@ -2237,7 +2464,10 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\rfilter_params\x18\a \x03(\v2/.gokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
 	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x12\x1f\n" +
 	"\vsource_path\x18\t \x01(\tR\n" +
-	"sourcePath\x1a?\n" +
+	"sourcePath\x12=\n" +
+	"\vcontent_ref\x18\n" +
+	" \x01(\v2\x1c.gokapi.bridge.v2.ContentRefR\n" +
+	"contentRef\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
@@ -2248,7 +2478,7 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"WriteChunk\x127\n" +
 	"\x06header\x18\x01 \x01(\v2\x1d.gokapi.bridge.v2.WriteHeaderH\x00R\x06header\x123\n" +
 	"\x04part\x18\x02 \x01(\v2\x1d.gokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
-	"\x05chunk\"\xc7\x02\n" +
+	"\x05chunk\"\xd3\x03\n" +
 	"\vWriteHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x16\n" +
 	"\x06locale\x18\x02 \x01(\tR\x06locale\x12\x1a\n" +
@@ -2256,13 +2486,18 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\x10original_content\x18\x04 \x01(\fR\x0foriginalContent\x12T\n" +
 	"\rfilter_params\x18\x05 \x03(\v2/.gokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x12\x1f\n" +
 	"\vsource_path\x18\x06 \x01(\tR\n" +
-	"sourcePath\x1a?\n" +
+	"sourcePath\x12N\n" +
+	"\x14original_content_ref\x18\a \x01(\v2\x1c.gokapi.bridge.v2.ContentRefR\x12originalContentRef\x12:\n" +
+	"\n" +
+	"output_ref\x18\b \x01(\v2\x1b.gokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"=\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"^\n" +
 	"\rWriteResponse\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\fR\x06output\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\x0e\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1f\n" +
+	"\voutput_path\x18\x03 \x01(\tR\n" +
+	"outputPath\"\x0e\n" +
 	"\fCloseRequest\"%\n" +
 	"\rCloseResponse\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error\"\x11\n" +
@@ -2290,7 +2525,7 @@ func file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescData
 }
 
-var file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_core_plugin_proto_v2_gokapi_bridge_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),     // 0: gokapi.bridge.v2.AnnotationEntry
 	(*SpanMessage)(nil),         // 1: gokapi.bridge.v2.SpanMessage
@@ -2312,45 +2547,47 @@ var file_core_plugin_proto_v2_gokapi_bridge_proto_goTypes = []any{
 	(*ListFiltersRequest)(nil),  // 17: gokapi.bridge.v2.ListFiltersRequest
 	(*FilterEntry)(nil),         // 18: gokapi.bridge.v2.FilterEntry
 	(*ListFiltersResponse)(nil), // 19: gokapi.bridge.v2.ListFiltersResponse
-	(*OpenRequest)(nil),         // 20: gokapi.bridge.v2.OpenRequest
-	(*OpenResponse)(nil),        // 21: gokapi.bridge.v2.OpenResponse
-	(*ReadRequest)(nil),         // 22: gokapi.bridge.v2.ReadRequest
-	(*WriteChunk)(nil),          // 23: gokapi.bridge.v2.WriteChunk
-	(*WriteHeader)(nil),         // 24: gokapi.bridge.v2.WriteHeader
-	(*WriteResponse)(nil),       // 25: gokapi.bridge.v2.WriteResponse
-	(*CloseRequest)(nil),        // 26: gokapi.bridge.v2.CloseRequest
-	(*CloseResponse)(nil),       // 27: gokapi.bridge.v2.CloseResponse
-	(*ShutdownRequest)(nil),     // 28: gokapi.bridge.v2.ShutdownRequest
-	(*ShutdownResponse)(nil),    // 29: gokapi.bridge.v2.ShutdownResponse
-	nil,                         // 30: gokapi.bridge.v2.SpanMessage.AnnotationsEntry
-	nil,                         // 31: gokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	nil,                         // 32: gokapi.bridge.v2.BlockMessage.PropertiesEntry
-	nil,                         // 33: gokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	nil,                         // 34: gokapi.bridge.v2.LayerMessage.PropertiesEntry
-	nil,                         // 35: gokapi.bridge.v2.DataMessage.PropertiesEntry
-	nil,                         // 36: gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	nil,                         // 37: gokapi.bridge.v2.MediaMessage.PropertiesEntry
-	nil,                         // 38: gokapi.bridge.v2.OpenRequest.FilterParamsEntry
-	nil,                         // 39: gokapi.bridge.v2.WriteHeader.FilterParamsEntry
+	(*ContentRef)(nil),          // 20: gokapi.bridge.v2.ContentRef
+	(*OutputRef)(nil),           // 21: gokapi.bridge.v2.OutputRef
+	(*OpenRequest)(nil),         // 22: gokapi.bridge.v2.OpenRequest
+	(*OpenResponse)(nil),        // 23: gokapi.bridge.v2.OpenResponse
+	(*ReadRequest)(nil),         // 24: gokapi.bridge.v2.ReadRequest
+	(*WriteChunk)(nil),          // 25: gokapi.bridge.v2.WriteChunk
+	(*WriteHeader)(nil),         // 26: gokapi.bridge.v2.WriteHeader
+	(*WriteResponse)(nil),       // 27: gokapi.bridge.v2.WriteResponse
+	(*CloseRequest)(nil),        // 28: gokapi.bridge.v2.CloseRequest
+	(*CloseResponse)(nil),       // 29: gokapi.bridge.v2.CloseResponse
+	(*ShutdownRequest)(nil),     // 30: gokapi.bridge.v2.ShutdownRequest
+	(*ShutdownResponse)(nil),    // 31: gokapi.bridge.v2.ShutdownResponse
+	nil,                         // 32: gokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	nil,                         // 33: gokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	nil,                         // 34: gokapi.bridge.v2.BlockMessage.PropertiesEntry
+	nil,                         // 35: gokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	nil,                         // 36: gokapi.bridge.v2.LayerMessage.PropertiesEntry
+	nil,                         // 37: gokapi.bridge.v2.DataMessage.PropertiesEntry
+	nil,                         // 38: gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	nil,                         // 39: gokapi.bridge.v2.MediaMessage.PropertiesEntry
+	nil,                         // 40: gokapi.bridge.v2.OpenRequest.FilterParamsEntry
+	nil,                         // 41: gokapi.bridge.v2.WriteHeader.FilterParamsEntry
 }
 var file_core_plugin_proto_v2_gokapi_bridge_proto_depIdxs = []int32{
-	30, // 0: gokapi.bridge.v2.SpanMessage.annotations:type_name -> gokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	32, // 0: gokapi.bridge.v2.SpanMessage.annotations:type_name -> gokapi.bridge.v2.SpanMessage.AnnotationsEntry
 	1,  // 1: gokapi.bridge.v2.FragmentMessage.spans:type_name -> gokapi.bridge.v2.SpanMessage
 	2,  // 2: gokapi.bridge.v2.SegmentMessage.content:type_name -> gokapi.bridge.v2.FragmentMessage
-	31, // 3: gokapi.bridge.v2.SegmentMessage.properties:type_name -> gokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	33, // 3: gokapi.bridge.v2.SegmentMessage.properties:type_name -> gokapi.bridge.v2.SegmentMessage.PropertiesEntry
 	3,  // 4: gokapi.bridge.v2.TargetEntry.segments:type_name -> gokapi.bridge.v2.SegmentMessage
 	6,  // 5: gokapi.bridge.v2.SkeletonMessage.parts:type_name -> gokapi.bridge.v2.SkeletonPartMessage
 	3,  // 6: gokapi.bridge.v2.BlockMessage.source:type_name -> gokapi.bridge.v2.SegmentMessage
 	4,  // 7: gokapi.bridge.v2.BlockMessage.targets:type_name -> gokapi.bridge.v2.TargetEntry
-	32, // 8: gokapi.bridge.v2.BlockMessage.properties:type_name -> gokapi.bridge.v2.BlockMessage.PropertiesEntry
-	33, // 9: gokapi.bridge.v2.BlockMessage.annotations:type_name -> gokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	34, // 8: gokapi.bridge.v2.BlockMessage.properties:type_name -> gokapi.bridge.v2.BlockMessage.PropertiesEntry
+	35, // 9: gokapi.bridge.v2.BlockMessage.annotations:type_name -> gokapi.bridge.v2.BlockMessage.AnnotationsEntry
 	7,  // 10: gokapi.bridge.v2.BlockMessage.display_hint:type_name -> gokapi.bridge.v2.DisplayHintMessage
 	5,  // 11: gokapi.bridge.v2.BlockMessage.skeleton:type_name -> gokapi.bridge.v2.SkeletonMessage
-	34, // 12: gokapi.bridge.v2.LayerMessage.properties:type_name -> gokapi.bridge.v2.LayerMessage.PropertiesEntry
-	35, // 13: gokapi.bridge.v2.DataMessage.properties:type_name -> gokapi.bridge.v2.DataMessage.PropertiesEntry
+	36, // 12: gokapi.bridge.v2.LayerMessage.properties:type_name -> gokapi.bridge.v2.LayerMessage.PropertiesEntry
+	37, // 13: gokapi.bridge.v2.DataMessage.properties:type_name -> gokapi.bridge.v2.DataMessage.PropertiesEntry
 	5,  // 14: gokapi.bridge.v2.DataMessage.skeleton:type_name -> gokapi.bridge.v2.SkeletonMessage
-	36, // 15: gokapi.bridge.v2.GroupStartMessage.properties:type_name -> gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	37, // 16: gokapi.bridge.v2.MediaMessage.properties:type_name -> gokapi.bridge.v2.MediaMessage.PropertiesEntry
+	38, // 15: gokapi.bridge.v2.GroupStartMessage.properties:type_name -> gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	39, // 16: gokapi.bridge.v2.MediaMessage.properties:type_name -> gokapi.bridge.v2.MediaMessage.PropertiesEntry
 	8,  // 17: gokapi.bridge.v2.PartMessage.block:type_name -> gokapi.bridge.v2.BlockMessage
 	9,  // 18: gokapi.bridge.v2.PartMessage.layer:type_name -> gokapi.bridge.v2.LayerMessage
 	10, // 19: gokapi.bridge.v2.PartMessage.data:type_name -> gokapi.bridge.v2.DataMessage
@@ -2358,31 +2595,34 @@ var file_core_plugin_proto_v2_gokapi_bridge_proto_depIdxs = []int32{
 	12, // 21: gokapi.bridge.v2.PartMessage.group_end:type_name -> gokapi.bridge.v2.GroupEndMessage
 	13, // 22: gokapi.bridge.v2.PartMessage.media:type_name -> gokapi.bridge.v2.MediaMessage
 	18, // 23: gokapi.bridge.v2.ListFiltersResponse.filters:type_name -> gokapi.bridge.v2.FilterEntry
-	38, // 24: gokapi.bridge.v2.OpenRequest.filter_params:type_name -> gokapi.bridge.v2.OpenRequest.FilterParamsEntry
-	24, // 25: gokapi.bridge.v2.WriteChunk.header:type_name -> gokapi.bridge.v2.WriteHeader
-	14, // 26: gokapi.bridge.v2.WriteChunk.part:type_name -> gokapi.bridge.v2.PartMessage
-	39, // 27: gokapi.bridge.v2.WriteHeader.filter_params:type_name -> gokapi.bridge.v2.WriteHeader.FilterParamsEntry
-	0,  // 28: gokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
-	0,  // 29: gokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
-	15, // 30: gokapi.bridge.v2.BridgeService.Info:input_type -> gokapi.bridge.v2.InfoRequest
-	17, // 31: gokapi.bridge.v2.BridgeService.ListFilters:input_type -> gokapi.bridge.v2.ListFiltersRequest
-	20, // 32: gokapi.bridge.v2.BridgeService.Open:input_type -> gokapi.bridge.v2.OpenRequest
-	22, // 33: gokapi.bridge.v2.BridgeService.Read:input_type -> gokapi.bridge.v2.ReadRequest
-	23, // 34: gokapi.bridge.v2.BridgeService.Write:input_type -> gokapi.bridge.v2.WriteChunk
-	26, // 35: gokapi.bridge.v2.BridgeService.Close:input_type -> gokapi.bridge.v2.CloseRequest
-	28, // 36: gokapi.bridge.v2.BridgeService.Shutdown:input_type -> gokapi.bridge.v2.ShutdownRequest
-	16, // 37: gokapi.bridge.v2.BridgeService.Info:output_type -> gokapi.bridge.v2.InfoResponse
-	19, // 38: gokapi.bridge.v2.BridgeService.ListFilters:output_type -> gokapi.bridge.v2.ListFiltersResponse
-	21, // 39: gokapi.bridge.v2.BridgeService.Open:output_type -> gokapi.bridge.v2.OpenResponse
-	14, // 40: gokapi.bridge.v2.BridgeService.Read:output_type -> gokapi.bridge.v2.PartMessage
-	25, // 41: gokapi.bridge.v2.BridgeService.Write:output_type -> gokapi.bridge.v2.WriteResponse
-	27, // 42: gokapi.bridge.v2.BridgeService.Close:output_type -> gokapi.bridge.v2.CloseResponse
-	29, // 43: gokapi.bridge.v2.BridgeService.Shutdown:output_type -> gokapi.bridge.v2.ShutdownResponse
-	37, // [37:44] is the sub-list for method output_type
-	30, // [30:37] is the sub-list for method input_type
-	30, // [30:30] is the sub-list for extension type_name
-	30, // [30:30] is the sub-list for extension extendee
-	0,  // [0:30] is the sub-list for field type_name
+	40, // 24: gokapi.bridge.v2.OpenRequest.filter_params:type_name -> gokapi.bridge.v2.OpenRequest.FilterParamsEntry
+	20, // 25: gokapi.bridge.v2.OpenRequest.content_ref:type_name -> gokapi.bridge.v2.ContentRef
+	26, // 26: gokapi.bridge.v2.WriteChunk.header:type_name -> gokapi.bridge.v2.WriteHeader
+	14, // 27: gokapi.bridge.v2.WriteChunk.part:type_name -> gokapi.bridge.v2.PartMessage
+	41, // 28: gokapi.bridge.v2.WriteHeader.filter_params:type_name -> gokapi.bridge.v2.WriteHeader.FilterParamsEntry
+	20, // 29: gokapi.bridge.v2.WriteHeader.original_content_ref:type_name -> gokapi.bridge.v2.ContentRef
+	21, // 30: gokapi.bridge.v2.WriteHeader.output_ref:type_name -> gokapi.bridge.v2.OutputRef
+	0,  // 31: gokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
+	0,  // 32: gokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
+	15, // 33: gokapi.bridge.v2.BridgeService.Info:input_type -> gokapi.bridge.v2.InfoRequest
+	17, // 34: gokapi.bridge.v2.BridgeService.ListFilters:input_type -> gokapi.bridge.v2.ListFiltersRequest
+	22, // 35: gokapi.bridge.v2.BridgeService.Open:input_type -> gokapi.bridge.v2.OpenRequest
+	24, // 36: gokapi.bridge.v2.BridgeService.Read:input_type -> gokapi.bridge.v2.ReadRequest
+	25, // 37: gokapi.bridge.v2.BridgeService.Write:input_type -> gokapi.bridge.v2.WriteChunk
+	28, // 38: gokapi.bridge.v2.BridgeService.Close:input_type -> gokapi.bridge.v2.CloseRequest
+	30, // 39: gokapi.bridge.v2.BridgeService.Shutdown:input_type -> gokapi.bridge.v2.ShutdownRequest
+	16, // 40: gokapi.bridge.v2.BridgeService.Info:output_type -> gokapi.bridge.v2.InfoResponse
+	19, // 41: gokapi.bridge.v2.BridgeService.ListFilters:output_type -> gokapi.bridge.v2.ListFiltersResponse
+	23, // 42: gokapi.bridge.v2.BridgeService.Open:output_type -> gokapi.bridge.v2.OpenResponse
+	14, // 43: gokapi.bridge.v2.BridgeService.Read:output_type -> gokapi.bridge.v2.PartMessage
+	27, // 44: gokapi.bridge.v2.BridgeService.Write:output_type -> gokapi.bridge.v2.WriteResponse
+	29, // 45: gokapi.bridge.v2.BridgeService.Close:output_type -> gokapi.bridge.v2.CloseResponse
+	31, // 46: gokapi.bridge.v2.BridgeService.Shutdown:output_type -> gokapi.bridge.v2.ShutdownResponse
+	40, // [40:47] is the sub-list for method output_type
+	33, // [33:40] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v2_gokapi_bridge_proto_init() }
@@ -2390,7 +2630,16 @@ func file_core_plugin_proto_v2_gokapi_bridge_proto_init() {
 	if File_core_plugin_proto_v2_gokapi_bridge_proto != nil {
 		return
 	}
-	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[23].OneofWrappers = []any{
+	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[20].OneofWrappers = []any{
+		(*ContentRef_Inline)(nil),
+		(*ContentRef_Path)(nil),
+		(*ContentRef_Uri)(nil),
+	}
+	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[21].OneofWrappers = []any{
+		(*OutputRef_Path)(nil),
+		(*OutputRef_Uri)(nil),
+	}
+	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[25].OneofWrappers = []any{
 		(*WriteChunk_Header)(nil),
 		(*WriteChunk_Part)(nil),
 	}
@@ -2400,7 +2649,7 @@ func file_core_plugin_proto_v2_gokapi_bridge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc), len(file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   40,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

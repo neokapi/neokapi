@@ -226,18 +226,36 @@ message ListFiltersResponse {
   repeated FilterEntry filters = 1;
 }
 
+// ContentRef allows passing content as a file path instead of inline bytes.
+// Java prefers content_ref when set, falling back to legacy content/source_path.
+message ContentRef {
+  oneof location {
+    bytes  inline = 1;  // Inline bytes (same as legacy content field)
+    string path   = 2;  // Local filesystem path
+    string uri    = 3;  // Remote/local URI (file://, s3://, gs://)
+  }
+}
+
+// OutputRef specifies where to write output directly on disk.
+// When set, Java writes output directly to this path instead of returning bytes.
+message OutputRef {
+  oneof destination {
+    string path = 1;  // Local filesystem path
+    string uri  = 2;  // Remote/local URI
+  }
+}
+
 message OpenRequest {
   string filter_class = 1;
   string uri = 2;
   string source_locale = 3;
   string encoding = 4;
-  bytes content = 5;
+  bytes content = 5;                   // Legacy: inline document bytes
   string mime_type = 6;
   map<string, string> filter_params = 7;
   string target_locale = 8;
-  string source_path = 9;  // Optional absolute file path on disk.
-                            // When set, Java reads from disk (no temp file).
-                            // Enables relative URI resolution for auxiliary files.
+  string source_path = 9;             // Legacy: absolute file path on disk
+  ContentRef content_ref = 10;        // Preferred: file reference (path avoids byte transfer)
 }
 
 message OpenResponse {
@@ -259,15 +277,17 @@ message WriteHeader {
   string filter_class = 1;
   string locale = 2;
   string encoding = 3;
-  bytes original_content = 4;
+  bytes original_content = 4;              // Legacy: inline original document bytes
   map<string, string> filter_params = 5;
-  string source_path = 6;  // Optional absolute path to original file.
-                            // When set, Java re-reads from disk (no temp file).
+  string source_path = 6;                  // Legacy: absolute path to original file
+  ContentRef original_content_ref = 7;     // Preferred: file reference for original content
+  OutputRef output_ref = 8;                // When set, Java writes output directly to this path
 }
 
 message WriteResponse {
-  bytes output = 1;
+  bytes output = 1;          // Inline output bytes (empty when output_ref was used)
   string error = 2;
+  string output_path = 3;   // Path where output was written (set when output_ref was used)
 }
 
 message CloseRequest {}

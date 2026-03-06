@@ -82,11 +82,9 @@ func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) err
 		}
 	}
 
-	// Always read content when a Reader is available, even with source_path.
-	// This provides backward compatibility with older bridge JARs that don't
-	// support source_path — Java prefers source_path when available and falls
-	// back to content bytes.
-	if doc.Reader != nil {
+	// When source_path is available, Java reads from disk via content_ref.
+	// Only read content bytes as fallback for non-file-based documents.
+	if sourcePath == "" && doc.Reader != nil {
 		content, err = io.ReadAll(doc.Reader)
 		if err != nil {
 			r.pool.Release(b)
@@ -184,6 +182,7 @@ type BridgeFormatWriter struct {
 	filterParams    map[string]any // optional filter parameters
 	originalContent []byte         // original document needed by Okapi for skeleton
 	sourcePath      string         // absolute file path for direct disk access
+	outputPath      string         // captured from SetOutput for direct disk writing
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
@@ -196,6 +195,13 @@ func NewBridgeFormatWriter(pool *BridgePool, cfg BridgeConfig, filterClass strin
 		cfg:         cfg,
 		filterClass: filterClass,
 	}
+}
+
+// SetOutput configures the output destination by file path.
+// The path is captured for direct disk writing via output_ref.
+func (w *BridgeFormatWriter) SetOutput(path string) error {
+	w.outputPath = path
+	return w.BaseFormatWriter.SetOutput(path)
 }
 
 // SetFilterParams sets optional filter-specific parameters.
@@ -220,6 +226,9 @@ func (w *BridgeFormatWriter) SetSourcePath(path string) {
 // applies translations on-demand as it re-reads the original document skeleton.
 // No parts are accumulated in memory — streaming keeps memory constant regardless
 // of document size.
+//
+// For XLIFF filters, empty target-language attributes are stripped from the
+// original content before sending to avoid duplicate attributes in Okapi's output.
 func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
 	b, err := w.pool.Acquire(w.cfg)
 	if err != nil {
@@ -227,20 +236,45 @@ func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part
 	}
 	defer w.pool.Release(b)
 
-	output, err := b.WriteStream(ctx, WriteStreamParams{
+	originalContent := w.originalContent
+	sourcePath := w.sourcePath
+
+	// For XLIFF filters, strip empty target-language attributes to prevent
+	// Okapi from producing duplicate attributes in the output XML.
+	if isXLIFFFilter(w.filterClass) {
+		if sourcePath != "" {
+			// File-based path: create a temp file with stripping applied.
+			stripped, cleanup, serr := stripEmptyTargetLanguageFile(sourcePath)
+			if serr != nil {
+				return fmt.Errorf("preprocessing XLIFF source: %w", serr)
+			}
+			if cleanup != nil {
+				defer cleanup()
+			}
+			sourcePath = stripped
+		} else if len(originalContent) > 0 {
+			// Byte-based path: strip from in-memory content.
+			originalContent = stripEmptyTargetLanguage(originalContent)
+		}
+	}
+
+	result, err := b.WriteStream(ctx, WriteStreamParams{
 		FilterClass:     w.filterClass,
 		Locale:          string(w.Locale),
 		Encoding:        w.Encoding,
-		OriginalContent: w.originalContent,
+		OriginalContent: originalContent,
 		FilterParams:    w.filterParams,
-		SourcePath:      w.sourcePath,
+		SourcePath:      sourcePath,
+		OutputPath:      w.outputPath,
 	}, parts)
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)
 	}
 
-	if w.Output != nil {
-		if _, err := io.Copy(w.Output, bytes.NewReader(output)); err != nil {
+	// When output_ref was used, Java wrote directly to disk — no bytes to copy.
+	// When inline bytes are returned, copy them to the output writer.
+	if result.OutputPath == "" && w.Output != nil && len(result.Output) > 0 {
+		if _, err := io.Copy(w.Output, bytes.NewReader(result.Output)); err != nil {
 			return fmt.Errorf("writing output: %w", err)
 		}
 	}
