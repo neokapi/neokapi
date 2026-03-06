@@ -60,6 +60,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 	for _, def := range BuiltinToolCommands {
 		d := def // capture loop variable
 		var pseudoExpansion int
+		var formatMaps []string
 
 		cmd := &cobra.Command{
 			Use:     d.Use + " [files...]",
@@ -70,10 +71,15 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				jsonOut, _ := cmd.Flags().GetBool("json")
 				conc, _ := cmd.Flags().GetInt("concurrency")
 				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
-			strict, _ := cmd.Flags().GetBool("strict")
-			failUnknown = failUnknown || strict
+				strict, _ := cmd.Flags().GetBool("strict")
+				failUnknown = failUnknown || strict
 				noWarn, _ := cmd.Flags().GetBool("no-warn")
 				progress, _ := cmd.Flags().GetBool("progress")
+
+				mappings, err := ParseFormatMappings(formatMaps)
+				if err != nil {
+					return err
+				}
 
 				var outputTmpl string
 				if d.WritesOutput {
@@ -91,6 +97,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				return a.RunToolOnFiles(context.Background(), ToolRunConfig{
 					ToolName:       d.Use,
 					Files:          args,
+					FormatMappings: mappings,
 					Concurrency:    conc,
 					JSONOutput:     jsonOut,
 					FailOnUnknown:  failUnknown,
@@ -106,6 +113,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			},
 		}
 		a.AddProcessingFlags(cmd)
+		cmd.Flags().StringArrayVarP(&formatMaps, "map", "m", nil, "map glob pattern to format (e.g. '*.docx=okf_openxml:test')")
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
 		cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with warning)")
