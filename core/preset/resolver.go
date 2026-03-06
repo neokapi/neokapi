@@ -1,8 +1,13 @@
 package preset
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // SchemaValidator validates filter parameters against a schema.
@@ -36,8 +41,15 @@ func NewConfigResolver(presets *PresetRegistry, schemas SchemaValidator) *Config
 // ResolveFormatConfig resolves a format reference with optional preset and overrides
 // into a final merged configuration map.
 //
+// The presetName can be:
+//   - A preset name (e.g. "wellFormed") — looked up in local presets, then registry
+//   - A file path (e.g. "./my-config.yaml") — loaded as YAML/JSON config
+//
+// File paths are detected by the presence of path separators (/ or \) or
+// a .yaml/.yml/.json extension.
+//
 // Resolution steps:
-// 1. Get preset config (if preset name is specified)
+// 1. Get preset config (from file, local preset, or registry)
 // 2. Deep-merge: preset config → overrides
 // 3. Validate the final config against the format's schema
 func (r *ConfigResolver) ResolveFormatConfig(
@@ -49,8 +61,14 @@ func (r *ConfigResolver) ResolveFormatConfig(
 	var presetConfig map[string]any
 
 	if presetName != "" {
-		// Check local presets first
-		if lp, ok := localPresets[presetName]; ok {
+		if IsConfigFilePath(presetName) {
+			cfg, err := LoadConfigFile(presetName)
+			if err != nil {
+				return nil, fmt.Errorf("load config file %q: %w", presetName, err)
+			}
+			presetConfig = cfg
+		} else if lp, ok := localPresets[presetName]; ok {
+			// Check local presets first
 			presetConfig = lp.Config
 		} else {
 			// Check registry (bridge configs, plugin presets)
@@ -119,6 +137,41 @@ func (r *ConfigResolver) ValidateAllPresets(
 	}
 
 	return errors
+}
+
+// IsConfigFilePath reports whether s looks like a file path rather than a
+// preset name. It checks for path separators (/ or \) or common config
+// file extensions (.yaml, .yml, .json).
+func IsConfigFilePath(s string) bool {
+	if strings.ContainsAny(s, "/\\") {
+		return true
+	}
+	ext := strings.ToLower(filepath.Ext(s))
+	return ext == ".yaml" || ext == ".yml" || ext == ".json"
+}
+
+// LoadConfigFile reads a YAML or JSON config file and returns it as a map.
+// The format is detected by file extension (.json for JSON, everything else
+// as YAML).
+func LoadConfigFile(path string) (map[string]any, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var config map[string]any
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".json" {
+		if err := json.Unmarshal(data, &config); err != nil {
+			return nil, fmt.Errorf("parse JSON: %w", err)
+		}
+	} else {
+		if err := yaml.Unmarshal(data, &config); err != nil {
+			return nil, fmt.Errorf("parse YAML: %w", err)
+		}
+	}
+
+	return config, nil
 }
 
 // stripPrefix removes common error prefixes for cleaner messages.

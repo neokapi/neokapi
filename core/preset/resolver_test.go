@@ -2,6 +2,8 @@ package preset
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -181,4 +183,89 @@ func TestValidateAllPresets(t *testing.T) {
 	// Filtered to json (no schema)
 	errs = resolver.ValidateAllPresets(locals, "json")
 	assert.Len(t, errs, 0)
+}
+
+func TestIsConfigFilePath(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"wellFormed", false},
+		{"strict-mode", false},
+		{"./my-config.yaml", true},
+		{"../configs/openxml.yml", true},
+		{"/absolute/path.json", true},
+		{"config.yaml", true},
+		{"config.yml", true},
+		{"config.json", true},
+		{"config.JSON", true},
+		{"path/to/file", true},
+		{"my-preset", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsConfigFilePath(tt.input))
+		})
+	}
+}
+
+func TestLoadConfigFile_YAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte("extractStyles: true\ntranslateComments: false\n"), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, true, cfg["extractStyles"])
+	assert.Equal(t, false, cfg["translateComments"])
+}
+
+func TestLoadConfigFile_JSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	err := os.WriteFile(path, []byte(`{"extractStyles": true, "maxDepth": 5}`), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, true, cfg["extractStyles"])
+	assert.Equal(t, float64(5), cfg["maxDepth"]) // JSON numbers are float64
+}
+
+func TestLoadConfigFile_NotFound(t *testing.T) {
+	_, err := LoadConfigFile("/nonexistent/config.yaml")
+	assert.Error(t, err)
+}
+
+func TestResolveFormatConfig_ConfigFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openxml.yaml")
+	err := os.WriteFile(path, []byte("extractStyles: true\ntranslateComments: false\n"), 0o644)
+	require.NoError(t, err)
+
+	reg := NewPresetRegistry()
+	resolver := NewConfigResolver(reg, nil)
+
+	result, err := resolver.ResolveFormatConfig("okf_openxml", path, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, true, result["extractStyles"])
+	assert.Equal(t, false, result["translateComments"])
+}
+
+func TestResolveFormatConfig_ConfigFileWithOverrides(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "openxml.yaml")
+	err := os.WriteFile(path, []byte("extractStyles: true\ntranslateComments: false\n"), 0o644)
+	require.NoError(t, err)
+
+	reg := NewPresetRegistry()
+	resolver := NewConfigResolver(reg, nil)
+
+	result, err := resolver.ResolveFormatConfig("okf_openxml", path, nil, map[string]any{
+		"translateComments": true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, true, result["extractStyles"])
+	assert.Equal(t, true, result["translateComments"]) // overridden
 }
