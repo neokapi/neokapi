@@ -239,6 +239,29 @@ func (r *SchemaRegistry) ListFilters() []FilterSchemaMeta {
 	return result
 }
 
+// filterIDSet returns a snapshot of all registered filter IDs as a set.
+// Used internally to diff before/after schema loading.
+func (r *SchemaRegistry) filterIDSet() map[string]struct{} {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s := make(map[string]struct{}, len(r.schemas))
+	for id := range r.schemas {
+		s[id] = struct{}{}
+	}
+	return s
+}
+
+// FilterIDs returns all registered filter IDs (e.g., "okf_html", "okf_json").
+func (r *SchemaRegistry) FilterIDs() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	ids := make([]string, 0, len(r.schemas))
+	for id := range r.schemas {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // HasSchema returns true if a schema exists for the filter ID.
 func (r *SchemaRegistry) HasSchema(filterID string) bool {
 	_, ok := r.GetSchema(filterID)

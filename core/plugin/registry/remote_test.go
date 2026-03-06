@@ -375,6 +375,68 @@ func TestInstallPluginExactVersion(t *testing.T) {
 	assert.Equal(t, "1.0.0", vf.Version)
 }
 
+func TestInstallPluginRemovesOlderVersions(t *testing.T) {
+	binaryV2 := []byte("fake-binary-v2")
+
+	index := RegistryIndex{
+		Version: 1,
+		Plugins: []PluginManifest{
+			{
+				Name:        "my-tool",
+				Version:     "2.0.0",
+				PluginType:  "tool",
+				InstallType: "binary",
+				Checksum:    checksum(binaryV2),
+			},
+		},
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			serveJSON(t, w, index)
+		case "/download/my-tool-v2":
+			serveBytes(t, w, binaryV2)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	index.Plugins[0].DownloadURL = srv.URL + "/download/my-tool-v2"
+
+	dir := t.TempDir()
+	reg := NewRemoteRegistry(srv.URL, dir)
+
+	// Pre-install an older version by writing its version file.
+	require.NoError(t, WriteVersionFile(dir, "my-tool", "1.0.0", &VersionFile{
+		Name:    "my-tool",
+		Version: "1.0.0",
+	}))
+	// Also create a dummy file in the old version dir so it's non-empty.
+	oldDir := VersionedPluginDir(dir, "my-tool", "1.0.0")
+	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "dummy"), []byte("old"), 0o644))
+
+	// Install version 2.0.0 — should remove 1.0.0.
+	result, err := reg.InstallPlugin(PluginRef{Name: "my-tool"})
+	require.NoError(t, err)
+	assert.Equal(t, "2.0.0", result.Version)
+
+	// New version should exist.
+	_, err = ReadVersionFile(dir, "my-tool", "2.0.0")
+	require.NoError(t, err)
+
+	// Old version directory should be gone.
+	_, err = os.Stat(VersionedPluginDir(dir, "my-tool", "1.0.0"))
+	assert.True(t, os.IsNotExist(err), "old version 1.0.0 should be removed")
+
+	// Only one version should be installed.
+	versions, err := ListInstalledVersions(dir, "my-tool")
+	require.NoError(t, err)
+	require.Len(t, versions, 1)
+	assert.Equal(t, "2.0.0", versions[0].Version)
+}
+
 func TestCheckUpdates(t *testing.T) {
 	dir := t.TempDir()
 

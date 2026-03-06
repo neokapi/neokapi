@@ -220,6 +220,8 @@ message FilterEntry {
   string display_name = 3;
   repeated string mime_types = 4;
   repeated string extensions = 5;
+  string filter_id = 6;              // Natural Okapi filter ID (e.g., "okf_html")
+  repeated string capabilities = 7;  // Operations supported (e.g., "read", "write")
 }
 
 message ListFiltersResponse {

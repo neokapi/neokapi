@@ -394,3 +394,46 @@ func TestSetFormatSourceDoesNotDowngradeExplicitPriority(t *testing.T) {
 	require.NotNil(t, info)
 	assert.Equal(t, 500, info.Priority)
 }
+
+func TestRegisterFormatInfo(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	// Register metadata-only (no reader/writer factory).
+	reg.RegisterFormatInfo("okapi-html@1.46.0", FormatInfo{
+		DisplayName: "HTML Filter",
+		MimeTypes:   []string{"text/html"},
+		Extensions:  []string{".html", ".htm"},
+		Source:      "okapi",
+	})
+
+	info := reg.FormatInfo("okapi-html@1.46.0")
+	require.NotNil(t, info)
+	assert.Equal(t, "HTML Filter", info.DisplayName)
+	assert.Equal(t, []string{"text/html"}, info.MimeTypes)
+	assert.Equal(t, []string{".html", ".htm"}, info.Extensions)
+	assert.Equal(t, "okapi", info.Source)
+	assert.False(t, info.HasReader)
+	assert.False(t, info.HasWriter)
+
+	// Registering a reader later should update the existing info.
+	reg.RegisterReader("okapi-html@1.46.0", func() format.DataFormatReader {
+		return newStubReaderWithSig("okapi-html", "HTML Filter", []string{"text/html"}, []string{".html"})
+	})
+	info = reg.FormatInfo("okapi-html@1.46.0")
+	require.NotNil(t, info)
+	assert.True(t, info.HasReader)
+	assert.Equal(t, "okapi", info.Source) // preserved from RegisterFormatInfo
+}
+
+func TestRegisterFormatInfoAppearsInList(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterFormatInfo("bridge-csv@2.0.0", FormatInfo{
+		DisplayName: "CSV (Bridge)",
+		Source:      "my-plugin",
+	})
+	infos := reg.FormatInfos()
+	require.Len(t, infos, 1)
+	assert.Equal(t, "bridge-csv@2.0.0", infos[0].Name)
+	assert.Equal(t, "CSV (Bridge)", infos[0].DisplayName)
+	assert.Equal(t, "my-plugin", infos[0].Source)
+}

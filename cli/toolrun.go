@@ -39,6 +39,7 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
+	a.EnsureBridgesLoaded()
 	files, err := resolveFiles(cfg.Files)
 	if err != nil {
 		return err

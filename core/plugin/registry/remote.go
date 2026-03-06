@@ -251,6 +251,15 @@ func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
 		return nil, fmt.Errorf("writing version file: %w", err)
 	}
 
+	// Remove older versions of the same plugin.
+	if existing, err := ListInstalledVersions(r.DownloadDir, manifest.Name); err == nil {
+		for _, v := range existing {
+			if v.Version != manifest.Version {
+				_ = os.RemoveAll(v.Dir)
+			}
+		}
+	}
+
 	return &InstallResult{
 		Name:        manifest.Name,
 		Version:     manifest.Version,

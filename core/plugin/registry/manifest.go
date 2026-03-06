@@ -26,6 +26,9 @@ type Capability struct {
 	// Type is "format" or "tool".
 	Type string `json:"type"`
 
+	// ID is the natural filter ID (e.g., "okf_html", "okf_json").
+	ID string `json:"id,omitempty"`
+
 	// Name is the capability identifier (e.g., "openxml", "html").
 	Name string `json:"name"`
 
@@ -35,11 +38,25 @@ type Capability struct {
 	// Description is a short description of the capability.
 	Description string `json:"description,omitempty"`
 
+	// Capabilities lists what operations this format supports (e.g., ["read", "write"]).
+	Capabilities []string `json:"capabilities,omitempty"`
+
 	// MimeTypes lists MIME types handled by this capability.
 	MimeTypes []string `json:"mime_types,omitempty"`
 
 	// Extensions lists file extensions handled by this capability (e.g., ".docx").
 	Extensions []string `json:"extensions,omitempty"`
+}
+
+// HasCapability reports whether this capability includes the named operation
+// (e.g., "read" or "write").
+func (c *Capability) HasCapability(name string) bool {
+	for _, cap := range c.Capabilities {
+		if strings.EqualFold(cap, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // PluginManifest describes a plugin available for download from a remote registry.
