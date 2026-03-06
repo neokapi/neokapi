@@ -41,11 +41,12 @@ type SourcePathSetter interface {
 
 // PluginInfo describes a loaded plugin.
 type PluginInfo struct {
-	Name    string
-	Version string
-	Type    string // "binary" or "bridge"
-	Source  string
-	Formats []string
+	Name             string
+	Version          string
+	FrameworkVersion string // version of the underlying system (e.g., Okapi Framework version)
+	Type             string // "binary" or "bridge"
+	Source           string
+	Formats          []string
 }
 
 // managedBridge tracks a loaded bridge plugin.
@@ -187,6 +188,11 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 					}
 				}
 
+				// Use framework_version for format version suffix when available
+				// (e.g., "1.47.0" for the underlying Okapi Framework version),
+				// falling back to the plugin version (e.g., "2.12.0").
+				fmtVersion := iv.FormatVersion()
+
 				// Derive format names from schemas (preferred) or manifest capabilities.
 				// Schemas carry the natural Okapi filter ID (e.g., "okf_html")
 				// which is more useful than the synthesized "okapi-bridge-html".
@@ -194,7 +200,7 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 				if len(newFilterIDs) > 0 {
 					sort.Strings(newFilterIDs)
 					for _, filterID := range newFilterIDs {
-						versionedName := filterID + "@" + iv.Version
+						versionedName := filterID + "@" + fmtVersion
 						formats = append(formats, versionedName)
 
 						if fmtReg != nil {
@@ -215,7 +221,7 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 						}
 
 						bareNameCandidates[filterID] = append(bareNameCandidates[filterID], versionedFmt{
-							version: iv.Version,
+							version: fmtVersion,
 							name:    versionedName,
 						})
 					}
@@ -226,7 +232,7 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 							continue
 						}
 						baseFmtName := manifest.Name + "-" + sanitizeFilterName(cap.Name)
-						versionedName := baseFmtName + "@" + iv.Version
+						versionedName := baseFmtName + "@" + fmtVersion
 						formats = append(formats, versionedName)
 
 						if fmtReg != nil {
@@ -241,7 +247,7 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 						}
 
 						bareNameCandidates[baseFmtName] = append(bareNameCandidates[baseFmtName], versionedFmt{
-							version: iv.Version,
+							version: fmtVersion,
 							name:    versionedName,
 						})
 					}
@@ -249,17 +255,18 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 				sort.Strings(formats)
 
 				l.plugins = append(l.plugins, PluginInfo{
-					Name:    manifest.Name,
-					Version: iv.Version,
-					Type:    "bridge",
-					Source:  vDir,
-					Formats: formats,
+					Name:             manifest.Name,
+					Version:          iv.Version,
+					FrameworkVersion: iv.FrameworkVersion,
+					Type:             "bridge",
+					Source:           vDir,
+					Formats:          formats,
 				})
 
 				l.pendingBridges = append(l.pendingBridges, pendingBridge{
 					manifest: manifest,
 					dir:      vDir,
-					version:  iv.Version,
+					version:  fmtVersion,
 				})
 
 			case "binary":
@@ -381,24 +388,16 @@ func (l *PluginLoader) LoadBridges(formatReg *registry.FormatRegistry, toolReg *
 				}
 			}
 			if !formatReg.HasReader(baseName) {
-				if formatReg.HasReader(best.name) {
-					versionedName := best.name
-					formatReg.RegisterReader(baseName, func() format.DataFormatReader {
-						r, _ := formatReg.NewReader(versionedName)
-						return r
-					})
-					if info := formatReg.FormatInfo(versionedName); info != nil {
+				if rf := formatReg.ReaderFactory(best.name); rf != nil {
+					formatReg.RegisterReader(baseName, rf)
+					if info := formatReg.FormatInfo(best.name); info != nil {
 						formatReg.SetFormatSource(baseName, info.Source)
 					}
 				}
 			}
 			if !formatReg.HasWriter(baseName) {
-				if formatReg.HasWriter(best.name) {
-					versionedName := best.name
-					formatReg.RegisterWriter(baseName, func() format.DataFormatWriter {
-						w, _ := formatReg.NewWriter(versionedName)
-						return w
-					})
+				if wf := formatReg.WriterFactory(best.name); wf != nil {
+					formatReg.RegisterWriter(baseName, wf)
 				}
 			}
 		}

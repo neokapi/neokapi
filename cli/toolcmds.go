@@ -70,6 +70,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				jsonOut, _ := cmd.Flags().GetBool("json")
 				conc, _ := cmd.Flags().GetInt("concurrency")
 				failUnknown, _ := cmd.Flags().GetBool("fail-on-unknown")
+			strict, _ := cmd.Flags().GetBool("strict")
+			failUnknown = failUnknown || strict
 				noWarn, _ := cmd.Flags().GetBool("no-warn")
 				progress, _ := cmd.Flags().GetBool("progress")
 
@@ -106,7 +108,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		a.AddProcessingFlags(cmd)
 		cmd.Flags().Bool("json", false, "output results as JSON")
 		cmd.Flags().IntP("concurrency", "j", 0, "max parallel files (0 = auto)")
-		cmd.Flags().Bool("fail-on-unknown", false, "fail on files with unrecognized formats (default: skip with warning)")
+		cmd.Flags().Bool("fail-on-unknown", false, "exit with error if any file cannot be processed (default: skip with warning)")
+		cmd.Flags().Bool("strict", false, "alias for --fail-on-unknown")
 		cmd.Flags().Bool("no-warn", false, "suppress warnings for skipped files")
 		cmd.Flags().BoolP("progress", "p", false, "show progress bar")
 		if d.WritesOutput {

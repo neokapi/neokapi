@@ -2,7 +2,9 @@ package registry
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -436,4 +438,121 @@ func TestRegisterFormatInfoAppearsInList(t *testing.T) {
 	assert.Equal(t, "bridge-csv@2.0.0", infos[0].Name)
 	assert.Equal(t, "CSV (Bridge)", infos[0].DisplayName)
 	assert.Equal(t, "my-plugin", infos[0].Source)
+}
+
+func TestOnMissTriggeredOnReaderMiss(t *testing.T) {
+	reg := NewFormatRegistry()
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReader("html")
+	})
+
+	var called bool
+	reg.SetOnMiss(func() {
+		called = true
+		// Simulate lazy-loading a bridge format.
+		reg.RegisterReader("okf_docx", func() format.DataFormatReader {
+			return newStubReader("okf_docx")
+		})
+	})
+
+	// Built-in format — no onMiss.
+	r, err := reg.NewReader("html")
+	require.NoError(t, err)
+	assert.NotNil(t, r)
+	assert.False(t, called, "onMiss should not fire for a built-in format")
+
+	// Unknown format — triggers onMiss, which registers the format.
+	r, err = reg.NewReader("okf_docx")
+	require.NoError(t, err)
+	assert.NotNil(t, r)
+	assert.True(t, called, "onMiss should fire for a missing format")
+}
+
+func TestOnMissCalledOnlyOnce(t *testing.T) {
+	reg := NewFormatRegistry()
+	callCount := 0
+	reg.SetOnMiss(func() {
+		callCount++
+	})
+
+	_, _ = reg.NewReader("nonexistent1")
+	_, _ = reg.NewReader("nonexistent2")
+	assert.Equal(t, 1, callCount, "onMiss should be called only once")
+}
+
+func TestOnMissConcurrentCallersBlock(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	var callCount int
+	reg.SetOnMiss(func() {
+		callCount++
+		// Simulate slow bridge loading.
+		time.Sleep(50 * time.Millisecond)
+		reg.RegisterReader("okf_openxml", func() format.DataFormatReader {
+			return newStubReader("okf_openxml")
+		})
+	})
+
+	// Launch concurrent readers — all should block until onMiss completes.
+	var wg sync.WaitGroup
+	errors := make([]error, 10)
+	for i := range 10 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, errors[i] = reg.NewReader("okf_openxml")
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, 1, callCount, "onMiss should be called exactly once")
+	for i, err := range errors {
+		assert.NoError(t, err, "goroutine %d should find the format after onMiss completes", i)
+	}
+}
+
+func TestOnMissTriggeredOnWriterMiss(t *testing.T) {
+	reg := NewFormatRegistry()
+	var called bool
+	reg.SetOnMiss(func() {
+		called = true
+		reg.RegisterWriter("okf_docx", func() format.DataFormatWriter {
+			return &stubWriter{}
+		})
+	})
+
+	w, err := reg.NewWriter("okf_docx")
+	require.NoError(t, err)
+	assert.NotNil(t, w)
+	assert.True(t, called)
+}
+
+func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	var called bool
+	reg.SetOnMiss(func() {
+		called = true
+		// Simulate bridge loading registering a format with .docx extension.
+		// RegisterReader also registers the format signature for detection.
+		reg.RegisterReader("okf_openxml", func() format.DataFormatReader {
+			return newStubReaderWithSig("okf_openxml", "OpenXML", nil, []string{".docx", ".docm"})
+		})
+	})
+
+	// Built-in extension — no onMiss needed.
+	reg.RegisterReader("json", func() format.DataFormatReader {
+		return newStubReaderWithSig("json", "JSON", nil, []string{".json"})
+	})
+
+	name, err := reg.DetectByExtension(".json")
+	require.NoError(t, err)
+	assert.Equal(t, "json", name)
+	assert.False(t, called, "onMiss should not fire for a built-in extension")
+
+	// Unknown extension — triggers onMiss, which registers the format.
+	name, err = reg.DetectByExtension(".docx")
+	require.NoError(t, err)
+	assert.Equal(t, "okf_openxml", name)
+	assert.True(t, called, "onMiss should fire for a missing extension")
 }

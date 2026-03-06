@@ -48,11 +48,14 @@ func TestParseFormatRef(t *testing.T) {
 		{"okapi-html", "okapi-html", "", ""},
 		{"okapi-html@1.46.0", "okapi-html", "1.46.0", ""},
 		{"csv", "csv", "", ""},
-		{"okf_html@wellFormed", "okf_html", "", "wellFormed"},
+		{"okf_html:wellFormed", "okf_html", "", "wellFormed"},
 		{"okf_html@1.46.0", "okf_html", "1.46.0", ""},
-		{"okf_html@strict-mode", "okf_html", "", "strict-mode"},
+		{"okf_html:strict-mode", "okf_html", "", "strict-mode"},
 		{"json", "json", "", ""},
 		{"json@1.0", "json", "1.0", ""},
+		{"okf_openxml@0.38:wellFormed", "okf_openxml", "0.38", "wellFormed"},
+		{"okf_openxml@0.38", "okf_openxml", "0.38", ""},
+		{"okf_openxml:wellFormed", "okf_openxml", "", "wellFormed"},
 	}
 
 	for _, tt := range tests {
@@ -68,7 +71,15 @@ func TestParseFormatRef(t *testing.T) {
 func TestFormatRefString(t *testing.T) {
 	assert.Equal(t, "okapi-html@1.46.0", FormatRef{Name: "okapi-html", Version: "1.46.0"}.String())
 	assert.Equal(t, "okapi-html", FormatRef{Name: "okapi-html"}.String())
-	assert.Equal(t, "okf_html@wellFormed", FormatRef{Name: "okf_html", Preset: "wellFormed"}.String())
+	assert.Equal(t, "okf_html:wellFormed", FormatRef{Name: "okf_html", Preset: "wellFormed"}.String())
+	assert.Equal(t, "okf_openxml@0.38:wellFormed", FormatRef{Name: "okf_openxml", Version: "0.38", Preset: "wellFormed"}.String())
+}
+
+func TestFormatRefRegistryName(t *testing.T) {
+	assert.Equal(t, "okf_html", FormatRef{Name: "okf_html"}.RegistryName())
+	assert.Equal(t, "okf_html@1.46.0", FormatRef{Name: "okf_html", Version: "1.46.0"}.RegistryName())
+	assert.Equal(t, "okf_html", FormatRef{Name: "okf_html", Preset: "wellFormed"}.RegistryName())
+	assert.Equal(t, "okf_html@1.46.0", FormatRef{Name: "okf_html", Version: "1.46.0", Preset: "wellFormed"}.RegistryName())
 }
 
 func TestFormatRefIsVersioned(t *testing.T) {

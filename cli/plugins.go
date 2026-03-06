@@ -301,16 +301,18 @@ func (a *App) listInstalledPlugins(cmd *cobra.Command) error {
 	}
 
 	type installedInfo struct {
-		installType string
-		pluginType  string
-		formats     int
+		installType      string
+		pluginType       string
+		frameworkVersion string
+		formats          int
 	}
 	installedByKey := make(map[string]installedInfo)
 	for _, iv := range installed {
 		installedByKey[iv.Name+"/"+iv.Version] = installedInfo{
-			installType: iv.InstallType,
-			pluginType:  iv.PluginType,
-			formats:     iv.FormatCount(),
+			installType:      iv.InstallType,
+			pluginType:       iv.PluginType,
+			frameworkVersion: iv.FrameworkVersion,
+			formats:          iv.FormatCount(),
 		}
 	}
 
@@ -351,6 +353,7 @@ func (a *App) listInstalledPlugins(cmd *cobra.Command) error {
 			}
 			if ii, ok := installedByKey[name+"/"+v]; ok {
 				info.PluginType = ii.pluginType
+				info.FrameworkVersion = ii.frameworkVersion
 				info.Formats = ii.formats
 				if info.PluginType == "" {
 					info.PluginType = ii.installType

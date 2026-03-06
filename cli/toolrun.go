@@ -11,11 +11,14 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gokapi/gokapi/cli/output"
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
+	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/cli/output"
+	"github.com/mattn/go-isatty"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"
@@ -39,7 +42,6 @@ type ToolRunConfig struct {
 // RunToolOnFiles processes each file through a single-tool flow and
 // aggregates results via the collector. Files are processed in parallel.
 func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
-	a.EnsureBridgesLoaded()
 	files, err := resolveFiles(cfg.Files)
 	if err != nil {
 		return err
@@ -63,10 +65,16 @@ func (a *App) RunToolOnFiles(ctx context.Context, cfg ToolRunConfig) error {
 		commonDir = commonDirPrefix(files)
 	}
 
+	// Auto-enable progress bar for multi-file runs on a TTY (unless JSON output).
+	showProgress := cfg.Progress
+	if !showProgress && !cfg.JSONOutput && len(files) > 1 && isatty.IsTerminal(os.Stderr.Fd()) {
+		showProgress = true
+	}
+
 	var bar *mpb.Bar
 	var progress *mpb.Progress
 	var active atomic.Int64
-	if cfg.Progress {
+	if showProgress {
 		progress = mpb.New(mpb.WithOutput(os.Stderr))
 		bar = progress.New(int64(len(files)),
 			mpb.BarStyle().Lbound("[").Filler("=").Tip(">").Padding(" ").Rbound("]"),
@@ -127,7 +135,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(filePath)
-		detected, err := a.FormatReg.Detector().DetectByExtension(ext)
+		detected, err := a.FormatReg.DetectByExtension(ext)
 		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
@@ -140,7 +148,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		fmtName = detected
 	}
 
-	reader, err := a.FormatReg.NewReader(fmtName)
+	ref := pluginreg.ParseFormatRef(fmtName)
+	registryName := ref.RegistryName()
+
+	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
 		if !cfg.FailOnUnknown {
 			if !cfg.NoWarn {
@@ -151,8 +162,26 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
+	if ref.IsPreset() {
+		presetReg := a.PluginLoader.Presets()
+		preset.RegisterBuiltins(presetReg)
+		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
+
+		mergedConfig, err := resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
+		if err != nil {
+			return fmt.Errorf("resolve format config: %w", err)
+		}
+		if len(mergedConfig) > 0 {
+			if cfg := reader.Config(); cfg != nil {
+				if err := cfg.ApplyMap(mergedConfig); err != nil {
+					return fmt.Errorf("apply format config: %w", err)
+				}
+			}
+		}
+	}
+
 	if cfg.OutputTemplate != "" {
-		if _, err := a.FormatReg.NewWriter(fmtName); err != nil {
+		if _, err := a.FormatReg.NewWriter(registryName); err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
 					warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
@@ -232,7 +261,7 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	if cfg.OutputTemplate != "" {
 		outputPath := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
 
-		writer, err := a.FormatReg.NewWriter(fmtName)
+		writer, err := a.FormatReg.NewWriter(registryName)
 		if err != nil {
 			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 		}
@@ -265,13 +294,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 			return fmt.Errorf("close writer %s: %w", outputPath, err)
 		}
 
-		if !a.Quiet {
-			msg := fmt.Sprintf("%s → %s\n", filePath, outputPath)
-			if progress != nil {
-				fmt.Fprint(progress, msg)
-			} else {
-				fmt.Fprint(os.Stderr, msg)
-			}
+		if !a.Quiet && progress == nil {
+			fmt.Fprintf(os.Stderr, "%s → %s\n", filePath, outputPath)
 		}
 		return nil
 	}

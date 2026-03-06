@@ -48,7 +48,6 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 			concurrency, _ := cmd.Flags().GetInt("concurrency")
 
 			if len(inputPaths) > 0 {
-				a.EnsureBridgesLoaded()
 				if a.TargetLang == "" {
 					if flowName == "pseudo-translate" {
 						a.TargetLang = "qps"
@@ -113,7 +112,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(inputPath)
-		detected, err := a.FormatReg.Detector().DetectByExtension(ext)
+		detected, err := a.FormatReg.DetectByExtension(ext)
 		if err != nil {
 			return fmt.Errorf("unable to detect format: %w", err)
 		}
@@ -121,7 +120,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	}
 
 	ref := pluginreg.ParseFormatRef(fmtName)
-	resolvedFmtName := ref.Name
+	registryName := ref.RegistryName()
 
 	var mergedConfig map[string]any
 	if ref.IsPreset() {
@@ -130,18 +129,15 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
 
 		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(resolvedFmtName, ref.Preset, nil, nil)
+		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
 		if err != nil {
 			return fmt.Errorf("resolve format config: %w", err)
 		}
 	}
 
-	reader, err := a.FormatReg.NewReader(resolvedFmtName)
+	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
-		reader, err = a.FormatReg.NewReader(fmtName)
-		if err != nil {
-			return fmt.Errorf("no reader for format %q: %w", fmtName, err)
-		}
+		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
 	if len(mergedConfig) > 0 {
@@ -214,12 +210,9 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
 	}
 
-	writer, err := a.FormatReg.NewWriter(resolvedFmtName)
+	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
-		writer, err = a.FormatReg.NewWriter(fmtName)
-		if err != nil {
-			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
-		}
+		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {

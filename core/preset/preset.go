@@ -25,6 +25,6 @@ type FrameworkPreset struct {
 type MappingTemplate struct {
 	Local      string // Glob pattern
 	Remote     string // Remote template
-	Format     string // Format ID (may include @preset)
+	Format     string // Format ID (may include :preset)
 	TargetPath string // Target locale template
 }

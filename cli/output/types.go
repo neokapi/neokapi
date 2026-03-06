@@ -80,12 +80,13 @@ func (f FormatsListOutput) FormatText(w io.Writer) error {
 
 // PluginInfo represents a single plugin entry.
 type PluginInfo struct {
-	Name       string `json:"name"`
-	Version    string `json:"version,omitempty"`
-	PluginType string `json:"plugin_type,omitempty"`
-	Status     string `json:"status"`
-	Formats    int    `json:"formats,omitempty"`
-	Path       string `json:"path,omitempty"`
+	Name             string `json:"name"`
+	Version          string `json:"version,omitempty"`
+	FrameworkVersion string `json:"framework_version,omitempty"`
+	PluginType       string `json:"plugin_type,omitempty"`
+	Status           string `json:"status"`
+	Formats          int    `json:"formats,omitempty"`
+	Path             string `json:"path,omitempty"`
 }
 
 // PluginsListOutput represents the list of plugins.
@@ -102,18 +103,35 @@ func (p PluginsListOutput) FormatText(w io.Writer) error {
 
 	fmt.Fprintln(w, "Installed plugins:")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8s %s\n",
-		"NAME", "VERSION", "TYPE", "STATUS", "FORMATS", "PATH")
-	fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8s %s\n",
-		"----", "-------", "----", "------", "-------", "----")
+
+	// Compute dynamic column width for version.
+	versionWidth := len("VERSION")
+	for _, plugin := range p.Plugins {
+		v := plugin.Version
+		if plugin.FrameworkVersion != "" {
+			v += " (" + plugin.FrameworkVersion + ")"
+		}
+		if len(v) > versionWidth {
+			versionWidth = len(v)
+		}
+	}
+	versionWidth += 2 // padding
+
+	hdrFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%s\n", versionWidth)
+	rowFmt := fmt.Sprintf("  %%-20s %%-%ds %%-10s %%-10s %%d\n", versionWidth)
+	fmt.Fprintf(w, hdrFmt, "NAME", "VERSION", "TYPE", "STATUS", "FORMATS")
+	fmt.Fprintf(w, hdrFmt, "----", "-------", "----", "------", "-------")
 
 	for _, plugin := range p.Plugins {
 		pluginType := plugin.PluginType
 		if pluginType == "" {
 			pluginType = "-"
 		}
-		fmt.Fprintf(w, "  %-20s %-10s %-10s %-10s %-8d %s\n",
-			plugin.Name, plugin.Version, pluginType, plugin.Status, plugin.Formats, plugin.Path)
+		version := plugin.Version
+		if plugin.FrameworkVersion != "" {
+			version += " (" + plugin.FrameworkVersion + ")"
+		}
+		fmt.Fprintf(w, rowFmt, plugin.Name, version, pluginType, plugin.Status, plugin.Formats)
 	}
 	fmt.Fprintf(w, "\nTotal: %d plugin(s)\n", p.Total)
 	return nil
@@ -289,7 +307,7 @@ func (p PresetsListOutput) FormatText(w io.Writer) error {
 				fmt.Fprintf(w, "  %s\n", currentFormat)
 			}
 			presetName := p.Name
-			if idx := strings.Index(presetName, "@"); idx >= 0 {
+			if idx := strings.Index(presetName, ":"); idx >= 0 {
 				presetName = presetName[idx:]
 			}
 			fmt.Fprintf(w, "    %-30s %s\n", presetName, p.Description)

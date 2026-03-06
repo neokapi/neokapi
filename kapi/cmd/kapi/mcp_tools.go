@@ -203,7 +203,7 @@ func handleDetectFormat(a *cli.App, input DetectFormatInput) (*mcp.CallToolResul
 		return nil, DetectFormatOutput{}, fmt.Errorf("no file extension in path %q", input.Path)
 	}
 
-	fmtName, err := a.FormatReg.Detector().DetectByExtension(ext)
+	fmtName, err := a.FormatReg.DetectByExtension(ext)
 	if err != nil {
 		return nil, DetectFormatOutput{}, fmt.Errorf("unable to detect format: %w", err)
 	}
@@ -373,11 +373,10 @@ func handlePseudoTranslate(ctx context.Context, a *cli.App, input PseudoTranslat
 // openReader detects the format, creates a reader, and opens the document.
 // Caller must call reader.Close().
 func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLang string) (string, format.DataFormatReader, error) {
-	a.EnsureBridgesLoaded()
 	fmtName := formatOverride
 	if fmtName == "" {
 		ext := filepath.Ext(path)
-		detected, err := a.FormatReg.Detector().DetectByExtension(ext)
+		detected, err := a.FormatReg.DetectByExtension(ext)
 		if err != nil {
 			return "", nil, fmt.Errorf("unable to detect format: %w", err)
 		}
@@ -416,7 +415,7 @@ func openReader(ctx context.Context, a *cli.App, path, formatOverride, sourceLan
 // createReader creates a format reader, handling preset syntax.
 func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 	ref := pluginreg.ParseFormatRef(fmtName)
-	resolvedName := ref.Name
+	registryName := ref.RegistryName()
 
 	var mergedConfig map[string]any
 	if ref.IsPreset() {
@@ -425,18 +424,15 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
 
 		var err error
-		mergedConfig, err = resolver.ResolveFormatConfig(resolvedName, ref.Preset, nil, nil)
+		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
 		if err != nil {
 			return nil, fmt.Errorf("resolve format config: %w", err)
 		}
 	}
 
-	reader, err := a.FormatReg.NewReader(resolvedName)
+	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
-		reader, err = a.FormatReg.NewReader(fmtName)
-		if err != nil {
-			return nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
-		}
+		return nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
 	if len(mergedConfig) > 0 {
@@ -452,22 +448,18 @@ func createReader(a *cli.App, fmtName string) (format.DataFormatReader, error) {
 
 // executeFlow runs a named flow on a file and writes the result.
 func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLang, targetLang, outputPath string) (string, error) {
-	a.EnsureBridgesLoaded()
 	ext := filepath.Ext(inputPath)
-	fmtName, err := a.FormatReg.Detector().DetectByExtension(ext)
+	fmtName, err := a.FormatReg.DetectByExtension(ext)
 	if err != nil {
 		return "", fmt.Errorf("unable to detect format: %w", err)
 	}
 
 	ref := pluginreg.ParseFormatRef(fmtName)
-	resolvedFmtName := ref.Name
+	registryName := ref.RegistryName()
 
-	reader, err := a.FormatReg.NewReader(resolvedFmtName)
+	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
-		reader, err = a.FormatReg.NewReader(fmtName)
-		if err != nil {
-			return "", fmt.Errorf("no reader for format %q: %w", fmtName, err)
-		}
+		return "", fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
 	inputContent, err := os.ReadFile(inputPath)
@@ -530,12 +522,9 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
 	}
 
-	writer, err := a.FormatReg.NewWriter(resolvedFmtName)
+	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
-		writer, err = a.FormatReg.NewWriter(fmtName)
-		if err != nil {
-			return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
-		}
+		return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {

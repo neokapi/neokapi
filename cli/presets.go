@@ -152,7 +152,7 @@ func frameworkPresetEntry(p *preset.FrameworkPreset) output.PresetEntry {
 
 func formatPresetEntry(format string, p *preset.FormatPreset) output.PresetEntry {
 	return output.PresetEntry{
-		Name:        format + "@" + p.Name,
+		Name:        format + ":" + p.Name,
 		Type:        "format",
 		Description: p.Description,
 		Format:      p.Format,
