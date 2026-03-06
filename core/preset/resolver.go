@@ -90,7 +90,7 @@ func (r *ConfigResolver) ResolveFormatConfig(
 			if suffix == "" {
 				suffix = "overrides"
 			}
-			return nil, fmt.Errorf("config for %s@%s: %w", formatName, suffix, err)
+			return nil, fmt.Errorf("config for %s:%s: %w", formatName, suffix, err)
 		}
 	}
 

@@ -253,6 +253,37 @@ func TestResolveFormatConfig_ConfigFile(t *testing.T) {
 	assert.Equal(t, false, result["translateComments"])
 }
 
+func TestResolveFormatConfig_ConfigFileSchemaValidation(t *testing.T) {
+	dir := t.TempDir()
+
+	validator := &mockSchemaValidator{
+		schemas: map[string]map[string]string{
+			"okf_html": {"assumeWellformed": "boolean", "preserveWhitespace": "boolean"},
+		},
+	}
+
+	// Valid config file
+	validPath := filepath.Join(dir, "valid.yaml")
+	err := os.WriteFile(validPath, []byte("assumeWellformed: true\n"), 0o644)
+	require.NoError(t, err)
+
+	reg := NewPresetRegistry()
+	resolver := NewConfigResolver(reg, validator)
+
+	result, err := resolver.ResolveFormatConfig("okf_html", validPath, nil, nil)
+	require.NoError(t, err)
+	assert.Equal(t, true, result["assumeWellformed"])
+
+	// Invalid config file (unknown parameter)
+	invalidPath := filepath.Join(dir, "invalid.yaml")
+	err = os.WriteFile(invalidPath, []byte("badParam: true\n"), 0o644)
+	require.NoError(t, err)
+
+	_, err = resolver.ResolveFormatConfig("okf_html", invalidPath, nil, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown parameter")
+}
+
 func TestResolveFormatConfig_ConfigFileWithOverrides(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "openxml.yaml")
