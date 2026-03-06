@@ -1,13 +1,11 @@
 package main
 
-import (
-	"fmt"
-	"os"
-)
+import "os"
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	err := rootCmd.Execute()
+	app.Shutdown()
+	if err != nil {
 		os.Exit(1)
 	}
 }

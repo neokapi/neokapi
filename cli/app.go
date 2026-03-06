@@ -114,8 +114,9 @@ func (a *App) EnsureBridgesLoaded() {
 	}
 }
 
-// Shutdown cleans up plugin resources.
-// Call this in PersistentPostRun.
+// Shutdown cleans up plugin resources (stops bridge processes, etc.).
+// Must be called before the process exits — typically from main() after
+// Execute() returns, to ensure cleanup runs even when RunE returns an error.
 func (a *App) Shutdown() {
 	if a.PluginLoader != nil {
 		a.PluginLoader.Shutdown()
