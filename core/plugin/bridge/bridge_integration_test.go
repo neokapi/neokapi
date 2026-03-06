@@ -134,16 +134,28 @@ func TestIntegrationSchemaLoading(t *testing.T) {
 	}
 
 	// Schemas with rich properties should have them parsed correctly.
+	// Properties contains the raw schema sections; FlatProperties has flattened names.
 	jsonSchema, ok := reg.GetSchema("okf_json")
 	require.True(t, ok)
 	assert.NotEmpty(t, jsonSchema.Properties, "okf_json should have properties")
-	assert.Contains(t, jsonSchema.Properties, "extractAllPairs")
-	assert.Equal(t, "boolean", jsonSchema.Properties["extractAllPairs"].Type)
+	assert.Contains(t, jsonSchema.Properties, "extraction",
+		"okf_json should have 'extraction' section in Properties")
+	assert.NotEmpty(t, jsonSchema.FlatProperties, "okf_json should have FlatProperties")
+	assert.Contains(t, jsonSchema.FlatProperties, "extractAllPairs",
+		"okf_json FlatProperties should contain 'extractAllPairs'")
+	assert.Equal(t, "boolean", jsonSchema.FlatProperties["extractAllPairs"].Type)
 
-	// Validate known-good params pass validation.
+	// SectionMap should map flat names to section keys.
+	assert.Equal(t, "extraction", jsonSchema.SectionMap["extractAllPairs"])
+
+	// GetSectionMap should work by filter class.
+	sm := reg.GetSectionMap("net.sf.okapi.filters.json.JSONFilter")
+	assert.NotNil(t, sm, "should have section map for JSON filter class")
+	assert.Equal(t, "extraction", sm["extractAllPairs"])
+
+	// Validate known-good params pass validation (uses FlatProperties).
 	err := reg.ValidateParams("okf_json", map[string]any{
 		"extractAllPairs": true,
-		"useCodeFinder":   false,
 	})
 	assert.NoError(t, err)
 

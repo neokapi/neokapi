@@ -61,6 +61,21 @@ func TestInfoData(t *testing.T) {
 	assert.Len(t, info.MimeTypes, 1)
 }
 
+func TestEncodeFilterParams_HierarchicalParams(t *testing.T) {
+	// Params should be passed in hierarchical schema format.
+	// Section keys like "parser" map to JSON objects with their properties.
+	result := encodeFilterParams(map[string]any{
+		"elements": map[string]any{
+			"pre": map[string]any{"ruleTypes": []string{"EXCLUDE"}},
+		},
+		"parser": map[string]any{
+			"assumeWellformed": true,
+		},
+	})
+	assert.Contains(t, result["elements"], `"pre"`)
+	assert.Contains(t, result["parser"], `"assumeWellformed"`)
+}
+
 func TestListFiltersData(t *testing.T) {
 	lf := ListFiltersData{
 		Filters: []FilterEntry{

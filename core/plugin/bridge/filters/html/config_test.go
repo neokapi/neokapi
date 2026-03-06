@@ -26,14 +26,18 @@ func TestConfigSupport_CollapseWhitespace(t *testing.T) {
 	html := "<p> t1  \nt2  </p>"
 
 	// preserve_whitespace: false → whitespace collapsed.
-	params := map[string]any{"preserve_whitespace": false}
+	params := map[string]any{
+		"parser": map[string]any{"preserveWhitespace": false},
+	}
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "t1 t2", blocks[0].SourceText())
 
 	// preserve_whitespace: true → whitespace preserved.
-	params2 := map[string]any{"preserve_whitespace": true}
+	params2 := map[string]any{
+		"parser": map[string]any{"preserveWhitespace": true},
+	}
 	parts2 := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params2)
 	blocks2 := bridgetest.TranslatableBlocks(parts2)
 	require.NotEmpty(t, blocks2)
@@ -52,7 +56,7 @@ func TestConfigSupport_PreserveWhitespace(t *testing.T) {
 	// and verifies that <p> collapses while <pre> preserves.
 	html := "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
 	params := map[string]any{
-		"preserve_whitespace": false,
+		"parser": map[string]any{"preserveWhitespace": false},
 	}
 
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
@@ -70,7 +74,9 @@ func TestConfigSupport_GlobalPreserveWhitespace(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	html := "<p> t1  \nt2  </p><pre> t3  \nt4  </pre>"
-	params := map[string]any{"preserve_whitespace": true}
+	params := map[string]any{
+		"parser": map[string]any{"preserveWhitespace": true},
+	}
 
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass, html, "test.html", mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -351,7 +357,7 @@ func TestConfigSupport_AllElementsExcept(t *testing.T) {
 	params := map[string]any{
 		"attributes": map[string]any{
 			"alt": map[string]any{
-				"ruleTypes":        []string{"ATTRIBUTE_TRANS"},
+				"ruleTypes":         []string{"ATTRIBUTE_TRANS"},
 				"allElementsExcept": []string{"elem2", "elem3"},
 			},
 		},
@@ -825,7 +831,7 @@ func TestConfig_TextUnitCodeTypes(t *testing.T) {
 
 	// Use well-formed configuration.
 	params := map[string]any{
-		"assumeWellformed": true,
+		"parser": map[string]any{"assumeWellformed": true},
 	}
 
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
@@ -872,7 +878,9 @@ func TestConfig_CollapseWhitespace(t *testing.T) {
 		"default config should collapse whitespace")
 
 	// With preserve_whitespace=true, whitespace should be preserved.
-	params := map[string]any{"preserve_whitespace": true}
+	params := map[string]any{
+		"parser": map[string]any{"preserveWhitespace": true},
+	}
 	parts2 := bridgetest.ReadString(t, pool, cfg, filterClass,
 		html, "test.html", mimeType, params)
 
@@ -1011,7 +1019,7 @@ func TestConfig_AttributeID(t *testing.T) {
 
 	// Use well-formed configuration where id is configured as ATTRIBUTE_ID.
 	params := map[string]any{
-		"assumeWellformed": true,
+		"parser": map[string]any{"assumeWellformed": true},
 	}
 
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,

@@ -196,8 +196,8 @@ func TestEvents_PreserveWhitespace(t *testing.T) {
 // okapi: XmlStreamEventTest#testExcludeByDefault
 func TestEvents_ExcludeByDefault(t *testing.T) {
 	params := map[string]any{
-		"exclude_by_default":  true,
-		"preserve_whitespace": false,
+		"exclude_by_default": true,
+		"parser":             map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			".*": map[string]any{
 				"ruleTypes":  []string{"INCLUDE"},

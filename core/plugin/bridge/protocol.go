@@ -71,7 +71,9 @@ type ListFiltersData struct {
 }
 
 // encodeFilterParams converts map[string]any to map[string]string for proto.
-// Complex values are JSON-encoded.
+// Complex values are JSON-encoded. Parameters should use the hierarchical
+// structure matching the filter's JSON schema (section objects with nested
+// properties), not flat Okapi parameter names.
 func encodeFilterParams(params map[string]any) map[string]string {
 	if len(params) == 0 {
 		return nil

@@ -25,8 +25,17 @@ type FilterSchema struct {
 	// Parameter groupings for UI
 	Groups []ParameterGroup `json:"x-groups,omitempty"`
 
-	// Properties (parameters)
+	// Properties contains the raw schema structure (section objects).
 	Properties map[string]PropertySchema `json:"properties"`
+
+	// FlatProperties maps flat Okapi parameter names to their schemas.
+	// Built from x-flattenPath annotations during loading.
+	FlatProperties map[string]PropertySchema `json:"-"`
+
+	// SectionMap maps flat parameter names to their schema section keys.
+	// Used to wrap flat params into the hierarchical format the bridge expects.
+	// E.g., "elements" → "elements", "extractAllPairs" → "extraction".
+	SectionMap map[string]string `json:"-"`
 
 	// Raw JSON for full schema access
 	RawJSON json.RawMessage `json:"-"`
@@ -74,21 +83,35 @@ type PropertySchema struct {
 	Presets     map[string]any `json:"x-presets,omitempty"`
 	OkapiFormat string         `json:"x-okapiFormat,omitempty"`
 
+	// Parameter flattening path (maps hierarchical schema key to flat Okapi name)
+	FlattenPath string `json:"x-flattenPath,omitempty"`
+
 	// Nested properties for object types
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
 }
 
 // SchemaRegistry manages filter parameter schemas.
 type SchemaRegistry struct {
-	mu      sync.RWMutex
-	schemas map[string]*FilterSchema // filterID -> schema
+	mu              sync.RWMutex
+	schemas         map[string]*FilterSchema    // filterID -> schema
+	classSections   map[string]map[string]string // filterClass -> sectionMap
 }
 
 // NewSchemaRegistry creates a new schema registry.
 func NewSchemaRegistry() *SchemaRegistry {
 	return &SchemaRegistry{
-		schemas: make(map[string]*FilterSchema),
+		schemas:       make(map[string]*FilterSchema),
+		classSections: make(map[string]map[string]string),
 	}
+}
+
+// GetSectionMap returns the flat-param → section-key mapping for a filter class.
+// The bridge uses this to wrap flat parameters into the hierarchical JSON
+// structure that the bridge's schema-based ParameterFlattener expects.
+func (r *SchemaRegistry) GetSectionMap(filterClass string) map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.classSections[filterClass]
 }
 
 // LoadFromDirectory loads all *.schema.json files from a directory.
@@ -137,12 +160,38 @@ func (r *SchemaRegistry) loadSchemaFile(path string) error {
 	// Store the raw JSON for full access
 	schema.RawJSON = data
 
+	// Build flat properties and section map from hierarchical schema.
+	schema.FlatProperties = make(map[string]PropertySchema)
+	schema.SectionMap = make(map[string]string)
+	for sectionKey, section := range schema.Properties {
+		if section.Type == "object" && len(section.Properties) > 0 {
+			for _, prop := range section.Properties {
+				if prop.FlattenPath != "" {
+					schema.FlatProperties[prop.FlattenPath] = prop
+					schema.SectionMap[prop.FlattenPath] = sectionKey
+				}
+			}
+		} else {
+			// Top-level non-section properties (e.g., inlineCodes $ref)
+			schema.FlatProperties[sectionKey] = section
+		}
+	}
+
 	// Use the filter ID from x-filter.id, or derive from filename
 	filterID := schema.FilterMeta.ID
 	if filterID == "" {
-		// Derive from filename: okf_json.schema.json -> okf_json
+		// Derive from filename: okf_json.v4.schema.json -> okf_json
 		base := filepath.Base(path)
 		filterID = strings.TrimSuffix(base, ".schema.json")
+		// Strip version suffix: okf_json.v4 -> okf_json
+		if idx := strings.LastIndex(filterID, ".v"); idx > 0 {
+			filterID = filterID[:idx]
+		}
+	}
+
+	// Index by filter class for bridge lookups.
+	if schema.FilterMeta.Class != "" {
+		r.classSections[schema.FilterMeta.Class] = schema.SectionMap
 	}
 
 	r.schemas[filterID] = &schema
@@ -214,8 +263,15 @@ func (r *SchemaRegistry) ValidateParams(filterID string, params map[string]any) 
 
 	var errors []string
 
+	// Use FlatProperties if available (populated from x-flattenPath),
+	// otherwise fall back to raw Properties (for hand-crafted flat schemas in tests).
+	props := schema.FlatProperties
+	if len(props) == 0 {
+		props = schema.Properties
+	}
+
 	for paramName, value := range params {
-		prop, ok := schema.Properties[paramName]
+		prop, ok := props[paramName]
 		if !ok {
 			// Unknown parameter
 			suggestion := r.findSimilarParam(schema, paramName)
@@ -242,8 +298,12 @@ func (r *SchemaRegistry) ValidateParams(filterID string, params map[string]any) 
 
 // findSimilarParam finds a similar parameter name for suggestions.
 func (r *SchemaRegistry) findSimilarParam(schema *FilterSchema, name string) string {
+	props := schema.FlatProperties
+	if len(props) == 0 {
+		props = schema.Properties
+	}
 	name = strings.ToLower(name)
-	for paramName := range schema.Properties {
+	for paramName := range props {
 		if strings.ToLower(paramName) == name {
 			return paramName
 		}

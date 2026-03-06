@@ -35,7 +35,7 @@ func findDataPartWithProperty(parts []*model.Part, key string) *model.Data {
 // okapi: HtmlEventTest#testWithDefaultConfig
 func TestEvents_WithDefaultConfig(t *testing.T) {
 	params := map[string]any{
-		"assumeWellformed": false,
+		"parser": map[string]any{"assumeWellformed": false},
 	}
 
 	// testMetaTagContent: extract meta keywords content
@@ -90,7 +90,7 @@ func TestEvents_WithDefaultConfig(t *testing.T) {
 // okapi: HtmlEventTest#testHtmlKeywordsNotExtracted
 func TestEvents_HtmlKeywordsNotExtracted(t *testing.T) {
 	params := map[string]any{
-		"assumeWellformed": false,
+		"parser": map[string]any{"assumeWellformed": false},
 	}
 
 	parts := readHTML(t, `<meta http-equiv="keywords" content="keyword text"/>`, params)
