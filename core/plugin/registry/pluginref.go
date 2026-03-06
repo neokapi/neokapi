@@ -32,35 +32,60 @@ func (r PluginRef) IsVersioned() bool {
 	return r.Version != ""
 }
 
-// FormatRef identifies a format, optionally pinned to a specific version or preset.
+// FormatRef identifies a format, optionally pinned to a specific version and/or preset.
 // The name part is a format name (e.g. "okapi-html"), not a pack name.
+//
+// Syntax: name[@version][:preset]
+//
+//	okf_openxml           — latest version, default config
+//	okf_openxml@0.38      — pinned version, default config
+//	okf_openxml:wellFormed — latest version, preset config
+//	okf_openxml@0.38:wellFormed — pinned version + preset config
 type FormatRef struct {
 	Name    string // e.g. "okapi-html"
-	Version string // e.g. "1.46.0" (semver suffix)
-	Preset  string // e.g. "wellFormed" (non-semver suffix)
+	Version string // e.g. "1.46.0"
+	Preset  string // e.g. "wellFormed"
 }
 
-// ParseFormatRef parses a string like "okapi-html@1.46.0" or "okapi-html@wellFormed"
-// into a FormatRef. If the suffix after @ consists solely of digits and dots
-// (e.g. "1.46.0"), it is treated as a version; otherwise it is treated as a preset.
+// ParseFormatRef parses a format reference string using the syntax name[@version][:preset].
+// The "@" separator denotes a version and ":" denotes a preset. Both are optional and
+// can be combined (e.g. "okf_openxml@0.38:wellFormed").
 func ParseFormatRef(s string) FormatRef {
-	if i := strings.LastIndex(s, "@"); i > 0 {
-		suffix := s[i+1:]
-		if isSemver(suffix) {
-			return FormatRef{Name: s[:i], Version: suffix}
-		}
-		return FormatRef{Name: s[:i], Preset: suffix}
+	var ref FormatRef
+
+	// Split on ":" first to extract preset.
+	if i := strings.Index(s, ":"); i > 0 {
+		ref.Preset = s[i+1:]
+		s = s[:i]
 	}
-	return FormatRef{Name: s}
+
+	// Split on "@" to extract version.
+	if i := strings.LastIndex(s, "@"); i > 0 {
+		ref.Version = s[i+1:]
+		s = s[:i]
+	}
+
+	ref.Name = s
+	return ref
 }
 
-// String returns "name@version" if versioned, "name@preset" if a preset, or just "name".
+// String returns the canonical string representation: name[@version][:preset].
 func (r FormatRef) String() string {
+	s := r.Name
 	if r.Version != "" {
-		return r.Name + "@" + r.Version
+		s += "@" + r.Version
 	}
 	if r.Preset != "" {
-		return r.Name + "@" + r.Preset
+		s += ":" + r.Preset
+	}
+	return s
+}
+
+// RegistryName returns the name used for format registry lookups:
+// "name@version" if versioned, or just "name" for latest.
+func (r FormatRef) RegistryName() string {
+	if r.Version != "" {
+		return r.Name + "@" + r.Version
 	}
 	return r.Name
 }
@@ -75,19 +100,6 @@ func (r FormatRef) IsPreset() bool {
 	return r.Preset != ""
 }
 
-// isSemver reports whether s looks like a semver string: consists solely of
-// digits and dots, starts with a digit, and ends with a digit.
-func isSemver(s string) bool {
-	if len(s) == 0 {
-		return false
-	}
-	for _, c := range s {
-		if c != '.' && (c < '0' || c > '9') {
-			return false
-		}
-	}
-	return s[0] >= '0' && s[0] <= '9' && s[len(s)-1] >= '0' && s[len(s)-1] <= '9'
-}
 
 // CompareSemver compares two semantic version strings (major.minor.patch).
 // Returns -1 if a < b, 0 if a == b, +1 if a > b.

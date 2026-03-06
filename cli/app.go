@@ -93,6 +93,12 @@ func (a *App) Init() {
 	for name, priority := range a.Config.FormatPriorities() {
 		a.FormatReg.SetFormatPriority(name, priority)
 	}
+
+	// Register lazy bridge loading: bridges start only when a non-built-in
+	// format is requested for the first time.
+	a.FormatReg.SetOnMiss(func() {
+		a.EnsureBridgesLoaded()
+	})
 }
 
 // EnsureBridgesLoaded starts bridge plugin processes if not already started.

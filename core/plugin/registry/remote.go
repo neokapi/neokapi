@@ -229,23 +229,28 @@ func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
 	// Falls back to registry manifest metadata if the plugin doesn't ship one.
 	pluginType := manifest.PluginType
 	capabilities := manifest.Capabilities
+	frameworkVersion := manifest.FrameworkVersion
 	if bm, err := ReadBundledManifest(destDir); err == nil && bm != nil {
 		pluginType = bm.PluginType
 		capabilities = bm.Capabilities
 		if bm.InstallType != "" {
 			installType = bm.InstallType
 		}
+		if bm.FrameworkVersion != "" {
+			frameworkVersion = bm.FrameworkVersion
+		}
 	}
 
 	// Write version tracking file.
 	vf := &VersionFile{
-		Name:         manifest.Name,
-		Version:      manifest.Version,
-		InstallType:  installType,
-		PluginType:   pluginType,
-		Capabilities: capabilities,
-		InstalledAt:  time.Now().UTC().Format(time.RFC3339),
-		Checksum:     manifest.Checksum,
+		Name:             manifest.Name,
+		Version:          manifest.Version,
+		FrameworkVersion: frameworkVersion,
+		InstallType:      installType,
+		PluginType:       pluginType,
+		Capabilities:     capabilities,
+		InstalledAt:      time.Now().UTC().Format(time.RFC3339),
+		Checksum:         manifest.Checksum,
 	}
 	if err := WriteVersionFile(r.DownloadDir, manifest.Name, manifest.Version, vf); err != nil {
 		return nil, fmt.Errorf("writing version file: %w", err)

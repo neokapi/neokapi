@@ -193,16 +193,21 @@ Deep map merge at each layer: maps merge recursively; scalar values replace.
 This lets presets provide comprehensive defaults while users override specific
 values per mapping.
 
-#### @-Notation
+#### Format Reference Syntax
 
-The `format@suffix` syntax in mapping format fields serves dual purpose:
+The format reference syntax `name[@version][:preset]` uses separate delimiters
+for version and preset:
 
-- If the suffix matches semver (digits and dots only): **version pin**
-  (`okf_html@1.46.0`)
-- Otherwise: **preset reference** (`okf_html@wellFormed`)
+- `@` denotes a **version pin** (`okf_html@1.46.0`)
+- `:` denotes a **preset reference** (`okf_html:wellFormed`)
+- Both can be combined: `okf_openxml@0.38:wellFormed`
 
-Preset names must not consist solely of digits and dots, ensuring unambiguous
-parsing.
+| Reference | Version | Preset |
+|---|---|---|
+| `okf_openxml` | latest | default |
+| `okf_openxml@0.38` | 0.38 | default |
+| `okf_openxml:wellFormed` | latest | wellFormed |
+| `okf_openxml@0.38:wellFormed` | 0.38 | wellFormed |
 
 #### Design Principle
 

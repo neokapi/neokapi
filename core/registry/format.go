@@ -35,6 +35,13 @@ type FormatRegistry struct {
 	writers  map[string]FormatWriterFactory
 	infos    map[string]*FormatInfo
 	detector *format.FormatDetector
+
+	// onMiss is called once when NewReader/NewWriter fails to find a format.
+	// It allows lazy-loading of plugin formats (e.g., starting bridge processes)
+	// only when a non-built-in format is actually needed.
+	// Uses sync.Once to ensure concurrent callers block until loading completes.
+	onMiss     func()
+	onMissOnce sync.Once
 }
 
 // NewFormatRegistry creates a new FormatRegistry.
@@ -45,6 +52,31 @@ func NewFormatRegistry() *FormatRegistry {
 		infos:    make(map[string]*FormatInfo),
 		detector: format.NewFormatDetector(),
 	}
+}
+
+// SetOnMiss registers a callback invoked once when NewReader or NewWriter
+// cannot find a format among currently registered factories. This is used
+// to lazily load bridge plugins only when a non-built-in format is needed.
+func (r *FormatRegistry) SetOnMiss(fn func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.onMiss = fn
+	r.onMissOnce = sync.Once{}
+}
+
+// triggerOnMiss calls the onMiss callback if set and not yet called.
+// All concurrent callers block until the callback completes, ensuring
+// lazy-loaded formats are available before any caller retries the lookup.
+func (r *FormatRegistry) triggerOnMiss() bool {
+	r.mu.RLock()
+	fn := r.onMiss
+	r.mu.RUnlock()
+
+	if fn == nil {
+		return false
+	}
+	r.onMissOnce.Do(fn)
+	return true
 }
 
 // RegisterReader registers a DataFormatReader factory and its detection signature.
@@ -206,20 +238,32 @@ func (r *FormatRegistry) getOrCreateInfo(name string) *FormatInfo {
 	return info
 }
 
+// DetectByExtension maps a file extension to a registered format name.
+// If detection fails and an onMiss callback is set, it triggers lazy loading
+// (e.g., starting bridge processes) and retries once.
+func (r *FormatRegistry) DetectByExtension(ext string) (string, error) {
+	if name, err := r.detector.DetectByExtension(ext); err == nil {
+		return name, nil
+	}
+	if r.triggerOnMiss() {
+		return r.detector.DetectByExtension(ext)
+	}
+	return "", fmt.Errorf("no format found for extension %q", ext)
+}
+
 // NewReader creates a new reader instance for the given format name.
 // If the name contains "@", it looks up the exact versioned name.
 // If the bare name is not found, it scans for versioned entries and
 // returns the latest version as a fallback.
+// If no reader is found and an onMiss callback is set, it triggers
+// lazy loading (e.g., starting bridge processes) and retries once.
 func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	factory, ok := r.readers[name]
-	if ok {
-		return factory(), nil
+	if f := r.findReader(name); f != nil {
+		return f(), nil
 	}
-	// Fallback: if name has no "@", scan for versioned entries.
-	if !strings.Contains(name, "@") {
-		if f := r.findLatestReader(name); f != nil {
+	// Trigger lazy loading and retry once.
+	if r.triggerOnMiss() {
+		if f := r.findReader(name); f != nil {
 			return f(), nil
 		}
 	}
@@ -230,20 +274,45 @@ func (r *FormatRegistry) NewReader(name string) (format.DataFormatReader, error)
 // If the name contains "@", it looks up the exact versioned name.
 // If the bare name is not found, it scans for versioned entries and
 // returns the latest version as a fallback.
+// If no writer is found and an onMiss callback is set, it triggers
+// lazy loading (e.g., starting bridge processes) and retries once.
 func (r *FormatRegistry) NewWriter(name string) (format.DataFormatWriter, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	factory, ok := r.writers[name]
-	if ok {
-		return factory(), nil
+	if f := r.findWriter(name); f != nil {
+		return f(), nil
 	}
-	// Fallback: if name has no "@", scan for versioned entries.
-	if !strings.Contains(name, "@") {
-		if f := r.findLatestWriter(name); f != nil {
+	// Trigger lazy loading and retry once.
+	if r.triggerOnMiss() {
+		if f := r.findWriter(name); f != nil {
 			return f(), nil
 		}
 	}
 	return nil, fmt.Errorf("unknown format writer: %s", name)
+}
+
+// findReader looks up a reader factory by exact name or latest versioned entry.
+func (r *FormatRegistry) findReader(name string) FormatReaderFactory {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if factory, ok := r.readers[name]; ok {
+		return factory
+	}
+	if !strings.Contains(name, "@") {
+		return r.findLatestReader(name)
+	}
+	return nil
+}
+
+// findWriter looks up a writer factory by exact name or latest versioned entry.
+func (r *FormatRegistry) findWriter(name string) FormatWriterFactory {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if factory, ok := r.writers[name]; ok {
+		return factory
+	}
+	if !strings.Contains(name, "@") {
+		return r.findLatestWriter(name)
+	}
+	return nil
 }
 
 // findLatestReader scans the readers map for entries matching "name@version"
@@ -371,4 +440,20 @@ func (r *FormatRegistry) HasWriter(name string) bool {
 	defer r.mu.RUnlock()
 	_, ok := r.writers[name]
 	return ok
+}
+
+// ReaderFactory returns the reader factory for the given format name, or nil.
+// Use this to build alias factories without triggering lock re-entry.
+func (r *FormatRegistry) ReaderFactory(name string) FormatReaderFactory {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.readers[name]
+}
+
+// WriterFactory returns the writer factory for the given format name, or nil.
+// Use this to build alias factories without triggering lock re-entry.
+func (r *FormatRegistry) WriterFactory(name string) FormatWriterFactory {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.writers[name]
 }

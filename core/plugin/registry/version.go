@@ -9,13 +9,24 @@ import (
 
 // VersionFile tracks metadata about an installed plugin.
 type VersionFile struct {
-	Name         string       `json:"name"`
-	Version      string       `json:"version"`
-	InstallType  string       `json:"install_type"`
-	PluginType   string       `json:"plugin_type,omitempty"`
-	Capabilities []Capability `json:"capabilities,omitempty"`
-	InstalledAt  string       `json:"installed_at"`
-	Checksum     string       `json:"checksum"`
+	Name             string       `json:"name"`
+	Version          string       `json:"version"`
+	FrameworkVersion string       `json:"framework_version,omitempty"`
+	InstallType      string       `json:"install_type"`
+	PluginType       string       `json:"plugin_type,omitempty"`
+	Capabilities     []Capability `json:"capabilities,omitempty"`
+	InstalledAt      string       `json:"installed_at"`
+	Checksum         string       `json:"checksum"`
+}
+
+// FormatVersion returns the version string to use for format registration.
+// It prefers FrameworkVersion (e.g., "1.47.0" for the underlying system the
+// plugin targets) and falls back to the plugin Version.
+func (vf *VersionFile) FormatVersion() string {
+	if vf.FrameworkVersion != "" {
+		return vf.FrameworkVersion
+	}
+	return vf.Version
 }
 
 // FormatCount returns the number of format capabilities in this version file.
@@ -135,17 +146,18 @@ func ListAllInstalled(baseDir string) (map[string][]InstalledVersion, error) {
 // It declares the plugin's capabilities and runtime configuration so they can
 // be stored at install time without starting the plugin runtime.
 type BundledManifest struct {
-	Name           string            `json:"name"`
-	Version        string            `json:"version"`
-	PluginType     string            `json:"plugin_type"`
-	InstallType    string            `json:"install_type,omitempty"`
-	Description    string            `json:"description,omitempty"`
-	Command        string            `json:"command,omitempty"`
-	Args           []string          `json:"args,omitempty"`
-	Env            map[string]string `json:"env,omitempty"`
-	StartupTimeout string            `json:"startup_timeout,omitempty"`
-	CommandTimeout string            `json:"command_timeout,omitempty"`
-	Capabilities   []Capability      `json:"capabilities"`
+	Name             string            `json:"name"`
+	Version          string            `json:"version"`
+	FrameworkVersion string            `json:"framework_version,omitempty"`
+	PluginType       string            `json:"plugin_type"`
+	InstallType      string            `json:"install_type,omitempty"`
+	Description      string            `json:"description,omitempty"`
+	Command          string            `json:"command,omitempty"`
+	Args             []string          `json:"args,omitempty"`
+	Env              map[string]string `json:"env,omitempty"`
+	StartupTimeout   string            `json:"startup_timeout,omitempty"`
+	CommandTimeout   string            `json:"command_timeout,omitempty"`
+	Capabilities     []Capability      `json:"capabilities"`
 }
 
 // ReadBundledManifest reads a manifest.json from the given directory.

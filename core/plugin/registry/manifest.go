@@ -67,6 +67,12 @@ type PluginManifest struct {
 	// Version is the semantic version of the plugin (e.g., "1.2.0").
 	Version string `json:"version"`
 
+	// FrameworkVersion is the version of the underlying framework or system
+	// that this plugin targets (e.g., "1.47.0" for an Okapi Framework version).
+	// When present, this is used as the format version suffix (e.g., okf_html@1.47.0)
+	// instead of the plugin version.
+	FrameworkVersion string `json:"framework_version,omitempty"`
+
 	// Description is a human-readable description of the plugin.
 	Description string `json:"description"`
 
