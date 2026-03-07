@@ -115,7 +115,7 @@ func (p *smlParser) parseSharedStringsPart(data []byte, partPath string, emitBlo
 
 		case xml.CharData:
 			if !inSI {
-				p.skelText(string(t))
+				p.skelText(xmlEscape(string(t)))
 			}
 
 		case xml.ProcInst:
@@ -233,11 +233,9 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 
 					switch cellType {
 					case "s":
-						idx, err := strconv.Atoi(text)
-						if err == nil && idx >= 0 && idx < len(p.sharedStrings) {
-							text = p.sharedStrings[idx]
-							translatable = true
-						}
+						// Shared string references are handled in sharedStrings.xml.
+						// Pass the <v>index</v> through to skeleton unchanged.
+						translatable = false
 					case "str":
 						translatable = text != ""
 					case "inlineStr":
@@ -295,7 +293,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 			if inValue && inCell {
 				cellText.Write(t)
 			} else if !inCell {
-				p.skelText(string(t))
+				p.skelText(xmlEscape(string(t)))
 			}
 
 		case xml.ProcInst:
@@ -421,6 +419,7 @@ func (p *smlParser) skelWriteStartElement(t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
+	registerNamespaces(t.Attr)
 	var buf strings.Builder
 	buf.WriteString("<")
 	writeElementName(&buf, t.Name)
@@ -428,7 +427,7 @@ func (p *smlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(a.Value)
+		buf.WriteString(xmlEscapeAttr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")

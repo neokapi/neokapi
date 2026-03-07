@@ -87,7 +87,7 @@ func (p *wmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
-			p.skelText(string(t))
+			p.skelText(xmlEscape(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
@@ -395,7 +395,7 @@ func (p *wmlParser) wrapHyperlinkRuns(runs []textRun, relID string) []textRun {
 
 	data := "<w:hyperlink>"
 	if url != "" {
-		data = fmt.Sprintf(`<w:hyperlink r:id="%s" href="%s">`, relID, url)
+		data = fmt.Sprintf(`<w:hyperlink r:id="%s" href="%s">`, xmlEscapeAttr(relID), xmlEscapeAttr(url))
 	}
 
 	// Create wrapper with sentinel markers
@@ -582,11 +582,19 @@ func mergeRuns(runs []textRun) []textRun {
 
 // isSentinel returns true if the text is a special marker.
 func isSentinel(s string) bool {
-	if len(s) == 0 {
+	r := []rune(s)
+	if len(r) == 0 {
 		return false
 	}
-	r := []rune(s)
-	return r[0] >= '\uE100' && r[0] <= '\uE104'
+	if r[0] < '\uE100' || r[0] > '\uE104' {
+		return false
+	}
+	// Single-char sentinels (tab \uE100, image \uE101)
+	if len(r) == 1 {
+		return true
+	}
+	// Multi-char sentinels must have ':' separator (\uE102:id, \uE103:data, \uE104:data)
+	return len(r) >= 2 && r[1] == ':'
 }
 
 // isEmptyRuns returns true if all runs have no visible text content.
@@ -676,6 +684,7 @@ func (p *wmlParser) skelWriteStartElement(t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
+	registerNamespaces(t.Attr)
 	var buf strings.Builder
 	buf.WriteString("<")
 	writeElementName(&buf, t.Name)
@@ -683,7 +692,7 @@ func (p *wmlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(a.Value)
+		buf.WriteString(xmlEscapeAttr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -722,7 +731,7 @@ func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
 			depth--
 			p.skelWriteEndElement(t)
 		case xml.CharData:
-			p.skelText(string(t))
+			p.skelText(xmlEscape(string(t)))
 		}
 	}
 	return nil
@@ -730,14 +739,45 @@ func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
 
 // XML helpers
 
+// nsRegistry tracks namespace URI → prefix mappings discovered during parsing.
+// It supplements the static nsPrefixMap with dynamic mappings from xmlns: attributes.
+var nsRegistry = struct {
+	m map[string]string
+}{m: make(map[string]string)}
+
+// registerNamespaces scans an element's attributes for xmlns declarations
+// and records the prefix → URI mapping.
+func registerNamespaces(attrs []xml.Attr) {
+	for _, a := range attrs {
+		if a.Name.Space == "xmlns" {
+			// xmlns:prefix="URI"
+			nsRegistry.m[a.Value] = a.Name.Local
+		}
+	}
+}
+
+// resolvePrefix returns the namespace prefix for a URI, checking the dynamic
+// registry first, then the static map.
+func resolvePrefix(ns string) string {
+	if p, ok := nsPrefixMap[ns]; ok {
+		return p
+	}
+	if p, ok := nsRegistry.m[ns]; ok {
+		return p
+	}
+	return ""
+}
+
 // writeElementName writes an element name with its namespace prefix.
 func writeElementName(buf *strings.Builder, name xml.Name) {
 	if name.Space != "" {
-		prefix := nsPrefix(name.Space)
+		prefix := resolvePrefix(name.Space)
 		if prefix != "" {
 			buf.WriteString(prefix)
 			buf.WriteString(":")
 		}
+		// If no known prefix, write local name only — the namespace is
+		// already declared on a parent element via xmlns.
 	}
 	buf.WriteString(name.Local)
 }
@@ -756,34 +796,86 @@ func writeAttrName(buf *strings.Builder, name xml.Name) {
 		return
 	}
 	if name.Space != "" {
-		prefix := nsPrefix(name.Space)
+		prefix := resolvePrefix(name.Space)
 		if prefix != "" {
 			buf.WriteString(prefix)
 			buf.WriteString(":")
-		} else {
-			// Unknown namespace — write as-is
-			buf.WriteString(name.Space)
-			buf.WriteString(":")
 		}
+		// Unknown namespace — omit the prefix. The namespace is
+		// already declared on a parent element and the attribute
+		// name alone is sufficient for well-formed output.
 	}
 	buf.WriteString(name.Local)
 }
 
-func nsPrefix(ns string) string {
-	switch ns {
-	case wmlNamespace:
-		return "w"
-	case "http://schemas.openxmlformats.org/officeDocument/2006/relationships":
-		return "r"
-	case "http://schemas.openxmlformats.org/markup-compatibility/2006":
-		return "mc"
-	case "http://schemas.openxmlformats.org/drawingml/2006/main":
-		return "a"
-	case "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing":
-		return "wp"
-	default:
-		return ""
-	}
+// xmlEscapeAttr escapes a string for use as an XML attribute value.
+func xmlEscapeAttr(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	return s
+}
+
+// nsPrefix maps namespace URI → prefix for known OpenXML namespaces.
+var nsPrefixMap = map[string]string{
+	wmlNamespace: "w",
+	dmlNamespace: "a",
+	"http://schemas.openxmlformats.org/officeDocument/2006/relationships":                     "r",
+	"http://schemas.openxmlformats.org/markup-compatibility/2006":                              "mc",
+	"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing":                   "wp",
+	"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing":                      "xdr",
+	"http://schemas.openxmlformats.org/drawingml/2006/chart":                                   "c",
+	"http://schemas.openxmlformats.org/drawingml/2006/diagram":                                 "dgm",
+	"http://schemas.openxmlformats.org/drawingml/2006/picture":                                 "pic",
+	"http://schemas.openxmlformats.org/officeDocument/2006/math":                               "m",
+	"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties":                 "ep",
+	"http://schemas.openxmlformats.org/officeDocument/2006/custom-properties":                   "cp",
+	"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes":                      "vt",
+	"http://schemas.openxmlformats.org/spreadsheetml/2006/main":                                "x",
+	"http://schemas.openxmlformats.org/presentationml/2006/main":                               "p",
+	"http://schemas.openxmlformats.org/package/2006/relationships":                             "pr",
+	"http://schemas.openxmlformats.org/package/2006/content-types":                             "ct",
+	"http://schemas.openxmlformats.org/package/2006/metadata/core-properties":                  "coreProperties",
+	"http://schemas.microsoft.com/office/word/2010/wordml":                                     "w14",
+	"http://schemas.microsoft.com/office/word/2012/wordml":                                     "w15",
+	"http://schemas.microsoft.com/office/word/2015/wordml/symex":                               "w16se",
+	"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main":                            "x14",
+	"http://schemas.microsoft.com/office/spreadsheetml/2010/11/main":                           "x15",
+	"http://schemas.microsoft.com/office/powerpoint/2010/main":                                 "p14",
+	"http://schemas.microsoft.com/office/powerpoint/2012/main":                                 "p15",
+	"http://schemas.microsoft.com/office/drawing/2010/main":                                    "a14",
+	"http://schemas.microsoft.com/office/drawing/2014/main":                                    "a16",
+	"http://purl.org/dc/elements/1.1/":                                                         "dc",
+	"http://purl.org/dc/terms/":                                                                "dcterms",
+	"http://schemas.openxmlformats.org/officeDocument/2006/customXml":                          "ds",
+	"urn:schemas-microsoft-com:vml":                                                            "v",
+	"urn:schemas-microsoft-com:office:office":                                                  "o",
+	"urn:schemas-microsoft-com:office:word":                                                    "w10",
+	"http://www.w3.org/2001/XMLSchema-instance":                                                "xsi",
+	"http://www.w3.org/2001/XMLSchema":                                                         "xsd",
+	"http://www.w3.org/XML/1998/namespace":                                                     "xml",
+	// Microsoft Office extension namespaces
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas":                        "wpc",
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing":                       "wp14",
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup":                         "wpg",
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingInk":                           "wpi",
+	"http://schemas.microsoft.com/office/word/2010/wordprocessingShape":                         "wps",
+	"http://schemas.microsoft.com/office/word/2006/wordml":                                     "wne",
+	"http://schemas.microsoft.com/office/mac/office/2008/main":                                  "mo",
+	"urn:schemas-microsoft-com:mac:vml":                                                        "mv",
+	"http://schemas.microsoft.com/office/drawing/2012/chart":                                   "c15",
+	"http://schemas.microsoft.com/office/drawing/2014/chartex":                                 "cx",
+	"http://schemas.openxmlformats.org/drawingml/2006/lockedCanvas":                            "lc",
+	"http://schemas.microsoft.com/office/drawing/2008/diagram":                                 "dsp",
+	"http://schemas.microsoft.com/office/drawing/2010/diagram":                                 "dgm14",
+	"http://schemas.microsoft.com/office/thememl/2012/main":                                    "thm15",
+	"http://schemas.microsoft.com/office/drawing/2017/decorative":                              "adec",
+	"http://schemas.microsoft.com/office/drawing/2018/hyperlinkcolor":                          "ahlc",
+	"http://schemas.microsoft.com/office/word/2016/wordml/cid":                                 "w16cid",
+	"http://schemas.microsoft.com/office/word/2018/wordml":                                     "w16",
+	"http://schemas.microsoft.com/office/word/2018/wordml/cex":                                 "w16cex",
+	"http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash":                         "w16sdtdh",
 }
 
 func isWML(el xml.StartElement) bool {
@@ -825,7 +917,7 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(a.Value)
+		buf.WriteString(xmlEscapeAttr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
@@ -845,7 +937,7 @@ func captureRawElement(d *xml.Decoder, start xml.StartElement) (string, error) {
 				buf.WriteString(" ")
 				writeAttrName(&buf, a.Name)
 				buf.WriteString(`="`)
-				buf.WriteString(a.Value)
+				buf.WriteString(xmlEscapeAttr(a.Value))
 				buf.WriteString(`"`)
 			}
 			buf.WriteString(">")
@@ -871,4 +963,20 @@ func xmlEscape(s string) string {
 	s = strings.ReplaceAll(s, ">", "&gt;")
 	s = strings.ReplaceAll(s, "\"", "&quot;")
 	return s
+}
+
+// xmlEscapeRune writes a single rune to a string builder, XML-escaping if needed.
+func xmlEscapeRune(buf *strings.Builder, r rune) {
+	switch r {
+	case '&':
+		buf.WriteString("&amp;")
+	case '<':
+		buf.WriteString("&lt;")
+	case '>':
+		buf.WriteString("&gt;")
+	case '"':
+		buf.WriteString("&quot;")
+	default:
+		buf.WriteRune(r)
+	}
 }

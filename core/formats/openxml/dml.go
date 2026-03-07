@@ -52,7 +52,7 @@ func (p *dmlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 			p.skelWriteEndElement(t)
 
 		case xml.CharData:
-			p.skelText(string(t))
+			p.skelText(xmlEscape(string(t)))
 
 		case xml.ProcInst:
 			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
@@ -326,6 +326,7 @@ func (p *dmlParser) skelWriteStartElement(t xml.StartElement) {
 	if p.skeletonStore == nil {
 		return
 	}
+	registerNamespaces(t.Attr)
 	var buf strings.Builder
 	buf.WriteString("<")
 	writeElementName(&buf, t.Name)
@@ -333,7 +334,7 @@ func (p *dmlParser) skelWriteStartElement(t xml.StartElement) {
 		buf.WriteString(" ")
 		writeAttrName(&buf, a.Name)
 		buf.WriteString(`="`)
-		buf.WriteString(a.Value)
+		buf.WriteString(xmlEscapeAttr(a.Value))
 		buf.WriteString(`"`)
 	}
 	buf.WriteString(">")
