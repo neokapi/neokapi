@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/format/schema"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/cli/output"
 	"github.com/spf13/cobra"
@@ -77,36 +77,36 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 			filterID := args[0]
 			info := a.FormatReg.FormatInfo(filterID)
 
-			var schema *loader.FilterSchema
-			if a.PluginLoader != nil {
-				schema, _ = a.PluginLoader.Schemas().GetSchema(filterID)
+			var filterSchema *schema.FilterSchema
+			if a.SchemaReg != nil {
+				filterSchema, _ = a.SchemaReg.GetSchema(filterID)
 			}
 
-			if info == nil && schema == nil {
+			if info == nil && filterSchema == nil {
 				return fmt.Errorf("format not found: %s", filterID)
 			}
 
 			out := output.FormatInfoOutput{Name: filterID}
 
-			if schema != nil {
-				out.DisplayName = schema.Title
-				out.FilterID = schema.FilterMeta.ID
-				out.Class = schema.FilterMeta.Class
-				out.Version = schema.Version
+			if filterSchema != nil {
+				out.DisplayName = filterSchema.Title
+				out.FilterID = filterSchema.FilterMeta.ID
+				out.Class = filterSchema.FilterMeta.Class
+				out.Version = filterSchema.Version
 				out.HasSchema = true
-				out.Extensions = schema.FilterMeta.Extensions
-				out.MimeTypes = schema.FilterMeta.MimeTypes
+				out.Extensions = filterSchema.FilterMeta.Extensions
+				out.MimeTypes = filterSchema.FilterMeta.MimeTypes
 
-				if len(schema.Groups) > 0 {
+				if len(filterSchema.Groups) > 0 {
 					groupedFields := make(map[string]bool)
-					for _, group := range schema.Groups {
+					for _, group := range filterSchema.Groups {
 						g := output.FormatInfoGroup{
 							Label:       group.Label,
 							Description: group.Description,
 						}
 						for _, fieldName := range group.Fields {
 							groupedFields[fieldName] = true
-							prop, ok := schema.Properties[fieldName]
+							prop, ok := filterSchema.Properties[fieldName]
 							if !ok {
 								continue
 							}
@@ -116,7 +116,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 					}
 
 					var ungroupedParams []output.FormatInfoParam
-					for name, prop := range schema.Properties {
+					for name, prop := range filterSchema.Properties {
 						if !groupedFields[name] {
 							ungroupedParams = append(ungroupedParams, toFormatInfoParam(name, prop))
 						}
@@ -129,7 +129,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 					}
 				} else {
 					var params []output.FormatInfoParam
-					for name, prop := range schema.Properties {
+					for name, prop := range filterSchema.Properties {
 						params = append(params, toFormatInfoParam(name, prop))
 					}
 					if len(params) > 0 {
@@ -169,11 +169,11 @@ func (a *App) newFormatsSchemaCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			filterID := args[0]
 
-			if a.PluginLoader == nil {
-				return fmt.Errorf("no plugins loaded - schema not available")
+			if a.SchemaReg == nil {
+				return fmt.Errorf("no schema registry available")
 			}
 
-			rawJSON, ok := a.PluginLoader.Schemas().GetSchemaJSON(filterID)
+			rawJSON, ok := a.SchemaReg.GetSchemaJSON(filterID)
 			if !ok {
 				return fmt.Errorf("schema not found for format: %s\nUse 'formats' to list available formats", filterID)
 			}
@@ -246,7 +246,7 @@ func containsLower(slice []string, val string) bool {
 	return false
 }
 
-func toFormatInfoParam(name string, prop loader.PropertySchema) output.FormatInfoParam {
+func toFormatInfoParam(name string, prop schema.PropertySchema) output.FormatInfoParam {
 	typeStr := prop.Type
 	if prop.OkapiFormat != "" {
 		typeStr = prop.OkapiFormat

@@ -61,15 +61,20 @@ func (c *Config) Reset() {
 func (c *Config) Validate() error { return nil }
 
 // ApplyMap applies configuration values from a map.
+// Uses the same hierarchical structure as the okf_html bridge config:
+// parser settings are nested under "parser", element/attribute rules and
+// inline code settings are top-level.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
-	switch key {
-		case "preserveWhitespace":
-			b, ok := val.(bool)
+		switch key {
+		case "parser":
+			m, ok := val.(map[string]any)
 			if !ok {
-				return fmt.Errorf("preserveWhitespace: expected bool, got %T", val)
+				return fmt.Errorf("parser: expected map[string]any, got %T", val)
 			}
-			c.PreserveWhitespace = b
+			if err := c.applyParserSettings(m); err != nil {
+				return err
+			}
 		case "useCodeFinder":
 			b, ok := val.(bool)
 			if !ok {
@@ -100,6 +105,22 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 		default:
 			// Ignore unknown parameters for forward compatibility
+		}
+	}
+	return nil
+}
+
+func (c *Config) applyParserSettings(m map[string]any) error {
+	for key, val := range m {
+		switch key {
+		case "preserveWhitespace":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("parser.preserveWhitespace: expected bool, got %T", val)
+			}
+			c.PreserveWhitespace = b
+		default:
+			// Ignore unknown parser settings for forward compatibility
 		}
 	}
 	return nil
