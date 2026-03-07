@@ -1,0 +1,829 @@
+{
+  "formats": [
+    {
+      "id": "csv",
+      "displayName": "CSV",
+      "description": "Configuration for the CSV/TSV format reader/writer",
+      "extensions": [
+        ".csv",
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text/csv",
+        "text/tab-separated-values"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "parsing",
+          "label": "Parsing",
+          "fields": [
+            "separator",
+            "hasHeader"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "translatableColumns"
+          ]
+        }
+      ],
+      "properties": {
+        "hasHeader": {
+          "type": "boolean",
+          "description": "If true, the first row is treated as headers (non-translatable)",
+          "default": true
+        },
+        "separator": {
+          "type": "string",
+          "description": "Field delimiter character",
+          "default": ","
+        },
+        "translatableColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+        }
+      }
+    },
+    {
+      "id": "html",
+      "displayName": "HTML",
+      "description": "Configuration for the native HTML format reader/writer",
+      "extensions": [
+        ".html",
+        ".htm",
+        ".xhtml"
+      ],
+      "mimeTypes": [
+        "text/html",
+        "application/xhtml+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "parser",
+          "label": "Parser Settings",
+          "fields": [
+            "preserveWhitespace"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction Rules",
+          "fields": [
+            "elements",
+            "attributes"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ]
+        }
+      ],
+      "properties": {
+        "attributes": {
+          "type": "object",
+          "description": "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)"
+        },
+        "codeFinderRules": {
+          "type": "array",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "elements": {
+          "type": "object",
+          "description": "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)"
+        },
+        "preserveWhitespace": {
+          "type": "boolean",
+          "description": "Preserve significant whitespace in text nodes",
+          "default": false
+        },
+        "useCodeFinder": {
+          "type": "boolean",
+          "description": "Enable regex-based inline code detection",
+          "default": false
+        }
+      }
+    },
+    {
+      "id": "json",
+      "displayName": "JSON",
+      "description": "Configuration for the native JSON format reader/writer",
+      "extensions": [
+        ".json"
+      ],
+      "mimeTypes": [
+        "application/json"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "extractAllPairs",
+            "exceptions",
+            "extractIsolatedStrings",
+            "extractionRules"
+          ]
+        },
+        {
+          "id": "naming",
+          "label": "Block Naming",
+          "fields": [
+            "useKeyAsName",
+            "useFullKeyPath",
+            "useLeadingSlashOnKeyPath",
+            "idRules",
+            "useIdStack"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Subfilters",
+          "fields": [
+            "subfilters",
+            "subfilter",
+            "subfilterRules"
+          ]
+        },
+        {
+          "id": "metadata",
+          "label": "Metadata",
+          "fields": [
+            "noteRules",
+            "genericMetaRules",
+            "maxwidthRules",
+            "maxwidthSizeUnit"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output",
+          "fields": [
+            "escapeForwardSlashes"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ]
+        }
+      ],
+      "properties": {
+        "codeFinderRules": {
+          "type": "array",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "escapeForwardSlashes": {
+          "type": "boolean",
+          "description": "Escape / as \\/ in JSON output",
+          "default": true
+        },
+        "exceptions": {
+          "type": "string",
+          "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included."
+        },
+        "extractAllPairs": {
+          "type": "boolean",
+          "description": "Extract all string key-value pairs as translatable blocks",
+          "default": true
+        },
+        "extractIsolatedStrings": {
+          "type": "boolean",
+          "description": "Extract standalone string values inside arrays as translatable blocks",
+          "default": false
+        },
+        "extractionRules": {
+          "type": "string",
+          "description": "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
+          "widget": "regexBuilder"
+        },
+        "genericMetaRules": {
+          "type": "string",
+          "description": "Regex pattern for key names whose values become metadata annotations"
+        },
+        "idRules": {
+          "type": "string",
+          "description": "Regex pattern for key names whose values are used as block names/IDs"
+        },
+        "maxwidthRules": {
+          "type": "string",
+          "description": "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block"
+        },
+        "maxwidthSizeUnit": {
+          "type": "string",
+          "description": "Size unit for maxwidth: 'pixel' or 'char'",
+          "default": "pixel"
+        },
+        "noteRules": {
+          "type": "string",
+          "description": "Regex pattern for key names whose values become notes on the next translatable block"
+        },
+        "subfilter": {
+          "type": "string",
+          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings"
+        },
+        "subfilterRules": {
+          "type": "string",
+          "description": "Regex pattern for key names processed by the subfilter. Only used when subfilter is set."
+        },
+        "subfilters": {
+          "type": "array",
+          "description": "Array of {pattern, format} mappings for embedded content in specific keys"
+        },
+        "useCodeFinder": {
+          "type": "boolean",
+          "description": "Enable regex-based inline code detection",
+          "default": false
+        },
+        "useFullKeyPath": {
+          "type": "boolean",
+          "description": "Use hierarchical paths (parent/child) as block names",
+          "default": false
+        },
+        "useIdStack": {
+          "type": "boolean",
+          "description": "Stack IDs for nested structures, producing compound IDs",
+          "default": false
+        },
+        "useKeyAsName": {
+          "type": "boolean",
+          "description": "Use the JSON key as the block name/ID",
+          "default": true
+        },
+        "useLeadingSlashOnKeyPath": {
+          "type": "boolean",
+          "description": "Prepend / to full key paths",
+          "default": true
+        }
+      },
+      "presets": [
+        {
+          "id": "json-i18next",
+          "name": "i18next",
+          "description": "i18next JSON resource files with full key paths and HTML subfilter for *_html keys",
+          "parameters": {
+            "subfilter": "html",
+            "subfilterRules": "_html$",
+            "useFullKeyPath": true
+          }
+        },
+        {
+          "id": "json-chrome-extension",
+          "name": "Chrome Extension",
+          "description": "Chrome extension messages.json format (extract 'message' keys, 'description' as notes)",
+          "parameters": {
+            "exceptions": "^message$",
+            "extractAllPairs": false,
+            "noteRules": "^description$"
+          }
+        }
+      ]
+    },
+    {
+      "id": "markdown",
+      "displayName": "Markdown",
+      "description": "Configuration for the Markdown format reader/writer",
+      "extensions": [
+        ".md",
+        ".markdown"
+      ],
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Content Extraction",
+          "fields": [
+            "translateCodeBlocks",
+            "translateFrontMatter",
+            "translateImageAlt",
+            "translateURLs",
+            "translateBlockQuotes",
+            "translateHTMLBlocks"
+          ]
+        }
+      ],
+      "properties": {
+        "translateBlockQuotes": {
+          "type": "boolean",
+          "description": "If true, blockquote content is translatable.",
+          "default": true
+        },
+        "translateCodeBlocks": {
+          "type": "boolean",
+          "description": "If true, fenced/indented code blocks are translatable. If false, emitted as non-translatable data.",
+          "default": false
+        },
+        "translateFrontMatter": {
+          "type": "boolean",
+          "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
+          "default": false
+        },
+        "translateHTMLBlocks": {
+          "type": "boolean",
+          "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
+          "default": false
+        },
+        "translateImageAlt": {
+          "type": "boolean",
+          "description": "If true, image alt text is included in translatable content.",
+          "default": true
+        },
+        "translateURLs": {
+          "type": "boolean",
+          "description": "If true, link and image URLs are translatable.",
+          "default": false
+        }
+      }
+    },
+    {
+      "id": "openxml",
+      "displayName": "Office Open XML",
+      "description": "Configuration for the DOCX/PPTX/XLSX format reader/writer",
+      "extensions": [
+        ".docx",
+        ".docm",
+        ".dotx",
+        ".dotm",
+        ".xlsx",
+        ".xlsm",
+        ".xltx",
+        ".xltm",
+        ".pptx",
+        ".pptm",
+        ".ppsx",
+        ".potx"
+      ],
+      "mimeTypes": [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "common",
+          "label": "Common Extraction",
+          "fields": [
+            "translateDocProperties",
+            "translateHiddenText",
+            "translateHeadersFooters",
+            "translateFootnotes",
+            "translateComments",
+            "translateHyperlinks"
+          ]
+        },
+        {
+          "id": "formatting",
+          "label": "Formatting Control",
+          "fields": [
+            "aggressiveCleanup",
+            "tabAsCharacter"
+          ]
+        },
+        {
+          "id": "pptx",
+          "label": "PowerPoint Options",
+          "collapsed": true,
+          "fields": [
+            "translateSlideNotes",
+            "translateSlideMasters",
+            "translateHiddenSlides",
+            "translateCharts",
+            "translateDiagrams",
+            "includedSlides"
+          ]
+        },
+        {
+          "id": "xlsx",
+          "label": "Excel Options",
+          "collapsed": true,
+          "fields": [
+            "translateSheetNames",
+            "translateSharedStrings",
+            "excludedSheets",
+            "excludedColumns"
+          ]
+        },
+        {
+          "id": "styles",
+          "label": "Style \u0026 Color Filtering",
+          "collapsed": true,
+          "fields": [
+            "excludeColors",
+            "excludeHighlightColors",
+            "includeHighlightColors",
+            "excludeStyles",
+            "includeStyles"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "collapsed": true,
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ]
+        },
+        {
+          "id": "advanced",
+          "label": "Advanced",
+          "collapsed": true,
+          "fields": [
+            "complexFieldDefinitionsToExtract",
+            "optimiseWordStyles",
+            "fontMappings",
+            "extractRunFontsInfo",
+            "replaceLineSeparator",
+            "lineSeparatorReplacement"
+          ]
+        }
+      ],
+      "properties": {
+        "aggressiveCleanup": {
+          "type": "boolean",
+          "description": "Strip revision IDs, proofing errors, and other noise before merging runs",
+          "default": true
+        },
+        "codeFinderRules": {
+          "type": "array",
+          "description": "Regex patterns that match inline codes within translatable text"
+        },
+        "complexFieldDefinitionsToExtract": {
+          "type": "array",
+          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")"
+        },
+        "excludeColors": {
+          "type": "array",
+          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)"
+        },
+        "excludeHighlightColors": {
+          "type": "array",
+          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")"
+        },
+        "excludeStyles": {
+          "type": "array",
+          "description": "Paragraph/character style names to exclude"
+        },
+        "excludedColumns": {
+          "type": "array",
+          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")"
+        },
+        "excludedSheets": {
+          "type": "array",
+          "description": "Sheet names to exclude from extraction"
+        },
+        "extractRunFontsInfo": {
+          "type": "boolean",
+          "description": "Emit font metadata as annotations on blocks",
+          "default": false
+        },
+        "fontMappings": {
+          "type": "object",
+          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")"
+        },
+        "includeHighlightColors": {
+          "type": "array",
+          "description": "If non-empty, only extract text with these highlight colors"
+        },
+        "includeStyles": {
+          "type": "array",
+          "description": "If non-empty, only extract text with these styles"
+        },
+        "includedSlides": {
+          "type": "array",
+          "description": "If non-empty, only extract these slide numbers (1-based)"
+        },
+        "lineSeparatorReplacement": {
+          "type": "string",
+          "description": "Replacement string for line separator characters",
+          "default": "\n"
+        },
+        "optimiseWordStyles": {
+          "type": "boolean",
+          "description": "Resolve style inheritance and strip redundant run properties",
+          "default": false
+        },
+        "replaceLineSeparator": {
+          "type": "boolean",
+          "description": "Replace Unicode line separator (U+2028) in output",
+          "default": false
+        },
+        "tabAsCharacter": {
+          "type": "boolean",
+          "description": "Treat tab elements as tab characters instead of placeholder spans",
+          "default": false
+        },
+        "translateCharts": {
+          "type": "boolean",
+          "description": "Extract strings from embedded charts",
+          "default": false
+        },
+        "translateComments": {
+          "type": "boolean",
+          "description": "Extract comment text",
+          "default": false
+        },
+        "translateDiagrams": {
+          "type": "boolean",
+          "description": "Extract text from SmartArt diagrams",
+          "default": false
+        },
+        "translateDocProperties": {
+          "type": "boolean",
+          "description": "Extract title, subject, keywords from document properties",
+          "default": true
+        },
+        "translateFootnotes": {
+          "type": "boolean",
+          "description": "Extract footnotes and endnotes",
+          "default": true
+        },
+        "translateHeadersFooters": {
+          "type": "boolean",
+          "description": "Extract headers and footers",
+          "default": true
+        },
+        "translateHiddenSlides": {
+          "type": "boolean",
+          "description": "Extract content from hidden slides",
+          "default": false
+        },
+        "translateHiddenText": {
+          "type": "boolean",
+          "description": "Extract text with the vanish (hidden) property",
+          "default": false
+        },
+        "translateHyperlinks": {
+          "type": "boolean",
+          "description": "Extract hyperlink text",
+          "default": true
+        },
+        "translateSharedStrings": {
+          "type": "boolean",
+          "description": "Extract shared strings",
+          "default": true
+        },
+        "translateSheetNames": {
+          "type": "boolean",
+          "description": "Extract sheet names as translatable content",
+          "default": false
+        },
+        "translateSlideMasters": {
+          "type": "boolean",
+          "description": "Extract text from slide masters",
+          "default": false
+        },
+        "translateSlideNotes": {
+          "type": "boolean",
+          "description": "Extract slide notes",
+          "default": true
+        },
+        "useCodeFinder": {
+          "type": "boolean",
+          "description": "Enable regex-based inline code detection",
+          "default": false
+        }
+      }
+    },
+    {
+      "id": "plaintext",
+      "displayName": "Plain Text",
+      "description": "Configuration for the plain text format reader/writer",
+      "extensions": [
+        ".txt",
+        ".text"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "segmentation",
+          "label": "Segmentation",
+          "fields": [
+            "segmentByLine"
+          ]
+        }
+      ],
+      "properties": {
+        "segmentByLine": {
+          "type": "boolean",
+          "description": "If true, each line becomes a separate block. If false, paragraphs (separated by blank lines) are blocks.",
+          "default": true
+        }
+      }
+    },
+    {
+      "id": "po",
+      "displayName": "PO (Gettext)",
+      "description": "Configuration for the PO/POT format reader/writer",
+      "extensions": [
+        ".po",
+        ".pot"
+      ],
+      "mimeTypes": [
+        "text/x-gettext-translation"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "preserveUntranslated"
+          ]
+        }
+      ],
+      "properties": {
+        "preserveUntranslated": {
+          "type": "boolean",
+          "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.",
+          "default": true
+        }
+      }
+    },
+    {
+      "id": "properties",
+      "displayName": "Java Properties",
+      "description": "Configuration for the Java .properties format reader/writer",
+      "extensions": [
+        ".properties"
+      ],
+      "mimeTypes": [
+        "text/x-java-properties"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "parsing",
+          "label": "Parsing",
+          "fields": [
+            "separator"
+          ]
+        }
+      ],
+      "properties": {
+        "separator": {
+          "type": "string",
+          "description": "Key-value separator character (typically '=' or ':')",
+          "default": "="
+        }
+      }
+    },
+    {
+      "id": "srt",
+      "displayName": "SRT Subtitles",
+      "description": "SubRip subtitle format — no configurable parameters",
+      "extensions": [
+        ".srt"
+      ],
+      "mimeTypes": [
+        "application/x-subrip",
+        "text/srt"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "tmx",
+      "displayName": "TMX",
+      "description": "TMX translation memory format — no configurable parameters",
+      "extensions": [
+        ".tmx"
+      ],
+      "mimeTypes": [
+        "application/x-tmx+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "vtt",
+      "displayName": "WebVTT",
+      "description": "Web Video Text Tracks format — no configurable parameters",
+      "extensions": [
+        ".vtt"
+      ],
+      "mimeTypes": [
+        "text/vtt"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "xliff",
+      "displayName": "XLIFF 1.2",
+      "description": "XLIFF 1.2 bilingual exchange format — no configurable parameters",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application/xliff+xml",
+        "application/x-xliff+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "xliff2",
+      "displayName": "XLIFF 2.0",
+      "description": "XLIFF 2.0/2.1 bilingual exchange format with segment support — no configurable parameters",
+      "extensions": [
+        ".xlf",
+        ".xliff"
+      ],
+      "mimeTypes": [
+        "application/xliff+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "xml",
+      "displayName": "XML",
+      "description": "Configuration for the generic XML format reader/writer",
+      "extensions": [
+        ".xml"
+      ],
+      "mimeTypes": [
+        "text/xml",
+        "application/xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction Rules",
+          "fields": [
+            "translatableElements",
+            "translatableAttributes"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Subfilters",
+          "fields": [
+            "subfilters"
+          ]
+        }
+      ],
+      "properties": {
+        "subfilters": {
+          "type": "array",
+          "description": "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support."
+        },
+        "translatableAttributes": {
+          "type": "array",
+          "description": "Attribute names that are translatable."
+        },
+        "translatableElements": {
+          "type": "array",
+          "description": "Element names whose text content is translatable. If empty, all text content is translatable."
+        }
+      }
+    },
+    {
+      "id": "yaml",
+      "displayName": "YAML",
+      "description": "YAML format reader/writer — no configurable parameters",
+      "extensions": [
+        ".yaml",
+        ".yml"
+      ],
+      "mimeTypes": [
+        "application/yaml",
+        "text/yaml",
+        "application/x-yaml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    }
+  ]
+}
