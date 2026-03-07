@@ -18,10 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestValidity_XmlWellFormed verifies that every XML entry in the roundtrip
+// TestValidity_XMLWellFormed verifies that every XML entry in the roundtrip
 // output is well-formed XML. This catches undeclared namespace prefixes,
 // malformed escaping, and structural errors.
-func TestValidity_XmlWellFormed(t *testing.T) {
+func TestValidity_XMLWellFormed(t *testing.T) {
 	dir := testdataDir(t)
 	files := collectTestFiles(t, dir, "*.xlsx", "*.docx", "*.pptx")
 
@@ -40,7 +40,7 @@ func TestValidity_XmlWellFormed(t *testing.T) {
 			require.NoError(t, err)
 
 			output := skeletonRoundtripBytes(t, original, name)
-			assertAllXmlWellFormed(t, output)
+			assertAllXMLWellFormed(t, output)
 		})
 	}
 }
@@ -249,9 +249,9 @@ func translateRoundtripBytes(t *testing.T, original []byte, uri string) []byte {
 	return buf.Bytes()
 }
 
-// assertAllXmlWellFormed checks that every .xml and .rels entry in a ZIP
+// assertAllXMLWellFormed checks that every .xml and .rels entry in a ZIP
 // parses as well-formed XML.
-func assertAllXmlWellFormed(t *testing.T, data []byte) {
+func assertAllXMLWellFormed(t *testing.T, data []byte) {
 	t.Helper()
 	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	require.NoError(t, err)
