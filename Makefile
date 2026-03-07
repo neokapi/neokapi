@@ -395,6 +395,9 @@ generate-test-comparison: fetch-okapi-surefire test-bridge-json test-native-json
 		-native-src core/formats \
 		-out $(TEST_COMPARE_JSON)
 
+generate-format-docs: ## Generate format reference JSON for the website
+	$(GO) run ./scripts/gen-format-docs
+
 generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefire XML
 	$(GO) run ./scripts/gen-test-stubs \
 		-surefire-dir $(OKAPI_SUREFIRE_DIR)
