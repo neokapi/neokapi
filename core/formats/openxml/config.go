@@ -4,18 +4,42 @@ import "fmt"
 
 // Config holds configuration for the OpenXML format reader/writer.
 type Config struct {
-	TranslateDocProperties   bool // Extract title, subject, keywords from docProps/core.xml
-	TranslateHiddenText      bool // Extract text with vanish property
-	TranslateHeadersFooters  bool // Extract headers and footers
-	TranslateFootnotes       bool // Extract footnotes and endnotes
-	TranslateComments        bool // Extract comments
-	AggressiveCleanup        bool // Strip rsid*, proofErr, lastRenderedPageBreak before merging
-	TabAsCharacter           bool // Treat <w:tab/> as a tab character instead of a placeholder span
-	TranslateHyperlinks      bool // Extract hyperlink text
-	TranslateSlideNotes      bool // PPTX: extract slide notes
-	TranslateSlideMasters    bool // PPTX: extract slide master text
-	TranslateSheetNames      bool // XLSX: extract sheet names
-	TranslateSharedStrings   bool // XLSX: extract shared strings
+	// --- Common extraction toggles ---
+	TranslateDocProperties  bool // Extract title, subject, keywords from docProps/core.xml
+	TranslateHiddenText     bool // Extract text with vanish property
+	TranslateHeadersFooters bool // Extract headers and footers
+	TranslateFootnotes      bool // Extract footnotes and endnotes
+	TranslateComments       bool // Extract comments
+	TranslateHyperlinks     bool // Extract hyperlink text
+
+	// --- Formatting control ---
+	AggressiveCleanup bool // Strip rsid*, proofErr, lastRenderedPageBreak before merging
+	TabAsCharacter    bool // Treat <w:tab/> as a tab character instead of a placeholder span
+
+	// --- PPTX options ---
+	TranslateSlideNotes   bool // Extract slide notes
+	TranslateSlideMasters bool // Extract slide master text
+	TranslateHiddenSlides bool // Extract hidden slides
+	TranslateCharts       bool // Extract chart strings
+	TranslateDiagrams     bool // Extract diagram data text
+	IncludedSlides        []int // If non-empty, only extract these slide numbers (1-based)
+
+	// --- XLSX options ---
+	TranslateSheetNames    bool     // Extract sheet names
+	TranslateSharedStrings bool     // Extract shared strings
+	ExcludedSheets         []string // Sheet names to exclude from extraction
+	ExcludedColumns        []string // Column letters to exclude (e.g., "A", "C", "AA")
+
+	// --- Style/color filtering ---
+	ExcludeColors          []string // Font colors to exclude (hex RGB, e.g., "FF0000")
+	ExcludeHighlightColors []string // Highlight colors to exclude (e.g., "yellow", "red")
+	IncludeHighlightColors []string // If non-empty, only extract text with these highlight colors
+	ExcludeStyles          []string // Word paragraph/character styles to exclude
+	IncludeStyles          []string // If non-empty, only extract text with these styles
+
+	// --- Advanced ---
+	ReplaceLineSeparator     bool   // Replace Unicode line separator (U+2028) in output
+	LineSeparatorReplacement string // Replacement string for line separator (default: "\n")
 }
 
 // FormatName returns the format identifier.
@@ -28,13 +52,26 @@ func (c *Config) Reset() {
 	c.TranslateHeadersFooters = true
 	c.TranslateFootnotes = true
 	c.TranslateComments = false
+	c.TranslateHyperlinks = true
 	c.AggressiveCleanup = true
 	c.TabAsCharacter = false
-	c.TranslateHyperlinks = true
 	c.TranslateSlideNotes = true
 	c.TranslateSlideMasters = false
+	c.TranslateHiddenSlides = false
+	c.TranslateCharts = false
+	c.TranslateDiagrams = false
+	c.IncludedSlides = nil
 	c.TranslateSheetNames = false
 	c.TranslateSharedStrings = true
+	c.ExcludedSheets = nil
+	c.ExcludedColumns = nil
+	c.ExcludeColors = nil
+	c.ExcludeHighlightColors = nil
+	c.IncludeHighlightColors = nil
+	c.ExcludeStyles = nil
+	c.IncludeStyles = nil
+	c.ReplaceLineSeparator = false
+	c.LineSeparatorReplacement = "\n"
 }
 
 // Validate checks configuration validity.
@@ -43,38 +80,163 @@ func (c *Config) Validate() error { return nil }
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
 	for key, val := range values {
-		b, ok := val.(bool)
-		if !ok {
-			return fmt.Errorf("openxml: config key %q expects bool, got %T", key, val)
-		}
 		switch key {
+		// Boolean options
 		case "translateDocProperties":
-			c.TranslateDocProperties = b
+			c.TranslateDocProperties = toBool(val)
 		case "translateHiddenText":
-			c.TranslateHiddenText = b
+			c.TranslateHiddenText = toBool(val)
 		case "translateHeadersFooters":
-			c.TranslateHeadersFooters = b
+			c.TranslateHeadersFooters = toBool(val)
 		case "translateFootnotes":
-			c.TranslateFootnotes = b
+			c.TranslateFootnotes = toBool(val)
 		case "translateComments":
-			c.TranslateComments = b
-		case "aggressiveCleanup":
-			c.AggressiveCleanup = b
-		case "tabAsCharacter":
-			c.TabAsCharacter = b
+			c.TranslateComments = toBool(val)
 		case "translateHyperlinks":
-			c.TranslateHyperlinks = b
+			c.TranslateHyperlinks = toBool(val)
+		case "aggressiveCleanup":
+			c.AggressiveCleanup = toBool(val)
+		case "tabAsCharacter":
+			c.TabAsCharacter = toBool(val)
 		case "translateSlideNotes":
-			c.TranslateSlideNotes = b
+			c.TranslateSlideNotes = toBool(val)
 		case "translateSlideMasters":
-			c.TranslateSlideMasters = b
+			c.TranslateSlideMasters = toBool(val)
+		case "translateHiddenSlides":
+			c.TranslateHiddenSlides = toBool(val)
+		case "translateCharts":
+			c.TranslateCharts = toBool(val)
+		case "translateDiagrams":
+			c.TranslateDiagrams = toBool(val)
 		case "translateSheetNames":
-			c.TranslateSheetNames = b
+			c.TranslateSheetNames = toBool(val)
 		case "translateSharedStrings":
-			c.TranslateSharedStrings = b
+			c.TranslateSharedStrings = toBool(val)
+		case "replaceLineSeparator":
+			c.ReplaceLineSeparator = toBool(val)
+
+		// String options
+		case "lineSeparatorReplacement":
+			s, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("openxml: config key %q expects string, got %T", key, val)
+			}
+			c.LineSeparatorReplacement = s
+
+		// String list options
+		case "excludedSheets":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ExcludedSheets = list
+		case "excludedColumns":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ExcludedColumns = list
+		case "excludeColors":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ExcludeColors = list
+		case "excludeHighlightColors":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ExcludeHighlightColors = list
+		case "includeHighlightColors":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.IncludeHighlightColors = list
+		case "excludeStyles":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ExcludeStyles = list
+		case "includeStyles":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.IncludeStyles = list
+
+		// Int list options
+		case "includedSlides":
+			list, err := toIntSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.IncludedSlides = list
+
 		default:
 			return fmt.Errorf("openxml: unknown config key %q", key)
 		}
 	}
 	return nil
+}
+
+// toBool converts a value to bool, accepting bool and string representations.
+func toBool(val any) bool {
+	switch v := val.(type) {
+	case bool:
+		return v
+	case string:
+		return v == "true" || v == "1" || v == "yes"
+	default:
+		return false
+	}
+}
+
+// toStringSlice converts a value to []string.
+func toStringSlice(key string, val any) ([]string, error) {
+	switch v := val.(type) {
+	case []string:
+		return v, nil
+	case []any:
+		result := make([]string, 0, len(v))
+		for _, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("openxml: config key %q: list item expects string, got %T", key, item)
+			}
+			result = append(result, s)
+		}
+		return result, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("openxml: config key %q expects string list, got %T", key, val)
+	}
+}
+
+// toIntSlice converts a value to []int.
+func toIntSlice(key string, val any) ([]int, error) {
+	switch v := val.(type) {
+	case []int:
+		return v, nil
+	case []any:
+		result := make([]int, 0, len(v))
+		for _, item := range v {
+			switch n := item.(type) {
+			case int:
+				result = append(result, n)
+			case float64:
+				result = append(result, int(n))
+			default:
+				return nil, fmt.Errorf("openxml: config key %q: list item expects int, got %T", key, item)
+			}
+		}
+		return result, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("openxml: config key %q expects int list, got %T", key, val)
+	}
 }
