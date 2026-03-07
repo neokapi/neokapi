@@ -129,14 +129,11 @@ func TestRoundtripWithTranslation(t *testing.T) {
 func TestRoundTrip_Docx(t *testing.T) {
 	dir := testdataDir(t)
 	roundTripTestFiles(t, dir, "*.docx",
-		// Known limitations — structural differences after roundtrip
-		"1102.docx",            // tracked changes with complex fields
-		"1437-color-exclusion.docx", // color-based exclusion not implemented
-		"830-3.docx",           // skeleton normalization differences
-		"847-2.docx",           // tracked changes
-		"847-3.docx",           // tracked changes
-		"956.docx",             // complex fields
-		"OkapiMarkers.docx",    // PUA sentinel collision with Okapi marker chars
+		// OkapiMarkers.docx contains Okapi's own PUA marker characters (U+E101 etc.)
+		// which collide with our internal sentinel mechanism. The first read produces
+		// a block with PUA-only content; the roundtrip loses it. Not a real-world issue
+		// since actual documents never contain these characters.
+		"OkapiMarkers.docx",
 	)
 }
 
@@ -149,10 +146,7 @@ func TestRoundTrip_Xlsx(t *testing.T) {
 // TestRoundTrip_Pptx performs skeleton roundtrip on all PPTX test files.
 func TestRoundTrip_Pptx(t *testing.T) {
 	dir := testdataDir(t)
-	roundTripTestFiles(t, dir, "*.pptx",
-		"1329-styles-clarification.pptx", // style inheritance
-		"1435-text-for-masking.pptx",     // text masking
-	)
+	roundTripTestFiles(t, dir, "*.pptx")
 }
 
 // roundTripTestFiles performs roundtrip tests on all files matching a glob pattern.
