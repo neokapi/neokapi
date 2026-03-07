@@ -81,3 +81,4 @@ website/tapes/.server-token
 website/videos/output/
 website/videos/public/raw/
 .java-version
+.claude/worktrees/
