@@ -86,6 +86,38 @@ func roundtrip(t *testing.T, input string) string {
 	return buf.String()
 }
 
+// roundtripWithSkeletonConfig reads then writes using a skeleton store with custom config.
+func roundtripWithSkeletonConfig(t *testing.T, input string, configure func(*markdown.Config)) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := markdown.NewReader()
+	configure(reader.MarkdownConfig())
+	writer := markdown.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	return buf.String()
+}
+
 // roundtripWithSkeleton reads then writes using a skeleton store.
 func roundtripWithSkeleton(t *testing.T, input string) string {
 	t.Helper()
