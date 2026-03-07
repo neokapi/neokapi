@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gokapi/gokapi/core/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -150,28 +151,71 @@ func IsConfigFilePath(s string) bool {
 	return ext == ".yaml" || ext == ".yml" || ext == ".json"
 }
 
-// LoadConfigFile reads a YAML or JSON config file and returns it as a map.
-// The format is detected by file extension (.json for JSON, everything else
-// as YAML).
+// LoadConfigFile reads a YAML or JSON config file and returns the parameters
+// as a map. If the file contains a k8s-style envelope (apiVersion + kind),
+// it is parsed as an Envelope and the spec is returned. Any registered
+// migrations are applied automatically. Otherwise, the file is parsed as a
+// bare parameter map for backward compatibility.
 func LoadConfigFile(path string) (map[string]any, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var config map[string]any
 	ext := strings.ToLower(filepath.Ext(path))
+
+	// Try envelope parsing first: probe for apiVersion
+	var probe struct {
+		APIVersion string `json:"apiVersion" yaml:"apiVersion"`
+	}
 	if ext == ".json" {
-		if err := json.Unmarshal(data, &config); err != nil {
+		_ = json.Unmarshal(data, &probe)
+	} else {
+		_ = yaml.Unmarshal(data, &probe)
+	}
+
+	if probe.APIVersion != "" {
+		// Parse as envelope
+		env, err := config.Parse(data, ext)
+		if err != nil {
+			return nil, fmt.Errorf("parse enveloped config: %w", err)
+		}
+		// Apply migrations
+		if err := config.DefaultMigrations.Upgrade(env); err != nil {
+			return nil, fmt.Errorf("migrate config: %w", err)
+		}
+		return env.Spec, nil
+	}
+
+	// Fallback: bare parameter map
+	var cfg map[string]any
+	if ext == ".json" {
+		if err := json.Unmarshal(data, &cfg); err != nil {
 			return nil, fmt.Errorf("parse JSON: %w", err)
 		}
 	} else {
-		if err := yaml.Unmarshal(data, &config); err != nil {
+		if err := yaml.Unmarshal(data, &cfg); err != nil {
 			return nil, fmt.Errorf("parse YAML: %w", err)
 		}
 	}
 
-	return config, nil
+	return cfg, nil
+}
+
+// LoadEnvelopedConfigFile reads a config file that must be in envelope format.
+// Unlike LoadConfigFile, this returns an error if the file lacks an apiVersion.
+func LoadEnvelopedConfigFile(path string) (*config.Envelope, error) {
+	return config.Load(path)
+}
+
+// TransformConfigSpec transforms a config spec from one apiVersion to another
+// using the global transform registry. Returns the original spec unchanged if
+// no transform is registered for the given (from, to) pair.
+func TransformConfigSpec(fromAPIVersion, toAPIVersion string, spec map[string]any) (map[string]any, error) {
+	if !config.DefaultTransforms.Has(fromAPIVersion, toAPIVersion) {
+		return spec, nil
+	}
+	return config.DefaultTransforms.Transform(fromAPIVersion, toAPIVersion, spec)
 }
 
 // stripPrefix removes common error prefixes for cleaner messages.
