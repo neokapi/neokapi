@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/flow"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/model"
@@ -63,6 +64,38 @@ func TestRegistryCreateInstances(t *testing.T) {
 		require.NoError(t, err, "failed to create writer: %s", name)
 		assert.Equal(t, name, writer.Name())
 	}
+}
+
+func TestCollectNativeDecoders(t *testing.T) {
+	reg := registry.NewFormatRegistry()
+	formats.RegisterAll(reg)
+
+	configReg := config.NewRegistry()
+	reg.CollectNativeDecoders(configReg)
+
+	// All 14 native formats should have decoders registered
+	expectedFormats := []string{
+		"plaintext", "html", "xml", "xliff", "xliff2",
+		"yaml", "json", "po", "properties",
+		"markdown", "csv", "srt", "vtt", "tmx",
+	}
+	for _, name := range expectedFormats {
+		apiVersion := "gokapi/" + name + "-v1"
+		assert.True(t, configReg.Has(apiVersion), "decoder not registered for %s", apiVersion)
+	}
+
+	// HTML and JSON should use their declared apiVersion (same pattern)
+	assert.True(t, configReg.Has("gokapi/html-v1"))
+	assert.True(t, configReg.Has("gokapi/json-v1"))
+
+	// Test that a decoder can decode a spec
+	env := &config.Envelope{
+		APIVersion: "gokapi/json-v1",
+		Spec:       map[string]any{"extractAllPairs": false, "useFullKeyPath": true},
+	}
+	result, err := configReg.Decode(env)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestFormatDetection(t *testing.T) {

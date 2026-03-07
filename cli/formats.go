@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/format/schema"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/gokapi/gokapi/cli/output"
@@ -153,6 +154,15 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 				}
 				if len(out.MimeTypes) == 0 {
 					out.MimeTypes = info.MimeTypes
+				}
+			}
+
+			// Check if the format declares a config apiVersion.
+			if reader, err := a.FormatReg.NewReader(filterID); err == nil {
+				if cfg := reader.Config(); cfg != nil {
+					if cvp, ok := cfg.(format.ConfigVersionProvider); ok {
+						out.APIVersion = cvp.ConfigAPIVersion()
+					}
 				}
 			}
 
