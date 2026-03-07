@@ -120,8 +120,7 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
 				return err
 			}
 		case format.SkeletonRef:
-			blockID := string(entry.Data)
-			if block, ok := blocks[blockID]; ok {
+			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.getBlockText(block)
 				if _, err := io.WriteString(w.Output, text); err != nil {
 					return err

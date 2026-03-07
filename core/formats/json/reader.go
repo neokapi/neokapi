@@ -64,10 +64,10 @@ func (r *Reader) skelText(s string) {
 func (r *Reader) skelRef(id string) {
 	if r.skeletonStore != nil {
 		if r.skelBuf.Len() > 0 {
-			r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
 			r.skelBuf.Reset()
 		}
-		r.skeletonStore.WriteRef(id)
+		_ = r.skeletonStore.WriteRef(id)
 	}
 }
 
@@ -82,7 +82,7 @@ func (r *Reader) skelToken(tok token) {
 // skelFlush writes any remaining buffered text to the skeleton store.
 func (r *Reader) skelFlush() {
 	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
-		r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
 		r.skelBuf.Reset()
 	}
 }
