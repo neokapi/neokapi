@@ -6,6 +6,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
+	"github.com/gokapi/gokapi/core/formats/openxml"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
@@ -76,4 +77,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// TMX (Translation Memory eXchange)
 	reg.RegisterReader("tmx", func() format.DataFormatReader { return tmx.NewReader() })
 	reg.RegisterWriter("tmx", func() format.DataFormatWriter { return tmx.NewWriter() })
+
+	// OpenXML (DOCX, PPTX, XLSX)
+	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
+	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
 }
