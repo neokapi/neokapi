@@ -924,6 +924,126 @@ func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 	}
 }
 
+// okapi: JSONFilterTest#testSubfilterEasyToDebug
+func TestSnippets_SubfilterEasyToDebug(t *testing.T) {
+	// Simplified subfilter test: verify that the reader handles a simple
+	// HTML-like value without a subfilter resolver (treated as plain text).
+	input := `{"key": "<b>bold</b>"}`
+	parts := readJSON(t, input)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "bold")
+}
+
+// okapi: JSONFilterTest#testDoubleExtractionOnPreviousFailure
+func TestSnippets_DoubleExtractionOnPreviousFailure(t *testing.T) {
+	// Tests double extraction on a customer-form-like JSON structure
+	// that caused failures in earlier Okapi versions.
+	input := `{
+  "form": {
+    "fields": [
+      {"label": "First Name", "type": "text", "required": true},
+      {"label": "Last Name", "type": "text", "required": true},
+      {"label": "Email", "type": "email", "required": false}
+    ],
+    "submit": "Submit Form"
+  }
+}`
+	ctx := context.Background()
+
+	// First extraction
+	reader1 := jsonfmt.NewReader()
+	require.NoError(t, reader1.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts1 := testutil.CollectParts(t, reader1.Read(ctx))
+	reader1.Close()
+
+	blocks1 := testutil.FilterBlocks(parts1)
+
+	// Write back
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	ch := testutil.PartsToChannel(parts1)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	// Second extraction
+	reader2 := jsonfmt.NewReader()
+	require.NoError(t, reader2.Open(ctx, testutil.RawDocFromString(buf.String(), model.LocaleEnglish)))
+	parts2 := testutil.CollectParts(t, reader2.Read(ctx))
+	reader2.Close()
+
+	blocks2 := testutil.FilterBlocks(parts2)
+
+	// Compare: same number of blocks, same texts
+	require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+	texts1 := testutil.BlockTexts(blocks1)
+	texts2 := testutil.BlockTexts(blocks2)
+	for _, t1 := range texts1 {
+		assert.Contains(t, texts2, t1, "double extraction lost text: %s", t1)
+	}
+}
+
+// okapi: JSONFilterTest#testDoubleExtractionOnInvalid
+func TestSnippets_DoubleExtractionOnInvalid(t *testing.T) {
+	// Tests double extraction on relaxed JSON with comments.
+	// The native reader supports comments as relaxed JSON.
+	input := `{
+  // This is a comment
+  "key": "value",
+  /* Block comment */
+  "key2": "value2"
+}`
+	ctx := context.Background()
+
+	// First extraction
+	reader1 := jsonfmt.NewReader()
+	require.NoError(t, reader1.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts1 := testutil.CollectParts(t, reader1.Read(ctx))
+	reader1.Close()
+
+	blocks1 := testutil.FilterBlocks(parts1)
+
+	// Write back
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	ch := testutil.PartsToChannel(parts1)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	// Second extraction
+	reader2 := jsonfmt.NewReader()
+	require.NoError(t, reader2.Open(ctx, testutil.RawDocFromString(buf.String(), model.LocaleEnglish)))
+	parts2 := testutil.CollectParts(t, reader2.Read(ctx))
+	reader2.Close()
+
+	blocks2 := testutil.FilterBlocks(parts2)
+
+	// Compare
+	require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+	texts1 := testutil.BlockTexts(blocks1)
+	texts2 := testutil.BlockTexts(blocks2)
+	for _, t1 := range texts1 {
+		assert.Contains(t, texts2, t1, "double extraction lost text: %s", t1)
+	}
+}
+
+// okapi: JSONFilterTest#testEscapeForwardSlashesSubfilter
+func TestSnippets_EscapeForwardSlashesSubfilter(t *testing.T) {
+	// Forward slash escaping behavior applies to subfiltered content too.
+	// Without a real HTML subfilter, we verify the escaping works on
+	// content that contains forward slashes and HTML-like tags.
+	input := `{"key": "<a href=\"http://example.com\">link</a>"}`
+	output := snippetRoundtrip(t, input, nil)
+	// With default escapeForwardSlashes=true, forward slashes should be escaped
+	assert.Contains(t, output, `http:\/\/example.com`)
+	assert.Contains(t, output, "link")
+}
+
+// okapi-unmapped: JsonSnippetParserTest#testSingleObject — Java-specific: tests internal parser tokenization, not filter behavior
+
 // --- Exact skeleton roundtrip tests ---
 
 // TestSnippets_ExactRoundtrip_Simple verifies byte-exact roundtrip for simple JSON.

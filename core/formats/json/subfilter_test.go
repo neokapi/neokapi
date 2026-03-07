@@ -86,6 +86,7 @@ func (f *fakeHTMLWriter) Write(ctx context.Context, parts <-chan *model.Part) er
 	return nil
 }
 
+// okapi: JSONFilterTest#testSubfilter
 func TestSubfilter_ReadHTMLInJSON(t *testing.T) {
 	input := `{"title": "Hello", "body": "<p>Rich <b>content</b></p>"}`
 
@@ -212,6 +213,7 @@ func TestSubfilter_WildcardPattern(t *testing.T) {
 	assert.Equal(t, "html", childLayers[1].Format)
 }
 
+// okapi: JSONFilterTest#testSubFilterDoubleExtraction
 func TestSubfilter_Roundtrip(t *testing.T) {
 	input := `{"title": "Hello", "body": "<p>Rich content</p>"}`
 
