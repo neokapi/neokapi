@@ -143,9 +143,7 @@ func TestRoundTrip_Docx(t *testing.T) {
 // TestRoundTrip_Xlsx performs skeleton roundtrip on all XLSX test files.
 func TestRoundTrip_Xlsx(t *testing.T) {
 	dir := testdataDir(t)
-	roundTripTestFiles(t, dir, "*.xlsx",
-		"large.xlsx", // too large for CI
-	)
+	roundTripTestFiles(t, dir, "*.xlsx")
 }
 
 // TestRoundTrip_Pptx performs skeleton roundtrip on all PPTX test files.
