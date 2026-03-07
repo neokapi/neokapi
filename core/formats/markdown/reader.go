@@ -720,16 +720,16 @@ func (r *Reader) skelText(s string) {
 func (r *Reader) skelRef(id string) {
 	if r.skeletonStore != nil {
 		if r.skelBuf.Len() > 0 {
-			r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
 			r.skelBuf.Reset()
 		}
-		r.skeletonStore.WriteRef(id)
+		_ = r.skeletonStore.WriteRef(id)
 	}
 }
 
 func (r *Reader) skelFlush() {
 	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
-		r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
 		r.skelBuf.Reset()
 	}
 }
@@ -776,12 +776,11 @@ func (r *Reader) collectInlineText(buf *strings.Builder, node ast.Node, source [
 func (r *Reader) extractListItemText(item *ast.ListItem, source []byte) string {
 	var buf strings.Builder
 	for child := item.FirstChild(); child != nil; child = child.NextSibling() {
-		switch child.(type) {
+		switch n := child.(type) {
 		case *ast.Paragraph, *ast.TextBlock:
 			r.collectInlineText(&buf, child, source)
 		case *ast.Text:
-			t := child.(*ast.Text)
-			buf.Write(t.Segment.Value(source))
+			buf.Write(n.Segment.Value(source))
 		default:
 			r.collectInlineText(&buf, child, source)
 		}
@@ -934,7 +933,7 @@ func (r *Reader) buildLinkSpan(frag *model.Fragment, n *ast.Link, source []byte,
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 
 	closingData := fmt.Sprintf("](%s", string(n.Destination))
-	if n.Title != nil && len(n.Title) > 0 {
+	if len(n.Title) > 0 {
 		closingData += fmt.Sprintf(` "%s"`, string(n.Title))
 	}
 	closingData += ")"
@@ -972,7 +971,7 @@ func (r *Reader) buildImageSpan(frag *model.Fragment, n *ast.Image, source []byt
 	info := r.vocab.LookupOrFallback("link:image")
 
 	closingData := fmt.Sprintf("](%s", string(n.Destination))
-	if n.Title != nil && len(n.Title) > 0 {
+	if len(n.Title) > 0 {
 		closingData += fmt.Sprintf(` "%s"`, string(n.Title))
 	}
 	closingData += ")"
