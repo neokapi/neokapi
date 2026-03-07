@@ -9,7 +9,6 @@ import (
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
 	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
 )
 
 // Writer implements DataFormatWriter for HTML files.
@@ -96,337 +95,64 @@ func (w *Writer) writeReparse(content []byte, blocks map[string]*model.Block) er
 		return fmt.Errorf("html writer: parse original: %w", err)
 	}
 
-	state := &writerState{blocks: blocks}
-	w.patchNode(doc, state, false)
+	visitor := &writerVisitor{writer: w, blocks: blocks}
+	walker := newDOMWalker(w.cfg, visitor)
+	walker.walk(doc)
 
 	return html.Render(w.Output, doc)
 }
 
-// writerState tracks mutable counters during tree traversal,
-// mirroring readerState for identical ID assignment.
-type writerState struct {
-	blockCounter int
-	dataCounter  int
-	blocks       map[string]*model.Block
+// writerVisitor implements walkVisitor for the writer, patching DOM nodes
+// with translated content.
+type writerVisitor struct {
+	writer *Writer
+	blocks map[string]*model.Block
 }
 
-// patchNode mirrors walkNode in reader.go, assigning IDs in the same order.
-func (w *Writer) patchNode(n *html.Node, state *writerState, translateNo bool) {
-	switch n.Type {
-	case html.DocumentNode:
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			w.patchNode(child, state, translateNo)
-		}
+func (v *writerVisitor) onData(dataID string, n *html.Node, dataName string, props map[string]string) {
+	// No-op: structural elements are preserved as-is in the DOM.
+}
 
-	case html.DoctypeNode:
-		state.dataCounter++
-
-	case html.CommentNode:
-		state.dataCounter++
-
-	case html.ElementNode:
-		w.patchElement(n, state, translateNo)
-
-	case html.TextNode:
-		if translateNo {
-			return
-		}
-		text := n.Data
-		if !w.cfg.PreserveWhitespace {
-			text = collapseWhitespace(text)
-			text = strings.TrimFunc(text, isHTMLWhitespace)
-		}
-		if text != "" {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				n.Data = w.getBlockText(block)
-			}
-		}
+func (v *writerVisitor) onTextBlock(blockID string, n *html.Node) {
+	if block, ok := v.blocks[blockID]; ok {
+		n.Data = v.writer.getBlockText(block)
 	}
 }
 
-// patchElement mirrors walkElement in reader.go.
-func (w *Writer) patchElement(n *html.Node, state *writerState, translateNo bool) {
-	elemTranslateNo := translateNo
-	if tv := getAttr(n, "translate"); tv != "" {
-		if tv == "no" {
-			elemTranslateNo = true
-		} else if tv == "yes" {
-			elemTranslateNo = false
-		}
-	}
-
-	if nonTranslatableElements[n.DataAtom] {
-		state.dataCounter++
-		return
-	}
-
-	if n.DataAtom == atom.Meta {
-		w.patchMetaTag(n, state)
-		return
-	}
-
-	// lang/xml:lang → data counter (mirrors extractLangAttribute)
-	lang := getAttr(n, "lang")
-	if lang == "" {
-		lang = getAttrNS(n, "xml", "lang")
-	}
-	if lang != "" {
-		state.dataCounter++
-	}
-
-	// Translatable attributes (mirrors extractTranslatableAttributes)
-	w.patchTranslatableAttributes(n, state, elemTranslateNo)
-
-	if !isInlineElement(n) {
-		if elemTranslateNo {
-			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				w.patchNode(child, state, elemTranslateNo)
-			}
-			return
-		}
-
-		hasBlockChildren := writerHasBlockLevelChildren(n)
-
-		if hasBlockChildren {
-			w.patchBlockWithMixedContent(n, state, elemTranslateNo)
-			return
-		}
-
-		if writerHasAnyContent(n) || getAttr(n, "id") != "" {
-			preserveWS := w.cfg.PreserveWhitespace || preserveWhitespaceElements[n.DataAtom]
-
-			// Mirror the reader's collectInlineContent call: count spans
-			// and collect text the same way to determine if a block is emitted.
-			spanCounter := 0
-			w.countInlineSpansFromNode(n, &spanCounter, elemTranslateNo, state)
-
-			hasID := getAttr(n, "id") != ""
-			text := collectPlainText(n, preserveWS)
-			fragOK := text != "" || spanCounter > 0
-			if fragOK || hasID {
-				if text != "" || spanCounter > 0 || hasID {
-					state.blockCounter++
-					blockID := fmt.Sprintf("tu%d", state.blockCounter)
-					if block, ok := state.blocks[blockID]; ok {
-						w.replaceElementContent(n, block)
-					}
-					return
-				}
-			}
-		}
-	}
-
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		w.patchNode(child, state, elemTranslateNo)
+func (v *writerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey string) {
+	if block, ok := v.blocks[blockID]; ok {
+		setAttr(n, attrKey, v.writer.getBlockText(block))
 	}
 }
 
-// patchMetaTag mirrors handleMetaTag for ID assignment.
-func (w *Writer) patchMetaTag(n *html.Node, state *writerState) {
-	httpEquiv := strings.ToLower(getAttr(n, "http-equiv"))
-	metaName := strings.ToLower(getAttr(n, "name"))
-	content := getAttr(n, "content")
-	charset := getAttr(n, "charset")
-
-	if charset != "" {
-		state.dataCounter++
-		return
-	}
-
-	if httpEquiv == "content-type" && content != "" {
-		if cs := extractCharset(content); cs != "" {
-			state.dataCounter++
-			return
-		}
-	}
-
-	if httpEquiv == "content-language" && content != "" {
-		state.dataCounter++
-		return
-	}
-
-	if content != "" {
-		isTranslatable := false
-		if httpEquiv == "keywords" || translatableMetaNames[metaName] {
-			isTranslatable = true
-		}
-
-		if isTranslatable {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				text := w.getBlockText(block)
-				setAttr(n, "content", text)
-			}
-		}
-	}
-
-	state.dataCounter++
-}
-
-// patchTranslatableAttributes mirrors extractTranslatableAttributes for ID assignment.
-func (w *Writer) patchTranslatableAttributes(n *html.Node, state *writerState, translateNo bool) {
-	if translateNo {
-		return
-	}
-
-	if title := getAttr(n, "title"); title != "" {
-		state.blockCounter++
-		blockID := fmt.Sprintf("tu%d", state.blockCounter)
-		if block, ok := state.blocks[blockID]; ok {
-			setAttr(n, "title", w.getBlockText(block))
-		}
-	}
-
-	if alt := getAttr(n, "alt"); alt != "" {
-		if n.DataAtom == atom.Img || n.DataAtom == atom.Input || n.DataAtom == atom.Area {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				setAttr(n, "alt", w.getBlockText(block))
-			}
-		}
-	}
-
-	if label := getAttr(n, "label"); label != "" {
-		if n.DataAtom == atom.Option {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				setAttr(n, "label", w.getBlockText(block))
-			}
-		}
-	}
-
-	if ph := getAttr(n, "placeholder"); ph != "" {
-		if n.DataAtom == atom.Input || n.DataAtom == atom.Textarea {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				setAttr(n, "placeholder", w.getBlockText(block))
-			}
-		}
-	}
-
-	if val := getAttr(n, "value"); val != "" && n.DataAtom == atom.Input {
-		inputType := strings.ToLower(getAttr(n, "type"))
-		if isTranslatableInputValue(inputType) {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			if block, ok := state.blocks[blockID]; ok {
-				setAttr(n, "value", w.getBlockText(block))
-			}
-		}
+func (v *writerVisitor) onMetaBlock(blockID string, n *html.Node) {
+	if block, ok := v.blocks[blockID]; ok {
+		setAttr(n, "content", v.writer.getBlockText(block))
 	}
 }
 
-// patchBlockWithMixedContent mirrors processBlockWithMixedContent for ID assignment.
-func (w *Writer) patchBlockWithMixedContent(n *html.Node, state *writerState, translateNo bool) {
-	preserveWS := w.cfg.PreserveWhitespace || preserveWhitespaceElements[n.DataAtom]
-
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.TextNode || (child.Type == html.ElementNode && isInlineElement(child)) {
-			// Collect inline run — mirror the reader's logic.
-			var textBuf strings.Builder
-			spanCounter := 0
-			runStart := child
-			for child != nil && (child.Type == html.TextNode ||
-				child.Type == html.CommentNode ||
-				(child.Type == html.ElementNode && isInlineElement(child))) {
-				switch child.Type {
-				case html.TextNode:
-					textBuf.WriteString(child.Data)
-				case html.CommentNode:
-					spanCounter++
-				case html.ElementNode:
-					w.patchTranslatableAttributes(child, state, translateNo)
-					w.countInlineSpansFromNode(child, &spanCounter, translateNo, state)
-				}
-				child = child.NextSibling
-			}
-
-			text := textBuf.String()
-			if !preserveWS {
-				text = collapseWhitespace(text)
-				text = strings.TrimFunc(text, isHTMLWhitespace)
-			}
-			if text != "" || spanCounter > 0 {
-				state.blockCounter++
-				blockID := fmt.Sprintf("tu%d", state.blockCounter)
-				if block, ok := state.blocks[blockID]; ok {
-					w.replaceInlineRun(n, runStart, child, block)
-				}
-			}
-
-			if child == nil {
-				break
-			}
-			// Fall through to process this block-level child below.
-		}
-
-		w.patchNode(child, state, translateNo)
+func (v *writerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS bool) {
+	if block, ok := v.blocks[blockID]; ok {
+		v.replaceElementContent(n, block)
 	}
 }
 
-// countInlineSpansFromNode counts spans inside a node's children,
-// mirroring collectFromNode span counting, and advances attribute block counters.
-func (w *Writer) countInlineSpansFromNode(n *html.Node, spanCounter *int, translateNo bool, state *writerState) {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		switch child.Type {
-		case html.CommentNode:
-			*spanCounter++
-
-		case html.ElementNode:
-			// Mirror: extractTranslatableAttributes on inline elements inside blocks
-			w.patchTranslatableAttributes(child, state, translateNo)
-
-			if nonTranslatableElements[child.DataAtom] {
-				*spanCounter++
-				continue
-			}
-
-			childTranslateNo := translateNo
-			if tv := getAttr(child, "translate"); tv != "" {
-				if tv == "no" {
-					childTranslateNo = true
-				} else if tv == "yes" {
-					childTranslateNo = false
-				}
-			}
-
-			if isInlineElement(child) {
-				if childTranslateNo && !translateNo && !hasDescendantTranslateYes(child) {
-					*spanCounter++
-					continue
-				}
-
-				if selfClosingElements[child.DataAtom] {
-					*spanCounter++
-				} else {
-					*spanCounter++ // opening
-					w.countInlineSpansFromNode(child, spanCounter, childTranslateNo, state)
-					*spanCounter++ // closing
-				}
-			}
-		}
+func (v *writerVisitor) onMixedContentBlock(blockID string, parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) {
+	if block, ok := v.blocks[blockID]; ok {
+		v.replaceInlineRun(parent, runStart, runEnd, block)
 	}
 }
 
 // replaceElementContent replaces a block element's children with translated content.
-func (w *Writer) replaceElementContent(n *html.Node, block *model.Block) {
-	text := w.getBlockText(block)
+func (v *writerVisitor) replaceElementContent(n *html.Node, block *model.Block) {
+	text := v.writer.getBlockText(block)
 
-	// Remove existing children.
 	for n.FirstChild != nil {
 		n.RemoveChild(n.FirstChild)
 	}
 
-	// Parse the translated text (may contain HTML markup from spans) and add as children.
 	nodes, err := html.ParseFragment(strings.NewReader(text), n)
 	if err != nil {
-		// Fallback: insert as plain text.
 		n.AppendChild(&html.Node{Type: html.TextNode, Data: text})
 		return
 	}
@@ -435,27 +161,24 @@ func (w *Writer) replaceElementContent(n *html.Node, block *model.Block) {
 	}
 }
 
-// replaceInlineRun replaces a run of inline nodes (from runStart up to but not
-// including endNode) with translated content.
-func (w *Writer) replaceInlineRun(parent *html.Node, runStart, endNode *html.Node, block *model.Block) {
-	text := w.getBlockText(block)
+// replaceInlineRun replaces a run of inline nodes with translated content.
+func (v *writerVisitor) replaceInlineRun(parent *html.Node, runStart, runEnd *html.Node, block *model.Block) {
+	text := v.writer.getBlockText(block)
 
-	// Remove the inline run nodes.
-	for runStart != nil && runStart != endNode {
+	for runStart != nil && runStart != runEnd {
 		next := runStart.NextSibling
 		parent.RemoveChild(runStart)
 		runStart = next
 	}
 
-	// Parse translated content and insert before endNode.
 	nodes, err := html.ParseFragment(strings.NewReader(text), parent)
 	if err != nil {
 		node := &html.Node{Type: html.TextNode, Data: text}
-		parent.InsertBefore(node, endNode)
+		parent.InsertBefore(node, runEnd)
 		return
 	}
 	for _, child := range nodes {
-		parent.InsertBefore(child, endNode)
+		parent.InsertBefore(child, runEnd)
 	}
 }
 
@@ -469,8 +192,6 @@ func (w *Writer) getBlockText(block *model.Block) string {
 
 // writeFallback writes blocks without original content (existing behavior).
 func (w *Writer) writeFallback(blocks map[string]*model.Block) error {
-	// We need ordered output, but map iteration is random.
-	// Collect block IDs and sort them.
 	type indexedBlock struct {
 		idx   int
 		block *model.Block
@@ -482,7 +203,6 @@ func (w *Writer) writeFallback(blocks map[string]*model.Block) error {
 			ordered = append(ordered, indexedBlock{idx: idx, block: b})
 		}
 	}
-	// Sort by index.
 	for i := range ordered {
 		for j := i + 1; j < len(ordered); j++ {
 			if ordered[j].idx < ordered[i].idx {
@@ -568,39 +288,7 @@ func setAttr(n *html.Node, key, val string) {
 	n.Attr = append(n.Attr, html.Attribute{Key: key, Val: val})
 }
 
-// writerHasBlockLevelChildren mirrors Reader.hasBlockLevelChildren.
-func writerHasBlockLevelChildren(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.ElementNode && !isInlineElement(child) && !nonTranslatableElements[child.DataAtom] {
-			return true
-		}
-	}
-	return false
-}
-
-// writerHasAnyContent mirrors Reader.hasAnyContent.
-func writerHasAnyContent(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.TextNode {
-			if strings.TrimFunc(child.Data, isHTMLWhitespace) != "" {
-				return true
-			}
-		}
-		if child.Type == html.ElementNode {
-			if isInlineElement(child) {
-				if selfClosingElements[child.DataAtom] {
-					return true
-				}
-				if writerHasAnyContent(child) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// collectPlainText collects plain text from a node's children (for the writer's
+// collectPlainText collects plain text from a node's children (for the walker's
 // block-emission check), without building spans.
 func collectPlainText(n *html.Node, preserveWS bool) string {
 	var buf strings.Builder
