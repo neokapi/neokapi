@@ -377,6 +377,120 @@ func TestReaderConfigListParams(t *testing.T) {
 	assert.True(t, cfg.TranslateHiddenSlides)
 }
 
+func TestReaderConfigAllBoolKeys(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	// Set every boolean to the opposite of its default
+	err := cfg.ApplyMap(map[string]any{
+		"translateDocProperties":  false,
+		"translateHiddenText":     true,
+		"translateHeadersFooters": false,
+		"translateFootnotes":      false,
+		"translateComments":       true,
+		"translateHyperlinks":     false,
+		"aggressiveCleanup":      false,
+		"tabAsCharacter":         true,
+		"translateSlideNotes":    false,
+		"translateSlideMasters":  true,
+		"translateHiddenSlides":  true,
+		"translateCharts":        true,
+		"translateDiagrams":      true,
+		"translateSheetNames":    true,
+		"translateSharedStrings": false,
+		"replaceLineSeparator":   true,
+	})
+	require.NoError(t, err)
+
+	assert.False(t, cfg.TranslateDocProperties)
+	assert.True(t, cfg.TranslateHiddenText)
+	assert.False(t, cfg.TranslateHeadersFooters)
+	assert.False(t, cfg.TranslateFootnotes)
+	assert.True(t, cfg.TranslateComments)
+	assert.False(t, cfg.TranslateHyperlinks)
+	assert.False(t, cfg.AggressiveCleanup)
+	assert.True(t, cfg.TabAsCharacter)
+	assert.False(t, cfg.TranslateSlideNotes)
+	assert.True(t, cfg.TranslateSlideMasters)
+	assert.True(t, cfg.TranslateHiddenSlides)
+	assert.True(t, cfg.TranslateCharts)
+	assert.True(t, cfg.TranslateDiagrams)
+	assert.True(t, cfg.TranslateSheetNames)
+	assert.False(t, cfg.TranslateSharedStrings)
+	assert.True(t, cfg.ReplaceLineSeparator)
+}
+
+func TestReaderConfigAllListKeys(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	err := cfg.ApplyMap(map[string]any{
+		"excludeColors":          []any{"FF0000"},
+		"excludeHighlightColors": []any{"yellow", "red"},
+		"includeHighlightColors": []any{"green"},
+		"excludeStyles":          []any{"CodeBlock"},
+		"includeStyles":          []any{"Normal", "Heading1"},
+		"excludedSheets":         []any{"Sheet2", "Hidden"},
+		"excludedColumns":        []any{"A", "C", "AA"},
+		"includedSlides":         []any{float64(1), float64(5)},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"FF0000"}, cfg.ExcludeColors)
+	assert.Equal(t, []string{"yellow", "red"}, cfg.ExcludeHighlightColors)
+	assert.Equal(t, []string{"green"}, cfg.IncludeHighlightColors)
+	assert.Equal(t, []string{"CodeBlock"}, cfg.ExcludeStyles)
+	assert.Equal(t, []string{"Normal", "Heading1"}, cfg.IncludeStyles)
+	assert.Equal(t, []string{"Sheet2", "Hidden"}, cfg.ExcludedSheets)
+	assert.Equal(t, []string{"A", "C", "AA"}, cfg.ExcludedColumns)
+	assert.Equal(t, []int{1, 5}, cfg.IncludedSlides)
+}
+
+func TestReaderConfigToBoolStringValues(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	err := cfg.ApplyMap(map[string]any{
+		"translateDocProperties": "true",
+		"translateHiddenText":    "yes",
+		"translateComments":      "1",
+		"aggressiveCleanup":     "false",
+	})
+	require.NoError(t, err)
+
+	assert.True(t, cfg.TranslateDocProperties)
+	assert.True(t, cfg.TranslateHiddenText)
+	assert.True(t, cfg.TranslateComments)
+	assert.False(t, cfg.AggressiveCleanup)
+}
+
+func TestReaderConfigNilListValues(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	err := cfg.ApplyMap(map[string]any{
+		"excludeColors":  nil,
+		"includedSlides": nil,
+	})
+	require.NoError(t, err)
+	assert.Nil(t, cfg.ExcludeColors)
+	assert.Nil(t, cfg.IncludedSlides)
+}
+
+func TestReaderConfigDirectSliceTypes(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	// Test direct []string and []int paths (not []any)
+	err := cfg.ApplyMap(map[string]any{
+		"excludeColors":  []string{"AABBCC"},
+		"includedSlides": []int{2, 4, 6},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"AABBCC"}, cfg.ExcludeColors)
+	assert.Equal(t, []int{2, 4, 6}, cfg.IncludedSlides)
+}
+
 func TestReaderConfigUnknownKey(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
@@ -385,19 +499,40 @@ func TestReaderConfigUnknownKey(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown config key")
 }
 
-func TestReaderConfigInvalidListType(t *testing.T) {
+func TestReaderConfigInvalidTypes(t *testing.T) {
+	tests := []struct {
+		name string
+		key  string
+		val  any
+		msg  string
+	}{
+		{"string list gets int", "excludeColors", 42, "string list"},
+		{"string list item not string", "excludeStyles", []any{42}, "string"},
+		{"int list gets string", "includedSlides", "nope", "int list"},
+		{"int list item not int", "includedSlides", []any{"bad"}, "int"},
+		{"string key gets int", "lineSeparatorReplacement", 42, "string"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &Config{}
+			cfg.Reset()
+			err := cfg.ApplyMap(map[string]any{tt.key: tt.val})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.msg)
+		})
+	}
+}
+
+func TestReaderConfigValidate(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
-	err := cfg.ApplyMap(map[string]any{"excludeColors": 42})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "string list")
+	assert.NoError(t, cfg.Validate())
 }
 
 func TestReaderConfigDefaults(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
 
-	// Verify defaults
 	assert.True(t, cfg.TranslateDocProperties)
 	assert.False(t, cfg.TranslateHiddenText)
 	assert.True(t, cfg.TranslateHeadersFooters)
