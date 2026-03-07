@@ -160,400 +160,184 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	state := &readerState{
-		blockCounter: 0,
-		dataCounter:  0,
-	}
-
-	r.walkNode(ctx, ch, doc, state, false)
+	visitor := &readerVisitor{reader: r, ctx: ctx, ch: ch}
+	walker := newDOMWalker(r.cfg, visitor)
+	walker.walk(doc)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// readerState tracks mutable counters during tree traversal.
-type readerState struct {
-	blockCounter int
-	dataCounter  int
+// readerVisitor implements walkVisitor for the reader, building model objects
+// and emitting Parts to the channel.
+type readerVisitor struct {
+	reader *Reader
+	ctx    context.Context
+	ch     chan<- model.PartResult
 }
 
-// walkNode traverses the HTML tree emitting Parts.
-func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState, translateNo bool) {
-	switch n.Type {
-	case html.DocumentNode:
-		for child := n.FirstChild; child != nil; child = child.NextSibling {
-			r.walkNode(ctx, ch, child, state, translateNo)
-		}
-
-	case html.DoctypeNode:
-		state.dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", state.dataCounter),
-			Name: "doctype",
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-
-	case html.CommentNode:
-		state.dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", state.dataCounter),
-			Name: "comment",
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-
-	case html.ElementNode:
-		r.walkElement(ctx, ch, n, state, translateNo)
-
-	case html.TextNode:
-		if translateNo {
-			return
-		}
-		text := n.Data
-		if !r.cfg.PreserveWhitespace {
-			text = collapseWhitespace(text)
-			text = strings.TrimFunc(text, isHTMLWhitespace)
-		}
-		if text != "" {
-			state.blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", state.blockCounter), text)
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
+func (v *readerVisitor) onData(dataID string, n *html.Node, dataName string, props map[string]string) {
+	data := &model.Data{
+		ID:         dataID,
+		Name:       dataName,
+		Properties: props,
 	}
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartData, Resource: data})
 }
 
-// walkElement handles element nodes with all feature logic.
-func (r *Reader) walkElement(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState, translateNo bool) {
-	// Check translate attribute on the element itself.
-	elemTranslateNo := translateNo
-	if tv := getAttr(n, "translate"); tv != "" {
-		if tv == "no" {
-			elemTranslateNo = true
-		} else if tv == "yes" {
-			elemTranslateNo = false
-		}
+func (v *readerVisitor) onTextBlock(blockID string, n *html.Node) {
+	text := n.Data
+	if !v.reader.cfg.PreserveWhitespace {
+		text = collapseWhitespace(text)
+		text = strings.TrimFunc(text, isHTMLWhitespace)
 	}
-
-	// Non-translatable elements (script, style) become Data parts.
-	if nonTranslatableElements[n.DataAtom] {
-		state.dataCounter++
-		data := &model.Data{
-			ID:   fmt.Sprintf("d%d", state.dataCounter),
-			Name: n.Data,
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-		return
-	}
-
-	// META tag handling.
-	if n.DataAtom == atom.Meta {
-		r.handleMetaTag(ctx, ch, n, state)
-		return
-	}
-
-	// Extract language/encoding from lang, xml:lang attributes.
-	r.extractLangAttribute(ctx, ch, n, state)
-
-	// Extract translatable attributes (title, alt, label, placeholder, value on certain inputs).
-	r.extractTranslatableAttributes(ctx, ch, n, state, elemTranslateNo)
-
-	// Block-level element handling.
-	if !isInlineElement(n) {
-		// Check if this element is excluded via translate="no".
-		if elemTranslateNo {
-			// Still recurse in case children have translate="yes".
-			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				r.walkNode(ctx, ch, child, state, elemTranslateNo)
-			}
-			return
-		}
-
-		hasBlockChildren := r.hasBlockLevelChildren(n)
-
-		if hasBlockChildren {
-			// Mixed content: process runs of inline content between block elements.
-			r.processBlockWithMixedContent(ctx, ch, n, state, elemTranslateNo)
-			return
-		}
-
-		if r.hasAnyContent(n) || getAttr(n, "id") != "" {
-			preserveWS := r.cfg.PreserveWhitespace || preserveWhitespaceElements[n.DataAtom]
-			frag := r.collectInlineContent(ctx, ch, n, preserveWS, elemTranslateNo, state)
-
-			hasID := getAttr(n, "id") != ""
-			fragOK := frag != nil && !frag.IsEmpty()
-			if fragOK || hasID {
-				text := ""
-				if frag != nil {
-					text = frag.Text()
-				}
-				if text != "" || (frag != nil && frag.HasSpans()) || hasID {
-					if frag == nil {
-						frag = &model.Fragment{}
-					}
-					state.blockCounter++
-					blockID := fmt.Sprintf("tu%d", state.blockCounter)
-					block := &model.Block{
-						ID:                 blockID,
-						Name:               r.blockName(n),
-						Type:               r.blockType(n),
-						Translatable:       true,
-						PreserveWhitespace: preserveWS,
-						Source:             []*model.Segment{{ID: "s1", Content: frag}},
-						Targets:            make(map[model.LocaleID][]*model.Segment),
-						Properties:         r.extractBlockProperties(n),
-						Annotations:        make(map[string]model.Annotation),
-						Skeleton: &model.Skeleton{
-							Strategy: model.SkeletonFragmentBased,
-							Parts: []model.SkeletonPart{
-								&model.SkeletonText{Text: r.renderOpenTag(n)},
-								&model.SkeletonRef{ResourceID: blockID, Property: "target"},
-								&model.SkeletonText{Text: fmt.Sprintf("</%s>", n.Data)},
-							},
-						},
-					}
-					r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-					return
-				}
-			}
-		}
-	}
-
-	// Container element without direct text: recurse into children.
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		r.walkNode(ctx, ch, child, state, elemTranslateNo)
-	}
+	block := model.NewBlock(blockID, text)
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
-// handleMetaTag processes <meta> tags for translatable content, language, and encoding.
-func (r *Reader) handleMetaTag(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState) {
-	httpEquiv := strings.ToLower(getAttr(n, "http-equiv"))
+func (v *readerVisitor) onAttributeBlock(blockID string, n *html.Node, attrKey string) {
+	value := getAttr(n, attrKey)
+	block := &model.Block{
+		ID:           blockID,
+		Type:         attrKey,
+		Translatable: true,
+		IsReferent:   true,
+		Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(value)}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
+	}
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+func (v *readerVisitor) onMetaBlock(blockID string, n *html.Node) {
 	metaName := strings.ToLower(getAttr(n, "name"))
 	content := getAttr(n, "content")
-	charset := getAttr(n, "charset")
+	block := &model.Block{
+		ID:           blockID,
+		Name:         metaName,
+		Type:         "content",
+		Translatable: true,
+		IsReferent:   true,
+		Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(content)}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
+	}
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
 
-	// charset attribute → encoding Data part.
-	if charset != "" {
-		state.dataCounter++
-		data := &model.Data{
-			ID:         fmt.Sprintf("d%d", state.dataCounter),
-			Name:       "meta",
-			Properties: map[string]string{"encoding": charset},
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+func (v *readerVisitor) onBlockElement(blockID string, n *html.Node, preserveWS bool) {
+	// Collect inline content into a Fragment. This is a second pass over
+	// the inline children — the walker already advanced all counters.
+	frag := v.collectInlineContent(n, preserveWS)
+
+	hasID := getAttr(n, "id") != ""
+	if frag == nil && !hasID {
+		return
+	}
+	if frag == nil {
+		frag = &model.Fragment{}
+	}
+
+	block := &model.Block{
+		ID:                 blockID,
+		Name:               v.reader.blockName(n),
+		Type:               v.reader.blockType(n),
+		Translatable:       true,
+		PreserveWhitespace: preserveWS,
+		Source:             []*model.Segment{{ID: "s1", Content: frag}},
+		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Properties:         v.reader.extractBlockProperties(n),
+		Annotations:        make(map[string]model.Annotation),
+		Skeleton: &model.Skeleton{
+			Strategy: model.SkeletonFragmentBased,
+			Parts: []model.SkeletonPart{
+				&model.SkeletonText{Text: v.reader.renderOpenTag(n)},
+				&model.SkeletonRef{ResourceID: blockID, Property: "target"},
+				&model.SkeletonText{Text: fmt.Sprintf("</%s>", n.Data)},
+			},
+		},
+	}
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+func (v *readerVisitor) onMixedContentBlock(blockID string, parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) {
+	// Collect inline content from the run into a Fragment.
+	frag := v.collectMixedRunContent(parent, runStart, runEnd, preserveWS)
+	if frag == nil {
 		return
 	}
 
-	// http-equiv="Content-Type" with charset → encoding Data part.
-	if httpEquiv == "content-type" && content != "" {
-		if cs := extractCharset(content); cs != "" {
-			state.dataCounter++
-			data := &model.Data{
-				ID:         fmt.Sprintf("d%d", state.dataCounter),
-				Name:       "meta",
-				Properties: map[string]string{"encoding": cs},
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-			return
-		}
+	block := &model.Block{
+		ID:                 blockID,
+		Name:               v.reader.blockName(parent),
+		Type:               v.reader.blockType(parent),
+		Translatable:       true,
+		PreserveWhitespace: preserveWS,
+		Source:             []*model.Segment{{ID: "s1", Content: frag}},
+		Targets:            make(map[model.LocaleID][]*model.Segment),
+		Properties:         v.reader.extractBlockProperties(parent),
+		Annotations:        make(map[string]model.Annotation),
 	}
-
-	// http-equiv="Content-Language" → language Data part.
-	if httpEquiv == "content-language" && content != "" {
-		state.dataCounter++
-		data := &model.Data{
-			ID:         fmt.Sprintf("d%d", state.dataCounter),
-			Name:       "meta",
-			Properties: map[string]string{"language": content},
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-		return
-	}
-
-	// Translatable META content: keywords, description, twitter:*, og:*.
-	if content != "" {
-		isTranslatable := false
-		if httpEquiv == "keywords" || translatableMetaNames[metaName] {
-			isTranslatable = true
-		}
-		if httpEquiv == "keywords" {
-			isTranslatable = true
-		}
-
-		if isTranslatable {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			block := &model.Block{
-				ID:           blockID,
-				Name:         metaName,
-				Type:         "content",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(content)}},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
-				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
-	}
-
-	// Emit a Data part for the meta tag structure.
-	state.dataCounter++
-	data := &model.Data{
-		ID:   fmt.Sprintf("d%d", state.dataCounter),
-		Name: "meta",
-	}
-	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+	v.reader.emit(v.ctx, v.ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
-// extractTranslatableAttributes extracts translatable attribute values as blocks.
-func (r *Reader) extractTranslatableAttributes(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState, translateNo bool) {
-	if translateNo {
-		return
-	}
-
-	// title attribute is translatable on all elements.
-	if title := getAttr(n, "title"); title != "" {
-		state.blockCounter++
-		blockID := fmt.Sprintf("tu%d", state.blockCounter)
-		block := &model.Block{
-			ID:           blockID,
-			Type:         "title",
-			Translatable: true,
-			IsReferent:   true,
-			Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(title)}},
-			Targets:      make(map[model.LocaleID][]*model.Segment),
-			Properties:   make(map[string]string),
-			Annotations:  make(map[string]model.Annotation),
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-	}
-
-	// alt attribute is translatable on img, input, area.
-	if alt := getAttr(n, "alt"); alt != "" {
-		if n.DataAtom == atom.Img || n.DataAtom == atom.Input || n.DataAtom == atom.Area {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			block := &model.Block{
-				ID:           blockID,
-				Type:         "alt",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(alt)}},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
-				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
-	}
-
-	// label attribute on option.
-	if label := getAttr(n, "label"); label != "" {
-		if n.DataAtom == atom.Option {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			block := &model.Block{
-				ID:           blockID,
-				Type:         "label",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(label)}},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
-				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
-	}
-
-	// placeholder attribute on input.
-	if ph := getAttr(n, "placeholder"); ph != "" {
-		if n.DataAtom == atom.Input || n.DataAtom == atom.Textarea {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			block := &model.Block{
-				ID:           blockID,
-				Type:         "placeholder",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(ph)}},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
-				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
-	}
-
-	// value attribute on input (type-dependent).
-	if val := getAttr(n, "value"); val != "" && n.DataAtom == atom.Input {
-		inputType := strings.ToLower(getAttr(n, "type"))
-		// value is translatable for submit, button, reset and generic types (not file, hidden, radio, checkbox, image).
-		if isTranslatableInputValue(inputType) {
-			state.blockCounter++
-			blockID := fmt.Sprintf("tu%d", state.blockCounter)
-			block := &model.Block{
-				ID:           blockID,
-				Type:         "value",
-				Translatable: true,
-				IsReferent:   true,
-				Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(val)}},
-				Targets:      make(map[model.LocaleID][]*model.Segment),
-				Properties:   make(map[string]string),
-				Annotations:  make(map[string]model.Annotation),
-			}
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		}
-	}
-}
-
-// isTranslatableInputValue returns true if the input type has a translatable value attribute.
-func isTranslatableInputValue(inputType string) bool {
-	switch inputType {
-	case "file", "hidden", "radio", "checkbox", "image":
-		return false
-	case "submit", "button", "reset":
-		return true
-	default:
-		// For other/unknown types, extract value.
-		return true
-	}
-}
-
-// extractLangAttribute emits Data parts for lang/xml:lang attributes.
-func (r *Reader) extractLangAttribute(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState) {
-	lang := getAttr(n, "lang")
-	if lang == "" {
-		lang = getAttrNS(n, "xml", "lang")
-	}
-	if lang != "" {
-		state.dataCounter++
-		data := &model.Data{
-			ID:         fmt.Sprintf("d%d", state.dataCounter),
-			Name:       n.Data,
-			Properties: map[string]string{"language": lang},
-		}
-		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
-	}
-}
-
-// collectInlineContent collects all text and inline elements from a block element
-// into a single Fragment with Spans using sequential IDs and semantic types.
-func (r *Reader) collectInlineContent(ctx context.Context, ch chan<- model.PartResult, n *html.Node, preserveWS bool, translateNo bool, state *readerState) *model.Fragment {
+// collectInlineContent builds a Fragment from a block element's inline children.
+// This is a pure fragment-building pass — no counter advancement.
+func (v *readerVisitor) collectInlineContent(n *html.Node, preserveWS bool) *model.Fragment {
 	frag := &model.Fragment{}
 	spanCounter := 0
-	r.collectFromNode(ctx, ch, n, frag, &spanCounter, preserveWS, translateNo, state)
+	v.collectFromNode(n, frag, &spanCounter, preserveWS, false)
 
-	// Apply whitespace collapsing to the fragment text if needed.
 	if !preserveWS {
 		frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
 		frag.CodedText = trimCodedText(frag.CodedText)
 	}
 
+	if frag.IsEmpty() {
+		return nil
+	}
 	return frag
 }
 
-func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult, n *html.Node, frag *model.Fragment, spanCounter *int, preserveWS bool, translateNo bool, state *readerState) {
+// collectMixedRunContent builds a Fragment from a run of inline nodes.
+func (v *readerVisitor) collectMixedRunContent(parent *html.Node, runStart, runEnd *html.Node, preserveWS bool) *model.Fragment {
+	frag := &model.Fragment{}
+	spanCounter := 0
+
+	for child := runStart; child != nil && child != runEnd; child = child.NextSibling {
+		switch child.Type {
+		case html.TextNode:
+			frag.AppendText(child.Data)
+		case html.CommentNode:
+			spanCounter++
+			frag.AppendSpan(&model.Span{
+				SpanType: model.SpanPlaceholder,
+				Type:     "code:comment",
+				SubType:  "html:comment",
+				ID:       strconv.Itoa(spanCounter),
+				Data:     "<!--" + child.Data + "-->",
+			})
+		case html.ElementNode:
+			// Skip extractTranslatableAttributes — walker already handled it.
+			v.collectFromNode(child, frag, &spanCounter, preserveWS, false)
+		}
+	}
+
+	if !preserveWS {
+		frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
+		frag.CodedText = trimCodedText(frag.CodedText)
+	}
+
+	text := frag.Text()
+	if text == "" && !frag.HasSpans() {
+		return nil
+	}
+	return frag
+}
+
+// collectFromNode builds Fragment content from inline children.
+func (v *readerVisitor) collectFromNode(n *html.Node, frag *model.Fragment, spanCounter *int, preserveWS bool, translateNo bool) {
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		switch child.Type {
 		case html.TextNode:
@@ -571,10 +355,9 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 			})
 
 		case html.ElementNode:
-			// Extract translatable attributes from inline elements inside blocks.
-			r.extractTranslatableAttributes(ctx, ch, child, state, translateNo)
+			// Note: translatable attributes on inline children are already
+			// handled by the walker. We only build fragment content here.
 
-			// Non-translatable elements inside a block become placeholder spans.
 			if nonTranslatableElements[child.DataAtom] {
 				*spanCounter++
 				id := strconv.Itoa(*spanCounter)
@@ -588,7 +371,6 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 				continue
 			}
 
-			// Check translate attribute on inline elements.
 			childTranslateNo := translateNo
 			if tv := getAttr(child, "translate"); tv != "" {
 				if tv == "no" {
@@ -599,8 +381,6 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 			}
 
 			if isInlineElement(child) {
-				// If this inline element has translate="no" and the parent context is translatable,
-				// emit the entire subtree as a placeholder span — unless a descendant has translate="yes".
 				if childTranslateNo && !translateNo && !hasDescendantTranslateYes(child) {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
@@ -620,13 +400,13 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 				if selfClosingElements[child.DataAtom] {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
-					info := r.vocab.LookupOrFallback(semType)
+					info := v.reader.vocab.LookupOrFallback(semType)
 					frag.AppendSpan(&model.Span{
 						SpanType:    model.SpanPlaceholder,
 						Type:        semType,
 						SubType:     subType,
 						ID:          id,
-						Data:        r.renderTag(child),
+						Data:        v.reader.renderTag(child),
 						DisplayText: info.Display.Placeholder,
 						EquivText:   info.Equiv,
 						Deletable:   info.Constraints.Deletable,
@@ -636,20 +416,20 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 				} else {
 					*spanCounter++
 					id := strconv.Itoa(*spanCounter)
-					info := r.vocab.LookupOrFallback(semType)
+					info := v.reader.vocab.LookupOrFallback(semType)
 					frag.AppendSpan(&model.Span{
 						SpanType:    model.SpanOpening,
 						Type:        semType,
 						SubType:     subType,
 						ID:          id,
-						Data:        r.renderOpenTag(child),
+						Data:        v.reader.renderOpenTag(child),
 						DisplayText: info.Display.Open,
 						EquivText:   info.Equiv,
 						Deletable:   info.Constraints.Deletable,
 						Cloneable:   info.Constraints.Cloneable,
 						CanReorder:  info.Constraints.Reorderable,
 					})
-					r.collectFromNode(ctx, ch, child, frag, spanCounter, preserveWS, childTranslateNo, state)
+					v.collectFromNode(child, frag, spanCounter, preserveWS, childTranslateNo)
 					frag.AppendSpan(&model.Span{
 						SpanType:    model.SpanClosing,
 						Type:        semType,
@@ -664,133 +444,8 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 					})
 				}
 			}
-			// Non-inline elements inside a block (e.g., <ul> inside <p>) are
-			// skipped here; the parent's walkNode handles them via mixed content.
 		}
 	}
-}
-
-// hasBlockLevelChildren returns true if the node has any non-inline element children.
-func (r *Reader) hasBlockLevelChildren(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.ElementNode && !isInlineElement(child) && !nonTranslatableElements[child.DataAtom] {
-			return true
-		}
-	}
-	return false
-}
-
-// processBlockWithMixedContent handles block elements that have both block and inline children.
-// It creates blocks for runs of inline/text content between block elements, then recurses into block elements.
-func (r *Reader) processBlockWithMixedContent(ctx context.Context, ch chan<- model.PartResult, n *html.Node, state *readerState, translateNo bool) {
-	preserveWS := r.cfg.PreserveWhitespace || preserveWhitespaceElements[n.DataAtom]
-
-	// Process children, grouping consecutive inline/text nodes into blocks.
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.TextNode || (child.Type == html.ElementNode && isInlineElement(child)) {
-			// Collect a run of inline content.
-			frag := &model.Fragment{}
-			spanCounter := 0
-			for child != nil && (child.Type == html.TextNode ||
-				child.Type == html.CommentNode ||
-				(child.Type == html.ElementNode && isInlineElement(child))) {
-				switch child.Type {
-				case html.TextNode:
-					frag.AppendText(child.Data)
-				case html.CommentNode:
-					spanCounter++
-					frag.AppendSpan(&model.Span{
-						SpanType: model.SpanPlaceholder,
-						Type:     "code:comment",
-						SubType:  "html:comment",
-						ID:       strconv.Itoa(spanCounter),
-						Data:     "<!--" + child.Data + "-->",
-					})
-				case html.ElementNode:
-					r.extractTranslatableAttributes(ctx, ch, child, state, translateNo)
-					r.collectFromNode(ctx, ch, child, frag, &spanCounter, preserveWS, translateNo, state)
-				}
-				child = child.NextSibling
-			}
-
-			if !preserveWS {
-				frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
-				frag.CodedText = trimCodedText(frag.CodedText)
-			}
-			text := frag.Text()
-			if text != "" || frag.HasSpans() {
-				state.blockCounter++
-				blockID := fmt.Sprintf("tu%d", state.blockCounter)
-				block := &model.Block{
-					ID:                 blockID,
-					Name:               r.blockName(n),
-					Type:               r.blockType(n),
-					Translatable:       true,
-					PreserveWhitespace: preserveWS,
-					Source:             []*model.Segment{{ID: "s1", Content: frag}},
-					Targets:            make(map[model.LocaleID][]*model.Segment),
-					Properties:         r.extractBlockProperties(n),
-					Annotations:        make(map[string]model.Annotation),
-				}
-				r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-			}
-
-			// child has been advanced past the inline run; if nil, break.
-			if child == nil {
-				break
-			}
-			// Fall through to process this block-level child below.
-		}
-
-		// Block-level element child: recurse via walkNode.
-		r.walkNode(ctx, ch, child, state, translateNo)
-	}
-}
-
-// hasAnyContent returns true if the node contains any text or inline element content,
-// checking recursively through inline elements.
-func (r *Reader) hasAnyContent(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.TextNode {
-			if strings.TrimFunc(child.Data, isHTMLWhitespace) != "" {
-				return true
-			}
-		}
-		if child.Type == html.ElementNode {
-			if isInlineElement(child) {
-				if selfClosingElements[child.DataAtom] {
-					return true
-				}
-				if r.hasAnyContent(child) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// hasDescendantTranslateYes checks if any descendant element has translate="yes".
-func hasDescendantTranslateYes(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.ElementNode {
-			if getAttr(child, "translate") == "yes" {
-				return true
-			}
-			if hasDescendantTranslateYes(child) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// htmlSemanticType returns the vocabulary semantic type for an HTML element name.
-func htmlSemanticType(element string) string {
-	if t, ok := htmlSemanticTypes[strings.ToLower(element)]; ok {
-		return t
-	}
-	return "code:markup"
 }
 
 // blockType returns the block type for an element.
@@ -846,7 +501,6 @@ func collapseWhitespaceCodedText(s string) string {
 	for _, r := range s {
 		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
 			buf.WriteRune(r)
-			// Don't change space state for markers.
 			continue
 		}
 		if isHTMLWhitespace(r) {
@@ -874,7 +528,6 @@ func trimCodedText(s string) string {
 	runes := []rune(s)
 	start := 0
 	end := len(runes)
-	// Trim leading whitespace (skip markers).
 	for start < end {
 		r := runes[start]
 		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
@@ -886,7 +539,6 @@ func trimCodedText(s string) string {
 			break
 		}
 	}
-	// Trim trailing whitespace (skip markers).
 	for end > start {
 		r := runes[end-1]
 		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
@@ -965,8 +617,6 @@ func getAttr(n *html.Node, key string) string {
 }
 
 // getAttrNS returns the value of a namespaced attribute.
-// Go's HTML parser stores xml:lang as key="xml:lang" (no namespace),
-// so we also check for the combined "ns:key" form.
 func getAttrNS(n *html.Node, ns, key string) string {
 	combined := ns + ":" + key
 	for _, attr := range n.Attr {
@@ -989,6 +639,41 @@ func extractCharset(contentType string) string {
 		}
 	}
 	return ""
+}
+
+// htmlSemanticType returns the vocabulary semantic type for an HTML element name.
+func htmlSemanticType(element string) string {
+	if t, ok := htmlSemanticTypes[strings.ToLower(element)]; ok {
+		return t
+	}
+	return "code:markup"
+}
+
+// isTranslatableInputValue returns true if the input type has a translatable value attribute.
+func isTranslatableInputValue(inputType string) bool {
+	switch inputType {
+	case "file", "hidden", "radio", "checkbox", "image":
+		return false
+	case "submit", "button", "reset":
+		return true
+	default:
+		return true
+	}
+}
+
+// hasDescendantTranslateYes checks if any descendant element has translate="yes".
+func hasDescendantTranslateYes(n *html.Node) bool {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type == html.ElementNode {
+			if getAttr(child, "translate") == "yes" {
+				return true
+			}
+			if hasDescendantTranslateYes(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
