@@ -155,6 +155,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
+		// Emit skeleton part-boundary marker so the writer knows
+		// which ZIP entry each skeleton segment belongs to.
+		r.skelPartStart(partPath)
+
 		// Build relationship map for this part
 		mainDir := ""
 		if idx := lastIndex(partPath, '/'); idx >= 0 {
@@ -169,7 +173,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// DocProps/core.xml is format-independent
 		if partPath == "docProps/core.xml" {
-			parseCoreProperties(partData, partPath, &blockCounter, emitBlock)
+			parseCoreProperties(partData, partPath, &blockCounter, emitBlock, r.skeletonStore)
+			r.skelPartEnd(partPath)
 			r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 			continue
 		}
@@ -219,12 +224,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			parser.skelFlush()
 		}
 
+		r.skelPartEnd(partPath)
+
 		// End child layer
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 	}
 
 	// End root layer
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
+}
+
+// Skeleton part-boundary markers. The writer uses these to split the
+// single skeleton stream into per-ZIP-entry segments.
+const (
+	skelPartStartPrefix = "@@SKEL_PART_START@@"
+	skelPartEndPrefix   = "@@SKEL_PART_END@@"
+)
+
+func (r *Reader) skelPartStart(partPath string) {
+	if r.skeletonStore != nil {
+		_ = r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
+	}
+}
+
+func (r *Reader) skelPartEnd(partPath string) {
+	if r.skeletonStore != nil {
+		_ = r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
@@ -258,9 +284,16 @@ func readZipFile(f *zip.File) ([]byte, error) {
 	return io.ReadAll(rc)
 }
 
+// corePropsParser parses docProps/core.xml with skeleton support.
+type corePropsParser struct {
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer
+}
+
 // parseCoreProperties extracts translatable content from docProps/core.xml.
 // Dublin Core elements like dc:title, dc:subject, dc:creator, cp:keywords etc.
-func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block)) {
+func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBlock func(*model.Block), skelStore *format.SkeletonStore) {
+	p := &corePropsParser{skeletonStore: skelStore}
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	// Translatable DC elements
@@ -275,6 +308,7 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 
 	var inTranslatable bool
 	var currentElement string
+	var currentStart xml.StartElement
 	var textBuf strings.Builder
 
 	for {
@@ -288,11 +322,16 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 			if translatableElements[t.Name.Local] {
 				inTranslatable = true
 				currentElement = t.Name.Local
+				currentStart = t
 				textBuf.Reset()
+			} else {
+				p.skelWriteStartElement(t)
 			}
 		case xml.CharData:
 			if inTranslatable {
 				textBuf.Write(t)
+			} else {
+				p.skelText(xmlEscape(string(t)))
 			}
 		case xml.EndElement:
 			if inTranslatable && t.Name.Local == currentElement {
@@ -300,6 +339,11 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 				if text != "" {
 					*blockCounter++
 					blockID := fmt.Sprintf("tu%d", *blockCounter)
+					// Skeleton: write element open, ref, element close
+					p.skelWriteStartElement(currentStart)
+					p.skelRef(blockID)
+					p.skelWriteEndElement(t)
+
 					block := &model.Block{
 						ID:           blockID,
 						Type:         "property",
@@ -313,12 +357,75 @@ func parseCoreProperties(data []byte, partPath string, blockCounter *int, emitBl
 						Annotations: make(map[string]model.Annotation),
 					}
 					emitBlock(block)
+				} else {
+					// Empty translatable element — pass through to skeleton
+					p.skelWriteStartElement(currentStart)
+					p.skelText(xmlEscape(textBuf.String()))
+					p.skelWriteEndElement(t)
 				}
 				inTranslatable = false
 				currentElement = ""
+			} else {
+				p.skelWriteEndElement(t)
 			}
+		case xml.ProcInst:
+			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
 		}
 	}
+	p.skelFlush()
+}
+
+func (p *corePropsParser) skelText(s string) {
+	if p.skeletonStore != nil {
+		p.skelBuf.WriteString(s)
+	}
+}
+
+func (p *corePropsParser) skelRef(id string) {
+	if p.skeletonStore != nil {
+		if p.skelBuf.Len() > 0 {
+			_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+			p.skelBuf.Reset()
+		}
+		_ = p.skeletonStore.WriteRef(id)
+	}
+}
+
+func (p *corePropsParser) skelFlush() {
+	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
+		_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+		p.skelBuf.Reset()
+	}
+}
+
+func (p *corePropsParser) skelWriteStartElement(t xml.StartElement) {
+	if p.skeletonStore == nil {
+		return
+	}
+	registerNamespaces(t.Attr)
+	var buf strings.Builder
+	buf.WriteString("<")
+	writeElementName(&buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		writeAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(xmlEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString(">")
+	p.skelBuf.WriteString(buf.String())
+}
+
+func (p *corePropsParser) skelWriteEndElement(t xml.EndElement) {
+	if p.skeletonStore == nil {
+		return
+	}
+	var buf strings.Builder
+	buf.WriteString("</")
+	writeElementName(&buf, t.Name)
+	buf.WriteString(">")
+	p.skelBuf.WriteString(buf.String())
 }
 
 // lastIndex returns the index of the last occurrence of sep in s, or -1.

@@ -64,6 +64,14 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.TabAsCharacter = b
 		case "translateHyperlinks":
 			c.TranslateHyperlinks = b
+		case "translateSlideNotes":
+			c.TranslateSlideNotes = b
+		case "translateSlideMasters":
+			c.TranslateSlideMasters = b
+		case "translateSheetNames":
+			c.TranslateSheetNames = b
+		case "translateSharedStrings":
+			c.TranslateSharedStrings = b
 		default:
 			return fmt.Errorf("openxml: unknown config key %q", key)
 		}
