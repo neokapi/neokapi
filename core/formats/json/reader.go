@@ -16,13 +16,16 @@ import (
 // Reader implements DataFormatReader for JSON files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg      *Config
-	resolver format.SubfilterResolver
-	layerSeq int // counter for generating unique child layer IDs
+	cfg           *Config
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	layerSeq      int          // counter for generating unique child layer IDs
 }
 
-// Ensure Reader implements SubfilterAware.
+// Ensure Reader implements SubfilterAware and SkeletonStoreEmitter.
 var _ format.SubfilterAware = (*Reader)(nil)
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new JSON reader.
 func NewReader() *Reader {
@@ -43,6 +46,45 @@ func NewReader() *Reader {
 // SetSubfilterResolver sets the resolver for creating sub-format readers.
 func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	r.resolver = resolver
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelToken appends a token's prefix and raw bytes to the skeleton buffer.
+func (r *Reader) skelToken(tok token) {
+	if r.skeletonStore != nil {
+		r.skelBuf.WriteString(tok.prefix)
+		r.skelBuf.WriteString(tok.raw)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 // Signature returns detection metadata for this format.
@@ -96,17 +138,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Emit layer start (include original JSON for skeleton-based roundtrip)
+	// Emit layer start
 	layer := &model.Layer{
-		ID:       "doc1",
-		Name:     r.Doc.URI,
-		Format:   "json",
-		Locale:   locale,
-		Encoding: r.Doc.Encoding,
-		MimeType: "application/json",
-		Properties: map[string]string{
-			"json.original": string(content),
-		},
+		ID:         "doc1",
+		Name:       r.Doc.URI,
+		Format:     "json",
+		Locale:     locale,
+		Encoding:   r.Doc.Encoding,
+		MimeType:   "application/json",
+		Properties: make(map[string]string),
+	}
+	// Store original JSON for non-skeleton roundtrip
+	if r.skeletonStore == nil {
+		layer.Properties["json.original"] = string(content)
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
@@ -125,6 +169,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	state := &readState{pendingMaxwidth: -1}
 	pos := 0
 	r.walkTokenValue(ctx, ch, tokens, &pos, "", "", layer.ID, &blockCounter, &dataCounter, state)
+
+	// Write trailing whitespace/comments to skeleton store
+	if r.skeletonStore != nil && pos < len(tokens) && tokens[pos].typ == tokenEOF {
+		r.skelText(tokens[pos].prefix)
+	}
+	r.skelFlush()
 
 	// Emit layer end
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -147,11 +197,12 @@ func (r *Reader) walkTokenValue(ctx context.Context, ch chan<- model.PartResult,
 		r.walkTokenArray(ctx, ch, tokens, pos, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	case tokenString:
 		*pos++
-		r.handleStringValue(ctx, ch, tok.value, keyName, path, parentLayerID, blockCounter, dataCounter, state)
+		r.handleStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	case tokenNumber, tokenTrue, tokenFalse, tokenNull:
 		*pos++
 		r.handleNonStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	default:
+		r.skelToken(tok)
 		*pos++ // skip unexpected tokens
 	}
 }
@@ -161,7 +212,8 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 	tokens []token, pos *int, parentPath, parentLayerID string,
 	blockCounter, dataCounter *int, state *readState) {
 
-	*pos++ // skip {
+	r.skelToken(tokens[*pos]) // {
+	*pos++
 	// Save and reset pending state for this object scope
 	savedState := *state
 	state.pendingNote = ""
@@ -172,28 +224,33 @@ func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult
 	for *pos < len(tokens) {
 		tok := tokens[*pos]
 		if tok.typ == tokenObjectEnd {
+			r.skelToken(tok)
 			*pos++
 			break
 		}
 		if tok.typ == tokenComma {
+			r.skelToken(tok)
 			*pos++
 			continue
 		}
 		if tok.typ != tokenString {
+			r.skelToken(tok)
 			*pos++
 			continue
 		}
 
 		key := tok.value
-		*pos++ // skip key
+		r.skelToken(tok) // key string
+		*pos++
 		// skip colon
 		if *pos < len(tokens) && tokens[*pos].typ == tokenColon {
+			r.skelToken(tokens[*pos])
 			*pos++
 		}
 
 		childPath := r.buildPath(key, parentPath)
 
-		// Walk the value
+		// Walk the value (skeleton writing handled by value/handle functions)
 		r.walkTokenValue(ctx, ch, tokens, pos, key, childPath, parentLayerID, blockCounter, dataCounter, state)
 	}
 
@@ -206,16 +263,19 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 	tokens []token, pos *int, keyName, parentPath, parentLayerID string,
 	blockCounter, dataCounter *int, state *readState) {
 
-	*pos++ // skip [
+	r.skelToken(tokens[*pos]) // [
+	*pos++
 	index := 0
 
 	for *pos < len(tokens) {
 		tok := tokens[*pos]
 		if tok.typ == tokenArrayEnd {
+			r.skelToken(tok)
 			*pos++
 			break
 		}
 		if tok.typ == tokenComma {
+			r.skelToken(tok)
 			*pos++
 			continue
 		}
@@ -224,6 +284,7 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 
 		if tok.typ == tokenString && !r.cfg.ExtractIsolatedStrings {
 			// Standalone string in array — skip extraction
+			r.skelToken(tok)
 			*pos++
 			*dataCounter++
 			data := &model.Data{
@@ -244,14 +305,16 @@ func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
 
 // handleStringValue processes a string value found at the given key path.
 func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResult,
-	value, keyName, path, parentLayerID string,
+	tok token, keyName, path, parentLayerID string,
 	blockCounter, dataCounter *int, state *readState) {
 
+	value := tok.value
 	fullPath := r.fullKeyPath(path)
 
 	// Check metadata rules first — these consume the value without emitting a block
 	if r.cfg.isNote(keyName, fullPath) {
 		state.pendingNote = value
+		r.skelToken(tok)
 		return
 	}
 	if r.cfg.isID(keyName, fullPath) {
@@ -259,6 +322,7 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 		if r.cfg.UseIDStack {
 			state.idStack = append(state.idStack, value)
 		}
+		r.skelToken(tok)
 		return
 	}
 	if r.cfg.isGenericMeta(keyName, fullPath) {
@@ -266,11 +330,13 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 			state.pendingMeta = make(map[string]string)
 		}
 		state.pendingMeta[keyName] = value
+		r.skelToken(tok)
 		return
 	}
 
 	// Check extraction rules
 	if !r.cfg.shouldExtract(keyName, fullPath) {
+		r.skelToken(tok)
 		*dataCounter++
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", *dataCounter),
@@ -282,11 +348,15 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 
 	// Check for subfilter (pattern-based or global)
 	if mapping := r.matchSubfilter(path); mapping != nil && r.resolver != nil {
+		r.skelText(tok.prefix)
+		r.skelRef("layer:" + path)
 		r.emitSubfiltered(ctx, ch, value, path, parentLayerID, mapping, blockCounter, dataCounter)
-		r.consumePendingState(state, nil) // clear pending state
+		r.consumePendingState(state, nil)
 		return
 	}
 	if r.cfg.shouldSubfilter(keyName, fullPath) && r.resolver != nil {
+		r.skelText(tok.prefix)
+		r.skelRef("layer:" + path)
 		mapping := &format.SubfilterMapping{Format: r.cfg.SubfilterFormat}
 		r.emitSubfiltered(ctx, ch, value, path, parentLayerID, mapping, blockCounter, dataCounter)
 		r.consumePendingState(state, nil)
@@ -295,14 +365,18 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 
 	// Emit as a translatable block
 	*blockCounter++
-	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), value)
+	blockID := fmt.Sprintf("tu%d", *blockCounter)
+	r.skelText(tok.prefix)
+	r.skelRef(blockID)
+
+	block := model.NewBlock(blockID, value)
 
 	// Apply block name
 	block.Name = r.blockName(keyName, path, state)
 
-	// Store the raw key path for skeleton-based roundtrip.
+	// Store the raw key path for non-skeleton roundtrip.
 	// The block Name may differ from the path (e.g. UseFullKeyPath, idRules),
-	// so the writer needs the original path to match tokens.
+	// so the token-based writer needs the original path to match tokens.
 	if block.Name != path {
 		block.Properties["json.keypath"] = path
 	}
@@ -330,9 +404,11 @@ func (r *Reader) handleNonStringValue(ctx context.Context, ch chan<- model.PartR
 		if v, err := strconv.ParseFloat(tok.value, 64); err == nil {
 			state.pendingMaxwidth = int(v)
 		}
+		r.skelToken(tok)
 		return
 	}
 
+	r.skelToken(tok)
 	*dataCounter++
 	data := &model.Data{
 		ID:   fmt.Sprintf("d%d", *dataCounter),

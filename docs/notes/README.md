@@ -26,3 +26,4 @@ and other reference material.
 | [Docker Compose](docker-compose.md) | -- | Dev deps, Keycloak + Mailpit, e2e support |
 | [MCP Tools Reference](mcp-tools-reference.md) | [AD-021](/docs/ad/021-mcp-integration) | Tool specs, input/output schemas, testing |
 | [Skeleton Store](skeleton-store.md) | [AD-005](/docs/ad/005-connector-system) | SkeletonStore binary format, streaming HTML reader/writer |
+| [Implementing Formats](implementing-formats.md) | [AD-005](/docs/ad/005-connector-system) | Step-by-step guide for new format readers/writers |
