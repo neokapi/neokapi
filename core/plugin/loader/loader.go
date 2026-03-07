@@ -153,11 +153,11 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 
 				// Load schemas (NO Java needed).
 				schemasDir := filepath.Join(vDir, "schemas")
-				idsBefore := l.schemas.filterIDSet()
+				idsBefore := l.schemas.FilterIDSet()
 				if err := l.schemas.LoadFromDirectory(schemasDir); err != nil {
 					l.logf("loading schemas from %s: %v", schemasDir, err)
 				}
-				idsAfter := l.schemas.filterIDSet()
+				idsAfter := l.schemas.FilterIDSet()
 
 				// Compute which filter IDs were added by this plugin's schemas.
 				var newFilterIDs []string

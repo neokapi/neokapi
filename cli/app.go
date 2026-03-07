@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/gokapi/gokapi/core/format/schema"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/registry"
@@ -19,6 +20,7 @@ import (
 // Both kapi and bowrain create an App instance and attach shared commands.
 type App struct {
 	FormatReg    *registry.FormatRegistry
+	SchemaReg    *schema.SchemaRegistry
 	PluginLoader *loader.PluginLoader
 	Config       *config.AppConfig
 
@@ -63,6 +65,10 @@ func (a *App) Init() {
 	a.FormatReg = registry.NewFormatRegistry()
 	formats.RegisterAll(a.FormatReg)
 
+	// Create unified schema registry and collect native format schemas.
+	a.SchemaReg = schema.NewSchemaRegistry()
+	a.FormatReg.CollectNativeSchemas(a.SchemaReg)
+
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()
 	}
@@ -88,6 +94,19 @@ func (a *App) Init() {
 			fmt.Fprintf(os.Stderr, "Warning: plugin scan: %v\n", err)
 		}
 	}
+
+	// Merge bridge schemas into the unified registry so that CLI commands
+	// (formats info, formats schema, presets list) see both native and bridge schemas.
+	for _, id := range a.PluginLoader.Schemas().FilterIDs() {
+		if s, ok := a.PluginLoader.Schemas().GetSchema(id); ok {
+			if !a.SchemaReg.HasSchema(id) {
+				a.SchemaReg.RegisterSchema(id, s)
+			}
+		}
+	}
+
+	// Extract native format presets (bridge presets are already extracted by ScanMetadata).
+	a.SchemaReg.ExtractPresets(a.PluginLoader.Presets())
 
 	// Apply format priority overrides from configuration.
 	for name, priority := range a.Config.FormatPriorities() {

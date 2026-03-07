@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/loader"
+	"github.com/gokapi/gokapi/core/format/schema"
 	"github.com/gokapi/gokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 )
@@ -61,7 +61,7 @@ func TestContainsLower(t *testing.T) {
 }
 
 func TestToFormatInfoParam_Boolean(t *testing.T) {
-	prop := loader.PropertySchema{
+	prop := schema.PropertySchema{
 		Type:        "boolean",
 		Description: "Enable extraction",
 		Default:     true,
@@ -74,7 +74,7 @@ func TestToFormatInfoParam_Boolean(t *testing.T) {
 }
 
 func TestToFormatInfoParam_ObjectWithOkapiFormat(t *testing.T) {
-	prop := loader.PropertySchema{
+	prop := schema.PropertySchema{
 		Type:        "object",
 		Description: "Inline code detection",
 		OkapiFormat: "inlineCodeFinder",

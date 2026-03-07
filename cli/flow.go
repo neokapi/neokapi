@@ -127,7 +127,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	if ref.IsPreset() {
 		presetReg := a.PluginLoader.Presets()
 		preset.RegisterBuiltins(presetReg)
-		resolver := preset.NewConfigResolver(presetReg, a.PluginLoader.Schemas())
+		resolver := preset.NewConfigResolver(presetReg, a.SchemaReg)
 
 		var err error
 		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)

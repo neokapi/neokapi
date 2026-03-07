@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/format/schema"
 )
 
 // FormatReaderFactory creates a new DataFormatReader instance.
@@ -384,6 +385,28 @@ func parseSemverParts(s string) [3]int {
 		}
 	}
 	return parts
+}
+
+// CollectNativeSchemas iterates over registered format readers and collects
+// schemas from any whose Config implements format.SchemaProvider.
+func (r *FormatRegistry) CollectNativeSchemas(schemaReg *schema.SchemaRegistry) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for name, factory := range r.readers {
+		// Skip versioned entries — only collect from bare names.
+		if strings.Contains(name, "@") {
+			continue
+		}
+		reader := factory()
+		cfg := reader.Config()
+		if cfg == nil {
+			continue
+		}
+		if sp, ok := cfg.(format.SchemaProvider); ok {
+			schemaReg.RegisterSchema(name, sp.Schema())
+		}
+	}
 }
 
 // Ensure FormatRegistry implements SubfilterResolver.
