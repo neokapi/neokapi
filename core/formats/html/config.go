@@ -47,6 +47,9 @@ type Config struct {
 // FormatName returns the format this config applies to.
 func (c *Config) FormatName() string { return "html" }
 
+// ConfigAPIVersion returns the native apiVersion for HTML format config.
+func (c *Config) ConfigAPIVersion() string { return "gokapi/html-v1" }
+
 // Reset restores default values.
 func (c *Config) Reset() {
 	c.PreserveWhitespace = false

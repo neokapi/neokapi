@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	gokapiconfig "github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/format/schema"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/plugin/loader"
@@ -68,6 +69,9 @@ func (a *App) Init() {
 	// Create unified schema registry and collect native format schemas.
 	a.SchemaReg = schema.NewSchemaRegistry()
 	a.FormatReg.CollectNativeSchemas(a.SchemaReg)
+
+	// Register config envelope decoders for all native formats.
+	a.FormatReg.CollectNativeDecoders(gokapiconfig.DefaultRegistry)
 
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()

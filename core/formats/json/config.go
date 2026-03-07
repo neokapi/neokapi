@@ -94,6 +94,9 @@ type Config struct {
 // FormatName returns the format this config applies to.
 func (c *Config) FormatName() string { return "json" }
 
+// ConfigAPIVersion returns the native apiVersion for JSON format config.
+func (c *Config) ConfigAPIVersion() string { return "gokapi/json-v1" }
+
 // Reset restores default values.
 func (c *Config) Reset() {
 	*c = Config{
