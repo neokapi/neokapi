@@ -7,6 +7,20 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
+// OriginalContentSetter is implemented by writers that need the original
+// document content as a skeleton (e.g., bridge format writers, native HTML writer).
+type OriginalContentSetter interface {
+	SetOriginalContent(content []byte)
+}
+
+// SourcePathSetter is implemented by writers that can read the original
+// document from a file path instead of receiving content bytes.
+// When the file is on a shared filesystem, this avoids loading the entire
+// document into memory and transferring it over gRPC.
+type SourcePathSetter interface {
+	SetSourcePath(path string)
+}
+
 // DataFormatWriter reconstructs a document from Parts.
 type DataFormatWriter interface {
 	// Name returns the format name matching the reader.
