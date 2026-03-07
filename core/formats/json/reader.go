@@ -89,7 +89,14 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Emit layer start
+	// Read all content
+	content, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("json: reading: %w", err)}
+		return
+	}
+
+	// Emit layer start (include original JSON for skeleton-based roundtrip)
 	layer := &model.Layer{
 		ID:       "doc1",
 		Name:     r.Doc.URI,
@@ -97,15 +104,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		Locale:   locale,
 		Encoding: r.Doc.Encoding,
 		MimeType: "application/json",
+		Properties: map[string]string{
+			"json.original": string(content),
+		},
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
-		return
-	}
-
-	// Read all content
-	content, err := io.ReadAll(r.Doc.Reader)
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("json: reading: %w", err)}
 		return
 	}
 
