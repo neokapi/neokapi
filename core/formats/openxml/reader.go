@@ -129,6 +129,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	blockCounter := 0
 
+	// Initialize code finder if configured
+	var cf *codeFinder
+	if r.cfg.UseCodeFinder && len(r.cfg.CodeFinderRules) > 0 {
+		var err error
+		cf, err = newCodeFinder(r.cfg.CodeFinderRules)
+		if err != nil {
+			ch <- model.PartResult{Error: err}
+			return
+		}
+	}
+
+	// Parse styles.xml for style optimization if configured
+	var styles *styleMap
+	if r.cfg.OptimiseWordStyles && info.docType == docTypeDOCX {
+		styles = parseStyles(zr)
+	}
+
 	// Process each translatable part
 	for _, partPath := range info.translatableParts {
 		zf := zipFileByName(zr, partPath)
@@ -187,6 +204,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				blockCounter:  &blockCounter,
 				skeletonStore: r.skeletonStore,
 				rels:          relsMap,
+				codeFinder:    cf,
+				styles:        styles,
 			}
 			err = parser.parsePart(partData, partPath, emitBlock, func() {})
 			if err != nil {
