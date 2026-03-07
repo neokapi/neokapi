@@ -1,3 +1,4 @@
+// okapi-filter: xml
 package xml
 
 import (
@@ -76,6 +77,7 @@ func (f *fakeHTMLWriter) Write(ctx context.Context, parts <-chan *model.Part) er
 	return nil
 }
 
+// okapi: XmlStreamSubfilterTest#testSubfilter_CdataSubfilter
 func TestXMLSubfilter_ReadHTMLInElement(t *testing.T) {
 	input := `<root><title>Hello</title><body><![CDATA[<p>Rich <b>content</b></p>]]></body></root>`
 
@@ -164,6 +166,7 @@ func TestXMLSubfilter_NoMatchPassesThrough(t *testing.T) {
 	assert.Equal(t, "Plain text", blocks[1].SourceText())
 }
 
+// okapi: XmlStreamSubfilterTest#testSubfilter_Simple
 func TestXMLSubfilter_WildcardPattern(t *testing.T) {
 	input := `<root><en><body>Hello</body></en><fr><body>Bonjour</body></fr></root>`
 
