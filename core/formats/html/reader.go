@@ -663,11 +663,9 @@ func (r *Reader) collectFromNode(ctx context.Context, ch chan<- model.PartResult
 						CanReorder:  info.Constraints.Reorderable,
 					})
 				}
-			} else {
-				// Non-inline element inside a block (e.g., <ul> inside <p>):
-				// End current block content and let the parent walkNode handle it.
-				// We don't recurse here — the parent's walkNode will handle children.
 			}
+			// Non-inline elements inside a block (e.g., <ul> inside <p>) are
+			// skipped here; the parent's walkNode handles them via mixed content.
 		}
 	}
 }
@@ -767,16 +765,6 @@ func (r *Reader) hasAnyContent(n *html.Node) bool {
 					return true
 				}
 			}
-		}
-	}
-	return false
-}
-
-// hasPlaceholderContent returns true if node has only self-closing inline children (no text).
-func (r *Reader) hasPlaceholderContent(n *html.Node) bool {
-	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		if child.Type == html.ElementNode && isInlineElement(child) && selfClosingElements[child.DataAtom] {
-			return true
 		}
 	}
 	return false
@@ -958,7 +946,7 @@ func (r *Reader) renderTag(n *html.Node) string {
 // renderNodeHTML renders an element and all its children to HTML string.
 func renderNodeHTML(n *html.Node) string {
 	var buf strings.Builder
-	html.Render(&buf, n)
+	_ = html.Render(&buf, n)
 	return buf.String()
 }
 

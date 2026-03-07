@@ -77,16 +77,6 @@ func blockTextsContain(texts []string, substr string) bool {
 	return false
 }
 
-func dataParts(parts []*model.Part) []*model.Part {
-	var result []*model.Part
-	for _, p := range parts {
-		if p.Type == model.PartData {
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
 func findDataPartWithProperty(parts []*model.Part, key string) *model.Data {
 	for _, p := range parts {
 		if p.Type == model.PartData {
