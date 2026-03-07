@@ -67,15 +67,6 @@ func findBlockContainingText(blocks []*model.Block, substr string) *model.Block 
 	return nil
 }
 
-func findBlockWithName(blocks []*model.Block, name string) *model.Block {
-	for _, b := range blocks {
-		if b.Name == name {
-			return b
-		}
-	}
-	return nil
-}
-
 func snippetRoundtrip(t *testing.T, snippet string, params map[string]any) string {
 	t.Helper()
 	ctx := context.Background()
