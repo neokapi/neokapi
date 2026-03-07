@@ -604,7 +604,7 @@ func TestRead_ExtractImageTitleAndAltText(t *testing.T) {
 
 // --- Heading Variations ---
 
-// okapi: MarkdownFilterTest#testHeadingUnderline (setext heading)
+// okapi: MarkdownFilterTest#testHeadingUnderline
 func TestRead_HeadingUnderline(t *testing.T) {
 	blocks := readBlocks(t, "Title\n=====\n\nSubtitle\n--------\n")
 	require.Len(t, blocks, 2)
