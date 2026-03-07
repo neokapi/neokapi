@@ -61,6 +61,9 @@ func TestReadNestedJSON(t *testing.T) {
 func TestReadArrayStrings(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractIsolatedStrings": true,
+	}))
 	input := `{"items": ["First", "Second", "Third"]}`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -205,6 +208,9 @@ func TestReadFromFile(t *testing.T) {
 	require.NoError(t, err)
 
 	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractIsolatedStrings": true,
+	}))
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
@@ -349,6 +355,9 @@ func TestRoundTripArray(t *testing.T) {
 
 	// Read
 	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractIsolatedStrings": true,
+	}))
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
 
@@ -403,6 +412,9 @@ func TestRoundTripFileSimple(t *testing.T) {
 	f, err := os.Open("testdata/simple.json")
 	require.NoError(t, err)
 	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractIsolatedStrings": true,
+	}))
 	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/simple.json", model.LocaleEnglish))
 	require.NoError(t, err)
 
@@ -467,6 +479,9 @@ func TestReadEmptyStringValue(t *testing.T) {
 func TestReadMixedArray(t *testing.T) {
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractIsolatedStrings": true,
+	}))
 	input := `{"mixed": ["text", 42, true, "more text"]}`
 	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
@@ -485,7 +500,7 @@ func TestReadMixedArray(t *testing.T) {
 func TestConfigDefaults(t *testing.T) {
 	cfg := &jsonfmt.Config{}
 	cfg.Reset()
-	assert.True(t, cfg.ExtractArrayStrings)
+	assert.True(t, cfg.ExtractAllPairs)
 	assert.Equal(t, "json", cfg.FormatName())
 	assert.NoError(t, cfg.Validate())
 }
