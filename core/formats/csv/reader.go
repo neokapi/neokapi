@@ -66,13 +66,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
+	mimeType := "text/csv"
+	if r.cfg.Separator == '\t' {
+		mimeType = "text/tab-separated-values"
+	}
+
 	layer := &model.Layer{
 		ID:       "doc1",
 		Name:     r.Doc.URI,
 		Format:   "csv",
 		Locale:   locale,
 		Encoding: r.Doc.Encoding,
-		MimeType: "text/csv",
+		MimeType: mimeType,
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
 		return
@@ -87,6 +92,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	csvReader := csv.NewReader(strings.NewReader(string(content)))
 	csvReader.Comma = r.cfg.Separator
 	csvReader.LazyQuotes = true
+	csvReader.FieldsPerRecord = -1 // allow variable number of fields per row
 
 	records, err := csvReader.ReadAll()
 	if err != nil {
@@ -100,21 +106,47 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	var headers []string
+	headerRow := -1
 	startRow := 0
 	blockCounter := 0
 	dataCounter := 0
 
-	if r.cfg.HasHeader && len(records) > 0 {
-		headers = records[0]
-		startRow = 1
+	// Determine header row
+	if r.cfg.HasHeader {
+		if r.cfg.ColumnNamesRow > 0 {
+			headerRow = r.cfg.ColumnNamesRow - 1 // convert 1-based to 0-based
+		} else {
+			headerRow = 0
+		}
+		if headerRow < len(records) {
+			headers = records[headerRow]
+		}
+	}
 
-		// Emit header row as Data
+	// Determine start row for data values
+	if r.cfg.ValuesStartRow > 0 {
+		startRow = r.cfg.ValuesStartRow - 1 // convert 1-based to 0-based
+	} else if r.cfg.HasHeader {
+		if headerRow >= 0 {
+			startRow = headerRow + 1
+		} else {
+			startRow = 1
+		}
+	}
+
+	// Emit rows before the data start as Data parts (headers, preamble, etc.)
+	for rowIdx := 0; rowIdx < startRow && rowIdx < len(records); rowIdx++ {
 		dataCounter++
+		row := records[rowIdx]
+		name := "header-row"
+		if rowIdx != headerRow {
+			name = fmt.Sprintf("preamble-row%d", rowIdx+1)
+		}
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: "header-row",
+			Name: name,
 			Properties: map[string]string{
-				"content": strings.Join(headers, string(r.cfg.Separator)),
+				"content": strings.Join(row, string(r.cfg.Separator)),
 			},
 		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -126,14 +158,40 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		row := records[rowIdx]
 		rowNum := rowIdx - startRow + 1
 
-		for colIdx, cell := range row {
-			if !r.isTranslatable(colIdx) {
-				// Non-translatable column → Data
-				dataCounter++
-				colName := fmt.Sprintf("col%d", colIdx)
-				if colIdx < len(headers) {
-					colName = headers[colIdx]
+		// Build key from key columns if configured
+		var rowKey string
+		if len(r.cfg.KeyColumns) > 0 {
+			var keyParts []string
+			for _, kc := range r.cfg.KeyColumns {
+				if kc < len(row) {
+					keyParts = append(keyParts, row[kc])
 				}
+			}
+			rowKey = strings.Join(keyParts, ".")
+		}
+
+		// Build comment from comment columns if configured
+		var rowComment string
+		if len(r.cfg.CommentColumns) > 0 {
+			var commentParts []string
+			for _, cc := range r.cfg.CommentColumns {
+				if cc < len(row) && strings.TrimSpace(row[cc]) != "" {
+					commentParts = append(commentParts, row[cc])
+				}
+			}
+			rowComment = strings.Join(commentParts, "; ")
+		}
+
+		for colIdx, cell := range row {
+			// Skip key and comment columns (they are metadata, not content)
+			if r.isKeyColumn(colIdx) || r.isCommentColumn(colIdx) {
+				continue
+			}
+
+			if !r.isTranslatable(colIdx) {
+				// Non-translatable column -> Data
+				dataCounter++
+				colName := r.columnName(headers, colIdx)
 				data := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
 					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
@@ -149,20 +207,34 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				continue
 			}
 
-			if strings.TrimSpace(cell) == "" {
+			cellValue := cell
+			if r.cfg.TrimValues {
+				cellValue = strings.TrimSpace(cellValue)
+			}
+
+			if cellValue == "" {
 				continue
 			}
 
 			blockCounter++
-			colName := fmt.Sprintf("col%d", colIdx)
-			if colIdx < len(headers) {
-				colName = headers[colIdx]
+			colName := r.columnName(headers, colIdx)
+
+			blockID := fmt.Sprintf("tu%d", blockCounter)
+			if rowKey != "" {
+				blockID = rowKey
+				if len(r.cfg.TranslatableColumns) > 1 {
+					// Multiple translatable columns with key: add column suffix
+					blockID = fmt.Sprintf("%s.%s", rowKey, colName)
+				}
 			}
 
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), cell)
+			block := model.NewBlock(blockID, cellValue)
 			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
 			block.Properties["column"] = fmt.Sprintf("%d", colIdx)
 			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
+			if rowComment != "" {
+				block.Properties["comment"] = rowComment
+			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
@@ -172,11 +244,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
+func (r *Reader) columnName(headers []string, colIdx int) string {
+	if colIdx < len(headers) {
+		return headers[colIdx]
+	}
+	return fmt.Sprintf("col%d", colIdx)
+}
+
 func (r *Reader) isTranslatable(colIdx int) bool {
 	if len(r.cfg.TranslatableColumns) == 0 {
 		return true // all columns translatable by default
 	}
 	return slices.Contains(r.cfg.TranslatableColumns, colIdx)
+}
+
+func (r *Reader) isKeyColumn(colIdx int) bool {
+	return slices.Contains(r.cfg.KeyColumns, colIdx)
+}
+
+func (r *Reader) isCommentColumn(colIdx int) bool {
+	return slices.Contains(r.cfg.CommentColumns, colIdx)
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

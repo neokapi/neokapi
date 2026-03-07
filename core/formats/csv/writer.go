@@ -13,12 +13,13 @@ import (
 // Writer implements DataFormatWriter for CSV files.
 type Writer struct {
 	format.BaseFormatWriter
-	separator rune
-	headers   []string
-	blocks    map[string]*model.Block // keyed by "col.row"
-	dataCells map[string]string       // keyed by "col.row"
-	maxCol    int
-	maxRow    int
+	separator    rune
+	headers      []string
+	preambleRows [][]string // rows before data (header, preamble)
+	blocks       map[string]*model.Block // keyed by "col.row"
+	dataCells    map[string]string       // keyed by "col.row"
+	maxCol       int
+	maxRow       int
 }
 
 // NewWriter creates a new CSV writer.
@@ -31,6 +32,11 @@ func NewWriter() *Writer {
 		blocks:    make(map[string]*model.Block),
 		dataCells: make(map[string]string),
 	}
+}
+
+// SetSeparator sets the field delimiter for the writer.
+func (w *Writer) SetSeparator(sep rune) {
+	w.separator = sep
 }
 
 // Write consumes Parts from a channel and writes reconstructed CSV.
@@ -75,8 +81,11 @@ func (w *Writer) collectPart(part *model.Part) error {
 		if !ok {
 			return fmt.Errorf("csv writer: expected Data resource")
 		}
-		if data.Name == "header-row" {
-			w.headers = strings.Split(data.Properties["content"], string(w.separator))
+		if data.Name == "header-row" || strings.HasPrefix(data.Name, "preamble-row") {
+			w.preambleRows = append(w.preambleRows, strings.Split(data.Properties["content"], string(w.separator)))
+			if data.Name == "header-row" {
+				w.headers = strings.Split(data.Properties["content"], string(w.separator))
+			}
 		} else {
 			// Store data cell content
 			w.dataCells[data.Name] = data.Properties["content"]
@@ -103,10 +112,10 @@ func (w *Writer) flush() error {
 	csvWriter := csv.NewWriter(w.Output)
 	csvWriter.Comma = w.separator
 
-	// Write headers
-	if len(w.headers) > 0 {
-		if err := csvWriter.Write(w.headers); err != nil {
-			return fmt.Errorf("csv writer: writing headers: %w", err)
+	// Write preamble rows (headers and any rows before data)
+	for _, row := range w.preambleRows {
+		if err := csvWriter.Write(row); err != nil {
+			return fmt.Errorf("csv writer: writing preamble: %w", err)
 		}
 	}
 
