@@ -65,7 +65,14 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			switch part.Type {
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
-					blocks[block.Name] = block
+					// Index by raw key path for skeleton roundtrip.
+					// The reader stores json.keypath when the block name
+					// differs from the dotted path the writer builds.
+					key := block.Name
+					if kp, ok := block.Properties["json.keypath"]; ok {
+						key = kp
+					}
+					blocks[key] = block
 				}
 			case model.PartLayerStart:
 				if layer, ok := part.Resource.(*model.Layer); ok {
@@ -210,9 +217,9 @@ func (w *Writer) writeTokenValue(out *strings.Builder, tokens []token, pos *int,
 			out.WriteString(escapeJSONString(text, w.cfg.EscapeForwardSlashes))
 			*pos++
 		} else {
-			// Not a translatable string — write original
+			// Not a translatable string — preserve original raw bytes
 			out.WriteString(tok.prefix)
-			out.WriteString(escapeJSONString(tok.value, w.cfg.EscapeForwardSlashes))
+			out.WriteString(tok.raw)
 			*pos++
 		}
 	default:

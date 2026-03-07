@@ -922,3 +922,272 @@ func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 		assert.NotEqual(t, "115013866768", text, "id values should be used as TU names, not translatable text")
 	}
 }
+
+// --- Exact skeleton roundtrip tests ---
+
+// TestSnippets_ExactRoundtrip_Simple verifies byte-exact roundtrip for simple JSON.
+func TestSnippets_ExactRoundtrip_Simple(t *testing.T) {
+	input := `{"key": "value"}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_Whitespace verifies whitespace is preserved exactly.
+func TestSnippets_ExactRoundtrip_Whitespace(t *testing.T) {
+	input := "{\n    \"key\" :   \"value\"\n}"
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_Comments verifies comments survive roundtrip.
+func TestSnippets_ExactRoundtrip_Comments(t *testing.T) {
+	input := "{\n  // line comment\n  \"key\": \"value\"\n}"
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_BlockComment verifies block comments survive roundtrip.
+func TestSnippets_ExactRoundtrip_BlockComment(t *testing.T) {
+	input := "{\n  /* block */\n  \"key\": \"value\"\n}"
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_UnicodeEscapes verifies unicode escapes in
+// non-translatable values are preserved exactly.
+func TestSnippets_ExactRoundtrip_UnicodeEscapes(t *testing.T) {
+	input := `{"id": "\u0041\u0042", "text": "Hello"}`
+	output := snippetRoundtrip(t, input, map[string]any{
+		"extractAllPairs": true,
+		"idRules":         "id",
+	})
+	// The id value should be preserved exactly (raw bytes), not re-encoded
+	assert.Contains(t, output, `"\u0041\u0042"`)
+	assert.Contains(t, output, `"Hello"`)
+}
+
+// TestSnippets_ExactRoundtrip_EscapedSlash verifies escaped forward slashes
+// in non-translatable values are preserved.
+func TestSnippets_ExactRoundtrip_EscapedSlash(t *testing.T) {
+	input := `{"note": "see a\/b", "text": "Hello"}`
+	output := snippetRoundtrip(t, input, map[string]any{
+		"extractAllPairs": true,
+		"noteRules":       "note",
+	})
+	// Note value should be preserved exactly
+	assert.Contains(t, output, `"see a\/b"`)
+}
+
+// TestSnippets_ExactRoundtrip_Nested verifies nested structures roundtrip exactly.
+func TestSnippets_ExactRoundtrip_Nested(t *testing.T) {
+	input := `{"parent": {"child": "value"}, "other": "text"}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_Array verifies arrays roundtrip exactly.
+func TestSnippets_ExactRoundtrip_Array(t *testing.T) {
+	input := `{"items": ["a", "b", "c"]}`
+	output := snippetRoundtrip(t, input, map[string]any{
+		"extractIsolatedStrings": true,
+	})
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_NonStringValues verifies numbers, bools, nulls
+// are preserved exactly.
+func TestSnippets_ExactRoundtrip_NonStringValues(t *testing.T) {
+	input := `{"name": "Test", "count": 42, "rate": 3.14, "active": true, "deleted": false, "meta": null}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_MultilineFormatted verifies pretty-printed JSON roundtrips.
+func TestSnippets_ExactRoundtrip_MultilineFormatted(t *testing.T) {
+	input := `{
+  "title": "Hello",
+  "nested": {
+    "key": "World"
+  },
+  "count": 5
+}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_TrailingNewline verifies trailing whitespace is preserved.
+func TestSnippets_ExactRoundtrip_TrailingNewline(t *testing.T) {
+	input := "{\"key\": \"value\"}\n"
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_EmptyObject verifies empty objects roundtrip.
+func TestSnippets_ExactRoundtrip_EmptyObject(t *testing.T) {
+	input := `{"data": {}, "text": "Hello"}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// TestSnippets_ExactRoundtrip_MixedComments verifies all comment styles survive.
+func TestSnippets_ExactRoundtrip_MixedComments(t *testing.T) {
+	input := `{
+  // line comment
+  /* block comment */
+  # hash comment
+  "key": "value"
+}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Equal(t, input, output)
+}
+
+// --- Skeleton roundtrip with translations ---
+
+// TestSnippets_SkeletonTranslation_UseFullKeyPath verifies translations work
+// when UseFullKeyPath changes the block name.
+func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
+	input := `{"parent": {"child": "Hello"}}`
+	ctx := context.Background()
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	}))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translation
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			if block.SourceText() == "Hello" {
+				assert.Equal(t, "/parent/child", block.Name)
+				block.SetTargetText(model.LocaleFrench, "Bonjour")
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleFrench)
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), `"Bonjour"`)
+	assert.NotContains(t, buf.String(), `"Hello"`)
+}
+
+// TestSnippets_SkeletonTranslation_IdRules verifies translations work
+// when idRules changes the block name to a custom ID.
+func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
+	input := `{"id": "msg-1", "text": "Hello"}`
+	ctx := context.Background()
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractAllPairs": true,
+		"idRules":         "id",
+	}))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translation
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			if block.SourceText() == "Hello" {
+				assert.Equal(t, "msg-1", block.Name)
+				block.SetTargetText(model.LocaleGerman, "Hallo")
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleGerman)
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), `"Hallo"`)
+	assert.NotContains(t, buf.String(), `"Hello"`)
+	// ID value should be preserved
+	assert.Contains(t, buf.String(), `"msg-1"`)
+}
+
+// TestSnippets_SkeletonTranslation_Exceptions verifies translations work
+// when exceptions exclude some keys.
+func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
+	input := `{"title": "Hello", "internal_id": "abc123"}`
+	ctx := context.Background()
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractAllPairs": true,
+		"exceptions":      "internal_id",
+	}))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translation for the extracted block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			block.SetTargetText(model.LocaleFrench, "Bonjour")
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleFrench)
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), `"Bonjour"`)
+	// Non-extracted value should be preserved exactly
+	assert.Contains(t, buf.String(), `"abc123"`)
+}
+
+// TestSnippets_SkeletonTranslation_NoteRules verifies note values are
+// preserved while translatable values get translated.
+func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
+	input := `{"note": "translator hint", "text": "Hello"}`
+	ctx := context.Background()
+
+	reader := jsonfmt.NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"extractAllPairs": true,
+		"noteRules":       "note",
+	}))
+	require.NoError(t, reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish)))
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			block.SetTargetText(model.LocaleSpanish, "Hola")
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, writer.SetOutputWriter(&buf))
+	writer.SetLocale(model.LocaleSpanish)
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), `"Hola"`)
+	assert.Contains(t, buf.String(), `"translator hint"`)
+}
