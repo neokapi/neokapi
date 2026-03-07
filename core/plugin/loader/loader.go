@@ -25,19 +25,13 @@ import (
 	"github.com/gokapi/gokapi/core/registry"
 )
 
-// OriginalContentSetter is implemented by writers that need the original
-// document content as a skeleton (e.g., bridge format writers).
-type OriginalContentSetter interface {
-	SetOriginalContent(content []byte)
-}
+// OriginalContentSetter is an alias for format.OriginalContentSetter.
+// Deprecated: Use format.OriginalContentSetter directly.
+type OriginalContentSetter = format.OriginalContentSetter
 
-// SourcePathSetter is implemented by writers that can read the original
-// document from a file path instead of receiving content bytes.
-// When the file is on a shared filesystem, this avoids loading the entire
-// document into memory and transferring it over gRPC.
-type SourcePathSetter interface {
-	SetSourcePath(path string)
-}
+// SourcePathSetter is an alias for format.SourcePathSetter.
+// Deprecated: Use format.SourcePathSetter directly.
+type SourcePathSetter = format.SourcePathSetter
 
 // PluginInfo describes a loaded plugin.
 type PluginInfo struct {

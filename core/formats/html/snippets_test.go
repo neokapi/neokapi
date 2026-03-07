@@ -102,6 +102,7 @@ func roundtrip(t *testing.T, snippet string) string {
 
 	var buf bytes.Buffer
 	writer := htmlfmt.NewWriter()
+	writer.SetOriginalContent([]byte(snippet))
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
 
