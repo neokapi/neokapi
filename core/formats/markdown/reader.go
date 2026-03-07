@@ -117,6 +117,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	r.source = content
 	r.skelCursor = 0
 
+	r.blockCounter = 0
+	r.dataCounter = 0
+
 	// Handle YAML front matter.
 	bodyOffset := r.handleFrontMatter(ctx, ch, content)
 
@@ -127,8 +130,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	body := content[bodyOffset:]
 	doc := md.Parser().Parse(text.NewReader(body))
 
-	r.blockCounter = 0
-	r.dataCounter = 0
 	r.walkNode(ctx, ch, doc, body, bodyOffset)
 
 	// Flush remaining source bytes as skeleton text.
