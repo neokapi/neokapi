@@ -123,15 +123,20 @@ func (s *scanner) skipWhitespaceAndComments() string {
 			}
 			continue
 		}
-		// /* block comment */
+		// /* block comment */ (supports nesting)
 		if ch == '/' && s.pos+1 < len(s.input) && s.input[s.pos+1] == '*' {
 			s.pos += 2
-			for s.pos+1 < len(s.input) {
-				if s.input[s.pos] == '*' && s.input[s.pos+1] == '/' {
+			depth := 1
+			for s.pos+1 < len(s.input) && depth > 0 {
+				if s.input[s.pos] == '/' && s.input[s.pos+1] == '*' {
+					depth++
 					s.pos += 2
-					break
+				} else if s.input[s.pos] == '*' && s.input[s.pos+1] == '/' {
+					depth--
+					s.pos += 2
+				} else {
+					s.pos++
 				}
-				s.pos++
 			}
 			continue
 		}

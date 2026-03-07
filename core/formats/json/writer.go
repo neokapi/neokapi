@@ -36,6 +36,11 @@ func NewWriter() *Writer {
 	}
 }
 
+// Config returns the writer's config for customization.
+func (w *Writer) Config() *Config {
+	return w.cfg
+}
+
 // SetSubfilterResolver sets the resolver for creating sub-format writers.
 func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	w.resolver = resolver

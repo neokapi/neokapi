@@ -1,0 +1,933 @@
+package json_test
+
+import (
+	"bytes"
+	"context"
+	"strings"
+	"testing"
+
+	jsonfmt "github.com/gokapi/gokapi/core/formats/json"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// --- Test helpers ---
+
+func readJSON(t *testing.T, snippet string) []*model.Part {
+	t.Helper()
+	return readJSONWith(t, snippet, nil)
+}
+
+func readJSONWith(t *testing.T, snippet string, params map[string]any) []*model.Part {
+	t.Helper()
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	if params != nil {
+		err := reader.Config().ApplyMap(params)
+		require.NoError(t, err)
+	}
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
+
+func translatableBlocks(parts []*model.Part) []*model.Block {
+	var blocks []*model.Block
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
+				blocks = append(blocks, b)
+			}
+		}
+	}
+	return blocks
+}
+
+func blockTexts(blocks []*model.Block) []string {
+	return testutil.BlockTexts(blocks)
+}
+
+func blockNames(blocks []*model.Block) []string {
+	names := make([]string, len(blocks))
+	for i, b := range blocks {
+		names[i] = b.Name
+	}
+	return names
+}
+
+func findBlockContainingText(blocks []*model.Block, substr string) *model.Block {
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), substr) {
+			return b
+		}
+	}
+	return nil
+}
+
+func findBlockWithName(blocks []*model.Block, name string) *model.Block {
+	for _, b := range blocks {
+		if b.Name == name {
+			return b
+		}
+	}
+	return nil
+}
+
+func snippetRoundtrip(t *testing.T, snippet string, params map[string]any) string {
+	t.Helper()
+	ctx := context.Background()
+	reader := jsonfmt.NewReader()
+	if params != nil {
+		require.NoError(t, reader.Config().ApplyMap(params))
+	}
+	err := reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := jsonfmt.NewWriter()
+	if params != nil {
+		if v, ok := params["escapeForwardSlashes"]; ok {
+			if b, ok := v.(bool); ok {
+				writer.Config().EscapeForwardSlashes = b
+			}
+		}
+	}
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	return buf.String()
+}
+
+// --- Extraction Tests (from JSONFilterTest.java) ---
+
+// okapi: JSONFilterTest#testValue
+func TestSnippets_Value(t *testing.T) {
+	parts := readJSON(t, `{"key" : "Text1"}`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.Equal(t, "key", blocks[0].Name)
+}
+
+// okapi: JSONFilterTest#testObject
+func TestSnippets_Object(t *testing.T) {
+	parts := readJSON(t, `{"key" : { "key2" : "Text1" } }`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testList
+func TestSnippets_List(t *testing.T) {
+	// extractIsolatedStrings defaults to false, so array strings are not extracted.
+	// But objects within arrays should extract their key-value pairs.
+	parts := readJSON(t, `{"items": [{"key": "Text1"}]}`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testAllWithKeyNoException
+func TestSnippets_AllWithKeyNoException(t *testing.T) {
+	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2"}`, map[string]any{
+		"extractAllPairs": true,
+		"useKeyAsName":    true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.Contains(t, texts, "Text2")
+
+	names := blockNames(blocks)
+	assert.Contains(t, names, "key1")
+	assert.Contains(t, names, "key2")
+}
+
+// okapi: JSONFilterTest#testAllWithKeyWithException
+func TestSnippets_AllWithKeyWithException(t *testing.T) {
+	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "not_this": "Text3"}`, map[string]any{
+		"extractAllPairs": true,
+		"exceptions":      "not_this",
+	})
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.Contains(t, texts, "Text2")
+	assert.NotContains(t, texts, "Text3")
+}
+
+// okapi: JSONFilterTest#testNoneWithKeywithException
+func TestSnippets_NoneWithKeywithException(t *testing.T) {
+	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "extract_me": "Text3"}`, map[string]any{
+		"extractAllPairs": false,
+		"exceptions":      "extract_me",
+	})
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text3")
+	assert.NotContains(t, texts, "Text1")
+	assert.NotContains(t, texts, "Text2")
+}
+
+// okapi: JSONFilterTest#testPath
+func TestSnippets_Path(t *testing.T) {
+	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+
+	names := blockNames(blocks)
+	assert.Contains(t, names, "/parent/child")
+}
+
+// okapi: JSONFilterTest#testLeadingSlash
+func TestSnippets_LeadingSlash(t *testing.T) {
+	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": false,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	names := blockNames(blocks)
+	assert.Contains(t, names, "parent/child")
+}
+
+// okapi: JSONFilterTest#testStandaloneYes
+func TestSnippets_StandaloneYes(t *testing.T) {
+	parts := readJSONWith(t, `{"colors": ["Red", "Green", "Blue"]}`, map[string]any{
+		"extractIsolatedStrings": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Red")
+	assert.Contains(t, texts, "Green")
+	assert.Contains(t, texts, "Blue")
+}
+
+// okapi: JSONFilterTest#testStandaloneDefaultWhichIsNo
+func TestSnippets_StandaloneDefaultWhichIsNo(t *testing.T) {
+	parts := readJSON(t, `{"colors": ["Red", "Green", "Blue"], "label": "Color list"}`)
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Color list")
+	assert.NotContains(t, texts, "Red")
+}
+
+// okapi: JSONFilterTest#testEscape
+func TestSnippets_Escape(t *testing.T) {
+	parts := readJSON(t, `{"key": "\u00E0"}`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "\u00E0", blocks[0].SourceText()) // à
+}
+
+// okapi: JSONFilterTest#testEscapes
+func TestSnippets_Escapes(t *testing.T) {
+	parts := readJSON(t, `{"key": "a\nb\tc\\d\"e\/f"}`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "a\nb")
+	assert.Contains(t, text, "b\tc")
+	assert.Contains(t, text, "c\\d")
+	assert.Contains(t, text, "d\"e")
+	assert.Contains(t, text, "e/f")
+}
+
+// okapi: JSONFilterTest#testEscapedForwardSlashDecoding
+func TestSnippets_EscapedForwardSlashDecoding(t *testing.T) {
+	parts := readJSON(t, `{"key": "a\/b"}`)
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "a/b", blocks[0].SourceText())
+}
+
+// okapi: JSONFilterTest#testEscapeForwardSlashes
+func TestSnippets_EscapeForwardSlashes(t *testing.T) {
+	// Default: escapeForwardSlashes=true, forward slashes are escaped in output.
+	output := snippetRoundtrip(t, `{"key": "a/b"}`, nil)
+	assert.Contains(t, output, `a\/b`)
+}
+
+// okapi: JSONFilterTest#testNoEscapeForwardSlashes
+func TestSnippets_NoEscapeForwardSlashes(t *testing.T) {
+	output := snippetRoundtrip(t, `{"key": "a/b"}`, map[string]any{
+		"escapeForwardSlashes": false,
+	})
+	assert.Contains(t, output, `a/b`)
+	assert.NotContains(t, output, `a\/b`)
+}
+
+// okapi: JSONFilterTest#testEmptyValue
+func TestSnippets_EmptyValue(t *testing.T) {
+	output := snippetRoundtrip(t, `{"key": ""}`, nil)
+	assert.Contains(t, output, `""`)
+}
+
+// okapi: JSONFilterTest#testDecimalNumber
+func TestSnippets_DecimalNumber(t *testing.T) {
+	parts := readJSON(t, `{"name": "John", "score": 9.5}`)
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "John")
+	for _, text := range texts {
+		assert.NotEqual(t, "9.5", text, "decimal numbers should not be extracted")
+	}
+}
+
+// okapi: JSONFilterTest#testSimpleEntrySkeleton
+func TestSnippets_SimpleEntrySkeleton(t *testing.T) {
+	input := "{\n  \"key\" : \"value\"\n}"
+	output := snippetRoundtrip(t, input, nil)
+	// Should preserve the general structure and whitespace
+	assert.Contains(t, output, "key")
+	assert.Contains(t, output, "value")
+	assert.Contains(t, output, "\n")
+}
+
+// okapi: JSONFilterTest#testLineBreaks
+func TestSnippets_LineBreaks(t *testing.T) {
+	input := "{\r\"key\" : \"value\"\r}"
+	output := snippetRoundtrip(t, input, nil)
+	assert.Contains(t, output, "value")
+}
+
+// okapi: JSONFilterTest#testWhiteSpaceAndComments
+func TestSnippets_WhiteSpaceAndComments(t *testing.T) {
+	input := `{
+  /* block comment */
+  // line comment
+  # hash comment
+  "key": "Text1"
+}`
+	parts := readJSON(t, input)
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testMultilineComment
+func TestSnippets_MultilineComment(t *testing.T) {
+	input := `{
+  /* this is
+     a multiline
+     comment */
+  "key": "Text1"
+}`
+	parts := readJSON(t, input)
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testNestedComments
+func TestSnippets_NestedComments(t *testing.T) {
+	input := `{
+  /* outer /* nested */ comment */
+  "key": "Text1"
+}`
+	parts := readJSON(t, input)
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testNoteRules
+func TestSnippets_NoteRules(t *testing.T) {
+	input := `{"note": "This is a note", "key": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs": true,
+		"noteRules":       "note",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.NotContains(t, texts, "This is a note")
+
+	// The note should be attached as an annotation
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b)
+	note, ok := b.Annotations["note"]
+	require.True(t, ok, "should have a note annotation")
+	noteAnno, ok := note.(*model.NoteAnnotation)
+	require.True(t, ok)
+	assert.Equal(t, "This is a note", noteAnno.Text)
+}
+
+// okapi: JSONFilterTest#testIdRules
+func TestSnippets_IdRules(t *testing.T) {
+	input := `{"id": "my-id", "key": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs": true,
+		"idRules":         "id",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b, "should have block with Text1")
+	assert.Equal(t, "my-id", b.Name)
+}
+
+// okapi: JSONFilterTest#testNestedIdRules
+func TestSnippets_NestedIdRules(t *testing.T) {
+	input := `{"items": [{"id": "item1", "text": "Text1"}, {"id": "item2", "text": "Text2"}]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs": true,
+		"idRules":         "id",
+		"useIdStack":      true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.Contains(t, texts, "Text2")
+}
+
+// okapi: JSONFilterTest#testGenericMetaRules
+func TestSnippets_GenericMetaRules(t *testing.T) {
+	input := `{"meta": "metadata-value", "key": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":  true,
+		"genericMetaRules": "meta",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.NotContains(t, texts, "metadata-value")
+
+	// Meta value should be stored as a property
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b)
+	assert.Equal(t, "metadata-value", b.Properties["meta"])
+}
+
+// okapi: JSONFilterTest#testGenericMetaRulesWithId
+func TestSnippets_GenericMetaRulesWithId(t *testing.T) {
+	input := `{"id": "my-id", "meta": "metadata-value", "key": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":  true,
+		"idRules":          "id",
+		"genericMetaRules": "meta",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b)
+	assert.Equal(t, "my-id", b.Name)
+}
+
+// okapi: JSONFilterTest#testExtractionRules
+func TestSnippets_ExtractionRules(t *testing.T) {
+	input := `{"title": "Extract me", "body": "Extract me too", "id": "Skip me"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs": false,
+		"extractionRules": "title|body",
+	})
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Extract me")
+	assert.Contains(t, texts, "Extract me too")
+	assert.NotContains(t, texts, "Skip me")
+}
+
+// okapi: JSONFilterTest#testMaxwidthRules
+func TestSnippets_MaxwidthRules(t *testing.T) {
+	input := `{"maxwidth": 100, "title": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs": false,
+		"exceptions":      "title",
+		"maxwidthRules":   "maxwidth",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+
+	// Max width should be set as a property
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b)
+	assert.Equal(t, "100", b.Properties["maxwidth"])
+}
+
+// okapi: JSONFilterTest#testMaxwidthRulesWithSizeChar
+func TestSnippets_MaxwidthRulesWithSizeChar(t *testing.T) {
+	input := `{"maxwidth": 50, "title": "Text1"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":  false,
+		"exceptions":       "title",
+		"maxwidthRules":    "maxwidth",
+		"maxwidthSizeUnit": "char",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+
+	b := findBlockContainingText(blocks, "Text1")
+	require.NotNil(t, b)
+	assert.Equal(t, "50", b.Properties["maxwidth"])
+	assert.Equal(t, "char", b.Properties["maxwidthSizeUnit"])
+}
+
+// okapi: JSONFilterTest#testArrayWithinArray
+func TestSnippets_ArrayWithinArray(t *testing.T) {
+	input := `{"data": [["Text1"]]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractIsolatedStrings":   true,
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testArrayWithinArrayWithinArray
+func TestSnippets_ArrayWithinArrayWithinArray(t *testing.T) {
+	input := `{"data": [[["Text1"]]]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractIsolatedStrings":   true,
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testArrayWithObject
+func TestSnippets_ArrayWithObject(t *testing.T) {
+	input := `{"items": [{"name": "Text1"}]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+}
+
+// okapi: JSONFilterTest#testNamedArray
+func TestSnippets_NamedArray(t *testing.T) {
+	input := `{"items": [{"name": "Text1"}, {"name": "Text2"}]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"useFullKeyPath":           true,
+		"useKeyAsName":             true,
+		"useLeadingSlashOnKeyPath": true,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text1")
+	assert.Contains(t, texts, "Text2")
+}
+
+// okapi: JSONFilterTest#testInlineCodeFinderEscaping
+func TestSnippets_InlineCodeFinderEscaping(t *testing.T) {
+	input := `{"key": "Hello <b>world</b> end"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"useCodeFinder": true,
+		"codeFinderRules": map[string]any{
+			"count": 1,
+			"rule0": `</?([A-Z0-9a-z]*)\b[^>]*>`,
+		},
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "Hello")
+	assert.Contains(t, text, "world")
+}
+
+// okapi: JSONFilterTest#testInlineCodeFinderNewLineCharacter
+func TestSnippets_InlineCodeFinderNewLineCharacter(t *testing.T) {
+	input := `{"key": "Line1\nLine2"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"useCodeFinder": true,
+		"codeFinderRules": map[string]any{
+			"count": 1,
+			"rule0": `\n`,
+		},
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "Line1")
+	assert.Contains(t, text, "Line2")
+}
+
+// okapi: JSONFilterTest#testSmartQuotes
+func TestSnippets_SmartQuotes(t *testing.T) {
+	parts := readJSON(t, `{"key": "\u201CHello\u201D"}`)
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "Hello")
+	assert.Contains(t, text, "\u201C")
+	assert.Contains(t, text, "\u201D")
+}
+
+// --- Roundtrip Tests ---
+
+// okapi: JSONFilterTest#testDoubleExtraction
+func TestSnippets_DoubleExtraction(t *testing.T) {
+	// Double extraction: read → write → re-read → compare block texts.
+	inputs := []struct {
+		name  string
+		input string
+	}{
+		{"simple", `{"key": "value"}`},
+		{"nested", `{"a": {"b": "value"}}`},
+		{"multiple", `{"k1": "v1", "k2": "v2", "k3": "v3"}`},
+		{"numbers", `{"name": "Test", "count": 42}`},
+		{"mixed", `{"title": "Hello", "items": [{"text": "World"}]}`},
+	}
+
+	for _, tt := range inputs {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+
+			// First extraction
+			reader1 := jsonfmt.NewReader()
+			require.NoError(t, reader1.Open(ctx, testutil.RawDocFromString(tt.input, model.LocaleEnglish)))
+			parts1 := testutil.CollectParts(t, reader1.Read(ctx))
+			reader1.Close()
+
+			blocks1 := testutil.FilterBlocks(parts1)
+
+			// Write back
+			var buf bytes.Buffer
+			writer := jsonfmt.NewWriter()
+			require.NoError(t, writer.SetOutputWriter(&buf))
+			ch := testutil.PartsToChannel(parts1)
+			require.NoError(t, writer.Write(ctx, ch))
+			writer.Close()
+
+			// Second extraction
+			reader2 := jsonfmt.NewReader()
+			require.NoError(t, reader2.Open(ctx, testutil.RawDocFromString(buf.String(), model.LocaleEnglish)))
+			parts2 := testutil.CollectParts(t, reader2.Read(ctx))
+			reader2.Close()
+
+			blocks2 := testutil.FilterBlocks(parts2)
+
+			// Compare: same number of blocks, same texts
+			require.Equal(t, len(blocks1), len(blocks2), "block count mismatch on double extraction")
+			texts1 := testutil.BlockTexts(blocks1)
+			texts2 := testutil.BlockTexts(blocks2)
+			for _, t1 := range texts1 {
+				assert.Contains(t, texts2, t1, "double extraction lost text: %s", t1)
+			}
+		})
+	}
+}
+
+// --- Subfilter Tests (require real HTML reader) ---
+// These tests use the pattern-based subfilter config.
+// For full subfilter tests with the real HTML reader, see subfilter_test.go.
+
+// okapi: JSONFilterTest#testSubfiltersProduceDistinctTextUnitIds
+func TestSnippets_SubfiltersProduceDistinctTextUnitIds(t *testing.T) {
+	// Without a real subfilter resolver, we test that blocks from different
+	// keys get distinct IDs even without subfiltering.
+	parts := readJSON(t, `{"key1": "Text1", "key2": "Text2"}`)
+
+	blocks := translatableBlocks(parts)
+	require.GreaterOrEqual(t, len(blocks), 2)
+
+	ids := make(map[string]bool)
+	for _, b := range blocks {
+		assert.False(t, ids[b.ID], "duplicate block ID: %s", b.ID)
+		ids[b.ID] = true
+	}
+}
+
+// --- SubfilterRules Tests ---
+
+// okapi: JSONFilterTest#testSubfilterRules
+func TestSnippets_SubfilterRules(t *testing.T) {
+	// Without a real HTML resolver, verify that subfilterRules config is accepted
+	// and non-matching keys are still extracted as plain blocks.
+	input := `{"html_key": "<b>Bold text</b>", "plain_key": "Plain text"}`
+	parts := readJSONWith(t, input, map[string]any{
+		"subfilterRules": "html_key",
+		"subfilter":      "html",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Without a resolver, both keys should be extracted as plain blocks.
+	// The subfilterRules config is just stored — it needs a resolver to apply.
+	var foundPlain bool
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "Plain text") {
+			foundPlain = true
+		}
+	}
+	assert.True(t, foundPlain, "plain_key should still be extracted")
+}
+
+// --- Comment preservation in roundtrip ---
+
+func TestSnippets_CommentPreservationRoundtrip(t *testing.T) {
+	input := `{
+  // This is a comment
+  "key": "value"
+}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Contains(t, output, "// This is a comment")
+	assert.Contains(t, output, "value")
+}
+
+func TestSnippets_BlockCommentPreservationRoundtrip(t *testing.T) {
+	input := `{
+  /* Block comment */
+  "key": "value"
+}`
+	output := snippetRoundtrip(t, input, nil)
+	assert.Contains(t, output, "/* Block comment */")
+	assert.Contains(t, output, "value")
+}
+
+// --- Whitespace preservation ---
+
+func TestSnippets_WhitespacePreservation(t *testing.T) {
+	input := "{\n    \"key\" :   \"value\"\n}"
+	output := snippetRoundtrip(t, input, nil)
+	// Should preserve original whitespace structure
+	assert.Contains(t, output, "    \"key\" :   ")
+}
+
+// --- Extraction with full key path ---
+
+func TestSnippets_ExtractionRulesWithFullPath(t *testing.T) {
+	input := `{"widgets": [{"body": "Extract this", "id": "123"}]}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":          false,
+		"useFullKeyPath":           true,
+		"useLeadingSlashOnKeyPath": true,
+		"extractionRules":          `/widgets.*body`,
+	})
+
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Extract this")
+	assert.NotContains(t, texts, "123")
+}
+
+// --- Config validation ---
+
+func TestSnippets_ConfigDefaults(t *testing.T) {
+	reader := jsonfmt.NewReader()
+	cfg := reader.Config().(*jsonfmt.Config)
+	assert.True(t, cfg.ExtractAllPairs)
+	assert.False(t, cfg.ExtractIsolatedStrings)
+	assert.True(t, cfg.UseKeyAsName)
+	assert.False(t, cfg.UseFullKeyPath)
+	assert.True(t, cfg.UseLeadingSlashOnKeyPath)
+	assert.True(t, cfg.EscapeForwardSlashes)
+}
+
+// okapi: JSONFilterTest#testDefaultInfo
+// Java-specific: tests filter metadata (name, display name, configurations)
+func TestSnippets_DefaultInfo(t *testing.T) {
+	reader := jsonfmt.NewReader()
+	assert.Equal(t, "json", reader.Name())
+	assert.Equal(t, "JSON", reader.DisplayName())
+}
+
+// --- Variable max width from file ---
+
+// okapi: JSONFilterTest#testVariableMaxWidthInNestedObjects
+func TestSnippets_VariableMaxWidthInNestedObjects(t *testing.T) {
+	input := `{
+  "sections": [
+    {"maxchars": 100, "title": "This text has a maxwidth of 100"},
+    {"title": "This text has no maxwidth"},
+    {"maxchars": 600, "title": "This text has a maxwidth of 600"}
+  ]
+}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":  false,
+		"exceptions":       "title",
+		"useKeyAsName":     true,
+		"maxwidthRules":    "maxchars",
+		"maxwidthSizeUnit": "char",
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "This text has no maxwidth")
+	assert.Contains(t, texts, "This text has a maxwidth of 100")
+	assert.Contains(t, texts, "This text has a maxwidth of 600")
+
+	// Check maxwidth properties
+	b100 := findBlockContainingText(blocks, "maxwidth of 100")
+	require.NotNil(t, b100)
+	assert.Equal(t, "100", b100.Properties["maxwidth"])
+	assert.Equal(t, "char", b100.Properties["maxwidthSizeUnit"])
+
+	bNone := findBlockContainingText(blocks, "no maxwidth")
+	require.NotNil(t, bNone)
+	_, hasMaxwidth := bNone.Properties["maxwidth"]
+	assert.False(t, hasMaxwidth, "block without maxchars should not have maxwidth property")
+
+	b600 := findBlockContainingText(blocks, "maxwidth of 600")
+	require.NotNil(t, b600)
+	assert.Equal(t, "600", b600.Properties["maxwidth"])
+}
+
+// --- Metadata with nested notes ---
+
+// okapi: JSONFilterTest#metaDataAndExtractionRulesNestedNotes
+func TestSnippets_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
+	input := `{
+  "widgets": [
+    {
+      "id": "115013866768",
+      "name": {"prefix": "The Year of the ", "animal": "Tiger"},
+      "image": "tiger.jpg",
+      "body": "This is the blurb about tigers"
+    }
+  ]
+}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":          false,
+		"useFullKeyPath":           true,
+		"useLeadingSlashOnKeyPath": true,
+		"extractionRules":          `/widgets.*body`,
+		"noteRules":                `/widgets.*name`,
+		"idRules":                  `/widgets.*id`,
+		"genericMetaRules":         `/widgets.*image`,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Body value should be extracted
+	var foundBody bool
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "blurb") {
+			foundBody = true
+			break
+		}
+	}
+	assert.True(t, foundBody, "body value should be extracted")
+
+	// Name values should be notes, not translatable text
+	texts := blockTexts(blocks)
+	for _, text := range texts {
+		assert.NotEqual(t, "Tiger", text, "nested name values should be notes")
+	}
+}
+
+// --- Metadata with extraction rules and subfilter ---
+
+// okapi: JSONFilterTest#metaDataAndExtractionRulesWithSubfilter
+func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
+	input := `{
+  "widgets": [
+    {
+      "id": "115013866768",
+      "name": "The Year of the Tiger",
+      "image": "tiger.jpg",
+      "body": "This is the blurb about tigers"
+    }
+  ]
+}`
+	parts := readJSONWith(t, input, map[string]any{
+		"extractAllPairs":          false,
+		"useFullKeyPath":           true,
+		"useLeadingSlashOnKeyPath": true,
+		"extractionRules":          `/widgets.*body`,
+		"noteRules":                `/widgets.*name`,
+		"idRules":                  `/widgets.*id`,
+		"genericMetaRules":         `/widgets.*image`,
+	})
+
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// Body values should be extracted
+	var foundBody bool
+	for _, b := range blocks {
+		if strings.Contains(b.SourceText(), "blurb") {
+			foundBody = true
+			break
+		}
+	}
+	assert.True(t, foundBody, "body values should be extracted via extractionRules")
+
+	// Name keys should NOT be extracted as translatable
+	texts := blockTexts(blocks)
+	for _, text := range texts {
+		assert.NotEqual(t, "The Year of the Tiger", text, "name values should be notes, not translatable text")
+	}
+
+	// ID keys should not be translatable text
+	for _, text := range texts {
+		assert.NotEqual(t, "115013866768", text, "id values should be used as TU names, not translatable text")
+	}
+}
