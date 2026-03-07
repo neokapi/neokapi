@@ -17,17 +17,22 @@ type runProps struct {
 	strike        bool
 	vertAlign     string // "superscript", "subscript", or ""
 	vanish        bool   // hidden text
+	fontName      string // primary font name from <w:rFonts> (ascii or hAnsi)
+	fontNameCS    string // complex script font name
+	fontNameEA    string // East Asian font name
 	otherXML      string // serialized non-formatting properties we preserve but don't compare
 }
 
 // equal returns true if two runProps produce the same visual formatting.
+// Font names are compared when set (for font mapping merging).
 func (rp runProps) equal(other runProps) bool {
 	return rp.bold == other.bold &&
 		rp.italic == other.italic &&
 		rp.underline == other.underline &&
 		rp.strike == other.strike &&
 		rp.vertAlign == other.vertAlign &&
-		rp.vanish == other.vanish
+		rp.vanish == other.vanish &&
+		rp.fontName == other.fontName
 }
 
 // isEmpty returns true if no formatting properties are set.
@@ -191,6 +196,21 @@ func parseRunProps(d *xml.Decoder, aggressive bool) (runProps, error) {
 				if err := skipElement(d); err != nil {
 					return props, err
 				}
+			case local == "rFonts":
+				// Capture font names: ascii/hAnsi for Latin, cs for complex script, eastAsia for EA
+				if v := attrVal(t, "ascii"); v != "" {
+					props.fontName = v
+				} else if v := attrVal(t, "hAnsi"); v != "" {
+					props.fontName = v
+				}
+				props.fontNameCS = attrVal(t, "cs")
+				props.fontNameEA = attrVal(t, "eastAsia")
+				// Still preserve as raw XML for roundtrip
+				raw, err := serializeElement(d, t)
+				if err != nil {
+					return props, err
+				}
+				otherParts = append(otherParts, raw)
 			default:
 				// Preserve unknown properties as raw XML
 				raw, err := serializeElement(d, t)

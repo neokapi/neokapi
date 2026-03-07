@@ -20,6 +20,15 @@ type textRun struct {
 	props runProps
 }
 
+// complexFieldState tracks the state machine for complex field (fldChar) parsing.
+type complexFieldState struct {
+	active       bool   // inside a complex field (between begin and end)
+	fieldCode    string // field instruction name (e.g., "HYPERLINK", "TOC")
+	extractable  bool   // whether the field's display text should be extracted
+	atResult     bool   // past the "separate" marker (in display text area)
+	nestingLevel int    // nesting depth for nested complex fields
+}
+
 // wmlParser parses WordprocessingML XML parts (document.xml, headers, footers, etc.).
 type wmlParser struct {
 	cfg           *Config
@@ -27,6 +36,8 @@ type wmlParser struct {
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
 	rels          map[string]relationship // hyperlink rels for this part
+	codeFinder    *codeFinder             // regex-based inline code detection
+	styles        *styleMap               // resolved style inheritance (nil if not enabled)
 }
 
 // parsePart streams through a WordprocessingML XML part, emitting Blocks.
@@ -109,6 +120,8 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	var inHyperlink bool
 	var hyperlinkID string
 	var paraProps string
+	var paraStyleID string
+	var cfs complexFieldState
 
 	for {
 		tok, err := d.Token()
@@ -120,18 +133,27 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 		case xml.StartElement:
 			switch t.Name.Local {
 			case "pPr":
-				// Capture paragraph properties for skeleton
-				raw, err := captureRawElement(d, t)
+				// Capture paragraph properties for skeleton, extracting pStyle if present
+				raw, styleID, err := captureParaProps(d, t)
 				if err != nil {
 					return err
 				}
 				paraProps = raw
+				paraStyleID = styleID
 
 			case "r":
-				// Text run
-				run, err := p.parseRun(d)
+				// Text run — may contain fldChar/instrText for complex fields
+				run, err := p.parseRunWithFieldState(d, &cfs)
 				if err != nil {
 					return err
+				}
+				// If we're inside a non-extractable complex field, skip the runs
+				if cfs.active && !cfs.extractable {
+					continue
+				}
+				// If we're inside an extractable field but before the separator, skip
+				if cfs.active && cfs.extractable && !cfs.atResult {
+					continue
 				}
 				if inHyperlink {
 					hyperlinkRuns = append(hyperlinkRuns, run...)
@@ -176,6 +198,27 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 			}
 
 			if t.Name.Local == "p" {
+				// Apply style optimization: subtract inherited properties
+				if p.styles != nil && paraStyleID != "" {
+					styleProps := p.styles.resolveProps(paraStyleID)
+					for i := range runs {
+						if !isSentinel(runs[i].text) {
+							subtractProps(&runs[i].props, styleProps)
+						}
+					}
+				}
+
+				// Apply font mapping: normalize font names to script groups for merging
+				if len(p.cfg.FontMappings) > 0 {
+					for i := range runs {
+						if runs[i].props.fontName != "" {
+							if group, ok := p.cfg.FontMappings[runs[i].props.fontName]; ok {
+								runs[i].props.fontName = group
+							}
+						}
+					}
+				}
+
 				// Merge adjacent runs with same formatting
 				merged := mergeRuns(runs)
 
@@ -223,8 +266,10 @@ func (p *wmlParser) parseParagraph(d *xml.Decoder, partPath string, emitBlock fu
 	}
 }
 
-// parseRun parses a <w:r> element and returns its text runs.
-func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
+// parseRunWithFieldState parses a <w:r> element while tracking complex field state.
+// It delegates to parseRun for content extraction, but handles fldChar and instrText
+// to maintain the field state machine across runs within a paragraph.
+func (p *wmlParser) parseRunWithFieldState(d *xml.Decoder, cfs *complexFieldState) ([]textRun, error) {
 	var props runProps
 	var runs []textRun
 	hasProps := false
@@ -243,6 +288,47 @@ func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
 				props, err = parseRunProps(d, p.cfg.AggressiveCleanup)
 				if err != nil {
 					return nil, err
+				}
+
+			case "fldChar":
+				// Complex field state machine transition
+				fldCharType := attrVal(t, "fldCharType")
+				switch fldCharType {
+				case "begin":
+					cfs.nestingLevel++
+					if cfs.nestingLevel == 1 {
+						cfs.active = true
+						cfs.fieldCode = ""
+						cfs.extractable = false
+						cfs.atResult = false
+					}
+				case "separate":
+					if cfs.nestingLevel == 1 {
+						cfs.atResult = true
+					}
+				case "end":
+					cfs.nestingLevel--
+					if cfs.nestingLevel <= 0 {
+						cfs.active = false
+						cfs.fieldCode = ""
+						cfs.extractable = false
+						cfs.atResult = false
+						cfs.nestingLevel = 0
+					}
+				}
+				if err := skipElement(d); err != nil {
+					return nil, err
+				}
+
+			case "instrText":
+				// Field instruction text — extract the field code name
+				text, err := readCharData(d)
+				if err != nil {
+					return nil, err
+				}
+				if cfs.active && cfs.nestingLevel == 1 && cfs.fieldCode == "" {
+					cfs.fieldCode = complexFieldCodeName(text)
+					cfs.extractable = p.isExtractableField(cfs.fieldCode)
 				}
 
 			case "t":
@@ -266,7 +352,6 @@ func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
 				if p.cfg.TabAsCharacter {
 					runs = append(runs, textRun{text: "\t", props: props})
 				} else {
-					// Tab as placeholder — handled as special run
 					runs = append(runs, textRun{text: "\uE100", props: props}) // sentinel
 				}
 				if err := skipElement(d); err != nil {
@@ -274,7 +359,6 @@ func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
 				}
 
 			case "drawing", "pict", "object":
-				// Non-text inline content — placeholder
 				runs = append(runs, textRun{text: "\uE101", props: props}) // image sentinel
 				if err := skipElement(d); err != nil {
 					return nil, err
@@ -288,7 +372,6 @@ func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
 				}
 
 			case "sym":
-				// Symbol character
 				char := attrVal(t, "char")
 				if char != "" {
 					runs = append(runs, textRun{text: "[sym:" + char + "]", props: props})
@@ -309,6 +392,26 @@ func (p *wmlParser) parseRun(d *xml.Decoder) ([]textRun, error) {
 			}
 		}
 	}
+}
+
+// complexFieldCodeName extracts the field code name (first word) from instrText content.
+// e.g., ` HYPERLINK "http://example.com" \t "_blank" ` → "HYPERLINK"
+func complexFieldCodeName(instrText string) string {
+	s := strings.TrimSpace(instrText)
+	if idx := strings.IndexByte(s, ' '); idx > 0 {
+		return s[:idx]
+	}
+	return s
+}
+
+// isExtractableField returns true if the field code is in the configured extract list.
+func (p *wmlParser) isExtractableField(fieldCode string) bool {
+	for _, prefix := range p.cfg.ComplexFieldDefinitionsToExtract {
+		if strings.EqualFold(fieldCode, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseSDT parses a structured document tag, extracting its content.
@@ -371,7 +474,9 @@ func (p *wmlParser) parseInlineSDT(d *xml.Decoder) ([]textRun, error) {
 				}
 				depth--
 			case "r":
-				r, err := p.parseRun(d)
+				// SDT runs don't track complex field state — use a throwaway state
+				var cfs complexFieldState
+				r, err := p.parseRunWithFieldState(d, &cfs)
 				if err != nil {
 					return nil, err
 				}
@@ -548,6 +653,23 @@ func (p *wmlParser) buildBlock(id string, runs []textRun, partPath string) *mode
 		Properties:   map[string]string{"partPath": partPath},
 		Annotations:  make(map[string]model.Annotation),
 	}
+
+	// Apply code finder if configured
+	if p.codeFinder != nil {
+		p.codeFinder.apply(frag, &spanCounter)
+	}
+
+	// Collect font info if configured
+	if p.cfg.ExtractRunFontsInfo {
+		fonts := collectFonts(runs)
+		if fonts != "" {
+			block.Annotations["fonts"] = &model.GenericAnnotation{
+				Type_:  "fonts",
+				Fields: map[string]any{"names": fonts},
+			}
+		}
+	}
+
 	return block
 }
 
@@ -653,6 +775,21 @@ func runToXML(r textRun) string {
 	buf.WriteString(xmlEscape(r.text))
 	buf.WriteString("</w:t></w:r>")
 	return buf.String()
+}
+
+// collectFonts returns a comma-separated list of unique font names from runs.
+func collectFonts(runs []textRun) string {
+	seen := make(map[string]bool)
+	var fonts []string
+	for _, r := range runs {
+		for _, f := range []string{r.props.fontName, r.props.fontNameCS, r.props.fontNameEA} {
+			if f != "" && !seen[f] {
+				seen[f] = true
+				fonts = append(fonts, f)
+			}
+		}
+	}
+	return strings.Join(fonts, ", ")
 }
 
 // Skeleton helpers
@@ -906,6 +1043,40 @@ func readCharData(d *xml.Decoder) (string, error) {
 			}
 		}
 	}
+}
+
+// captureParaProps captures paragraph properties as raw XML and extracts the pStyle value.
+func captureParaProps(d *xml.Decoder, start xml.StartElement) (string, string, error) {
+	raw, err := captureRawElement(d, start)
+	if err != nil {
+		return "", "", err
+	}
+	// Extract pStyle value from the raw XML
+	styleID := extractPStyle(raw)
+	return raw, styleID, nil
+}
+
+// extractPStyle extracts the w:val attribute from <w:pStyle> in raw paragraph properties XML.
+func extractPStyle(raw string) string {
+	idx := strings.Index(raw, "<w:pStyle")
+	if idx < 0 {
+		// Try without namespace prefix
+		idx = strings.Index(raw, "<pStyle")
+		if idx < 0 {
+			return ""
+		}
+	}
+	// Find w:val="..." or val="..."
+	valIdx := strings.Index(raw[idx:], `val="`)
+	if valIdx < 0 {
+		return ""
+	}
+	start := idx + valIdx + 5
+	end := strings.Index(raw[start:], `"`)
+	if end < 0 {
+		return ""
+	}
+	return raw[start : start+end]
 }
 
 // captureRawElement captures an entire element (start to end) as raw XML.

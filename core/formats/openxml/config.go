@@ -37,7 +37,21 @@ type Config struct {
 	ExcludeStyles          []string // Word paragraph/character styles to exclude
 	IncludeStyles          []string // If non-empty, only extract text with these styles
 
+	// --- Code finder ---
+	UseCodeFinder   bool     // Enable regex-based inline code detection
+	CodeFinderRules []string // Regex patterns for inline codes (e.g., `<\/?[a-z]+>`, `\{[0-9]+\}`)
+
+	// --- Complex fields ---
+	ComplexFieldDefinitionsToExtract []string // Field instruction prefixes to extract (e.g., "HYPERLINK", "REF")
+
+	// --- Style optimization ---
+	OptimiseWordStyles bool // Resolve style inheritance and strip redundant run properties
+
+	// --- Font mappings ---
+	FontMappings map[string]string // Font name → script group (e.g., "MS Gothic": "ja")
+
 	// --- Advanced ---
+	ExtractRunFontsInfo      bool   // Emit font metadata as annotations on blocks
 	ReplaceLineSeparator     bool   // Replace Unicode line separator (U+2028) in output
 	LineSeparatorReplacement string // Replacement string for line separator (default: "\n")
 }
@@ -70,6 +84,12 @@ func (c *Config) Reset() {
 	c.IncludeHighlightColors = nil
 	c.ExcludeStyles = nil
 	c.IncludeStyles = nil
+	c.UseCodeFinder = false
+	c.CodeFinderRules = nil
+	c.ComplexFieldDefinitionsToExtract = nil
+	c.OptimiseWordStyles = false
+	c.FontMappings = nil
+	c.ExtractRunFontsInfo = false
 	c.ReplaceLineSeparator = false
 	c.LineSeparatorReplacement = "\n"
 }
@@ -112,6 +132,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.TranslateSheetNames = toBool(val)
 		case "translateSharedStrings":
 			c.TranslateSharedStrings = toBool(val)
+		case "useCodeFinder":
+			c.UseCodeFinder = toBool(val)
+		case "optimiseWordStyles":
+			c.OptimiseWordStyles = toBool(val)
+		case "extractRunFontsInfo":
+			c.ExtractRunFontsInfo = toBool(val)
 		case "replaceLineSeparator":
 			c.ReplaceLineSeparator = toBool(val)
 
@@ -167,6 +193,25 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			}
 			c.IncludeStyles = list
 
+		case "codeFinderRules":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.CodeFinderRules = list
+		case "complexFieldDefinitionsToExtract":
+			list, err := toStringSlice(key, val)
+			if err != nil {
+				return err
+			}
+			c.ComplexFieldDefinitionsToExtract = list
+		case "fontMappings":
+			m, err := toStringMap(key, val)
+			if err != nil {
+				return err
+			}
+			c.FontMappings = m
+
 		// Int list options
 		case "includedSlides":
 			list, err := toIntSlice(key, val)
@@ -213,6 +258,28 @@ func toStringSlice(key string, val any) ([]string, error) {
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("openxml: config key %q expects string list, got %T", key, val)
+	}
+}
+
+// toStringMap converts a value to map[string]string.
+func toStringMap(key string, val any) (map[string]string, error) {
+	switch v := val.(type) {
+	case map[string]string:
+		return v, nil
+	case map[string]any:
+		result := make(map[string]string, len(v))
+		for k, item := range v {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("openxml: config key %q: map value for %q expects string, got %T", key, k, item)
+			}
+			result[k] = s
+		}
+		return result, nil
+	case nil:
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("openxml: config key %q expects string map, got %T", key, val)
 	}
 }
 

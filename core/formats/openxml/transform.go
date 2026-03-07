@@ -51,6 +51,7 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 			"translateDiagrams",
 			"translateSheetNames",
 			"translateSharedStrings",
+			"extractRunFontsInfo",
 			"replaceLineSeparator",
 			"lineSeparatorReplacement",
 			"excludeColors",
@@ -60,7 +61,12 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 			"includeStyles",
 			"excludedSheets",
 			"excludedColumns",
-			"includedSlides":
+			"includedSlides",
+			"useCodeFinder",
+			"codeFinderRules",
+			"fontMappings",
+			"optimiseWordStyles",
+			"complexFieldDefinitionsToExtract":
 			result[key] = val
 
 		// Okapi key name → native key name
@@ -98,17 +104,20 @@ func (okapiOpenXMLTransformer) Transform(spec map[string]any) (map[string]any, e
 			result["translateCharts"] = val
 		case "tsExtractDiagramData":
 			result["translateDiagrams"] = val
+		case "tsComplexFieldDefinitionsToExtract":
+			result["complexFieldDefinitionsToExtract"] = val
+
+		// Okapi composite codeFinder object → extract rules into flat params
+		case "codeFinder":
+			if m, ok := val.(map[string]any); ok {
+				if rules, ok := m["rules"]; ok {
+					result["codeFinderRules"] = rules
+				}
+				result["useCodeFinder"] = true
+			}
 
 		// Okapi-only params — drop silently
-		case "translateExcelDrawings",
-			"tsComplexFieldDefinitionsToExtract",
-			"fontMappings",
-			"optimiseWordStyles",
-			"extractRunFontsInfo",
-			"codeFinder",
-			"useCodeFinder",
-			"codeFinderRules",
-			"tsDefaultTranslatable":
+		case "translateExcelDrawings":
 			continue
 
 		default:

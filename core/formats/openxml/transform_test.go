@@ -87,7 +87,7 @@ func TestOkapiOpenXMLTransform_RenamedKeys(t *testing.T) {
 	assert.Equal(t, true, result["translateDiagrams"])
 }
 
-func TestOkapiOpenXMLTransform_DropsOkapiOnly(t *testing.T) {
+func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 	from := config.OkapiFilterConfigKind("openxml")
 	to := config.FormatConfigKind("openxml")
 	spec := map[string]any{
@@ -98,27 +98,44 @@ func TestOkapiOpenXMLTransform_DropsOkapiOnly(t *testing.T) {
 		"optimiseWordStyles":                  true,
 		"extractRunFontsInfo":                 true,
 		"codeFinder":                          map[string]any{"rules": []string{"<br>"}},
-		"useCodeFinder":                       true,
-		"codeFinderRules":                     []string{"<br>"},
-		"tsDefaultTranslatable":              "TEXTINPUT",
 	}
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
-	// Kept
+	// Kept / transformed
 	assert.Equal(t, true, result["translateDocProperties"])
+	assert.Equal(t, "HYPERLINK", result["complexFieldDefinitionsToExtract"]) // renamed from ts-prefixed
+	assert.Equal(t, "some-mapping", result["fontMappings"])                  // passed through
+	assert.Equal(t, true, result["optimiseWordStyles"])                      // passed through
+	assert.Equal(t, true, result["extractRunFontsInfo"])                     // passed through
 
-	// Dropped
+	// codeFinder composite object → extracted into flat params
+	assert.Equal(t, true, result["useCodeFinder"])
+	assert.Equal(t, []string{"<br>"}, result["codeFinderRules"])
+	assert.Nil(t, result["codeFinder"]) // composite object itself not passed through
+
+	// Dropped (Okapi-only, no native equivalent)
 	assert.Nil(t, result["translateExcelDrawings"])
+
+	// Renamed keys should not appear under old names
 	assert.Nil(t, result["tsComplexFieldDefinitionsToExtract"])
-	assert.Nil(t, result["fontMappings"])
-	assert.Nil(t, result["optimiseWordStyles"])
-	assert.Nil(t, result["extractRunFontsInfo"])
-	assert.Nil(t, result["codeFinder"])
-	assert.Nil(t, result["useCodeFinder"])
-	assert.Nil(t, result["codeFinderRules"])
-	assert.Nil(t, result["tsDefaultTranslatable"])
+}
+
+func TestOkapiOpenXMLTransform_CodeFinderWithExistingRules(t *testing.T) {
+	// When both codeFinder object AND flat codeFinderRules are present,
+	// the flat params should win (they come later in iteration or are already set)
+	from := config.OkapiFilterConfigKind("openxml")
+	to := config.FormatConfigKind("openxml")
+	spec := map[string]any{
+		"useCodeFinder":   true,
+		"codeFinderRules": []string{"\\{[0-9]+\\}"},
+	}
+
+	result, err := config.DefaultTransforms.Transform(from, to, spec)
+	require.NoError(t, err)
+	assert.Equal(t, true, result["useCodeFinder"])
+	assert.Equal(t, []string{"\\{[0-9]+\\}"}, result["codeFinderRules"])
 }
 
 func TestOkapiOpenXMLTransform_EmptySpec(t *testing.T) {
