@@ -381,7 +381,23 @@ func resolveRelTarget(relsPath, target string) string {
 	}
 	// Strip _rels/ suffix to get the actual base directory
 	dir = strings.Replace(dir, "_rels/", "", 1)
-	return dir + target
+	resolved := dir + target
+	// Normalize ".." path segments (e.g., "xl/worksheets/../tables/t.xml" → "xl/tables/t.xml")
+	return cleanZipPath(resolved)
+}
+
+// cleanZipPath normalizes a ZIP-internal path by resolving ".." segments.
+func cleanZipPath(p string) string {
+	parts := strings.Split(p, "/")
+	var out []string
+	for _, seg := range parts {
+		if seg == ".." && len(out) > 0 {
+			out = out[:len(out)-1]
+		} else if seg != "." && seg != ".." {
+			out = append(out, seg)
+		}
+	}
+	return strings.Join(out, "/")
 }
 
 // buildXLSXParts returns the ordered translatable parts for an XLSX document.
@@ -410,6 +426,18 @@ func buildXLSXParts(info *containerInfo, cfg *Config) []string {
 	}
 	sort.Strings(sheets)
 	parts = append(parts, sheets...)
+
+	// Tables (column names must stay in sync with header row cell values)
+	var tables []string
+	for relsPath, rels := range info.relationships {
+		for _, rel := range rels {
+			if rel.Type == "http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" {
+				tables = append(tables, resolveRelTarget(relsPath, rel.Target))
+			}
+		}
+	}
+	sort.Strings(tables)
+	parts = append(parts, tables...)
 
 	// Comments
 	if cfg.TranslateComments {
