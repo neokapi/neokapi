@@ -35,7 +35,7 @@ gokapi/                              ── Framework Module Tests ──
 │   ├── layer_test.go                # Layer nesting, embedded content, format association
 │   ├── fragment_test.go             # Fragment span encoding/decoding
 │   ├── span_test.go                 # Span type handling
-│   └── skeleton_test.go             # Skeleton reconstruction (both strategies)
+│   └── skeleton_test.go             # Per-block skeleton reconstruction
 ├── flow/
 │   ├── executor_test.go             # Flow execution, goroutine wiring, error propagation
 │   └── builder_test.go              # FlowBuilder API

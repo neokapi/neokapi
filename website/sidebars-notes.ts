@@ -16,6 +16,7 @@ const sidebars: SidebarsConfig = {
     'npm-workspaces',
     'docker-compose',
     'mcp-tools-reference',
+    'skeleton-store',
   ],
 };
 

@@ -132,10 +132,22 @@ All three tiers register into the `FormatRegistry`. Kapi uses this registry to r
 4. **Content sniffing** — heuristic analysis of file content
 
 **Skeleton strategies:**
-- **Fragment-based** (HTML, XML, XLIFF): Interleaved skeleton of non-translatable markup + references to translatable blocks
-- **Re-parse** (Plaintext, JSON, YAML, PO): Re-open source document and replace content in place
+- **SkeletonStore streaming** (HTML): Temp-file-backed binary store where the
+  reader writes non-translatable bytes and block references during extraction;
+  the writer reads entries sequentially to reconstruct the document with
+  byte-exact fidelity. See [Skeleton Store](/docs/notes/skeleton-store) for
+  the binary format, interfaces, and wiring details.
+- **Re-parse** (JSON, YAML, PO, Plaintext): Re-open source document and
+  replace content in place during writing.
+- **Fragment-based** (XML, XLIFF): Interleaved skeleton of non-translatable
+  markup + references to translatable blocks carried on the Block/Data
+  resources.
 
-These strategies ensure roundtrip fidelity when Kapi writes translated files back to disk.
+These strategies ensure roundtrip fidelity when Kapi writes translated files
+back to disk. The SkeletonStore approach is preferred for new formats because
+it produces byte-exact output with ~100KB peak memory per document, compared
+to the re-parse approach which requires holding the full document in memory
+twice (once for parsing, once for writing).
 
 ### Server-Side Connector Registration
 

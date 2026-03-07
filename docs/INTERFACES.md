@@ -293,25 +293,15 @@ type RawDocument struct {
 func (rd *RawDocument) ResourceID() string { return rd.URI }
 ```
 
-### Skeleton
+### Skeleton (per-Block)
 
 ```go
 // Skeleton preserves non-translatable document structure for reconstruction.
-// Two strategies are supported:
-// 1. Fragment-based: stores interleaved text/reference fragments (classic Okapi approach)
-// 2. Re-parse: re-reads the source document during writing (simpler for some formats)
+// Used by fragment-based formats (XML, XLIFF) where skeleton data is carried
+// on individual Block/Data resources.
 type Skeleton struct {
-    Strategy SkeletonStrategy
-    Parts    []SkeletonPart // Used by fragment-based strategy
-    SourceURI string        // Used by re-parse strategy
+    Parts []SkeletonPart
 }
-
-type SkeletonStrategy int
-
-const (
-    SkeletonFragmentBased SkeletonStrategy = iota
-    SkeletonReparse
-)
 
 // SkeletonPart is either a literal text fragment or a reference to a Block/Data.
 type SkeletonPart interface {
@@ -330,6 +320,73 @@ type SkeletonRef struct {
 }
 
 func (sr *SkeletonRef) isSkeletonPart() {}
+```
+
+### SkeletonStore (document-level streaming)
+
+```go
+// SkeletonStore streams document skeleton data through temporary file storage.
+// The reader writes text/ref entries as it parses; the writer reads them
+// sequentially to reconstruct the document with byte-exact fidelity.
+//
+// Binary format: [type:1byte] [length:4bytes big-endian] [data:N bytes]
+//   type 0 = text (non-translatable raw bytes)
+//   type 1 = ref  (block ID as UTF-8)
+//
+// See docs/notes/skeleton-store.md for full details.
+type SkeletonStore struct {
+    file   *os.File
+    writer *bufio.Writer
+    reader *bufio.Reader
+}
+
+func NewSkeletonStore() (*SkeletonStore, error)    // creates temp file
+func (s *SkeletonStore) WriteText(data []byte) error // non-translatable bytes (skips empty)
+func (s *SkeletonStore) WriteRef(blockID string) error // block placeholder
+func (s *SkeletonStore) Flush() error                  // finish writing, prepare for reading
+func (s *SkeletonStore) Next() (SkeletonEntry, error)  // read next entry (io.EOF when done)
+func (s *SkeletonStore) Close() error                  // cleanup temp file
+
+type SkeletonEntryType byte
+
+const (
+    SkeletonText SkeletonEntryType = 0
+    SkeletonRef  SkeletonEntryType = 1
+)
+
+type SkeletonEntry struct {
+    Type SkeletonEntryType
+    Data []byte // raw bytes (text) or block ID (ref)
+}
+
+// SkeletonStoreEmitter is implemented by readers that write skeleton data
+// during extraction.
+type SkeletonStoreEmitter interface {
+    SetSkeletonStore(store *SkeletonStore)
+}
+
+// SkeletonStoreConsumer is implemented by writers that read skeleton data
+// during reconstruction.
+type SkeletonStoreConsumer interface {
+    SetSkeletonStore(store *SkeletonStore)
+}
+```
+
+Flow executor wiring (in `cli/flow.go`, `cli/toolrun.go`, `kapi/cmd/kapi/mcp_tools.go`):
+
+```go
+// Wire skeleton store if both reader and writer support it.
+// Must be wired BEFORE reader.Read() — the reader writes entries during reading.
+if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+    if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+        store, err := format.NewSkeletonStore()
+        if err == nil {
+            defer store.Close()
+            emitter.SetSkeletonStore(store)
+            consumer.SetSkeletonStore(store)
+        }
+    }
+}
 ```
 
 ### Supporting types
