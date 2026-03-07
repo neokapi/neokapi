@@ -119,7 +119,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// Parse key=value
 		key, value, sep := parseProperty(line.content)
-		value = decodeUnicodeEscapes(value)
+		value = decodeValueEscapes(value)
+		if r.cfg.UseJavaEscapes {
+			value = decodeJavaEscapes(value)
+		}
 
 		blockID++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockID), value)
@@ -252,22 +255,75 @@ func parseProperty(line string) (key, value, sep string) {
 	return key, "", sep
 }
 
-// decodeUnicodeEscapes processes \uXXXX sequences in a string.
-func decodeUnicodeEscapes(s string) string {
-	if !strings.Contains(s, "\\u") {
+// decodeValueEscapes processes Java properties escape sequences in a value string:
+// \uXXXX (unicode), \n (newline), \t (tab), \r (CR), \\ (backslash).
+// Unknown escape sequences (e.g. \w) are kept as-is.
+func decodeValueEscapes(s string) string {
+	if !strings.Contains(s, "\\") {
 		return s
 	}
 
 	var buf strings.Builder
 	i := 0
 	for i < len(s) {
-		if i+5 < len(s) && s[i] == '\\' && s[i+1] == 'u' {
-			// Try to parse 4 hex digits
-			hex := s[i+2 : i+6]
-			r, ok := parseHexRune(hex)
-			if ok {
-				buf.WriteRune(r)
-				i += 6
+		if s[i] == '\\' && i+1 < len(s) {
+			next := s[i+1]
+			switch next {
+			case 'u':
+				if i+5 < len(s) {
+					hex := s[i+2 : i+6]
+					r, ok := parseHexRune(hex)
+					if ok {
+						buf.WriteRune(r)
+						i += 6
+						continue
+					}
+				}
+				// Invalid \u sequence — keep as-is
+				buf.WriteByte(s[i])
+				i++
+			case 'n':
+				buf.WriteByte('\n')
+				i += 2
+			case 't':
+				buf.WriteByte('\t')
+				i += 2
+			case 'r':
+				buf.WriteByte('\r')
+				i += 2
+			case '\\':
+				buf.WriteByte('\\')
+				i += 2
+			default:
+				// Unknown escape — keep as-is (e.g. \w -> \w)
+				buf.WriteByte(s[i])
+				buf.WriteByte(next)
+				i += 2
+			}
+			continue
+		}
+		buf.WriteByte(s[i])
+		i++
+	}
+	return buf.String()
+}
+
+// decodeJavaEscapes additionally decodes \: \= \# \! in property values.
+// This is controlled by the useJavaEscapes config option.
+func decodeJavaEscapes(s string) string {
+	if !strings.Contains(s, "\\") {
+		return s
+	}
+
+	var buf strings.Builder
+	i := 0
+	for i < len(s) {
+		if s[i] == '\\' && i+1 < len(s) {
+			next := s[i+1]
+			switch next {
+			case ':', '=', '#', '!':
+				buf.WriteByte(next)
+				i += 2
 				continue
 			}
 		}

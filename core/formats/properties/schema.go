@@ -19,6 +19,7 @@ func (c *Config) Schema() *schema.FilterSchema {
 				Label: "Parsing",
 				Fields: []string{
 					"separator",
+					"useJavaEscapes",
 				},
 			},
 		},
@@ -27,6 +28,11 @@ func (c *Config) Schema() *schema.FilterSchema {
 				Type:        "string",
 				Default:     "=",
 				Description: "Key-value separator character (typically '=' or ':')",
+			},
+			"useJavaEscapes": {
+				Type:        "boolean",
+				Default:     false,
+				Description: "Decode additional Java escapes (\\: \\= \\# \\!) in values",
 			},
 		},
 	}

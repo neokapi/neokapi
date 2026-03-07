@@ -6,6 +6,10 @@ import "fmt"
 type Config struct {
 	// Separator is the key-value separator character. Default is '='.
 	Separator string
+
+	// UseJavaEscapes enables additional Java escape decoding: \: \= \# \!
+	// in property values are decoded to their literal characters.
+	UseJavaEscapes bool
 }
 
 // FormatName returns the format this config applies to.
@@ -14,6 +18,7 @@ func (c *Config) FormatName() string { return "properties" }
 // Reset restores default values.
 func (c *Config) Reset() {
 	c.Separator = "="
+	c.UseJavaEscapes = false
 }
 
 // Validate checks configuration validity.
@@ -29,6 +34,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("separator: expected string, got %T", val)
 			}
 			c.Separator = s
+		case "useJavaEscapes":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("useJavaEscapes: expected bool, got %T", val)
+			}
+			c.UseJavaEscapes = b
 		default:
 			return fmt.Errorf("properties: unknown parameter: %s", key)
 		}

@@ -66,7 +66,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 
 	// Encode unicode escapes for non-ASCII characters
-	text = encodeUnicodeEscapes(text)
+	text = encodePropertyValue(text)
 
 	sep := "="
 	if s, ok := block.Properties["separator"]; ok && s != "" {
@@ -105,13 +105,23 @@ func (w *Writer) writeLine() {
 	w.firstLine = false
 }
 
-// encodeUnicodeEscapes converts non-ASCII characters to \uXXXX escapes.
-func encodeUnicodeEscapes(s string) string {
+// encodePropertyValue encodes special characters in a property value:
+// non-ASCII -> \uXXXX, newline -> \n, tab -> \t, CR -> \r, backslash -> \\.
+func encodePropertyValue(s string) string {
 	var buf strings.Builder
 	for _, r := range s {
-		if r > 127 {
+		switch {
+		case r == '\\':
+			buf.WriteString("\\\\")
+		case r == '\n':
+			buf.WriteString("\\n")
+		case r == '\t':
+			buf.WriteString("\\t")
+		case r == '\r':
+			buf.WriteString("\\r")
+		case r > 127:
 			buf.WriteString(fmt.Sprintf("\\u%04X", r))
-		} else {
+		default:
 			buf.WriteRune(r)
 		}
 	}
