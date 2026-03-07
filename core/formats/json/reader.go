@@ -254,9 +254,9 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 		state.pendingNote = value
 		return
 	}
-	if r.cfg.isId(keyName, fullPath) {
+	if r.cfg.isID(keyName, fullPath) {
 		state.pendingID = value
-		if r.cfg.UseIdStack {
+		if r.cfg.UseIDStack {
 			state.idStack = append(state.idStack, value)
 		}
 		return
@@ -359,7 +359,7 @@ func (r *Reader) blockName(keyName, path string, state *readState) string {
 		return state.pendingID
 	}
 	// If using ID stack, join IDs
-	if r.cfg.UseIdStack && len(state.idStack) > 0 {
+	if r.cfg.UseIDStack && len(state.idStack) > 0 {
 		return strings.Join(state.idStack, "/")
 	}
 

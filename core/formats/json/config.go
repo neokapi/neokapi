@@ -50,12 +50,12 @@ type Config struct {
 	// attached to the next translatable block.
 	NoteRules string
 
-	// IdRules is a regex pattern for key names whose values are used as
+	// IDRules is a regex pattern for key names whose values are used as
 	// block names/IDs for the next translatable block.
-	IdRules string
+	IDRules string
 
-	// UseIdStack stacks IDs for nested structures, producing compound IDs.
-	UseIdStack bool
+	// UseIDStack stacks IDs for nested structures, producing compound IDs.
+	UseIDStack bool
 
 	// GenericMetaRules is a regex pattern for key names whose values become
 	// metadata annotations on the next translatable block.
@@ -84,7 +84,7 @@ type Config struct {
 	compiledExceptions      *regexp.Regexp
 	compiledExtractionRules *regexp.Regexp
 	compiledNoteRules       *regexp.Regexp
-	compiledIdRules         *regexp.Regexp
+	compiledIDRules         *regexp.Regexp
 	compiledGenericMeta     *regexp.Regexp
 	compiledMaxwidth        *regexp.Regexp
 	compiledSubfilterRules  *regexp.Regexp
@@ -192,13 +192,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			if !ok {
 				return fmt.Errorf("idRules: expected string, got %T", val)
 			}
-			c.IdRules = s
+			c.IDRules = s
 		case "useIdStack":
 			b, ok := val.(bool)
 			if !ok {
 				return fmt.Errorf("useIdStack: expected bool, got %T", val)
 			}
-			c.UseIdStack = b
+			c.UseIDStack = b
 		case "genericMetaRules":
 			s, ok := val.(string)
 			if !ok {
@@ -247,7 +247,7 @@ func (c *Config) clearCompiledRegex() {
 	c.compiledExceptions = nil
 	c.compiledExtractionRules = nil
 	c.compiledNoteRules = nil
-	c.compiledIdRules = nil
+	c.compiledIDRules = nil
 	c.compiledGenericMeta = nil
 	c.compiledMaxwidth = nil
 	c.compiledSubfilterRules = nil
@@ -275,11 +275,11 @@ func (c *Config) getNoteRules() *regexp.Regexp {
 	return c.compiledNoteRules
 }
 
-func (c *Config) getIdRules() *regexp.Regexp {
-	if c.compiledIdRules == nil && c.IdRules != "" {
-		c.compiledIdRules = regexp.MustCompile(c.IdRules)
+func (c *Config) getIDRules() *regexp.Regexp {
+	if c.compiledIDRules == nil && c.IDRules != "" {
+		c.compiledIDRules = regexp.MustCompile(c.IDRules)
 	}
-	return c.compiledIdRules
+	return c.compiledIDRules
 }
 
 func (c *Config) getGenericMetaRules() *regexp.Regexp {
@@ -359,9 +359,9 @@ func (c *Config) isNote(keyName, fullPath string) bool {
 	return re.MatchString(keyName)
 }
 
-// isId returns true if the key matches idRules.
-func (c *Config) isId(keyName, fullPath string) bool {
-	re := c.getIdRules()
+// isID returns true if the key matches idRules.
+func (c *Config) isID(keyName, fullPath string) bool {
+	re := c.getIDRules()
 	if re == nil {
 		return false
 	}
