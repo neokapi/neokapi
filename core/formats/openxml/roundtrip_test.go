@@ -123,8 +123,12 @@ func TestRoundtripWithTranslation(t *testing.T) {
 	}
 }
 
+// okapi-filter: openxml
+
 // --- Glob-based roundtrip tests matching bridge test pattern ---
 
+// okapi: OpenXMLDefaultConfigRoundTripTest#testWitthDefaultConfig
+// okapi: OpenXMLRoundTripTest#runTestTwice
 // TestRoundTrip_Docx performs skeleton roundtrip on all DOCX test files.
 func TestRoundTrip_Docx(t *testing.T) {
 	dir := testdataDir(t)

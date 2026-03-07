@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi-filter: openxml
+
 // skipStart reads and discards the opening XML start element.
 func skipStart(t *testing.T, d *xml.Decoder) {
 	t.Helper()
