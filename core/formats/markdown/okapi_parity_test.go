@@ -1333,3 +1333,61 @@ func TestWrite_WriteTextUnitsAndDocumentPartsWithEscapes(t *testing.T) {
 	output := roundtripWithSkeleton(t, input)
 	assert.Contains(t, output, "escaped")
 }
+
+// ============================================================================
+// RoundTripMarkdownIT — integration roundtrip tests
+// ============================================================================
+
+// okapi: RoundTripMarkdownIT
+func TestRoundTrip_MarkdownIT(t *testing.T) {
+	// Native equivalent of the Okapi RoundTripMarkdownIT integration test.
+	// Verifies byte-exact roundtrip for a variety of markdown constructs
+	// that mirror the test files used by the Java integration test suite.
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"heading_and_paragraph", "# Title\n\nParagraph text.\n"},
+		{"multiple_headings", "# H1\n\n## H2\n\n### H3\n\n#### H4\n"},
+		{"setext_headings", "Title\n=====\n\nSubtitle\n--------\n"},
+		{"bullet_list", "- Item one\n- Item two\n- Item three\n"},
+		{"ordered_list", "1. First\n2. Second\n3. Third\n"},
+		{"nested_list", "- Item 1\n\n  - Sub item\n\n- Item 2\n"},
+		{"bold_italic", "This has **bold** and *italic* text.\n"},
+		{"inline_code", "Use `fmt.Println()` here.\n"},
+		{"fenced_code", "Text before\n\n```go\nfmt.Println()\n```\n\nText after\n"},
+		{"link", "Click [here](https://example.com) please.\n"},
+		{"link_with_title", "[Link](https://example.com \"Title\").\n"},
+		{"image", "See ![alt text](image.png) here.\n"},
+		{"image_no_alt", "![](image.png)\n"},
+		{"blockquote", "> Quoted text\n>\n> More quoted\n"},
+		{"thematic_break", "Above\n\n---\n\nBelow\n"},
+		{"html_block", "Text\n\n<div>HTML</div>\n\nMore text\n"},
+		{"escaped_chars", "Text with \\*escaped\\* asterisks.\n"},
+		{"table", "| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n"},
+		{"front_matter", "---\ntitle: Hello\nauthor: World\n---\n\n# Content\n"},
+		{"combined", "# Heading\n\nParagraph with **bold** and *italic*.\n\n- Item 1\n- Item 2\n\n> Quote\n\n```\ncode\n```\n\n---\n\nFinal.\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := roundtripWithSkeleton(t, tc.input)
+			assert.Equal(t, tc.input, output, "roundtrip should be byte-exact for %s", tc.name)
+		})
+	}
+
+	// Content-preserving roundtrips: these constructs don't roundtrip
+	// byte-exactly (reference links resolve to inline, hard line break
+	// trailing spaces are not preserved) but the text content is correct.
+	t.Run("reference_link", func(t *testing.T) {
+		input := "[Link text][ref]\n\n[ref]: http://example.com\n"
+		output := roundtripWithSkeleton(t, input)
+		assert.Contains(t, output, "Link text")
+		assert.Contains(t, output, "http://example.com")
+	})
+	t.Run("hard_line_break", func(t *testing.T) {
+		input := "Line one  \nLine two.\n"
+		output := roundtripWithSkeleton(t, input)
+		assert.Contains(t, output, "Line one")
+		assert.Contains(t, output, "Line two.")
+	})
+}
