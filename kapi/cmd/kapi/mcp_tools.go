@@ -467,6 +467,24 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 		return "", fmt.Errorf("read input: %w", err)
 	}
 
+	// Create writer early so we can wire skeleton store before reading.
+	writer, err := a.FormatReg.NewWriter(registryName)
+	if err != nil {
+		return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
+	}
+
+	// Wire skeleton store if both reader and writer support it.
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+			store, err := format.NewSkeletonStore()
+			if err == nil {
+				defer store.Close()
+				emitter.SetSkeletonStore(store)
+				consumer.SetSkeletonStore(store)
+			}
+		}
+	}
+
 	doc := &model.RawDocument{
 		URI:          inputPath,
 		SourceLocale: model.LocaleID(sourceLang),
@@ -520,11 +538,6 @@ func executeFlow(ctx context.Context, a *cli.App, flowName, inputPath, sourceLan
 	if outputPath == "" {
 		base := inputPath[:len(inputPath)-len(ext)]
 		outputPath = fmt.Sprintf("%s_%s%s", base, targetLang, ext)
-	}
-
-	writer, err := a.FormatReg.NewWriter(registryName)
-	if err != nil {
-		return "", fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {
