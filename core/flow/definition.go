@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/gokapi/gokapi/core/config"
+	"gopkg.in/yaml.v3"
 )
 
 // FlowDefinition is a JSON-serializable flow that can be stored and loaded.
@@ -229,7 +232,11 @@ func NewFlowStore(dir string) *FlowStore {
 	return &FlowStore{dir: dir}
 }
 
+// FlowDefinitionAPIVersion is the apiVersion for flow definition envelopes.
+const FlowDefinitionAPIVersion = "gokapi/flow-v1"
+
 // List returns all user flow definitions in the store.
+// Supports both JSON (.json) and YAML (.yaml/.yml) files, with or without envelope.
 func (s *FlowStore) List() ([]FlowDefinition, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
@@ -240,38 +247,133 @@ func (s *FlowStore) List() ([]FlowDefinition, error) {
 	}
 	var defs []FlowDefinition
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+		if e.IsDir() || !isFlowFile(e.Name()) {
 			continue
 		}
 		data, err := os.ReadFile(filepath.Join(s.dir, e.Name()))
 		if err != nil {
 			continue
 		}
-		var def FlowDefinition
-		if err := json.Unmarshal(data, &def); err != nil {
+		def, err := parseFlowFile(data, e.Name())
+		if err != nil {
 			continue
 		}
 		def.Source = "user"
-		defs = append(defs, def)
+		defs = append(defs, *def)
 	}
 	return defs, nil
 }
 
 // Get returns a specific flow definition by ID.
+// Tries .yaml, .yml, and .json extensions in order.
 func (s *FlowStore) Get(id string) (*FlowDefinition, error) {
-	path := filepath.Join(s.dir, id+".json")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("flow %q not found", id)
+	for _, ext := range []string{".yaml", ".yml", ".json"} {
+		path := filepath.Join(s.dir, id+ext)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
 		}
+		def, err := parseFlowFile(data, id+ext)
+		if err != nil {
+			return nil, fmt.Errorf("parse flow %q: %w", id, err)
+		}
+		def.Source = "user"
+		return def, nil
+	}
+	return nil, fmt.Errorf("flow %q not found", id)
+}
+
+// isFlowFile reports whether the filename has a supported flow file extension.
+func isFlowFile(name string) bool {
+	return strings.HasSuffix(name, ".json") ||
+		strings.HasSuffix(name, ".yaml") ||
+		strings.HasSuffix(name, ".yml")
+}
+
+// parseFlowFile parses a flow definition from data, detecting format and envelope.
+func parseFlowFile(data []byte, filename string) (*FlowDefinition, error) {
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	if ext == ".yaml" || ext == ".yml" {
+		return parseFlowYAML(data)
+	}
+	// JSON: try envelope first, then bare
+	return parseFlowJSON(data)
+}
+
+// parseFlowYAML parses a YAML flow file, supporting both envelope and bare formats.
+func parseFlowYAML(data []byte) (*FlowDefinition, error) {
+	// Probe for envelope
+	var probe struct {
+		APIVersion string `yaml:"apiVersion"`
+	}
+	_ = yaml.Unmarshal(data, &probe)
+
+	if probe.APIVersion != "" {
+		return parseEnvelopedFlow(data, ".yaml")
+	}
+
+	// Bare YAML flow
+	var def FlowDefinition
+	if err := yaml.Unmarshal(data, &def); err != nil {
+		return nil, err
+	}
+	return &def, nil
+}
+
+// parseFlowJSON parses a JSON flow file, supporting both envelope and bare formats.
+func parseFlowJSON(data []byte) (*FlowDefinition, error) {
+	// Probe for envelope
+	var probe struct {
+		APIVersion string `json:"apiVersion"`
+	}
+	_ = json.Unmarshal(data, &probe)
+
+	if probe.APIVersion != "" {
+		return parseEnvelopedFlow(data, ".json")
+	}
+
+	// Bare JSON flow
+	var def FlowDefinition
+	if err := json.Unmarshal(data, &def); err != nil {
+		return nil, err
+	}
+	return &def, nil
+}
+
+// parseEnvelopedFlow parses a flow from an envelope, extracting the spec.
+func parseEnvelopedFlow(data []byte, ext string) (*FlowDefinition, error) {
+	env, err := config.Parse(data, ext)
+	if err != nil {
+		return nil, fmt.Errorf("parse envelope: %w", err)
+	}
+
+	if env.Kind != config.KindFlowDefinition {
+		return nil, fmt.Errorf("expected kind %q, got %q", config.KindFlowDefinition, env.Kind)
+	}
+
+	if err := config.DefaultMigrations.Upgrade(env); err != nil {
+		return nil, fmt.Errorf("migrate flow: %w", err)
+	}
+
+	// Re-marshal the spec and unmarshal into FlowDefinition
+	specData, err := yaml.Marshal(env.Spec)
+	if err != nil {
 		return nil, err
 	}
 	var def FlowDefinition
-	if err := json.Unmarshal(data, &def); err != nil {
-		return nil, fmt.Errorf("parse flow %q: %w", id, err)
+	if err := yaml.Unmarshal(specData, &def); err != nil {
+		return nil, err
 	}
-	def.Source = "user"
+
+	// Use envelope metadata as fallback for flow fields
+	if def.Name == "" && env.Metadata.Name != "" {
+		def.Name = env.Metadata.Name
+	}
+	if def.Description == "" && env.Metadata.Description != "" {
+		def.Description = env.Metadata.Description
+	}
+
 	return &def, nil
 }
 

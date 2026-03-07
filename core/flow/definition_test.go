@@ -10,6 +10,174 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestFlowStore_YAMLEnveloped(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFlowStore(dir)
+
+	yamlContent := `apiVersion: gokapi/flow-v1
+kind: FlowDefinition
+metadata:
+  name: pseudo-translate
+  description: "Generate pseudo-translations"
+spec:
+  id: pseudo
+  name: Pseudo Translate
+  nodes:
+    - id: reader
+      type: reader
+      name: auto
+    - id: pseudo
+      type: tool
+      name: pseudo-translate
+    - id: writer
+      type: writer
+      name: auto
+  edges:
+    - id: e1
+      source: reader
+      target: pseudo
+    - id: e2
+      source: pseudo
+      target: writer
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "pseudo.yaml"), []byte(yamlContent), 0644))
+
+	// List should find the YAML file
+	defs, err := store.List()
+	require.NoError(t, err)
+	require.Len(t, defs, 1)
+	assert.Equal(t, "pseudo", defs[0].ID)
+	assert.Equal(t, "Pseudo Translate", defs[0].Name)
+	assert.Equal(t, "user", defs[0].Source)
+	assert.Len(t, defs[0].Nodes, 3)
+	assert.Len(t, defs[0].Edges, 2)
+
+	// Get by ID should find it
+	def, err := store.Get("pseudo")
+	require.NoError(t, err)
+	assert.Equal(t, "pseudo", def.ID)
+	assert.Equal(t, "Pseudo Translate", def.Name)
+}
+
+func TestFlowStore_BareYAML(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFlowStore(dir)
+
+	yamlContent := `id: my-flow
+name: My Flow
+nodes:
+  - id: r
+    type: reader
+    name: auto
+  - id: w
+    type: writer
+    name: auto
+edges:
+  - id: e1
+    source: r
+    target: w
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "my-flow.yml"), []byte(yamlContent), 0644))
+
+	def, err := store.Get("my-flow")
+	require.NoError(t, err)
+	assert.Equal(t, "my-flow", def.ID)
+	assert.Equal(t, "My Flow", def.Name)
+}
+
+func TestFlowStore_EnvelopedMetadataFallback(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFlowStore(dir)
+
+	// Flow with name/description in metadata but not in spec
+	yamlContent := `apiVersion: gokapi/flow-v1
+kind: FlowDefinition
+metadata:
+  name: Meta Flow
+  description: "From metadata"
+spec:
+  id: meta-flow
+  nodes:
+    - id: r
+      type: reader
+      name: auto
+  edges: []
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "meta-flow.yaml"), []byte(yamlContent), 0644))
+
+	def, err := store.Get("meta-flow")
+	require.NoError(t, err)
+	assert.Equal(t, "meta-flow", def.ID)
+	assert.Equal(t, "Meta Flow", def.Name)
+	assert.Equal(t, "From metadata", def.Description)
+}
+
+func TestFlowStore_WrongKindRejected(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFlowStore(dir)
+
+	yamlContent := `apiVersion: gokapi/project-v1
+kind: ProjectConfig
+metadata:
+  name: wrong
+spec: {}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "wrong.yaml"), []byte(yamlContent), 0644))
+
+	// List should skip the file (parse error)
+	defs, err := store.List()
+	require.NoError(t, err)
+	assert.Empty(t, defs)
+}
+
+func TestFlowStore_MixedFormats(t *testing.T) {
+	dir := t.TempDir()
+	store := NewFlowStore(dir)
+
+	// JSON flow
+	jsonDef := FlowDefinition{
+		ID:   "json-flow",
+		Name: "JSON Flow",
+		Nodes: []FlowNode{
+			{ID: "r", Type: "reader", Name: "auto"},
+			{ID: "w", Type: "writer", Name: "auto"},
+		},
+		Edges: []FlowEdge{
+			{ID: "e1", Source: "r", Target: "w"},
+		},
+	}
+	jsonData, _ := json.MarshalIndent(jsonDef, "", "  ")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "json-flow.json"), jsonData, 0644))
+
+	// YAML flow
+	yamlContent := `id: yaml-flow
+name: YAML Flow
+nodes:
+  - id: r
+    type: reader
+    name: auto
+  - id: w
+    type: writer
+    name: auto
+edges:
+  - id: e1
+    source: r
+    target: w
+`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "yaml-flow.yaml"), []byte(yamlContent), 0644))
+
+	defs, err := store.List()
+	require.NoError(t, err)
+	assert.Len(t, defs, 2)
+
+	ids := map[string]bool{}
+	for _, d := range defs {
+		ids[d.ID] = true
+	}
+	assert.True(t, ids["json-flow"])
+	assert.True(t, ids["yaml-flow"])
+}
+
 func TestFlowDefinitionValidate(t *testing.T) {
 	tests := []struct {
 		name    string
