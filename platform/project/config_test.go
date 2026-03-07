@@ -161,6 +161,142 @@ func TestSaveConfig(t *testing.T) {
 	})
 }
 
+func TestLoadConfig_Enveloped(t *testing.T) {
+	t.Run("load enveloped config", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+		configYAML := `apiVersion: gokapi/project-v1
+kind: ProjectConfig
+metadata:
+  name: my-app
+spec:
+  project:
+    name: My App
+    source_locale: en-US
+    target_locales:
+      - fr-FR
+      - de-DE
+  server:
+    url: https://example.com
+    project_id: abc123
+  mappings:
+    - local: "src/**/*.json"
+      remote: "app/{path}"
+      format: json
+`
+		configPath := filepath.Join(bowrainDir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte(configYAML), 0644))
+
+		cfg, err := LoadConfig(bowrainDir)
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+
+		assert.Equal(t, "My App", cfg.Project.Name)
+		assert.Equal(t, "en-US", string(cfg.Project.SourceLocale))
+		assert.Len(t, cfg.Project.TargetLocales, 2)
+		require.NotNil(t, cfg.Server)
+		assert.Equal(t, "https://example.com", cfg.Server.URL)
+		assert.Equal(t, "abc123", cfg.Server.ProjectID)
+		require.Len(t, cfg.Mappings, 1)
+		assert.Equal(t, "json", cfg.Mappings[0].Format)
+	})
+
+	t.Run("wrong kind rejected", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+		configYAML := `apiVersion: gokapi/flow-v1
+kind: FlowDefinition
+metadata:
+  name: test
+spec: {}
+`
+		configPath := filepath.Join(bowrainDir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte(configYAML), 0644))
+
+		_, err := LoadConfig(bowrainDir)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "ProjectConfig")
+	})
+}
+
+func TestSaveConfig_WritesEnvelope(t *testing.T) {
+	tmpDir := t.TempDir()
+	bowrainDir := filepath.Join(tmpDir, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	cfg := &Config{
+		Project: ProjectMeta{
+			Name:          "Test Project",
+			SourceLocale:  "en-US",
+			TargetLocales: []model.LocaleID{"fr-FR"},
+		},
+	}
+
+	err := SaveConfig(bowrainDir, cfg)
+	require.NoError(t, err)
+
+	// Read raw file and verify envelope structure
+	configPath := filepath.Join(bowrainDir, "config.yaml")
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	content := string(data)
+	assert.Contains(t, content, "apiVersion:")
+	assert.Contains(t, content, "gokapi/project-v1")
+	assert.Contains(t, content, "kind:")
+	assert.Contains(t, content, "ProjectConfig")
+	assert.Contains(t, content, "spec:")
+
+	// Verify it can be reloaded
+	reloaded, err := LoadConfig(bowrainDir)
+	require.NoError(t, err)
+	assert.Equal(t, "Test Project", reloaded.Project.Name)
+	assert.Equal(t, model.LocaleID("en-US"), reloaded.Project.SourceLocale)
+	assert.Len(t, reloaded.Project.TargetLocales, 1)
+}
+
+func TestSaveConfig_RoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	bowrainDir := filepath.Join(tmpDir, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	cfg := &Config{
+		Project: ProjectMeta{
+			Name:          "Round Trip",
+			SourceLocale:  "en",
+			TargetLocales: []model.LocaleID{"fr", "de", "ja"},
+		},
+		Server: &ServerConfig{
+			URL:       "https://test.example.com",
+			ProjectID: "proj-42",
+		},
+		Mappings: []Mapping{
+			{Local: "src/**/*.json", Remote: "app/{path}", Format: "json"},
+			{Local: "docs/**/*.md", Remote: "docs/{path}", Format: "markdown"},
+		},
+		Hooks: map[string][]string{
+			"pre-push": {"qa-check"},
+		},
+	}
+
+	require.NoError(t, SaveConfig(bowrainDir, cfg))
+
+	reloaded, err := LoadConfig(bowrainDir)
+	require.NoError(t, err)
+
+	assert.Equal(t, cfg.Project.Name, reloaded.Project.Name)
+	assert.Equal(t, cfg.Project.SourceLocale, reloaded.Project.SourceLocale)
+	assert.Equal(t, cfg.Project.TargetLocales, reloaded.Project.TargetLocales)
+	assert.Equal(t, cfg.Server.URL, reloaded.Server.URL)
+	assert.Equal(t, cfg.Server.ProjectID, reloaded.Server.ProjectID)
+	assert.Equal(t, cfg.Mappings, reloaded.Mappings)
+	assert.Equal(t, cfg.Hooks, reloaded.Hooks)
+}
+
 func TestGetSetConfigValue(t *testing.T) {
 	dir := t.TempDir()
 	bowrainDir := filepath.Join(dir, BowrainDir)
