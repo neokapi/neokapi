@@ -83,14 +83,21 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	var node yamlv3.Node
-	if err := yamlv3.Unmarshal(content, &node); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
-		return
-	}
-
 	blockCounter := 0
-	r.walkNode(ctx, ch, &node, nil, &blockCounter)
+
+	// Use a Decoder to support multi-document YAML (--- separators).
+	decoder := yamlv3.NewDecoder(strings.NewReader(string(content)))
+	for {
+		var node yamlv3.Node
+		if err := decoder.Decode(&node); err != nil {
+			if err == io.EOF {
+				break
+			}
+			ch <- model.PartResult{Error: fmt.Errorf("yaml: parsing: %w", err)}
+			return
+		}
+		r.walkNode(ctx, ch, &node, nil, &blockCounter)
+	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -98,6 +105,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int) {
 	switch node.Kind {
 	case yamlv3.DocumentNode:
+		// Multi-document: each document node wraps content
 		for _, child := range node.Content {
 			r.walkNode(ctx, ch, child, path, blockCounter)
 		}
@@ -118,17 +126,82 @@ func (r *Reader) walkNode(ctx context.Context, ch chan<- model.PartResult, node 
 		}
 
 	case yamlv3.ScalarNode:
-		if node.Tag == "!!str" || node.Tag == "" {
-			text := node.Value
-			if strings.TrimSpace(text) == "" {
-				return
-			}
-			*blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
-			block.Name = strings.Join(path, ".")
-			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		r.emitScalar(ctx, ch, node, path, blockCounter)
+
+	case yamlv3.AliasNode:
+		// Resolve aliases by walking the anchor target
+		if node.Alias != nil {
+			r.walkNode(ctx, ch, node.Alias, path, blockCounter)
 		}
 	}
+}
+
+func (r *Reader) emitScalar(ctx context.Context, ch chan<- model.PartResult, node *yamlv3.Node, path []string, blockCounter *int) {
+	isString := node.Tag == "!!str" || node.Tag == ""
+
+	if !isString && !r.cfg.ExtractNonStrings {
+		return
+	}
+
+	text := node.Value
+	if strings.TrimSpace(text) == "" {
+		return
+	}
+
+	keyPath := strings.Join(path, ".")
+	if !r.matchesKeyPath(keyPath) {
+		return
+	}
+
+	*blockCounter++
+	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), text)
+	block.Name = keyPath
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// matchesKeyPath checks whether a key path matches the configured patterns.
+// If no patterns are configured, all paths match.
+func (r *Reader) matchesKeyPath(keyPath string) bool {
+	if len(r.cfg.KeyPathPatterns) == 0 {
+		return true
+	}
+	for _, pattern := range r.cfg.KeyPathPatterns {
+		if matchGlobPath(pattern, keyPath) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchGlobPath matches a dot-separated key path against a glob pattern.
+// Supports * (matches one segment) and ** (matches zero or more segments).
+func matchGlobPath(pattern, path string) bool {
+	patParts := strings.Split(pattern, ".")
+	pathParts := strings.Split(path, ".")
+	return matchParts(patParts, pathParts)
+}
+
+func matchParts(pat, path []string) bool {
+	if len(pat) == 0 {
+		return len(path) == 0
+	}
+	if pat[0] == "**" {
+		// ** matches zero or more segments
+		// Try matching remaining pattern against every suffix of path
+		for i := 0; i <= len(path); i++ {
+			if matchParts(pat[1:], path[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(path) == 0 {
+		return false
+	}
+	if pat[0] == "*" || pat[0] == path[0] {
+		return matchParts(pat[1:], path[1:])
+	}
+	return false
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
