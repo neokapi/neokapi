@@ -18,14 +18,15 @@ func (c *Config) Schema() *schema.FilterSchema {
 				ID:    "parsing",
 				Label: "Parsing",
 				Fields: []string{
-					"separator", "hasHeader",
+					"separator", "hasHeader", "trimValues",
+					"columnNamesRow", "valuesStartRow",
 				},
 			},
 			{
 				ID:    "extraction",
 				Label: "Extraction",
 				Fields: []string{
-					"translatableColumns",
+					"translatableColumns", "keyColumns", "commentColumns",
 				},
 			},
 		},
@@ -43,6 +44,29 @@ func (c *Config) Schema() *schema.FilterSchema {
 			"translatableColumns": {
 				Type:        "array",
 				Description: "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
+			},
+			"keyColumns": {
+				Type:        "array",
+				Description: "Column indices (0-based) that provide the block ID (source ID / record ID).",
+			},
+			"commentColumns": {
+				Type:        "array",
+				Description: "Column indices (0-based) that contain comments or notes.",
+			},
+			"trimValues": {
+				Type:        "boolean",
+				Default:     false,
+				Description: "If true, leading and trailing whitespace is removed from cell values.",
+			},
+			"columnNamesRow": {
+				Type:        "integer",
+				Default:     0,
+				Description: "1-based row number containing column names. 0 means auto-detect.",
+			},
+			"valuesStartRow": {
+				Type:        "integer",
+				Default:     0,
+				Description: "1-based row number where data values begin. 0 means auto-detect.",
 			},
 		},
 	}
