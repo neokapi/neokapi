@@ -18,8 +18,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | AD | Title | Scope |
 |----|-------|-------|
 | [001](001-vision.md) | Vision — The Open Localization Platform | Platform identity, principles, configuration, locale handling |
-| [002](002-content-model.md) | Content Model | Part/Resource, Block identity, Fragments, Annotations, Properties |
-| [022](022-inline-code-model.md) | Inline Code Model | Semantic spans, six-layer model, format-independent rendering, AI/MT tag handling |
+| [002](002-content-model.md) | Content Model | Part/Resource, Block identity, Fragments, Spans, semantic type vocabulary, Layers, subfiltering |
 | [003](003-content-store.md) | Content Store and Versioning | Server-side versioned persistence, content addressing, KAZ snapshots |
 | [016](016-kapi-project-model.md) | Kapi Project Model | `.kapi/` directories, file mappings, sync state, flow hooks |
 
