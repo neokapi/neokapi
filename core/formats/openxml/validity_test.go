@@ -1,5 +1,7 @@
 package openxml
 
+// okapi-filter: openxml
+
 import (
 	"archive/zip"
 	"bytes"

@@ -50,6 +50,8 @@ func blockTexts(blocks []*model.Block) []string {
 	return texts
 }
 
+// okapi-filter: openxml
+
 // --- Basic Reader Tests ---
 
 func TestReadSimpleDocx(t *testing.T) {
@@ -529,6 +531,7 @@ func TestReaderConfigValidate(t *testing.T) {
 	assert.NoError(t, cfg.Validate())
 }
 
+// okapi: OpenXMLConfigurationTest#defaultConfiguration
 func TestReaderConfigDefaults(t *testing.T) {
 	cfg := &Config{}
 	cfg.Reset()
