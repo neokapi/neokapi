@@ -13,6 +13,7 @@ import (
 
 	"github.com/gokapi/gokapi/cli/output"
 	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
@@ -219,8 +220,12 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		}
 	}
 
+	// Create writer early so we can wire skeleton store before reading.
+	var writer format.DataFormatWriter
 	if cfg.OutputTemplate != "" {
-		if _, err := a.FormatReg.NewWriter(registryName); err != nil {
+		var err error
+		writer, err = a.FormatReg.NewWriter(registryName)
+		if err != nil {
 			if !cfg.FailOnUnknown {
 				if !cfg.NoWarn {
 					warnf(progress, "Warning: skipping %q: %v\n", filePath, err)
@@ -234,6 +239,20 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("read %s: %w", filePath, err)
+	}
+
+	// Wire skeleton store if both reader and writer support it.
+	if writer != nil {
+		if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+			if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+				store, err := format.NewSkeletonStore()
+				if err == nil {
+					defer store.Close()
+					emitter.SetSkeletonStore(store)
+					consumer.SetSkeletonStore(store)
+				}
+			}
+		}
 	}
 
 	doc := &model.RawDocument{
@@ -297,13 +316,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("tool execution on %s: %w", filePath, err)
 	}
 
-	if cfg.OutputTemplate != "" {
+	if cfg.OutputTemplate != "" && writer != nil {
 		outputPath := expandOutputPath(cfg.OutputTemplate, filePath, commonDir, cfg.TargetLang)
-
-		writer, err := a.FormatReg.NewWriter(registryName)
-		if err != nil {
-			return fmt.Errorf("no writer for format %q: %w", fmtName, err)
-		}
 
 		if err := writer.SetOutput(outputPath); err != nil {
 			return fmt.Errorf("set output %s: %w", outputPath, err)

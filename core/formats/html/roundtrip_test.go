@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	htmlfmt "github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -368,6 +369,159 @@ func TestRoundtrip_FallbackWithoutOriginal(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "Hello world", "fallback should output block content")
+}
+
+// --- Skeleton Roundtrip Tests ---
+
+// roundtripWithSkeleton performs a read/write roundtrip using the skeleton store.
+func roundtripWithSkeleton(t *testing.T, input string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	// Wire skeleton store.
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	return buf.String()
+}
+
+func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"simple_p", `<html><body><p>Hello</p></body></html>`},
+		{"doctype", "<!DOCTYPE html>\n<html>\n<body><p>Text</p></body>\n</html>"},
+		{"single_quotes", `<p title='Tip'>Text</p>`},
+		{"self_closing", `<p>Line one<br/>Line two</p>`},
+		{"nested_blocks", `<html><body><ul><li>Item 1</li><li>Item 2</li></ul></body></html>`},
+		{"script_style", `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`},
+		{"comments", `<html><body><!-- nav --><p>Content</p><!-- footer --></body></html>`},
+		{"meta", `<html><head><meta charset="utf-8"><meta name="description" content="A test page"></head><body><p>Body</p></body></html>`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := roundtripWithSkeleton(t, tc.input)
+			assert.Equal(t, tc.input, output, "skeleton roundtrip should be byte-exact")
+		})
+	}
+}
+
+func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
+	input := `<html><body><p>Hello world</p></body></html>`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "Hello world" {
+				b.Targets[locale] = []*model.Segment{
+					{ID: "s1", Content: model.NewFragment("Bonjour le monde")},
+				}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Bonjour le monde")
+	assert.NotContains(t, output, "Hello world")
+	// Should preserve all non-translatable HTML structure.
+	assert.Contains(t, output, "<html><body><p>")
+	assert.Contains(t, output, "</p></body></html>")
+}
+
+func TestSkeletonRoundtrip_TranslatableAttributes(t *testing.T) {
+	input := `<html><body><p title="Tooltip">Text</p><img src="pic.png" alt="Photo"></body></html>`
+	ctx := context.Background()
+	locale := model.LocaleID("de")
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			switch b.SourceText() {
+			case "Tooltip":
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Hinweis")}}
+			case "Text":
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Texte")}}
+			case "Photo":
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Foto")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, `title="Hinweis"`)
+	assert.Contains(t, output, "Texte")
+	assert.Contains(t, output, `alt="Foto"`)
 }
 
 // --- Output Completeness Test ---

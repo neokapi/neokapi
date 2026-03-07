@@ -11,6 +11,7 @@ import (
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/flow"
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
@@ -153,6 +154,24 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return fmt.Errorf("read input: %w", err)
 	}
 
+	// Create writer early so we can wire skeleton store before reading.
+	writer, err := a.FormatReg.NewWriter(registryName)
+	if err != nil {
+		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
+	}
+
+	// Wire skeleton store if both reader and writer support it.
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+		if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+			store, err := format.NewSkeletonStore()
+			if err == nil {
+				defer store.Close()
+				emitter.SetSkeletonStore(store)
+				consumer.SetSkeletonStore(store)
+			}
+		}
+	}
+
 	doc := &model.RawDocument{
 		URI:          inputPath,
 		SourceLocale: model.LocaleID(a.SourceLang),
@@ -208,11 +227,6 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		ext := filepath.Ext(inputPath)
 		base := inputPath[:len(inputPath)-len(ext)]
 		outputPath = fmt.Sprintf("%s_%s%s", base, a.TargetLang, ext)
-	}
-
-	writer, err := a.FormatReg.NewWriter(registryName)
-	if err != nil {
-		return fmt.Errorf("no writer for format %q: %w", fmtName, err)
 	}
 
 	if err := writer.SetOutput(outputPath); err != nil {

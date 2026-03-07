@@ -80,8 +80,14 @@ var htmlSemanticTypes = map[string]string{
 // Reader implements DataFormatReader for HTML files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg   *Config
-	vocab *model.VocabularyRegistry
+	cfg           *Config
+	vocab         *model.VocabularyRegistry
+	skeletonStore *format.SkeletonStore
+}
+
+// SetSkeletonStore sets the skeleton store for tokenizer-based streaming.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // NewReader creates a new HTML reader.
@@ -154,15 +160,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(content)))
-	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("html: parsing: %w", err)}
-		return
-	}
+	if r.skeletonStore != nil {
+		// Tokenizer path: streaming, no DOM.
+		state := newTokenReaderState(r, r.skeletonStore)
+		state.run(content, ctx, ch)
+	} else {
+		// DOM path: existing behavior.
+		doc, err := html.Parse(strings.NewReader(string(content)))
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("html: parsing: %w", err)}
+			return
+		}
 
-	visitor := &readerVisitor{reader: r, ctx: ctx, ch: ch}
-	walker := newDOMWalker(r.cfg, visitor)
-	walker.walk(doc)
+		visitor := &readerVisitor{reader: r, ctx: ctx, ch: ch}
+		walker := newDOMWalker(r.cfg, visitor)
+		walker.walk(doc)
+	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }

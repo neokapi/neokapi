@@ -3,6 +3,7 @@ package html
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -16,7 +17,13 @@ type Writer struct {
 	format.BaseFormatWriter
 	sourcePath      string
 	originalContent []byte
+	skeletonStore   *format.SkeletonStore
 	cfg             *Config
+}
+
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
 }
 
 // NewWriter creates a new HTML writer.
@@ -60,7 +67,15 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 done:
 
-	// If we have original content, use re-parse mode.
+	// Mode 1: Skeleton store (optimal, byte-exact).
+	if w.skeletonStore != nil {
+		if err := w.skeletonStore.Flush(); err != nil {
+			return fmt.Errorf("html writer: flush skeleton: %w", err)
+		}
+		return w.writeFromSkeleton(w.skeletonStore, blocks)
+	}
+
+	// Mode 2: Re-parse original content.
 	content, err := w.loadOriginalContent()
 	if err != nil {
 		return err
@@ -69,7 +84,7 @@ done:
 		return w.writeReparse(content, blocks)
 	}
 
-	// Fallback: block-only output (existing behavior).
+	// Mode 3: Block-only output (minimal fallback).
 	return w.writeFallback(blocks)
 }
 
@@ -86,6 +101,35 @@ func (w *Writer) loadOriginalContent() ([]byte, error) {
 		return data, nil
 	}
 	return nil, nil
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+// This produces byte-exact output — only translated text differs from the original.
+func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block) error {
+	for {
+		entry, err := store.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("html writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			blockID := string(entry.Data)
+			if block, ok := blocks[blockID]; ok {
+				text := w.getBlockText(block)
+				if _, err := io.WriteString(w.Output, text); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // writeReparse re-parses the original HTML, patches translations, and renders.
