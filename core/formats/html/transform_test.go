@@ -9,10 +9,13 @@ import (
 )
 
 func TestOkapiHTMLTransform_Registration(t *testing.T) {
-	assert.True(t, config.DefaultTransforms.Has("okapi/html-v1", "gokapi/html-v1"))
+	assert.True(t, config.DefaultTransforms.Has(
+		config.OkapiFilterConfigKind("html"), config.FormatConfigKind("html")))
 }
 
 func TestOkapiHTMLTransform_DropsOkapiOnlyParams(t *testing.T) {
+	from := config.OkapiFilterConfigKind("html")
+	to := config.FormatConfigKind("html")
 	spec := map[string]any{
 		"quoteMode":        3,
 		"quoteModeDefined": true,
@@ -23,11 +26,11 @@ func TestOkapiHTMLTransform_DropsOkapiOnlyParams(t *testing.T) {
 		"elements": map[string]any{
 			"pre": map[string]any{"ruleTypes": []string{"EXCLUDE"}},
 		},
-		"useCodeFinder":  true,
+		"useCodeFinder":   true,
 		"codeFinderRules": []string{`<\/?[a-z]+>`},
 	}
 
-	result, err := config.DefaultTransforms.Transform("okapi/html-v1", "gokapi/html-v1", spec)
+	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
 	// Okapi-only top-level params dropped
@@ -47,7 +50,8 @@ func TestOkapiHTMLTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestOkapiHTMLTransform_EmptySpec(t *testing.T) {
-	result, err := config.DefaultTransforms.Transform("okapi/html-v1", "gokapi/html-v1", map[string]any{})
+	result, err := config.DefaultTransforms.Transform(
+		config.OkapiFilterConfigKind("html"), config.FormatConfigKind("html"), map[string]any{})
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
@@ -58,9 +62,9 @@ func TestOkapiHTMLTransform_ParserAllOkapiOnly(t *testing.T) {
 			"assumeWellformed": true,
 		},
 	}
-	result, err := config.DefaultTransforms.Transform("okapi/html-v1", "gokapi/html-v1", spec)
+	result, err := config.DefaultTransforms.Transform(
+		config.OkapiFilterConfigKind("html"), config.FormatConfigKind("html"), spec)
 	require.NoError(t, err)
-	// Parser section removed entirely when all params are okapi-only
 	assert.Nil(t, result["parser"])
 }
 
@@ -68,8 +72,8 @@ func TestOkapiHTMLTransform_NonMapParser(t *testing.T) {
 	spec := map[string]any{
 		"parser": "invalid",
 	}
-	result, err := config.DefaultTransforms.Transform("okapi/html-v1", "gokapi/html-v1", spec)
+	result, err := config.DefaultTransforms.Transform(
+		config.OkapiFilterConfigKind("html"), config.FormatConfigKind("html"), spec)
 	require.NoError(t, err)
-	// Non-map parser value passed through unchanged
 	assert.Equal(t, "invalid", result["parser"])
 }

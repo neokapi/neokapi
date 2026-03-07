@@ -80,17 +80,18 @@ func TestCollectNativeDecoders(t *testing.T) {
 		"markdown", "csv", "srt", "vtt", "tmx",
 	}
 	for _, name := range expectedFormats {
-		apiVersion := "gokapi/" + name + "-v1"
-		assert.True(t, configReg.Has(apiVersion), "decoder not registered for %s", apiVersion)
+		kind := config.FormatConfigKind(name)
+		assert.True(t, configReg.Has(kind), "decoder not registered for %s", kind)
 	}
 
-	// HTML and JSON should use their declared apiVersion (same pattern)
-	assert.True(t, configReg.Has("gokapi/html-v1"))
-	assert.True(t, configReg.Has("gokapi/json-v1"))
+	// HTML and JSON should use their declared kind (same pattern)
+	assert.True(t, configReg.Has(config.FormatConfigKind("html")))
+	assert.True(t, configReg.Has(config.FormatConfigKind("json")))
 
 	// Test that a decoder can decode a spec
 	env := &config.Envelope{
-		APIVersion: "gokapi/json-v1",
+		APIVersion: "v1",
+		Kind:       config.FormatConfigKind("json"),
 		Spec:       map[string]any{"extractAllPairs": false, "useFullKeyPath": true},
 	}
 	result, err := configReg.Decode(env)

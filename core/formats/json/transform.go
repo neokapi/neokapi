@@ -2,7 +2,7 @@ package json
 
 import "github.com/gokapi/gokapi/core/config"
 
-// okapiJSONTransformer converts okapi/json-v1 specs to gokapi/json-v1.
+// okapiJSONTransformer converts OkfJsonFilterConfig specs to JsonFormatConfig.
 // The native JSON format supports the same parameter set as the okapi bridge,
 // so most parameters pass through unchanged. Only okapi-specific wrapper
 // params are dropped.
@@ -24,7 +24,7 @@ func (okapiJSONTransformer) Transform(spec map[string]any) (map[string]any, erro
 
 func init() {
 	config.DefaultTransforms.Register(
-		"okapi/json-v1", "gokapi/json-v1",
+		config.OkapiFilterConfigKind("json"), config.FormatConfigKind("json"),
 		okapiJSONTransformer{},
 	)
 }

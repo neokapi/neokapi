@@ -1,6 +1,9 @@
 package format
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import (
+	"github.com/gokapi/gokapi/core/config"
+	"github.com/gokapi/gokapi/core/format/schema"
+)
 
 // DataFormatConfig holds configuration for a data format.
 type DataFormatConfig interface {
@@ -26,12 +29,12 @@ type SchemaProvider interface {
 	Schema() *schema.FilterSchema
 }
 
-// ConfigVersionProvider is an optional interface that DataFormatConfig
-// implementations can implement to declare their config envelope apiVersion.
-// This enables the config loading system to detect the expected apiVersion
+// ConfigKindProvider is an optional interface that DataFormatConfig
+// implementations can implement to declare their config envelope kind.
+// This enables the config loading system to detect the expected kind
 // for a format and validate or transform incoming configs accordingly.
-type ConfigVersionProvider interface {
-	// ConfigAPIVersion returns the native apiVersion for this format's config.
-	// For example, "gokapi/html-v1" or "gokapi/json-v1".
-	ConfigAPIVersion() string
+type ConfigKindProvider interface {
+	// ConfigKind returns the Kind for this format's config envelope.
+	// For example, config.FormatConfigKind("html") for native HTML.
+	ConfigKind() config.Kind
 }

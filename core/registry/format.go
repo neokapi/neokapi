@@ -411,8 +411,8 @@ func (r *FormatRegistry) CollectNativeSchemas(schemaReg *schema.SchemaRegistry) 
 }
 
 // CollectNativeDecoders registers SpecDecoders for all native format configs
-// into the given config.Registry. For formats implementing ConfigVersionProvider,
-// their declared apiVersion is used. For others, "gokapi/{formatName}-v1" is used.
+// into the given config.Registry. For formats implementing ConfigKindProvider,
+// their declared kind is used. For others, FormatConfigKind(name) is used.
 func (r *FormatRegistry) CollectNativeDecoders(configReg *config.Registry) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -427,14 +427,14 @@ func (r *FormatRegistry) CollectNativeDecoders(configReg *config.Registry) {
 			continue
 		}
 
-		apiVersion := fmt.Sprintf("gokapi/%s-v1", name)
-		if cvp, ok := cfg.(format.ConfigVersionProvider); ok {
-			apiVersion = cvp.ConfigAPIVersion()
+		kind := config.FormatConfigKind(name)
+		if ckp, ok := cfg.(format.ConfigKindProvider); ok {
+			kind = ckp.ConfigKind()
 		}
 
 		// Capture name for closure
 		formatName := name
-		configReg.Register(apiVersion, config.SpecDecoderFunc(func(spec map[string]any) (any, error) {
+		configReg.Register(kind, config.SpecDecoderFunc(func(spec map[string]any) (any, error) {
 			r.mu.RLock()
 			f, ok := r.readers[formatName]
 			r.mu.RUnlock()

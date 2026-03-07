@@ -233,7 +233,7 @@ func NewFlowStore(dir string) *FlowStore {
 }
 
 // FlowDefinitionAPIVersion is the apiVersion for flow definition envelopes.
-const FlowDefinitionAPIVersion = "gokapi/flow-v1"
+const FlowDefinitionAPIVersion = "v1"
 
 // List returns all user flow definitions in the store.
 // Supports both JSON (.json) and YAML (.yaml/.yml) files, with or without envelope.

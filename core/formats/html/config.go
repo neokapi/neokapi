@@ -3,6 +3,8 @@ package html
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/gokapi/gokapi/core/config"
 )
 
 // ElementRule defines how an element should be treated during extraction.
@@ -47,8 +49,8 @@ type Config struct {
 // FormatName returns the format this config applies to.
 func (c *Config) FormatName() string { return "html" }
 
-// ConfigAPIVersion returns the native apiVersion for HTML format config.
-func (c *Config) ConfigAPIVersion() string { return "gokapi/html-v1" }
+// ConfigKind returns the Kind for HTML format config.
+func (c *Config) ConfigKind() config.Kind { return config.FormatConfigKind("html") }
 
 // Reset restores default values.
 func (c *Config) Reset() {

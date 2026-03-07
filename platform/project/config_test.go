@@ -167,7 +167,7 @@ func TestLoadConfig_Enveloped(t *testing.T) {
 		bowrainDir := filepath.Join(tmpDir, ".bowrain")
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
-		configYAML := `apiVersion: gokapi/project-v1
+		configYAML := `apiVersion: v1
 kind: ProjectConfig
 metadata:
   name: my-app
@@ -208,7 +208,7 @@ spec:
 		bowrainDir := filepath.Join(tmpDir, ".bowrain")
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
-		configYAML := `apiVersion: gokapi/flow-v1
+		configYAML := `apiVersion: v1
 kind: FlowDefinition
 metadata:
   name: test
@@ -246,7 +246,7 @@ func TestSaveConfig_WritesEnvelope(t *testing.T) {
 
 	content := string(data)
 	assert.Contains(t, content, "apiVersion:")
-	assert.Contains(t, content, "gokapi/project-v1")
+	assert.Contains(t, content, "apiVersion: v1")
 	assert.Contains(t, content, "kind:")
 	assert.Contains(t, content, "ProjectConfig")
 	assert.Contains(t, content, "spec:")

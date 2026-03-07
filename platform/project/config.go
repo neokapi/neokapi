@@ -12,7 +12,7 @@ import (
 
 const (
 	// ProjectConfigAPIVersion is the apiVersion for project config envelopes.
-	ProjectConfigAPIVersion = "gokapi/project-v1"
+	ProjectConfigAPIVersion = "v1"
 )
 
 // LoadConfig loads the project configuration from .bowrain/config.yaml.

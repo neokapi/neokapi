@@ -208,14 +208,14 @@ func LoadEnvelopedConfigFile(path string) (*config.Envelope, error) {
 	return config.Load(path)
 }
 
-// TransformConfigSpec transforms a config spec from one apiVersion to another
+// TransformConfigSpec transforms a config spec from one kind to another
 // using the global transform registry. Returns the original spec unchanged if
 // no transform is registered for the given (from, to) pair.
-func TransformConfigSpec(fromAPIVersion, toAPIVersion string, spec map[string]any) (map[string]any, error) {
-	if !config.DefaultTransforms.Has(fromAPIVersion, toAPIVersion) {
+func TransformConfigSpec(fromKind, toKind config.Kind, spec map[string]any) (map[string]any, error) {
+	if !config.DefaultTransforms.Has(fromKind, toKind) {
 		return spec, nil
 	}
-	return config.DefaultTransforms.Transform(fromAPIVersion, toAPIVersion, spec)
+	return config.DefaultTransforms.Transform(fromKind, toKind, spec)
 }
 
 // stripPrefix removes common error prefixes for cleaner messages.

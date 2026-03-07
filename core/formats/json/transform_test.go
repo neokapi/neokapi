@@ -9,10 +9,13 @@ import (
 )
 
 func TestOkapiJSONTransform_Registration(t *testing.T) {
-	assert.True(t, config.DefaultTransforms.Has("okapi/json-v1", "gokapi/json-v1"))
+	assert.True(t, config.DefaultTransforms.Has(
+		config.OkapiFilterConfigKind("json"), config.FormatConfigKind("json")))
 }
 
 func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
+	from := config.OkapiFilterConfigKind("json")
+	to := config.FormatConfigKind("json")
 	spec := map[string]any{
 		"extractAllPairs":     true,
 		"useFullKeyPath":      true,
@@ -20,7 +23,7 @@ func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
 		"bom":                 true,
 	}
 
-	result, err := config.DefaultTransforms.Transform("okapi/json-v1", "gokapi/json-v1", spec)
+	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
 	// Okapi-only params dropped
@@ -33,12 +36,15 @@ func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestOkapiJSONTransform_EmptySpec(t *testing.T) {
-	result, err := config.DefaultTransforms.Transform("okapi/json-v1", "gokapi/json-v1", map[string]any{})
+	result, err := config.DefaultTransforms.Transform(
+		config.OkapiFilterConfigKind("json"), config.FormatConfigKind("json"), map[string]any{})
 	require.NoError(t, err)
 	assert.Empty(t, result)
 }
 
 func TestOkapiJSONTransform_AllParamsPassThrough(t *testing.T) {
+	from := config.OkapiFilterConfigKind("json")
+	to := config.FormatConfigKind("json")
 	spec := map[string]any{
 		"extractAllPairs":          true,
 		"exceptions":               "^_",
@@ -56,10 +62,9 @@ func TestOkapiJSONTransform_AllParamsPassThrough(t *testing.T) {
 		"codeFinderRules":          []string{`<\/?[a-z]+>`},
 	}
 
-	result, err := config.DefaultTransforms.Transform("okapi/json-v1", "gokapi/json-v1", spec)
+	result, err := config.DefaultTransforms.Transform(from, to, spec)
 	require.NoError(t, err)
 
-	// All native params should pass through unchanged
 	for key, val := range spec {
 		assert.Equal(t, val, result[key], "param %s should pass through", key)
 	}

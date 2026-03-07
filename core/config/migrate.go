@@ -8,44 +8,42 @@ import (
 // MigrationFunc transforms a spec from one version to the next.
 type MigrationFunc func(spec map[string]any) (map[string]any, error)
 
-// Migration represents a single version upgrade step.
+// Migration represents a single version upgrade step for a specific kind.
 type Migration struct {
-	FromVersion string
-	ToVersion   string
+	Kind        Kind
+	FromVersion int
+	ToVersion   int
 	Migrate     MigrationFunc
 }
 
-// MigrationRegistry holds version upgrade chains keyed by resource key.
+// MigrationRegistry holds version upgrade chains keyed by Kind.
 type MigrationRegistry struct {
 	mu     sync.RWMutex
-	chains map[string][]Migration // keyed by "{namespace}/{resource}"
+	chains map[Kind][]Migration
 }
 
 // NewMigrationRegistry creates an empty MigrationRegistry.
 func NewMigrationRegistry() *MigrationRegistry {
 	return &MigrationRegistry{
-		chains: make(map[string][]Migration),
+		chains: make(map[Kind][]Migration),
 	}
 }
 
-// Register adds a migration step for a resource.
+// Register adds a migration step for a kind.
 func (r *MigrationRegistry) Register(m Migration) error {
-	from, err := ParseAPIVersion(m.FromVersion)
-	if err != nil {
-		return fmt.Errorf("migration from: %w", err)
+	if m.Kind == "" {
+		return fmt.Errorf("migration kind is required")
 	}
-	to, err := ParseAPIVersion(m.ToVersion)
-	if err != nil {
-		return fmt.Errorf("migration to: %w", err)
+	if m.FromVersion < 1 {
+		return fmt.Errorf("migration fromVersion must be >= 1")
 	}
-	if from.ResourceKey() != to.ResourceKey() {
-		return fmt.Errorf("migration resource mismatch: %s vs %s", from.ResourceKey(), to.ResourceKey())
+	if m.ToVersion <= m.FromVersion {
+		return fmt.Errorf("migration toVersion must be > fromVersion")
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	key := from.ResourceKey()
-	r.chains[key] = append(r.chains[key], m)
+	r.chains[m.Kind] = append(r.chains[m.Kind], m)
 	return nil
 }
 
@@ -54,13 +52,13 @@ func (r *MigrationRegistry) Register(m Migration) error {
 // Returns nil if no migration is needed. Returns an error if the version
 // is newer than known or if a migration step fails.
 func (r *MigrationRegistry) Upgrade(env *Envelope) error {
-	av, err := ParseAPIVersion(env.APIVersion)
+	version, err := ParseAPIVersion(env.APIVersion)
 	if err != nil {
 		return err
 	}
 
 	r.mu.RLock()
-	chain := r.chains[av.ResourceKey()]
+	chain := r.chains[env.Kind]
 	r.mu.RUnlock()
 
 	if len(chain) == 0 {
@@ -70,23 +68,21 @@ func (r *MigrationRegistry) Upgrade(env *Envelope) error {
 	// Find the highest known version from registered migrations
 	var maxVersion int
 	for _, m := range chain {
-		to, _ := ParseAPIVersion(m.ToVersion)
-		if to.Version > maxVersion {
-			maxVersion = to.Version
+		if m.ToVersion > maxVersion {
+			maxVersion = m.ToVersion
 		}
-		from, _ := ParseAPIVersion(m.FromVersion)
-		if from.Version > maxVersion {
-			maxVersion = from.Version
+		if m.FromVersion > maxVersion {
+			maxVersion = m.FromVersion
 		}
 	}
 
-	if av.Version > maxVersion {
-		return fmt.Errorf("apiVersion %s is newer than supported (max: %s/%s-v%d)",
-			env.APIVersion, av.Namespace, av.Resource, maxVersion)
+	if version > maxVersion {
+		return fmt.Errorf("kind %s apiVersion v%d is newer than supported (max: v%d)",
+			env.Kind, version, maxVersion)
 	}
 
 	// Walk the chain from current version forward
-	current := env.APIVersion
+	current := version
 	for {
 		var found *Migration
 		for i := range chain {
@@ -101,28 +97,27 @@ func (r *MigrationRegistry) Upgrade(env *Envelope) error {
 
 		newSpec, err := found.Migrate(env.Spec)
 		if err != nil {
-			return fmt.Errorf("migrate %s -> %s: %w", found.FromVersion, found.ToVersion, err)
+			return fmt.Errorf("migrate %s v%d -> v%d: %w", env.Kind, found.FromVersion, found.ToVersion, err)
 		}
 		env.Spec = newSpec
-		env.APIVersion = found.ToVersion
+		env.APIVersion = FormatAPIVersion(found.ToVersion)
 		current = found.ToVersion
 	}
 
 	return nil
 }
 
-// LatestVersion returns the highest registered version for a resource key,
+// LatestVersion returns the highest registered version for a kind,
 // or 0 if no migrations exist.
-func (r *MigrationRegistry) LatestVersion(resourceKey string) int {
+func (r *MigrationRegistry) LatestVersion(kind Kind) int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	chain := r.chains[resourceKey]
+	chain := r.chains[kind]
 	max := 0
 	for _, m := range chain {
-		to, err := ParseAPIVersion(m.ToVersion)
-		if err == nil && to.Version > max {
-			max = to.Version
+		if m.ToVersion > max {
+			max = m.ToVersion
 		}
 	}
 	return max
