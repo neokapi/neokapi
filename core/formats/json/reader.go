@@ -300,6 +300,13 @@ func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResu
 	// Apply block name
 	block.Name = r.blockName(keyName, path, state)
 
+	// Store the raw key path for skeleton-based roundtrip.
+	// The block Name may differ from the path (e.g. UseFullKeyPath, idRules),
+	// so the writer needs the original path to match tokens.
+	if block.Name != path {
+		block.Properties["json.keypath"] = path
+	}
+
 	// Apply code finder if enabled
 	if r.cfg.UseCodeFinder {
 		r.applyCodeFinder(block)
