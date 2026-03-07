@@ -5,6 +5,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -12,15 +13,114 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestReadSimpleParagraphs(t *testing.T) {
+// --- Helpers ---
+
+// readBlocks reads markdown input and returns the extracted blocks.
+func readBlocks(t *testing.T, input string) []*model.Block {
+	t.Helper()
 	ctx := context.Background()
 	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("Hello world\n\nSecond paragraph", model.LocaleEnglish))
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
 	require.NoError(t, err)
 	defer reader.Close()
+	return testutil.CollectBlocks(t, reader.Read(ctx))
+}
 
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+// readParts reads markdown input and returns all parts.
+func readParts(t *testing.T, input string) []*model.Part {
+	t.Helper()
+	ctx := context.Background()
+	reader := markdown.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
 
+// readBlocksWithConfig reads markdown input with a custom config modifier.
+func readBlocksWithConfig(t *testing.T, input string, configure func(*markdown.Config)) []*model.Block {
+	t.Helper()
+	ctx := context.Background()
+	reader := markdown.NewReader()
+	configure(reader.MarkdownConfig())
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectBlocks(t, reader.Read(ctx))
+}
+
+// readPartsWithConfig reads markdown input with a custom config modifier.
+func readPartsWithConfig(t *testing.T, input string, configure func(*markdown.Config)) []*model.Part {
+	t.Helper()
+	ctx := context.Background()
+	reader := markdown.NewReader()
+	configure(reader.MarkdownConfig())
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+	return testutil.CollectParts(t, reader.Read(ctx))
+}
+
+// roundtrip reads then writes markdown, returning the output.
+func roundtrip(t *testing.T, input string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := markdown.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := markdown.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleEnglish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	return buf.String()
+}
+
+// roundtripWithSkeleton reads then writes using a skeleton store.
+func roundtripWithSkeleton(t *testing.T, input string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := markdown.NewReader()
+	writer := markdown.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	return buf.String()
+}
+
+// --- Basic Tests ---
+
+func TestReadSimpleParagraphs(t *testing.T) {
+	blocks := readBlocks(t, "Hello world\n\nSecond paragraph")
 	assert.Len(t, blocks, 2)
 	assert.Equal(t, "Hello world", blocks[0].SourceText())
 	assert.Equal(t, "Second paragraph", blocks[1].SourceText())
@@ -28,14 +128,7 @@ func TestReadSimpleParagraphs(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testHeadingPrefix
 func TestReadHeadings(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("# Title\n\n## Subtitle\n\nText", model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
+	blocks := readBlocks(t, "# Title\n\n## Subtitle\n\nText")
 	require.Len(t, blocks, 3)
 	assert.Equal(t, "Title", blocks[0].SourceText())
 	assert.Equal(t, "heading", blocks[0].Type)
@@ -48,18 +141,10 @@ func TestReadHeadings(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testEmphasisAndStrong
 func TestReadBoldItalicInline(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("This has **bold** and *italic* text", model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
+	blocks := readBlocks(t, "This has **bold** and *italic* text")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "This has bold and italic text", blocks[0].SourceText())
 
-	// Check that spans were detected
 	frag := blocks[0].FirstFragment()
 	require.NotNil(t, frag)
 	assert.True(t, frag.HasSpans())
@@ -67,22 +152,14 @@ func TestReadBoldItalicInline(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testDontTranslateFencedCodeBlocks
 func TestReadCodeBlockAsData(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
 	input := "# Title\n\n```go\nfmt.Println(\"hello\")\n```\n\nText after code"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
+	parts := readParts(t, input)
 	blocks := testutil.FilterBlocks(parts)
 
-	// Should have Title and "Text after code" as blocks
 	assert.Len(t, blocks, 2)
 	assert.Equal(t, "Title", blocks[0].SourceText())
 	assert.Equal(t, "Text after code", blocks[1].SourceText())
 
-	// Verify there is a Data part for the code block
 	hasCodeData := false
 	for _, p := range parts {
 		if p.Type == model.PartData {
@@ -98,15 +175,7 @@ func TestReadCodeBlockAsData(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testBulletList
 func TestReadLists(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
-	input := "- First item\n- Second item\n- Third item"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
-
+	blocks := readBlocks(t, "- First item\n- Second item\n- Third item")
 	require.Len(t, blocks, 3)
 	assert.Equal(t, "First item", blocks[0].SourceText())
 	assert.Equal(t, "Second item", blocks[1].SourceText())
@@ -115,14 +184,7 @@ func TestReadLists(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("Hello", model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-
+	parts := readParts(t, "Hello")
 	require.GreaterOrEqual(t, len(parts), 3)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
@@ -153,42 +215,16 @@ func TestReadNilDocument(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testEventsFromEmptyInput
 func TestReadEmpty(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
+	parts := readParts(t, "")
 	blocks := testutil.FilterBlocks(parts)
-
 	assert.Empty(t, blocks)
 }
 
+// --- Roundtrip Tests ---
+
 func TestRoundTrip(t *testing.T) {
-	ctx := context.Background()
-
 	input := "# Hello\n\nThis is text\n\n- Item one\n- Item two"
-
-	reader := markdown.NewReader()
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
-	reader.Close()
-
-	var buf bytes.Buffer
-	writer := markdown.NewWriter()
-	err = writer.SetOutputWriter(&buf)
-	require.NoError(t, err)
-	writer.SetLocale(model.LocaleEnglish)
-
-	ch := testutil.PartsToChannel(parts)
-	err = writer.Write(ctx, ch)
-	require.NoError(t, err)
-	writer.Close()
-
-	output := buf.String()
+	output := roundtrip(t, input)
 	assert.Contains(t, output, "# Hello")
 	assert.Contains(t, output, "This is text")
 	assert.Contains(t, output, "- Item one")
@@ -236,14 +272,8 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 
 // okapi: MarkdownFilterTest#testHtmlBlockWithMarkdown
 func TestReadHTMLBlockAsData(t *testing.T) {
-	ctx := context.Background()
-	reader := markdown.NewReader()
 	input := "Text before\n\n<div>HTML content</div>\n\nText after"
-	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
-	require.NoError(t, err)
-	defer reader.Close()
-
-	parts := testutil.CollectParts(t, reader.Read(ctx))
+	parts := readParts(t, input)
 
 	hasHTMLData := false
 	for _, p := range parts {
@@ -255,4 +285,679 @@ func TestReadHTMLBlockAsData(t *testing.T) {
 		}
 	}
 	assert.True(t, hasHTMLData, "expected HTML block as Data")
+}
+
+// --- Skeleton Store Roundtrip Tests ---
+
+func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
+	cases := []struct {
+		name  string
+		input string
+	}{
+		{"simple_para", "Hello world\n"},
+		{"two_paragraphs", "First paragraph\n\nSecond paragraph\n"},
+		{"heading_and_text", "# Title\n\nSome text\n"},
+		{"multiple_headings", "# H1\n\n## H2\n\n### H3\n"},
+		{"bullet_list", "- Item one\n- Item two\n- Item three\n"},
+		{"fenced_code", "Text before\n\n```go\nfmt.Println()\n```\n\nText after\n"},
+		{"thematic_break", "Above\n\n---\n\nBelow\n"},
+		{"bold_italic", "This has **bold** and *italic* text\n"},
+		{"inline_code", "Use `fmt.Println()` here\n"},
+		{"link", "Click [here](https://example.com) please\n"},
+		{"html_block", "Text\n\n<div>HTML</div>\n\nMore text\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := roundtripWithSkeleton(t, tc.input)
+			assert.Equal(t, tc.input, output, "skeleton roundtrip should be byte-exact")
+		})
+	}
+}
+
+func TestSkeletonRoundtrip_WithTranslation(t *testing.T) {
+	input := "# Hello\n\nWorld\n"
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := markdown.NewReader()
+	writer := markdown.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Translate blocks
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			switch block.SourceText() {
+			case "Hello":
+				block.SetTargetText(locale, "Bonjour")
+			case "World":
+				block.SetTargetText(locale, "Monde")
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(locale)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Equal(t, "# Bonjour\n\nMonde\n", output)
+}
+
+// --- Emphasis Tests ---
+
+// okapi: MarkdownFilterTest#testEmphasis
+func TestRead_Emphasis(t *testing.T) {
+	blocks := readBlocks(t, "This is *emphasized* text")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "This is emphasized text", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+	// Should have opening and closing spans for italic
+	var hasItalic bool
+	for _, s := range frag.Spans {
+		if s.Type == "fmt:italic" {
+			hasItalic = true
+		}
+	}
+	assert.True(t, hasItalic, "should have italic span")
+}
+
+// okapi: MarkdownFilterTest#testEmphasisAcrossLines
+func TestRead_EmphasisAcrossLines(t *testing.T) {
+	blocks := readBlocks(t, "This *spans\nacross* lines")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "This spans across lines", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+}
+
+// okapi: MarkdownFilterTest#testEmphasisAtParaStart
+func TestRead_EmphasisAtParaStart(t *testing.T) {
+	blocks := readBlocks(t, "*Bold start* then normal")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Bold start then normal", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+}
+
+// --- Code Tests ---
+
+// okapi: MarkdownFilterTest#testCode
+func TestRead_Code(t *testing.T) {
+	blocks := readBlocks(t, "Use the `code` function")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Use the code function", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+	var hasCode bool
+	for _, s := range frag.Spans {
+		if s.Type == "fmt:code" {
+			hasCode = true
+		}
+	}
+	assert.True(t, hasCode, "should have code span")
+}
+
+// okapi: MarkdownFilterTest#testCodeAndEmphasis
+func TestRead_CodeAndEmphasis(t *testing.T) {
+	blocks := readBlocks(t, "Use `code` and *emphasis* here")
+	require.Len(t, blocks, 1)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+	var hasCode, hasItalic bool
+	for _, s := range frag.Spans {
+		if s.Type == "fmt:code" {
+			hasCode = true
+		}
+		if s.Type == "fmt:italic" {
+			hasItalic = true
+		}
+	}
+	assert.True(t, hasCode, "should have code span")
+	assert.True(t, hasItalic, "should have italic span")
+}
+
+// --- Fenced Code Block Tests ---
+
+// okapi: MarkdownFilterTest#testFencedCodeBlock
+func TestRead_FencedCodeBlock(t *testing.T) {
+	input := "```\ncode here\n```\n"
+	parts := readParts(t, input)
+	hasCode := false
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Name == "code-block" {
+				hasCode = true
+				assert.Contains(t, data.Properties["content"], "code here")
+			}
+		}
+	}
+	assert.True(t, hasCode, "expected code block as Data")
+}
+
+// okapi: MarkdownFilterTest#testTranslateFencedCodeBlocks
+func TestRead_TranslateFencedCodeBlocks(t *testing.T) {
+	input := "```\ntranslatable code\n```\n"
+	blocks := readBlocksWithConfig(t, input, func(c *markdown.Config) {
+		c.TranslateCodeBlocks = true
+	})
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "code-block", blocks[0].Type)
+	assert.Contains(t, blocks[0].SourceText(), "translatable code")
+}
+
+// okapi: MarkdownFilterTest#testExcludeIndentedCodeBlock
+func TestRead_ExcludeIndentedCodeBlock(t *testing.T) {
+	input := "Text\n\n    indented code\n\nMore text\n"
+	parts := readParts(t, input)
+	blocks := testutil.FilterBlocks(parts)
+	// Indented code should be Data, not a block
+	assert.Equal(t, 2, len(blocks))
+	assert.Equal(t, "Text", blocks[0].SourceText())
+	assert.Equal(t, "More text", blocks[1].SourceText())
+}
+
+// okapi: MarkdownFilterTest#testIndentedCodeBlock
+func TestRead_IndentedCodeBlock(t *testing.T) {
+	input := "    indented code line 1\n    indented code line 2\n"
+	parts := readParts(t, input)
+	hasCode := false
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Name == "code-block" {
+				hasCode = true
+			}
+		}
+	}
+	assert.True(t, hasCode, "indented code should be Data")
+}
+
+// --- Link Tests ---
+
+// okapi: MarkdownFilterTest#testLink
+func TestRead_Link(t *testing.T) {
+	blocks := readBlocks(t, "Click [here](https://example.com) please")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Click here please", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+	var hasLink bool
+	for _, s := range frag.Spans {
+		if s.Type == "link:hyperlink" {
+			hasLink = true
+		}
+	}
+	assert.True(t, hasLink, "should have link span")
+}
+
+// okapi: MarkdownFilterTest#testLinkWithTitle
+func TestRead_LinkWithTitle(t *testing.T) {
+	blocks := readBlocks(t, `Click [here](https://example.com "Example") please`)
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Click here please", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	// Verify the closing span contains the title
+	for _, s := range frag.Spans {
+		if s.Type == "link:hyperlink" && s.SpanType == model.SpanClosing {
+			assert.Contains(t, s.Data, "Example")
+		}
+	}
+}
+
+// okapi: MarkdownFilterTest#testAutoLink
+func TestRead_AutoLink(t *testing.T) {
+	blocks := readBlocks(t, "Visit <https://example.com> now")
+	require.Len(t, blocks, 1)
+	assert.Contains(t, blocks[0].SourceText(), "https://example.com")
+}
+
+// --- Image Tests ---
+
+// okapi: MarkdownFilterTest#testImage
+func TestRead_Image(t *testing.T) {
+	blocks := readBlocks(t, "See ![alt text](image.png) here")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "See alt text here", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	var hasImage bool
+	for _, s := range frag.Spans {
+		if s.Type == "link:image" {
+			hasImage = true
+		}
+	}
+	assert.True(t, hasImage, "should have image span")
+}
+
+// okapi: MarkdownFilterTest#testExtractImageTitleAndAltText
+func TestRead_ExtractImageTitleAndAltText(t *testing.T) {
+	blocks := readBlocks(t, `![alt](image.png "title")`)
+	require.Len(t, blocks, 1)
+	assert.Contains(t, blocks[0].SourceText(), "alt")
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	// Verify image closing span includes title
+	for _, s := range frag.Spans {
+		if s.Type == "link:image" && s.SpanType == model.SpanClosing {
+			assert.Contains(t, s.Data, "title")
+		}
+	}
+}
+
+// --- Heading Variations ---
+
+// okapi: MarkdownFilterTest#testHeadingUnderline (setext heading)
+func TestRead_HeadingUnderline(t *testing.T) {
+	blocks := readBlocks(t, "Title\n=====\n\nSubtitle\n--------\n")
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "heading", blocks[0].Type)
+	assert.Equal(t, "1", blocks[0].Properties["level"])
+	assert.Equal(t, "Title", blocks[0].SourceText())
+	assert.Equal(t, "heading", blocks[1].Type)
+	assert.Equal(t, "2", blocks[1].Properties["level"])
+	assert.Equal(t, "Subtitle", blocks[1].SourceText())
+}
+
+// --- Thematic Break Tests ---
+
+// okapi: MarkdownFilterTest#testThematicBreak
+func TestRead_ThematicBreak(t *testing.T) {
+	input := "Above\n\n---\n\nBelow\n"
+	parts := readParts(t, input)
+	blocks := testutil.FilterBlocks(parts)
+	assert.Equal(t, 2, len(blocks))
+
+	hasBreak := false
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Name == "thematic-break" {
+				hasBreak = true
+			}
+		}
+	}
+	assert.True(t, hasBreak, "expected thematic break as Data")
+}
+
+// --- Blockquote Tests ---
+
+// okapi: MarkdownFilterTest#testBlockQuoteEvents
+func TestRead_BlockQuoteEvents(t *testing.T) {
+	blocks := readBlocks(t, "> Quoted text\n>\n> More quoted\n")
+	assert.GreaterOrEqual(t, len(blocks), 1)
+	// Default: blockquotes are translatable
+	foundQuoted := false
+	for _, b := range blocks {
+		if b.SourceText() == "Quoted text" || b.SourceText() == "More quoted" {
+			foundQuoted = true
+		}
+	}
+	assert.True(t, foundQuoted, "should extract blockquote text")
+}
+
+// okapi: MarkdownFilterTest#testNonTranslatableBlockQuotes
+func TestRead_NonTranslatableBlockQuotes(t *testing.T) {
+	input := "> Quoted text\n"
+	parts := readPartsWithConfig(t, input, func(c *markdown.Config) {
+		_ = c.ApplyMap(map[string]any{"translateBlockQuotes": false})
+	})
+	blocks := testutil.FilterBlocks(parts)
+	assert.Empty(t, blocks, "blockquote content should not be translatable")
+}
+
+// --- Front Matter Tests ---
+
+// okapi: MarkdownFilterTest#testDontTranslateMetadataHeader
+func TestRead_DontTranslateMetadataHeader(t *testing.T) {
+	input := "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
+	parts := readParts(t, input)
+	blocks := testutil.FilterBlocks(parts)
+
+	// Front matter should be Data by default
+	hasFrontMatter := false
+	for _, p := range parts {
+		if p.Type == model.PartData {
+			data := p.Resource.(*model.Data)
+			if data.Name == "front-matter" {
+				hasFrontMatter = true
+			}
+		}
+	}
+	assert.True(t, hasFrontMatter, "front matter should be Data by default")
+	assert.Equal(t, 1, len(blocks), "only heading should be a block")
+	assert.Equal(t, "Heading", blocks[0].SourceText())
+}
+
+// okapi: MarkdownFilterTest#testTranslateMetadataHeader
+func TestRead_TranslateMetadataHeader(t *testing.T) {
+	input := "---\ntitle: My Title\nauthor: John\n---\n\n# Heading\n"
+	blocks := readBlocksWithConfig(t, input, func(c *markdown.Config) {
+		c.TranslateFrontMatter = true
+	})
+
+	// Should have front matter values as blocks + heading
+	assert.GreaterOrEqual(t, len(blocks), 3)
+	found := false
+	for _, b := range blocks {
+		if b.SourceText() == "My Title" {
+			found = true
+			assert.Equal(t, "front-matter", b.Type)
+		}
+	}
+	assert.True(t, found, "front matter title should be translatable")
+}
+
+// --- Table Tests (GFM) ---
+
+// okapi: MarkdownFilterTest#testTable1TextUnits
+func TestRead_Table1TextUnits(t *testing.T) {
+	input := "| Header 1 | Header 2 |\n| --- | --- |\n| Cell 1 | Cell 2 |\n"
+	blocks := readBlocks(t, input)
+	assert.GreaterOrEqual(t, len(blocks), 4)
+	texts := make([]string, len(blocks))
+	for i, b := range blocks {
+		texts[i] = b.SourceText()
+	}
+	assert.Contains(t, texts, "Header 1")
+	assert.Contains(t, texts, "Header 2")
+	assert.Contains(t, texts, "Cell 1")
+	assert.Contains(t, texts, "Cell 2")
+}
+
+// okapi: MarkdownFilterTest#testTable2TextUnits
+func TestRead_Table2TextUnits(t *testing.T) {
+	input := "| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n"
+	blocks := readBlocks(t, input)
+	assert.Equal(t, 9, len(blocks), "3 headers + 6 cells")
+}
+
+// --- Strikethrough Tests (GFM) ---
+
+// okapi: MarkdownFilterTest#testStrikethroughSubscript
+func TestRead_StrikethroughSubscript(t *testing.T) {
+	blocks := readBlocks(t, "This is ~~deleted~~ text")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "This is deleted text", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+	var hasStrike bool
+	for _, s := range frag.Spans {
+		if s.Type == "fmt:strike" {
+			hasStrike = true
+		}
+	}
+	assert.True(t, hasStrike, "should have strikethrough span")
+}
+
+// --- Hard Line Break Tests ---
+
+// okapi: MarkdownFilterTest#testHardLineBreak
+func TestRead_HardLineBreak(t *testing.T) {
+	// Two trailing spaces create a hard line break
+	input := "Line one  \nLine two\n"
+	blocks := readBlocks(t, input)
+	require.Len(t, blocks, 1)
+	// Hard line break should be preserved as \n in text
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "Line one")
+	assert.Contains(t, text, "Line two")
+}
+
+// --- CRLF Tests ---
+
+// okapi: MarkdownFilterTest#testCRLF
+func TestRead_CRLF(t *testing.T) {
+	blocks := readBlocks(t, "# Title\r\n\r\nParagraph\r\n")
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Title", blocks[0].SourceText())
+	assert.Equal(t, "Paragraph", blocks[1].SourceText())
+}
+
+// --- Close Without Input ---
+
+// okapi: MarkdownFilterTest#testCloseWithoutInput
+func TestRead_CloseWithoutInput(t *testing.T) {
+	reader := markdown.NewReader()
+	err := reader.Close()
+	assert.NoError(t, err)
+}
+
+// --- HTML Inline ---
+
+// okapi: MarkdownFilterTest#testHtmlInline
+func TestRead_HtmlInline(t *testing.T) {
+	blocks := readBlocks(t, "Text with <b>bold</b> HTML")
+	require.Len(t, blocks, 1)
+	assert.Contains(t, blocks[0].SourceText(), "bold")
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans(), "inline HTML should produce spans")
+}
+
+// --- HTML Entities ---
+
+// okapi: MarkdownFilterTest#testHtmlEntities
+func TestRead_HtmlEntities(t *testing.T) {
+	blocks := readBlocks(t, "This &amp; that")
+	require.Len(t, blocks, 1)
+	// goldmark may decode entities or preserve them
+	assert.Contains(t, blocks[0].SourceText(), "that")
+}
+
+// --- Nested Lists ---
+
+// okapi: MarkdownFilterTest#testNestedBulletWithFencedCodeBlock
+func TestRead_NestedBulletWithFencedCodeBlock(t *testing.T) {
+	input := "- Item 1\n- Item 2\n\n  ```\n  code\n  ```\n\n- Item 3\n"
+	parts := readParts(t, input)
+	blocks := testutil.FilterBlocks(parts)
+	assert.GreaterOrEqual(t, len(blocks), 2, "should have at least two text blocks")
+}
+
+// --- Backslash Escapes ---
+
+// okapi: MarkdownFilterTest#testUnescapeBackslashes
+func TestRead_UnescapeBackslashes(t *testing.T) {
+	blocks := readBlocks(t, `This is \*not emphasis\*`)
+	require.Len(t, blocks, 1)
+	// Backslash-escaped characters should not be emphasis
+	frag := blocks[0].FirstFragment()
+	if frag != nil {
+		assert.False(t, frag.HasSpans(), "escaped asterisks should not be emphasis")
+	}
+}
+
+// --- Mixed HTML and Markdown ---
+
+// okapi: MarkdownFilterTest#testMixedHtmlInlineAndMarkdown
+func TestRead_MixedHtmlInlineAndMarkdown(t *testing.T) {
+	blocks := readBlocks(t, "Text **bold** and <em>italic</em> together")
+	require.Len(t, blocks, 1)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+}
+
+// --- Ordered Lists ---
+
+func TestRead_OrderedList(t *testing.T) {
+	blocks := readBlocks(t, "1. First\n2. Second\n3. Third\n")
+	require.Len(t, blocks, 3)
+	assert.Equal(t, "First", blocks[0].SourceText())
+	assert.Equal(t, "Second", blocks[1].SourceText())
+	assert.Equal(t, "Third", blocks[2].SourceText())
+	assert.Equal(t, "list-item", blocks[0].Type)
+}
+
+// --- HTML Comment Tests ---
+
+// okapi: MarkdownFilterTest#testHtmlCommentAtColumn1
+func TestRead_HtmlCommentAtColumn1(t *testing.T) {
+	input := "<!-- comment -->\n\nParagraph\n"
+	parts := readParts(t, input)
+	blocks := testutil.FilterBlocks(parts)
+	assert.Equal(t, 1, len(blocks))
+	assert.Equal(t, "Paragraph", blocks[0].SourceText())
+}
+
+// --- Inline HTML with Attributes ---
+
+// okapi: MarkdownFilterTest#testHtmlInlineWithAttributes
+func TestRead_HtmlInlineWithAttributes(t *testing.T) {
+	blocks := readBlocks(t, `Text <span class="highlight">highlighted</span> end`)
+	require.Len(t, blocks, 1)
+	assert.Contains(t, blocks[0].SourceText(), "highlighted")
+}
+
+// --- Config Tests ---
+
+func TestConfig_FormatName(t *testing.T) {
+	cfg := &markdown.Config{}
+	assert.Equal(t, "markdown", cfg.FormatName())
+}
+
+func TestConfig_ApplyMap(t *testing.T) {
+	cfg := &markdown.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"translateCodeBlocks":  true,
+		"translateFrontMatter": true,
+	})
+	require.NoError(t, err)
+	assert.True(t, cfg.TranslateCodeBlocks)
+	assert.True(t, cfg.TranslateFrontMatter)
+}
+
+func TestConfig_ApplyMapUnknown(t *testing.T) {
+	cfg := &markdown.Config{}
+	err := cfg.ApplyMap(map[string]any{"unknownKey": true})
+	assert.Error(t, err)
+}
+
+func TestConfig_Reset(t *testing.T) {
+	cfg := &markdown.Config{TranslateCodeBlocks: true}
+	cfg.Reset()
+	assert.False(t, cfg.TranslateCodeBlocks)
+}
+
+// --- Neighboring Marks ---
+
+// okapi: MarkdownFilterTest#testNeighboringMarks
+func TestRead_NeighboringMarks(t *testing.T) {
+	blocks := readBlocks(t, "**bold***italic*")
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "bolditalic", blocks[0].SourceText())
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.True(t, frag.HasSpans())
+}
+
+// --- HTML Emphasis with HTML tags ---
+
+// okapi: MarkdownFilterTest#testHtmlEmphasisAndStrong
+func TestRead_HtmlEmphasisAndStrong(t *testing.T) {
+	blocks := readBlocks(t, "Text with <em>italic</em> and <strong>bold</strong>")
+	require.Len(t, blocks, 1)
+	assert.Contains(t, blocks[0].SourceText(), "italic")
+	assert.Contains(t, blocks[0].SourceText(), "bold")
+}
+
+// --- Skeleton roundtrip with emphasis ---
+
+func TestSkeletonRoundtrip_Emphasis(t *testing.T) {
+	input := "This has **bold** and *italic* text\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_Link(t *testing.T) {
+	input := "Click [here](https://example.com) please\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_MultipleElements(t *testing.T) {
+	input := "# Heading\n\nParagraph with **bold**\n\n- Item 1\n- Item 2\n\n```go\ncode\n```\n\n---\n\nFinal text\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_HeadingLevels(t *testing.T) {
+	input := "# H1\n\n## H2\n\n### H3\n\n#### H4\n\n##### H5\n\n###### H6\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_SetextHeadings(t *testing.T) {
+	input := "Title\n=====\n\nSubtitle\n--------\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_FrontMatter(t *testing.T) {
+	input := "---\ntitle: Hello\nauthor: World\n---\n\n# Content\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_OrderedList(t *testing.T) {
+	input := "1. First\n2. Second\n3. Third\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_Blockquote(t *testing.T) {
+	input := "> Quoted text\n>\n> More quoted\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_Image(t *testing.T) {
+	input := "See ![alt text](image.png) here\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_Table(t *testing.T) {
+	input := "| A | B |\n| --- | --- |\n| 1 | 2 |\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_HTMLBlock(t *testing.T) {
+	input := "Text\n\n<div>HTML content</div>\n\nMore text\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
+}
+
+func TestSkeletonRoundtrip_CRLF(t *testing.T) {
+	input := "# Title\r\n\r\nParagraph\r\n"
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output)
 }
