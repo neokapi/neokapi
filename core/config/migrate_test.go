@@ -11,10 +11,10 @@ import (
 func TestMigrationRegistry_SingleStep(t *testing.T) {
 	reg := NewMigrationRegistry()
 	err := reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
-			// v2 renames "preserveWhitespace" to "whitespace.preserve"
 			result := make(map[string]any)
 			for k, v := range spec {
 				result[k] = v
@@ -29,13 +29,14 @@ func TestMigrationRegistry_SingleStep(t *testing.T) {
 	require.NoError(t, err)
 
 	env := &Envelope{
-		APIVersion: "gokapi/html-v1",
+		APIVersion: "v1",
+		Kind:       FormatConfigKind("html"),
 		Spec:       map[string]any{"preserveWhitespace": true, "useCodeFinder": false},
 	}
 
 	err = reg.Upgrade(env)
 	require.NoError(t, err)
-	assert.Equal(t, "gokapi/html-v2", env.APIVersion)
+	assert.Equal(t, "v2", env.APIVersion)
 	assert.Nil(t, env.Spec["preserveWhitespace"])
 	ws, ok := env.Spec["whitespace"].(map[string]any)
 	require.True(t, ok)
@@ -46,16 +47,18 @@ func TestMigrationRegistry_SingleStep(t *testing.T) {
 func TestMigrationRegistry_MultiStep(t *testing.T) {
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/json-v1",
-		ToVersion:   "gokapi/json-v2",
+		Kind:        FormatConfigKind("json"),
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			spec["migrated_v1_to_v2"] = true
 			return spec, nil
 		},
 	}))
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/json-v2",
-		ToVersion:   "gokapi/json-v3",
+		Kind:        FormatConfigKind("json"),
+		FromVersion: 2,
+		ToVersion:   3,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			spec["migrated_v2_to_v3"] = true
 			return spec, nil
@@ -63,13 +66,14 @@ func TestMigrationRegistry_MultiStep(t *testing.T) {
 	}))
 
 	env := &Envelope{
-		APIVersion: "gokapi/json-v1",
+		APIVersion: "v1",
+		Kind:       FormatConfigKind("json"),
 		Spec:       map[string]any{"original": true},
 	}
 
 	err := reg.Upgrade(env)
 	require.NoError(t, err)
-	assert.Equal(t, "gokapi/json-v3", env.APIVersion)
+	assert.Equal(t, "v3", env.APIVersion)
 	assert.Equal(t, true, env.Spec["original"])
 	assert.Equal(t, true, env.Spec["migrated_v1_to_v2"])
 	assert.Equal(t, true, env.Spec["migrated_v2_to_v3"])
@@ -78,28 +82,31 @@ func TestMigrationRegistry_MultiStep(t *testing.T) {
 func TestMigrationRegistry_AlreadyLatest(t *testing.T) {
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			return spec, nil
 		},
 	}))
 
 	env := &Envelope{
-		APIVersion: "gokapi/html-v2",
+		APIVersion: "v2",
+		Kind:       FormatConfigKind("html"),
 		Spec:       map[string]any{"data": true},
 	}
 
 	err := reg.Upgrade(env)
 	require.NoError(t, err)
-	assert.Equal(t, "gokapi/html-v2", env.APIVersion)
+	assert.Equal(t, "v2", env.APIVersion)
 	assert.Equal(t, true, env.Spec["data"])
 }
 
 func TestMigrationRegistry_NoMigrations(t *testing.T) {
 	reg := NewMigrationRegistry()
 	env := &Envelope{
-		APIVersion: "gokapi/html-v1",
+		APIVersion: "v1",
+		Kind:       FormatConfigKind("html"),
 		Spec:       map[string]any{},
 	}
 	err := reg.Upgrade(env)
@@ -109,15 +116,17 @@ func TestMigrationRegistry_NoMigrations(t *testing.T) {
 func TestMigrationRegistry_NewerThanKnown(t *testing.T) {
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			return spec, nil
 		},
 	}))
 
 	env := &Envelope{
-		APIVersion: "gokapi/html-v3",
+		APIVersion: "v3",
+		Kind:       FormatConfigKind("html"),
 		Spec:       map[string]any{},
 	}
 	err := reg.Upgrade(env)
@@ -128,15 +137,17 @@ func TestMigrationRegistry_NewerThanKnown(t *testing.T) {
 func TestMigrationRegistry_MigrationError(t *testing.T) {
 	reg := NewMigrationRegistry()
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
 			return nil, fmt.Errorf("migration failed")
 		},
 	}))
 
 	env := &Envelope{
-		APIVersion: "gokapi/html-v1",
+		APIVersion: "v1",
+		Kind:       FormatConfigKind("html"),
 		Spec:       map[string]any{},
 	}
 	err := reg.Upgrade(env)
@@ -148,41 +159,49 @@ func TestMigrationRegistry_RegisterErrors(t *testing.T) {
 	reg := NewMigrationRegistry()
 
 	err := reg.Register(Migration{
-		FromVersion: "invalid",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        "",
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "kind is required")
 
 	err = reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "invalid",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 0,
+		ToVersion:   2,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "fromVersion")
 
 	err = reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/json-v2",
+		Kind:        FormatConfigKind("html"),
+		FromVersion: 2,
+		ToVersion:   1,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "resource mismatch")
+	assert.Contains(t, err.Error(), "toVersion")
 }
 
 func TestMigrationRegistry_LatestVersion(t *testing.T) {
 	reg := NewMigrationRegistry()
+	htmlKind := FormatConfigKind("html")
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/html-v1",
-		ToVersion:   "gokapi/html-v2",
+		Kind:        htmlKind,
+		FromVersion: 1,
+		ToVersion:   2,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	}))
 	require.NoError(t, reg.Register(Migration{
-		FromVersion: "gokapi/html-v2",
-		ToVersion:   "gokapi/html-v3",
+		Kind:        htmlKind,
+		FromVersion: 2,
+		ToVersion:   3,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	}))
 
-	assert.Equal(t, 3, reg.LatestVersion("gokapi/html"))
-	assert.Equal(t, 0, reg.LatestVersion("gokapi/json"))
+	assert.Equal(t, 3, reg.LatestVersion(htmlKind))
+	assert.Equal(t, 0, reg.LatestVersion(FormatConfigKind("json")))
 }

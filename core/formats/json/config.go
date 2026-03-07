@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/format"
 )
 
@@ -94,8 +95,8 @@ type Config struct {
 // FormatName returns the format this config applies to.
 func (c *Config) FormatName() string { return "json" }
 
-// ConfigAPIVersion returns the native apiVersion for JSON format config.
-func (c *Config) ConfigAPIVersion() string { return "gokapi/json-v1" }
+// ConfigKind returns the Kind for JSON format config.
+func (c *Config) ConfigKind() config.Kind { return config.FormatConfigKind("json") }
 
 // Reset restores default values.
 func (c *Config) Reset() {

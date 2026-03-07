@@ -475,7 +475,7 @@ type FormatInfoGroup struct {
 type FormatInfoOutput struct {
 	Name        string            `json:"name"`
 	DisplayName string            `json:"display_name,omitempty"`
-	APIVersion  string            `json:"api_version,omitempty"`
+	ConfigKind  string            `json:"config_kind,omitempty"`
 	FilterID    string            `json:"filter_id,omitempty"`
 	Class       string            `json:"class,omitempty"`
 	Version     string            `json:"version,omitempty"`
@@ -496,8 +496,8 @@ func (o FormatInfoOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Format: %s\n", displayName)
 	fmt.Fprintln(w)
 
-	if o.APIVersion != "" {
-		fmt.Fprintf(w, "  Config:     %s\n", o.APIVersion)
+	if o.ConfigKind != "" {
+		fmt.Fprintf(w, "  Config:     %s\n", o.ConfigKind)
 	}
 	if o.FilterID != "" {
 		fmt.Fprintf(w, "  Filter ID:  %s\n", o.FilterID)

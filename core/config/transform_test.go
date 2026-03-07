@@ -10,10 +10,11 @@ import (
 
 func TestTransformRegistry_Basic(t *testing.T) {
 	reg := NewTransformRegistry()
-	reg.Register("okapi/html-v1", "gokapi/html-v1", TransformerFunc(func(spec map[string]any) (map[string]any, error) {
+	from := OkapiFilterConfigKind("html")
+	to := FormatConfigKind("html")
+	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
 		result := make(map[string]any)
 		for k, v := range spec {
-			// Drop okapi-only params
 			switch k {
 			case "quoteMode", "quoteModeDefined":
 				continue
@@ -28,7 +29,7 @@ func TestTransformRegistry_Basic(t *testing.T) {
 		"quoteMode":        3,
 		"quoteModeDefined": true,
 	}
-	result, err := reg.Transform("okapi/html-v1", "gokapi/html-v1", spec)
+	result, err := reg.Transform(from, to, spec)
 	require.NoError(t, err)
 	assert.NotNil(t, result["parser"])
 	assert.Nil(t, result["quoteMode"])
@@ -37,53 +38,61 @@ func TestTransformRegistry_Basic(t *testing.T) {
 
 func TestTransformRegistry_NotFound(t *testing.T) {
 	reg := NewTransformRegistry()
+	from := OkapiFilterConfigKind("html")
+	to := FormatConfigKind("html")
 
-	_, err := reg.Transform("okapi/html-v1", "gokapi/html-v1", map[string]any{})
+	_, err := reg.Transform(from, to, map[string]any{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no transforms registered from")
 
-	reg.Register("okapi/html-v1", "gokapi/html-v1", TransformerFunc(func(spec map[string]any) (map[string]any, error) {
+	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
 		return spec, nil
 	}))
 
-	_, err = reg.Transform("okapi/html-v1", "gokapi/html-v2", map[string]any{})
+	_, err = reg.Transform(from, FormatConfigKind("json"), map[string]any{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no transform registered from")
 }
 
 func TestTransformRegistry_Has(t *testing.T) {
 	reg := NewTransformRegistry()
-	assert.False(t, reg.Has("okapi/html-v1", "gokapi/html-v1"))
+	from := OkapiFilterConfigKind("html")
+	to := FormatConfigKind("html")
+	assert.False(t, reg.Has(from, to))
 
-	reg.Register("okapi/html-v1", "gokapi/html-v1", TransformerFunc(func(spec map[string]any) (map[string]any, error) {
+	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
 		return spec, nil
 	}))
-	assert.True(t, reg.Has("okapi/html-v1", "gokapi/html-v1"))
-	assert.False(t, reg.Has("okapi/html-v1", "gokapi/html-v2"))
+	assert.True(t, reg.Has(from, to))
+	assert.False(t, reg.Has(from, FormatConfigKind("json")))
 }
 
 func TestTransformRegistry_TransformError(t *testing.T) {
 	reg := NewTransformRegistry()
-	reg.Register("okapi/html-v1", "gokapi/html-v1", TransformerFunc(func(spec map[string]any) (map[string]any, error) {
+	from := OkapiFilterConfigKind("html")
+	to := FormatConfigKind("html")
+	reg.Register(from, to, TransformerFunc(func(spec map[string]any) (map[string]any, error) {
 		return nil, fmt.Errorf("transform failed")
 	}))
 
-	_, err := reg.Transform("okapi/html-v1", "gokapi/html-v1", map[string]any{})
+	_, err := reg.Transform(from, to, map[string]any{})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "transform failed")
 }
 
 func TestRegistry_Basic(t *testing.T) {
 	reg := NewRegistry()
-	reg.Register("gokapi/html-v1", SpecDecoderFunc(func(spec map[string]any) (any, error) {
+	htmlKind := FormatConfigKind("html")
+	reg.Register(htmlKind, SpecDecoderFunc(func(spec map[string]any) (any, error) {
 		return spec, nil
 	}))
 
-	assert.True(t, reg.Has("gokapi/html-v1"))
-	assert.False(t, reg.Has("gokapi/html-v2"))
+	assert.True(t, reg.Has(htmlKind))
+	assert.False(t, reg.Has(FormatConfigKind("json")))
 
 	env := &Envelope{
-		APIVersion: "gokapi/html-v1",
+		APIVersion: "v1",
+		Kind:       htmlKind,
 		Spec:       map[string]any{"parser": map[string]any{"preserveWhitespace": true}},
 	}
 	result, err := reg.Decode(env)
@@ -93,7 +102,7 @@ func TestRegistry_Basic(t *testing.T) {
 
 func TestRegistry_NotFound(t *testing.T) {
 	reg := NewRegistry()
-	env := &Envelope{APIVersion: "gokapi/html-v1", Spec: map[string]any{}}
+	env := &Envelope{APIVersion: "v1", Kind: FormatConfigKind("html"), Spec: map[string]any{}}
 	_, err := reg.Decode(env)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "no decoder registered")

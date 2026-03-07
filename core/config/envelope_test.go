@@ -11,10 +11,12 @@ func TestKind_IsValid(t *testing.T) {
 		kind Kind
 		want bool
 	}{
-		{KindFormatConfig, true},
 		{KindFormatPreset, true},
 		{KindFlowDefinition, true},
 		{KindProjectConfig, true},
+		{FormatConfigKind("html"), true},
+		{FormatConfigKind("json"), true},
+		{OkapiFilterConfigKind("html"), true},
 		{Kind("Unknown"), false},
 		{Kind(""), false},
 	}
@@ -25,97 +27,44 @@ func TestKind_IsValid(t *testing.T) {
 	}
 }
 
-func TestValidKinds(t *testing.T) {
-	kinds := ValidKinds()
-	assert.Len(t, kinds, 4)
-	assert.Contains(t, kinds, KindFormatConfig)
-	assert.Contains(t, kinds, KindFormatPreset)
-	assert.Contains(t, kinds, KindFlowDefinition)
-	assert.Contains(t, kinds, KindProjectConfig)
+func TestFormatConfigKind(t *testing.T) {
+	assert.Equal(t, Kind("HtmlFormatConfig"), FormatConfigKind("html"))
+	assert.Equal(t, Kind("JsonFormatConfig"), FormatConfigKind("json"))
+	assert.Equal(t, Kind("XmlFormatConfig"), FormatConfigKind("xml"))
+	assert.Equal(t, Kind("Xliff2FormatConfig"), FormatConfigKind("xliff2"))
+	assert.Equal(t, Kind("PlaintextFormatConfig"), FormatConfigKind("plaintext"))
+}
+
+func TestOkapiFilterConfigKind(t *testing.T) {
+	assert.Equal(t, Kind("OkfHtmlFilterConfig"), OkapiFilterConfigKind("html"))
+	assert.Equal(t, Kind("OkfJsonFilterConfig"), OkapiFilterConfigKind("json"))
+	assert.Equal(t, Kind("OkfXmlFilterConfig"), OkapiFilterConfigKind("xml"))
+}
+
+func TestIsFormatConfigKind(t *testing.T) {
+	assert.True(t, IsFormatConfigKind(FormatConfigKind("html")))
+	assert.True(t, IsFormatConfigKind(OkapiFilterConfigKind("html")))
+	assert.False(t, IsFormatConfigKind(KindProjectConfig))
+	assert.False(t, IsFormatConfigKind(KindFlowDefinition))
+	assert.False(t, IsFormatConfigKind(Kind("Unknown")))
 }
 
 func TestParseAPIVersion(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    APIVersion
+		want    int
 		wantErr bool
 	}{
-		{
-			name:  "gokapi html v1",
-			input: "gokapi/html-v1",
-			want:  APIVersion{Namespace: "gokapi", Resource: "html", Version: 1},
-		},
-		{
-			name:  "okapi json v2",
-			input: "okapi/json-v2",
-			want:  APIVersion{Namespace: "okapi", Resource: "json", Version: 2},
-		},
-		{
-			name:  "gokapi project v1",
-			input: "gokapi/project-v1",
-			want:  APIVersion{Namespace: "gokapi", Resource: "project", Version: 1},
-		},
-		{
-			name:  "gokapi flow v1",
-			input: "gokapi/flow-v1",
-			want:  APIVersion{Namespace: "gokapi", Resource: "flow", Version: 1},
-		},
-		{
-			name:  "gokapi preset v1",
-			input: "gokapi/preset-v1",
-			want:  APIVersion{Namespace: "gokapi", Resource: "preset", Version: 1},
-		},
-		{
-			name:  "gokapi markdown v1",
-			input: "gokapi/markdown-v1",
-			want:  APIVersion{Namespace: "gokapi", Resource: "markdown", Version: 1},
-		},
-		{
-			name:  "high version number",
-			input: "gokapi/html-v42",
-			want:  APIVersion{Namespace: "gokapi", Resource: "html", Version: 42},
-		},
-		{
-			name:    "empty string",
-			input:   "",
-			wantErr: true,
-		},
-		{
-			name:    "no slash",
-			input:   "gokapi-html-v1",
-			wantErr: true,
-		},
-		{
-			name:    "no version suffix",
-			input:   "gokapi/html",
-			wantErr: true,
-		},
-		{
-			name:    "empty namespace",
-			input:   "/html-v1",
-			wantErr: true,
-		},
-		{
-			name:    "empty resource",
-			input:   "gokapi/-v1",
-			wantErr: true,
-		},
-		{
-			name:    "zero version",
-			input:   "gokapi/html-v0",
-			wantErr: true,
-		},
-		{
-			name:    "negative version",
-			input:   "gokapi/html-v-1",
-			wantErr: true,
-		},
-		{
-			name:    "non-numeric version",
-			input:   "gokapi/html-vabc",
-			wantErr: true,
-		},
+		{name: "v1", input: "v1", want: 1},
+		{name: "v2", input: "v2", want: 2},
+		{name: "v42", input: "v42", want: 42},
+		{name: "empty", input: "", wantErr: true},
+		{name: "no v prefix", input: "1", wantErr: true},
+		{name: "v0", input: "v0", wantErr: true},
+		{name: "v-1", input: "v-1", wantErr: true},
+		{name: "vabc", input: "vabc", wantErr: true},
+		{name: "old slash format", input: "gokapi/html/v1", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -130,12 +79,7 @@ func TestParseAPIVersion(t *testing.T) {
 	}
 }
 
-func TestAPIVersion_String(t *testing.T) {
-	av := APIVersion{Namespace: "gokapi", Resource: "html", Version: 1}
-	assert.Equal(t, "gokapi/html-v1", av.String())
-}
-
-func TestAPIVersion_ResourceKey(t *testing.T) {
-	av := APIVersion{Namespace: "gokapi", Resource: "html", Version: 1}
-	assert.Equal(t, "gokapi/html", av.ResourceKey())
+func TestFormatAPIVersion(t *testing.T) {
+	assert.Equal(t, "v1", FormatAPIVersion(1))
+	assert.Equal(t, "v42", FormatAPIVersion(42))
 }

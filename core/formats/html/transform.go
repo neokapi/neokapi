@@ -2,7 +2,7 @@ package html
 
 import "github.com/gokapi/gokapi/core/config"
 
-// okapiHTMLTransformer converts okapi/html-v1 specs to gokapi/html-v1.
+// okapiHTMLTransformer converts OkfHtmlFilterConfig specs to HtmlFormatConfig.
 // It keeps shared parameters (parser, elements, attributes, codeFinder) and
 // drops okapi-only parameters that have no native equivalent.
 type okapiHTMLTransformer struct{}
@@ -47,7 +47,7 @@ func (okapiHTMLTransformer) Transform(spec map[string]any) (map[string]any, erro
 
 func init() {
 	config.DefaultTransforms.Register(
-		"okapi/html-v1", "gokapi/html-v1",
+		config.OkapiFilterConfigKind("html"), config.FormatConfigKind("html"),
 		okapiHTMLTransformer{},
 	)
 }

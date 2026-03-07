@@ -157,11 +157,11 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 				}
 			}
 
-			// Check if the format declares a config apiVersion.
+			// Check if the format declares a config kind.
 			if reader, err := a.FormatReg.NewReader(filterID); err == nil {
 				if cfg := reader.Config(); cfg != nil {
-					if cvp, ok := cfg.(format.ConfigVersionProvider); ok {
-						out.APIVersion = cvp.ConfigAPIVersion()
+					if ckp, ok := cfg.(format.ConfigKindProvider); ok {
+						out.ConfigKind = string(ckp.ConfigKind())
 					}
 				}
 			}

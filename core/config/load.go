@@ -43,14 +43,14 @@ func Parse(data []byte, ext string) (*Envelope, error) {
 		return nil, fmt.Errorf("config is missing required field \"kind\"")
 	}
 
-	// Validate apiVersion format
+	// Validate apiVersion format (v1, v2, etc.)
 	if _, err := ParseAPIVersion(probe.APIVersion); err != nil {
 		return nil, err
 	}
 
 	// Validate kind
 	if !probe.Kind.IsValid() {
-		return nil, fmt.Errorf("unknown kind %q (valid: %v)", probe.Kind, ValidKinds())
+		return nil, fmt.Errorf("unknown kind %q", probe.Kind)
 	}
 
 	// Second pass: full unmarshal

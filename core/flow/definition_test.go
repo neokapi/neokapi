@@ -14,7 +14,7 @@ func TestFlowStore_YAMLEnveloped(t *testing.T) {
 	dir := t.TempDir()
 	store := NewFlowStore(dir)
 
-	yamlContent := `apiVersion: gokapi/flow-v1
+	yamlContent := `apiVersion: v1
 kind: FlowDefinition
 metadata:
   name: pseudo-translate
@@ -90,7 +90,7 @@ func TestFlowStore_EnvelopedMetadataFallback(t *testing.T) {
 	store := NewFlowStore(dir)
 
 	// Flow with name/description in metadata but not in spec
-	yamlContent := `apiVersion: gokapi/flow-v1
+	yamlContent := `apiVersion: v1
 kind: FlowDefinition
 metadata:
   name: Meta Flow
@@ -116,7 +116,7 @@ func TestFlowStore_WrongKindRejected(t *testing.T) {
 	dir := t.TempDir()
 	store := NewFlowStore(dir)
 
-	yamlContent := `apiVersion: gokapi/project-v1
+	yamlContent := `apiVersion: v1
 kind: ProjectConfig
 metadata:
   name: wrong
