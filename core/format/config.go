@@ -25,3 +25,13 @@ type DataFormatConfig interface {
 type SchemaProvider interface {
 	Schema() *schema.FilterSchema
 }
+
+// ConfigVersionProvider is an optional interface that DataFormatConfig
+// implementations can implement to declare their config envelope apiVersion.
+// This enables the config loading system to detect the expected apiVersion
+// for a format and validate or transform incoming configs accordingly.
+type ConfigVersionProvider interface {
+	// ConfigAPIVersion returns the native apiVersion for this format's config.
+	// For example, "gokapi/html-v1" or "gokapi/json-v1".
+	ConfigAPIVersion() string
+}

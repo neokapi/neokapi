@@ -238,6 +238,81 @@ func TestLoadConfigFile_NotFound(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestLoadConfigFile_EnvelopedYAML(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`apiVersion: gokapi/html-v1
+kind: FormatConfig
+metadata:
+  name: my-html
+spec:
+  parser:
+    preserveWhitespace: true
+  useCodeFinder: false
+`), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigFile(path)
+	require.NoError(t, err)
+	parser, ok := cfg["parser"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, parser["preserveWhitespace"])
+	assert.Equal(t, false, cfg["useCodeFinder"])
+}
+
+func TestLoadConfigFile_EnvelopedJSON(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	err := os.WriteFile(path, []byte(`{
+		"apiVersion": "gokapi/json-v1",
+		"kind": "FormatConfig",
+		"metadata": {"name": "test"},
+		"spec": {"extractAllPairs": false, "useFullKeyPath": true}
+	}`), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, false, cfg["extractAllPairs"])
+	assert.Equal(t, true, cfg["useFullKeyPath"])
+}
+
+func TestLoadConfigFile_BareYAMLStillWorks(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte("extractStyles: true\ntranslateComments: false\n"), 0o644)
+	require.NoError(t, err)
+
+	cfg, err := LoadConfigFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, true, cfg["extractStyles"])
+	assert.Equal(t, false, cfg["translateComments"])
+}
+
+func TestLoadConfigFile_InvalidEnvelope(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	err := os.WriteFile(path, []byte(`apiVersion: bad-version
+kind: FormatConfig
+metadata:
+  name: test
+spec: {}
+`), 0o644)
+	require.NoError(t, err)
+
+	_, err = LoadConfigFile(path)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "envelope")
+}
+
+func TestTransformConfigSpec(t *testing.T) {
+	// No transform registered for this pair - spec returned unchanged
+	spec := map[string]any{"foo": "bar"}
+	result, err := TransformConfigSpec("custom/test-v1", "gokapi/test-v1", spec)
+	require.NoError(t, err)
+	assert.Equal(t, spec, result)
+}
+
 func TestResolveFormatConfig_ConfigFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "openxml.yaml")
