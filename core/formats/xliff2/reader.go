@@ -22,19 +22,30 @@ type xliff2Doc struct {
 }
 
 type xliff2File struct {
-	ID    string       `xml:"id,attr"`
-	Units []xliff2Unit `xml:"unit"`
+	ID     string        `xml:"id,attr"`
+	Groups []xliff2Group `xml:"group"`
+	Units  []xliff2Unit  `xml:"unit"`
+}
+
+type xliff2Group struct {
+	ID     string        `xml:"id,attr"`
+	Name   string        `xml:"name,attr"`
+	Groups []xliff2Group `xml:"group"`
+	Units  []xliff2Unit  `xml:"unit"`
 }
 
 type xliff2Unit struct {
-	ID       string          `xml:"id,attr"`
-	Name     string          `xml:"name,attr"`
-	Notes    []xliff2Note    `xml:"notes>note"`
-	Segments []xliff2Segment `xml:"segment"`
+	ID        string          `xml:"id,attr"`
+	Name      string          `xml:"name,attr"`
+	Translate string          `xml:"translate,attr"`
+	Notes     []xliff2Note    `xml:"notes>note"`
+	Segments  []xliff2Segment `xml:"segment"`
+	Ignorable []xliff2Segment `xml:"ignorable"`
 }
 
 type xliff2Segment struct {
 	ID     string        `xml:"id,attr"`
+	State  string        `xml:"state,attr"`
 	Source xliff2Content `xml:"source"`
 	Target xliff2Content `xml:"target"`
 }
@@ -130,6 +141,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 
+		for _, group := range file.Groups {
+			r.emitGroup(ctx, ch, group, srcLang, trgLang)
+		}
 		for _, unit := range file.Units {
 			r.emitUnit(ctx, ch, unit, srcLang, trgLang)
 		}
@@ -138,7 +152,32 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 }
 
+func (r *Reader) emitGroup(ctx context.Context, ch chan<- model.PartResult, group xliff2Group, srcLang, trgLang model.LocaleID) {
+	gs := &model.GroupStart{
+		ID:   group.ID,
+		Name: group.Name,
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
+		return
+	}
+
+	for _, child := range group.Groups {
+		r.emitGroup(ctx, ch, child, srcLang, trgLang)
+	}
+	for _, unit := range group.Units {
+		r.emitUnit(ctx, ch, unit, srcLang, trgLang)
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: gs})
+}
+
 func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit xliff2Unit, srcLang, trgLang model.LocaleID) {
+	// Respect translate="no" attribute
+	translatable := true
+	if strings.EqualFold(unit.Translate, "no") {
+		translatable = false
+	}
+
 	// Build source and target segments from the unit's segments
 	var sourceSegs []*model.Segment
 	targets := make(map[model.LocaleID][]*model.Segment)
@@ -167,11 +206,18 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	block := &model.Block{
 		ID:           unit.ID,
 		Name:         unit.Name,
-		Translatable: true,
+		Translatable: translatable,
 		Source:       sourceSegs,
 		Targets:      targets,
 		Properties:   make(map[string]string),
 		Annotations:  make(map[string]model.Annotation),
+	}
+
+	// Store segment state if present
+	for _, seg := range unit.Segments {
+		if seg.State != "" {
+			block.Properties["state"] = seg.State
+		}
 	}
 
 	// Add notes as properties
