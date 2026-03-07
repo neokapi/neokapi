@@ -346,3 +346,81 @@ func TestReaderConfig(t *testing.T) {
 	assert.False(t, oxCfg.TranslateDocProperties)
 	assert.False(t, oxCfg.AggressiveCleanup)
 }
+
+func TestReaderConfigListParams(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	err := cfg.ApplyMap(map[string]any{
+		"excludeColors":          []any{"FF0000", "00FF00"},
+		"excludeStyles":          []string{"CodeBlock", "Quote"},
+		"excludedColumns":        []any{"A", "C"},
+		"excludedSheets":         []any{"Sheet2"},
+		"includedSlides":         []any{float64(1), float64(3)},
+		"lineSeparatorReplacement": "\\n",
+		"replaceLineSeparator":   true,
+		"translateCharts":        true,
+		"translateDiagrams":      true,
+		"translateHiddenSlides":  true,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"FF0000", "00FF00"}, cfg.ExcludeColors)
+	assert.Equal(t, []string{"CodeBlock", "Quote"}, cfg.ExcludeStyles)
+	assert.Equal(t, []string{"A", "C"}, cfg.ExcludedColumns)
+	assert.Equal(t, []string{"Sheet2"}, cfg.ExcludedSheets)
+	assert.Equal(t, []int{1, 3}, cfg.IncludedSlides)
+	assert.Equal(t, "\\n", cfg.LineSeparatorReplacement)
+	assert.True(t, cfg.ReplaceLineSeparator)
+	assert.True(t, cfg.TranslateCharts)
+	assert.True(t, cfg.TranslateDiagrams)
+	assert.True(t, cfg.TranslateHiddenSlides)
+}
+
+func TestReaderConfigUnknownKey(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+	err := cfg.ApplyMap(map[string]any{"unknownKey": true})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown config key")
+}
+
+func TestReaderConfigInvalidListType(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+	err := cfg.ApplyMap(map[string]any{"excludeColors": 42})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "string list")
+}
+
+func TestReaderConfigDefaults(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+
+	// Verify defaults
+	assert.True(t, cfg.TranslateDocProperties)
+	assert.False(t, cfg.TranslateHiddenText)
+	assert.True(t, cfg.TranslateHeadersFooters)
+	assert.True(t, cfg.TranslateFootnotes)
+	assert.False(t, cfg.TranslateComments)
+	assert.True(t, cfg.TranslateHyperlinks)
+	assert.True(t, cfg.AggressiveCleanup)
+	assert.False(t, cfg.TabAsCharacter)
+	assert.True(t, cfg.TranslateSlideNotes)
+	assert.False(t, cfg.TranslateSlideMasters)
+	assert.False(t, cfg.TranslateHiddenSlides)
+	assert.False(t, cfg.TranslateCharts)
+	assert.False(t, cfg.TranslateDiagrams)
+	assert.Nil(t, cfg.IncludedSlides)
+	assert.False(t, cfg.TranslateSheetNames)
+	assert.True(t, cfg.TranslateSharedStrings)
+	assert.Nil(t, cfg.ExcludedSheets)
+	assert.Nil(t, cfg.ExcludedColumns)
+	assert.Nil(t, cfg.ExcludeColors)
+	assert.Nil(t, cfg.ExcludeHighlightColors)
+	assert.Nil(t, cfg.IncludeHighlightColors)
+	assert.Nil(t, cfg.ExcludeStyles)
+	assert.Nil(t, cfg.IncludeStyles)
+	assert.False(t, cfg.ReplaceLineSeparator)
+	assert.Equal(t, "\n", cfg.LineSeparatorReplacement)
+}
