@@ -56,7 +56,7 @@ func (w *Writer) collectPart(part *model.Part) {
 	}
 }
 
-// XML output structures
+// xmlTMX and related types for output.
 type xmlTMX struct {
 	XMLName xml.Name  `xml:"tmx"`
 	Version string    `xml:"version,attr"`
@@ -154,3 +154,4 @@ func (w *Writer) flush() error {
 
 	return nil
 }
+
