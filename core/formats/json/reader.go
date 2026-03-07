@@ -3,7 +3,6 @@ package json
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -27,7 +26,8 @@ var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new JSON reader.
 func NewReader() *Reader {
-	cfg := &Config{ExtractArrayStrings: true}
+	cfg := &Config{}
+	cfg.Reset() // sets defaults
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "json",
@@ -72,6 +72,17 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
+// readState tracks metadata accumulated while walking the JSON tree.
+// Note/ID/meta values attach to the next translatable block within the
+// same object scope.
+type readState struct {
+	pendingNote     string // note text to attach to next block
+	pendingID       string // ID to use as name for next block
+	pendingMeta     map[string]string
+	pendingMaxwidth int    // -1 = not set
+	idStack         []string
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -91,92 +102,364 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Read all content and decode into interface{}
+	// Read all content
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("json: reading: %w", err)}
 		return
 	}
 
-	var root any
-	if err := json.Unmarshal(content, &root); err != nil {
+	// Tokenize
+	sc := newScanner(content)
+	tokens, err := sc.scan()
+	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("json: parsing: %w", err)}
 		return
 	}
 
 	blockCounter := 0
 	dataCounter := 0
-	r.walkValue(ctx, ch, root, "", layer.ID, &blockCounter, &dataCounter)
+	state := &readState{pendingMaxwidth: -1}
+	pos := 0
+	r.walkTokenValue(ctx, ch, tokens, &pos, "", "", layer.ID, &blockCounter, &dataCounter, state)
 
 	// Emit layer end
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// walkValue recursively walks a JSON value and emits Parts.
-// The path parameter tracks the key path for naming Blocks (e.g., "root.nested.key").
-func (r *Reader) walkValue(ctx context.Context, ch chan<- model.PartResult, value any, path, parentLayerID string, blockCounter, dataCounter *int) {
-	switch v := value.(type) {
-	case map[string]any:
-		r.walkObject(ctx, ch, v, path, parentLayerID, blockCounter, dataCounter)
-	case []any:
-		r.walkArray(ctx, ch, v, path, parentLayerID, blockCounter, dataCounter)
-	case string:
-		// Check for subfilter match
-		if mapping := r.matchSubfilter(path); mapping != nil && r.resolver != nil {
-			r.emitSubfiltered(ctx, ch, v, path, parentLayerID, mapping, blockCounter, dataCounter)
-			return
-		}
-		*blockCounter++
-		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), v)
-		block.Name = path
-		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+// walkTokenValue reads a JSON value from the token stream starting at pos.
+func (r *Reader) walkTokenValue(ctx context.Context, ch chan<- model.PartResult,
+	tokens []token, pos *int, keyName, path, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	if *pos >= len(tokens) {
+		return
+	}
+	tok := tokens[*pos]
+
+	switch tok.typ {
+	case tokenObjectStart:
+		r.walkTokenObject(ctx, ch, tokens, pos, path, parentLayerID, blockCounter, dataCounter, state)
+	case tokenArrayStart:
+		r.walkTokenArray(ctx, ch, tokens, pos, keyName, path, parentLayerID, blockCounter, dataCounter, state)
+	case tokenString:
+		*pos++
+		r.handleStringValue(ctx, ch, tok.value, keyName, path, parentLayerID, blockCounter, dataCounter, state)
+	case tokenNumber, tokenTrue, tokenFalse, tokenNull:
+		*pos++
+		r.handleNonStringValue(ctx, ch, tok, keyName, path, parentLayerID, blockCounter, dataCounter, state)
 	default:
-		// Non-string scalar values (numbers, booleans, null) are non-translatable
+		*pos++ // skip unexpected tokens
+	}
+}
+
+// walkTokenObject reads a JSON object { key: value, ... }.
+func (r *Reader) walkTokenObject(ctx context.Context, ch chan<- model.PartResult,
+	tokens []token, pos *int, parentPath, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	*pos++ // skip {
+	// Save and reset pending state for this object scope
+	savedState := *state
+	state.pendingNote = ""
+	state.pendingID = ""
+	state.pendingMeta = nil
+	state.pendingMaxwidth = -1
+
+	for *pos < len(tokens) {
+		tok := tokens[*pos]
+		if tok.typ == tokenObjectEnd {
+			*pos++
+			break
+		}
+		if tok.typ == tokenComma {
+			*pos++
+			continue
+		}
+		if tok.typ != tokenString {
+			*pos++
+			continue
+		}
+
+		key := tok.value
+		*pos++ // skip key
+		// skip colon
+		if *pos < len(tokens) && tokens[*pos].typ == tokenColon {
+			*pos++
+		}
+
+		childPath := r.buildPath(key, parentPath)
+
+		// Walk the value
+		r.walkTokenValue(ctx, ch, tokens, pos, key, childPath, parentLayerID, blockCounter, dataCounter, state)
+	}
+
+	// Restore parent state
+	*state = savedState
+}
+
+// walkTokenArray reads a JSON array [ value, ... ].
+func (r *Reader) walkTokenArray(ctx context.Context, ch chan<- model.PartResult,
+	tokens []token, pos *int, keyName, parentPath, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	*pos++ // skip [
+	index := 0
+
+	for *pos < len(tokens) {
+		tok := tokens[*pos]
+		if tok.typ == tokenArrayEnd {
+			*pos++
+			break
+		}
+		if tok.typ == tokenComma {
+			*pos++
+			continue
+		}
+
+		childPath := parentPath + "[" + strconv.Itoa(index) + "]"
+
+		if tok.typ == tokenString && !r.cfg.ExtractIsolatedStrings {
+			// Standalone string in array — skip extraction
+			*pos++
+			*dataCounter++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", *dataCounter),
+				Name: childPath,
+			}
+			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		} else {
+			elemKey := keyName
+			if tok.typ == tokenObjectStart {
+				elemKey = ""
+			}
+			r.walkTokenValue(ctx, ch, tokens, pos, elemKey, childPath, parentLayerID, blockCounter, dataCounter, state)
+		}
+		index++
+	}
+}
+
+// handleStringValue processes a string value found at the given key path.
+func (r *Reader) handleStringValue(ctx context.Context, ch chan<- model.PartResult,
+	value, keyName, path, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	fullPath := r.fullKeyPath(path)
+
+	// Check metadata rules first — these consume the value without emitting a block
+	if r.cfg.isNote(keyName, fullPath) {
+		state.pendingNote = value
+		return
+	}
+	if r.cfg.isId(keyName, fullPath) {
+		state.pendingID = value
+		if r.cfg.UseIdStack {
+			state.idStack = append(state.idStack, value)
+		}
+		return
+	}
+	if r.cfg.isGenericMeta(keyName, fullPath) {
+		if state.pendingMeta == nil {
+			state.pendingMeta = make(map[string]string)
+		}
+		state.pendingMeta[keyName] = value
+		return
+	}
+
+	// Check extraction rules
+	if !r.cfg.shouldExtract(keyName, fullPath) {
 		*dataCounter++
 		data := &model.Data{
 			ID:   fmt.Sprintf("d%d", *dataCounter),
 			Name: path,
 		}
 		r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		return
 	}
+
+	// Check for subfilter (pattern-based or global)
+	if mapping := r.matchSubfilter(path); mapping != nil && r.resolver != nil {
+		r.emitSubfiltered(ctx, ch, value, path, parentLayerID, mapping, blockCounter, dataCounter)
+		r.consumePendingState(state, nil) // clear pending state
+		return
+	}
+	if r.cfg.shouldSubfilter(keyName, fullPath) && r.resolver != nil {
+		mapping := &format.SubfilterMapping{Format: r.cfg.SubfilterFormat}
+		r.emitSubfiltered(ctx, ch, value, path, parentLayerID, mapping, blockCounter, dataCounter)
+		r.consumePendingState(state, nil)
+		return
+	}
+
+	// Emit as a translatable block
+	*blockCounter++
+	block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), value)
+
+	// Apply block name
+	block.Name = r.blockName(keyName, path, state)
+
+	// Apply code finder if enabled
+	if r.cfg.UseCodeFinder {
+		r.applyCodeFinder(block)
+	}
+
+	// Apply pending metadata
+	r.consumePendingState(state, block)
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
-// walkObject iterates over the keys of a JSON object in order.
-func (r *Reader) walkObject(ctx context.Context, ch chan<- model.PartResult, obj map[string]any, path, parentLayerID string, blockCounter, dataCounter *int) {
-	keys := sortedKeys(obj)
-	for _, key := range keys {
-		childPath := key
-		if path != "" {
-			childPath = path + "." + key
+// handleNonStringValue processes a non-string value (number, bool, null).
+func (r *Reader) handleNonStringValue(ctx context.Context, ch chan<- model.PartResult,
+	tok token, keyName, path, parentLayerID string,
+	blockCounter, dataCounter *int, state *readState) {
+
+	fullPath := r.fullKeyPath(path)
+
+	// Check maxwidth rules — numeric values set max width
+	if tok.typ == tokenNumber && r.cfg.isMaxwidth(keyName, fullPath) {
+		if v, err := strconv.ParseFloat(tok.value, 64); err == nil {
+			state.pendingMaxwidth = int(v)
 		}
-		r.walkValue(ctx, ch, obj[key], childPath, parentLayerID, blockCounter, dataCounter)
+		return
 	}
+
+	*dataCounter++
+	data := &model.Data{
+		ID:   fmt.Sprintf("d%d", *dataCounter),
+		Name: path,
+	}
+	r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
 }
 
-// walkArray iterates over the elements of a JSON array.
-func (r *Reader) walkArray(ctx context.Context, ch chan<- model.PartResult, arr []any, path, parentLayerID string, blockCounter, dataCounter *int) {
-	for i, elem := range arr {
-		childPath := path + "[" + strconv.Itoa(i) + "]"
-		switch elem.(type) {
-		case string:
-			if r.cfg.ExtractArrayStrings {
-				r.walkValue(ctx, ch, elem, childPath, parentLayerID, blockCounter, dataCounter)
-			} else {
-				*dataCounter++
-				data := &model.Data{
-					ID:   fmt.Sprintf("d%d", *dataCounter),
-					Name: childPath,
-				}
-				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+// buildPath constructs the key path for a child key.
+func (r *Reader) buildPath(key, parentPath string) string {
+	if parentPath == "" {
+		return key
+	}
+	return parentPath + "." + key
+}
+
+// fullKeyPath converts a dotted path to the full key path format.
+func (r *Reader) fullKeyPath(path string) string {
+	if !r.cfg.UseFullKeyPath {
+		return path
+	}
+	// Convert dots to slashes for full path
+	p := "/" + strings.ReplaceAll(path, ".", "/")
+	return p
+}
+
+// blockName determines the name for a block.
+func (r *Reader) blockName(keyName, path string, state *readState) string {
+	// If there's a pending ID, use it
+	if state.pendingID != "" {
+		return state.pendingID
+	}
+	// If using ID stack, join IDs
+	if r.cfg.UseIdStack && len(state.idStack) > 0 {
+		return strings.Join(state.idStack, "/")
+	}
+
+	if !r.cfg.UseKeyAsName {
+		return path
+	}
+	if r.cfg.UseFullKeyPath {
+		fullPath := "/" + strings.ReplaceAll(path, ".", "/")
+		if !r.cfg.UseLeadingSlashOnKeyPath {
+			fullPath = strings.TrimPrefix(fullPath, "/")
+		}
+		return fullPath
+	}
+	return path
+}
+
+// consumePendingState applies pending notes/meta/maxwidth to a block and resets state.
+func (r *Reader) consumePendingState(state *readState, block *model.Block) {
+	if block != nil {
+		if state.pendingNote != "" {
+			block.Annotations["note"] = &model.NoteAnnotation{
+				Text: state.pendingNote,
+				From: "json",
 			}
-		default:
-			r.walkValue(ctx, ch, elem, childPath, parentLayerID, blockCounter, dataCounter)
 		}
+		if state.pendingMeta != nil {
+			for k, v := range state.pendingMeta {
+				block.Properties[k] = v
+			}
+		}
+		if state.pendingMaxwidth >= 0 {
+			block.Properties["maxwidth"] = strconv.Itoa(state.pendingMaxwidth)
+			if r.cfg.MaxwidthSizeUnit != "" {
+				block.Properties["maxwidthSizeUnit"] = r.cfg.MaxwidthSizeUnit
+			}
+		}
+	}
+	state.pendingNote = ""
+	state.pendingID = ""
+	state.pendingMeta = nil
+	state.pendingMaxwidth = -1
+}
+
+// applyCodeFinder applies code finder patterns to a block's fragments.
+// It rebuilds the CodedText with markers for matched patterns.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 {
+		return
+	}
+
+	for _, seg := range block.Source {
+		if seg.Content == nil {
+			continue
+		}
+		text := seg.Content.Text()
+
+		// Collect all match ranges
+		type matchRange struct {
+			start, end int
+		}
+		var matches []matchRange
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, matchRange{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+
+		// Sort matches by start position
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+
+		// Rebuild fragment with coded text markers
+		newFrag := &model.Fragment{}
+		lastEnd := 0
+		spanID := 1
+		for _, m := range matches {
+			if m.start > lastEnd {
+				newFrag.AppendText(text[lastEnd:m.start])
+			}
+			newFrag.AppendSpan(&model.Span{
+				ID:       fmt.Sprintf("c%d", spanID),
+				SpanType: model.SpanPlaceholder,
+				Type:     "code",
+				Data:     text[m.start:m.end],
+			})
+			lastEnd = m.end
+			spanID++
+		}
+		if lastEnd < len(text) {
+			newFrag.AppendText(text[lastEnd:])
+		}
+		seg.Content = newFrag
 	}
 }
 
 // matchSubfilter checks if the given key path matches any configured subfilter mapping.
-// Returns the first matching mapping, or nil if no match.
 func (r *Reader) matchSubfilter(path string) *format.SubfilterMapping {
 	for i := range r.cfg.Subfilters {
 		sf := &r.cfg.Subfilters[i]
@@ -238,13 +521,11 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	}
 
 	// Read sub-reader parts, skipping the sub-reader's own layer start/end
-	// (we already emitted our own child layer boundaries)
 	for pr := range subReader.Read(ctx) {
 		if pr.Error != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("json: subfilter read for %s: %w", path, pr.Error)}
 			break
 		}
-		// Skip the sub-reader's document-level layer events — we provide our own
 		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
 			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
 				continue
@@ -276,37 +557,9 @@ func (r *Reader) Close() error {
 }
 
 // matchGlob matches a path against a glob pattern.
-// Supports "*" (matches one path segment) and "**" (matches zero or more segments).
-// Segments are separated by ".".
 func matchGlob(pattern, path string) bool {
-	// Use filepath.Match for simple patterns after converting dots to slashes
 	patternNorm := strings.ReplaceAll(pattern, ".", "/")
 	pathNorm := strings.ReplaceAll(path, ".", "/")
-	// Handle array indices: "items[0]" → "items/[0]"
-	// filepath.Match doesn't handle brackets specially in our context
 	matched, _ := filepath.Match(patternNorm, pathNorm)
 	return matched
-}
-
-// sortedKeys returns the keys of a map in sorted order.
-func sortedKeys(m map[string]any) []string {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sortStrings(keys)
-	return keys
-}
-
-// sortStrings sorts a slice of strings in ascending order (insertion sort for small slices).
-func sortStrings(s []string) {
-	for i := 1; i < len(s); i++ {
-		key := s[i]
-		j := i - 1
-		for j >= 0 && s[j] > key {
-			s[j+1] = s[j]
-			j--
-		}
-		s[j+1] = key
-	}
 }

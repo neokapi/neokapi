@@ -3,8 +3,8 @@ package json
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -13,11 +13,11 @@ import (
 )
 
 // Writer implements DataFormatWriter for JSON files.
-// It collects all blocks by their key path name, then reconstructs the
-// original JSON structure by re-parsing the original document and replacing
-// string values with translated text from the blocks.
+// It uses a skeleton-based approach: on write, it scans the original JSON
+// tokens and replaces string values with their translated equivalents.
 type Writer struct {
 	format.BaseFormatWriter
+	cfg      *Config
 	resolver format.SubfilterResolver
 }
 
@@ -26,10 +26,13 @@ var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new JSON writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "json",
 		},
+		cfg: cfg,
 	}
 }
 
@@ -39,13 +42,8 @@ func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
 }
 
 // Write consumes Parts from a channel and writes reconstructed JSON.
-// It first collects all block parts into a map keyed by block name (the JSON
-// key path), then reconstructs the original JSON structure by walking the
-// original parsed tree and replacing string values with their translations.
-//
-// Child layers (from subfiltered content) are reconstructed by writing their
-// parts through the appropriate sub-format writer, producing a string value
-// for the parent JSON key.
+// The writer collects all blocks, then uses the original JSON structure
+// (stored in the layer) or builds from scratch.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	blocks := make(map[string]*model.Block)
 	childLayerValues := make(map[string]string) // layer.Name (key path) → reconstructed string
@@ -57,23 +55,26 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
-				// All parts consumed; reconstruct and write
 				return w.reconstruct(originalJSON, blocks, childLayerValues)
 			}
-			if part.Type == model.PartBlock {
-				block, ok := part.Resource.(*model.Block)
-				if ok {
+			switch part.Type {
+			case model.PartBlock:
+				if block, ok := part.Resource.(*model.Block); ok {
 					blocks[block.Name] = block
 				}
-			}
-			if part.Type == model.PartLayerStart {
-				if layer, ok := part.Resource.(*model.Layer); ok && layer.IsEmbedded() {
-					// Child layer: collect its parts and write through sub-writer
-					val, err := w.writeChildLayer(ctx, layer, parts)
-					if err != nil {
-						return fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+			case model.PartLayerStart:
+				if layer, ok := part.Resource.(*model.Layer); ok {
+					if layer.IsEmbedded() {
+						val, err := w.writeChildLayer(ctx, layer, parts)
+						if err != nil {
+							return fmt.Errorf("json: writing child layer %s: %w", layer.Name, err)
+						}
+						childLayerValues[layer.Name] = val
+					} else if layer.IsRoot() {
+						if raw, ok := layer.Properties["json.original"]; ok {
+							originalJSON = []byte(raw)
+						}
 					}
-					childLayerValues[layer.Name] = val
 				}
 			}
 		}
@@ -81,9 +82,8 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 }
 
 // writeChildLayer collects parts until the matching PartLayerEnd and writes them
-// through the appropriate sub-format writer, returning the reconstructed string.
+// through the appropriate sub-format writer.
 func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
-	// Collect child parts until PartLayerEnd
 	var childParts []*model.Part
 	for {
 		select {
@@ -103,7 +103,6 @@ func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts 
 	}
 
 collected:
-	// If no resolver, concatenate block texts as fallback
 	if w.resolver == nil {
 		return w.fallbackChildText(childParts), nil
 	}
@@ -119,7 +118,6 @@ collected:
 	}
 	subWriter.SetLocale(w.Locale)
 
-	// Feed child parts through sub-writer via channel
 	childCh := make(chan *model.Part, len(childParts))
 	for _, p := range childParts {
 		childCh <- p
@@ -149,152 +147,322 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 	return sb.String()
 }
 
-// reconstruct builds the JSON output by creating a new structure from the
-// collected blocks and child layer values.
+// reconstruct builds the JSON output from collected blocks.
+// If originalJSON is available, it does a token-level replacement preserving
+// the original formatting. Otherwise, it builds from block paths.
 func (w *Writer) reconstruct(originalJSON []byte, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	if originalJSON != nil {
+		return w.reconstructFromOriginal(originalJSON, blocks, childLayerValues)
+	}
+	return w.reconstructFromBlocks(blocks, childLayerValues)
+}
+
+// reconstructFromOriginal scans the original JSON tokens and replaces string
+// values with translated text while preserving all formatting.
+func (w *Writer) reconstructFromOriginal(original []byte, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	sc := newScanner(original)
+	tokens, err := sc.scan()
+	if err != nil {
+		return w.reconstructFromBlocks(blocks, childLayerValues)
+	}
+
+	var out strings.Builder
+	pos := 0
+	w.writeTokenValue(&out, tokens, &pos, "", blocks, childLayerValues)
+
+	// Write any trailing whitespace/comments from EOF token
+	if pos < len(tokens) && tokens[pos].typ == tokenEOF {
+		out.WriteString(tokens[pos].prefix)
+	}
+
+	_, writeErr := io.WriteString(w.Output, out.String())
+	return writeErr
+}
+
+// writeTokenValue writes a JSON value, replacing translatable strings with block text.
+func (w *Writer) writeTokenValue(out *strings.Builder, tokens []token, pos *int,
+	path string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+
+	if *pos >= len(tokens) {
+		return
+	}
+
+	tok := tokens[*pos]
+	switch tok.typ {
+	case tokenObjectStart:
+		w.writeTokenObject(out, tokens, pos, path, blocks, childLayerValues)
+	case tokenArrayStart:
+		w.writeTokenArray(out, tokens, pos, path, blocks, childLayerValues)
+	case tokenString:
+		// Check if there's a block or child layer value for this path
+		if val, ok := childLayerValues[path]; ok {
+			out.WriteString(tok.prefix)
+			out.WriteString(escapeJSONString(val, w.cfg.EscapeForwardSlashes))
+			*pos++
+		} else if block, ok := blocks[path]; ok {
+			text := w.blockText(block)
+			out.WriteString(tok.prefix)
+			out.WriteString(escapeJSONString(text, w.cfg.EscapeForwardSlashes))
+			*pos++
+		} else {
+			// Not a translatable string — write original
+			out.WriteString(tok.prefix)
+			out.WriteString(escapeJSONString(tok.value, w.cfg.EscapeForwardSlashes))
+			*pos++
+		}
+	default:
+		// Non-string value — write as-is
+		out.WriteString(tok.prefix)
+		out.WriteString(tok.raw)
+		*pos++
+	}
+}
+
+// writeTokenObject writes a JSON object, replacing string values.
+func (w *Writer) writeTokenObject(out *strings.Builder, tokens []token, pos *int,
+	parentPath string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+
+	out.WriteString(tokens[*pos].prefix)
+	out.WriteString("{")
+	*pos++
+
+	for *pos < len(tokens) {
+		tok := tokens[*pos]
+		if tok.typ == tokenObjectEnd {
+			out.WriteString(tok.prefix)
+			out.WriteString("}")
+			*pos++
+			return
+		}
+		if tok.typ == tokenComma {
+			out.WriteString(tok.prefix)
+			out.WriteString(",")
+			*pos++
+			continue
+		}
+		if tok.typ == tokenString {
+			key := tok.value
+			out.WriteString(tok.prefix)
+			out.WriteString(tok.raw) // preserve original key formatting
+			*pos++
+
+			// Write colon
+			if *pos < len(tokens) && tokens[*pos].typ == tokenColon {
+				out.WriteString(tokens[*pos].prefix)
+				out.WriteString(":")
+				*pos++
+			}
+
+			childPath := key
+			if parentPath != "" {
+				childPath = parentPath + "." + key
+			}
+			w.writeTokenValue(out, tokens, pos, childPath, blocks, childLayerValues)
+		}
+	}
+}
+
+// writeTokenArray writes a JSON array, replacing string values.
+func (w *Writer) writeTokenArray(out *strings.Builder, tokens []token, pos *int,
+	parentPath string, blocks map[string]*model.Block, childLayerValues map[string]string) {
+
+	out.WriteString(tokens[*pos].prefix)
+	out.WriteString("[")
+	*pos++
+
+	index := 0
+	for *pos < len(tokens) {
+		tok := tokens[*pos]
+		if tok.typ == tokenArrayEnd {
+			out.WriteString(tok.prefix)
+			out.WriteString("]")
+			*pos++
+			return
+		}
+		if tok.typ == tokenComma {
+			out.WriteString(tok.prefix)
+			out.WriteString(",")
+			*pos++
+			continue
+		}
+
+		childPath := parentPath + "[" + fmt.Sprintf("%d", index) + "]"
+		w.writeTokenValue(out, tokens, pos, childPath, blocks, childLayerValues)
+		index++
+	}
+}
+
+// reconstructFromBlocks builds JSON from scratch when no original is available.
+// This is the fallback path — it won't preserve original formatting.
+func (w *Writer) reconstructFromBlocks(blocks map[string]*model.Block, childLayerValues map[string]string) error {
 	if len(blocks) == 0 && len(childLayerValues) == 0 {
 		_, err := w.Output.Write([]byte("{}"))
 		return err
 	}
 
-	// Build a tree structure from block paths and child layer values
 	root := w.buildTree(blocks, childLayerValues)
 
-	// Marshal with indentation, preserving HTML characters unescaped.
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(root); err != nil {
-		return fmt.Errorf("json writer: marshaling: %w", err)
-	}
+	var buf strings.Builder
+	w.writeJSON(&buf, root, 0)
+	buf.WriteString("\n")
 
-	_, writeErr := w.Output.Write(buf.Bytes())
+	_, writeErr := io.WriteString(w.Output, buf.String())
 	return writeErr
 }
 
-// buildTree reconstructs a JSON value tree from the collected blocks and child layer values.
-// Block names encode the key path (e.g., "nested.key", "items[0]").
+// buildTree reconstructs a JSON value tree from blocks and child layer values.
 func (w *Writer) buildTree(blocks map[string]*model.Block, childLayerValues map[string]string) any {
-	root := make(map[string]any)
+	root := newOrderedMap()
 
 	for name, block := range blocks {
 		text := w.blockText(block)
-		w.setPath(root, name, text)
+		setNestedPath(root, name, text)
 	}
-
-	// Child layer values override/supplement block values at their key paths
 	for path, val := range childLayerValues {
-		w.setPath(root, path, val)
-	}
-
-	// If the root has only array indices as keys, return as array
-	if arr, ok := w.tryConvertToArray(root); ok {
-		return arr
+		setNestedPath(root, path, val)
 	}
 
 	return root
 }
 
-// setPath sets a value at the given dotted/bracketed path in the tree.
-func (w *Writer) setPath(root map[string]any, path string, value any) {
-	parts := w.parsePath(path)
-	current := any(root)
+// writeJSON writes a JSON value with indentation.
+func (w *Writer) writeJSON(buf *strings.Builder, value any, indent int) {
+	switch v := value.(type) {
+	case *orderedMap:
+		buf.WriteString("{\n")
+		for i, key := range v.keys {
+			w.writeIndent(buf, indent+1)
+			buf.WriteString(escapeJSONString(key, w.cfg.EscapeForwardSlashes))
+			buf.WriteString(": ")
+			w.writeJSON(buf, v.values[key], indent+1)
+			if i < len(v.keys)-1 {
+				buf.WriteString(",")
+			}
+			buf.WriteString("\n")
+		}
+		w.writeIndent(buf, indent)
+		buf.WriteString("}")
+	case *[]any:
+		w.writeJSON(buf, *v, indent)
+	case []any:
+		buf.WriteString("[\n")
+		for i, elem := range v {
+			w.writeIndent(buf, indent+1)
+			w.writeJSON(buf, elem, indent+1)
+			if i < len(v)-1 {
+				buf.WriteString(",")
+			}
+			buf.WriteString("\n")
+		}
+		w.writeIndent(buf, indent)
+		buf.WriteString("]")
+	case string:
+		buf.WriteString(escapeJSONString(v, w.cfg.EscapeForwardSlashes))
+	default:
+		buf.WriteString(fmt.Sprintf("%v", v))
+	}
+}
 
+func (w *Writer) writeIndent(buf *strings.Builder, level int) {
+	for i := 0; i < level; i++ {
+		buf.WriteString("  ")
+	}
+}
+
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.SourceText()
+}
+
+// orderedMap preserves key insertion order.
+type orderedMap struct {
+	keys   []string
+	values map[string]any
+}
+
+func newOrderedMap() *orderedMap {
+	return &orderedMap{values: make(map[string]any)}
+}
+
+func (m *orderedMap) set(key string, val any) {
+	if _, exists := m.values[key]; !exists {
+		m.keys = append(m.keys, key)
+	}
+	m.values[key] = val
+}
+
+func (m *orderedMap) get(key string) (any, bool) {
+	v, ok := m.values[key]
+	return v, ok
+}
+
+// setNestedPath sets a value at the given dotted/bracketed path in an orderedMap.
+func setNestedPath(root *orderedMap, path string, value any) {
+	parts := parsePath(path)
+	if len(parts) == 0 {
+		return
+	}
+
+	current := any(root)
 	for i, part := range parts {
 		isLast := i == len(parts)-1
 
-		if idx, isIndex := w.parseIndex(part); isIndex {
-			arr := w.ensureArray(current)
+		if idx, isIndex := parseIndex(part); isIndex {
+			arr, ok := current.(*[]any)
+			if !ok {
+				a := make([]any, 0)
+				arr = &a
+			}
+			for len(*arr) <= idx {
+				*arr = append(*arr, nil)
+			}
 			if isLast {
-				w.setArrayIndex(arr, idx, value)
-				if i > 0 {
-					w.setInParent(root, parts[:i], arr)
-				}
+				(*arr)[idx] = value
 			} else {
-				for len(*arr) <= idx {
-					*arr = append(*arr, nil)
-				}
 				if (*arr)[idx] == nil {
-					(*arr)[idx] = make(map[string]any)
+					nextPart := parts[i+1]
+					if _, nextIsIndex := parseIndex(nextPart); nextIsIndex {
+						a := make([]any, 0)
+						(*arr)[idx] = &a
+					} else {
+						(*arr)[idx] = newOrderedMap()
+					}
 				}
 				current = (*arr)[idx]
-				if i > 0 {
-					w.setInParent(root, parts[:i], arr)
-				}
 			}
 		} else {
-			obj, ok := current.(map[string]any)
+			obj, ok := current.(*orderedMap)
 			if !ok {
 				return
 			}
 			if isLast {
-				obj[part] = value
+				obj.set(part, value)
 			} else {
-				next := parts[i+1]
-				if _, isIdx := w.parseIndex(next); isIdx {
-					if _, exists := obj[part]; !exists {
-						arr := make([]any, 0)
-						obj[part] = &arr
+				existing, exists := obj.get(part)
+				if !exists {
+					nextPart := parts[i+1]
+					if _, nextIsIndex := parseIndex(nextPart); nextIsIndex {
+						a := make([]any, 0)
+						obj.set(part, &a)
+						current = &a
+					} else {
+						child := newOrderedMap()
+						obj.set(part, child)
+						current = child
 					}
-					current = obj[part]
 				} else {
-					if _, exists := obj[part]; !exists {
-						obj[part] = make(map[string]any)
-					}
-					current = obj[part]
+					current = existing
 				}
 			}
 		}
 	}
 }
 
-// setInParent updates the parent container to reference the given array.
-func (w *Writer) setInParent(root map[string]any, pathParts []string, arr *[]any) {
-	current := any(root)
-	for i, part := range pathParts {
-		isLast := i == len(pathParts)-1
-		if idx, isIndex := w.parseIndex(part); isIndex {
-			a := w.ensureArray(current)
-			if isLast {
-				_ = a
-				_ = idx
-			}
-		} else {
-			obj, ok := current.(map[string]any)
-			if !ok {
-				return
-			}
-			if isLast {
-				obj[part] = arr
-			} else {
-				current = obj[part]
-			}
-		}
-	}
-}
-
-func (w *Writer) ensureArray(current any) *[]any {
-	switch v := current.(type) {
-	case *[]any:
-		return v
-	default:
-		arr := make([]any, 0)
-		return &arr
-	}
-}
-
-func (w *Writer) setArrayIndex(arr *[]any, idx int, value any) {
-	for len(*arr) <= idx {
-		*arr = append(*arr, nil)
-	}
-	(*arr)[idx] = value
-}
-
-func (w *Writer) parsePath(path string) []string {
+func parsePath(path string) []string {
 	var parts []string
 	current := strings.Builder{}
-
 	for i := 0; i < len(path); i++ {
 		ch := path[i]
 		switch ch {
@@ -322,11 +490,10 @@ func (w *Writer) parsePath(path string) []string {
 	if current.Len() > 0 {
 		parts = append(parts, current.String())
 	}
-
 	return parts
 }
 
-func (w *Writer) parseIndex(part string) (int, bool) {
+func parseIndex(part string) (int, bool) {
 	if len(part) < 3 || part[0] != '[' || part[len(part)-1] != ']' {
 		return 0, false
 	}
@@ -335,15 +502,4 @@ func (w *Writer) parseIndex(part string) (int, bool) {
 		return 0, false
 	}
 	return idx, true
-}
-
-func (w *Writer) tryConvertToArray(m map[string]any) ([]any, bool) {
-	return nil, false
-}
-
-func (w *Writer) blockText(block *model.Block) string {
-	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-		return block.TargetText(w.Locale)
-	}
-	return block.SourceText()
 }

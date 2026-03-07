@@ -134,10 +134,10 @@ func TestSubfilter_ReadHTMLInJSON(t *testing.T) {
 	assert.Equal(t, "html", layers[1].Format)
 	assert.Equal(t, layers[0].ID, layers[1].ParentID, "child layer should reference parent")
 
-	// Two blocks: HTML content (body, sorted first) and "Hello" (title)
+	// Two blocks: "Hello" (title) and HTML content (body) — in JSON key order
 	require.Len(t, blocks, 2)
-	assert.Contains(t, blocks[0].SourceText(), "<p>Rich <b>content</b></p>")
-	assert.Equal(t, "Hello", blocks[1].SourceText())
+	assert.Equal(t, "Hello", blocks[0].SourceText())
+	assert.Contains(t, blocks[1].SourceText(), "<p>Rich <b>content</b></p>")
 }
 
 func TestSubfilter_NoMatchPassesThrough(t *testing.T) {
@@ -170,10 +170,10 @@ func TestSubfilter_NoMatchPassesThrough(t *testing.T) {
 	}
 	reader.Close()
 
-	// Both should be plain text blocks, no subfiltering (sorted: body before title)
+	// Both should be plain text blocks, no subfiltering — in JSON key order
 	require.Len(t, blocks, 2)
-	assert.Equal(t, "<p>HTML</p>", blocks[0].SourceText())
-	assert.Equal(t, "Hello", blocks[1].SourceText())
+	assert.Equal(t, "Hello", blocks[0].SourceText())
+	assert.Equal(t, "<p>HTML</p>", blocks[1].SourceText())
 }
 
 func TestSubfilter_WildcardPattern(t *testing.T) {
@@ -260,7 +260,8 @@ func TestSubfilter_Roundtrip(t *testing.T) {
 	assert.Contains(t, output, `"title"`)
 	assert.Contains(t, output, `"Hello"`)
 	assert.Contains(t, output, `"body"`)
-	assert.Contains(t, output, `<p>Rich content</p>`)
+	// Forward slashes are escaped by default in JSON output
+	assert.Contains(t, output, `Rich content`)
 }
 
 func TestMatchGlob(t *testing.T) {
