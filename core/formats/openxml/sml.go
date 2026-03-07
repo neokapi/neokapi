@@ -29,6 +29,9 @@ func (p *smlParser) parsePart(data []byte, partPath string, emitBlock func(*mode
 	if strings.Contains(partPath, "worksheet") || strings.Contains(partPath, "sheet") {
 		return p.parseWorksheet(data, partPath, emitBlock)
 	}
+	if strings.Contains(partPath, "table") {
+		return p.parseTable(data, partPath, emitBlock)
+	}
 	return nil
 }
 
@@ -163,6 +166,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 	var inRow, inCell, inValue bool
 	var cellType, cellRef string
 	var cellText strings.Builder
+	var hasFormula bool // tracks whether the current cell contains a <f> element
 
 	for {
 		tok, err := d.Token()
@@ -186,6 +190,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 					cellType = attrVal(t, "t")
 					cellRef = attrVal(t, "r")
 					cellText.Reset()
+					hasFormula = false
 					p.skelWriteStartElement(t)
 				}
 
@@ -204,6 +209,19 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 				}
 				p.skelWriteStartElement(t)
 
+			case "f":
+				if inCell {
+					// Capture the formula element and write it to skeleton verbatim.
+					hasFormula = true
+					raw, err := captureRawElement(d, t)
+					if err != nil {
+						return err
+					}
+					p.skelWriteString(raw)
+					continue
+				}
+				p.skelWriteStartElement(t)
+
 			case "sheetData", "worksheet":
 				p.skelWriteStartElement(t)
 
@@ -211,9 +229,12 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 				if !inCell {
 					p.skelWriteStartElement(t)
 				} else {
-					if err := skipElement(d); err != nil {
+					// Unknown child of <c>: capture and write to skeleton unchanged.
+					raw, err := captureRawElement(d, t)
+					if err != nil {
 						return err
 					}
+					p.skelWriteString(raw)
 				}
 			}
 
@@ -237,11 +258,12 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 						// Pass the <v>index</v> through to skeleton unchanged.
 						translatable = false
 					case "str":
-						translatable = text != ""
+						// Formula string results — not translatable (recalculated).
+						translatable = false
 					case "inlineStr":
-						translatable = text != ""
+						translatable = text != "" && !hasFormula
 					case "":
-						if text != "" {
+						if text != "" && !hasFormula {
 							_, err := strconv.ParseFloat(text, 64)
 							translatable = err != nil
 						}
@@ -275,6 +297,7 @@ func (p *smlParser) parseWorksheet(data []byte, partPath string, emitBlock func(
 					inCell = false
 					cellType = ""
 					cellRef = ""
+					hasFormula = false
 				} else {
 					p.skelWriteEndElement(t)
 				}
@@ -388,6 +411,126 @@ func (p *smlParser) buildBlock(id string, runs []textRun, partPath string, siInd
 		},
 		Annotations: make(map[string]model.Annotation),
 	}
+}
+
+// parseTable parses an Excel table definition (xl/tables/tableN.xml) and emits
+// blocks for translatable tableColumn name attributes. Excel requires these
+// names to match the header row cell values; without updating them after
+// translating shared strings, the file is reported as corrupted.
+func (p *smlParser) parseTable(data []byte, partPath string, emitBlock func(*model.Block)) error {
+	d := xml.NewDecoder(bytes.NewReader(data))
+
+	for {
+		tok, err := d.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("sml: parsing %s: %w", partPath, err)
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "tableColumn" {
+				p.skelWriteTableColumn(t, partPath, emitBlock)
+				continue
+			}
+			p.skelWriteStartElement(t)
+
+		case xml.EndElement:
+			p.skelWriteEndElement(t)
+
+		case xml.CharData:
+			p.skelText(xmlEscape(string(t)))
+
+		case xml.ProcInst:
+			p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+		}
+	}
+	return nil
+}
+
+// skelWriteTableColumn writes a <tableColumn> element to the skeleton,
+// extracting the "name" attribute as a translatable block.
+func (p *smlParser) skelWriteTableColumn(t xml.StartElement, partPath string, emitBlock func(*model.Block)) {
+	registerNamespaces(t.Attr)
+
+	var nameVal string
+	nameIdx := -1
+	for i, a := range t.Attr {
+		if a.Name.Local == "name" && (a.Name.Space == "" || a.Name.Space == t.Name.Space) {
+			nameVal = a.Value
+			nameIdx = i
+			break
+		}
+	}
+
+	if nameIdx < 0 || strings.TrimSpace(nameVal) == "" {
+		// No translatable name — write element unchanged
+		p.skelWriteStartElement(t)
+		return
+	}
+
+	*p.blockCounter++
+	blockID := fmt.Sprintf("tu%d", *p.blockCounter)
+
+	// Write the element with a skeleton ref in place of the name value
+	if p.skeletonStore != nil {
+		var buf strings.Builder
+		buf.WriteString("<")
+		writeElementName(&buf, t.Name)
+		for i, a := range t.Attr {
+			buf.WriteString(" ")
+			writeAttrName(&buf, a.Name)
+			buf.WriteString(`="`)
+			if i == nameIdx {
+				// Flush text before the ref, write ref, then continue
+				buf2 := buf.String()
+				p.skelBuf.WriteString(buf2)
+				p.skelRef(blockID)
+				p.skelWriteString(`"`)
+				// Write remaining attributes
+				for _, a2 := range t.Attr[i+1:] {
+					p.skelWriteString(" ")
+					var ab strings.Builder
+					writeAttrName(&ab, a2.Name)
+					p.skelWriteString(ab.String())
+					p.skelWriteString(`="`)
+					p.skelWriteString(xmlEscapeAttr(a2.Value))
+					p.skelWriteString(`"`)
+				}
+				p.skelWriteString(">")
+
+				block := &model.Block{
+					ID:           blockID,
+					Type:         "table-column",
+					Translatable: true,
+					Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(nameVal)}},
+					Targets:      make(map[model.LocaleID][]*model.Segment),
+					Properties:   map[string]string{"partPath": partPath},
+					Annotations:  make(map[string]model.Annotation),
+				}
+				emitBlock(block)
+				return
+			}
+			buf.WriteString(xmlEscapeAttr(a.Value))
+			buf.WriteString(`"`)
+		}
+	}
+
+	// Fallback when no skeleton store: just write the element normally
+	p.skelWriteStartElement(t)
+
+	block := &model.Block{
+		ID:           blockID,
+		Type:         "table-column",
+		Translatable: true,
+		Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment(nameVal)}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   map[string]string{"partPath": partPath},
+		Annotations:  make(map[string]model.Annotation),
+	}
+	emitBlock(block)
 }
 
 // Skeleton helpers

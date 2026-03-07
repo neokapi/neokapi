@@ -883,23 +883,27 @@ var nsRegistry = struct {
 }{m: make(map[string]string)}
 
 // registerNamespaces scans an element's attributes for xmlns declarations
-// and records the prefix → URI mapping.
+// and records the URI → prefix mapping.
 func registerNamespaces(attrs []xml.Attr) {
 	for _, a := range attrs {
 		if a.Name.Space == "xmlns" {
-			// xmlns:prefix="URI"
+			// xmlns:prefix="URI" → map URI to prefix
 			nsRegistry.m[a.Value] = a.Name.Local
+		} else if a.Name.Space == "" && a.Name.Local == "xmlns" {
+			// xmlns="URI" (default namespace) → map URI to "" (no prefix)
+			nsRegistry.m[a.Value] = ""
 		}
 	}
 }
 
 // resolvePrefix returns the namespace prefix for a URI, checking the dynamic
-// registry first, then the static map.
+// registry first (which reflects the document's actual declarations), then
+// falling back to the static map.
 func resolvePrefix(ns string) string {
-	if p, ok := nsPrefixMap[ns]; ok {
+	if p, ok := nsRegistry.m[ns]; ok {
 		return p
 	}
-	if p, ok := nsRegistry.m[ns]; ok {
+	if p, ok := nsPrefixMap[ns]; ok {
 		return p
 	}
 	return ""
@@ -1132,7 +1136,6 @@ func xmlEscape(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
 	s = strings.ReplaceAll(s, ">", "&gt;")
-	s = strings.ReplaceAll(s, "\"", "&quot;")
 	return s
 }
 
