@@ -13,16 +13,16 @@ import (
 )
 
 // Writer implements DataFormatWriter for JSON files.
-// It uses a skeleton-based approach: on write, it scans the original JSON
-// tokens and replaces string values with their translated equivalents.
 type Writer struct {
 	format.BaseFormatWriter
-	cfg      *Config
-	resolver format.SubfilterResolver
+	cfg           *Config
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
 }
 
-// Ensure Writer implements SubfilterAware.
+// Ensure Writer implements SubfilterAware and SkeletonStoreConsumer.
 var _ format.SubfilterAware = (*Writer)(nil)
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new JSON writer.
 func NewWriter() *Writer {
@@ -46,12 +46,16 @@ func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	w.resolver = resolver
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed JSON.
-// The writer collects all blocks, then uses the original JSON structure
-// (stored in the layer) or builds from scratch.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	blocks := make(map[string]*model.Block)
-	childLayerValues := make(map[string]string) // layer.Name (key path) → reconstructed string
+	blocksByID := make(map[string]*model.Block)     // block.ID → block (for skeleton store)
+	blocksByPath := make(map[string]*model.Block)    // json keypath → block (for token reparse)
+	childLayerValues := make(map[string]string)      // layer.Name (key path) → reconstructed string
 	var originalJSON []byte
 
 	for {
@@ -60,19 +64,18 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
-				return w.reconstruct(originalJSON, blocks, childLayerValues)
+				goto done
 			}
 			switch part.Type {
 			case model.PartBlock:
 				if block, ok := part.Resource.(*model.Block); ok {
-					// Index by raw key path for skeleton roundtrip.
-					// The reader stores json.keypath when the block name
-					// differs from the dotted path the writer builds.
+					blocksByID[block.ID] = block
+					// Index by raw key path for token-based roundtrip.
 					key := block.Name
 					if kp, ok := block.Properties["json.keypath"]; ok {
 						key = kp
 					}
-					blocks[key] = block
+					blocksByPath[key] = block
 				}
 			case model.PartLayerStart:
 				if layer, ok := part.Resource.(*model.Layer); ok {
@@ -91,6 +94,17 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+done:
+	// Mode 1: Skeleton store (byte-exact, streaming-friendly).
+	if w.skeletonStore != nil {
+		if err := w.skeletonStore.Flush(); err != nil {
+			return fmt.Errorf("json writer: flush skeleton: %w", err)
+		}
+		return w.writeFromSkeleton(w.skeletonStore, blocksByID, childLayerValues)
+	}
+
+	// Mode 2/3: Re-tokenize original JSON or build from blocks.
+	return w.reconstruct(originalJSON, blocksByPath, childLayerValues)
 }
 
 // writeChildLayer collects parts until the matching PartLayerEnd and writes them
@@ -157,6 +171,40 @@ func (w *Writer) fallbackChildText(parts []*model.Part) string {
 		}
 	}
 	return sb.String()
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block/layer content.
+// This produces byte-exact output — only translated text differs from the original.
+func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	for {
+		entry, err := store.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("json writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			var text string
+			if strings.HasPrefix(refID, "layer:") {
+				layerPath := refID[6:]
+				text = childLayerValues[layerPath]
+			} else if block, ok := blocks[refID]; ok {
+				text = w.blockText(block)
+			}
+			encoded := escapeJSONString(text, w.cfg.EscapeForwardSlashes)
+			if _, err := io.WriteString(w.Output, encoded); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // reconstruct builds the JSON output from collected blocks.

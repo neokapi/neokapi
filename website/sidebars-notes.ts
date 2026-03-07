@@ -17,6 +17,7 @@ const sidebars: SidebarsConfig = {
     'docker-compose',
     'mcp-tools-reference',
     'skeleton-store',
+    'implementing-formats',
   ],
 };
 
