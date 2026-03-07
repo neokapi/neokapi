@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	jsonfmt "github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -1190,4 +1191,263 @@ func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
 
 	assert.Contains(t, buf.String(), `"Hola"`)
 	assert.Contains(t, buf.String(), `"translator hint"`)
+}
+
+// --- Skeleton Store Roundtrip Tests ---
+
+func snippetRoundtripWithSkeleton(t *testing.T, snippet string, params map[string]any) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := jsonfmt.NewReader()
+	writer := jsonfmt.NewWriter()
+
+	if params != nil {
+		require.NoError(t, reader.Config().ApplyMap(params))
+		if v, ok := params["escapeForwardSlashes"]; ok {
+			if b, ok := v.(bool); ok {
+				writer.Config().EscapeForwardSlashes = b
+			}
+		}
+	}
+
+	// Wire skeleton store.
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(snippet, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	return buf.String()
+}
+
+func TestSkeletonStore_ByteExact(t *testing.T) {
+	cases := []struct {
+		name   string
+		input  string
+		params map[string]any
+	}{
+		{"simple", `{"key": "value"}`, nil},
+		{"whitespace", "{\n    \"key\" :   \"value\"\n}", nil},
+		{"line_comment", "{\n  // line comment\n  \"key\": \"value\"\n}", nil},
+		{"block_comment", "{\n  /* block */\n  \"key\": \"value\"\n}", nil},
+		{"hash_comment", "{\n  # hash comment\n  \"key\": \"value\"\n}", nil},
+		{"mixed_comments", "{\n  // line\n  /* block */\n  # hash\n  \"key\": \"value\"\n}", nil},
+		{"nested", `{"parent": {"child": "value"}, "other": "text"}`, nil},
+		{"array_isolated", `{"items": ["a", "b", "c"]}`, map[string]any{"extractIsolatedStrings": true}},
+		{"array_non_isolated", `{"items": ["a", "b", "c"]}`, nil},
+		{"non_string_values", `{"name": "Test", "count": 42, "rate": 3.14, "active": true, "deleted": false, "meta": null}`, nil},
+		{"multiline", "{\n  \"title\": \"Hello\",\n  \"nested\": {\n    \"key\": \"World\"\n  },\n  \"count\": 5\n}", nil},
+		{"trailing_newline", "{\"key\": \"value\"}\n", nil},
+		{"empty_object", `{"data": {}, "text": "Hello"}`, nil},
+		{"unicode_escapes_non_translatable", `{"id": "\u0041\u0042", "text": "Hello"}`, map[string]any{"idRules": "id"}},
+		{"escaped_slash_non_translatable", `{"note": "see a\/b", "text": "Hello"}`, map[string]any{"noteRules": "note"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			output := snippetRoundtripWithSkeleton(t, tc.input, tc.params)
+			assert.Equal(t, tc.input, output, "skeleton store roundtrip should be byte-exact")
+		})
+	}
+}
+
+func TestSkeletonStore_WithTranslation(t *testing.T) {
+	input := `{"greeting": "Hello World", "farewell": "Goodbye"}`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := jsonfmt.NewReader()
+	writer := jsonfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			switch b.SourceText() {
+			case "Hello World":
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour le monde")}}
+			case "Goodbye":
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Au revoir")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	output := buf.String()
+	assert.Equal(t, `{"greeting": "Bonjour le monde", "farewell": "Au revoir"}`, output)
+}
+
+func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
+	input := `{"parent": {"child": "Hello"}}`
+	ctx := context.Background()
+	locale := model.LocaleID("de")
+
+	reader := jsonfmt.NewReader()
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{
+		"useKeyAsName":  true,
+		"useFullKeyPath": true,
+	}))
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "Hello" {
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Hallo")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Equal(t, `{"parent": {"child": "Hallo"}}`, buf.String())
+}
+
+func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
+	input := `{"id": "my-id", "text": "Hello"}`
+	ctx := context.Background()
+	locale := model.LocaleID("es")
+
+	reader := jsonfmt.NewReader()
+	writer := jsonfmt.NewWriter()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"idRules": "id"}))
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "Hello" {
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Hola")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Equal(t, `{"id": "my-id", "text": "Hola"}`, buf.String())
+}
+
+func TestSkeletonStore_PreservesFormatting(t *testing.T) {
+	input := `{
+  "title" : "Hello World",
+  "nested" : {
+    "description" : "A description",
+    "count" : 42
+  },
+  "tags" : [ "a", "b" ]
+}
+`
+	output := snippetRoundtripWithSkeleton(t, input, nil)
+	assert.Equal(t, input, output, "skeleton store should preserve all formatting including extra spaces")
+}
+
+func TestSkeletonStore_Exceptions(t *testing.T) {
+	input := `{"title": "Hello", "id": "skip-me", "body": "World"}`
+	output := snippetRoundtripWithSkeleton(t, input, map[string]any{
+		"extractAllPairs": true,
+		"exceptions":      "^id$",
+	})
+	assert.Equal(t, input, output, "skeleton store should preserve non-extracted values byte-exact")
+}
+
+func TestSkeletonStore_EscapeForwardSlashes(t *testing.T) {
+	// With escapeForwardSlashes=true (default), translated text should have \/
+	input := `{"url": "http://example.com"}`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := jsonfmt.NewReader()
+	writer := jsonfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "http://example.com" {
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("http://exemple.fr")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), `http:\/\/exemple.fr`)
 }
