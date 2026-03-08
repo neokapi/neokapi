@@ -573,7 +573,7 @@ func (a *App) resolveOutputPath(inputPath, outputTemplate string) string {
 		out := expandOutputTemplate(outputTemplate, name, a.TargetLang, extNoDot, dir)
 		// Ensure output directory exists (template may target a new directory).
 		if outDir := filepath.Dir(out); outDir != "." {
-			os.MkdirAll(outDir, 0o755)
+			_ = os.MkdirAll(outDir, 0o755)
 		}
 		return out
 	}
@@ -646,72 +646,6 @@ func (a *App) buildFlowTools(flowName string) ([]tool.Tool, error) {
 	}
 }
 
-func (a *App) buildFlowToolFactories(flowName string) ([]flow.ToolFactory, error) {
-	switch flowName {
-	case "ai-translate":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				p := a.getProvider()
-				return tools.NewAITranslateTool(p, tools.AITranslateConfig{
-					SourceLocale: model.LocaleID(a.SourceLang),
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}), nil
-			},
-		}, nil
-	case "ai-translate-qa":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				p := a.getProvider()
-				return tools.NewAITranslateTool(p, tools.AITranslateConfig{
-					SourceLocale: model.LocaleID(a.SourceLang),
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}), nil
-			},
-			func() (tool.Tool, error) {
-				p := a.getProvider()
-				return tools.NewAIQACheckTool(p, tools.AIQAConfig{
-					SourceLocale: model.LocaleID(a.SourceLang),
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}), nil
-			},
-		}, nil
-	case "pseudo-translate":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}), nil
-			},
-		}, nil
-	case "qa-check":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))), nil
-			},
-		}, nil
-	case "segmentation":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
-					TargetLocale: model.LocaleID(a.TargetLang),
-				}), nil
-			},
-		}, nil
-	case "tm-leverage":
-		return []flow.ToolFactory{
-			func() (tool.Tool, error) {
-				return libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
-					SourceLocale:   model.LocaleID(a.SourceLang),
-					TargetLocale:   model.LocaleID(a.TargetLang),
-					FuzzyThreshold: 70,
-					Provider:       libtools.NullTMProvider{},
-				}), nil
-			},
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown flow: %q", flowName)
-	}
-}
 
 func (a *App) getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()
