@@ -15,6 +15,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
+	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	xmlfmt "github.com/gokapi/gokapi/core/formats/xml"
 	"github.com/gokapi/gokapi/core/formats/yaml"
 	"github.com/gokapi/gokapi/core/registry"
@@ -81,4 +82,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// OpenXML (DOCX, PPTX, XLSX)
 	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+
+	// Qt TS (Qt Linguist)
+	reg.RegisterReader("ts", func() format.DataFormatReader { return tsfmt.NewReader() })
+	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
 }
