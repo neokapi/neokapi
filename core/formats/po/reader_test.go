@@ -271,6 +271,7 @@ func TestReadSimpleFile(t *testing.T) {
 	assert.False(t, blocks[2].HasTarget(model.LocaleFrench))
 }
 
+// okapi: RoundTripPoIT
 func TestRoundTrip(t *testing.T) {
 	input := `msgid ""
 msgstr ""
@@ -289,6 +290,31 @@ msgstr ""
 `
 	output := roundTrip(t, input)
 	assert.Equal(t, input, output)
+}
+
+// okapi: RoundTripSimplifyPoIT
+func TestRoundTrip_POTFile(t *testing.T) {
+	// Native roundtrip for POT files — the POT format is just PO without
+	// translations, the reader/writer handle both identically.
+	input := `msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Untranslated string"
+msgstr ""
+
+msgid "Another string"
+msgstr ""
+`
+	output := roundTrip(t, input)
+	assert.Equal(t, input, output)
+
+	// Verify blocks are extracted correctly.
+	parts := readDefault(t, input)
+	blocks := translatableBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "Untranslated string", blocks[0].SourceText())
+	assert.Equal(t, "Another string", blocks[1].SourceText())
 }
 
 // okapi: POFilterTest#testOuputEntryWithCTXT

@@ -363,6 +363,34 @@ func TestSnippets_ParaWithBreak(t *testing.T) {
 	assert.True(t, blockTextsContain(texts, "Another para"), "should contain 'Another para'")
 }
 
+// okapi: HtmlSnippetsTest#testPWithInlines2
+func TestSnippets_PWithInlines2(t *testing.T) {
+	parts := readHTML(t, `<p>Before <img href="img.png" alt="text"/> after.</p>`)
+	blocks := translatableBlocks(parts)
+	require.NotEmpty(t, blocks)
+	paraBlock := findBlockContaining(blocks, "Before")
+	require.NotNil(t, paraBlock, "should have paragraph block")
+	assert.Contains(t, paraBlock.SourceText(), "Before")
+	assert.Contains(t, paraBlock.SourceText(), "after.")
+}
+
+// okapi: HtmlSnippetsTest#testTableGroups
+func TestSnippets_TableGroups(t *testing.T) {
+	parts := readHTML(t, `<table id="100"><tr><td>text</td></tr></table>`)
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "text")
+}
+
+// okapi: HtmlSnippetsTest#testGroupInPara
+func TestSnippets_GroupInPara(t *testing.T) {
+	parts := readHTML(t, "<p>Text before list:<ul><li>Text of item 1</li><li>Text of item 2</li></ul>and text after the list.</p>")
+	blocks := translatableBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.True(t, blockTextsContain(texts, "Text of item 1"), "should contain 'Text of item 1'")
+	assert.True(t, blockTextsContain(texts, "Text of item 2"), "should contain 'Text of item 2'")
+}
+
 // okapi: HtmlSnippetsTest#testTranslateAttribute
 func TestSnippets_TranslateAttribute(t *testing.T) {
 	parts := readHTML(t, "<p>text with a <span translate='no'>no-translation part</span> and more.</p>")
@@ -1719,6 +1747,8 @@ func TestBom_DetectAndRemoveBom(t *testing.T) {
 // okapi-unmapped: HtmlFullFileTest#testEncodingShouldBeFound2 — requires testdata file W3CHTMHLTest1.html.
 // okapi-unmapped: HtmlFullFileTest#testOkapiIntro — requires testdata file okapi_intro_test.html.
 // okapi-unmapped: RoundTripHtmlIT#htmlFiles — integration roundtrip over 83 testdata files requires okapi-testdata release.
+// okapi-unmapped: RoundTripHtmlIT#htmlFiles (htm extension) — integration roundtrip over .htm testdata files requires okapi-testdata release.
+// okapi-unmapped: RoundTripHtmlIT#htmlFiles (xhtml extension) — integration roundtrip over .xhtml testdata files requires okapi-testdata release.
 // okapi-unmapped: RoundTripHtmlIT#htmlFilesSerialized — serialized roundtrip is Okapi-specific.
 // okapi-unmapped: HtmlXliffCompareIT — XLIFF comparison requires bridge infrastructure.
 // okapi-unmapped: RoundTripSimplifyHtmlIT — simplifier integration test requires Okapi simplifier step.
