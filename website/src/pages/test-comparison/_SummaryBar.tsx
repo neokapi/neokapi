@@ -1,5 +1,5 @@
 import {useMemo} from 'react';
-import type {FilterComparison, Summary, SkipCategory} from './_types';
+import type {FilterComparison, Summary, SkipCategory, StateFilter} from './_types';
 import {skipCategoryLabels, skipCategoryColors} from './_types';
 import styles from './_index.module.css';
 
@@ -7,6 +7,8 @@ interface Props {
   summary: Summary;
   generatedAt: string;
   filters?: FilterComparison[];
+  stateFilter?: StateFilter;
+  onStateFilter?: (state: StateFilter) => void;
 }
 
 interface AggregateStats {
@@ -179,6 +181,8 @@ export default function SummaryBar({
   summary,
   generatedAt,
   filters,
+  stateFilter,
+  onStateFilter,
 }: Props) {
   const stats = useMemo(
     () => (filters ? aggregateStats(filters) : null),
@@ -220,17 +224,38 @@ export default function SummaryBar({
         </div>
         {stats ? (
           <>
-            <div className={styles.statCard}>
+            <div
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'implemented' ? styles.statCardActive : ''}`}
+              onClick={() => onStateFilter?.('implemented')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && onStateFilter?.('implemented')
+              }>
               <div className={`${styles.statValue} ${styles.statGreen}`}>
                 {stats.implemented}
               </div>
               <div className={styles.statLabel}>Implemented</div>
             </div>
-            <div className={styles.statCard}>
+            <div
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'not-applicable' ? styles.statCardActive : ''}`}
+              onClick={() => onStateFilter?.('not-applicable')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && onStateFilter?.('not-applicable')
+              }>
               <div className={styles.statValue}>{stats.notApplicable}</div>
               <div className={styles.statLabel}>Not Applicable</div>
             </div>
-            <div className={styles.statCard}>
+            <div
+              className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'unmapped' ? styles.statCardActive : ''}`}
+              onClick={() => onStateFilter?.('unmapped')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) =>
+                e.key === 'Enter' && onStateFilter?.('unmapped')
+              }>
               <div
                 className={`${styles.statValue} ${stats.unmapped > 0 ? styles.statRed : ''}`}>
                 {stats.unmapped}
@@ -238,7 +263,14 @@ export default function SummaryBar({
               <div className={styles.statLabel}>Unmapped</div>
             </div>
             {stats.pending > 0 && (
-              <div className={styles.statCard}>
+              <div
+                className={`${styles.statCard} ${styles.statCardClickable} ${stateFilter === 'pending' ? styles.statCardActive : ''}`}
+                onClick={() => onStateFilter?.('pending')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) =>
+                  e.key === 'Enter' && onStateFilter?.('pending')
+                }>
                 <div className={`${styles.statValue} ${styles.statYellow}`}>
                   {stats.pending}
                 </div>

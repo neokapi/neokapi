@@ -27,6 +27,7 @@ export interface Summary {
 
 export interface FilterComparison {
   filterName: string;
+  nativeFilterName?: string; // native Go package name if different (e.g. "csv" for "table")
   okapi: FilterResult | null;
   bridge: FilterResult | null;
   native: FilterResult | null;
@@ -66,6 +67,14 @@ export interface TestCase {
 
 /** Test state classification. */
 export type TestState = 'implemented' | 'pending' | 'skipped' | 'unmapped';
+
+/** State filter applied from the summary bar to the format list. */
+export type StateFilter =
+  | null
+  | 'implemented'
+  | 'not-applicable'
+  | 'pending'
+  | 'unmapped';
 
 /** Auto-classified category for not-applicable tests. */
 export type SkipCategory =
@@ -209,6 +218,7 @@ export function normalizeFilter(f: FilterComparison): FilterComparison {
 
   return {
     filterName: f.filterName,
+    nativeFilterName: f.nativeFilterName,
     okapi: f.okapi ?? null,
     bridge,
     native,

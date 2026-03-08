@@ -8,6 +8,7 @@ interface Props {
   filterName: string;
   goCommitSHA?: string;
   okapiTag?: string;
+  defaultFilter?: string;
 }
 
 type FilterMode =
@@ -126,8 +127,11 @@ export default function TestCaseTable({
   filterName,
   goCommitSHA,
   okapiTag,
+  defaultFilter,
 }: Props) {
-  const [filter, setFilter] = useState<FilterMode>('all');
+  const [filter, setFilter] = useState<FilterMode>(
+    (defaultFilter as FilterMode) || 'all',
+  );
   const [sort, setSort] = useState<SortMode>('name');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 

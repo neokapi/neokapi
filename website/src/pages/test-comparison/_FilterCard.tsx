@@ -7,6 +7,8 @@ interface Props {
   filter: FilterComparison;
   goCommitSHA?: string;
   okapiTag?: string;
+  defaultExpanded?: boolean;
+  defaultTestFilter?: string;
 }
 
 function statusColor(filter: FilterComparison): string {
@@ -209,8 +211,14 @@ export function FilterColumnHeadings() {
   );
 }
 
-export default function FilterCard({filter, goCommitSHA, okapiTag}: Props) {
-  const [expanded, setExpanded] = useState(false);
+export default function FilterCard({
+  filter,
+  goCommitSHA,
+  okapiTag,
+  defaultExpanded,
+  defaultTestFilter,
+}: Props) {
+  const [expanded, setExpanded] = useState(defaultExpanded ?? false);
 
   return (
     <div className={`card ${styles.filterCard}`}>
@@ -223,6 +231,11 @@ export default function FilterCard({filter, goCommitSHA, okapiTag}: Props) {
         <div className={styles.filterHeaderLeft}>
           <span className={`${styles.statusDot} ${statusColor(filter)}`} />
           <strong>{filter.filterName}</strong>
+          {filter.nativeFilterName && (
+            <span className={styles.nativeAlias}>
+              ({filter.nativeFilterName})
+            </span>
+          )}
           <CoverageBar filter={filter} />
           <span className={styles.expandIcon}>
             {expanded ? '\u25BE' : '\u25B8'}
@@ -242,6 +255,7 @@ export default function FilterCard({filter, goCommitSHA, okapiTag}: Props) {
               filterName={filter.filterName}
               goCommitSHA={goCommitSHA}
               okapiTag={okapiTag}
+              defaultFilter={defaultTestFilter}
             />
           ) : (
             <p className={styles.noData}>No test data available.</p>
