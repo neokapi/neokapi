@@ -13,6 +13,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	"github.com/gokapi/gokapi/core/formats/srt"
+	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/vtt"
@@ -106,4 +107,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// Wiki (MediaWiki/DokuWiki)
 	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
 	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
+
+	// TeX/LaTeX
+	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
+	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 }
