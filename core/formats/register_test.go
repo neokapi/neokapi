@@ -24,8 +24,10 @@ func TestRegisterAllReaders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
+		"regex", "doxygen", "messageformat", "phpcontent",
+		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 	}
 
@@ -42,8 +44,10 @@ func TestRegisterAllWriters(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
 		"mosestext", "dtd", "ts", "wiki", "tex",
+		"regex", "doxygen", "messageformat", "phpcontent",
+		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
 	}
 
@@ -81,8 +85,8 @@ func TestCollectNativeDecoders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "ts",
-		"fixedwidth",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx",
+		"ts", "fixedwidth", "phpcontent",
 	}
 	for _, name := range expectedFormats {
 		kind := config.FormatConfigKind(name)

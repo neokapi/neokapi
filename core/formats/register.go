@@ -7,23 +7,25 @@ import (
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/fixedwidth"
 	"github.com/gokapi/gokapi/core/formats/html"
+	"github.com/gokapi/gokapi/core/formats/icml"
 	"github.com/gokapi/gokapi/core/formats/idml"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
 	"github.com/gokapi/gokapi/core/formats/openxml"
+	"github.com/gokapi/gokapi/core/formats/paraplaintext"
 	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	regexfmt "github.com/gokapi/gokapi/core/formats/regex"
-	"github.com/gokapi/gokapi/core/formats/srt"
-	"github.com/gokapi/gokapi/core/formats/paraplaintext"
 	"github.com/gokapi/gokapi/core/formats/splicedlines"
+	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/transtable"
+	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/versifiedtext"
 	"github.com/gokapi/gokapi/core/formats/vignette"
@@ -125,6 +127,34 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// TeX/LaTeX
 	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
+
+	// Regex
+	reg.RegisterReader("regex", func() format.DataFormatReader { return regexfmt.NewReader() })
+	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
+
+	// Doxygen
+	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
+	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
+
+	// ICU MessageFormat
+	reg.RegisterReader("messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
+	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
+
+	// PHP Content
+	reg.RegisterReader("phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
+	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
+
+	// ICML (InCopy Markup Language)
+	reg.RegisterReader("icml", func() format.DataFormatReader { return icml.NewReader() })
+	reg.RegisterWriter("icml", func() format.DataFormatWriter { return icml.NewWriter() })
+
+	// IDML (InDesign Markup Language)
+	reg.RegisterReader("idml", func() format.DataFormatReader { return idml.NewReader() })
+	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
+
+	// Fixed-Width Table
+	reg.RegisterReader("fixedwidth", func() format.DataFormatReader { return fixedwidth.NewReader() })
+	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
 
 	// Translation Table
 	reg.RegisterReader("transtable", func() format.DataFormatReader { return transtable.NewReader() })
