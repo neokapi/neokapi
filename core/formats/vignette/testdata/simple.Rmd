@@ -1,0 +1,19 @@
+---
+title: "My Vignette"
+output: html_document
+---
+
+This is an introduction paragraph.
+
+```{r setup}
+library(ggplot2)
+data <- read.csv("data.csv")
+```
+
+This is text after the code chunk.
+
+```{r plot}
+plot(data)
+```
+
+This is the conclusion.

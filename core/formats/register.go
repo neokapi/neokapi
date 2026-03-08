@@ -13,9 +13,14 @@ import (
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	"github.com/gokapi/gokapi/core/formats/srt"
+	"github.com/gokapi/gokapi/core/formats/paraplaintext"
+	"github.com/gokapi/gokapi/core/formats/splicedlines"
 	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
+	"github.com/gokapi/gokapi/core/formats/transtable"
 	"github.com/gokapi/gokapi/core/formats/ttml"
+	"github.com/gokapi/gokapi/core/formats/versifiedtext"
+	"github.com/gokapi/gokapi/core/formats/vignette"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/wiki"
 	"github.com/gokapi/gokapi/core/formats/xliff"
@@ -111,4 +116,24 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// TeX/LaTeX
 	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
+
+	// Translation Table
+	reg.RegisterReader("transtable", func() format.DataFormatReader { return transtable.NewReader() })
+	reg.RegisterWriter("transtable", func() format.DataFormatWriter { return transtable.NewWriter() })
+
+	// Paragraph Plain Text
+	reg.RegisterReader("paraplaintext", func() format.DataFormatReader { return paraplaintext.NewReader() })
+	reg.RegisterWriter("paraplaintext", func() format.DataFormatWriter { return paraplaintext.NewWriter() })
+
+	// Spliced Lines
+	reg.RegisterReader("splicedlines", func() format.DataFormatReader { return splicedlines.NewReader() })
+	reg.RegisterWriter("splicedlines", func() format.DataFormatWriter { return splicedlines.NewWriter() })
+
+	// Versified Text
+	reg.RegisterReader("versifiedtext", func() format.DataFormatReader { return versifiedtext.NewReader() })
+	reg.RegisterWriter("versifiedtext", func() format.DataFormatWriter { return versifiedtext.NewWriter() })
+
+	// R Vignette
+	reg.RegisterReader("vignette", func() format.DataFormatReader { return vignette.NewReader() })
+	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
 }
