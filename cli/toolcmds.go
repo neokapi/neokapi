@@ -31,7 +31,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
 		},
 		NewCollector: func() flow.Collector {
-			return libtools.NewWordCountCollector()
+			return libtools.NewStreamingWordCountCollector()
 		},
 	},
 	{
@@ -94,6 +94,9 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					effectiveLang = d.DefaultTargetLang
 				}
 
+				tracePath, _ := cmd.Flags().GetString("trace")
+				parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
+
 				return a.RunToolOnFiles(context.Background(), ToolRunConfig{
 					ToolName:       d.Use,
 					Files:          args,
@@ -105,6 +108,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					Progress:       progress,
 					OutputTemplate: outputTmpl,
 					TargetLang:     effectiveLang,
+					TracePath:      tracePath,
+					ParallelBlocks: parallelBlocks,
 					NewTool: func() (tool.Tool, error) {
 						return d.NewTool(effectiveLang, pseudoExpansion)
 					},
@@ -126,6 +131,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		if d.Use == "pseudo-translate" {
 			cmd.Flags().IntVar(&pseudoExpansion, "expansion", 0, "text expansion percentage (0 = none)")
 		}
+		cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+		cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 		cmds = append(cmds, cmd)
 	}
 

@@ -1,0 +1,284 @@
+package flow
+
+import (
+	"context"
+	"sync"
+	"time"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+)
+
+// TraceEvent represents a single timestamped event during flow execution.
+type TraceEvent struct {
+	TS     int64          `json:"ts"`               // microseconds from flow start
+	Type   string         `json:"type"`             // event type (e.g., "enter", "exit")
+	NodeID string         `json:"nodeId"`           // which node
+	PartID string         `json:"partId,omitempty"` // which Part
+	Meta   map[string]any `json:"meta,omitempty"`   // extra data
+}
+
+// PartSnapshot captures the state of a Part at a point in time.
+type PartSnapshot struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`                 // "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
+	Summary    string `json:"summary"`              // short description
+	SourceText string `json:"sourceText,omitempty"` // source text for blocks
+	TargetText string `json:"targetText,omitempty"` // target text for blocks
+}
+
+// PartSnapshotSet holds the initial snapshot and snapshots after each node.
+type PartSnapshotSet struct {
+	Initial   PartSnapshot            `json:"initial"`
+	AfterNode map[string]PartSnapshot `json:"afterNode,omitempty"`
+}
+
+// FlowTrace is the top-level output of a traced flow execution.
+type FlowTrace struct {
+	Name        string                      `json:"name"`
+	Description string                      `json:"description"`
+	Nodes       []TraceNode                 `json:"nodes"`
+	ChannelSize int                         `json:"channelSize"`
+	Events      []TraceEvent                `json:"events"`
+	Parts       map[string]*PartSnapshotSet `json:"parts"`
+	InputFile   TraceFile                   `json:"inputFile"`
+	OutputFile  TraceFile                   `json:"outputFile"`
+	DurationUs  int64                       `json:"durationUs"`
+}
+
+// TraceNode describes a node in the flow graph.
+type TraceNode struct {
+	ID    string `json:"id"`
+	Type  string `json:"type"` // "reader", "tool", "writer"
+	Name  string `json:"name"`
+	Label string `json:"label"`
+}
+
+// TraceFile describes an input or output file.
+type TraceFile struct {
+	Name    string `json:"name"`
+	Format  string `json:"format,omitempty"`
+	Preview string `json:"preview"`
+}
+
+// TraceRecorder is a thread-safe event collector for flow tracing.
+type TraceRecorder struct {
+	mu        sync.Mutex
+	start     time.Time
+	events    []TraceEvent
+	snapshots map[string]*PartSnapshotSet
+}
+
+// NewTraceRecorder creates a new TraceRecorder with the clock starting now.
+func NewTraceRecorder() *TraceRecorder {
+	return &TraceRecorder{
+		start:     time.Now(),
+		events:    make([]TraceEvent, 0, 256),
+		snapshots: make(map[string]*PartSnapshotSet),
+	}
+}
+
+// Record adds a timestamped event to the trace.
+func (r *TraceRecorder) Record(eventType string, nodeID string, partID string, meta map[string]any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.events = append(r.events, TraceEvent{
+		TS:     time.Since(r.start).Microseconds(),
+		Type:   eventType,
+		NodeID: nodeID,
+		PartID: partID,
+		Meta:   meta,
+	})
+}
+
+// SnapshotPart captures a snapshot of a Part. When phase is "initial", the
+// snapshot is stored as the initial state. Otherwise, phase is treated as the
+// nodeID and stored in AfterNode.
+func (r *TraceRecorder) SnapshotPart(part *model.Part, nodeID string, phase string) {
+	snap := snapshotFromPart(part)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	id := part.Resource.ResourceID()
+	if phase == "initial" {
+		r.snapshots[id] = &PartSnapshotSet{
+			Initial:   snap,
+			AfterNode: make(map[string]PartSnapshot),
+		}
+	} else if ss, ok := r.snapshots[id]; ok {
+		ss.AfterNode[nodeID] = snap
+	}
+}
+
+// Events returns a copy of all recorded events.
+func (r *TraceRecorder) Events() []TraceEvent {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make([]TraceEvent, len(r.events))
+	copy(out, r.events)
+	return out
+}
+
+// DurationUs returns the elapsed time in microseconds since the recorder was created.
+func (r *TraceRecorder) DurationUs() int64 {
+	return time.Since(r.start).Microseconds()
+}
+
+// Snapshots returns a copy of all recorded part snapshots.
+func (r *TraceRecorder) Snapshots() map[string]*PartSnapshotSet {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make(map[string]*PartSnapshotSet, len(r.snapshots))
+	for k, v := range r.snapshots {
+		out[k] = v
+	}
+	return out
+}
+
+// snapshotFromPart creates a PartSnapshot from a Part.
+func snapshotFromPart(part *model.Part) PartSnapshot {
+	if part == nil || part.Resource == nil {
+		return PartSnapshot{Type: "Unknown", Summary: "<nil>"}
+	}
+
+	snap := PartSnapshot{
+		ID:   part.Resource.ResourceID(),
+		Type: part.Type.String(),
+	}
+
+	switch part.Type {
+	case model.PartBlock:
+		block, ok := part.Resource.(*model.Block)
+		if ok {
+			srcText := block.SourceText()
+			snap.SourceText = srcText
+			// Get target text from the first locale found.
+			for loc := range block.Targets {
+				snap.TargetText = block.TargetText(loc)
+				break
+			}
+			// Summary: first 40 chars of source text.
+			if len(srcText) > 40 {
+				snap.Summary = srcText[:40] + "..."
+			} else if srcText != "" {
+				snap.Summary = srcText
+			} else {
+				snap.Summary = "empty block"
+			}
+		}
+	case model.PartLayerStart:
+		layer, ok := part.Resource.(*model.Layer)
+		if ok {
+			snap.Summary = "Layer: " + layer.Name
+			if snap.Summary == "Layer: " {
+				snap.Summary = "Layer: " + layer.ID
+			}
+		}
+	case model.PartLayerEnd:
+		snap.Summary = "end layer " + snap.ID
+	case model.PartData:
+		data, ok := part.Resource.(*model.Data)
+		if ok {
+			snap.Summary = "Data: " + data.Name
+			if snap.Summary == "Data: " {
+				snap.Summary = "Data: " + data.ID
+			}
+		}
+	case model.PartMedia:
+		media, ok := part.Resource.(*model.Media)
+		if ok {
+			snap.Summary = "Media: " + media.MimeType
+			if snap.Summary == "Media: " {
+				snap.Summary = "Media: " + media.ID
+			}
+		}
+	case model.PartGroupStart:
+		gs, ok := part.Resource.(*model.GroupStart)
+		if ok {
+			snap.Summary = "Group: " + gs.Name
+			if snap.Summary == "Group: " {
+				snap.Summary = "Group: " + gs.ID
+			}
+		}
+	case model.PartGroupEnd:
+		snap.Summary = "end group " + snap.ID
+	default:
+		snap.Summary = snap.Type + ": " + snap.ID
+	}
+
+	return snap
+}
+
+// TracingTool wraps a tool.Tool and records enter/exit events for each Part.
+type TracingTool struct {
+	inner    tool.Tool
+	nodeID   string
+	recorder *TraceRecorder
+}
+
+// NewTracingTool creates a TracingTool that wraps inner and records events to recorder.
+func NewTracingTool(inner tool.Tool, nodeID string, recorder *TraceRecorder) *TracingTool {
+	return &TracingTool{inner: inner, nodeID: nodeID, recorder: recorder}
+}
+
+// Name returns the wrapped tool's name.
+func (t *TracingTool) Name() string { return t.inner.Name() }
+
+// Description returns the wrapped tool's description.
+func (t *TracingTool) Description() string { return t.inner.Description() }
+
+// Config returns the wrapped tool's configuration.
+func (t *TracingTool) Config() tool.ToolConfig { return t.inner.Config() }
+
+// SetConfig applies configuration to the wrapped tool.
+func (t *TracingTool) SetConfig(c tool.ToolConfig) error { return t.inner.SetConfig(c) }
+
+// Process intercepts Parts flowing through the inner tool, recording
+// enter events on input and exit events (with snapshots) on output.
+//
+// Channel ownership: the executor creates channels and closes the output
+// channel after Process returns. BaseTool.Process does NOT close its output
+// channel — it simply returns when input is exhausted. Therefore:
+//  1. We close tracedOut after inner.Process returns so the output interceptor terminates.
+//  2. We do NOT close out — the executor handles that.
+func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
+	tracedIn := make(chan *model.Part, cap(in))
+	tracedOut := make(chan *model.Part, cap(out))
+
+	// Input interceptor: record enter events, then forward to inner tool.
+	go func() {
+		defer close(tracedIn)
+		for part := range in {
+			id := part.Resource.ResourceID()
+			t.recorder.Record("enter", t.nodeID, id, nil)
+			tracedIn <- part
+		}
+	}()
+
+	// Output interceptor: record exit events and snapshots, then forward.
+	var outDone sync.WaitGroup
+	outDone.Add(1)
+	go func() {
+		defer outDone.Done()
+		for part := range tracedOut {
+			id := part.Resource.ResourceID()
+			t.recorder.SnapshotPart(part, t.nodeID, t.nodeID)
+			t.recorder.Record("exit", t.nodeID, id, nil)
+			out <- part
+		}
+	}()
+
+	// Run the inner tool. BaseTool.Process returns when input is exhausted
+	// but does not close its output channel.
+	err := t.inner.Process(ctx, tracedIn, tracedOut)
+
+	// Close tracedOut so the output interceptor goroutine terminates.
+	close(tracedOut)
+
+	// Wait for output interceptor to drain all remaining parts.
+	outDone.Wait()
+
+	return err
+}
+
+// Verify TracingTool implements tool.Tool at compile time.
+var _ tool.Tool = (*TracingTool)(nil)

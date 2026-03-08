@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -84,6 +85,8 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 	flowRunCmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
 	flowRunCmd.Flags().String("api-key", "", "API key for the AI provider")
 	flowRunCmd.Flags().String("model", "", "AI model name")
+	flowRunCmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+	flowRunCmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 
 	flowListCmd := &cobra.Command{
 		Use:   "list",
@@ -208,6 +211,39 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return err
 	}
 
+	// Wrap IO-bound tools with ParallelBlockTool.
+	// AI flows default to 5 concurrent blocks; --parallel-blocks overrides.
+	parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
+	if parallelBlocks == 0 {
+		parallelBlocks = defaultParallelBlocks(flowName)
+	}
+	if parallelBlocks > 1 {
+		for i, ft := range flowTools {
+			flowTools[i] = tool.NewParallelBlockTool(ft, parallelBlocks)
+		}
+	}
+
+	// If --trace is set, wrap tools with TracingTool to record events.
+	tracePath, _ := cmd.Flags().GetString("trace")
+	var recorder *flow.TraceRecorder
+	var traceNodes []flow.TraceNode
+	if tracePath != "" {
+		recorder = flow.NewTraceRecorder()
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader",
+		})
+		for i, t := range flowTools {
+			nodeID := fmt.Sprintf("tool-%d", i)
+			traceNodes = append(traceNodes, flow.TraceNode{
+				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
+			})
+			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
+		}
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer",
+		})
+	}
+
 	fb := flow.NewFlow(flowName)
 	for _, t := range flowTools {
 		fb.AddTool(t)
@@ -219,6 +255,10 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 
 	go func() {
 		for _, p := range parts {
+			if recorder != nil && p.Resource != nil {
+				recorder.SnapshotPart(p, "reader", "initial")
+				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
+			}
 			inCh <- p
 		}
 		close(inCh)
@@ -226,6 +266,11 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 
 	var outputParts []*model.Part
 	for p := range outCh {
+		if recorder != nil && p.Resource != nil {
+			id := p.Resource.ResourceID()
+			recorder.Record("enter", "writer", id, nil)
+			recorder.Record("exit", "writer", id, nil)
+		}
 		outputParts = append(outputParts, p)
 	}
 
@@ -264,6 +309,42 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		return fmt.Errorf("write output: %w", err)
 	}
 	writer.Close()
+
+	// Write trace JSON if --trace was set.
+	if tracePath != "" && recorder != nil {
+		inputPreview := string(inputContent)
+		if len(inputPreview) > 2000 {
+			inputPreview = inputPreview[:2000] + "\n... (truncated)"
+		}
+		outputData, _ := os.ReadFile(outputPath)
+		outputPreview := string(outputData)
+		if len(outputPreview) > 2000 {
+			outputPreview = outputPreview[:2000] + "\n... (truncated)"
+		}
+
+		trace := &flow.FlowTrace{
+			Name:        flowName,
+			Description: fmt.Sprintf("%s flow on %s", flowName, filepath.Base(inputPath)),
+			Nodes:       traceNodes,
+			ChannelSize: 64,
+			Events:      recorder.Events(),
+			Parts:       recorder.Snapshots(),
+			InputFile:   flow.TraceFile{Name: filepath.Base(inputPath), Format: fmtName, Preview: inputPreview},
+			OutputFile:  flow.TraceFile{Name: filepath.Base(outputPath), Preview: outputPreview},
+			DurationUs:  recorder.DurationUs(),
+		}
+
+		traceJSON, err := json.MarshalIndent(trace, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal trace: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
+			return fmt.Errorf("create trace dir: %w", err)
+		}
+		if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
+			return fmt.Errorf("write trace: %w", err)
+		}
+	}
 
 	if !a.Quiet {
 		return output.Print(cmd, output.FlowRunOutput{
@@ -498,6 +579,13 @@ func (a *App) processFlowFileNative(ctx context.Context, flowName, inputPath, ou
 		return err
 	}
 
+	// Auto-wrap IO-bound tools with ParallelBlockTool.
+	if n := defaultParallelBlocks(flowName); n > 1 {
+		for i, ft := range flowTools {
+			flowTools[i] = tool.NewParallelBlockTool(ft, n)
+		}
+	}
+
 	fb := flow.NewFlow(flowName)
 	for _, t := range flowTools {
 		fb.AddTool(t)
@@ -649,4 +737,15 @@ func (a *App) buildFlowTools(flowName string) ([]tool.Tool, error) {
 
 func (a *App) getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()
+}
+
+// defaultParallelBlocks returns the default parallel block concurrency for
+// IO-bound flows. Returns 0 (disabled) for CPU-bound flows.
+func defaultParallelBlocks(flowName string) int {
+	switch flowName {
+	case "ai-translate", "ai-translate-qa":
+		return 5
+	default:
+		return 0
+	}
 }

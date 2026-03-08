@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -71,6 +72,8 @@ type ToolRunConfig struct {
 	Progress       bool
 	OutputTemplate string
 	TargetLang     string
+	TracePath      string // write flow trace JSON to this file
+	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
 	NewTool        func() (tool.Tool, error)
 	NewCollector   func() flow.Collector
 }
@@ -293,6 +296,50 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return fmt.Errorf("create tool: %w", err)
 	}
 
+	// Wrap with ParallelBlockTool if requested.
+	if cfg.ParallelBlocks > 1 {
+		t = tool.NewParallelBlockTool(t, cfg.ParallelBlocks)
+	}
+
+	// If the collector supports streaming, set document context and wrap the
+	// tool with TappingTool so word counts (etc.) accumulate inline as parts
+	// flow through, without buffering the entire stream for post-hoc counting.
+	var streamingCollector flow.StreamingCollector
+	if collector != nil {
+		if sc, ok := collector.(flow.StreamingCollector); ok {
+			streamingCollector = sc
+			// Set document context before processing.
+			item := &flow.FlowItem{
+				Input:        doc,
+				TargetLocale: model.LocaleID(cfg.TargetLang),
+			}
+			if err := sc.Collect(ctx, item, nil); err != nil {
+				return fmt.Errorf("collector context for %s: %w", filePath, err)
+			}
+			t = flow.NewTappingTool(t, sc)
+		}
+	}
+
+	// If --trace is set, wrap the tool with TracingTool.
+	// The trace path supports {name} and {ext} placeholders for multi-file runs.
+	var recorder *flow.TraceRecorder
+	var traceNodes []flow.TraceNode
+	resolvedTracePath := cfg.TracePath
+	if resolvedTracePath != "" {
+		ext := filepath.Ext(filePath)
+		name := strings.TrimSuffix(filepath.Base(filePath), ext)
+		extNoDot := strings.TrimPrefix(ext, ".")
+		resolvedTracePath = strings.ReplaceAll(resolvedTracePath, "{name}", name)
+		resolvedTracePath = strings.ReplaceAll(resolvedTracePath, "{ext}", extNoDot)
+		recorder = flow.NewTraceRecorder()
+		traceNodes = []flow.TraceNode{
+			{ID: "reader", Type: "reader", Name: fmtName, Label: fmtName + " reader"},
+			{ID: "tool-0", Type: "tool", Name: t.Name(), Label: t.Name()},
+			{ID: "writer", Type: "writer", Name: fmtName, Label: fmtName + " writer"},
+		}
+		t = flow.NewTracingTool(t, "tool-0", recorder)
+	}
+
 	fb := flow.NewFlow(cfg.ToolName)
 	fb.AddTool(t)
 	f := fb.Build()
@@ -302,6 +349,10 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	go func() {
 		for _, p := range parts {
+			if recorder != nil && p.Resource != nil {
+				recorder.SnapshotPart(p, "reader", "initial")
+				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
+			}
 			inCh <- p
 		}
 		close(inCh)
@@ -309,11 +360,45 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 
 	var outputParts []*model.Part
 	for p := range outCh {
+		if recorder != nil && p.Resource != nil {
+			id := p.Resource.ResourceID()
+			recorder.Record("enter", "writer", id, nil)
+			recorder.Record("exit", "writer", id, nil)
+		}
 		outputParts = append(outputParts, p)
 	}
 
 	if err := wait(); err != nil {
 		return fmt.Errorf("tool execution on %s: %w", filePath, err)
+	}
+
+	// Write trace JSON if --trace was set.
+	if resolvedTracePath != "" && recorder != nil {
+		inputPreview := string(content)
+		if len(inputPreview) > 2000 {
+			inputPreview = inputPreview[:2000] + "\n... (truncated)"
+		}
+		traceData := &flow.FlowTrace{
+			Name:        cfg.ToolName,
+			Description: fmt.Sprintf("%s on %s", cfg.ToolName, filepath.Base(filePath)),
+			Nodes:       traceNodes,
+			ChannelSize: 64,
+			Events:      recorder.Events(),
+			Parts:       recorder.Snapshots(),
+			InputFile:   flow.TraceFile{Name: filepath.Base(filePath), Format: fmtName, Preview: inputPreview},
+			OutputFile:  flow.TraceFile{Name: filepath.Base(filePath)},
+			DurationUs:  recorder.DurationUs(),
+		}
+		traceJSON, err := json.MarshalIndent(traceData, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal trace: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(resolvedTracePath), 0o755); err != nil {
+			return fmt.Errorf("create trace dir: %w", err)
+		}
+		if err := os.WriteFile(resolvedTracePath, traceJSON, 0o644); err != nil {
+			return fmt.Errorf("write trace: %w", err)
+		}
 	}
 
 	if cfg.OutputTemplate != "" && writer != nil {
@@ -353,7 +438,8 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 		return nil
 	}
 
-	if collector != nil {
+	// Feed collector — skip if streaming collector already observed inline.
+	if collector != nil && streamingCollector == nil {
 		item := &flow.FlowItem{
 			Input:        doc,
 			TargetLocale: model.LocaleID(cfg.TargetLang),
