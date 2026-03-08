@@ -74,9 +74,10 @@ type Summary struct {
 	TotalTestsOkapi    int     `json:"totalTestsOkapi"`
 	TotalTestsBridge   int     `json:"totalTestsBridge"`
 	TotalTestsNative   int     `json:"totalTestsNative"`
-	CoveragePct        float64 `json:"coveragePct"`
-	TotalFuncsBridge   int     `json:"totalFuncsBridge,omitempty"`
-	TotalFuncsNative   int     `json:"totalFuncsNative,omitempty"`
+	CoveragePct        float64        `json:"coveragePct"`
+	TotalFuncsBridge   int            `json:"totalFuncsBridge,omitempty"`
+	TotalFuncsNative   int            `json:"totalFuncsNative,omitempty"`
+	CategoryCounts     map[string]int `json:"categoryCounts,omitempty"` // aggregate across all filters
 }
 
 type FilterComparison struct {
@@ -131,6 +132,7 @@ type TestCaseMatch struct {
 	NativeFile   string `json:"nativeFile,omitempty"`
 	NativeLine   int    `json:"nativeLine,omitempty"`
 	SkipReason   string `json:"skipReason,omitempty"`
+	SkipCategory string `json:"skipCategory,omitempty"` // auto-classified category
 	TestState      string `json:"testState"`                  // "implemented" | "pending" | "unmapped" | "not-applicable" | "okapi-skip"
 	BridgeSubtests int    `json:"bridgeSubtests,omitempty"`
 	NativeSubtests int    `json:"nativeSubtests,omitempty"`
@@ -146,7 +148,12 @@ type CoverageStats struct {
 	IgnoredCount    int     `json:"ignoredCount"`
 	OkapiSkipCount  int     `json:"okapiSkipCount"`
 	PendingCount    int     `json:"pendingCount"`
-	ImplementedPct  float64 `json:"implementedPct"`
+	ImplementedPct     float64        `json:"implementedPct"`
+	NotApplicableCount int            `json:"notApplicableCount"`
+	CategoryCounts     map[string]int `json:"categoryCounts,omitempty"`
+	BridgeAndNative    int            `json:"bridgeAndNative"`    // tests with both bridge AND native
+	BridgeOnly         int            `json:"bridgeOnly"`         // tests with bridge but no native
+	NativeOnly         int            `json:"nativeOnly"`         // tests with native but no bridge
 }
 
 // annotation maps a Go test function to its Java test counterpart.
@@ -841,6 +848,7 @@ func merge(
 						if ua, ok := unmappedMap[k]; ok {
 							tcm.TestState = "not-applicable"
 							tcm.SkipReason = ua.Reason
+							tcm.SkipCategory = classifySkipReason(ua.Reason)
 						}
 					}
 
@@ -913,6 +921,17 @@ func merge(
 		}
 	}
 
+	// Aggregate category counts across all filters
+	aggCategories := map[string]int{}
+	for _, fc := range filters {
+		for cat, count := range fc.Coverage.CategoryCounts {
+			aggCategories[cat] += count
+		}
+	}
+	if len(aggCategories) > 0 {
+		sum.CategoryCounts = aggCategories
+	}
+
 	return &ComparisonData{
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
 		OkapiVersion:  okapiVer,
@@ -921,6 +940,37 @@ func merge(
 		OkapiTag:      okapiTagVal,
 		Filters:       filters,
 		Summary:       sum,
+	}
+}
+
+// classifySkipReason auto-classifies a skip reason into a category.
+func classifySkipReason(reason string) string {
+	lower := strings.ToLower(reason)
+	switch {
+	case strings.Contains(lower, "subfilter") || strings.Contains(lower, "sub-filter"):
+		return "subfilter"
+	case strings.Contains(lower, "sdl") || strings.Contains(lower, "iws") || strings.Contains(lower, "xtm"):
+		return "vendor"
+	case strings.Contains(lower, "roundtrip") || strings.Contains(lower, "round-trip") || strings.Contains(lower, "round trip"):
+		return "roundtrip"
+	case strings.Contains(lower, "testdata") || strings.Contains(lower, "test data") || strings.Contains(lower, "test resource"):
+		return "testdata"
+	case strings.Contains(lower, "java") || strings.Contains(lower, "jvm") || strings.Contains(lower, "inputstream") || strings.Contains(lower, "surefire"):
+		return "java-api"
+	case strings.Contains(lower, "regex") || strings.Contains(lower, "spliced"):
+		return "regex"
+	case strings.Contains(lower, "config") || strings.Contains(lower, "configuration"):
+		return "config"
+	case strings.Contains(lower, "ttml") || strings.Contains(lower, "different format") || strings.Contains(lower, "wrong format") || strings.Contains(lower, "not vtt") || strings.Contains(lower, "not srt"):
+		return "format"
+	case strings.Contains(lower, "dita"):
+		return "dita"
+	case strings.Contains(lower, "length constraint"):
+		return "feature"
+	case strings.Contains(lower, "not yet implemented") || strings.Contains(lower, "not implemented"):
+		return "not-implemented"
+	default:
+		return "other"
 	}
 }
 
@@ -986,7 +1036,27 @@ func computeCoverage(testCases []TestCaseMatch) CoverageStats {
 				cs.NativePassing++
 			}
 		}
+
+		// Count bridge/native overlap
+		hasBridge := tc.BridgeTest != ""
+		hasNative := tc.NativeTest != ""
+		if hasBridge && hasNative {
+			cs.BridgeAndNative++
+		} else if hasBridge {
+			cs.BridgeOnly++
+		} else if hasNative {
+			cs.NativeOnly++
+		}
+
+		// Count categories
+		if tc.TestState == "not-applicable" && tc.SkipCategory != "" {
+			if cs.CategoryCounts == nil {
+				cs.CategoryCounts = map[string]int{}
+			}
+			cs.CategoryCounts[tc.SkipCategory]++
+		}
 	}
+	cs.NotApplicableCount = cs.IgnoredCount
 	// Effective denominator excludes ignored (not-applicable) and Java-side skipped tests.
 	effective := cs.TotalOkapi - cs.IgnoredCount - cs.OkapiSkipCount
 	if effective > 0 {

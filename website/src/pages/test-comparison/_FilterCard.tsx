@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {useState, useMemo} from 'react';
 import type {FilterComparison, FilterResult} from './_types';
 import TestCaseTable from './_TestCaseTable';
 import styles from './_index.module.css';
@@ -108,23 +108,86 @@ function StatColumn({result}: {result: FilterResult | null}) {
   );
 }
 
+/** Segmented coverage bar showing test state breakdown. */
 function CoverageBar({filter}: {filter: FilterComparison}) {
-  if (!filter.coverage || filter.coverage.totalOkapi === 0) return null;
-  const pct = filter.coverage.coveragePct;
-  return (
-    <div className={styles.coverageMini}>
-      <div className={styles.coverageMiniBar}>
-        <div
-          className={styles.coverageMiniBarFill}
-          style={{width: `${Math.min(pct, 100)}%`}}
-        />
+  const stats = useMemo(() => {
+    if (!filter.testCases || filter.testCases.length === 0) return null;
+    let implemented = 0;
+    let notApplicable = 0;
+    let pending = 0;
+    let unmapped = 0;
+    for (const tc of filter.testCases) {
+      switch (tc.testState) {
+        case 'implemented':
+          implemented++;
+          break;
+        case 'pending':
+          pending++;
+          break;
+        case 'skipped':
+          notApplicable++;
+          break;
+        default:
+          if (tc.skipReason) notApplicable++;
+          else unmapped++;
+      }
+    }
+    return {implemented, notApplicable, pending, unmapped};
+  }, [filter.testCases]);
+
+  if (!stats) {
+    // Fallback to old simple bar
+    if (!filter.coverage || filter.coverage.totalOkapi === 0) return null;
+    const pct = filter.coverage.coveragePct;
+    return (
+      <div className={styles.coverageMini}>
+        <div className={styles.coverageMiniBar}>
+          <div
+            className={styles.coverageMiniBarFill}
+            style={{width: `${Math.min(pct, 100)}%`}}
+          />
+        </div>
+        <span className={styles.coverageMiniLabel}>{pct.toFixed(0)}%</span>
       </div>
-      <span className={styles.coverageMiniLabel}>{pct.toFixed(0)}%</span>
+    );
+  }
+
+  const total = filter.testCases.length;
+  if (total === 0) return null;
+
+  const segments = [
+    {value: stats.implemented, color: '#2e8555'},
+    {value: stats.notApplicable, color: '#94a3b8'},
+    {value: stats.pending, color: '#e3a008'},
+    {value: stats.unmapped, color: '#dc2626'},
+  ];
+
+  const implementedPct = ((stats.implemented / total) * 100).toFixed(0);
+
+  return (
+    <div
+      className={styles.coverageMini}
+      title={`Implemented: ${stats.implemented}, Not Applicable: ${stats.notApplicable}, Pending: ${stats.pending}, Unmapped: ${stats.unmapped}`}>
+      <div className={styles.segmentedBar}>
+        {segments
+          .filter((s) => s.value > 0)
+          .map((s, i) => (
+            <div
+              key={i}
+              className={styles.segmentedBarPart}
+              style={{
+                width: `${(s.value / total) * 100}%`,
+                backgroundColor: s.color,
+              }}
+            />
+          ))}
+      </div>
+      <span className={styles.coverageMiniLabel}>{implementedPct}%</span>
     </div>
   );
 }
 
-/** Column headings row — rendered once above the filter list. */
+/** Column headings row -- rendered once above the filter list. */
 export function FilterColumnHeadings() {
   return (
     <div className={`${styles.filterHeader} ${styles.columnHeadings}`}>
