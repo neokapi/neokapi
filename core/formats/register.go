@@ -5,13 +5,13 @@ import (
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
-	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/html"
-	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
+	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
 	"github.com/gokapi/gokapi/core/formats/openxml"
+	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
@@ -19,12 +19,12 @@ import (
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
+	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/wiki"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
-	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	xmlfmt "github.com/gokapi/gokapi/core/formats/xml"
 	"github.com/gokapi/gokapi/core/formats/yaml"
 	"github.com/gokapi/gokapi/core/registry"
@@ -104,7 +104,31 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
+	// Qt TS (Qt Linguist)
+	reg.RegisterReader("ts", func() format.DataFormatReader { return tsfmt.NewReader() })
+	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
+
+	// Wiki (MediaWiki/DokuWiki)
+	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
+	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
+
+	// TeX/LaTeX
+	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
+	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
+
 	// Regex
 	reg.RegisterReader("regex", func() format.DataFormatReader { return regexfmt.NewReader() })
 	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
+
+	// Doxygen
+	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
+	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
+
+	// ICU MessageFormat
+	reg.RegisterReader("messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
+	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
+
+	// PHP Content
+	reg.RegisterReader("phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
+	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
 }
