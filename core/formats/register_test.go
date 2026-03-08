@@ -25,7 +25,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
 		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "messageformat",
+		"mosestext", "dtd", "phpcontent",
 	}
 
 	for _, name := range expectedFormats {
@@ -42,7 +42,7 @@ func TestRegisterAllWriters(t *testing.T) {
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
 		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "messageformat",
+		"mosestext", "dtd", "phpcontent",
 	}
 
 	for _, name := range expectedFormats {
@@ -79,8 +79,7 @@ func TestCollectNativeDecoders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx",
-		"messageformat",
+		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "phpcontent",
 	}
 	for _, name := range expectedFormats {
 		kind := config.FormatConfigKind(name)

@@ -5,6 +5,7 @@ import (
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
+	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/json"
@@ -102,7 +103,7 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
-	// ICU MessageFormat
-	reg.RegisterReader("messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
-	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
+	// PHP Content
+	reg.RegisterReader("phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
+	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
 }
