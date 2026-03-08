@@ -16,6 +16,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/vtt"
+	"github.com/gokapi/gokapi/core/formats/wiki"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
 	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
@@ -101,4 +102,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// Qt TS (Qt Linguist)
 	reg.RegisterReader("ts", func() format.DataFormatReader { return tsfmt.NewReader() })
 	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
+
+	// Wiki (MediaWiki/DokuWiki)
+	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
+	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
 }
