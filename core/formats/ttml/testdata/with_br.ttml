@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml" xmlns:tts="http://www.w3.org/ns/ttml#styling">
+  <body>
+    <div>
+      <p xml:id="subtitle1" begin="00:00:00.897" end="00:00:05.263" region="bottom" tts:textAlign="center">Thanks everyone <br/>for joining us today.</p>
+      <p xml:id="subtitle2" begin="00:00:05.430" end="00:00:08.730" region="bottom" tts:textAlign="center">I am so excited<br/> to be with you.</p>
+    </div>
+  </body>
+</tt>

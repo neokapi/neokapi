@@ -3,15 +3,18 @@ package formats
 import (
 	"github.com/gokapi/gokapi/core/format"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
+	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
+	"github.com/gokapi/gokapi/core/formats/mosestext"
 	"github.com/gokapi/gokapi/core/formats/openxml"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tmx"
+	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
@@ -66,9 +69,17 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
 	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
 
+	// Moses Text
+	reg.RegisterReader("mosestext", func() format.DataFormatReader { return mosestext.NewReader() })
+	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
+
 	// SRT Subtitles
 	reg.RegisterReader("srt", func() format.DataFormatReader { return srt.NewReader() })
 	reg.RegisterWriter("srt", func() format.DataFormatWriter { return srt.NewWriter() })
+
+	// TTML Subtitles
+	reg.RegisterReader("ttml", func() format.DataFormatReader { return ttml.NewReader() })
+	reg.RegisterWriter("ttml", func() format.DataFormatWriter { return ttml.NewWriter() })
 
 	// WebVTT Subtitles
 	reg.RegisterReader("vtt", func() format.DataFormatReader { return vtt.NewReader() })
@@ -81,4 +92,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// OpenXML (DOCX, PPTX, XLSX)
 	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+
+	// DTD
+	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
+	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 }
