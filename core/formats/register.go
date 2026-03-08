@@ -5,6 +5,7 @@ import (
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
+	"github.com/gokapi/gokapi/core/formats/idml"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
@@ -111,4 +112,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// TeX/LaTeX
 	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
+
+	// IDML (Adobe InDesign)
+	reg.RegisterReader("idml", func() format.DataFormatReader { return idml.NewReader() })
+	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
 }
