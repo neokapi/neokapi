@@ -14,6 +14,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/properties"
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tmx"
+	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
@@ -75,6 +76,10 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// SRT Subtitles
 	reg.RegisterReader("srt", func() format.DataFormatReader { return srt.NewReader() })
 	reg.RegisterWriter("srt", func() format.DataFormatWriter { return srt.NewWriter() })
+
+	// TTML Subtitles
+	reg.RegisterReader("ttml", func() format.DataFormatReader { return ttml.NewReader() })
+	reg.RegisterWriter("ttml", func() format.DataFormatWriter { return ttml.NewWriter() })
 
 	// WebVTT Subtitles
 	reg.RegisterReader("vtt", func() format.DataFormatReader { return vtt.NewReader() })
