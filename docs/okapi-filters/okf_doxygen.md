@@ -9,7 +9,7 @@
 | MIME Types | `text/x-doxygen-txt` |
 | Extensions | `.c, .cpp, .h, .java, .m, .py` |
 | Okapi Module | `doxygen` |
-| Has Native Go Reader | No |
+| Has Native Go Reader | Yes |
 
 ## Java Test Inventory
 

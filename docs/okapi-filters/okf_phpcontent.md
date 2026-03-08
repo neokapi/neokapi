@@ -9,7 +9,7 @@
 | MIME Types | `application/x-php` |
 | Extensions | `.php` |
 | Okapi Module | `php` |
-| Has Native Go Reader | No |
+| Has Native Go Reader | Yes |
 
 ## Java Test Inventory
 
