@@ -12,6 +12,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
+	regexfmt "github.com/gokapi/gokapi/core/formats/regex"
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/ttml"
@@ -96,4 +97,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// DTD
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
+
+	// Regex
+	reg.RegisterReader("regex", func() format.DataFormatReader { return regexfmt.NewReader() })
+	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
 }
