@@ -1,4 +1,14 @@
 // okapi-filter: xml
+//
+// okapi-unmapped: XmlStreamSubfilterTest#testCdataSubfilterEmptyElement — requires global CDATA subfilter infrastructure (global_cdata_subfilter)
+// okapi-unmapped: XmlStreamSubfilterTest#testCdataMerging — requires global CDATA subfilter infrastructure (global_cdata_subfilter)
+// okapi-unmapped: XmlStreamSubfilterTest#testNestedTextunits — requires global PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: XmlStreamSubfilterTest#testSubfiltersProduceDistinctTextUnitIds — requires global PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: XmlStreamSubfilterTest#testJsonSubfilterEvents — requires JSON subfilter with Okapi config file
+// okapi-unmapped: XmlStreamSubfilterTest#testJsonSubfilterWithHtmlEvents — requires JSON+HTML chained subfilter with Okapi config file
+// okapi-unmapped: XmlStreamSubfilterTest#testTranslateAttributeSubfilter — requires translate-attribute subfilter with Okapi config file
+// okapi-unmapped: XmlStreamSubfilterTest#testApplySubfilterOnAttribute — requires attribute subfilter with Okapi config file
+// okapi-unmapped: XmlStreamSubfilterTest#issue375 — requires element-specific CDATA subfilter with INCLUDE rules and Okapi config file
 package xml
 
 import (
@@ -77,7 +87,7 @@ func (f *fakeHTMLWriter) Write(ctx context.Context, parts <-chan *model.Part) er
 	return nil
 }
 
-// okapi: XmlStreamSubfilterTest#testSubfilter_CdataSubfilter
+// okapi: XmlStreamSubfilterTest#testCdataSubfilter
 func TestXMLSubfilter_ReadHTMLInElement(t *testing.T) {
 	input := `<root><title>Hello</title><body><![CDATA[<p>Rich <b>content</b></p>]]></body></root>`
 
@@ -166,7 +176,7 @@ func TestXMLSubfilter_NoMatchPassesThrough(t *testing.T) {
 	assert.Equal(t, "Plain text", blocks[1].SourceText())
 }
 
-// okapi: XmlStreamSubfilterTest#testSubfilter_Simple
+// okapi: XmlStreamSubfilterTest#testSimple
 func TestXMLSubfilter_WildcardPattern(t *testing.T) {
 	input := `<root><en><body>Hello</body></en><fr><body>Bonjour</body></fr></root>`
 

@@ -548,6 +548,22 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TTML tests — the bridge subtitles/ directory covers both VTT and TTML.
+// Native VTT format only covers VTT, so all TTML bridge tests are unmapped.
+// ---------------------------------------------------------------------------
+
+// okapi-unmapped: RoundTripTtmlIT#ttmlFiles — TTML format, not VTT
+// okapi-unmapped: RoundTripTtmlIT#ttmlSerializedFiles — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testCodeFinder — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testDontMergeCaptions — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testEmptyCaptions — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testMergeCaptions — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testProcessTextUnit — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testProcessTextUnitNonEscapeBrMode — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testQuoteCaptions — TTML format, not VTT
+// okapi-unmapped: TTMLFilterTest#testReadMaxCharMaxLine — TTML format, not VTT
+
+// ---------------------------------------------------------------------------
 // Existing native tests (no Okapi equivalent)
 // ---------------------------------------------------------------------------
 

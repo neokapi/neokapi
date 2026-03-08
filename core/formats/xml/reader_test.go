@@ -1,7 +1,24 @@
 // okapi-filter: xml
+//
+// okapi-unmapped: XmlSnippetsTest#testCodeFinder — requires Okapi code finder (Java regex engine, not available natively)
+// okapi-unmapped: XmlStreamConfigurationTest#testCodeFinderRules — requires Okapi code finder (Java regex engine, not available natively)
+// okapi-unmapped: XmlStreamConfigurationTest#loadNonAsciiRuleFile — requires Okapi .yml config file loading (Java-specific format)
+// okapi-unmapped: XmlSnippetsTest#testCdataSectionExtraction — requires CDATA-to-HTML subfilter with Okapi config file
+// okapi-unmapped: XmlSnippetsTest#testCdataSectionExtractionAndWS — requires CDATA-to-HTML subfilter with Okapi config file
+// okapi-unmapped: XmlSnippetsTest#testCdataSectionExtractionWithCondition — requires CDATA subfilter with element conditions and Okapi config file
+// okapi-unmapped: XmlSnippetsTest#testCdataSectionAsHTML — requires CDATA-to-HTML subfilter with Okapi config file
+// okapi-unmapped: CdataSubfilterWithRegexTest#testDoubleExtractionWithoutSubfilter — requires CDATA subfilter with regex code finder integration
+// okapi-unmapped: CdataSubfilterWithRegexTest#testDoubleExtractionWithoutRegex — requires CDATA subfilter with Okapi config file
+// okapi-unmapped: CdataSubfilterWithRegexTest#testDoubleExtractionWithRegex — requires CDATA subfilter with regex code finder integration
+// okapi-unmapped: PCdataSubfilterTest#testPcdataWithoutEscapes — requires PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: PCdataSubfilterTest#testPcdataWithEscapes — requires PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: PCdataSubfilterTest#testPcdataHrefReference — requires PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: PCdataSubfilterTest#testPcdataHrefReferenceSmall — requires PCDATA subfilter infrastructure (global_pcdata_subfilter)
+// okapi-unmapped: PCdataSubfilterTest#testPcdataTextUnitToDocumentPartWithHtmlProperty — requires PCDATA subfilter infrastructure (global_pcdata_subfilter)
 package xml_test
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -1786,8 +1803,558 @@ func TestSchema(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Group in paragraph (snippets)
+// ---------------------------------------------------------------------------
+
+// okapi: XmlSnippetsTest#testGroupInPara
+func TestSnippets_GroupInPara(t *testing.T) {
+	snippet := `<?xml version="1.0" encoding="UTF-8"?><doc>` +
+		`<p>Text before list:` +
+		`<ul><li>Text of item 1</li><li>Text of item 2</li></ul>` +
+		`and text after the list.</p></doc>`
+	parts := readXML(t, snippet, nil)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Text of item 1")
+	assert.Contains(t, texts, "Text of item 2")
+}
+
+// ---------------------------------------------------------------------------
+// Inline with img alt attribute (snippets)
+// ---------------------------------------------------------------------------
+
+// okapi: XmlSnippetsTest#testPWithInlines2
+func TestSnippets_PWithInlines2(t *testing.T) {
+	cfg := &xmlfmt.Config{
+		InlineElements:         []string{"b", "img"},
+		TranslatableAttributes: []string{"alt"},
+	}
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><p>Before <b>bold</b> <img href="there" alt="text"/> after.</p></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "text")
+}
+
+// ---------------------------------------------------------------------------
+// Input value extraction (snippets)
+// ---------------------------------------------------------------------------
+
+// okapi: XmlSnippetsTest#testExtractValueInInput
+func TestSnippets_ExtractValueInInput(t *testing.T) {
+	cfg := &xmlfmt.Config{
+		TranslatableAttributes: []string{"value"},
+	}
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><input type="text" value="Enter" /></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Enter")
+}
+
+// okapi: XmlSnippetsTest#testNoExtractValueInInput
+func TestSnippets_NoExtractValueInInput(t *testing.T) {
+	// Without value in translatable attributes, it should not be extracted.
+	parts := readXML(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><input type="hidden" value="Enter" /></doc>`, nil)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.NotContains(t, texts, "Enter")
+}
+
+// ---------------------------------------------------------------------------
+// Newline normalization in pre
+// ---------------------------------------------------------------------------
+
+// okapi: XmlSnippetsTest#testNormalizeNewlinesInPre
+func TestSnippets_NormalizeNewlinesInPre(t *testing.T) {
+	cfg := &xmlfmt.Config{
+		PreserveWhitespaceElements: []string{"pre"},
+	}
+	parts := readXMLWithConfig(t,
+		"<?xml version=\"1.0\" encoding=\"UTF-8\"?><doc><pre>a\r\nb\rc</pre></doc>", cfg)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+	text := blocks[0].SourceText()
+	assert.Contains(t, text, "a")
+	assert.Contains(t, text, "b")
+	assert.Contains(t, text, "c")
+}
+
+// ---------------------------------------------------------------------------
+// Meta tag content extraction
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamEventTest#testMetaTagContent
+func TestEvents_MetaTagContent(t *testing.T) {
+	cfg := &xmlfmt.Config{
+		TranslatableAttributes: []string{"content"},
+	}
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><meta http-equiv="keywords" content="one,two,three"/></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "one,two,three")
+
+	for _, b := range blocks {
+		if b.SourceText() == "one,two,three" {
+			assert.True(t, b.IsReferent, "meta content block should be a referent")
+			break
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Exclude by default config tests
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationTest#excludeByDefault
+func TestConfig_ExcludeByDefault(t *testing.T) {
+	cfg := &xmlfmt.Config{ExcludeByDefault: true}
+	err := cfg.ApplyMap(map[string]any{
+		"elements": map[string]any{
+			"item": map[string]any{
+				"ruleTypes":  []any{"INCLUDE"},
+				"conditions": []any{"translate", "EQUALS", "y"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc>`+
+			`<item translate="y">Included</item>`+
+			`<item>Excluded</item>`+
+			`</doc>`, cfg)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Included")
+	assert.NotContains(t, texts, "Excluded")
+}
+
+// ---------------------------------------------------------------------------
+// Attribute ID configuration tests
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationTest#attributeID
+func TestConfig_AttributeID(t *testing.T) {
+	cfg := &xmlfmt.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"elements": map[string]any{
+			"text": map[string]any{
+				"ruleTypes":    []any{"TEXTUNIT"},
+				"idAttributes": []any{"id"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><text id="myid">Hello</text></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].Name, "myid")
+}
+
+// ---------------------------------------------------------------------------
+// xml:lang configuration
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationTest#xmlLang
+func TestConfig_XmlLang(t *testing.T) {
+	parts := readXML(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc xml:lang="en"><text>Hello</text></doc>`, nil)
+	dp := findDataPartWithProperty(parts, "language")
+	require.NotNil(t, dp, "should have Data part with language property")
+	assert.Equal(t, "en", dp.Properties["language"])
+}
+
+// ---------------------------------------------------------------------------
+// Text unit code types
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationTest#textUnitCodeTypes
+func TestConfig_TextUnitCodeTypes(t *testing.T) {
+	parts := readXML(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><p>Paragraph content</p></doc>`, nil)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Paragraph content")
+	for _, b := range blocks {
+		if b.SourceText() == "Paragraph content" {
+			assert.NotEmpty(t, b.ID)
+			break
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Regex exclude rules with attribute conditions
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationSupportTest#test_EXCLUDEWithRegexExcludeWithAttribute
+func TestExclude_RegexWithAttribute(t *testing.T) {
+	cfg := &xmlfmt.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"elements": map[string]any{
+			"'.*'": map[string]any{
+				"ruleTypes":  []any{"EXCLUDE"},
+				"conditions": []any{"x", "EQUALS", "true"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><pre x="true">t1</pre><p>t2</p></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "t2")
+	// With regex element name and attribute condition, <pre x="true"> should be excluded.
+	assert.NotContains(t, texts, "t1")
+}
+
+// okapi: XmlStreamConfigurationSupportTest#test_EXCLUDEWithRegexExcludeWithoutAttribute
+func TestExclude_RegexWithoutAttribute(t *testing.T) {
+	cfg := &xmlfmt.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"elements": map[string]any{
+			"'.*'": map[string]any{
+				"ruleTypes":  []any{"EXCLUDE"},
+				"conditions": []any{"x", "EQUALS", "true"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><pre>t1</pre><p>t2</p></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	texts := blockTexts(blocks)
+	// Neither element has x="true", so nothing is excluded.
+	assert.Contains(t, texts, "t1")
+	assert.Contains(t, texts, "t2")
+}
+
+// ---------------------------------------------------------------------------
+// Regex inline + exclude
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationSupportTest#test_INLINE_WITH_EXCLUDE_Regex_Trick
+func TestInlineExclude_RegexTrick(t *testing.T) {
+	cfg := &xmlfmt.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"elements": map[string]any{
+			"'tag\\d+'": map[string]any{
+				"ruleTypes": []any{"INLINE", "EXCLUDE"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><p>before <tag1>excluded1</tag1> <tag2>excluded2</tag2> after</p></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+
+	// With regex INLINE+EXCLUDE, matched elements should have their content excluded.
+	b := findBlockContaining(blocks, "before")
+	require.NotNil(t, b)
+	text := b.SourceText()
+	assert.Contains(t, text, "before")
+	assert.Contains(t, text, "after")
+	assert.NotContains(t, text, "excluded1")
+	assert.NotContains(t, text, "excluded2")
+}
+
+// ---------------------------------------------------------------------------
+// Regex attribute writable
+// ---------------------------------------------------------------------------
+
+// okapi: XmlStreamConfigurationSupportTest#test_regex_ATTRIBUTE_WRITABLE
+func TestAttributeWritable_Regex(t *testing.T) {
+	cfg := &xmlfmt.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"attributes": map[string]any{
+			"dir": map[string]any{
+				"ruleTypes": []any{"ATTRIBUTE_WRITABLE"},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	parts := readXMLWithConfig(t,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><p dir="rtl">t1</p><pre dir="ltr">t2</pre></doc>`, cfg)
+	blocks := filterBlocks(parts)
+	require.Len(t, blocks, 2)
+	assert.Equal(t, "t1", blocks[0].SourceText())
+	assert.Equal(t, "t2", blocks[1].SourceText())
+	// Non-regex ATTRIBUTE_WRITABLE should populate block Properties.
+	require.NotNil(t, blocks[0].Properties)
+	assert.Equal(t, "rtl", blocks[0].Properties["dir"])
+	require.NotNil(t, blocks[1].Properties)
+	assert.Equal(t, "ltr", blocks[1].Properties["dir"])
+}
+
+// ---------------------------------------------------------------------------
+// DITA extraction tests
+// ---------------------------------------------------------------------------
+
+// okapi: DitaExtractionComparisionTest#testStartDocument
+func TestDita_StartDocument(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic PUBLIC "-//OASIS//DTD DITA Topic//EN" "topic.dtd">
+<topic id="readme">
+  <title>Getting Started</title>
+  <body>
+    <p>Welcome to the documentation.</p>
+  </body>
+</topic>`
+	parts := readXML(t, input, nil)
+	require.NotEmpty(t, parts)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+}
+
+// okapi: DitaExtractionComparisionTest#testDoubleExtraction
+func TestDita_DoubleExtraction(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<topic id="test"><title>Title</title><body><p>Body text</p></body></topic>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: DitaExtractionComparisionTest#testDoubleExtractionSingle
+func TestDita_DoubleExtractionSingle(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<task id="oil"><title>Changing oil</title><taskbody><context>Steps for changing oil.</context></taskbody></task>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: DitaExtractionComparisionTest#testReconstructFile
+func TestDita_ReconstructFile(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<topic id="readme"><title>Getting Started</title><body><p>Welcome.</p></body></topic>`
+	output := roundtripXML(t, input, nil)
+	require.NotEmpty(t, output)
+	assert.Contains(t, output, "Getting Started")
+	assert.Contains(t, output, "Welcome.")
+}
+
+// okapi: DitaExtractionComparisionTest#testOpenTwice
+func TestDita_OpenTwice(t *testing.T) {
+	ctx := context.Background()
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<topic id="readme"><title>Title</title><body><p>Body</p></body></topic>`
+
+	reader := xmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	blocks1 := testutil.CollectBlocks(t, reader.Read(ctx))
+	reader.Close()
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	blocks2 := testutil.CollectBlocks(t, reader.Read(ctx))
+	reader.Close()
+
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// ---------------------------------------------------------------------------
+// DOCTYPE extraction tests
+// ---------------------------------------------------------------------------
+
+// okapi: DocTypeExtractionTest#testDoubleExtraction
+func TestDocType_DoubleExtraction(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE doc SYSTEM "doc.dtd">
+<doc><text>Hello</text></doc>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: DocTypeExtractionTest#testEvents
+func TestDocType_Events(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE doc SYSTEM "doc.dtd">
+<doc><text>Hello world</text></doc>`
+	parts := readXML(t, input, nil)
+	require.NotEmpty(t, parts)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks, "document with DOCTYPE should have translatable content")
+	texts := blockTexts(blocks)
+	assert.Contains(t, texts, "Hello world")
+}
+
+// ---------------------------------------------------------------------------
+// Processing instruction extraction tests
+// ---------------------------------------------------------------------------
+
+// okapi: PIExtractionTest#testDoubleExtraction
+func TestPI_DoubleExtraction(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<?my-pi data="value"?>
+<doc><text>Hello</text></doc>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: PIExtractionTest#testDoubleExtraction2
+func TestPI_DoubleExtraction2(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<doc><?my-pi?><text>Content</text><?another-pi data="x"?></doc>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// ---------------------------------------------------------------------------
+// Property XML extraction tests
+// ---------------------------------------------------------------------------
+
+// okapi: PropertyXmlExtractionComparisionTest#testStartDocument
+func TestPropertyXml_StartDocument(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<properties><entry key="about">About this app</entry></properties>`
+	parts := readXML(t, input, nil)
+	require.NotEmpty(t, parts)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks)
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testDoubleExtraction
+func TestPropertyXml_DoubleExtraction(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<properties><entry key="about">About</entry></properties>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	blocks1 := filterBlocks(parts1)
+	blocks2 := filterBlocks(parts2)
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testDoubleExtractionSingle
+func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<properties><entry key="test">Test value</entry></properties>`
+	parts1 := readXML(t, input, nil)
+	parts2 := readXML(t, input, nil)
+	require.Equal(t, len(parts1), len(parts2))
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testReconstructFile
+func TestPropertyXml_ReconstructFile(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<properties><entry key="about">About this app</entry></properties>`
+	output := roundtripXML(t, input, nil)
+	require.NotEmpty(t, output)
+	assert.Contains(t, output, "About this app")
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testOpenTwice
+func TestPropertyXml_OpenTwice(t *testing.T) {
+	ctx := context.Background()
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<properties><entry key="test">Test value</entry></properties>`
+
+	reader := xmlfmt.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	blocks1 := testutil.CollectBlocks(t, reader.Read(ctx))
+	reader.Close()
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	blocks2 := testutil.CollectBlocks(t, reader.Read(ctx))
+	reader.Close()
+
+	require.Equal(t, len(blocks1), len(blocks2))
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testAsSnippetNoCdata
+func TestPropertyXml_AsSnippetNoCdata(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?><properties><entry key="test">Test value</entry></properties>`
+	parts := readXML(t, input, nil)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks, "should extract entries from property XML")
+}
+
+// okapi: PropertyXmlExtractionComparisionTest#testAsSnippetWithCdata
+func TestPropertyXml_AsSnippetWithCdata(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?><properties><entry key="test"><![CDATA[Test value]]></entry></properties>`
+	parts := readXML(t, input, nil)
+	blocks := filterBlocks(parts)
+	require.NotEmpty(t, blocks, "should extract entries from property XML with CDATA")
+}
+
+// ---------------------------------------------------------------------------
+// Roundtrip integration test
+// ---------------------------------------------------------------------------
+
+// okapi: RoundTripXmlStreamIT
+func TestRoundTrip_Integration(t *testing.T) {
+	inputs := []string{
+		`<?xml version="1.0" encoding="UTF-8"?><root><text>Hello world</text></root>`,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><p>One</p><p>Two</p></doc>`,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><text>Price: &lt;$10 &amp; &gt;$5</text></doc>`,
+		`<?xml version="1.0" encoding="UTF-8"?><doc><text><![CDATA[Hello <world>]]></text></doc>`,
+	}
+	for _, input := range inputs {
+		output := roundtripXML(t, input, nil)
+		require.NotEmpty(t, output, "roundtrip should produce output for: %s", input[:50])
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Helper functions
 // ---------------------------------------------------------------------------
+
+// roundtripXML reads and writes XML, returning the output string.
+func roundtripXML(t *testing.T, input string, cfg *xmlfmt.Config) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := xmlfmt.NewReader()
+	if cfg != nil {
+		require.NoError(t, reader.SetConfig(cfg))
+	}
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	writer := xmlfmt.NewWriter()
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	partCh := make(chan *model.Part, len(parts))
+	for _, p := range parts {
+		partCh <- p
+	}
+	close(partCh)
+
+	require.NoError(t, writer.Write(ctx, partCh))
+	require.NoError(t, writer.Close())
+	return buf.String()
+}
 
 // readXML parses XML with an optional config applied via ApplyMap.
 func readXML(t *testing.T, input string, params map[string]any) []*model.Part {

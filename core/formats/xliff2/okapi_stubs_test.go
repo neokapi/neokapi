@@ -541,6 +541,60 @@ func TestRead_UpdateTarget(t *testing.T) {
 
 // okapi-unmapped: Xliff2FilterWriterTest#testWriteHTMLAsXliff2 -- cross-format HTML-to-XLIFF2 conversion is a Java bridge concept with no native equivalent
 
+// ---- RoundTripXliff2IT ----
+
+// okapi: RoundTripXliff2IT
+func TestRoundTrip_NativeFiles(t *testing.T) {
+	// Native equivalent of the Java RoundTripXliff2IT, which verifies that
+	// XLIFF 2.0 files survive a read-write roundtrip. We use representative
+	// snippets covering multiple units, targets, groups, and inline codes.
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"simple", `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1"><segment id="s1"><source>Hello World</source><target>Bonjour le monde</target></segment></unit>
+    <unit id="u2"><segment id="s1"><source>Goodbye</source></segment></unit>
+  </file>
+</xliff>`},
+		{"group", `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <group id="g1"><unit id="u1"><segment><source>In group</source></segment></unit></group>
+  </file>
+</xliff>`},
+		{"multi_segment", `<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:2.0" version="2.0" srcLang="en" trgLang="fr">
+  <file id="f1">
+    <unit id="u1">
+      <segment id="s1"><source>First.</source></segment>
+      <segment id="s2"><source>Second.</source></segment>
+    </unit>
+  </file>
+</xliff>`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := roundtripNative(t, tt.input)
+			require.NotEmpty(t, output, "roundtrip should produce output")
+
+			// Double extraction: roundtrip again and verify stability.
+			output2 := roundtripNative(t, output)
+			blocks1 := readNativeBlocks(t, output)
+			blocks2 := readNativeBlocks(t, output2)
+			require.Equal(t, len(blocks1), len(blocks2),
+				"double extraction should produce same block count")
+			for i := range blocks1 {
+				assert.Equal(t, blocks1[i].SourceText(), blocks2[i].SourceText(),
+					"block %d source text should match", i)
+			}
+		})
+	}
+}
+
 // ---- Additional native tests for bridge parity ----
 
 func TestRead_MultipleUnits(t *testing.T) {
