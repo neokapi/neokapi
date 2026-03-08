@@ -6,6 +6,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
+	"github.com/gokapi/gokapi/core/formats/mosestext"
 	"github.com/gokapi/gokapi/core/formats/openxml"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
@@ -65,6 +66,10 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// CSV
 	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
 	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
+
+	// Moses Text
+	reg.RegisterReader("mosestext", func() format.DataFormatReader { return mosestext.NewReader() })
+	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
 
 	// SRT Subtitles
 	reg.RegisterReader("srt", func() format.DataFormatReader { return srt.NewReader() })
