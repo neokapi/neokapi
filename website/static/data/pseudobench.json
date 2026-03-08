@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-03-08T20:43:32Z",
+    "timestamp": "2026-03-08T21:03:20Z",
     "platform": "darwin/arm64",
     "goVersion": "go1.26.1",
     "cpuModel": "Apple M1 Max",
@@ -17,40 +17,40 @@
       "fileCount": 1,
       "totalInputBytes": 1206,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.33,
-          "median": 16.18,
-          "p95": 17,
-          "stddev": 0.42,
-          "min": 15.93,
-          "max": 17.29
+          "mean": 16.47,
+          "median": 16.58,
+          "p95": 17.02,
+          "stddev": 0.45,
+          "min": 15.68,
+          "max": 17.03
         },
         "userCpuMs": {
-          "mean": 11.28,
-          "median": 11.26,
-          "p95": 11.53,
-          "stddev": 0.16,
-          "min": 11.02,
-          "max": 11.54
+          "mean": 11.41,
+          "median": 11.34,
+          "p95": 11.98,
+          "stddev": 0.36,
+          "min": 11.1,
+          "max": 12.34
         },
         "sysCpuMs": {
-          "mean": 4.82,
-          "median": 4.75,
-          "p95": 5.21,
-          "stddev": 0.24,
-          "min": 4.61,
-          "max": 5.45
+          "mean": 4.92,
+          "median": 5,
+          "p95": 5.18,
+          "stddev": 0.23,
+          "min": 4.49,
+          "max": 5.23
         },
         "peakRssKB": {
-          "mean": 23742.4,
-          "median": 23824,
-          "p95": 23976.8,
-          "stddev": 233.51,
-          "min": 23344,
-          "max": 23984
+          "mean": 23670.4,
+          "median": 23696,
+          "p95": 23923.2,
+          "stddev": 206.86,
+          "min": 23376,
+          "max": 23952
         },
         "outputBytes": {
           "mean": 1969,
@@ -71,40 +71,40 @@
       "fileCount": 1,
       "totalInputBytes": 30078,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 20.75,
-          "median": 20.45,
-          "p95": 21.54,
-          "stddev": 0.62,
-          "min": 19.93,
-          "max": 21.6
+          "mean": 21.96,
+          "median": 22.1,
+          "p95": 22.83,
+          "stddev": 0.73,
+          "min": 20.93,
+          "max": 22.85
         },
         "userCpuMs": {
-          "mean": 15.1,
-          "median": 14.9,
+          "mean": 15.35,
+          "median": 15.36,
           "p95": 15.76,
-          "stddev": 0.38,
-          "min": 14.78,
-          "max": 15.8
+          "stddev": 0.29,
+          "min": 14.82,
+          "max": 15.81
         },
         "sysCpuMs": {
-          "mean": 7.37,
-          "median": 7.23,
-          "p95": 7.87,
-          "stddev": 0.35,
-          "min": 6.96,
-          "max": 7.9
+          "mean": 8.3,
+          "median": 8.51,
+          "p95": 8.85,
+          "stddev": 0.56,
+          "min": 7.28,
+          "max": 8.91
         },
         "peakRssKB": {
-          "mean": 25396.8,
-          "median": 25432,
-          "p95": 25617.6,
-          "stddev": 176.09,
-          "min": 25184,
-          "max": 25632
+          "mean": 25393.6,
+          "median": 25368,
+          "p95": 25677.6,
+          "stddev": 192.21,
+          "min": 25120,
+          "max": 25728
         },
         "outputBytes": {
           "mean": 49153,
@@ -125,40 +125,40 @@
       "fileCount": 1,
       "totalInputBytes": 300753,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 55.44,
-          "median": 54.48,
-          "p95": 59.92,
-          "stddev": 2.73,
-          "min": 53.95,
-          "max": 62.97
+          "mean": 58.34,
+          "median": 56.85,
+          "p95": 65.08,
+          "stddev": 3.91,
+          "min": 55.43,
+          "max": 68.49
         },
         "userCpuMs": {
-          "mean": 41.8,
-          "median": 41.73,
-          "p95": 43.01,
-          "stddev": 0.9,
-          "min": 40.02,
-          "max": 43.2
+          "mean": 42.02,
+          "median": 41.91,
+          "p95": 43.21,
+          "stddev": 1.02,
+          "min": 40.27,
+          "max": 43.36
         },
         "sysCpuMs": {
-          "mean": 27.21,
-          "median": 26.78,
-          "p95": 28.9,
-          "stddev": 1.07,
-          "min": 26.38,
-          "max": 29.94
+          "mean": 29.24,
+          "median": 29.04,
+          "p95": 31.5,
+          "stddev": 1.48,
+          "min": 27.38,
+          "max": 31.93
         },
         "peakRssKB": {
-          "mean": 35145.6,
-          "median": 35248,
-          "p95": 35629.6,
-          "stddev": 384.98,
-          "min": 34464,
-          "max": 35680
+          "mean": 34945.6,
+          "median": 34896,
+          "p95": 35880,
+          "stddev": 633.14,
+          "min": 34144,
+          "max": 36240
         },
         "outputBytes": {
           "mean": 491503,
@@ -179,40 +179,40 @@
       "fileCount": 1,
       "totalInputBytes": 1182,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 17.21,
-          "median": 17.05,
-          "p95": 17.91,
-          "stddev": 0.47,
-          "min": 16.53,
-          "max": 18.01
+          "mean": 18.29,
+          "median": 18.28,
+          "p95": 19.19,
+          "stddev": 0.65,
+          "min": 17.26,
+          "max": 19.41
         },
         "userCpuMs": {
-          "mean": 12.08,
-          "median": 11.98,
-          "p95": 12.84,
-          "stddev": 0.63,
-          "min": 11.36,
-          "max": 12.84
+          "mean": 12.39,
+          "median": 11.97,
+          "p95": 13.55,
+          "stddev": 0.83,
+          "min": 11.57,
+          "max": 13.7
         },
         "sysCpuMs": {
-          "mean": 5.44,
-          "median": 5.45,
-          "p95": 5.87,
-          "stddev": 0.33,
-          "min": 4.9,
-          "max": 6.01
+          "mean": 5.91,
+          "median": 5.76,
+          "p95": 6.7,
+          "stddev": 0.48,
+          "min": 5.34,
+          "max": 6.82
         },
         "peakRssKB": {
-          "mean": 24156.8,
-          "median": 23952,
-          "p95": 24886.4,
-          "stddev": 559.3,
-          "min": 23568,
-          "max": 24944
+          "mean": 24200,
+          "median": 24008,
+          "p95": 25002.4,
+          "stddev": 573.14,
+          "min": 23504,
+          "max": 25024
         },
         "outputBytes": {
           "mean": 2002,
@@ -233,40 +233,40 @@
       "fileCount": 1,
       "totalInputBytes": 27170,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 24.66,
-          "median": 24.53,
-          "p95": 25.67,
-          "stddev": 0.61,
-          "min": 23.8,
-          "max": 25.73
+          "mean": 26.77,
+          "median": 26.96,
+          "p95": 27.42,
+          "stddev": 0.66,
+          "min": 25.51,
+          "max": 27.42
         },
         "userCpuMs": {
-          "mean": 17.86,
-          "median": 17.85,
-          "p95": 18.33,
-          "stddev": 0.34,
-          "min": 17.35,
-          "max": 18.37
+          "mean": 18.59,
+          "median": 18.6,
+          "p95": 19.07,
+          "stddev": 0.39,
+          "min": 17.99,
+          "max": 19.09
         },
         "sysCpuMs": {
-          "mean": 10.7,
-          "median": 10.62,
-          "p95": 11.36,
-          "stddev": 0.47,
-          "min": 10.04,
-          "max": 11.49
+          "mean": 12.33,
+          "median": 12.54,
+          "p95": 13.11,
+          "stddev": 0.71,
+          "min": 11.09,
+          "max": 13.13
         },
         "peakRssKB": {
-          "mean": 27710.4,
-          "median": 27784,
-          "p95": 27994.4,
-          "stddev": 237.01,
-          "min": 27392,
-          "max": 28016
+          "mean": 27696,
+          "median": 27656,
+          "p95": 28006.4,
+          "stddev": 213.87,
+          "min": 27360,
+          "max": 28064
         },
         "outputBytes": {
           "mean": 47166,
@@ -287,40 +287,40 @@
       "fileCount": 1,
       "totalInputBytes": 271746,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 86.47,
-          "median": 86.18,
-          "p95": 88.8,
-          "stddev": 1.51,
-          "min": 84.54,
-          "max": 89.5
+          "mean": 88.93,
+          "median": 87.79,
+          "p95": 95.54,
+          "stddev": 3.81,
+          "min": 85.73,
+          "max": 98.69
         },
         "userCpuMs": {
-          "mean": 64.9,
-          "median": 65.04,
-          "p95": 65.75,
-          "stddev": 0.75,
-          "min": 63.57,
-          "max": 65.91
+          "mean": 66.07,
+          "median": 66.02,
+          "p95": 67.16,
+          "stddev": 0.76,
+          "min": 65.02,
+          "max": 67.47
         },
         "sysCpuMs": {
-          "mean": 53.03,
-          "median": 52.94,
-          "p95": 54.32,
-          "stddev": 0.89,
-          "min": 51.89,
-          "max": 54.65
+          "mean": 54.47,
+          "median": 54.29,
+          "p95": 56.45,
+          "stddev": 1.42,
+          "min": 52.02,
+          "max": 56.73
         },
         "peakRssKB": {
-          "mean": 35097.6,
-          "median": 35040,
-          "p95": 35594.4,
-          "stddev": 369.37,
-          "min": 34512,
-          "max": 35616
+          "mean": 34955.2,
+          "median": 34968,
+          "p95": 35677.6,
+          "stddev": 493.62,
+          "min": 34352,
+          "max": 36160
         },
         "outputBytes": {
           "mean": 471517,
@@ -341,40 +341,40 @@
       "fileCount": 1,
       "totalInputBytes": 1627,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.25,
-          "median": 16.16,
-          "p95": 16.77,
-          "stddev": 0.34,
-          "min": 15.83,
-          "max": 16.98
+          "mean": 19.82,
+          "median": 19.62,
+          "p95": 23.01,
+          "stddev": 1.97,
+          "min": 17.3,
+          "max": 23.93
         },
         "userCpuMs": {
-          "mean": 11.33,
-          "median": 11.31,
-          "p95": 11.57,
-          "stddev": 0.15,
-          "min": 11.1,
-          "max": 11.64
+          "mean": 12.54,
+          "median": 12.53,
+          "p95": 13.28,
+          "stddev": 0.51,
+          "min": 11.64,
+          "max": 13.48
         },
         "sysCpuMs": {
-          "mean": 4.66,
-          "median": 4.67,
-          "p95": 5.03,
-          "stddev": 0.23,
-          "min": 4.44,
-          "max": 5.2
+          "mean": 6.52,
+          "median": 6.31,
+          "p95": 7.98,
+          "stddev": 0.96,
+          "min": 5.39,
+          "max": 8.43
         },
         "peakRssKB": {
-          "mean": 23705.6,
-          "median": 23784,
-          "p95": 23965.6,
-          "stddev": 220.57,
-          "min": 23392,
-          "max": 24016
+          "mean": 23902.4,
+          "median": 23736,
+          "p95": 24807.2,
+          "stddev": 495.02,
+          "min": 23488,
+          "max": 25088
         },
         "outputBytes": {
           "mean": 1606,
@@ -395,40 +395,40 @@
       "fileCount": 1,
       "totalInputBytes": 39139,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 20.18,
-          "median": 20.06,
-          "p95": 20.94,
-          "stddev": 0.47,
-          "min": 19.6,
-          "max": 21.18
+          "mean": 22.4,
+          "median": 21.84,
+          "p95": 26.36,
+          "stddev": 2.35,
+          "min": 20.28,
+          "max": 28.37
         },
         "userCpuMs": {
-          "mean": 15.59,
-          "median": 15.58,
-          "p95": 15.88,
-          "stddev": 0.2,
-          "min": 15.32,
-          "max": 15.96
+          "mean": 16.52,
+          "median": 16.5,
+          "p95": 17.62,
+          "stddev": 0.68,
+          "min": 15.67,
+          "max": 17.64
         },
         "sysCpuMs": {
-          "mean": 6.63,
-          "median": 6.59,
-          "p95": 6.98,
-          "stddev": 0.23,
-          "min": 6.39,
-          "max": 7.13
+          "mean": 7.92,
+          "median": 7.79,
+          "p95": 9.72,
+          "stddev": 1.07,
+          "min": 6.66,
+          "max": 9.97
         },
         "peakRssKB": {
-          "mean": 25705.6,
-          "median": 25608,
-          "p95": 26080,
-          "stddev": 243.84,
-          "min": 25472,
-          "max": 26080
+          "mean": 25809.6,
+          "median": 25712,
+          "p95": 26047.2,
+          "stddev": 170.91,
+          "min": 25584,
+          "max": 26112
         },
         "outputBytes": {
           "mean": 40150,
@@ -449,40 +449,40 @@
       "fileCount": 1,
       "totalInputBytes": 390814,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 58.86,
-          "median": 58.77,
-          "p95": 60.17,
-          "stddev": 0.82,
-          "min": 57.86,
-          "max": 60.78
+          "mean": 67.01,
+          "median": 65.45,
+          "p95": 78.4,
+          "stddev": 7,
+          "min": 58.91,
+          "max": 82.86
         },
         "userCpuMs": {
-          "mean": 69.7,
-          "median": 70.06,
-          "p95": 70.69,
-          "stddev": 1.03,
-          "min": 67.64,
-          "max": 70.71
+          "mean": 73.86,
+          "median": 73.92,
+          "p95": 76.91,
+          "stddev": 2.14,
+          "min": 70.64,
+          "max": 76.92
         },
         "sysCpuMs": {
-          "mean": 25.89,
-          "median": 26,
-          "p95": 26.58,
-          "stddev": 0.59,
-          "min": 24.85,
-          "max": 26.64
+          "mean": 31.25,
+          "median": 31.06,
+          "p95": 35.99,
+          "stddev": 3.23,
+          "min": 26.93,
+          "max": 36.4
         },
         "peakRssKB": {
-          "mean": 36659.2,
-          "median": 36632,
-          "p95": 37249.6,
-          "stddev": 441.79,
-          "min": 35696,
-          "max": 37408
+          "mean": 36715.2,
+          "median": 36616,
+          "p95": 37809.6,
+          "stddev": 721.28,
+          "min": 35760,
+          "max": 37968
         },
         "outputBytes": {
           "mean": 401500,
@@ -503,40 +503,40 @@
       "fileCount": 1,
       "totalInputBytes": 2646,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.44,
-          "median": 16.43,
-          "p95": 16.86,
-          "stddev": 0.32,
-          "min": 15.97,
-          "max": 16.96
+          "mean": 20.27,
+          "median": 20.03,
+          "p95": 23.76,
+          "stddev": 2.04,
+          "min": 18.15,
+          "max": 24.66
         },
         "userCpuMs": {
-          "mean": 11.31,
-          "median": 11.34,
-          "p95": 11.53,
-          "stddev": 0.18,
-          "min": 11.01,
-          "max": 11.59
+          "mean": 12.55,
+          "median": 12.49,
+          "p95": 13.46,
+          "stddev": 0.6,
+          "min": 11.86,
+          "max": 13.72
         },
         "sysCpuMs": {
-          "mean": 4.85,
-          "median": 4.82,
-          "p95": 5.08,
-          "stddev": 0.14,
-          "min": 4.7,
-          "max": 5.13
+          "mean": 6.78,
+          "median": 6.65,
+          "p95": 8.04,
+          "stddev": 0.88,
+          "min": 5.69,
+          "max": 8.08
         },
         "peakRssKB": {
-          "mean": 23884.8,
-          "median": 23920,
-          "p95": 24161.6,
-          "stddev": 227,
-          "min": 23504,
-          "max": 24176
+          "mean": 23928,
+          "median": 23976,
+          "p95": 24314.4,
+          "stddev": 287.13,
+          "min": 23360,
+          "max": 24336
         },
         "outputBytes": {
           "mean": 4771,
@@ -557,40 +557,40 @@
       "fileCount": 1,
       "totalInputBytes": 60318,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 24.42,
-          "median": 24.32,
-          "p95": 25.16,
-          "stddev": 0.43,
-          "min": 23.94,
-          "max": 25.2
+          "mean": 27.6,
+          "median": 25.93,
+          "p95": 34.24,
+          "stddev": 4.13,
+          "min": 25.03,
+          "max": 38.7
         },
         "userCpuMs": {
-          "mean": 16.66,
-          "median": 16.62,
-          "p95": 16.85,
-          "stddev": 0.15,
-          "min": 16.51,
-          "max": 16.87
+          "mean": 17.64,
+          "median": 17.32,
+          "p95": 19.13,
+          "stddev": 0.88,
+          "min": 16.78,
+          "max": 19.82
         },
         "sysCpuMs": {
-          "mean": 9.99,
-          "median": 9.89,
-          "p95": 10.54,
-          "stddev": 0.33,
-          "min": 9.56,
-          "max": 10.65
+          "mean": 11.61,
+          "median": 11.08,
+          "p95": 14.34,
+          "stddev": 1.65,
+          "min": 10.23,
+          "max": 15.75
         },
         "peakRssKB": {
-          "mean": 25705.6,
-          "median": 25624,
-          "p95": 26125.6,
-          "stddev": 271.65,
+          "mean": 25961.6,
+          "median": 25936,
+          "p95": 26474.4,
+          "stddev": 357.23,
           "min": 25392,
-          "max": 26176
+          "max": 26640
         },
         "outputBytes": {
           "mean": 113467,
@@ -611,40 +611,40 @@
       "fileCount": 1,
       "totalInputBytes": 600993,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 94.39,
-          "median": 94.07,
-          "p95": 96.14,
-          "stddev": 1.12,
-          "min": 93.1,
-          "max": 96.57
+          "mean": 98.18,
+          "median": 98.12,
+          "p95": 103.16,
+          "stddev": 3.12,
+          "min": 95.01,
+          "max": 105.34
         },
         "userCpuMs": {
-          "mean": 63.62,
-          "median": 63.61,
-          "p95": 64.5,
-          "stddev": 0.65,
-          "min": 62.74,
-          "max": 64.56
+          "mean": 64.61,
+          "median": 64.47,
+          "p95": 66.49,
+          "stddev": 1.23,
+          "min": 63.35,
+          "max": 67.59
         },
         "sysCpuMs": {
-          "mean": 55.06,
-          "median": 55,
-          "p95": 56.03,
-          "stddev": 0.69,
-          "min": 54.04,
-          "max": 56.18
+          "mean": 57.69,
+          "median": 56.45,
+          "p95": 63.01,
+          "stddev": 3.07,
+          "min": 54.82,
+          "max": 64.76
         },
         "peakRssKB": {
-          "mean": 34708.8,
-          "median": 34704,
-          "p95": 35043.2,
-          "stddev": 274.87,
-          "min": 34272,
-          "max": 35072
+          "mean": 34944,
+          "median": 34840,
+          "p95": 35508,
+          "stddev": 336.97,
+          "min": 34496,
+          "max": 35616
         },
         "outputBytes": {
           "mean": 1132492,
@@ -665,40 +665,40 @@
       "fileCount": 1,
       "totalInputBytes": 1071,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.54,
-          "median": 16.49,
-          "p95": 17.12,
-          "stddev": 0.42,
-          "min": 16.01,
-          "max": 17.19
+          "mean": 16.36,
+          "median": 16.13,
+          "p95": 17.59,
+          "stddev": 0.75,
+          "min": 15.69,
+          "max": 18.35
         },
         "userCpuMs": {
-          "mean": 11.35,
-          "median": 11.34,
-          "p95": 11.6,
-          "stddev": 0.2,
-          "min": 11.03,
-          "max": 11.63
+          "mean": 11.31,
+          "median": 11.24,
+          "p95": 11.68,
+          "stddev": 0.23,
+          "min": 11.1,
+          "max": 11.91
         },
         "sysCpuMs": {
-          "mean": 4.91,
-          "median": 4.75,
-          "p95": 5.55,
-          "stddev": 0.36,
-          "min": 4.5,
-          "max": 5.55
+          "mean": 4.72,
+          "median": 4.63,
+          "p95": 5.26,
+          "stddev": 0.33,
+          "min": 4.34,
+          "max": 5.4
         },
         "peakRssKB": {
-          "mean": 23641.6,
-          "median": 23704,
-          "p95": 23907.2,
-          "stddev": 234.33,
-          "min": 23296,
-          "max": 23936
+          "mean": 23702.4,
+          "median": 23680,
+          "p95": 24003.2,
+          "stddev": 212.02,
+          "min": 23376,
+          "max": 24032
         },
         "outputBytes": {
           "mean": 4625,
@@ -719,40 +719,40 @@
       "fileCount": 1,
       "totalInputBytes": 26103,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 23.98,
-          "median": 22.15,
-          "p95": 33.03,
-          "stddev": 6.16,
-          "min": 21.22,
-          "max": 41.45
+          "mean": 22.95,
+          "median": 23.22,
+          "p95": 23.64,
+          "stddev": 0.68,
+          "min": 21.61,
+          "max": 23.75
         },
         "userCpuMs": {
-          "mean": 16.31,
-          "median": 16.34,
-          "p95": 16.51,
-          "stddev": 0.19,
-          "min": 15.89,
-          "max": 16.59
+          "mean": 16.63,
+          "median": 16.68,
+          "p95": 17.03,
+          "stddev": 0.36,
+          "min": 15.93,
+          "max": 17.04
         },
         "sysCpuMs": {
-          "mean": 7.6,
-          "median": 7.61,
-          "p95": 7.89,
-          "stddev": 0.28,
-          "min": 7.06,
-          "max": 7.9
+          "mean": 8.06,
+          "median": 8.15,
+          "p95": 8.68,
+          "stddev": 0.51,
+          "min": 7.13,
+          "max": 8.69
         },
         "peakRssKB": {
-          "mean": 25608,
-          "median": 25584,
-          "p95": 25826.4,
-          "stddev": 147.85,
-          "min": 25392,
-          "max": 25920
+          "mean": 25571.2,
+          "median": 25560,
+          "p95": 25816,
+          "stddev": 150.06,
+          "min": 25408,
+          "max": 25888
         },
         "outputBytes": {
           "mean": 114977,
@@ -773,40 +773,40 @@
       "fileCount": 1,
       "totalInputBytes": 260778,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 67.39,
-          "median": 67.5,
-          "p95": 67.84,
-          "stddev": 0.38,
-          "min": 66.68,
-          "max": 67.85
+          "mean": 69.25,
+          "median": 68.88,
+          "p95": 72.39,
+          "stddev": 1.88,
+          "min": 67.1,
+          "max": 73.04
         },
         "userCpuMs": {
-          "mean": 52.37,
-          "median": 52.33,
-          "p95": 53.19,
-          "stddev": 0.64,
-          "min": 51.41,
-          "max": 53.26
+          "mean": 53.11,
+          "median": 52.84,
+          "p95": 55.19,
+          "stddev": 1.2,
+          "min": 51.58,
+          "max": 55.37
         },
         "sysCpuMs": {
-          "mean": 28.04,
-          "median": 28.01,
-          "p95": 28.74,
-          "stddev": 0.52,
-          "min": 27.19,
-          "max": 28.91
+          "mean": 29.26,
+          "median": 29.05,
+          "p95": 31.18,
+          "stddev": 1.2,
+          "min": 27.87,
+          "max": 31.74
         },
         "peakRssKB": {
-          "mean": 37961.6,
-          "median": 37768,
-          "p95": 39437.6,
-          "stddev": 1186.21,
-          "min": 36400,
-          "max": 39488
+          "mean": 38379.2,
+          "median": 38624,
+          "p95": 39407.2,
+          "stddev": 1015.94,
+          "min": 36592,
+          "max": 39472
         },
         "outputBytes": {
           "mean": 1149527,
@@ -827,40 +827,40 @@
       "fileCount": 1,
       "totalInputBytes": 1654,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.73,
-          "median": 16.81,
-          "p95": 17.84,
-          "stddev": 0.77,
-          "min": 15.62,
-          "max": 18.27
+          "mean": 18.43,
+          "median": 18.25,
+          "p95": 19.41,
+          "stddev": 0.62,
+          "min": 17.77,
+          "max": 19.95
         },
         "userCpuMs": {
-          "mean": 11.36,
-          "median": 11.27,
-          "p95": 12.15,
-          "stddev": 0.46,
-          "min": 10.94,
-          "max": 12.54
+          "mean": 12.22,
+          "median": 11.99,
+          "p95": 13.48,
+          "stddev": 0.68,
+          "min": 11.74,
+          "max": 13.85
         },
         "sysCpuMs": {
-          "mean": 5.11,
-          "median": 5.24,
-          "p95": 5.87,
-          "stddev": 0.52,
-          "min": 4.38,
-          "max": 5.88
+          "mean": 5.97,
+          "median": 5.82,
+          "p95": 6.62,
+          "stddev": 0.44,
+          "min": 5.5,
+          "max": 6.66
         },
         "peakRssKB": {
-          "mean": 23704,
-          "median": 23624,
-          "p95": 24230.4,
-          "stddev": 329.05,
-          "min": 23408,
-          "max": 24576
+          "mean": 23777.6,
+          "median": 23688,
+          "p95": 24239.2,
+          "stddev": 281.65,
+          "min": 23424,
+          "max": 24448
         },
         "outputBytes": {
           "mean": 3239,
@@ -881,40 +881,40 @@
       "fileCount": 1,
       "totalInputBytes": 39566,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 23,
-          "median": 23.11,
-          "p95": 23.37,
-          "stddev": 0.35,
-          "min": 22.37,
-          "max": 23.4
+          "mean": 25.04,
+          "median": 22.89,
+          "p95": 32.13,
+          "stddev": 4.12,
+          "min": 22.12,
+          "max": 34.78
         },
         "userCpuMs": {
-          "mean": 15.75,
-          "median": 15.76,
-          "p95": 16.04,
-          "stddev": 0.24,
-          "min": 15.21,
-          "max": 16.14
+          "mean": 15.99,
+          "median": 15.72,
+          "p95": 16.77,
+          "stddev": 0.53,
+          "min": 15.5,
+          "max": 16.77
         },
         "sysCpuMs": {
-          "mean": 9.12,
-          "median": 9.08,
-          "p95": 9.5,
-          "stddev": 0.26,
-          "min": 8.78,
-          "max": 9.61
+          "mean": 9.95,
+          "median": 9.06,
+          "p95": 12.43,
+          "stddev": 1.57,
+          "min": 8.64,
+          "max": 12.73
         },
         "peakRssKB": {
-          "mean": 25436.8,
-          "median": 25440,
-          "p95": 25711.2,
-          "stddev": 188.98,
-          "min": 25200,
-          "max": 25776
+          "mean": 25484.8,
+          "median": 25448,
+          "p95": 26072.8,
+          "stddev": 361.32,
+          "min": 25088,
+          "max": 26368
         },
         "outputBytes": {
           "mean": 79695,
@@ -935,40 +935,40 @@
       "fileCount": 1,
       "totalInputBytes": 399741,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 75.67,
-          "median": 75.59,
-          "p95": 76.98,
-          "stddev": 0.83,
-          "min": 74.68,
-          "max": 77.2
+          "mean": 84.28,
+          "median": 81.59,
+          "p95": 97.27,
+          "stddev": 7.67,
+          "min": 76.64,
+          "max": 101.06
         },
         "userCpuMs": {
-          "mean": 45.11,
-          "median": 45.27,
-          "p95": 45.87,
-          "stddev": 0.67,
-          "min": 43.98,
-          "max": 46.13
+          "mean": 48.37,
+          "median": 47.35,
+          "p95": 53.15,
+          "stddev": 2.66,
+          "min": 46.09,
+          "max": 54.3
         },
         "sysCpuMs": {
-          "mean": 44.71,
-          "median": 44.83,
-          "p95": 45.56,
-          "stddev": 0.67,
-          "min": 43.76,
-          "max": 45.75
+          "mean": 49.82,
+          "median": 48.36,
+          "p95": 56.02,
+          "stddev": 3.79,
+          "min": 45.33,
+          "max": 57.88
         },
         "peakRssKB": {
-          "mean": 37302.4,
-          "median": 37240,
-          "p95": 37818.4,
-          "stddev": 391.57,
-          "min": 36720,
-          "max": 37840
+          "mean": 37545.6,
+          "median": 37416,
+          "p95": 38198.4,
+          "stddev": 461.28,
+          "min": 37072,
+          "max": 38256
         },
         "outputBytes": {
           "mean": 801220,
@@ -989,40 +989,40 @@
       "fileCount": 1,
       "totalInputBytes": 1125,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.35,
-          "median": 16.26,
-          "p95": 16.74,
-          "stddev": 0.24,
-          "min": 16.08,
-          "max": 16.87
+          "mean": 19.46,
+          "median": 18.44,
+          "p95": 22.63,
+          "stddev": 1.9,
+          "min": 17.67,
+          "max": 22.84
         },
         "userCpuMs": {
-          "mean": 11.35,
-          "median": 11.37,
-          "p95": 11.48,
-          "stddev": 0.11,
-          "min": 11.14,
-          "max": 11.49
+          "mean": 12.37,
+          "median": 12.02,
+          "p95": 13.46,
+          "stddev": 0.68,
+          "min": 11.68,
+          "max": 13.76
         },
         "sysCpuMs": {
-          "mean": 4.64,
-          "median": 4.59,
-          "p95": 4.99,
-          "stddev": 0.21,
-          "min": 4.42,
-          "max": 5.11
+          "mean": 6.24,
+          "median": 6.15,
+          "p95": 7.29,
+          "stddev": 0.7,
+          "min": 5.44,
+          "max": 7.72
         },
         "peakRssKB": {
-          "mean": 23953.6,
-          "median": 23976,
-          "p95": 24148.8,
-          "stddev": 179.83,
-          "min": 23536,
-          "max": 24192
+          "mean": 24020.8,
+          "median": 23968,
+          "p95": 24481.6,
+          "stddev": 332.73,
+          "min": 23520,
+          "max": 24640
         },
         "outputBytes": {
           "mean": 1866,
@@ -1043,40 +1043,40 @@
       "fileCount": 1,
       "totalInputBytes": 27597,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 21.08,
-          "median": 21.16,
-          "p95": 21.69,
-          "stddev": 0.51,
-          "min": 20.18,
-          "max": 21.71
+          "mean": 25.34,
+          "median": 23.59,
+          "p95": 31.54,
+          "stddev": 3.59,
+          "min": 22.22,
+          "max": 32.91
         },
         "userCpuMs": {
-          "mean": 16.24,
-          "median": 16.2,
-          "p95": 16.7,
-          "stddev": 0.32,
-          "min": 15.68,
-          "max": 16.74
+          "mean": 17.32,
+          "median": 17.25,
+          "p95": 18.37,
+          "stddev": 0.65,
+          "min": 16.63,
+          "max": 18.77
         },
         "sysCpuMs": {
-          "mean": 6.4,
-          "median": 6.44,
-          "p95": 6.74,
-          "stddev": 0.28,
-          "min": 5.87,
-          "max": 6.76
+          "mean": 8.02,
+          "median": 7.77,
+          "p95": 9.61,
+          "stddev": 0.99,
+          "min": 6.93,
+          "max": 10.13
         },
         "peakRssKB": {
-          "mean": 26492.8,
-          "median": 26480,
-          "p95": 26724,
-          "stddev": 150.06,
-          "min": 26304,
-          "max": 26832
+          "mean": 26513.6,
+          "median": 26544,
+          "p95": 26912.8,
+          "stddev": 289.52,
+          "min": 26128,
+          "max": 26992
         },
         "outputBytes": {
           "mean": 46650,
@@ -1097,40 +1097,40 @@
       "fileCount": 1,
       "totalInputBytes": 275772,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 60.49,
-          "median": 60.22,
-          "p95": 61.47,
-          "stddev": 0.7,
-          "min": 59.68,
-          "max": 61.49
+          "mean": 74.55,
+          "median": 75.16,
+          "p95": 84.29,
+          "stddev": 7.31,
+          "min": 63.5,
+          "max": 86.52
         },
         "userCpuMs": {
-          "mean": 61.42,
-          "median": 61.13,
-          "p95": 63.05,
-          "stddev": 1.03,
-          "min": 60.6,
-          "max": 64.26
+          "mean": 67.01,
+          "median": 67.34,
+          "p95": 70.09,
+          "stddev": 2.27,
+          "min": 63.58,
+          "max": 71.46
         },
         "sysCpuMs": {
-          "mean": 20.29,
-          "median": 20.22,
-          "p95": 21.05,
-          "stddev": 0.53,
-          "min": 19.4,
-          "max": 21.23
+          "mean": 26.58,
+          "median": 26.47,
+          "p95": 30.57,
+          "stddev": 2.92,
+          "min": 22.11,
+          "max": 30.77
         },
         "peakRssKB": {
-          "mean": 46417.6,
-          "median": 46416,
-          "p95": 47316,
-          "stddev": 552.22,
-          "min": 45856,
-          "max": 47712
+          "mean": 46124.8,
+          "median": 46136,
+          "p95": 46465.6,
+          "stddev": 277.52,
+          "min": 45584,
+          "max": 46480
         },
         "outputBytes": {
           "mean": 466500,
@@ -1151,40 +1151,40 @@
       "fileCount": 1,
       "totalInputBytes": 863,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 16.23,
-          "median": 15.99,
-          "p95": 17.24,
-          "stddev": 0.63,
-          "min": 15.6,
-          "max": 17.28
+          "mean": 18.18,
+          "median": 17.93,
+          "p95": 20.01,
+          "stddev": 1.18,
+          "min": 16.7,
+          "max": 20.77
         },
         "userCpuMs": {
-          "mean": 11.16,
-          "median": 11.14,
-          "p95": 11.44,
-          "stddev": 0.17,
-          "min": 10.9,
-          "max": 11.47
+          "mean": 12.03,
+          "median": 12.02,
+          "p95": 12.72,
+          "stddev": 0.46,
+          "min": 11.44,
+          "max": 12.84
         },
         "sysCpuMs": {
-          "mean": 4.79,
-          "median": 4.6,
-          "p95": 5.26,
-          "stddev": 0.33,
-          "min": 4.42,
-          "max": 5.38
+          "mean": 5.72,
+          "median": 5.69,
+          "p95": 6.92,
+          "stddev": 0.75,
+          "min": 4.79,
+          "max": 7.36
         },
         "peakRssKB": {
-          "mean": 23753.6,
-          "median": 23768,
-          "p95": 24091.2,
-          "stddev": 242.09,
-          "min": 23376,
-          "max": 24192
+          "mean": 23899.2,
+          "median": 23936,
+          "p95": 24304,
+          "stddev": 313.45,
+          "min": 23248,
+          "max": 24448
         },
         "outputBytes": {
           "mean": 1625,
@@ -1205,40 +1205,40 @@
       "fileCount": 1,
       "totalInputBytes": 21575,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 19.9,
-          "median": 19.87,
-          "p95": 20.36,
-          "stddev": 0.33,
-          "min": 19.31,
-          "max": 20.6
+          "mean": 27.34,
+          "median": 25.44,
+          "p95": 35.88,
+          "stddev": 5.18,
+          "min": 22.86,
+          "max": 37.21
         },
         "userCpuMs": {
-          "mean": 14.57,
-          "median": 14.5,
-          "p95": 14.91,
-          "stddev": 0.22,
-          "min": 14.33,
-          "max": 14.99
+          "mean": 16.53,
+          "median": 16.35,
+          "p95": 18.01,
+          "stddev": 0.86,
+          "min": 15.53,
+          "max": 18.29
         },
         "sysCpuMs": {
-          "mean": 7.05,
-          "median": 7.12,
-          "p95": 7.28,
-          "stddev": 0.22,
-          "min": 6.57,
-          "max": 7.32
+          "mean": 10.09,
+          "median": 9.81,
+          "p95": 12.4,
+          "stddev": 1.31,
+          "min": 8.64,
+          "max": 12.9
         },
         "peakRssKB": {
-          "mean": 25020.8,
-          "median": 25000,
-          "p95": 25216.8,
-          "stddev": 152.13,
-          "min": 24688,
-          "max": 25296
+          "mean": 25380.8,
+          "median": 25296,
+          "p95": 26056.8,
+          "stddev": 461.7,
+          "min": 24784,
+          "max": 26208
         },
         "outputBytes": {
           "mean": 40649,
@@ -1259,40 +1259,40 @@
       "fileCount": 1,
       "totalInputBytes": 215750,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 49.86,
-          "median": 49.66,
-          "p95": 51.04,
-          "stddev": 0.75,
-          "min": 48.97,
-          "max": 51.66
+          "mean": 56.27,
+          "median": 54.06,
+          "p95": 63.15,
+          "stddev": 4.15,
+          "min": 52.9,
+          "max": 65.36
         },
         "userCpuMs": {
-          "mean": 35.22,
-          "median": 35.43,
-          "p95": 35.97,
-          "stddev": 0.85,
-          "min": 33.11,
-          "max": 36.08
+          "mean": 36.78,
+          "median": 36.75,
+          "p95": 39.06,
+          "stddev": 1.56,
+          "min": 34.55,
+          "max": 40.28
         },
         "sysCpuMs": {
-          "mean": 26.28,
-          "median": 26.31,
-          "p95": 26.86,
-          "stddev": 0.4,
-          "min": 25.69,
-          "max": 27.01
+          "mean": 31.35,
+          "median": 29.88,
+          "p95": 36.43,
+          "stddev": 2.87,
+          "min": 29.03,
+          "max": 38.02
         },
         "peakRssKB": {
-          "mean": 33400,
-          "median": 33408,
-          "p95": 33971.2,
-          "stddev": 430.93,
-          "min": 32640,
-          "max": 34000
+          "mean": 33432,
+          "median": 33392,
+          "p95": 34017.6,
+          "stddev": 411,
+          "min": 32928,
+          "max": 34176
         },
         "outputBytes": {
           "mean": 406499,
@@ -1313,40 +1313,40 @@
       "fileCount": 1,
       "totalInputBytes": 2001,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 17.28,
-          "median": 17.14,
-          "p95": 18.15,
-          "stddev": 0.54,
-          "min": 16.46,
-          "max": 18.46
+          "mean": 19.17,
+          "median": 18.9,
+          "p95": 20.36,
+          "stddev": 0.74,
+          "min": 18.39,
+          "max": 20.37
         },
         "userCpuMs": {
-          "mean": 12.87,
-          "median": 12.93,
-          "p95": 13.01,
-          "stddev": 0.13,
-          "min": 12.64,
-          "max": 13.03
+          "mean": 13.71,
+          "median": 13.64,
+          "p95": 14.22,
+          "stddev": 0.37,
+          "min": 13.26,
+          "max": 14.25
         },
         "sysCpuMs": {
-          "mean": 5.2,
-          "median": 5.17,
-          "p95": 5.6,
-          "stddev": 0.29,
-          "min": 4.76,
-          "max": 5.8
+          "mean": 6.3,
+          "median": 6.31,
+          "p95": 7.24,
+          "stddev": 0.66,
+          "min": 5.42,
+          "max": 7.69
         },
         "peakRssKB": {
-          "mean": 25465.6,
-          "median": 25368,
-          "p95": 25938.4,
-          "stddev": 290.18,
-          "min": 25136,
-          "max": 26176
+          "mean": 25548.8,
+          "median": 25528,
+          "p95": 25932,
+          "stddev": 270.46,
+          "min": 25232,
+          "max": 25968
         },
         "outputBytes": {
           "mean": 2321,
@@ -1367,40 +1367,40 @@
       "fileCount": 1,
       "totalInputBytes": 2650,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 20.19,
-          "median": 19.98,
-          "p95": 21.14,
-          "stddev": 0.7,
-          "min": 19.38,
-          "max": 21.32
+          "mean": 23.23,
+          "median": 21.58,
+          "p95": 28.96,
+          "stddev": 3.28,
+          "min": 20.6,
+          "max": 29.69
         },
         "userCpuMs": {
-          "mean": 16.66,
-          "median": 16.64,
-          "p95": 17.49,
-          "stddev": 0.71,
-          "min": 15.71,
-          "max": 17.5
+          "mean": 17.57,
+          "median": 17.65,
+          "p95": 18.79,
+          "stddev": 0.87,
+          "min": 16.26,
+          "max": 19.03
         },
         "sysCpuMs": {
-          "mean": 6.32,
-          "median": 6.32,
-          "p95": 6.84,
-          "stddev": 0.37,
-          "min": 5.83,
-          "max": 7.04
+          "mean": 7.74,
+          "median": 7.19,
+          "p95": 9.42,
+          "stddev": 1.17,
+          "min": 6.31,
+          "max": 9.7
         },
         "peakRssKB": {
-          "mean": 27300.8,
-          "median": 27296,
-          "p95": 27594.4,
-          "stddev": 219.52,
-          "min": 26928,
-          "max": 27616
+          "mean": 27368,
+          "median": 27384,
+          "p95": 27700,
+          "stddev": 247.21,
+          "min": 26912,
+          "max": 27808
         },
         "outputBytes": {
           "mean": 3165,
@@ -1421,40 +1421,40 @@
       "fileCount": 1,
       "totalInputBytes": 7426,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 46.11,
-          "median": 46.09,
-          "p95": 46.81,
-          "stddev": 0.45,
-          "min": 45.48,
-          "max": 47.21
+          "mean": 51.06,
+          "median": 49.4,
+          "p95": 58.17,
+          "stddev": 3.91,
+          "min": 47.63,
+          "max": 60.43
         },
         "userCpuMs": {
-          "mean": 54.54,
-          "median": 54.51,
-          "p95": 55.36,
-          "stddev": 0.69,
-          "min": 53.24,
-          "max": 55.51
+          "mean": 57.05,
+          "median": 56.37,
+          "p95": 60.29,
+          "stddev": 2.01,
+          "min": 54.75,
+          "max": 60.72
         },
         "sysCpuMs": {
-          "mean": 15.94,
-          "median": 15.77,
-          "p95": 16.43,
-          "stddev": 0.29,
-          "min": 15.69,
-          "max": 16.5
+          "mean": 19.61,
+          "median": 18.94,
+          "p95": 23.48,
+          "stddev": 2.22,
+          "min": 16.63,
+          "max": 23.48
         },
         "peakRssKB": {
-          "mean": 40091.2,
-          "median": 39760,
-          "p95": 40858.4,
-          "stddev": 612.2,
-          "min": 39392,
-          "max": 40880
+          "mean": 39876.8,
+          "median": 39872,
+          "p95": 40448.8,
+          "stddev": 445.78,
+          "min": 39168,
+          "max": 40528
         },
         "outputBytes": {
           "mean": 8790,
@@ -1475,40 +1475,40 @@
       "fileCount": 1,
       "totalInputBytes": 7845,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 18.34,
-          "median": 18.39,
-          "p95": 18.89,
-          "stddev": 0.4,
-          "min": 17.77,
-          "max": 18.99
+          "mean": 19.31,
+          "median": 19.11,
+          "p95": 21.46,
+          "stddev": 1.36,
+          "min": 17.91,
+          "max": 22.87
         },
         "userCpuMs": {
-          "mean": 13.84,
-          "median": 13.82,
-          "p95": 14.16,
-          "stddev": 0.21,
-          "min": 13.62,
-          "max": 14.19
+          "mean": 14.32,
+          "median": 14.29,
+          "p95": 15.15,
+          "stddev": 0.52,
+          "min": 13.68,
+          "max": 15.47
         },
         "sysCpuMs": {
-          "mean": 5.44,
-          "median": 5.43,
-          "p95": 5.81,
-          "stddev": 0.25,
-          "min": 5.02,
-          "max": 5.84
+          "mean": 5.97,
+          "median": 5.8,
+          "p95": 7.25,
+          "stddev": 0.77,
+          "min": 5.25,
+          "max": 7.88
         },
         "peakRssKB": {
-          "mean": 26027.2,
-          "median": 25896,
-          "p95": 26440,
-          "stddev": 246.5,
-          "min": 25760,
-          "max": 26512
+          "mean": 25968,
+          "median": 25952,
+          "p95": 26317.6,
+          "stddev": 235.27,
+          "min": 25616,
+          "max": 26368
         },
         "outputBytes": {
           "mean": 8623,
@@ -1529,40 +1529,40 @@
       "fileCount": 1,
       "totalInputBytes": 118038,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 42.09,
-          "median": 41.99,
-          "p95": 42.75,
-          "stddev": 0.46,
-          "min": 41.48,
-          "max": 42.76
+          "mean": 48.98,
+          "median": 44.94,
+          "p95": 67.6,
+          "stddev": 10.89,
+          "min": 43.12,
+          "max": 78.56
         },
         "userCpuMs": {
-          "mean": 41.94,
-          "median": 41.89,
-          "p95": 43.08,
-          "stddev": 0.77,
-          "min": 40.92,
-          "max": 43.2
+          "mean": 45.61,
+          "median": 45.75,
+          "p95": 47.92,
+          "stddev": 1.73,
+          "min": 43.45,
+          "max": 48.56
         },
         "sysCpuMs": {
-          "mean": 10.34,
-          "median": 10.21,
-          "p95": 11.21,
-          "stddev": 0.51,
-          "min": 9.7,
-          "max": 11.3
+          "mean": 14.5,
+          "median": 15.31,
+          "p95": 17.34,
+          "stddev": 2.8,
+          "min": 10.56,
+          "max": 17.67
         },
         "peakRssKB": {
-          "mean": 32323.2,
-          "median": 32592,
-          "p95": 32979.2,
-          "stddev": 717.32,
-          "min": 31072,
-          "max": 33008
+          "mean": 32352,
+          "median": 32232,
+          "p95": 33257.6,
+          "stddev": 662.71,
+          "min": 31456,
+          "max": 33488
         },
         "outputBytes": {
           "mean": 137135,
@@ -1583,40 +1583,40 @@
       "fileCount": 1,
       "totalInputBytes": 1156089,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 260.23,
-          "median": 260.04,
-          "p95": 264.81,
-          "stddev": 3.46,
-          "min": 254.29,
-          "max": 265.89
+          "mean": 281.24,
+          "median": 269.39,
+          "p95": 326.35,
+          "stddev": 28.48,
+          "min": 255.18,
+          "max": 347.42
         },
         "userCpuMs": {
-          "mean": 299.08,
-          "median": 299.53,
-          "p95": 301.9,
-          "stddev": 2.45,
-          "min": 295.37,
-          "max": 301.9
+          "mean": 310.72,
+          "median": 307.77,
+          "p95": 332.58,
+          "stddev": 13.24,
+          "min": 297.61,
+          "max": 342.91
         },
         "sysCpuMs": {
-          "mean": 52.41,
-          "median": 51.93,
-          "p95": 56.62,
-          "stddev": 2.88,
-          "min": 48.58,
-          "max": 57.13
+          "mean": 62.72,
+          "median": 60.21,
+          "p95": 86.9,
+          "stddev": 14.93,
+          "min": 47.55,
+          "max": 98.14
         },
         "peakRssKB": {
-          "mean": 59176,
-          "median": 59096,
-          "p95": 61124,
-          "stddev": 1574.25,
-          "min": 55952,
-          "max": 61232
+          "mean": 59265.6,
+          "median": 59376,
+          "p95": 61388.8,
+          "stddev": 1651.09,
+          "min": 55840,
+          "max": 61648
         },
         "outputBytes": {
           "mean": 1346590,
@@ -1637,40 +1637,40 @@
       "fileCount": 1,
       "totalInputBytes": 3311,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 17.13,
-          "median": 16.96,
-          "p95": 17.93,
-          "stddev": 0.44,
-          "min": 16.67,
-          "max": 18.01
+          "mean": 18.91,
+          "median": 18.89,
+          "p95": 19.23,
+          "stddev": 0.24,
+          "min": 18.52,
+          "max": 19.36
         },
         "userCpuMs": {
-          "mean": 12.89,
-          "median": 12.96,
-          "p95": 13.14,
-          "stddev": 0.23,
-          "min": 12.47,
-          "max": 13.19
+          "mean": 13.7,
+          "median": 13.72,
+          "p95": 14,
+          "stddev": 0.21,
+          "min": 13.33,
+          "max": 14.02
         },
         "sysCpuMs": {
-          "mean": 5.07,
-          "median": 5.02,
-          "p95": 5.46,
-          "stddev": 0.26,
-          "min": 4.62,
-          "max": 5.48
+          "mean": 6.06,
+          "median": 6,
+          "p95": 6.48,
+          "stddev": 0.29,
+          "min": 5.72,
+          "max": 6.5
         },
         "peakRssKB": {
-          "mean": 25643.2,
-          "median": 25576,
-          "p95": 25992,
-          "stddev": 214.01,
-          "min": 25424,
-          "max": 26064
+          "mean": 25787.2,
+          "median": 25720,
+          "p95": 26244,
+          "stddev": 292.22,
+          "min": 25456,
+          "max": 26352
         },
         "outputBytes": {
           "mean": 3619,
@@ -1691,40 +1691,40 @@
       "fileCount": 1,
       "totalInputBytes": 10395,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 24.19,
-          "median": 24.18,
-          "p95": 24.53,
-          "stddev": 0.25,
-          "min": 23.76,
-          "max": 24.61
+          "mean": 25.26,
+          "median": 25.17,
+          "p95": 25.79,
+          "stddev": 0.33,
+          "min": 24.83,
+          "max": 25.85
         },
         "userCpuMs": {
-          "mean": 21.65,
-          "median": 21.64,
-          "p95": 21.95,
-          "stddev": 0.25,
-          "min": 21.27,
-          "max": 21.98
+          "mean": 22.05,
+          "median": 21.97,
+          "p95": 22.32,
+          "stddev": 0.2,
+          "min": 21.77,
+          "max": 22.36
         },
         "sysCpuMs": {
-          "mean": 7.1,
-          "median": 7.12,
-          "p95": 7.36,
-          "stddev": 0.18,
-          "min": 6.85,
-          "max": 7.47
+          "mean": 7.78,
+          "median": 7.74,
+          "p95": 8.16,
+          "stddev": 0.26,
+          "min": 7.42,
+          "max": 8.21
         },
         "peakRssKB": {
-          "mean": 28752,
-          "median": 28704,
-          "p95": 29070.4,
-          "stddev": 189.46,
-          "min": 28560,
-          "max": 29200
+          "mean": 28934.4,
+          "median": 28888,
+          "p95": 29393.6,
+          "stddev": 305.28,
+          "min": 28624,
+          "max": 29552
         },
         "outputBytes": {
           "mean": 10812,
@@ -1745,40 +1745,40 @@
       "fileCount": 1,
       "totalInputBytes": 74918,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 83.97,
-          "median": 83.94,
-          "p95": 85.02,
-          "stddev": 0.7,
-          "min": 82.88,
-          "max": 85.3
+          "mean": 86.69,
+          "median": 85.75,
+          "p95": 92.11,
+          "stddev": 3.52,
+          "min": 84.41,
+          "max": 96.42
         },
         "userCpuMs": {
-          "mean": 104.18,
-          "median": 105.15,
-          "p95": 106.22,
-          "stddev": 2.63,
-          "min": 98.83,
-          "max": 106.32
+          "mean": 106.86,
+          "median": 106.96,
+          "p95": 111.43,
+          "stddev": 3.02,
+          "min": 101.66,
+          "max": 112.18
         },
         "sysCpuMs": {
-          "mean": 22.09,
-          "median": 22.2,
-          "p95": 22.86,
-          "stddev": 0.68,
-          "min": 21.16,
-          "max": 22.96
+          "mean": 23.73,
+          "median": 23.36,
+          "p95": 27.09,
+          "stddev": 2.12,
+          "min": 21.51,
+          "max": 29.33
         },
         "peakRssKB": {
-          "mean": 48120,
-          "median": 47792,
-          "p95": 50150.4,
-          "stddev": 1208.92,
-          "min": 47056,
-          "max": 51216
+          "mean": 48430.4,
+          "median": 48120,
+          "p95": 50587.2,
+          "stddev": 1315.93,
+          "min": 47040,
+          "max": 50832
         },
         "outputBytes": {
           "mean": 75981,
@@ -1799,40 +1799,40 @@
       "fileCount": 1,
       "totalInputBytes": 1206,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1275.05,
-          "median": 1279.58,
-          "p95": 1293.21,
-          "stddev": 14.98,
-          "min": 1251.58,
-          "max": 1301.3
+          "mean": 1316.19,
+          "median": 1313.85,
+          "p95": 1332.95,
+          "stddev": 15.12,
+          "min": 1292.72,
+          "max": 1333.38
         },
         "userCpuMs": {
-          "mean": 1630.44,
-          "median": 1623.19,
-          "p95": 1660.79,
-          "stddev": 20.17,
-          "min": 1604.52,
-          "max": 1669.77
+          "mean": 2418.99,
+          "median": 2415.72,
+          "p95": 2440.81,
+          "stddev": 17.57,
+          "min": 2390.21,
+          "max": 2442.31
         },
         "sysCpuMs": {
-          "mean": 153.29,
-          "median": 154.72,
-          "p95": 161.63,
-          "stddev": 7.66,
-          "min": 137.54,
-          "max": 161.74
+          "mean": 180.3,
+          "median": 179.98,
+          "p95": 189.9,
+          "stddev": 6.76,
+          "min": 169.68,
+          "max": 190.7
         },
         "peakRssKB": {
-          "mean": 183331.2,
-          "median": 181352,
-          "p95": 192453.6,
-          "stddev": 5519.39,
-          "min": 179600,
-          "max": 198336
+          "mean": 213723.2,
+          "median": 214200,
+          "p95": 217637.6,
+          "stddev": 3136.13,
+          "min": 207824,
+          "max": 219056
         },
         "outputBytes": {
           "mean": 1969,
@@ -1853,40 +1853,40 @@
       "fileCount": 1,
       "totalInputBytes": 30078,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1453.69,
-          "median": 1452.04,
-          "p95": 1463.24,
-          "stddev": 5.52,
-          "min": 1446.51,
-          "max": 1464.7
+          "mean": 1526.75,
+          "median": 1483.39,
+          "p95": 1731.46,
+          "stddev": 110.99,
+          "min": 1461.88,
+          "max": 1805.57
         },
         "userCpuMs": {
-          "mean": 2509.03,
-          "median": 2462.55,
-          "p95": 2841.24,
-          "stddev": 310.2,
-          "min": 2209.57,
-          "max": 2848.06
+          "mean": 3252.48,
+          "median": 3223.76,
+          "p95": 3389.33,
+          "stddev": 84.73,
+          "min": 3190.88,
+          "max": 3476.27
         },
         "sysCpuMs": {
-          "mean": 234.91,
-          "median": 236.11,
-          "p95": 243,
-          "stddev": 6.3,
-          "min": 227.43,
-          "max": 243.89
+          "mean": 272.81,
+          "median": 271.33,
+          "p95": 295.14,
+          "stddev": 14.59,
+          "min": 255.86,
+          "max": 308.86
         },
         "peakRssKB": {
-          "mean": 190072,
-          "median": 189952,
-          "p95": 198977.6,
-          "stddev": 8087.15,
-          "min": 180432,
-          "max": 199136
+          "mean": 215360,
+          "median": 215432,
+          "p95": 218430.4,
+          "stddev": 2744.54,
+          "min": 209456,
+          "max": 218560
         },
         "outputBytes": {
           "mean": 49153,
@@ -1907,40 +1907,40 @@
       "fileCount": 1,
       "totalInputBytes": 300753,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 2265.19,
-          "median": 2231.77,
-          "p95": 2422.4,
-          "stddev": 99.67,
-          "min": 2208.48,
-          "max": 2544.5
+          "mean": 2365.75,
+          "median": 2321.92,
+          "p95": 2592,
+          "stddev": 149.02,
+          "min": 2204.65,
+          "max": 2648.57
         },
         "userCpuMs": {
-          "mean": 5412.59,
-          "median": 5392.42,
-          "p95": 5554.53,
-          "stddev": 83.21,
-          "min": 5322.44,
-          "max": 5564.21
+          "mean": 6724.59,
+          "median": 6626.4,
+          "p95": 7148.1,
+          "stddev": 269.59,
+          "min": 6415.38,
+          "max": 7192.04
         },
         "sysCpuMs": {
-          "mean": 636.99,
-          "median": 636.32,
-          "p95": 647.79,
-          "stddev": 7.69,
-          "min": 626.36,
-          "max": 650.83
+          "mean": 736.45,
+          "median": 718.64,
+          "p95": 803.22,
+          "stddev": 44.05,
+          "min": 692.72,
+          "max": 821.99
         },
         "peakRssKB": {
-          "mean": 386625.6,
-          "median": 385752,
-          "p95": 396150.4,
-          "stddev": 6023.52,
-          "min": 378016,
-          "max": 398800
+          "mean": 398508.8,
+          "median": 396816,
+          "p95": 408920.8,
+          "stddev": 6989.17,
+          "min": 387376,
+          "max": 410944
         },
         "outputBytes": {
           "mean": 491503,
@@ -1961,40 +1961,40 @@
       "fileCount": 1,
       "totalInputBytes": 1182,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1325.94,
-          "median": 1323.47,
-          "p95": 1343.56,
-          "stddev": 11.38,
-          "min": 1308.19,
-          "max": 1347.88
+          "mean": 1368.78,
+          "median": 1358.23,
+          "p95": 1414.85,
+          "stddev": 30.83,
+          "min": 1334.49,
+          "max": 1416.79
         },
         "userCpuMs": {
-          "mean": 2236.66,
-          "median": 2231.06,
-          "p95": 2263.42,
-          "stddev": 21.33,
-          "min": 2196.98,
-          "max": 2264.62
+          "mean": 2634.05,
+          "median": 2621.97,
+          "p95": 2727.33,
+          "stddev": 58.57,
+          "min": 2556.49,
+          "max": 2735.11
         },
         "sysCpuMs": {
-          "mean": 170.48,
-          "median": 167.72,
-          "p95": 180.22,
-          "stddev": 6.16,
-          "min": 163.59,
-          "max": 182.49
+          "mean": 189.34,
+          "median": 187.68,
+          "p95": 209.03,
+          "stddev": 11.24,
+          "min": 178.43,
+          "max": 214.44
         },
         "peakRssKB": {
-          "mean": 203921.6,
-          "median": 204224,
-          "p95": 208189.6,
-          "stddev": 3543.63,
-          "min": 195616,
-          "max": 208816
+          "mean": 217900.8,
+          "median": 218888,
+          "p95": 220457.6,
+          "stddev": 2611.4,
+          "min": 211920,
+          "max": 220544
         },
         "outputBytes": {
           "mean": 2070,
@@ -2015,40 +2015,40 @@
       "fileCount": 1,
       "totalInputBytes": 27170,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1461.56,
-          "median": 1458.95,
-          "p95": 1472.93,
-          "stddev": 7.28,
-          "min": 1450.83,
-          "max": 1473.72
+          "mean": 1505.35,
+          "median": 1498.51,
+          "p95": 1549,
+          "stddev": 26.64,
+          "min": 1478.91,
+          "max": 1553.26
         },
         "userCpuMs": {
-          "mean": 2907.27,
-          "median": 2897.71,
-          "p95": 2946.77,
-          "stddev": 27.68,
-          "min": 2870.1,
-          "max": 2950.88
+          "mean": 3385.37,
+          "median": 3375.32,
+          "p95": 3468.32,
+          "stddev": 61.19,
+          "min": 3309.12,
+          "max": 3468.6
         },
         "sysCpuMs": {
-          "mean": 251.95,
-          "median": 250.23,
-          "p95": 260.58,
-          "stddev": 5.54,
-          "min": 245.41,
-          "max": 263.13
+          "mean": 282.08,
+          "median": 283.45,
+          "p95": 293.1,
+          "stddev": 8.81,
+          "min": 266.03,
+          "max": 294.79
         },
         "peakRssKB": {
-          "mean": 221505.6,
-          "median": 221112,
-          "p95": 224522.4,
-          "stddev": 1856.62,
-          "min": 219712,
-          "max": 226272
+          "mean": 234280,
+          "median": 234440,
+          "p95": 237271.2,
+          "stddev": 2421.78,
+          "min": 229968,
+          "max": 237696
         },
         "outputBytes": {
           "mean": 47234,
@@ -2069,40 +2069,40 @@
       "fileCount": 1,
       "totalInputBytes": 271746,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 2052.59,
-          "median": 2047.94,
-          "p95": 2086.51,
-          "stddev": 23.45,
-          "min": 2020.86,
-          "max": 2094.96
+          "mean": 2094.01,
+          "median": 2077.91,
+          "p95": 2230.59,
+          "stddev": 82.72,
+          "min": 1999.4,
+          "max": 2233.95
         },
         "userCpuMs": {
-          "mean": 5173.02,
-          "median": 5176.56,
-          "p95": 5234.09,
-          "stddev": 45.42,
-          "min": 5105.25,
-          "max": 5239.87
+          "mean": 6124.9,
+          "median": 6110.32,
+          "p95": 6264.69,
+          "stddev": 112.17,
+          "min": 5941.08,
+          "max": 6273.6
         },
         "sysCpuMs": {
-          "mean": 635.13,
-          "median": 632.07,
-          "p95": 646.62,
-          "stddev": 7.64,
-          "min": 626.57,
-          "max": 648.47
+          "mean": 656.65,
+          "median": 658.57,
+          "p95": 686.31,
+          "stddev": 21.17,
+          "min": 625.36,
+          "max": 692.6
         },
         "peakRssKB": {
-          "mean": 374968,
-          "median": 373752,
-          "p95": 379060.8,
-          "stddev": 3063.08,
-          "min": 371520,
-          "max": 379680
+          "mean": 391761.6,
+          "median": 391928,
+          "p95": 399365.6,
+          "stddev": 5288.16,
+          "min": 384368,
+          "max": 400064
         },
         "outputBytes": {
           "mean": 471585,
@@ -2123,40 +2123,40 @@
       "fileCount": 1,
       "totalInputBytes": 1627,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1329.75,
-          "median": 1301.17,
-          "p95": 1489.64,
-          "stddev": 108.26,
-          "min": 1276.97,
-          "max": 1636.15
+          "mean": 1334.29,
+          "median": 1318.34,
+          "p95": 1387.34,
+          "stddev": 32.63,
+          "min": 1301.15,
+          "max": 1390.7
         },
         "userCpuMs": {
-          "mean": 2138.83,
-          "median": 2141.25,
-          "p95": 2213.76,
-          "stddev": 52.05,
-          "min": 2068.61,
-          "max": 2256.45
+          "mean": 2459.17,
+          "median": 2439.71,
+          "p95": 2521.05,
+          "stddev": 50.24,
+          "min": 2403.29,
+          "max": 2525.77
         },
         "sysCpuMs": {
-          "mean": 166.21,
-          "median": 165.96,
-          "p95": 172.11,
-          "stddev": 4,
-          "min": 160.63,
-          "max": 173.68
+          "mean": 184.11,
+          "median": 179.31,
+          "p95": 200.38,
+          "stddev": 10.8,
+          "min": 174.16,
+          "max": 201.11
         },
         "peakRssKB": {
-          "mean": 197401.6,
-          "median": 198224,
-          "p95": 199716.8,
-          "stddev": 2336.16,
-          "min": 192240,
-          "max": 199904
+          "mean": 214315.2,
+          "median": 214128,
+          "p95": 217060.8,
+          "stddev": 2103.35,
+          "min": 210208,
+          "max": 217248
         },
         "outputBytes": {
           "mean": 2390,
@@ -2177,40 +2177,40 @@
       "fileCount": 1,
       "totalInputBytes": 39139,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1404.86,
-          "median": 1403.26,
-          "p95": 1418.16,
-          "stddev": 8.24,
-          "min": 1395.1,
-          "max": 1421.25
+          "mean": 1474.06,
+          "median": 1476.06,
+          "p95": 1526.54,
+          "stddev": 41.86,
+          "min": 1417.16,
+          "max": 1529.75
         },
         "userCpuMs": {
-          "mean": 2646.36,
-          "median": 2651.14,
-          "p95": 2674.27,
-          "stddev": 21.75,
-          "min": 2615.27,
-          "max": 2681.5
+          "mean": 3069.82,
+          "median": 3099.06,
+          "p95": 3154.1,
+          "stddev": 82.99,
+          "min": 2948.57,
+          "max": 3156.29
         },
         "sysCpuMs": {
-          "mean": 229.72,
-          "median": 229.08,
-          "p95": 233.31,
-          "stddev": 2.97,
-          "min": 226.06,
-          "max": 233.66
+          "mean": 267.03,
+          "median": 266.08,
+          "p95": 291.07,
+          "stddev": 15.01,
+          "min": 248.12,
+          "max": 293.34
         },
         "peakRssKB": {
-          "mean": 197163.2,
-          "median": 198192,
-          "p95": 198905.6,
-          "stddev": 2667.62,
-          "min": 190096,
-          "max": 199136
+          "mean": 211576,
+          "median": 212008,
+          "p95": 216426.4,
+          "stddev": 4134.74,
+          "min": 204816,
+          "max": 217024
         },
         "outputBytes": {
           "mean": 58214,
@@ -2231,40 +2231,40 @@
       "fileCount": 1,
       "totalInputBytes": 390814,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1922.31,
-          "median": 1899.77,
-          "p95": 2095.83,
-          "stddev": 114.22,
-          "min": 1847.23,
-          "max": 2229.51
+          "mean": 1919.3,
+          "median": 1903.83,
+          "p95": 2032.21,
+          "stddev": 65.3,
+          "min": 1860.02,
+          "max": 2072.81
         },
         "userCpuMs": {
-          "mean": 3980.84,
-          "median": 3971.25,
-          "p95": 4406.43,
-          "stddev": 371.81,
-          "min": 3588.22,
-          "max": 4441.37
+          "mean": 5199.34,
+          "median": 5185.27,
+          "p95": 5396.65,
+          "stddev": 129.36,
+          "min": 5028.71,
+          "max": 5423
         },
         "sysCpuMs": {
-          "mean": 520.69,
-          "median": 520.27,
-          "p95": 536,
-          "stddev": 10.49,
-          "min": 506.16,
-          "max": 538.35
+          "mean": 558.6,
+          "median": 557.49,
+          "p95": 573.92,
+          "stddev": 10.83,
+          "min": 544.59,
+          "max": 574.02
         },
         "peakRssKB": {
-          "mean": 240664,
-          "median": 240112,
-          "p95": 255118.4,
-          "stddev": 11154.91,
-          "min": 223792,
-          "max": 256832
+          "mean": 272324.8,
+          "median": 270936,
+          "p95": 278651.2,
+          "stddev": 4546.05,
+          "min": 267728,
+          "max": 279040
         },
         "outputBytes": {
           "mean": 581564,
@@ -2285,40 +2285,40 @@
       "fileCount": 1,
       "totalInputBytes": 2646,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1306.8,
-          "median": 1303.49,
-          "p95": 1323.85,
-          "stddev": 11.11,
-          "min": 1293.65,
-          "max": 1330.8
+          "mean": 1368.16,
+          "median": 1353.36,
+          "p95": 1421.17,
+          "stddev": 32.7,
+          "min": 1336.15,
+          "max": 1439.18
         },
         "userCpuMs": {
-          "mean": 2175.5,
-          "median": 2175.73,
-          "p95": 2227.01,
-          "stddev": 35.41,
-          "min": 2125.56,
-          "max": 2245.54
+          "mean": 2567.78,
+          "median": 2556.18,
+          "p95": 2683.46,
+          "stddev": 70.83,
+          "min": 2476.3,
+          "max": 2696.18
         },
         "sysCpuMs": {
-          "mean": 168.1,
-          "median": 167.96,
-          "p95": 173.33,
-          "stddev": 4.05,
-          "min": 162.28,
-          "max": 173.63
+          "mean": 190.48,
+          "median": 186.79,
+          "p95": 209,
+          "stddev": 11.63,
+          "min": 177.96,
+          "max": 211.49
         },
         "peakRssKB": {
-          "mean": 199456,
-          "median": 199576,
-          "p95": 202150.4,
-          "stddev": 1908.54,
-          "min": 195792,
-          "max": 202784
+          "mean": 213579.2,
+          "median": 213592,
+          "p95": 218285.6,
+          "stddev": 3428.52,
+          "min": 208272,
+          "max": 219056
         },
         "outputBytes": {
           "mean": 4911,
@@ -2339,40 +2339,40 @@
       "fileCount": 1,
       "totalInputBytes": 60318,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1427.02,
-          "median": 1429.3,
-          "p95": 1440.49,
-          "stddev": 10.97,
-          "min": 1413.06,
-          "max": 1440.84
+          "mean": 1504.51,
+          "median": 1493.56,
+          "p95": 1550.05,
+          "stddev": 31.83,
+          "min": 1456.38,
+          "max": 1556.76
         },
         "userCpuMs": {
-          "mean": 2145.11,
-          "median": 2146.46,
-          "p95": 2159.71,
-          "stddev": 14.32,
-          "min": 2116.31,
-          "max": 2160.98
+          "mean": 3259.73,
+          "median": 3236.41,
+          "p95": 3367.43,
+          "stddev": 84.95,
+          "min": 3125.12,
+          "max": 3374.78
         },
         "sysCpuMs": {
-          "mean": 210.17,
-          "median": 208.93,
-          "p95": 219.1,
-          "stddev": 5.89,
-          "min": 201.58,
-          "max": 220.86
+          "mean": 264.05,
+          "median": 261.39,
+          "p95": 284.5,
+          "stddev": 14.68,
+          "min": 243.56,
+          "max": 285.24
         },
         "peakRssKB": {
-          "mean": 192761.6,
-          "median": 192784,
-          "p95": 195612.8,
-          "stddev": 1681.75,
-          "min": 190960,
-          "max": 195872
+          "mean": 222960,
+          "median": 224784,
+          "p95": 227528.8,
+          "stddev": 4767.11,
+          "min": 213872,
+          "max": 227824
         },
         "outputBytes": {
           "mean": 116967,
@@ -2393,40 +2393,40 @@
       "fileCount": 1,
       "totalInputBytes": 600993,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1920.09,
-          "median": 1935.82,
-          "p95": 1959.98,
-          "stddev": 42.11,
-          "min": 1842.31,
-          "max": 1970.46
+          "mean": 1899.85,
+          "median": 1892.84,
+          "p95": 1952.2,
+          "stddev": 46.13,
+          "min": 1836.04,
+          "max": 1955.42
         },
         "userCpuMs": {
-          "mean": 4012.89,
-          "median": 3820.24,
-          "p95": 4796.2,
-          "stddev": 422.21,
-          "min": 3778.32,
-          "max": 5058.14
+          "mean": 5278.57,
+          "median": 5240.51,
+          "p95": 5458.01,
+          "stddev": 115.41,
+          "min": 5159.26,
+          "max": 5466.25
         },
         "sysCpuMs": {
-          "mean": 495.82,
-          "median": 495.25,
-          "p95": 509.01,
-          "stddev": 10.01,
-          "min": 482.11,
-          "max": 511.65
+          "mean": 538.24,
+          "median": 543.81,
+          "p95": 565.99,
+          "stddev": 26.35,
+          "min": 500.12,
+          "max": 568.22
         },
         "peakRssKB": {
-          "mean": 416278.4,
-          "median": 412848,
-          "p95": 428492,
-          "stddev": 7719.12,
-          "min": 407840,
-          "max": 434144
+          "mean": 425230.4,
+          "median": 425928,
+          "p95": 430220.8,
+          "stddev": 3854.53,
+          "min": 417792,
+          "max": 431056
         },
         "outputBytes": {
           "mean": 1167492,
@@ -2447,40 +2447,40 @@
       "fileCount": 1,
       "totalInputBytes": 1071,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1278.13,
-          "median": 1276.59,
-          "p95": 1296.8,
-          "stddev": 11.61,
-          "min": 1264.32,
-          "max": 1298.79
+          "mean": 1308.8,
+          "median": 1304.97,
+          "p95": 1330.38,
+          "stddev": 14.44,
+          "min": 1286.6,
+          "max": 1338.09
         },
         "userCpuMs": {
-          "mean": 2080.13,
-          "median": 2091.73,
-          "p95": 2115.95,
-          "stddev": 41.15,
-          "min": 1975.43,
-          "max": 2118.89
+          "mean": 2417.64,
+          "median": 2405.96,
+          "p95": 2484.12,
+          "stddev": 48.67,
+          "min": 2349.71,
+          "max": 2490.19
         },
         "sysCpuMs": {
-          "mean": 162.36,
-          "median": 162.65,
-          "p95": 168.46,
-          "stddev": 5,
-          "min": 151.26,
-          "max": 168.97
+          "mean": 176.09,
+          "median": 176.25,
+          "p95": 181.6,
+          "stddev": 4.45,
+          "min": 165.88,
+          "max": 181.99
         },
         "peakRssKB": {
-          "mean": 202785.6,
-          "median": 202328,
-          "p95": 205628,
-          "stddev": 1890.73,
-          "min": 199536,
-          "max": 206096
+          "mean": 214441.6,
+          "median": 215096,
+          "p95": 219802.4,
+          "stddev": 5062.49,
+          "min": 206240,
+          "max": 220400
         },
         "outputBytes": {
           "mean": 4626,
@@ -2501,40 +2501,40 @@
       "fileCount": 1,
       "totalInputBytes": 26103,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1404.63,
-          "median": 1365.03,
-          "p95": 1578.65,
-          "stddev": 117.93,
-          "min": 1354.61,
-          "max": 1739.02
+          "mean": 1385.94,
+          "median": 1383.46,
+          "p95": 1426.02,
+          "stddev": 24.54,
+          "min": 1358.49,
+          "max": 1438.5
         },
         "userCpuMs": {
-          "mean": 2508.52,
-          "median": 2490.43,
-          "p95": 2613.56,
-          "stddev": 64.73,
-          "min": 2463.32,
-          "max": 2685.75
+          "mean": 2820.31,
+          "median": 2811.65,
+          "p95": 2887.83,
+          "stddev": 48.79,
+          "min": 2748.15,
+          "max": 2909
         },
         "sysCpuMs": {
-          "mean": 205.11,
-          "median": 204.6,
-          "p95": 211.07,
-          "stddev": 4.4,
-          "min": 198.61,
-          "max": 212.01
+          "mean": 217.71,
+          "median": 218.6,
+          "p95": 232.39,
+          "stddev": 10.53,
+          "min": 201.94,
+          "max": 239.39
         },
         "peakRssKB": {
-          "mean": 198852.8,
-          "median": 199208,
-          "p95": 199724,
-          "stddev": 914.38,
-          "min": 197152,
-          "max": 199904
+          "mean": 211913.6,
+          "median": 212128,
+          "p95": 217984,
+          "stddev": 4327.67,
+          "min": 203984,
+          "max": 218128
         },
         "outputBytes": {
           "mean": 114978,
@@ -2555,40 +2555,40 @@
       "fileCount": 1,
       "totalInputBytes": 260778,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1656.05,
-          "median": 1659.11,
-          "p95": 1679.96,
-          "stddev": 18.91,
-          "min": 1625.54,
-          "max": 1680.96
+          "mean": 1732.42,
+          "median": 1696.4,
+          "p95": 1907.92,
+          "stddev": 108.74,
+          "min": 1660.93,
+          "max": 2030.68
         },
         "userCpuMs": {
-          "mean": 3674.5,
-          "median": 3666.3,
-          "p95": 3800.09,
-          "stddev": 81.14,
-          "min": 3560.29,
-          "max": 3849.98
+          "mean": 4326.12,
+          "median": 4337.52,
+          "p95": 4438.9,
+          "stddev": 77.82,
+          "min": 4218.08,
+          "max": 4470.2
         },
         "sysCpuMs": {
-          "mean": 378.19,
-          "median": 378.94,
-          "p95": 391.11,
-          "stddev": 9.07,
-          "min": 362.35,
-          "max": 392.39
+          "mean": 420,
+          "median": 423.19,
+          "p95": 430.59,
+          "stddev": 11.45,
+          "min": 392.76,
+          "max": 432.91
         },
         "peakRssKB": {
-          "mean": 250500.8,
-          "median": 250184,
-          "p95": 253581.6,
-          "stddev": 2020.79,
-          "min": 247504,
-          "max": 253776
+          "mean": 265787.2,
+          "median": 266216,
+          "p95": 268359.2,
+          "stddev": 2027.69,
+          "min": 262880,
+          "max": 269360
         },
         "outputBytes": {
           "mean": 1149528,
@@ -2609,40 +2609,40 @@
       "fileCount": 1,
       "totalInputBytes": 1654,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1282.07,
-          "median": 1282.2,
-          "p95": 1288.95,
-          "stddev": 5.17,
-          "min": 1271.41,
-          "max": 1289.58
+          "mean": 1314.11,
+          "median": 1307.11,
+          "p95": 1362.01,
+          "stddev": 31.18,
+          "min": 1271.1,
+          "max": 1383.66
         },
         "userCpuMs": {
-          "mean": 2090.7,
-          "median": 2085.43,
-          "p95": 2127.92,
-          "stddev": 25.73,
-          "min": 2055.99,
-          "max": 2129.76
+          "mean": 2387.88,
+          "median": 2384.42,
+          "p95": 2450.72,
+          "stddev": 41.12,
+          "min": 2337.76,
+          "max": 2478.21
         },
         "sysCpuMs": {
-          "mean": 165.97,
-          "median": 166.13,
-          "p95": 168.74,
-          "stddev": 2.19,
-          "min": 162.08,
-          "max": 169.48
+          "mean": 175.03,
+          "median": 170.98,
+          "p95": 193.26,
+          "stddev": 10.82,
+          "min": 164.21,
+          "max": 194.92
         },
         "peakRssKB": {
-          "mean": 200281.6,
-          "median": 199848,
-          "p95": 204643.2,
-          "stddev": 3211.05,
-          "min": 193488,
-          "max": 204672
+          "mean": 216262.4,
+          "median": 215984,
+          "p95": 220572,
+          "stddev": 3844.61,
+          "min": 208000,
+          "max": 221040
         },
         "outputBytes": {
           "mean": 3260,
@@ -2663,40 +2663,40 @@
       "fileCount": 1,
       "totalInputBytes": 39566,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1395.95,
-          "median": 1378.58,
-          "p95": 1452.68,
-          "stddev": 38.39,
-          "min": 1355.06,
-          "max": 1470.17
+          "mean": 1392.65,
+          "median": 1376.62,
+          "p95": 1449.58,
+          "stddev": 33.59,
+          "min": 1359.98,
+          "max": 1456.2
         },
         "userCpuMs": {
-          "mean": 2275.09,
-          "median": 2385.33,
-          "p95": 2496.96,
-          "stddev": 245.99,
-          "min": 1907.43,
-          "max": 2508.15
+          "mean": 2760.53,
+          "median": 2736.4,
+          "p95": 2869.43,
+          "stddev": 73.39,
+          "min": 2661.52,
+          "max": 2904.32
         },
         "sysCpuMs": {
-          "mean": 199.19,
-          "median": 203.41,
-          "p95": 206.79,
-          "stddev": 9.39,
-          "min": 183.01,
-          "max": 207.49
+          "mean": 229.51,
+          "median": 227.62,
+          "p95": 248.5,
+          "stddev": 13.53,
+          "min": 210.53,
+          "max": 249.83
         },
         "peakRssKB": {
-          "mean": 193611.2,
-          "median": 197912,
-          "p95": 201636.8,
-          "stddev": 9143.32,
-          "min": 180160,
-          "max": 202256
+          "mean": 210672,
+          "median": 212408,
+          "p95": 215210.4,
+          "stddev": 4398.81,
+          "min": 204464,
+          "max": 215520
         },
         "outputBytes": {
           "mean": 79716,
@@ -2717,40 +2717,40 @@
       "fileCount": 1,
       "totalInputBytes": 399741,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1841.5,
-          "median": 1840.17,
-          "p95": 1857.45,
-          "stddev": 12.61,
-          "min": 1822.62,
-          "max": 1858.35
+          "mean": 1758.46,
+          "median": 1745.83,
+          "p95": 1843.52,
+          "stddev": 51.49,
+          "min": 1706.68,
+          "max": 1867.38
         },
         "userCpuMs": {
-          "mean": 3250.18,
-          "median": 3255.97,
-          "p95": 3274.19,
-          "stddev": 21.53,
-          "min": 3209.44,
-          "max": 3282.77
+          "mean": 4412.12,
+          "median": 4409.99,
+          "p95": 4564.29,
+          "stddev": 104.48,
+          "min": 4283.77,
+          "max": 4623.09
         },
         "sysCpuMs": {
-          "mean": 431.04,
-          "median": 431.07,
-          "p95": 441.44,
-          "stddev": 8.29,
-          "min": 419.47,
-          "max": 441.48
+          "mean": 469.94,
+          "median": 461.87,
+          "p95": 508.62,
+          "stddev": 25.42,
+          "min": 437.46,
+          "max": 516.6
         },
         "peakRssKB": {
-          "mean": 229134.4,
-          "median": 229248,
-          "p95": 232809.6,
-          "stddev": 2535.93,
-          "min": 225392,
-          "max": 232896
+          "mean": 265491.2,
+          "median": 266256,
+          "p95": 270862.4,
+          "stddev": 4670.46,
+          "min": 256768,
+          "max": 271280
         },
         "outputBytes": {
           "mean": 801241,
@@ -2771,40 +2771,40 @@
       "fileCount": 1,
       "totalInputBytes": 1125,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1340.7,
-          "median": 1344.78,
-          "p95": 1352.64,
-          "stddev": 11.37,
-          "min": 1320.33,
-          "max": 1353.91
+          "mean": 1352.71,
+          "median": 1305.93,
+          "p95": 1565.87,
+          "stddev": 139.68,
+          "min": 1291.74,
+          "max": 1748.38
         },
         "userCpuMs": {
-          "mean": 1632.14,
-          "median": 1633.99,
-          "p95": 1654.54,
-          "stddev": 15.81,
-          "min": 1607.58,
-          "max": 1656.65
+          "mean": 2459.14,
+          "median": 2440.53,
+          "p95": 2575.11,
+          "stddev": 72.13,
+          "min": 2392.26,
+          "max": 2639.48
         },
         "sysCpuMs": {
-          "mean": 153.08,
-          "median": 153.48,
-          "p95": 157.75,
-          "stddev": 3.5,
-          "min": 147.64,
-          "max": 158.07
+          "mean": 180.6,
+          "median": 176.34,
+          "p95": 210.33,
+          "stddev": 17.5,
+          "min": 165.54,
+          "max": 224.59
         },
         "peakRssKB": {
-          "mean": 188726.4,
-          "median": 186408,
-          "p95": 202605.6,
-          "stddev": 7459.52,
-          "min": 182912,
-          "max": 204240
+          "mean": 211403.2,
+          "median": 211608,
+          "p95": 215354.4,
+          "stddev": 3681.02,
+          "min": 203280,
+          "max": 216096
         },
         "outputBytes": {
           "mean": 1888,
@@ -2825,40 +2825,40 @@
       "fileCount": 1,
       "totalInputBytes": 27597,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1580.81,
-          "median": 1512.31,
-          "p95": 1870.04,
-          "stddev": 152.22,
-          "min": 1488.54,
-          "max": 1892.23
+          "mean": 1488.25,
+          "median": 1476.74,
+          "p95": 1541.42,
+          "stddev": 34.13,
+          "min": 1452.28,
+          "max": 1567.34
         },
         "userCpuMs": {
-          "mean": 2335.24,
-          "median": 2244.69,
-          "p95": 2663.83,
-          "stddev": 192.03,
-          "min": 2212.97,
-          "max": 2817.86
+          "mean": 3225.65,
+          "median": 3202.88,
+          "p95": 3352.81,
+          "stddev": 75.14,
+          "min": 3152.1,
+          "max": 3391.33
         },
         "sysCpuMs": {
-          "mean": 217.43,
-          "median": 215.26,
-          "p95": 230.54,
-          "stddev": 8.73,
-          "min": 205.84,
-          "max": 233.89
+          "mean": 265.77,
+          "median": 264.9,
+          "p95": 280.67,
+          "stddev": 10.66,
+          "min": 249.03,
+          "max": 284.21
         },
         "peakRssKB": {
-          "mean": 191072,
-          "median": 188848,
-          "p95": 202136,
-          "stddev": 7003.7,
-          "min": 186512,
-          "max": 210272
+          "mean": 219227.2,
+          "median": 218376,
+          "p95": 222952,
+          "stddev": 2798.48,
+          "min": 214128,
+          "max": 223600
         },
         "outputBytes": {
           "mean": 46672,
@@ -2879,40 +2879,40 @@
       "fileCount": 1,
       "totalInputBytes": 275772,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 2291.08,
-          "median": 2275.8,
-          "p95": 2388.25,
-          "stddev": 69.79,
-          "min": 2189.4,
-          "max": 2403.39
+          "mean": 2248.98,
+          "median": 2229.1,
+          "p95": 2364.14,
+          "stddev": 64.23,
+          "min": 2184.16,
+          "max": 2400.36
         },
         "userCpuMs": {
-          "mean": 5624.52,
-          "median": 5548.15,
-          "p95": 6003.5,
-          "stddev": 270.4,
-          "min": 5334.96,
-          "max": 6040.73
+          "mean": 6505.74,
+          "median": 6432.97,
+          "p95": 6822.5,
+          "stddev": 179.96,
+          "min": 6351.95,
+          "max": 6930.54
         },
         "sysCpuMs": {
-          "mean": 591.9,
-          "median": 583.42,
-          "p95": 659.26,
-          "stddev": 49.43,
-          "min": 516.63,
-          "max": 661.82
+          "mean": 637.98,
+          "median": 634.39,
+          "p95": 686.99,
+          "stddev": 31.29,
+          "min": 594.11,
+          "max": 694.92
         },
         "peakRssKB": {
-          "mean": 463553.6,
-          "median": 461912,
-          "p95": 475662.4,
-          "stddev": 9331.56,
-          "min": 448848,
-          "max": 477232
+          "mean": 466043.2,
+          "median": 465384,
+          "p95": 474880.8,
+          "stddev": 5601.32,
+          "min": 455472,
+          "max": 475824
         },
         "outputBytes": {
           "mean": 466522,
@@ -2933,40 +2933,40 @@
       "fileCount": 1,
       "totalInputBytes": 863,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1320.04,
-          "median": 1320.25,
-          "p95": 1329.58,
-          "stddev": 7.39,
-          "min": 1308.62,
-          "max": 1331.29
+          "mean": 1367.71,
+          "median": 1322.9,
+          "p95": 1573.71,
+          "stddev": 123.76,
+          "min": 1297.44,
+          "max": 1706.31
         },
         "userCpuMs": {
-          "mean": 1579.47,
-          "median": 1577.08,
-          "p95": 1609.27,
-          "stddev": 20.48,
-          "min": 1556.26,
-          "max": 1617.85
+          "mean": 2428.38,
+          "median": 2419.51,
+          "p95": 2522.94,
+          "stddev": 54.78,
+          "min": 2350.12,
+          "max": 2524.45
         },
         "sysCpuMs": {
-          "mean": 153.95,
-          "median": 155.07,
-          "p95": 160,
-          "stddev": 4.46,
-          "min": 147.94,
-          "max": 160.57
+          "mean": 187.47,
+          "median": 181.61,
+          "p95": 213.18,
+          "stddev": 14.62,
+          "min": 172.68,
+          "max": 218.46
         },
         "peakRssKB": {
-          "mean": 186577.6,
-          "median": 183200,
-          "p95": 198176.8,
-          "stddev": 6296.75,
-          "min": 181936,
-          "max": 198832
+          "mean": 216505.6,
+          "median": 217096,
+          "p95": 220012,
+          "stddev": 3167.07,
+          "min": 211792,
+          "max": 220480
         },
         "outputBytes": {
           "mean": 1626,
@@ -2987,40 +2987,40 @@
       "fileCount": 1,
       "totalInputBytes": 21575,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1466.34,
-          "median": 1399.96,
-          "p95": 1738.93,
-          "stddev": 144.26,
-          "min": 1371.1,
-          "max": 1743
+          "mean": 1357.03,
+          "median": 1352.08,
+          "p95": 1386.99,
+          "stddev": 19.4,
+          "min": 1338.34,
+          "max": 1409.18
         },
         "userCpuMs": {
-          "mean": 1905.36,
-          "median": 1861.4,
-          "p95": 2114.33,
-          "stddev": 110.03,
-          "min": 1835.35,
-          "max": 2137.72
+          "mean": 2680.5,
+          "median": 2684.85,
+          "p95": 2750.23,
+          "stddev": 49.86,
+          "min": 2612.54,
+          "max": 2750.57
         },
         "sysCpuMs": {
-          "mean": 185.85,
-          "median": 184.76,
-          "p95": 194.62,
-          "stddev": 6.18,
-          "min": 176.79,
-          "max": 194.7
+          "mean": 204.55,
+          "median": 202.66,
+          "p95": 218.2,
+          "stddev": 8.12,
+          "min": 196.68,
+          "max": 223.4
         },
         "peakRssKB": {
-          "mean": 180928,
-          "median": 180696,
-          "p95": 182937.6,
-          "stddev": 1515.77,
-          "min": 178720,
-          "max": 183456
+          "mean": 212416,
+          "median": 212776,
+          "p95": 215320.8,
+          "stddev": 2906.06,
+          "min": 205360,
+          "max": 216048
         },
         "outputBytes": {
           "mean": 40650,
@@ -3041,40 +3041,40 @@
       "fileCount": 1,
       "totalInputBytes": 215750,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1733.07,
-          "median": 1735.99,
-          "p95": 1748.77,
-          "stddev": 14.56,
-          "min": 1708.67,
-          "max": 1749.05
+          "mean": 1692.06,
+          "median": 1689.05,
+          "p95": 1745.22,
+          "stddev": 34.38,
+          "min": 1642.67,
+          "max": 1748.89
         },
         "userCpuMs": {
-          "mean": 2893.31,
-          "median": 2889.29,
-          "p95": 2922.28,
-          "stddev": 20.06,
-          "min": 2864.2,
-          "max": 2925.43
+          "mean": 4062.62,
+          "median": 4045.99,
+          "p95": 4190.3,
+          "stddev": 91.74,
+          "min": 3928.6,
+          "max": 4213.73
         },
         "sysCpuMs": {
-          "mean": 366.45,
-          "median": 366.32,
-          "p95": 378.05,
-          "stddev": 7.95,
-          "min": 352.86,
-          "max": 381.19
+          "mean": 411.51,
+          "median": 408.22,
+          "p95": 439.55,
+          "stddev": 16.75,
+          "min": 393.43,
+          "max": 444.82
         },
         "peakRssKB": {
-          "mean": 224196.8,
-          "median": 222488,
-          "p95": 232883.2,
-          "stddev": 5560.93,
-          "min": 221408,
-          "max": 239824
+          "mean": 260875.2,
+          "median": 260504,
+          "p95": 267604,
+          "stddev": 4517.14,
+          "min": 255632,
+          "max": 269296
         },
         "outputBytes": {
           "mean": 406500,
@@ -3095,40 +3095,40 @@
       "fileCount": 1,
       "totalInputBytes": 2001,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1452.93,
-          "median": 1415.46,
-          "p95": 1622.97,
-          "stddev": 108.52,
-          "min": 1396.78,
-          "max": 1758.4
+          "mean": 1476.36,
+          "median": 1423.01,
+          "p95": 1699.75,
+          "stddev": 121.95,
+          "min": 1382.35,
+          "max": 1757.89
         },
         "userCpuMs": {
-          "mean": 1834.38,
-          "median": 1811.88,
-          "p95": 1953.19,
-          "stddev": 79.09,
-          "min": 1793.49,
-          "max": 2057.99
+          "mean": 2872.34,
+          "median": 2785.46,
+          "p95": 3242.36,
+          "stddev": 210.81,
+          "min": 2682.71,
+          "max": 3282.67
         },
         "sysCpuMs": {
-          "mean": 159.36,
-          "median": 157.92,
-          "p95": 166.65,
-          "stddev": 4.57,
-          "min": 154.21,
-          "max": 170.1
+          "mean": 204.7,
+          "median": 199.76,
+          "p95": 243.22,
+          "stddev": 21.74,
+          "min": 179.38,
+          "max": 245.57
         },
         "peakRssKB": {
-          "mean": 182163.2,
-          "median": 181840,
-          "p95": 184384.8,
-          "stddev": 1448.41,
-          "min": 180736,
-          "max": 185904
+          "mean": 210913.6,
+          "median": 211464,
+          "p95": 216962.4,
+          "stddev": 4653.93,
+          "min": 204432,
+          "max": 219072
         },
         "outputBytes": {
           "mean": 2232,
@@ -3149,40 +3149,40 @@
       "fileCount": 1,
       "totalInputBytes": 2650,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1672.55,
-          "median": 1611.23,
-          "p95": 1932.84,
-          "stddev": 137.17,
-          "min": 1592.86,
-          "max": 1938.09
+          "mean": 1636.48,
+          "median": 1581.32,
+          "p95": 1890.78,
+          "stddev": 134.26,
+          "min": 1549.26,
+          "max": 1933.88
         },
         "userCpuMs": {
-          "mean": 2448.89,
-          "median": 2423.05,
-          "p95": 2546.39,
-          "stddev": 55.51,
-          "min": 2404.92,
-          "max": 2588.7
+          "mean": 3569.63,
+          "median": 3536.42,
+          "p95": 3713.88,
+          "stddev": 86.44,
+          "min": 3475.89,
+          "max": 3741.12
         },
         "sysCpuMs": {
-          "mean": 213.7,
-          "median": 215,
-          "p95": 221.64,
-          "stddev": 6.89,
-          "min": 202.8,
-          "max": 221.7
+          "mean": 252.72,
+          "median": 249.17,
+          "p95": 270.11,
+          "stddev": 11.11,
+          "min": 241.32,
+          "max": 276.03
         },
         "peakRssKB": {
-          "mean": 217081.6,
-          "median": 214888,
-          "p95": 225782.4,
-          "stddev": 5377.05,
-          "min": 211824,
-          "max": 229872
+          "mean": 246816,
+          "median": 246592,
+          "p95": 250958.4,
+          "stddev": 3000.51,
+          "min": 242576,
+          "max": 251376
         },
         "outputBytes": {
           "mean": 2845,
@@ -3203,40 +3203,40 @@
       "fileCount": 1,
       "totalInputBytes": 7426,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 2302.35,
-          "median": 2273.97,
-          "p95": 2502.79,
-          "stddev": 124.98,
-          "min": 2191.63,
-          "max": 2637.57
+          "mean": 2230.42,
+          "median": 2219.04,
+          "p95": 2308,
+          "stddev": 66.78,
+          "min": 2126.9,
+          "max": 2313.63
         },
         "userCpuMs": {
-          "mean": 4598.84,
-          "median": 4408.2,
-          "p95": 5288.25,
-          "stddev": 376.58,
-          "min": 4293.75,
-          "max": 5321.25
+          "mean": 6310.24,
+          "median": 6345.47,
+          "p95": 6608.08,
+          "stddev": 304.54,
+          "min": 5541.46,
+          "max": 6650.85
         },
         "sysCpuMs": {
-          "mean": 471.95,
-          "median": 469.7,
-          "p95": 498.99,
-          "stddev": 18.12,
-          "min": 448.69,
-          "max": 511.27
+          "mean": 514.66,
+          "median": 508.38,
+          "p95": 548.56,
+          "stddev": 24.67,
+          "min": 483.1,
+          "max": 552.53
         },
         "peakRssKB": {
-          "mean": 610822.4,
-          "median": 607256,
-          "p95": 637154.4,
-          "stddev": 16102.4,
-          "min": 586848,
-          "max": 637824
+          "mean": 629736,
+          "median": 626528,
+          "p95": 651773.6,
+          "stddev": 12662.07,
+          "min": 617136,
+          "max": 652256
         },
         "outputBytes": {
           "mean": 7294,
@@ -3257,40 +3257,40 @@
       "fileCount": 1,
       "totalInputBytes": 7845,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1449.02,
-          "median": 1452.82,
-          "p95": 1472.29,
-          "stddev": 18.96,
-          "min": 1419.74,
-          "max": 1472.69
+          "mean": 1476.37,
+          "median": 1451.92,
+          "p95": 1588.09,
+          "stddev": 66.2,
+          "min": 1417,
+          "max": 1614.97
         },
         "userCpuMs": {
-          "mean": 1905.36,
-          "median": 1911.78,
-          "p95": 1923.34,
-          "stddev": 18.12,
-          "min": 1871.5,
-          "max": 1925.41
+          "mean": 2871.95,
+          "median": 2932.92,
+          "p95": 3133.9,
+          "stddev": 316.11,
+          "min": 2018.65,
+          "max": 3191.29
         },
         "sysCpuMs": {
-          "mean": 170.47,
-          "median": 172.43,
-          "p95": 181.29,
-          "stddev": 8.8,
-          "min": 155.09,
-          "max": 184.54
+          "mean": 207.69,
+          "median": 206.08,
+          "p95": 249.25,
+          "stddev": 28.22,
+          "min": 164.21,
+          "max": 260.51
         },
         "peakRssKB": {
-          "mean": 186262.4,
-          "median": 184392,
-          "p95": 199036.8,
-          "stddev": 6910.53,
-          "min": 179792,
-          "max": 199872
+          "mean": 210038.4,
+          "median": 213000,
+          "p95": 217867.2,
+          "stddev": 11277.36,
+          "min": 179664,
+          "max": 219120
         },
         "outputBytes": {
           "mean": 8180,
@@ -3311,40 +3311,40 @@
       "fileCount": 1,
       "totalInputBytes": 118038,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1955.32,
-          "median": 1952.12,
-          "p95": 1974.41,
-          "stddev": 13.82,
-          "min": 1930,
-          "max": 1978.04
+          "mean": 2078.75,
+          "median": 2066.79,
+          "p95": 2194.79,
+          "stddev": 84.82,
+          "min": 1977.31,
+          "max": 2196.36
         },
         "userCpuMs": {
-          "mean": 3383.38,
-          "median": 3277.82,
-          "p95": 3875.25,
-          "stddev": 328.63,
-          "min": 3251.41,
-          "max": 4315.82
+          "mean": 5257.5,
+          "median": 5251.32,
+          "p95": 5442.6,
+          "stddev": 124.8,
+          "min": 5014.2,
+          "max": 5503.58
         },
         "sysCpuMs": {
-          "mean": 329.5,
-          "median": 327.68,
-          "p95": 347.62,
-          "stddev": 10.85,
-          "min": 315.22,
-          "max": 355.84
+          "mean": 424.71,
+          "median": 424.37,
+          "p95": 461.5,
+          "stddev": 28.49,
+          "min": 383.29,
+          "max": 466.96
         },
         "peakRssKB": {
-          "mean": 242521.6,
-          "median": 241984,
-          "p95": 249921.6,
-          "stddev": 5115.98,
-          "min": 235152,
-          "max": 250656
+          "mean": 265764.8,
+          "median": 265504,
+          "p95": 271164.8,
+          "stddev": 4152.98,
+          "min": 260816,
+          "max": 272144
         },
         "outputBytes": {
           "mean": 128947,
@@ -3365,40 +3365,40 @@
       "fileCount": 1,
       "totalInputBytes": 1156089,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 4669.08,
-          "median": 4651.5,
-          "p95": 4842.67,
-          "stddev": 109.09,
-          "min": 4535.41,
-          "max": 4864.87
+          "mean": 5226.74,
+          "median": 4875.48,
+          "p95": 6922.31,
+          "stddev": 1141,
+          "min": 4679.72,
+          "max": 8452.79
         },
         "userCpuMs": {
-          "mean": 13196.83,
-          "median": 13201.5,
-          "p95": 14081.59,
-          "stddev": 629.77,
-          "min": 12175.72,
-          "max": 14177.48
+          "mean": 14768.8,
+          "median": 14484.6,
+          "p95": 16496.49,
+          "stddev": 1050.7,
+          "min": 13673.29,
+          "max": 17016.88
         },
         "sysCpuMs": {
-          "mean": 1525.18,
-          "median": 1517.42,
-          "p95": 1600.49,
-          "stddev": 43.6,
-          "min": 1473.65,
-          "max": 1602.15
+          "mean": 1668.06,
+          "median": 1634.15,
+          "p95": 1835.21,
+          "stddev": 105.49,
+          "min": 1523.07,
+          "max": 1885.74
         },
         "peakRssKB": {
-          "mean": 823544,
-          "median": 804032,
-          "p95": 893437.6,
-          "stddev": 40378.73,
-          "min": 784448,
-          "max": 909904
+          "mean": 797876.8,
+          "median": 804488,
+          "p95": 840603.2,
+          "stddev": 43583.67,
+          "min": 683792,
+          "max": 846320
         },
         "outputBytes": {
           "mean": 1266010,
@@ -3419,40 +3419,40 @@
       "fileCount": 1,
       "totalInputBytes": 3311,
       "unitCount": 20,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1456.25,
-          "median": 1453.16,
-          "p95": 1487.09,
-          "stddev": 23.58,
-          "min": 1404.19,
-          "max": 1490.89
+          "mean": 1407.94,
+          "median": 1409.82,
+          "p95": 1440.6,
+          "stddev": 22.16,
+          "min": 1370.42,
+          "max": 1441.48
         },
         "userCpuMs": {
-          "mean": 2727.5,
-          "median": 2733.17,
-          "p95": 2779.94,
-          "stddev": 38.66,
-          "min": 2673.84,
-          "max": 2791.3
+          "mean": 2430.05,
+          "median": 2427.5,
+          "p95": 2484.45,
+          "stddev": 38.6,
+          "min": 2371.32,
+          "max": 2498.37
         },
         "sysCpuMs": {
-          "mean": 199.79,
-          "median": 199.12,
-          "p95": 207.6,
-          "stddev": 5.84,
-          "min": 189.33,
-          "max": 208.24
+          "mean": 193.07,
+          "median": 195.79,
+          "p95": 201.19,
+          "stddev": 8.26,
+          "min": 172.86,
+          "max": 203.34
         },
         "peakRssKB": {
-          "mean": 215718.4,
-          "median": 216224,
-          "p95": 219888.8,
-          "stddev": 4029.26,
-          "min": 206288,
-          "max": 220688
+          "mean": 199052.8,
+          "median": 199104,
+          "p95": 201058.4,
+          "stddev": 1629,
+          "min": 196272,
+          "max": 201440
         },
         "outputBytes": {
           "mean": 3471,
@@ -3473,40 +3473,40 @@
       "fileCount": 1,
       "totalInputBytes": 10395,
       "unitCount": 500,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1651.17,
-          "median": 1620.91,
-          "p95": 1819.06,
-          "stddev": 109.17,
-          "min": 1587.86,
-          "max": 1957.7
+          "mean": 1679.71,
+          "median": 1593.44,
+          "p95": 2005.14,
+          "stddev": 198.83,
+          "min": 1550.83,
+          "max": 2187.88
         },
         "userCpuMs": {
-          "mean": 3590.58,
-          "median": 3584.06,
-          "p95": 3684.72,
-          "stddev": 67.11,
-          "min": 3495.48,
-          "max": 3731.41
+          "mean": 3584.48,
+          "median": 3589.25,
+          "p95": 4187.17,
+          "stddev": 413.17,
+          "min": 3030.56,
+          "max": 4354.01
         },
         "sysCpuMs": {
-          "mean": 292.76,
-          "median": 290.84,
-          "p95": 308.51,
-          "stddev": 10.95,
-          "min": 279.71,
-          "max": 310.33
+          "mean": 290.3,
+          "median": 280.47,
+          "p95": 342.25,
+          "stddev": 30,
+          "min": 259.21,
+          "max": 361.01
         },
         "peakRssKB": {
-          "mean": 231683.2,
-          "median": 231352,
-          "p95": 235724.8,
-          "stddev": 2820,
-          "min": 228384,
-          "max": 236128
+          "mean": 228604.8,
+          "median": 231976,
+          "p95": 235731.2,
+          "stddev": 7671.97,
+          "min": 214416,
+          "max": 237632
         },
         "outputBytes": {
           "mean": 10360,
@@ -3527,40 +3527,40 @@
       "fileCount": 1,
       "totalInputBytes": 74918,
       "unitCount": 5000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 2579.01,
-          "median": 2517.64,
-          "p95": 2888.56,
-          "stddev": 164.18,
-          "min": 2471.28,
-          "max": 2927
+          "mean": 2521.86,
+          "median": 2512.82,
+          "p95": 2628.01,
+          "stddev": 77.77,
+          "min": 2404.77,
+          "max": 2646.39
         },
         "userCpuMs": {
-          "mean": 6918.26,
-          "median": 6858.84,
-          "p95": 7905.73,
-          "stddev": 894.67,
-          "min": 5132.73,
-          "max": 8028.83
+          "mean": 7089.48,
+          "median": 7236.52,
+          "p95": 7736.15,
+          "stddev": 716.71,
+          "min": 5368.6,
+          "max": 7830.37
         },
         "sysCpuMs": {
-          "mean": 752.41,
-          "median": 748.01,
-          "p95": 819.43,
-          "stddev": 46.82,
-          "min": 662.14,
-          "max": 855.49
+          "mean": 741.54,
+          "median": 734.09,
+          "p95": 795.78,
+          "stddev": 36.02,
+          "min": 687.94,
+          "max": 806.7
         },
         "peakRssKB": {
-          "mean": 463534.4,
-          "median": 463248,
-          "p95": 511312,
-          "stddev": 33297.17,
-          "min": 414304,
-          "max": 540544
+          "mean": 465075.2,
+          "median": 467376,
+          "p95": 474825.6,
+          "stddev": 11232.12,
+          "min": 435856,
+          "max": 475488
         },
         "outputBytes": {
           "mean": 72731,
@@ -3573,6 +3573,1788 @@
       }
     },
     {
+      "category": "single",
+      "engine": "okapi",
+      "format": "json",
+      "fileSize": "small",
+      "fileSizeBytes": 1206,
+      "fileCount": 1,
+      "totalInputBytes": 1206,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 518.22,
+          "median": 468.59,
+          "p95": 735.99,
+          "stddev": 140.28,
+          "min": 455.46,
+          "max": 913.62
+        },
+        "userCpuMs": {
+          "mean": 966.27,
+          "median": 938.41,
+          "p95": 1084.84,
+          "stddev": 75.55,
+          "min": 886.63,
+          "max": 1151.14
+        },
+        "sysCpuMs": {
+          "mean": 88.83,
+          "median": 88.97,
+          "p95": 91.94,
+          "stddev": 2.29,
+          "min": 84.34,
+          "max": 92.85
+        },
+        "peakRssKB": {
+          "mean": 164352,
+          "median": 165080,
+          "p95": 168775.2,
+          "stddev": 3527.19,
+          "min": 158064,
+          "max": 169488
+        },
+        "outputBytes": {
+          "mean": 1206,
+          "median": 1206,
+          "p95": 1206,
+          "stddev": 0,
+          "min": 1206,
+          "max": 1206
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "json",
+      "fileSize": "medium",
+      "fileSizeBytes": 30078,
+      "fileCount": 1,
+      "totalInputBytes": 30078,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 509.16,
+          "median": 502.49,
+          "p95": 553.25,
+          "stddev": 24.73,
+          "min": 483.22,
+          "max": 561.52
+        },
+        "userCpuMs": {
+          "mean": 1086.19,
+          "median": 1094.29,
+          "p95": 1134.78,
+          "stddev": 36.39,
+          "min": 1020.42,
+          "max": 1136.29
+        },
+        "sysCpuMs": {
+          "mean": 93.69,
+          "median": 92.76,
+          "p95": 102.02,
+          "stddev": 5.46,
+          "min": 87.66,
+          "max": 107.79
+        },
+        "peakRssKB": {
+          "mean": 165915.2,
+          "median": 165400,
+          "p95": 169732,
+          "stddev": 2512.45,
+          "min": 162688,
+          "max": 170704
+        },
+        "outputBytes": {
+          "mean": 30078,
+          "median": 30078,
+          "p95": 30078,
+          "stddev": 0,
+          "min": 30078,
+          "max": 30078
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "json",
+      "fileSize": "large",
+      "fileSizeBytes": 300753,
+      "fileCount": 1,
+      "totalInputBytes": 300753,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 573.72,
+          "median": 573.67,
+          "p95": 585.94,
+          "stddev": 8.65,
+          "min": 557.11,
+          "max": 588.87
+        },
+        "userCpuMs": {
+          "mean": 1408.18,
+          "median": 1406.15,
+          "p95": 1439.24,
+          "stddev": 20.26,
+          "min": 1372.51,
+          "max": 1446.53
+        },
+        "sysCpuMs": {
+          "mean": 104.73,
+          "median": 105.14,
+          "p95": 108.36,
+          "stddev": 2.79,
+          "min": 100.17,
+          "max": 109.84
+        },
+        "peakRssKB": {
+          "mean": 189185.6,
+          "median": 189208,
+          "p95": 191979.2,
+          "stddev": 1997.94,
+          "min": 185440,
+          "max": 193088
+        },
+        "outputBytes": {
+          "mean": 300753,
+          "median": 300753,
+          "p95": 300753,
+          "stddev": 0,
+          "min": 300753,
+          "max": 300753
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "html",
+      "fileSize": "small",
+      "fileSizeBytes": 1182,
+      "fileCount": 1,
+      "totalInputBytes": 1182,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 514.47,
+          "median": 514.83,
+          "p95": 523.16,
+          "stddev": 5.87,
+          "min": 504.52,
+          "max": 524.97
+        },
+        "userCpuMs": {
+          "mean": 1131.22,
+          "median": 1126.75,
+          "p95": 1174.96,
+          "stddev": 27.51,
+          "min": 1096.16,
+          "max": 1179.17
+        },
+        "sysCpuMs": {
+          "mean": 94.14,
+          "median": 94.81,
+          "p95": 98.63,
+          "stddev": 3.49,
+          "min": 88.61,
+          "max": 99.67
+        },
+        "peakRssKB": {
+          "mean": 168033.6,
+          "median": 167624,
+          "p95": 173440.8,
+          "stddev": 4120.16,
+          "min": 161280,
+          "max": 174528
+        },
+        "outputBytes": {
+          "mean": 1250,
+          "median": 1250,
+          "p95": 1250,
+          "stddev": 0,
+          "min": 1250,
+          "max": 1250
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "html",
+      "fileSize": "medium",
+      "fileSizeBytes": 27170,
+      "fileCount": 1,
+      "totalInputBytes": 27170,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 550.9,
+          "median": 547.31,
+          "p95": 579.53,
+          "stddev": 15.77,
+          "min": 536.57,
+          "max": 587.24
+        },
+        "userCpuMs": {
+          "mean": 1331.63,
+          "median": 1318.01,
+          "p95": 1401.24,
+          "stddev": 39.07,
+          "min": 1288.57,
+          "max": 1409.53
+        },
+        "sysCpuMs": {
+          "mean": 98.3,
+          "median": 97.47,
+          "p95": 103.59,
+          "stddev": 2.95,
+          "min": 95.87,
+          "max": 104.19
+        },
+        "peakRssKB": {
+          "mean": 166625.6,
+          "median": 166768,
+          "p95": 171207.2,
+          "stddev": 3679.22,
+          "min": 159968,
+          "max": 171776
+        },
+        "outputBytes": {
+          "mean": 27238,
+          "median": 27238,
+          "p95": 27238,
+          "stddev": 0,
+          "min": 27238,
+          "max": 27238
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "html",
+      "fileSize": "large",
+      "fileSizeBytes": 271746,
+      "fileCount": 1,
+      "totalInputBytes": 271746,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 653.34,
+          "median": 657.42,
+          "p95": 663.91,
+          "stddev": 9.68,
+          "min": 637.41,
+          "max": 664.42
+        },
+        "userCpuMs": {
+          "mean": 1849.5,
+          "median": 1854.63,
+          "p95": 1888.71,
+          "stddev": 33.23,
+          "min": 1796.89,
+          "max": 1890.94
+        },
+        "sysCpuMs": {
+          "mean": 108.04,
+          "median": 107.72,
+          "p95": 110.26,
+          "stddev": 1.66,
+          "min": 105.6,
+          "max": 110.86
+        },
+        "peakRssKB": {
+          "mean": 210484.8,
+          "median": 210392,
+          "p95": 215128.8,
+          "stddev": 3338.51,
+          "min": 204128,
+          "max": 216432
+        },
+        "outputBytes": {
+          "mean": 271814,
+          "median": 271814,
+          "p95": 271814,
+          "stddev": 0,
+          "min": 271814,
+          "max": 271814
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xml",
+      "fileSize": "small",
+      "fileSizeBytes": 1627,
+      "fileCount": 1,
+      "totalInputBytes": 1627,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 449.36,
+          "median": 447.46,
+          "p95": 458.73,
+          "stddev": 5.73,
+          "min": 443.14,
+          "max": 463.11
+        },
+        "userCpuMs": {
+          "mean": 967.54,
+          "median": 958.46,
+          "p95": 1017.19,
+          "stddev": 31.85,
+          "min": 927.44,
+          "max": 1034.96
+        },
+        "sysCpuMs": {
+          "mean": 81.22,
+          "median": 81.79,
+          "p95": 83.58,
+          "stddev": 1.93,
+          "min": 78.56,
+          "max": 84.1
+        },
+        "peakRssKB": {
+          "mean": 169065.6,
+          "median": 168280,
+          "p95": 173241.6,
+          "stddev": 3312.07,
+          "min": 163616,
+          "max": 173328
+        },
+        "outputBytes": {
+          "mean": 1626,
+          "median": 1626,
+          "p95": 1626,
+          "stddev": 0,
+          "min": 1626,
+          "max": 1626
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xml",
+      "fileSize": "medium",
+      "fileSizeBytes": 39139,
+      "fileCount": 1,
+      "totalInputBytes": 39139,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 556.23,
+          "median": 523.2,
+          "p95": 674.68,
+          "stddev": 66.16,
+          "min": 504.78,
+          "max": 676.48
+        },
+        "userCpuMs": {
+          "mean": 1296.06,
+          "median": 1269.79,
+          "p95": 1442.78,
+          "stddev": 85.7,
+          "min": 1198.65,
+          "max": 1464.21
+        },
+        "sysCpuMs": {
+          "mean": 101.46,
+          "median": 95.7,
+          "p95": 125.35,
+          "stddev": 13.84,
+          "min": 87.7,
+          "max": 128.63
+        },
+        "peakRssKB": {
+          "mean": 165126.4,
+          "median": 163728,
+          "p95": 171696,
+          "stddev": 4464.73,
+          "min": 159504,
+          "max": 172848
+        },
+        "outputBytes": {
+          "mean": 39138,
+          "median": 39138,
+          "p95": 39138,
+          "stddev": 0,
+          "min": 39138,
+          "max": 39138
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xml",
+      "fileSize": "large",
+      "fileSizeBytes": 390814,
+      "fileCount": 1,
+      "totalInputBytes": 390814,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 851.99,
+          "median": 839.56,
+          "p95": 925.84,
+          "stddev": 54.85,
+          "min": 770.69,
+          "max": 946.15
+        },
+        "userCpuMs": {
+          "mean": 2287.06,
+          "median": 2370.57,
+          "p95": 2585.96,
+          "stddev": 280.51,
+          "min": 1686.56,
+          "max": 2666.33
+        },
+        "sysCpuMs": {
+          "mean": 129.82,
+          "median": 127.57,
+          "p95": 158.33,
+          "stddev": 20.42,
+          "min": 98.25,
+          "max": 165.58
+        },
+        "peakRssKB": {
+          "mean": 172425.6,
+          "median": 173560,
+          "p95": 180405.6,
+          "stddev": 8329.8,
+          "min": 150832,
+          "max": 180528
+        },
+        "outputBytes": {
+          "mean": 390813,
+          "median": 390813,
+          "p95": 390813,
+          "stddev": 0,
+          "min": 390813,
+          "max": 390813
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xliff",
+      "fileSize": "small",
+      "fileSizeBytes": 2646,
+      "fileCount": 1,
+      "totalInputBytes": 2646,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 452.94,
+          "median": 452.75,
+          "p95": 469.93,
+          "stddev": 12.59,
+          "min": 438.27,
+          "max": 475.08
+        },
+        "userCpuMs": {
+          "mean": 829.05,
+          "median": 861.96,
+          "p95": 906.92,
+          "stddev": 75.71,
+          "min": 712.03,
+          "max": 909.16
+        },
+        "sysCpuMs": {
+          "mean": 74.7,
+          "median": 75.87,
+          "p95": 78.29,
+          "stddev": 3.51,
+          "min": 68.37,
+          "max": 79.42
+        },
+        "peakRssKB": {
+          "mean": 150307.2,
+          "median": 152968,
+          "p95": 158913.6,
+          "stddev": 7940.59,
+          "min": 135984,
+          "max": 159936
+        },
+        "outputBytes": {
+          "mean": 4148,
+          "median": 4148,
+          "p95": 4148,
+          "stddev": 0,
+          "min": 4148,
+          "max": 4148
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xliff",
+      "fileSize": "medium",
+      "fileSizeBytes": 60318,
+      "fileCount": 1,
+      "totalInputBytes": 60318,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 524.85,
+          "median": 517.4,
+          "p95": 556.68,
+          "stddev": 19.18,
+          "min": 501.66,
+          "max": 568.82
+        },
+        "userCpuMs": {
+          "mean": 1118.66,
+          "median": 1114.62,
+          "p95": 1239.96,
+          "stddev": 101.54,
+          "min": 885.71,
+          "max": 1297.15
+        },
+        "sysCpuMs": {
+          "mean": 88.14,
+          "median": 86.14,
+          "p95": 100.51,
+          "stddev": 7.52,
+          "min": 80.28,
+          "max": 106.18
+        },
+        "peakRssKB": {
+          "mean": 154520,
+          "median": 154408,
+          "p95": 164530.4,
+          "stddev": 8278.85,
+          "min": 134768,
+          "max": 166784
+        },
+        "outputBytes": {
+          "mean": 97892,
+          "median": 97892,
+          "p95": 97892,
+          "stddev": 0,
+          "min": 97892,
+          "max": 97892
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xliff",
+      "fileSize": "large",
+      "fileSizeBytes": 600993,
+      "fileCount": 1,
+      "totalInputBytes": 600993,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 689.43,
+          "median": 685.51,
+          "p95": 707.8,
+          "stddev": 12.99,
+          "min": 667.96,
+          "max": 709.31
+        },
+        "userCpuMs": {
+          "mean": 1343.6,
+          "median": 1347.23,
+          "p95": 1369.14,
+          "stddev": 22.11,
+          "min": 1307.46,
+          "max": 1370.77
+        },
+        "sysCpuMs": {
+          "mean": 99,
+          "median": 98.67,
+          "p95": 105.07,
+          "stddev": 3.62,
+          "min": 93.89,
+          "max": 105.57
+        },
+        "peakRssKB": {
+          "mean": 197340.8,
+          "median": 196504,
+          "p95": 202698.4,
+          "stddev": 3023,
+          "min": 193968,
+          "max": 203152
+        },
+        "outputBytes": {
+          "mean": 976742,
+          "median": 976742,
+          "p95": 976742,
+          "stddev": 0,
+          "min": 976742,
+          "max": 976742
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "properties",
+      "fileSize": "small",
+      "fileSizeBytes": 1071,
+      "fileCount": 1,
+      "totalInputBytes": 1071,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 429.38,
+          "median": 430.32,
+          "p95": 441.04,
+          "stddev": 10.57,
+          "min": 411.4,
+          "max": 442.76
+        },
+        "userCpuMs": {
+          "mean": 664.71,
+          "median": 665.75,
+          "p95": 681.44,
+          "stddev": 13.2,
+          "min": 643.91,
+          "max": 685.32
+        },
+        "sysCpuMs": {
+          "mean": 70.64,
+          "median": 70.21,
+          "p95": 72.7,
+          "stddev": 1.52,
+          "min": 68.89,
+          "max": 72.95
+        },
+        "peakRssKB": {
+          "mean": 137377.6,
+          "median": 137032,
+          "p95": 141052.8,
+          "stddev": 2709.89,
+          "min": 134224,
+          "max": 141744
+        },
+        "outputBytes": {
+          "mean": 1071,
+          "median": 1071,
+          "p95": 1071,
+          "stddev": 0,
+          "min": 1071,
+          "max": 1071
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "properties",
+      "fileSize": "medium",
+      "fileSizeBytes": 26103,
+      "fileCount": 1,
+      "totalInputBytes": 26103,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 450.27,
+          "median": 450.29,
+          "p95": 460.77,
+          "stddev": 6.75,
+          "min": 442.3,
+          "max": 465.71
+        },
+        "userCpuMs": {
+          "mean": 958.59,
+          "median": 965.33,
+          "p95": 1000.04,
+          "stddev": 34.57,
+          "min": 895.59,
+          "max": 1007.29
+        },
+        "sysCpuMs": {
+          "mean": 82.95,
+          "median": 82.38,
+          "p95": 88.96,
+          "stddev": 3.6,
+          "min": 77.79,
+          "max": 89.15
+        },
+        "peakRssKB": {
+          "mean": 165364.8,
+          "median": 164856,
+          "p95": 171260.8,
+          "stddev": 3682.54,
+          "min": 160448,
+          "max": 171808
+        },
+        "outputBytes": {
+          "mean": 26103,
+          "median": 26103,
+          "p95": 26103,
+          "stddev": 0,
+          "min": 26103,
+          "max": 26103
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "properties",
+      "fileSize": "large",
+      "fileSizeBytes": 260778,
+      "fileCount": 1,
+      "totalInputBytes": 260778,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 484.42,
+          "median": 482.62,
+          "p95": 498.59,
+          "stddev": 9.34,
+          "min": 478.3,
+          "max": 510.31
+        },
+        "userCpuMs": {
+          "mean": 1119.06,
+          "median": 1123.44,
+          "p95": 1140.98,
+          "stddev": 18.51,
+          "min": 1081.56,
+          "max": 1142.63
+        },
+        "sysCpuMs": {
+          "mean": 86.82,
+          "median": 86.37,
+          "p95": 90.79,
+          "stddev": 2.7,
+          "min": 82.54,
+          "max": 92.55
+        },
+        "peakRssKB": {
+          "mean": 173344,
+          "median": 173688,
+          "p95": 176952.8,
+          "stddev": 2823.33,
+          "min": 169424,
+          "max": 177680
+        },
+        "outputBytes": {
+          "mean": 260778,
+          "median": 260778,
+          "p95": 260778,
+          "stddev": 0,
+          "min": 260778,
+          "max": 260778
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "po",
+      "fileSize": "small",
+      "fileSizeBytes": 1654,
+      "fileCount": 1,
+      "totalInputBytes": 1654,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 480.86,
+          "median": 474.03,
+          "p95": 521.14,
+          "stddev": 26.99,
+          "min": 459.46,
+          "max": 556.19
+        },
+        "userCpuMs": {
+          "mean": 957.49,
+          "median": 947.69,
+          "p95": 1012.87,
+          "stddev": 44.25,
+          "min": 873.13,
+          "max": 1018.59
+        },
+        "sysCpuMs": {
+          "mean": 93.79,
+          "median": 93.02,
+          "p95": 102.03,
+          "stddev": 5.49,
+          "min": 85.75,
+          "max": 106.6
+        },
+        "peakRssKB": {
+          "mean": 163936,
+          "median": 163320,
+          "p95": 170144,
+          "stddev": 3721.6,
+          "min": 159360,
+          "max": 170288
+        },
+        "outputBytes": {
+          "mean": 2497,
+          "median": 2497,
+          "p95": 2497,
+          "stddev": 0,
+          "min": 2497,
+          "max": 2497
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "po",
+      "fileSize": "medium",
+      "fileSizeBytes": 39566,
+      "fileCount": 1,
+      "totalInputBytes": 39566,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 498.86,
+          "median": 498.98,
+          "p95": 510.83,
+          "stddev": 8.52,
+          "min": 483.68,
+          "max": 512.51
+        },
+        "userCpuMs": {
+          "mean": 1056.43,
+          "median": 1055.47,
+          "p95": 1094.28,
+          "stddev": 27.1,
+          "min": 1005.54,
+          "max": 1095.27
+        },
+        "sysCpuMs": {
+          "mean": 95.74,
+          "median": 95.93,
+          "p95": 100.74,
+          "stddev": 4.35,
+          "min": 86.54,
+          "max": 101.54
+        },
+        "peakRssKB": {
+          "mean": 165019.2,
+          "median": 164744,
+          "p95": 171900.8,
+          "stddev": 4863.39,
+          "min": 157408,
+          "max": 173744
+        },
+        "outputBytes": {
+          "mean": 60641,
+          "median": 60641,
+          "p95": 60641,
+          "stddev": 0,
+          "min": 60641,
+          "max": 60641
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "po",
+      "fileSize": "large",
+      "fileSizeBytes": 399741,
+      "fileCount": 1,
+      "totalInputBytes": 399741,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 544.93,
+          "median": 534.48,
+          "p95": 603.35,
+          "stddev": 37.03,
+          "min": 501.22,
+          "max": 604.97
+        },
+        "userCpuMs": {
+          "mean": 943.99,
+          "median": 896.51,
+          "p95": 1145.63,
+          "stddev": 117.59,
+          "min": 847.31,
+          "max": 1246.93
+        },
+        "sysCpuMs": {
+          "mean": 92.49,
+          "median": 87.35,
+          "p95": 113.23,
+          "stddev": 11.71,
+          "min": 80.25,
+          "max": 115.21
+        },
+        "peakRssKB": {
+          "mean": 149385.6,
+          "median": 146424,
+          "p95": 156936.8,
+          "stddev": 4939.21,
+          "min": 144336,
+          "max": 157808
+        },
+        "outputBytes": {
+          "mean": 610491,
+          "median": 610491,
+          "p95": 610491,
+          "stddev": 0,
+          "min": 610491,
+          "max": 610491
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "yaml",
+      "fileSize": "small",
+      "fileSizeBytes": 1125,
+      "fileCount": 1,
+      "totalInputBytes": 1125,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 443.58,
+          "median": 444.48,
+          "p95": 454.41,
+          "stddev": 9.02,
+          "min": 426.12,
+          "max": 454.57
+        },
+        "userCpuMs": {
+          "mean": 711.51,
+          "median": 692.69,
+          "p95": 789.58,
+          "stddev": 50.76,
+          "min": 680.57,
+          "max": 852.56
+        },
+        "sysCpuMs": {
+          "mean": 72.66,
+          "median": 72.26,
+          "p95": 75.67,
+          "stddev": 1.83,
+          "min": 70.94,
+          "max": 76.98
+        },
+        "peakRssKB": {
+          "mean": 139166.4,
+          "median": 137328,
+          "p95": 148050.4,
+          "stddev": 5479.12,
+          "min": 134496,
+          "max": 152176
+        },
+        "outputBytes": {
+          "mean": 1125,
+          "median": 1125,
+          "p95": 1125,
+          "stddev": 0,
+          "min": 1125,
+          "max": 1125
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "yaml",
+      "fileSize": "medium",
+      "fileSizeBytes": 27597,
+      "fileCount": 1,
+      "totalInputBytes": 27597,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 495.65,
+          "median": 496.7,
+          "p95": 507.28,
+          "stddev": 9.36,
+          "min": 481.8,
+          "max": 508.73
+        },
+        "userCpuMs": {
+          "mean": 847.16,
+          "median": 836.01,
+          "p95": 918.29,
+          "stddev": 42.88,
+          "min": 812.92,
+          "max": 958.73
+        },
+        "sysCpuMs": {
+          "mean": 79.99,
+          "median": 80.01,
+          "p95": 82.79,
+          "stddev": 2.18,
+          "min": 75.35,
+          "max": 83.09
+        },
+        "peakRssKB": {
+          "mean": 143748.8,
+          "median": 142456,
+          "p95": 152120,
+          "stddev": 6561.6,
+          "min": 134976,
+          "max": 153488
+        },
+        "outputBytes": {
+          "mean": 27597,
+          "median": 27597,
+          "p95": 27597,
+          "stddev": 0,
+          "min": 27597,
+          "max": 27597
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "yaml",
+      "fileSize": "large",
+      "fileSizeBytes": 275772,
+      "fileCount": 1,
+      "totalInputBytes": 275772,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 685.83,
+          "median": 677.94,
+          "p95": 707.34,
+          "stddev": 15.94,
+          "min": 668.42,
+          "max": 709.86
+        },
+        "userCpuMs": {
+          "mean": 1442.51,
+          "median": 1436.47,
+          "p95": 1650.07,
+          "stddev": 185.01,
+          "min": 1242.58,
+          "max": 1653.6
+        },
+        "sysCpuMs": {
+          "mean": 104.99,
+          "median": 104.57,
+          "p95": 116.83,
+          "stddev": 7.48,
+          "min": 93.59,
+          "max": 116.97
+        },
+        "peakRssKB": {
+          "mean": 175756.8,
+          "median": 176008,
+          "p95": 189988,
+          "stddev": 9214.12,
+          "min": 159936,
+          "max": 191536
+        },
+        "outputBytes": {
+          "mean": 275772,
+          "median": 275772,
+          "p95": 275772,
+          "stddev": 0,
+          "min": 275772,
+          "max": 275772
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "plaintext",
+      "fileSize": "small",
+      "fileSizeBytes": 863,
+      "fileCount": 1,
+      "totalInputBytes": 863,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 437.84,
+          "median": 437.27,
+          "p95": 453.62,
+          "stddev": 9.76,
+          "min": 421.96,
+          "max": 457.97
+        },
+        "userCpuMs": {
+          "mean": 797.67,
+          "median": 820.57,
+          "p95": 928.7,
+          "stddev": 104.4,
+          "min": 669.69,
+          "max": 932.76
+        },
+        "sysCpuMs": {
+          "mean": 77.86,
+          "median": 77.91,
+          "p95": 83.89,
+          "stddev": 4.94,
+          "min": 69.91,
+          "max": 85.38
+        },
+        "peakRssKB": {
+          "mean": 150096,
+          "median": 153440,
+          "p95": 165832,
+          "stddev": 13061.65,
+          "min": 134752,
+          "max": 168640
+        },
+        "outputBytes": {
+          "mean": 863,
+          "median": 863,
+          "p95": 863,
+          "stddev": 0,
+          "min": 863,
+          "max": 863
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "plaintext",
+      "fileSize": "medium",
+      "fileSizeBytes": 21575,
+      "fileCount": 1,
+      "totalInputBytes": 21575,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 449.62,
+          "median": 448.35,
+          "p95": 458.84,
+          "stddev": 5.62,
+          "min": 442.46,
+          "max": 459.07
+        },
+        "userCpuMs": {
+          "mean": 957.14,
+          "median": 954.69,
+          "p95": 998.55,
+          "stddev": 30.6,
+          "min": 910.57,
+          "max": 1004.77
+        },
+        "sysCpuMs": {
+          "mean": 84.23,
+          "median": 83.24,
+          "p95": 88.42,
+          "stddev": 3.1,
+          "min": 80.18,
+          "max": 89.3
+        },
+        "peakRssKB": {
+          "mean": 163585.6,
+          "median": 163536,
+          "p95": 167040.8,
+          "stddev": 2598.29,
+          "min": 159248,
+          "max": 168128
+        },
+        "outputBytes": {
+          "mean": 21575,
+          "median": 21575,
+          "p95": 21575,
+          "stddev": 0,
+          "min": 21575,
+          "max": 21575
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "plaintext",
+      "fileSize": "large",
+      "fileSizeBytes": 215750,
+      "fileCount": 1,
+      "totalInputBytes": 215750,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 471.61,
+          "median": 468.88,
+          "p95": 485.15,
+          "stddev": 8.02,
+          "min": 463.58,
+          "max": 489.19
+        },
+        "userCpuMs": {
+          "mean": 1076.68,
+          "median": 1073.42,
+          "p95": 1110.04,
+          "stddev": 22.14,
+          "min": 1044.02,
+          "max": 1118.2
+        },
+        "sysCpuMs": {
+          "mean": 86.67,
+          "median": 86.01,
+          "p95": 89.23,
+          "stddev": 1.83,
+          "min": 84.5,
+          "max": 89.45
+        },
+        "peakRssKB": {
+          "mean": 171984,
+          "median": 171344,
+          "p95": 177177.6,
+          "stddev": 3422.35,
+          "min": 167520,
+          "max": 178272
+        },
+        "outputBytes": {
+          "mean": 215750,
+          "median": 215750,
+          "p95": 215750,
+          "stddev": 0,
+          "min": 215750,
+          "max": 215750
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "docx",
+      "fileSize": "small",
+      "fileSizeBytes": 2001,
+      "fileCount": 1,
+      "totalInputBytes": 2001,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 566.02,
+          "median": 551.07,
+          "p95": 649.66,
+          "stddev": 52.56,
+          "min": 524.46,
+          "max": 710.46
+        },
+        "userCpuMs": {
+          "mean": 1240.23,
+          "median": 1235.55,
+          "p95": 1281.78,
+          "stddev": 26.82,
+          "min": 1217.75,
+          "max": 1312.96
+        },
+        "sysCpuMs": {
+          "mean": 100.52,
+          "median": 99.55,
+          "p95": 106.2,
+          "stddev": 3.52,
+          "min": 96.74,
+          "max": 106.78
+        },
+        "peakRssKB": {
+          "mean": 162593.6,
+          "median": 162912,
+          "p95": 168401.6,
+          "stddev": 3959.2,
+          "min": 159056,
+          "max": 172304
+        },
+        "outputBytes": {
+          "mean": 1967,
+          "median": 1967,
+          "p95": 1967,
+          "stddev": 0,
+          "min": 1967,
+          "max": 1967
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "docx",
+      "fileSize": "medium",
+      "fileSizeBytes": 2650,
+      "fileCount": 1,
+      "totalInputBytes": 2650,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 632.3,
+          "median": 632.9,
+          "p95": 638.37,
+          "stddev": 4.78,
+          "min": 625.63,
+          "max": 639.84
+        },
+        "userCpuMs": {
+          "mean": 1592.52,
+          "median": 1596.07,
+          "p95": 1626.36,
+          "stddev": 28.18,
+          "min": 1536.48,
+          "max": 1631.29
+        },
+        "sysCpuMs": {
+          "mean": 108.91,
+          "median": 108.05,
+          "p95": 112.49,
+          "stddev": 2.19,
+          "min": 106.63,
+          "max": 113.34
+        },
+        "peakRssKB": {
+          "mean": 164440,
+          "median": 164968,
+          "p95": 169906.4,
+          "stddev": 3905.6,
+          "min": 158848,
+          "max": 170576
+        },
+        "outputBytes": {
+          "mean": 2444,
+          "median": 2444,
+          "p95": 2444,
+          "stddev": 0,
+          "min": 2444,
+          "max": 2444
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "docx",
+      "fileSize": "large",
+      "fileSizeBytes": 7426,
+      "fileCount": 1,
+      "totalInputBytes": 7426,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 907.71,
+          "median": 904.61,
+          "p95": 927.87,
+          "stddev": 13.5,
+          "min": 888.82,
+          "max": 936.86
+        },
+        "userCpuMs": {
+          "mean": 2731.58,
+          "median": 2726.61,
+          "p95": 2820.67,
+          "stddev": 57.6,
+          "min": 2659.37,
+          "max": 2837.41
+        },
+        "sysCpuMs": {
+          "mean": 146.02,
+          "median": 143.33,
+          "p95": 158.3,
+          "stddev": 7.58,
+          "min": 139.96,
+          "max": 165
+        },
+        "peakRssKB": {
+          "mean": 255008,
+          "median": 244728,
+          "p95": 289667.2,
+          "stddev": 23699.73,
+          "min": 227040,
+          "max": 291424
+        },
+        "outputBytes": {
+          "mean": 5876,
+          "median": 5876,
+          "p95": 5876,
+          "stddev": 0,
+          "min": 5876,
+          "max": 5876
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "pptx",
+      "fileSize": "small",
+      "fileSizeBytes": 7845,
+      "fileCount": 1,
+      "totalInputBytes": 7845,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 580.74,
+          "median": 575.53,
+          "p95": 617.23,
+          "stddev": 21.5,
+          "min": 563.37,
+          "max": 636.24
+        },
+        "userCpuMs": {
+          "mean": 1334.5,
+          "median": 1329.69,
+          "p95": 1383.37,
+          "stddev": 29.15,
+          "min": 1302.52,
+          "max": 1405.79
+        },
+        "sysCpuMs": {
+          "mean": 111.96,
+          "median": 110.65,
+          "p95": 119.99,
+          "stddev": 5.11,
+          "min": 106.86,
+          "max": 125.33
+        },
+        "peakRssKB": {
+          "mean": 163952,
+          "median": 163560,
+          "p95": 166352.8,
+          "stddev": 1678.79,
+          "min": 160864,
+          "max": 166720
+        },
+        "outputBytes": {
+          "mean": 7609,
+          "median": 7609,
+          "p95": 7609,
+          "stddev": 0,
+          "min": 7609,
+          "max": 7609
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "pptx",
+      "fileSize": "medium",
+      "fileSizeBytes": 118038,
+      "fileCount": 1,
+      "totalInputBytes": 118038,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 965.01,
+          "median": 940.34,
+          "p95": 1081.34,
+          "stddev": 66.53,
+          "min": 920.35,
+          "max": 1141.61
+        },
+        "userCpuMs": {
+          "mean": 2883.74,
+          "median": 2863.53,
+          "p95": 2990.38,
+          "stddev": 68.84,
+          "min": 2790.95,
+          "max": 3029.23
+        },
+        "sysCpuMs": {
+          "mean": 218.28,
+          "median": 217.68,
+          "p95": 222.91,
+          "stddev": 3.1,
+          "min": 214.03,
+          "max": 224.38
+        },
+        "peakRssKB": {
+          "mean": 230955.2,
+          "median": 230232,
+          "p95": 240532.8,
+          "stddev": 6200.55,
+          "min": 219808,
+          "max": 241008
+        },
+        "outputBytes": {
+          "mean": 114669,
+          "median": 114669,
+          "p95": 114669,
+          "stddev": 0,
+          "min": 114669,
+          "max": 114669
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "pptx",
+      "fileSize": "large",
+      "fileSizeBytes": 1156089,
+      "fileCount": 1,
+      "totalInputBytes": 1156089,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 2859.94,
+          "median": 2852.22,
+          "p95": 2913.42,
+          "stddev": 37.16,
+          "min": 2804.27,
+          "max": 2925.65
+        },
+        "userCpuMs": {
+          "mean": 8476.23,
+          "median": 8451.02,
+          "p95": 8788.17,
+          "stddev": 205.61,
+          "min": 8106.43,
+          "max": 8819.28
+        },
+        "sysCpuMs": {
+          "mean": 957.47,
+          "median": 956.5,
+          "p95": 973.39,
+          "stddev": 10.76,
+          "min": 942.45,
+          "max": 975.65
+        },
+        "peakRssKB": {
+          "mean": 749107.2,
+          "median": 745984,
+          "p95": 775877.6,
+          "stddev": 15564.6,
+          "min": 730256,
+          "max": 781472
+        },
+        "outputBytes": {
+          "mean": 1123134,
+          "median": 1123134,
+          "p95": 1123134,
+          "stddev": 0,
+          "min": 1123134,
+          "max": 1123134
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xlsx",
+      "fileSize": "small",
+      "fileSizeBytes": 3311,
+      "fileCount": 1,
+      "totalInputBytes": 3311,
+      "unitCount": 20,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 526.59,
+          "median": 523.42,
+          "p95": 537.82,
+          "stddev": 8.24,
+          "min": 516.87,
+          "max": 538.75
+        },
+        "userCpuMs": {
+          "mean": 1174.07,
+          "median": 1177.9,
+          "p95": 1201.66,
+          "stddev": 20.67,
+          "min": 1135.77,
+          "max": 1202.67
+        },
+        "sysCpuMs": {
+          "mean": 98.6,
+          "median": 98.36,
+          "p95": 101.2,
+          "stddev": 1.67,
+          "min": 96.58,
+          "max": 101.51
+        },
+        "peakRssKB": {
+          "mean": 163849.6,
+          "median": 164016,
+          "p95": 170844.8,
+          "stddev": 4698.41,
+          "min": 157888,
+          "max": 173264
+        },
+        "outputBytes": {
+          "mean": 3230,
+          "median": 3230,
+          "p95": 3230,
+          "stddev": 0,
+          "min": 3230,
+          "max": 3230
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xlsx",
+      "fileSize": "medium",
+      "fileSizeBytes": 10395,
+      "fileCount": 1,
+      "totalInputBytes": 10395,
+      "unitCount": 500,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 600.49,
+          "median": 598.59,
+          "p95": 618.01,
+          "stddev": 11.27,
+          "min": 584.26,
+          "max": 628.57
+        },
+        "userCpuMs": {
+          "mean": 1460,
+          "median": 1460.96,
+          "p95": 1490.96,
+          "stddev": 25.21,
+          "min": 1409.31,
+          "max": 1495.62
+        },
+        "sysCpuMs": {
+          "mean": 108.88,
+          "median": 109.39,
+          "p95": 113.64,
+          "stddev": 3.25,
+          "min": 105.5,
+          "max": 116.36
+        },
+        "peakRssKB": {
+          "mean": 162193.6,
+          "median": 161856,
+          "p95": 164740.8,
+          "stddev": 1985.88,
+          "min": 158208,
+          "max": 165792
+        },
+        "outputBytes": {
+          "mean": 10032,
+          "median": 10032,
+          "p95": 10032,
+          "stddev": 0,
+          "min": 10032,
+          "max": 10032
+        }
+      }
+    },
+    {
+      "category": "single",
+      "engine": "okapi",
+      "format": "xlsx",
+      "fileSize": "large",
+      "fileSizeBytes": 74918,
+      "fileCount": 1,
+      "totalInputBytes": 74918,
+      "unitCount": 5000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 815.96,
+          "median": 814.53,
+          "p95": 825.92,
+          "stddev": 6.46,
+          "min": 807.5,
+          "max": 829.37
+        },
+        "userCpuMs": {
+          "mean": 2510.74,
+          "median": 2508.36,
+          "p95": 2568.43,
+          "stddev": 42.54,
+          "min": 2432.58,
+          "max": 2569.83
+        },
+        "sysCpuMs": {
+          "mean": 146.97,
+          "median": 146.71,
+          "p95": 150.75,
+          "stddev": 2.39,
+          "min": 143.91,
+          "max": 151.29
+        },
+        "peakRssKB": {
+          "mean": 292238.4,
+          "median": 292496,
+          "p95": 297866.4,
+          "stddev": 4418.44,
+          "min": 286064,
+          "max": 298464
+        },
+        "outputBytes": {
+          "mean": 71897,
+          "median": 71897,
+          "p95": 71897,
+          "stddev": 0,
+          "min": 71897,
+          "max": 71897
+        }
+      }
+    },
+    {
       "category": "collection",
       "engine": "kapi-native",
       "format": "mixed",
@@ -3581,39 +5363,39 @@
       "fileCount": 5,
       "totalInputBytes": 5073,
       "unitCount": 65,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 11.69,
-          "median": 11.59,
-          "p95": 12.3,
-          "stddev": 0.38,
-          "min": 11.42,
-          "max": 12.73
+          "mean": 12.27,
+          "median": 12.17,
+          "p95": 13.15,
+          "stddev": 0.53,
+          "min": 11.51,
+          "max": 13.34
         },
         "userCpuMs": {
-          "mean": 9.55,
-          "median": 9.53,
-          "p95": 9.97,
-          "stddev": 0.29,
-          "min": 9.16,
-          "max": 10.13
+          "mean": 9.7,
+          "median": 9.68,
+          "p95": 10.08,
+          "stddev": 0.26,
+          "min": 9.28,
+          "max": 10.3
         },
         "sysCpuMs": {
-          "mean": 6.87,
-          "median": 6.92,
-          "p95": 7.36,
-          "stddev": 0.41,
-          "min": 6.24,
-          "max": 7.38
+          "mean": 7.19,
+          "median": 7.18,
+          "p95": 7.52,
+          "stddev": 0.26,
+          "min": 6.76,
+          "max": 7.55
         },
         "peakRssKB": {
-          "mean": 26878.4,
-          "median": 26848,
-          "p95": 27096.8,
-          "stddev": 169.74,
-          "min": 26624,
+          "mean": 26830.4,
+          "median": 26864,
+          "p95": 27039.2,
+          "stddev": 201.75,
+          "min": 26336,
           "max": 27104
         },
         "outputBytes": {
@@ -3635,40 +5417,40 @@
       "fileCount": 10,
       "totalInputBytes": 34612,
       "unitCount": 525,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 15.63,
-          "median": 15.64,
-          "p95": 16.22,
-          "stddev": 0.43,
-          "min": 14.99,
-          "max": 16.36
+          "mean": 17.08,
+          "median": 16.98,
+          "p95": 17.98,
+          "stddev": 0.7,
+          "min": 16.08,
+          "max": 18.04
         },
         "userCpuMs": {
-          "mean": 17.28,
-          "median": 17.12,
-          "p95": 18.79,
-          "stddev": 0.93,
-          "min": 16.1,
-          "max": 19.19
+          "mean": 18.37,
+          "median": 18.44,
+          "p95": 19.55,
+          "stddev": 1.01,
+          "min": 16.74,
+          "max": 19.59
         },
         "sysCpuMs": {
-          "mean": 21.03,
-          "median": 21.52,
-          "p95": 23.04,
-          "stddev": 1.69,
-          "min": 18.78,
-          "max": 23.41
+          "mean": 21.84,
+          "median": 22.39,
+          "p95": 23.67,
+          "stddev": 2,
+          "min": 18.26,
+          "max": 23.97
         },
         "peakRssKB": {
-          "mean": 29825.6,
-          "median": 29840,
-          "p95": 29936,
-          "stddev": 108.64,
-          "min": 29584,
-          "max": 29936
+          "mean": 29646.4,
+          "median": 29688,
+          "p95": 29827.2,
+          "stddev": 174.04,
+          "min": 29360,
+          "max": 29856
         },
         "outputBytes": {
           "mean": 0,
@@ -3689,40 +5471,40 @@
       "fileCount": 15,
       "totalInputBytes": 289810,
       "unitCount": 4000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 39.92,
-          "median": 39.98,
-          "p95": 42.33,
+          "mean": 40.31,
+          "median": 40.42,
+          "p95": 41.99,
           "stddev": 1.58,
-          "min": 37.62,
-          "max": 42.56
+          "min": 37.11,
+          "max": 42.01
         },
         "userCpuMs": {
-          "mean": 63.7,
-          "median": 63.81,
-          "p95": 67.21,
-          "stddev": 2.25,
-          "min": 60.98,
-          "max": 68.52
+          "mean": 65.18,
+          "median": 65.84,
+          "p95": 67.12,
+          "stddev": 2.67,
+          "min": 58.03,
+          "max": 67.33
         },
         "sysCpuMs": {
-          "mean": 108.17,
-          "median": 107.41,
-          "p95": 118.02,
-          "stddev": 6.89,
-          "min": 97.84,
-          "max": 120.11
+          "mean": 108.91,
+          "median": 111.13,
+          "p95": 115.8,
+          "stddev": 7.31,
+          "min": 92.92,
+          "max": 116.27
         },
         "peakRssKB": {
-          "mean": 39614.4,
-          "median": 39440,
-          "p95": 41763.2,
-          "stddev": 1377,
-          "min": 37936,
-          "max": 41936
+          "mean": 39204.8,
+          "median": 39280,
+          "p95": 40339.2,
+          "stddev": 993.06,
+          "min": 37712,
+          "max": 40512
         },
         "outputBytes": {
           "mean": 0,
@@ -3743,40 +5525,40 @@
       "fileCount": 5,
       "totalInputBytes": 5073,
       "unitCount": 65,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1316.53,
-          "median": 1317.05,
-          "p95": 1329.98,
-          "stddev": 10.5,
-          "min": 1298.86,
-          "max": 1332.33
+          "mean": 1381.15,
+          "median": 1380.15,
+          "p95": 1434.57,
+          "stddev": 42,
+          "min": 1332.87,
+          "max": 1449.62
         },
         "userCpuMs": {
-          "mean": 2020.9,
-          "median": 2025.64,
-          "p95": 2058.37,
-          "stddev": 25.63,
-          "min": 1981.11,
-          "max": 2067.67
+          "mean": 2878.71,
+          "median": 2938.51,
+          "p95": 3016.62,
+          "stddev": 133.96,
+          "min": 2682.85,
+          "max": 3026
         },
         "sysCpuMs": {
-          "mean": 197.11,
-          "median": 197.9,
-          "p95": 201.67,
-          "stddev": 4.13,
-          "min": 188.25,
-          "max": 202.47
+          "mean": 230.72,
+          "median": 227.99,
+          "p95": 244.59,
+          "stddev": 10.63,
+          "min": 215.99,
+          "max": 246.79
         },
         "peakRssKB": {
-          "mean": 223296,
-          "median": 223000,
-          "p95": 231870.4,
-          "stddev": 5409.47,
-          "min": 214912,
-          "max": 234592
+          "mean": 242377.6,
+          "median": 244536,
+          "p95": 249482.4,
+          "stddev": 6625.84,
+          "min": 229888,
+          "max": 250800
         },
         "outputBytes": {
           "mean": 0,
@@ -3797,40 +5579,40 @@
       "fileCount": 10,
       "totalInputBytes": 34612,
       "unitCount": 525,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1406.39,
-          "median": 1404.25,
-          "p95": 1418.65,
-          "stddev": 8.11,
-          "min": 1394.4,
-          "max": 1423.94
+          "mean": 1471.97,
+          "median": 1462,
+          "p95": 1535.89,
+          "stddev": 39.29,
+          "min": 1429.69,
+          "max": 1550.49
         },
         "userCpuMs": {
-          "mean": 2879.39,
-          "median": 2881.58,
-          "p95": 2913.37,
-          "stddev": 24.34,
-          "min": 2847.85,
-          "max": 2923.58
+          "mean": 3460.33,
+          "median": 3456.4,
+          "p95": 3585.96,
+          "stddev": 85.01,
+          "min": 3326.96,
+          "max": 3589.65
         },
         "sysCpuMs": {
-          "mean": 281.19,
-          "median": 278.66,
-          "p95": 293.47,
-          "stddev": 8.47,
-          "min": 268.68,
-          "max": 294.37
+          "mean": 292.73,
+          "median": 294.19,
+          "p95": 315.95,
+          "stddev": 15.62,
+          "min": 270.91,
+          "max": 321.67
         },
         "peakRssKB": {
-          "mean": 254944,
-          "median": 254912,
-          "p95": 257022.4,
-          "stddev": 2102.09,
-          "min": 250208,
-          "max": 257152
+          "mean": 273284.8,
+          "median": 273776,
+          "p95": 276452,
+          "stddev": 2270.22,
+          "min": 270272,
+          "max": 277136
         },
         "outputBytes": {
           "mean": 0,
@@ -3851,40 +5633,202 @@
       "fileCount": 15,
       "totalInputBytes": 289810,
       "unitCount": 4000,
-      "version": "v0.27.2-52-g3ff2530-dirty",
+      "version": "v0.27.2-53-g0ea79b5-dirty",
       "iterations": 10,
       "metrics": {
         "wallTimeMs": {
-          "mean": 1836.25,
-          "median": 1807.63,
-          "p95": 1998.9,
-          "stddev": 105.44,
-          "min": 1772.31,
-          "max": 2124.79
+          "mean": 1875.72,
+          "median": 1863.7,
+          "p95": 1947.51,
+          "stddev": 47.47,
+          "min": 1826.84,
+          "max": 1970.12
         },
         "userCpuMs": {
-          "mean": 6234.58,
-          "median": 6201.87,
-          "p95": 6560.57,
-          "stddev": 282.64,
-          "min": 5898.22,
-          "max": 6580.85
+          "mean": 6761.07,
+          "median": 6775.6,
+          "p95": 6879.3,
+          "stddev": 96.9,
+          "min": 6621.1,
+          "max": 6890.85
         },
         "sysCpuMs": {
-          "mean": 586.16,
-          "median": 590.76,
-          "p95": 599.96,
-          "stddev": 11.76,
-          "min": 564.8,
-          "max": 601.94
+          "mean": 610.15,
+          "median": 609.72,
+          "p95": 631.9,
+          "stddev": 17.72,
+          "min": 572.02,
+          "max": 632.09
         },
         "peakRssKB": {
-          "mean": 592236.8,
-          "median": 592528,
-          "p95": 602783.2,
-          "stddev": 8617.42,
-          "min": 580560,
-          "max": 603856
+          "mean": 596017.6,
+          "median": 595704,
+          "p95": 603642.4,
+          "stddev": 4992.26,
+          "min": 591024,
+          "max": 607552
+        },
+        "outputBytes": {
+          "mean": 0,
+          "median": 0,
+          "p95": 0,
+          "stddev": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "category": "collection",
+      "engine": "okapi",
+      "format": "mixed",
+      "fileSize": "small",
+      "fileSizeBytes": 0,
+      "fileCount": 5,
+      "totalInputBytes": 5073,
+      "unitCount": 65,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 569.4,
+          "median": 566.28,
+          "p95": 591.32,
+          "stddev": 14.46,
+          "min": 552.33,
+          "max": 607.72
+        },
+        "userCpuMs": {
+          "mean": 1229.6,
+          "median": 1226.63,
+          "p95": 1246.02,
+          "stddev": 10,
+          "min": 1217.29,
+          "max": 1248.28
+        },
+        "sysCpuMs": {
+          "mean": 94.96,
+          "median": 93.67,
+          "p95": 100.02,
+          "stddev": 3.23,
+          "min": 91.32,
+          "max": 102.39
+        },
+        "peakRssKB": {
+          "mean": 160737.6,
+          "median": 158056,
+          "p95": 169879.2,
+          "stddev": 5655.9,
+          "min": 156112,
+          "max": 173184
+        },
+        "outputBytes": {
+          "mean": 0,
+          "median": 0,
+          "p95": 0,
+          "stddev": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "category": "collection",
+      "engine": "okapi",
+      "format": "mixed",
+      "fileSize": "medium",
+      "fileSizeBytes": 0,
+      "fileCount": 10,
+      "totalInputBytes": 34612,
+      "unitCount": 525,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 686.37,
+          "median": 687.06,
+          "p95": 700.4,
+          "stddev": 11.97,
+          "min": 667.08,
+          "max": 703.57
+        },
+        "userCpuMs": {
+          "mean": 1570.42,
+          "median": 1568.82,
+          "p95": 1618.75,
+          "stddev": 34.12,
+          "min": 1509.32,
+          "max": 1622.13
+        },
+        "sysCpuMs": {
+          "mean": 117.55,
+          "median": 118.18,
+          "p95": 121.64,
+          "stddev": 4.18,
+          "min": 110.7,
+          "max": 121.71
+        },
+        "peakRssKB": {
+          "mean": 162040,
+          "median": 160848,
+          "p95": 168124,
+          "stddev": 4213.27,
+          "min": 156208,
+          "max": 169456
+        },
+        "outputBytes": {
+          "mean": 0,
+          "median": 0,
+          "p95": 0,
+          "stddev": 0,
+          "min": 0,
+          "max": 0
+        }
+      }
+    },
+    {
+      "category": "collection",
+      "engine": "okapi",
+      "format": "mixed",
+      "fileSize": "large",
+      "fileSizeBytes": 0,
+      "fileCount": 15,
+      "totalInputBytes": 289810,
+      "unitCount": 4000,
+      "version": "2.1.49.0-SNAPSHOT",
+      "iterations": 10,
+      "metrics": {
+        "wallTimeMs": {
+          "mean": 1063.81,
+          "median": 1055.4,
+          "p95": 1121.19,
+          "stddev": 33.11,
+          "min": 1029.86,
+          "max": 1138.5
+        },
+        "userCpuMs": {
+          "mean": 2899.17,
+          "median": 2895.89,
+          "p95": 2950.22,
+          "stddev": 35.14,
+          "min": 2852.65,
+          "max": 2950.31
+        },
+        "sysCpuMs": {
+          "mean": 184.61,
+          "median": 185.3,
+          "p95": 191.56,
+          "stddev": 5.49,
+          "min": 175.75,
+          "max": 192.89
+        },
+        "peakRssKB": {
+          "mean": 233038.4,
+          "median": 234152,
+          "p95": 237937.6,
+          "stddev": 4299.87,
+          "min": 224992,
+          "max": 238528
         },
         "outputBytes": {
           "mean": 0,

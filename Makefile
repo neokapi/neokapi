@@ -562,8 +562,10 @@ bench-run-bridge: bench-build build ## Run PseudoBench with bridge formats
 bench-run-collection: bench-build build ## Run PseudoBench collection benchmarks
 	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -categories collection
 
+TIKAL := bench/pseudobench/tikal.sh
+
 bench-run-all: bench-build build ## Run PseudoBench (all categories, kapi + bridge)
-	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -bridge
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -bridge $(if $(wildcard $(TIKAL)),-okapi ../../$(TIKAL))
 
 bench: bench-generate bench-run-all ## Generate test data + run all benchmarks + copy results
 	cp $(BENCH_DIR)/results/pseudobench.json $(WEBSITE_DIR)/static/data/pseudobench.json
