@@ -11,7 +11,7 @@ import (
 
 // TraceEvent represents a single timestamped event during flow execution.
 type TraceEvent struct {
-	Ts     int64          `json:"ts"`               // microseconds from flow start
+	TS     int64          `json:"ts"`               // microseconds from flow start
 	Type   string         `json:"type"`             // event type (e.g., "enter", "exit")
 	NodeID string         `json:"nodeId"`           // which node
 	PartID string         `json:"partId,omitempty"` // which Part
@@ -83,7 +83,7 @@ func (r *TraceRecorder) Record(eventType string, nodeID string, partID string, m
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.events = append(r.events, TraceEvent{
-		Ts:     time.Since(r.start).Microseconds(),
+		TS:     time.Since(r.start).Microseconds(),
 		Type:   eventType,
 		NodeID: nodeID,
 		PartID: partID,
