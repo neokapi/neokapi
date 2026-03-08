@@ -6,6 +6,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
+	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
@@ -101,7 +102,7 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
-	// Doxygen
-	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
-	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
+	// ICU MessageFormat
+	reg.RegisterReader("messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
+	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
 }

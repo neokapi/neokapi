@@ -1,0 +1,3 @@
+Hello world
+{count, plural, one {# item} other {# items}}
+{gender, select, male {He likes this} female {She likes this} other {They like this}}
