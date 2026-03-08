@@ -76,6 +76,7 @@ func (d *FormatDetector) Detect(path string, reader io.ReadSeeker, mimeType stri
 
 // DetectByMIME maps a MIME type to a registered format name. When multiple
 // formats match, the one with the highest priority is returned.
+// When priorities are equal, the lexicographically first name wins.
 func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
 	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
 	bestName := ""
@@ -84,7 +85,7 @@ func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
 		for _, m := range sig.MIMETypes {
 			if strings.ToLower(m) == mimeType {
 				pri := d.priorities[name]
-				if bestName == "" || pri > bestPriority {
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
 					bestName = name
 					bestPriority = pri
 				}
@@ -99,6 +100,8 @@ func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
 
 // DetectByExtension maps a file extension to a registered format name. When
 // multiple formats match, the one with the highest priority is returned.
+// When priorities are equal, the lexicographically first name wins for
+// deterministic results (e.g. okf_xliff before okf_xliff2 for ".xlf").
 func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
 	ext = strings.ToLower(ext)
 	if ext == "" {
@@ -110,7 +113,7 @@ func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
 		for _, e := range sig.Extensions {
 			if strings.ToLower(e) == ext {
 				pri := d.priorities[name]
-				if bestName == "" || pri > bestPriority {
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
 					bestName = name
 					bestPriority = pri
 				}
@@ -146,7 +149,7 @@ func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error) {
 		for _, magic := range sig.MagicBytes {
 			if bytes.HasPrefix(buf, magic) {
 				pri := d.priorities[name]
-				if bestName == "" || pri > bestPriority {
+				if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
 					bestName = name
 					bestPriority = pri
 				}
@@ -163,7 +166,7 @@ func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error) {
 	for name, sig := range d.signatures {
 		if sig.Sniff != nil && sig.Sniff(buf) {
 			pri := d.priorities[name]
-			if bestName == "" || pri > bestPriority {
+			if bestName == "" || pri > bestPriority || (pri == bestPriority && name < bestName) {
 				bestName = name
 				bestPriority = pri
 			}

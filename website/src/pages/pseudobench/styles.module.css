@@ -1,0 +1,412 @@
+/* ── Layout ── */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.subtitle {
+  color: var(--ifm-color-emphasis-600);
+  font-size: 1.1rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Metadata bar ── */
+.metadataBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.legendDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ── Summary cards ── */
+.summaryCards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.summaryCard {
+  flex: 1 1 140px;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  padding: 1rem;
+  text-align: center;
+}
+
+.summaryValue {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ifm-color-primary);
+}
+
+.summaryLabel {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-600);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+}
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.filterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterLabel {
+  font-weight: 600;
+  font-size: 0.85rem;
+  min-width: 60px;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.filterBtn {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.filterBtn:hover {
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}
+
+.filterBtnActive {
+  background: var(--ifm-color-primary);
+  color: white;
+  border-color: var(--ifm-color-primary);
+}
+
+/* ── Comparison Cards grid ── */
+.compGrid2col {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(560px, 1fr));
+  gap: 1rem;
+}
+
+/* ── Comparison Card ── */
+.compCard {
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-card-border-radius);
+  padding: 1rem 1.25rem;
+}
+
+.compHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.compFormat {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.compSize {
+  font-size: 0.75rem;
+  font-weight: 400;
+  background: var(--ifm-color-emphasis-100);
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  color: var(--ifm-color-emphasis-600);
+}
+
+/* ── Comparison Grid (inside card) ── */
+.compGrid {
+  display: grid;
+  /* 1 engine-label col + 4 metric cols */
+  grid-template-columns: 160px repeat(4, 1fr);
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.compCorner {
+  /* empty top-left cell */
+}
+
+.compColHeader {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-color-emphasis-500);
+  text-align: left;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.compUnit {
+  font-weight: 400;
+  margin-left: 3px;
+  opacity: 0.6;
+}
+
+/* ── Engine label ── */
+.compEngine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.compEngineDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.compEngineName {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-800);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compVersion {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--ifm-color-emphasis-500);
+  margin-left: 4px;
+}
+
+/* ── Metric cell ── */
+.compCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  position: relative;
+}
+
+.compBarTrack {
+  flex: 1;
+  height: 18px;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.compBar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.compVal {
+  flex-shrink: 0;
+  min-width: 48px;
+  text-align: right;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ifm-color-emphasis-700);
+}
+
+.compCellWinner .compVal {
+  color: #16a34a;
+}
+
+.compCellWinner .compBarTrack {
+  background: color-mix(in srgb, #16a34a 10%, var(--ifm-color-emphasis-100));
+}
+
+.compWinBadge {
+  position: absolute;
+  right: 0;
+  top: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+/* ── Full stats inside details ── */
+.compDetails {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--ifm-color-emphasis-200);
+  padding-top: 0.5rem;
+}
+
+.compDetails summary {
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--ifm-color-primary);
+  user-select: none;
+}
+
+.statsTableWrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.statsSection {
+  /* One mini table per metric */
+}
+
+.statsMetricLabel {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ifm-color-emphasis-500);
+  margin-bottom: 4px;
+}
+
+.statsTable {
+  width: 100%;
+  font-size: 0.72rem;
+  border-collapse: collapse;
+}
+
+.statsTable th,
+.statsTable td {
+  padding: 2px 5px;
+  text-align: left;
+  border-bottom: 1px solid var(--ifm-color-emphasis-100);
+}
+
+.statsTable th {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-500);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Overview Table view ── */
+.overviewWrap {
+  overflow-x: auto;
+}
+
+.overviewTable {
+  width: 100%;
+  font-size: 0.8rem;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.overviewTable th,
+.overviewTable td {
+  padding: 6px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
+}
+
+.overviewTable thead th {
+  font-weight: 600;
+  color: var(--ifm-color-emphasis-600);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  background: var(--ifm-card-background-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.overviewSubHeader {
+  font-size: 0.65rem !important;
+  font-weight: 500 !important;
+  color: var(--ifm-color-emphasis-400) !important;
+  border-bottom: 2px solid var(--ifm-color-emphasis-200) !important;
+}
+
+.overviewFormat {
+  font-weight: 600;
+}
+
+.overviewSize {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.overviewWin {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.overviewMissing {
+  color: var(--ifm-color-emphasis-300);
+  text-align: center;
+}
+
+/* ── Misc ── */
+.error {
+  padding: 1rem;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: var(--ifm-card-border-radius);
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .error {
+  background: #450a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+}
+
+.empty {
+  text-align: center;
+  color: var(--ifm-color-emphasis-500);
+  padding: 2rem;
+}

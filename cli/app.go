@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	gokapiconfig "github.com/gokapi/gokapi/core/config"
 	"github.com/gokapi/gokapi/core/format/schema"
@@ -26,10 +28,11 @@ type App struct {
 	Config       *config.AppConfig
 
 	// Flags bound by AddPersistentFlags.
-	Verbose   bool
-	Quiet     bool
-	CfgFile   string
-	PluginDir string
+	Verbose        bool
+	Quiet          bool
+	CfgFile        string
+	PluginDir      string
+	DisablePlugins string // comma-separated plugin names to skip
 
 	// Processing flags bound by AddProcessingFlags.
 	FormatFlag string
@@ -49,6 +52,7 @@ func (a *App) AddPersistentFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().BoolVarP(&a.Verbose, "verbose", "v", false, "verbose output")
 	cmd.PersistentFlags().BoolVarP(&a.Quiet, "quiet", "q", false, "suppress output")
 	cmd.PersistentFlags().StringVar(&a.PluginDir, "plugin-dir", "", "plugin directory")
+	cmd.PersistentFlags().StringVar(&a.DisablePlugins, "disable-plugins", "", "comma-separated plugin names to skip (e.g. okapi)")
 	output.AddPersistentFlags(cmd)
 }
 
@@ -93,6 +97,13 @@ func (a *App) Init() {
 	}
 
 	a.PluginLoader = loader.NewPluginLoader(dir, logger)
+
+	// Parse disabled plugins from flag, env, or config.
+	disabled := a.disabledPluginSet()
+	if len(disabled) > 0 {
+		a.PluginLoader.SetDisabledPlugins(disabled)
+	}
+
 	if err := a.PluginLoader.ScanMetadata(a.FormatReg); err != nil {
 		if !a.Quiet {
 			fmt.Fprintf(os.Stderr, "Warning: plugin scan: %v\n", err)
@@ -113,9 +124,10 @@ func (a *App) Init() {
 	a.SchemaReg.ExtractPresets(a.PluginLoader.Presets())
 
 	// Apply format priority overrides from configuration.
-	for name, priority := range a.Config.FormatPriorities() {
-		a.FormatReg.SetFormatPriority(name, priority)
-	}
+	// Supports both exact names (e.g. "html": 200) and glob patterns
+	// (e.g. "okf_*": 200) that match against all registered format names.
+	// These override the preference setting above.
+	a.applyFormatPriorities(a.Config.FormatPriorities())
 
 	// Register lazy bridge loading: bridges start only when a non-built-in
 	// format is requested for the first time.
@@ -135,6 +147,56 @@ func (a *App) EnsureBridgesLoaded() {
 			fmt.Fprintf(os.Stderr, "Warning: bridge loading: %v\n", err)
 		}
 	}
+}
+
+// applyFormatPriorities applies priority overrides to the format registry.
+// Keys can be exact format names or glob patterns (e.g. "okf_*").
+func (a *App) applyFormatPriorities(priorities map[string]int) {
+	for pattern, priority := range priorities {
+		if isGlobPattern(pattern) {
+			// Glob pattern — match against all registered format infos.
+			for _, info := range a.FormatReg.FormatInfos() {
+				if matched, _ := filepath.Match(pattern, info.Name); matched {
+					a.FormatReg.SetFormatPriority(info.Name, priority)
+				}
+			}
+		} else {
+			a.FormatReg.SetFormatPriority(pattern, priority)
+		}
+	}
+}
+
+// isGlobPattern returns true if the string contains glob metacharacters.
+func isGlobPattern(s string) bool {
+	for _, c := range s {
+		if c == '*' || c == '?' || c == '[' {
+			return true
+		}
+	}
+	return false
+}
+
+// disabledPluginSet returns the set of plugin names to skip.
+// Resolved from: --disable-plugins flag > KAPI_DISABLE_PLUGINS env > config.
+func (a *App) disabledPluginSet() map[string]bool {
+	raw := a.DisablePlugins
+	if raw == "" {
+		raw = os.Getenv("KAPI_DISABLE_PLUGINS")
+	}
+	if raw == "" && a.Config != nil {
+		raw = a.Config.GetString("plugins.disabled")
+	}
+	if raw == "" {
+		return nil
+	}
+	set := make(map[string]bool)
+	for _, name := range strings.Split(raw, ",") {
+		name = strings.TrimSpace(name)
+		if name != "" {
+			set[name] = true
+		}
+	}
+	return set
 }
 
 // Shutdown cleans up plugin resources (stops bridge processes, etc.).

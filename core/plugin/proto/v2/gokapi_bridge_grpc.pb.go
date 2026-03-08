@@ -26,6 +26,7 @@ const (
 	BridgeService_Write_FullMethodName       = "/gokapi.bridge.v2.BridgeService/Write"
 	BridgeService_Close_FullMethodName       = "/gokapi.bridge.v2.BridgeService/Close"
 	BridgeService_Shutdown_FullMethodName    = "/gokapi.bridge.v2.BridgeService/Shutdown"
+	BridgeService_RoundTrip_FullMethodName   = "/gokapi.bridge.v2.BridgeService/RoundTrip"
 )
 
 // BridgeServiceClient is the client API for BridgeService service.
@@ -49,6 +50,19 @@ type BridgeServiceClient interface {
 	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
 	// Shutdown gracefully shuts down the bridge server.
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+	// RoundTrip performs a complete read → process → write cycle on a single
+	// filter instance using bidirectional streaming. This eliminates the need
+	// for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
+	// is needed for the entire operation.
+	//
+	// Protocol:
+	//  1. Client sends RoundTripHeader (input/output config)
+	//  2. Server reads the document and streams PartMessages to client
+	//  3. Server sends RoundTripReadDone to signal all parts read
+	//  4. Client processes each part and sends back as RoundTripProcessed
+	//  5. Client sends RoundTripFlush to signal all parts processed
+	//  6. Server writes output and sends RoundTripComplete
+	RoundTrip(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse], error)
 }
 
 type bridgeServiceClient struct {
@@ -141,6 +155,19 @@ func (c *bridgeServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest,
 	return out, nil
 }
 
+func (c *bridgeServiceClient) RoundTrip(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &BridgeService_ServiceDesc.Streams[2], BridgeService_RoundTrip_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RoundTripRequest, RoundTripResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type BridgeService_RoundTripClient = grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse]
+
 // BridgeServiceServer is the server API for BridgeService service.
 // All implementations must embed UnimplementedBridgeServiceServer
 // for forward compatibility.
@@ -162,6 +189,19 @@ type BridgeServiceServer interface {
 	Close(context.Context, *CloseRequest) (*CloseResponse, error)
 	// Shutdown gracefully shuts down the bridge server.
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+	// RoundTrip performs a complete read → process → write cycle on a single
+	// filter instance using bidirectional streaming. This eliminates the need
+	// for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
+	// is needed for the entire operation.
+	//
+	// Protocol:
+	//  1. Client sends RoundTripHeader (input/output config)
+	//  2. Server reads the document and streams PartMessages to client
+	//  3. Server sends RoundTripReadDone to signal all parts read
+	//  4. Client processes each part and sends back as RoundTripProcessed
+	//  5. Client sends RoundTripFlush to signal all parts processed
+	//  6. Server writes output and sends RoundTripComplete
+	RoundTrip(grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]) error
 	mustEmbedUnimplementedBridgeServiceServer()
 }
 
@@ -192,6 +232,9 @@ func (UnimplementedBridgeServiceServer) Close(context.Context, *CloseRequest) (*
 }
 func (UnimplementedBridgeServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Shutdown not implemented")
+}
+func (UnimplementedBridgeServiceServer) RoundTrip(grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]) error {
+	return status.Error(codes.Unimplemented, "method RoundTrip not implemented")
 }
 func (UnimplementedBridgeServiceServer) mustEmbedUnimplementedBridgeServiceServer() {}
 func (UnimplementedBridgeServiceServer) testEmbeddedByValue()                       {}
@@ -322,6 +365,13 @@ func _BridgeService_Shutdown_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _BridgeService_RoundTrip_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BridgeServiceServer).RoundTrip(&grpc.GenericServerStream[RoundTripRequest, RoundTripResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type BridgeService_RoundTripServer = grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]
+
 // BridgeService_ServiceDesc is the grpc.ServiceDesc for BridgeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -359,6 +409,12 @@ var BridgeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "Write",
 			Handler:       _BridgeService_Write_Handler,
+			ClientStreams: true,
+		},
+		{
+			StreamName:    "RoundTrip",
+			Handler:       _BridgeService_RoundTrip_Handler,
+			ServerStreams: true,
 			ClientStreams: true,
 		},
 	},

@@ -65,6 +65,16 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'link',
+      label: 'Format Reference',
+      href: '/formats',
+    },
+    {
+      type: 'link',
+      label: 'Benchmarks',
+      href: '/pseudobench',
+    },
+    {
+      type: 'link',
       label: 'Test Results',
       href: '/test-comparison',
     },

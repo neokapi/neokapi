@@ -150,6 +150,23 @@ func (r *FormatRegistry) RegisterFormatInfo(name string, info FormatInfo) {
 	if info.HasWriter {
 		existing.HasWriter = true
 	}
+
+	// Register detection signature so bridge/plugin formats participate in
+	// DetectByExtension and DetectByMIME from metadata scan time, before
+	// the bridge process or plugin is actually loaded.
+	if len(existing.Extensions) > 0 || len(existing.MimeTypes) > 0 {
+		r.detector.Register(name, format.FormatSignature{
+			Extensions: existing.Extensions,
+			MIMETypes:  existing.MimeTypes,
+		})
+		// Apply priority: use existing priority if set, otherwise default plugin priority.
+		pri := existing.Priority
+		if pri == 0 {
+			pri = format.DefaultPluginPriority
+			existing.Priority = pri
+		}
+		r.detector.SetPriority(name, pri)
+	}
 }
 
 // SetFormatSource sets the source (provider) for a format. Use "built-in" for

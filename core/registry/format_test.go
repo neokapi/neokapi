@@ -527,6 +527,70 @@ func TestOnMissTriggeredOnWriterMiss(t *testing.T) {
 	assert.True(t, called)
 }
 
+func TestRegisterFormatInfoDetectableByExtension(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	// Register metadata-only (no reader/writer factory) — should still be detectable.
+	reg.RegisterFormatInfo("okf_openxml@1.46.0", FormatInfo{
+		DisplayName: "OpenXML Filter",
+		Extensions:  []string{".docx", ".xlsx", ".pptx"},
+		Source:      "okapi-bridge",
+	})
+
+	// Should find the format by extension without needing a reader factory.
+	name, err := reg.DetectByExtension(".docx")
+	require.NoError(t, err)
+	assert.Equal(t, "okf_openxml@1.46.0", name)
+
+	name, err = reg.DetectByExtension(".xlsx")
+	require.NoError(t, err)
+	assert.Equal(t, "okf_openxml@1.46.0", name)
+}
+
+func TestRegisterFormatInfoDetectableByMIME(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	reg.RegisterFormatInfo("okf_html@1.46.0", FormatInfo{
+		DisplayName: "HTML Filter",
+		MimeTypes:   []string{"text/html"},
+		Source:      "okapi-bridge",
+	})
+
+	name := reg.ResolveFormat("text/html")
+	assert.Equal(t, "okf_html@1.46.0", name)
+}
+
+func TestRegisterFormatInfoPriorityInDetection(t *testing.T) {
+	reg := NewFormatRegistry()
+
+	// Built-in HTML at default priority (50).
+	reg.RegisterReader("html", func() format.DataFormatReader {
+		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
+	})
+
+	// Bridge HTML registered via metadata only — gets plugin priority (100).
+	reg.RegisterFormatInfo("okf_html@1.46.0", FormatInfo{
+		DisplayName: "Okapi HTML",
+		MimeTypes:   []string{"text/html"},
+		Extensions:  []string{".html"},
+		Source:      "okapi-bridge",
+	})
+
+	// Bridge format should win (priority 100 > 50).
+	name, err := reg.DetectByExtension(".html")
+	require.NoError(t, err)
+	assert.Equal(t, "okf_html@1.46.0", name)
+
+	name = reg.ResolveFormat("text/html")
+	assert.Equal(t, "okf_html@1.46.0", name)
+
+	// Override built-in to have higher priority — should win.
+	reg.SetFormatPriority("html", 200)
+	name, err = reg.DetectByExtension(".html")
+	require.NoError(t, err)
+	assert.Equal(t, "html", name)
+}
+
 func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
 	reg := NewFormatRegistry()
 

@@ -47,6 +47,13 @@ func (r *BridgeFormatReader) SetFilterParams(params map[string]any) {
 	r.filterParams = params
 }
 
+// NewRoundTripper creates a BridgeRoundTripper that shares this reader's pool
+// and configuration. This enables concurrent file processing through a single
+// JVM using the pool's shared access mode.
+func (r *BridgeFormatReader) NewRoundTripper() *BridgeRoundTripper {
+	return NewBridgeRoundTripper(r.pool, r.cfg, r.filterClass)
+}
+
 // Signature returns the format detection signature from the Java filter.
 // It acquires and releases a bridge just for the info query.
 func (r *BridgeFormatReader) Signature() format.FormatSignature {

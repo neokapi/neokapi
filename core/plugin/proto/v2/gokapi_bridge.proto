@@ -29,6 +29,20 @@ service BridgeService {
 
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+
+  // RoundTrip performs a complete read → process → write cycle on a single
+  // filter instance using bidirectional streaming. This eliminates the need
+  // for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
+  // is needed for the entire operation.
+  //
+  // Protocol:
+  //   1. Client sends RoundTripHeader (input/output config)
+  //   2. Server reads the document and streams PartMessages to client
+  //   3. Server sends RoundTripReadDone to signal all parts read
+  //   4. Client processes each part and sends back as RoundTripProcessed
+  //   5. Client sends RoundTripFlush to signal all parts processed
+  //   6. Server writes output and sends RoundTripComplete
+  rpc RoundTrip(stream RoundTripRequest) returns (stream RoundTripResponse);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -299,3 +313,57 @@ message CloseResponse {
 
 message ShutdownRequest {}
 message ShutdownResponse {}
+
+// ────────────────────────────────────────────────────────────────────────────
+// RoundTrip RPC messages
+// ────────────────────────────────────────────────────────────────────────────
+
+// RoundTripRequest is sent by the client (Go) to the server (Java).
+message RoundTripRequest {
+  oneof request {
+    RoundTripHeader header = 1;           // First message: input/output config
+    RoundTripProcessed processed_part = 2; // Processed part sent back after tool chain
+    RoundTripFlush flush = 3;             // Signals all processed parts have been sent
+  }
+}
+
+// RoundTripResponse is sent by the server (Java) to the client (Go).
+message RoundTripResponse {
+  oneof response {
+    PartMessage part = 1;                 // Part read from the document
+    RoundTripReadDone read_done = 2;      // All parts have been read
+    RoundTripComplete complete = 3;       // Output written, cycle complete
+  }
+}
+
+// RoundTripHeader configures both the read and write phases.
+message RoundTripHeader {
+  string filter_class = 1;
+  string uri = 2;
+  string source_locale = 3;
+  string target_locale = 4;
+  string encoding = 5;
+  string mime_type = 6;
+  map<string, string> filter_params = 7;
+  ContentRef content_ref = 8;            // Input document reference
+  string output_locale = 9;             // Locale for the output document
+  OutputRef output_ref = 10;            // Where to write output (path or inline)
+}
+
+// RoundTripProcessed wraps a processed part sent back to the server.
+message RoundTripProcessed {
+  PartMessage part = 1;
+}
+
+// RoundTripReadDone signals that all parts have been read from the document.
+message RoundTripReadDone {}
+
+// RoundTripFlush signals that all processed parts have been sent by the client.
+message RoundTripFlush {}
+
+// RoundTripComplete signals that the output has been written.
+message RoundTripComplete {
+  bytes output = 1;          // Inline output bytes (empty when output_ref was used)
+  string output_path = 2;   // Path where output was written
+  string error = 3;
+}
