@@ -3,6 +3,7 @@ package formats
 import (
 	"github.com/gokapi/gokapi/core/format"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
+	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
@@ -100,15 +101,7 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
-	// Qt TS (Qt Linguist)
-	reg.RegisterReader("ts", func() format.DataFormatReader { return tsfmt.NewReader() })
-	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
-
-	// Wiki (MediaWiki/DokuWiki)
-	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
-	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
-
-	// TeX/LaTeX
-	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
-	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
+	// Doxygen
+	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
+	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
 }
