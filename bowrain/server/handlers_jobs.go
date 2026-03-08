@@ -22,6 +22,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		ItemName         string `json:"item_name"`
 		TargetLocale     string `json:"target_locale"`
 		ProviderConfigID string `json:"provider_config_id"`
+		Model            string `json:"model,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -31,13 +32,20 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project_id, item_name, and target_locale are required"})
 	}
 
+	// Default to platform provider if none specified.
+	providerConfigID := req.ProviderConfigID
+	if providerConfigID == "" {
+		providerConfigID = "platform"
+	}
+
 	job := &jobs.TranslationJob{
 		ID:               uuid.NewString(),
 		WorkspaceSlug:    ws,
 		ProjectID:        req.ProjectID,
 		ItemName:         req.ItemName,
 		TargetLocale:     req.TargetLocale,
-		ProviderConfigID: req.ProviderConfigID,
+		ProviderConfigID: providerConfigID,
+		Model:            req.Model,
 		Status:           jobs.StatusQueued,
 	}
 
@@ -88,6 +96,22 @@ func (s *Server) HandleListJobs(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, jobList)
+}
+
+// HandleGetAIUsage returns the AI usage summary for a workspace.
+// GET /api/v1/workspaces/:ws/ai/usage
+func (s *Server) HandleGetAIUsage(c echo.Context) error {
+	if s.QuotaStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "quota tracking not configured"})
+	}
+
+	ws := c.Param("ws")
+	summary, err := s.QuotaStore.GetUsageSummary(c.Request().Context(), ws)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, summary)
 }
 
 // HandleDeleteJob cancels a job by setting its status to failed.

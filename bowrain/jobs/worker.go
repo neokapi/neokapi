@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/credentials"
+	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/tool"
@@ -22,18 +23,45 @@ type WorkerConfig struct {
 	CredentialStorePath string
 }
 
+// WorkerDeps holds all dependencies for the translation worker.
+type WorkerDeps struct {
+	JobStore     JobStore
+	ContentStore store.ContentStore
+	CredStore    *credentials.Store
+	Queue        Queue
+	QuotaStore   QuotaStore             // optional; nil disables quota enforcement
+	Platform     *PlatformProviderConfig // optional; nil disables platform provider
+}
+
 // providerRateLimits maps provider types to their default rate limits (requests/sec).
 var providerRateLimits = map[string]rate.Limit{
-	"openai":    10,
-	"anthropic": 5,
-	"ollama":    100, // effectively unlimited
+	"openai":      10,
+	"azureopenai": 10,
+	"anthropic":   5,
+	"ollama":      100, // effectively unlimited
 }
 
 // RunWorker runs the translation worker loop. It dequeues job IDs, loads the
 // corresponding TranslationJob, processes blocks through the AI translate tool,
 // and stores results back. It blocks until ctx is cancelled.
 func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.ContentStore, credStore *credentials.Store, queue Queue) error {
+	return RunWorkerWithDeps(ctx, &WorkerDeps{
+		JobStore:     jobStore,
+		ContentStore: contentStore,
+		CredStore:    credStore,
+		Queue:        queue,
+	})
+}
+
+// RunWorkerWithDeps runs the translation worker loop with full dependency injection.
+func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 	log.Println("translation worker started")
+	if deps.Platform != nil {
+		log.Printf("platform Azure OpenAI enabled: %s", deps.Platform.Endpoint)
+	}
+	if deps.QuotaStore != nil {
+		log.Println("AI quota enforcement enabled")
+	}
 	defer log.Println("translation worker stopped")
 
 	for {
@@ -43,7 +71,7 @@ func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.Conten
 		default:
 		}
 
-		jobID, ack, _, err := queue.Dequeue(ctx)
+		jobID, ack, _, err := deps.Queue.Dequeue(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -53,7 +81,7 @@ func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.Conten
 			continue
 		}
 
-		if processErr := processJob(ctx, jobStore, contentStore, credStore, jobID); processErr != nil {
+		if processErr := processJobWithDeps(ctx, deps, jobID); processErr != nil {
 			log.Printf("job %s failed: %v", jobID, processErr)
 		}
 		// Always ack: processJob marks failed jobs in the database.
@@ -62,8 +90,8 @@ func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.Conten
 	}
 }
 
-func processJob(ctx context.Context, jobStore JobStore, cs store.ContentStore, credStore *credentials.Store, jobID string) error {
-	job, err := jobStore.GetJob(ctx, jobID)
+func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) error {
+	job, err := deps.JobStore.GetJob(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("load job: %w", err)
 	}
@@ -74,31 +102,42 @@ func processJob(ctx context.Context, jobStore JobStore, cs store.ContentStore, c
 		return nil
 	}
 
+	// Check quota before starting.
+	if deps.QuotaStore != nil {
+		remaining, err := deps.QuotaStore.CheckQuota(ctx, job.WorkspaceSlug)
+		if err != nil {
+			log.Printf("warning: quota check failed for %s: %v", job.WorkspaceSlug, err)
+		} else if remaining <= 0 {
+			_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, "workspace AI quota exceeded")
+			return fmt.Errorf("workspace %s quota exceeded", job.WorkspaceSlug)
+		}
+	}
+
 	// Mark as processing.
-	if err := jobStore.UpdateJobStatus(ctx, jobID, StatusProcessing, ""); err != nil {
+	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusProcessing, ""); err != nil {
 		return fmt.Errorf("set processing: %w", err)
 	}
 
 	// Run the translation; on failure, mark as failed.
-	if err := executeTranslation(ctx, jobStore, cs, credStore, job); err != nil {
-		_ = jobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
+	if err := executeTranslationWithDeps(ctx, deps, job); err != nil {
+		_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
 		return err
 	}
 
 	// Mark as completed.
-	if err := jobStore.UpdateJobStatus(ctx, jobID, StatusCompleted, ""); err != nil {
+	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusCompleted, ""); err != nil {
 		return fmt.Errorf("set completed: %w", err)
 	}
 	return nil
 }
 
-func executeTranslation(ctx context.Context, jobStore JobStore, cs store.ContentStore, credStore *credentials.Store, job *TranslationJob) error {
-	proj, err := cs.GetProject(ctx, job.ProjectID)
+func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
+	proj, err := deps.ContentStore.GetProject(ctx, job.ProjectID)
 	if err != nil {
 		return fmt.Errorf("get project: %w", err)
 	}
 
-	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
+	storedBlocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: job.ProjectID,
 		ItemName:  job.ItemName,
 	})
@@ -107,19 +146,15 @@ func executeTranslation(ctx context.Context, jobStore JobStore, cs store.Content
 	}
 
 	totalBlocks := len(storedBlocks)
-	if err := jobStore.UpdateJobProgress(ctx, job.ID, 0, totalBlocks); err != nil {
+	if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, 0, totalBlocks); err != nil {
 		return fmt.Errorf("set total blocks: %w", err)
 	}
 
 	// Resolve AI provider.
-	prov, err := credentials.NewProvider(credStore, job.ProviderConfigID)
+	prov, limiter, err := resolveProvider(ctx, deps, job)
 	if err != nil {
 		return fmt.Errorf("resolve provider: %w", err)
 	}
-
-	// Get rate limit for provider type.
-	cfg, _ := credStore.Get(job.ProviderConfigID)
-	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
 		SourceLocale: proj.SourceLocale,
@@ -129,6 +164,7 @@ func executeTranslation(ctx context.Context, jobStore JobStore, cs store.Content
 	// Process blocks in batches to report progress.
 	const batchSize = 10
 	var allOutParts []*model.Part
+	totalTokensUsed := 0
 
 	for i := 0; i < totalBlocks; i += batchSize {
 		end := i + batchSize
@@ -149,21 +185,83 @@ func executeTranslation(ctx context.Context, jobStore JobStore, cs store.Content
 		}
 		allOutParts = append(allOutParts, outParts...)
 
+		// Estimate token usage (rough: ~4 chars per token for source + target).
+		batchTokens := estimateTokens(batch)
+		totalTokensUsed += batchTokens
+
+		// Record usage per batch so quota is updated incrementally.
+		if deps.QuotaStore != nil {
+			_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
+				WorkspaceSlug: job.WorkspaceSlug,
+				ProjectID:     job.ProjectID,
+				JobID:         job.ID,
+				Model:         job.Model,
+				TotalTokens:   batchTokens,
+			})
+		}
+
 		// Update progress.
-		if err := jobStore.UpdateJobProgress(ctx, job.ID, end, totalBlocks); err != nil {
+		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, end, totalBlocks); err != nil {
 			log.Printf("warning: update progress for %s: %v", job.ID, err)
 		}
 	}
 
+	// Update total token usage on the job.
+	job.TokensUsed = totalTokensUsed
+
 	// Store translated blocks.
 	blocks := partsToBlocks(allOutParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocksForItem(ctx, job.ProjectID, job.ItemName, blocks); err != nil {
+		if err := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, job.ItemName, blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
 	}
 
 	return nil
+}
+
+// resolveProvider creates the appropriate LLM provider for the job.
+func resolveProvider(ctx context.Context, deps *WorkerDeps, job *TranslationJob) (provider.LLMProvider, *rate.Limiter, error) {
+	if job.IsPlatformProvider() {
+		if deps.Platform == nil {
+			return nil, nil, fmt.Errorf("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+		}
+		deployment := job.Model
+		if deployment == "" {
+			deployment = "gpt-4o"
+		}
+		prov, err := NewPlatformProvider(*deps.Platform, deployment)
+		if err != nil {
+			return nil, nil, err
+		}
+		limiter := rate.NewLimiter(providerRateLimit("azureopenai"), 1)
+		return prov, limiter, nil
+	}
+
+	// User-configured provider via credential store.
+	prov, err := credentials.NewProvider(deps.CredStore, job.ProviderConfigID)
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg, _ := deps.CredStore.Get(job.ProviderConfigID)
+	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
+	return prov, limiter, nil
+}
+
+// estimateTokens provides a rough token count estimate for a batch of blocks.
+// Uses ~4 characters per token as a heuristic (covers source + target).
+func estimateTokens(blocks []*store.StoredBlock) int {
+	totalChars := 0
+	for _, sb := range blocks {
+		if sb.Block != nil && len(sb.Block.Source) > 0 {
+			for _, seg := range sb.Block.Source {
+				if seg.Content != nil {
+					totalChars += len(seg.Content.Text()) * 2 // source + target estimate
+				}
+			}
+		}
+	}
+	return totalChars / 4
 }
 
 // storedBlocksToParts converts stored blocks to Part slice (same as editor.go).
