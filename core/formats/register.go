@@ -3,6 +3,7 @@ package formats
 import (
 	"github.com/gokapi/gokapi/core/format"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
+	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
@@ -81,4 +82,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// OpenXML (DOCX, PPTX, XLSX)
 	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+
+	// DTD
+	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
+	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 }
