@@ -1,0 +1,13 @@
+This is an introduction.
+
+<<setup>>=
+library(ggplot2)
+@
+
+This is text after the code chunk.
+
+<<plot, echo=FALSE>>=
+plot(data)
+@
+
+This is the conclusion.
