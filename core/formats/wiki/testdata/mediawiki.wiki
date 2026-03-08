@@ -1,0 +1,20 @@
+== Landgrove, Vermont ==
+
+Landgrove is a town in Bennington County, Vermont, United States.
+
+=== Geography ===
+
+The town has a total area of 25.1 square miles.
+
+{| class="wikitable"
+|-
+! Header 1 !! Header 2
+|-
+| Cell 1 || Cell 2
+|-
+| Cell 3 || Cell 4
+|}
+
+[[File:Example.jpg|thumb|A scenic view of Landgrove]]
+
+'''Bold text''' and ''italic text'' are common in wiki markup.
