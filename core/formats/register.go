@@ -11,6 +11,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	"github.com/gokapi/gokapi/core/formats/srt"
+	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/xliff"
@@ -81,4 +82,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// OpenXML (DOCX, PPTX, XLSX)
 	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+
+	// TeX/LaTeX
+	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
+	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 }
