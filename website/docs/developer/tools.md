@@ -104,19 +104,82 @@ func TestUppercaseTool(t *testing.T) {
 
 ## Built-in Tools
 
-### Utility Tools (`tools/`)
+### Analysis & Reporting
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| `wordcount` | Validate | Counts words and characters per locale, with per-locale properties |
-| `charcount` | Validate | Counts characters per locale |
-| `pseudo-translate` | Transform | Generates pseudo-translations for testing by applying character substitution |
-| `search-replace` | Transform | Regex-based search and replace on block content |
+| `word-count` | Validate | Counts words per locale, stores in block properties |
+| `char-count` | Validate | Counts characters (with/without spaces) per locale |
+| `segment-count` | Validate | Counts source and target segments |
+| `repetition-analysis` | Validate | Tracks repeated source segments across the pipeline, tags first-occurrence vs repetition with group keys |
+| `scoping-report` | Validate | Classifies blocks into scoping categories (new, repetition, exact-match, fuzzy-match) based on upstream analysis |
+| `chars-listing` | Validate | Accumulates all unique characters and frequencies for font subsetting |
+
+### Content Manipulation
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `create-target` | Transform | Creates target segment containers, optionally copying source text |
+| `remove-target` | Transform | Removes target segments for a specific locale or all locales |
+| `inline-codes-remove` | Transform | Strips inline span markers to produce clean plain text |
+| `properties-set` | Transform | Sets key-value properties on blocks programmatically |
+
+### Text Processing
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `pseudo-translate` | Transform | Generates pseudo-translations with accented characters and expansion padding |
+| `search-replace` | Transform | Regex or literal search-and-replace on block content |
+| `case-transform` | Transform | Transforms text to upper, lower, or title case |
+| `linebreak-convert` | Convert | Normalizes line endings (LF, CRLF, CR) |
+| `bom-convert` | Convert | Controls Unicode BOM presence on Layer resources |
+| `fullwidth-convert` | Convert | Converts between half-width and full-width characters (CJK) |
+| `uri-convert` | Convert | Encodes or decodes URI escape sequences |
+| `whitespace-correct` | Convert | Normalizes whitespace, removes zero-width characters, matches source patterns |
+| `encoding-convert` | Convert | Tags blocks with target encoding for downstream writers |
+| `external-command` | Transform | Executes external CLI programs on block text |
+
+### Segmentation
+
+| Tool | Category | Description |
+|------|----------|-------------|
 | `segmentation` | Transform | SRX-like sentence segmentation with configurable regex rules |
-| `qa-check` | Validate | Configurable quality checks: missing translations, whitespace mismatches, number mismatches |
-| `tm-leverage` | Enrich | Pre-fills translations from Sievepen translation memory with fuzzy matching |
-| `term-lookup` | Enrich | Scans source text for terminology matches, attaches `TermAnnotation` entries |
-| `term-enforce` | Validate | Checks translations for correct terminology usage, reports violations |
+| `xslt-transform` | Transform | Regex-based tag transformation with backreference support |
+
+### Quality Assurance
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `qa-check` | Validate | Checks whitespace, empty targets, target-same-as-source, span constraints |
+| `length-check` | Validate | Verifies character count, word count, and target/source length ratio |
+| `chars-check` | Validate | Detects forbidden characters, mojibake corruption, control characters |
+| `pattern-check` | Validate | Validates regex patterns in translations (e.g., printf placeholders) |
+| `inconsistency-check` | Validate | Flags same source with different targets (or vice versa) across the pipeline |
+| `translation-comparison` | Validate | Compares translations across two target locales |
+| `xml-validation` | Validate | Validates XML structure in source and/or target text |
+
+### Translation & Leverage
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `tm-leverage` | Enrich | Pre-fills translations from Sievepen TM with fuzzy matching |
+| `diff-leverage` | Enrich | Preserves translations from previous document versions for unchanged text |
+| `term-lookup` | Enrich | Scans source text for terminology matches, attaches annotations |
+| `term-enforce` | Validate | Checks translations for correct terminology usage |
+| `term-check` | Validate | Term glossary checking with source→target mapping |
+| `tag-protect` | Transform | Protects tags matching regex patterns from modification |
+| `span-classify` | Transform | Reclassifies markup spans into semantic vocabulary types |
+| `layer-processor` | Transform | Applies format-specific tool chains to child layers |
+
+### AI & MT Tools
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `ai-translate` | Enrich | LLM-powered translation via Anthropic, OpenAI, or Ollama |
+| `ai-qa` | Validate | LLM-powered quality checks (terminology, fluency, accuracy) |
+| `ai-review` | Validate | LLM-powered translation review with explanations |
+| `ai-terminology` | Enrich | LLM-powered terminology extraction |
+| `{provider}-translate` | Enrich | MT translation via DeepL, Google, Microsoft, ModernMT, MyMemory |
 
 ### Registering Built-in Tools
 
