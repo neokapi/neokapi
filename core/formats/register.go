@@ -3,6 +3,7 @@ package formats
 import (
 	"github.com/gokapi/gokapi/core/format"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
+	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/json"
@@ -96,4 +97,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// DTD
 	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
+
+	// Doxygen
+	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
+	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
 }
