@@ -13,6 +13,7 @@ import (
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tmx"
 	"github.com/gokapi/gokapi/core/formats/vtt"
+	"github.com/gokapi/gokapi/core/formats/wiki"
 	"github.com/gokapi/gokapi/core/formats/xliff"
 	"github.com/gokapi/gokapi/core/formats/xliff2"
 	xmlfmt "github.com/gokapi/gokapi/core/formats/xml"
@@ -81,4 +82,8 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// OpenXML (DOCX, PPTX, XLSX)
 	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+
+	// Wiki (MediaWiki/DokuWiki)
+	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
+	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
 }

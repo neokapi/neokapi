@@ -24,7 +24,7 @@ func TestRegisterAllReaders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "vtt", "tmx", "openxml",
+		"markdown", "csv", "srt", "vtt", "tmx", "openxml", "wiki",
 	}
 
 	for _, name := range expectedFormats {
@@ -40,7 +40,7 @@ func TestRegisterAllWriters(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "vtt", "tmx", "openxml",
+		"markdown", "csv", "srt", "vtt", "tmx", "openxml", "wiki",
 	}
 
 	for _, name := range expectedFormats {
