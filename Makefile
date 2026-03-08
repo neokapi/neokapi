@@ -542,3 +542,32 @@ docs-build: ## Build docs for production
 
 docs-serve: ## Serve built docs locally
 	cd $(WEBSITE_DIR) && $(NPM) run serve
+
+# ── PseudoBench ───────────────────────────────────────────────────────────
+
+BENCH_DIR := bench/pseudobench
+
+bench-build: ## Build PseudoBench tool
+	cd $(BENCH_DIR) && GOWORK=off $(GOBUILD) -o pseudobench .
+
+bench-generate: bench-build ## Generate PseudoBench test data
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench generate
+
+bench-run: bench-build build ## Run PseudoBench (kapi native, single files)
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -categories single
+
+bench-run-bridge: bench-build build ## Run PseudoBench with bridge formats
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -bridge -categories single
+
+bench-run-collection: bench-build build ## Run PseudoBench collection benchmarks
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -categories collection
+
+bench-run-all: bench-build build ## Run PseudoBench (all categories, kapi + bridge)
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi ../../bin/kapi -bridge
+
+bench: bench-generate bench-run-all ## Generate test data + run all benchmarks + copy results
+	cp $(BENCH_DIR)/results/pseudobench.json $(WEBSITE_DIR)/static/data/pseudobench.json
+	@echo "Results copied to $(WEBSITE_DIR)/static/data/pseudobench.json"
+
+bench-versions: bench-build ## Build kapi from multiple git tags (use VERSIONS=v0.1.0,v0.2.0)
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench build-versions -versions "$(VERSIONS)"

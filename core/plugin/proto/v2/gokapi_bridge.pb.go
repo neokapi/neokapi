@@ -2285,6 +2285,501 @@ func (*ShutdownResponse) Descriptor() ([]byte, []int) {
 	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{31}
 }
 
+// RoundTripRequest is sent by the client (Go) to the server (Java).
+type RoundTripRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Request:
+	//
+	//	*RoundTripRequest_Header
+	//	*RoundTripRequest_ProcessedPart
+	//	*RoundTripRequest_Flush
+	Request       isRoundTripRequest_Request `protobuf_oneof:"request"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripRequest) Reset() {
+	*x = RoundTripRequest{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripRequest) ProtoMessage() {}
+
+func (x *RoundTripRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripRequest.ProtoReflect.Descriptor instead.
+func (*RoundTripRequest) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *RoundTripRequest) GetRequest() isRoundTripRequest_Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+func (x *RoundTripRequest) GetHeader() *RoundTripHeader {
+	if x != nil {
+		if x, ok := x.Request.(*RoundTripRequest_Header); ok {
+			return x.Header
+		}
+	}
+	return nil
+}
+
+func (x *RoundTripRequest) GetProcessedPart() *RoundTripProcessed {
+	if x != nil {
+		if x, ok := x.Request.(*RoundTripRequest_ProcessedPart); ok {
+			return x.ProcessedPart
+		}
+	}
+	return nil
+}
+
+func (x *RoundTripRequest) GetFlush() *RoundTripFlush {
+	if x != nil {
+		if x, ok := x.Request.(*RoundTripRequest_Flush); ok {
+			return x.Flush
+		}
+	}
+	return nil
+}
+
+type isRoundTripRequest_Request interface {
+	isRoundTripRequest_Request()
+}
+
+type RoundTripRequest_Header struct {
+	Header *RoundTripHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"` // First message: input/output config
+}
+
+type RoundTripRequest_ProcessedPart struct {
+	ProcessedPart *RoundTripProcessed `protobuf:"bytes,2,opt,name=processed_part,json=processedPart,proto3,oneof"` // Processed part sent back after tool chain
+}
+
+type RoundTripRequest_Flush struct {
+	Flush *RoundTripFlush `protobuf:"bytes,3,opt,name=flush,proto3,oneof"` // Signals all processed parts have been sent
+}
+
+func (*RoundTripRequest_Header) isRoundTripRequest_Request() {}
+
+func (*RoundTripRequest_ProcessedPart) isRoundTripRequest_Request() {}
+
+func (*RoundTripRequest_Flush) isRoundTripRequest_Request() {}
+
+// RoundTripResponse is sent by the server (Java) to the client (Go).
+type RoundTripResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*RoundTripResponse_Part
+	//	*RoundTripResponse_ReadDone
+	//	*RoundTripResponse_Complete
+	Response      isRoundTripResponse_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripResponse) Reset() {
+	*x = RoundTripResponse{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripResponse) ProtoMessage() {}
+
+func (x *RoundTripResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripResponse.ProtoReflect.Descriptor instead.
+func (*RoundTripResponse) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RoundTripResponse) GetResponse() isRoundTripResponse_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *RoundTripResponse) GetPart() *PartMessage {
+	if x != nil {
+		if x, ok := x.Response.(*RoundTripResponse_Part); ok {
+			return x.Part
+		}
+	}
+	return nil
+}
+
+func (x *RoundTripResponse) GetReadDone() *RoundTripReadDone {
+	if x != nil {
+		if x, ok := x.Response.(*RoundTripResponse_ReadDone); ok {
+			return x.ReadDone
+		}
+	}
+	return nil
+}
+
+func (x *RoundTripResponse) GetComplete() *RoundTripComplete {
+	if x != nil {
+		if x, ok := x.Response.(*RoundTripResponse_Complete); ok {
+			return x.Complete
+		}
+	}
+	return nil
+}
+
+type isRoundTripResponse_Response interface {
+	isRoundTripResponse_Response()
+}
+
+type RoundTripResponse_Part struct {
+	Part *PartMessage `protobuf:"bytes,1,opt,name=part,proto3,oneof"` // Part read from the document
+}
+
+type RoundTripResponse_ReadDone struct {
+	ReadDone *RoundTripReadDone `protobuf:"bytes,2,opt,name=read_done,json=readDone,proto3,oneof"` // All parts have been read
+}
+
+type RoundTripResponse_Complete struct {
+	Complete *RoundTripComplete `protobuf:"bytes,3,opt,name=complete,proto3,oneof"` // Output written, cycle complete
+}
+
+func (*RoundTripResponse_Part) isRoundTripResponse_Response() {}
+
+func (*RoundTripResponse_ReadDone) isRoundTripResponse_Response() {}
+
+func (*RoundTripResponse_Complete) isRoundTripResponse_Response() {}
+
+// RoundTripHeader configures both the read and write phases.
+type RoundTripHeader struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
+	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
+	SourceLocale  string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
+	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	Encoding      string                 `protobuf:"bytes,5,opt,name=encoding,proto3" json:"encoding,omitempty"`
+	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ContentRef    *ContentRef            `protobuf:"bytes,8,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"`       // Input document reference
+	OutputLocale  string                 `protobuf:"bytes,9,opt,name=output_locale,json=outputLocale,proto3" json:"output_locale,omitempty"` // Locale for the output document
+	OutputRef     *OutputRef             `protobuf:"bytes,10,opt,name=output_ref,json=outputRef,proto3" json:"output_ref,omitempty"`         // Where to write output (path or inline)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripHeader) Reset() {
+	*x = RoundTripHeader{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripHeader) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripHeader) ProtoMessage() {}
+
+func (x *RoundTripHeader) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripHeader.ProtoReflect.Descriptor instead.
+func (*RoundTripHeader) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *RoundTripHeader) GetFilterClass() string {
+	if x != nil {
+		return x.FilterClass
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetUri() string {
+	if x != nil {
+		return x.Uri
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetSourceLocale() string {
+	if x != nil {
+		return x.SourceLocale
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetTargetLocale() string {
+	if x != nil {
+		return x.TargetLocale
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetEncoding() string {
+	if x != nil {
+		return x.Encoding
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetFilterParams() map[string]string {
+	if x != nil {
+		return x.FilterParams
+	}
+	return nil
+}
+
+func (x *RoundTripHeader) GetContentRef() *ContentRef {
+	if x != nil {
+		return x.ContentRef
+	}
+	return nil
+}
+
+func (x *RoundTripHeader) GetOutputLocale() string {
+	if x != nil {
+		return x.OutputLocale
+	}
+	return ""
+}
+
+func (x *RoundTripHeader) GetOutputRef() *OutputRef {
+	if x != nil {
+		return x.OutputRef
+	}
+	return nil
+}
+
+// RoundTripProcessed wraps a processed part sent back to the server.
+type RoundTripProcessed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Part          *PartMessage           `protobuf:"bytes,1,opt,name=part,proto3" json:"part,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripProcessed) Reset() {
+	*x = RoundTripProcessed{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripProcessed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripProcessed) ProtoMessage() {}
+
+func (x *RoundTripProcessed) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripProcessed.ProtoReflect.Descriptor instead.
+func (*RoundTripProcessed) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *RoundTripProcessed) GetPart() *PartMessage {
+	if x != nil {
+		return x.Part
+	}
+	return nil
+}
+
+// RoundTripReadDone signals that all parts have been read from the document.
+type RoundTripReadDone struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripReadDone) Reset() {
+	*x = RoundTripReadDone{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripReadDone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripReadDone) ProtoMessage() {}
+
+func (x *RoundTripReadDone) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripReadDone.ProtoReflect.Descriptor instead.
+func (*RoundTripReadDone) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{36}
+}
+
+// RoundTripFlush signals that all processed parts have been sent by the client.
+type RoundTripFlush struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripFlush) Reset() {
+	*x = RoundTripFlush{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripFlush) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripFlush) ProtoMessage() {}
+
+func (x *RoundTripFlush) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripFlush.ProtoReflect.Descriptor instead.
+func (*RoundTripFlush) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{37}
+}
+
+// RoundTripComplete signals that the output has been written.
+type RoundTripComplete struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`                           // Inline output bytes (empty when output_ref was used)
+	OutputPath    string                 `protobuf:"bytes,2,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"` // Path where output was written
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoundTripComplete) Reset() {
+	*x = RoundTripComplete{}
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoundTripComplete) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoundTripComplete) ProtoMessage() {}
+
+func (x *RoundTripComplete) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoundTripComplete.ProtoReflect.Descriptor instead.
+func (*RoundTripComplete) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *RoundTripComplete) GetOutput() []byte {
+	if x != nil {
+		return x.Output
+	}
+	return nil
+}
+
+func (x *RoundTripComplete) GetOutputPath() string {
+	if x != nil {
+		return x.OutputPath
+	}
+	return ""
+}
+
+func (x *RoundTripComplete) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_core_plugin_proto_v2_gokapi_bridge_proto protoreflect.FileDescriptor
 
 const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
@@ -2520,7 +3015,44 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\rCloseResponse\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error\"\x11\n" +
 	"\x0fShutdownRequest\"\x12\n" +
-	"\x10ShutdownResponse2\xa8\x04\n" +
+	"\x10ShutdownResponse\"\xe3\x01\n" +
+	"\x10RoundTripRequest\x12;\n" +
+	"\x06header\x18\x01 \x01(\v2!.gokapi.bridge.v2.RoundTripHeaderH\x00R\x06header\x12M\n" +
+	"\x0eprocessed_part\x18\x02 \x01(\v2$.gokapi.bridge.v2.RoundTripProcessedH\x00R\rprocessedPart\x128\n" +
+	"\x05flush\x18\x03 \x01(\v2 .gokapi.bridge.v2.RoundTripFlushH\x00R\x05flushB\t\n" +
+	"\arequest\"\xdb\x01\n" +
+	"\x11RoundTripResponse\x123\n" +
+	"\x04part\x18\x01 \x01(\v2\x1d.gokapi.bridge.v2.PartMessageH\x00R\x04part\x12B\n" +
+	"\tread_done\x18\x02 \x01(\v2#.gokapi.bridge.v2.RoundTripReadDoneH\x00R\breadDone\x12A\n" +
+	"\bcomplete\x18\x03 \x01(\v2#.gokapi.bridge.v2.RoundTripCompleteH\x00R\bcompleteB\n" +
+	"\n" +
+	"\bresponse\"\x84\x04\n" +
+	"\x0fRoundTripHeader\x12!\n" +
+	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
+	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
+	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
+	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x1a\n" +
+	"\bencoding\x18\x05 \x01(\tR\bencoding\x12\x1b\n" +
+	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12X\n" +
+	"\rfilter_params\x18\a \x03(\v23.gokapi.bridge.v2.RoundTripHeader.FilterParamsEntryR\ffilterParams\x12=\n" +
+	"\vcontent_ref\x18\b \x01(\v2\x1c.gokapi.bridge.v2.ContentRefR\n" +
+	"contentRef\x12#\n" +
+	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12:\n" +
+	"\n" +
+	"output_ref\x18\n" +
+	" \x01(\v2\x1b.gokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
+	"\x11FilterParamsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"G\n" +
+	"\x12RoundTripProcessed\x121\n" +
+	"\x04part\x18\x01 \x01(\v2\x1d.gokapi.bridge.v2.PartMessageR\x04part\"\x13\n" +
+	"\x11RoundTripReadDone\"\x10\n" +
+	"\x0eRoundTripFlush\"b\n" +
+	"\x11RoundTripComplete\x12\x16\n" +
+	"\x06output\x18\x01 \x01(\fR\x06output\x12\x1f\n" +
+	"\voutput_path\x18\x02 \x01(\tR\n" +
+	"outputPath\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error2\x82\x05\n" +
 	"\rBridgeService\x12E\n" +
 	"\x04Info\x12\x1d.gokapi.bridge.v2.InfoRequest\x1a\x1e.gokapi.bridge.v2.InfoResponse\x12Z\n" +
 	"\vListFilters\x12$.gokapi.bridge.v2.ListFiltersRequest\x1a%.gokapi.bridge.v2.ListFiltersResponse\x12E\n" +
@@ -2528,7 +3060,8 @@ const file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc = "" +
 	"\x04Read\x12\x1d.gokapi.bridge.v2.ReadRequest\x1a\x1d.gokapi.bridge.v2.PartMessage0\x01\x12H\n" +
 	"\x05Write\x12\x1c.gokapi.bridge.v2.WriteChunk\x1a\x1f.gokapi.bridge.v2.WriteResponse(\x01\x12H\n" +
 	"\x05Close\x12\x1e.gokapi.bridge.v2.CloseRequest\x1a\x1f.gokapi.bridge.v2.CloseResponse\x12Q\n" +
-	"\bShutdown\x12!.gokapi.bridge.v2.ShutdownRequest\x1a\".gokapi.bridge.v2.ShutdownResponseBS\n" +
+	"\bShutdown\x12!.gokapi.bridge.v2.ShutdownRequest\x1a\".gokapi.bridge.v2.ShutdownResponse\x12X\n" +
+	"\tRoundTrip\x12\".gokapi.bridge.v2.RoundTripRequest\x1a#.gokapi.bridge.v2.RoundTripResponse(\x010\x01BS\n" +
 	"\x17com.gokapi.bridge.protoP\x01Z6github.com/gokapi/gokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
 
 var (
@@ -2543,7 +3076,7 @@ func file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v2_gokapi_bridge_proto_rawDescData
 }
 
-var file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
+var file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
 var file_core_plugin_proto_v2_gokapi_bridge_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),     // 0: gokapi.bridge.v2.AnnotationEntry
 	(*SpanMessage)(nil),         // 1: gokapi.bridge.v2.SpanMessage
@@ -2577,35 +3110,43 @@ var file_core_plugin_proto_v2_gokapi_bridge_proto_goTypes = []any{
 	(*CloseResponse)(nil),       // 29: gokapi.bridge.v2.CloseResponse
 	(*ShutdownRequest)(nil),     // 30: gokapi.bridge.v2.ShutdownRequest
 	(*ShutdownResponse)(nil),    // 31: gokapi.bridge.v2.ShutdownResponse
-	nil,                         // 32: gokapi.bridge.v2.SpanMessage.AnnotationsEntry
-	nil,                         // 33: gokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	nil,                         // 34: gokapi.bridge.v2.BlockMessage.PropertiesEntry
-	nil,                         // 35: gokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	nil,                         // 36: gokapi.bridge.v2.LayerMessage.PropertiesEntry
-	nil,                         // 37: gokapi.bridge.v2.DataMessage.PropertiesEntry
-	nil,                         // 38: gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	nil,                         // 39: gokapi.bridge.v2.MediaMessage.PropertiesEntry
-	nil,                         // 40: gokapi.bridge.v2.OpenRequest.FilterParamsEntry
-	nil,                         // 41: gokapi.bridge.v2.WriteHeader.FilterParamsEntry
+	(*RoundTripRequest)(nil),    // 32: gokapi.bridge.v2.RoundTripRequest
+	(*RoundTripResponse)(nil),   // 33: gokapi.bridge.v2.RoundTripResponse
+	(*RoundTripHeader)(nil),     // 34: gokapi.bridge.v2.RoundTripHeader
+	(*RoundTripProcessed)(nil),  // 35: gokapi.bridge.v2.RoundTripProcessed
+	(*RoundTripReadDone)(nil),   // 36: gokapi.bridge.v2.RoundTripReadDone
+	(*RoundTripFlush)(nil),      // 37: gokapi.bridge.v2.RoundTripFlush
+	(*RoundTripComplete)(nil),   // 38: gokapi.bridge.v2.RoundTripComplete
+	nil,                         // 39: gokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	nil,                         // 40: gokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	nil,                         // 41: gokapi.bridge.v2.BlockMessage.PropertiesEntry
+	nil,                         // 42: gokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	nil,                         // 43: gokapi.bridge.v2.LayerMessage.PropertiesEntry
+	nil,                         // 44: gokapi.bridge.v2.DataMessage.PropertiesEntry
+	nil,                         // 45: gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	nil,                         // 46: gokapi.bridge.v2.MediaMessage.PropertiesEntry
+	nil,                         // 47: gokapi.bridge.v2.OpenRequest.FilterParamsEntry
+	nil,                         // 48: gokapi.bridge.v2.WriteHeader.FilterParamsEntry
+	nil,                         // 49: gokapi.bridge.v2.RoundTripHeader.FilterParamsEntry
 }
 var file_core_plugin_proto_v2_gokapi_bridge_proto_depIdxs = []int32{
-	32, // 0: gokapi.bridge.v2.SpanMessage.annotations:type_name -> gokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	39, // 0: gokapi.bridge.v2.SpanMessage.annotations:type_name -> gokapi.bridge.v2.SpanMessage.AnnotationsEntry
 	1,  // 1: gokapi.bridge.v2.FragmentMessage.spans:type_name -> gokapi.bridge.v2.SpanMessage
 	2,  // 2: gokapi.bridge.v2.SegmentMessage.content:type_name -> gokapi.bridge.v2.FragmentMessage
-	33, // 3: gokapi.bridge.v2.SegmentMessage.properties:type_name -> gokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	40, // 3: gokapi.bridge.v2.SegmentMessage.properties:type_name -> gokapi.bridge.v2.SegmentMessage.PropertiesEntry
 	3,  // 4: gokapi.bridge.v2.TargetEntry.segments:type_name -> gokapi.bridge.v2.SegmentMessage
 	6,  // 5: gokapi.bridge.v2.SkeletonMessage.parts:type_name -> gokapi.bridge.v2.SkeletonPartMessage
 	3,  // 6: gokapi.bridge.v2.BlockMessage.source:type_name -> gokapi.bridge.v2.SegmentMessage
 	4,  // 7: gokapi.bridge.v2.BlockMessage.targets:type_name -> gokapi.bridge.v2.TargetEntry
-	34, // 8: gokapi.bridge.v2.BlockMessage.properties:type_name -> gokapi.bridge.v2.BlockMessage.PropertiesEntry
-	35, // 9: gokapi.bridge.v2.BlockMessage.annotations:type_name -> gokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	41, // 8: gokapi.bridge.v2.BlockMessage.properties:type_name -> gokapi.bridge.v2.BlockMessage.PropertiesEntry
+	42, // 9: gokapi.bridge.v2.BlockMessage.annotations:type_name -> gokapi.bridge.v2.BlockMessage.AnnotationsEntry
 	7,  // 10: gokapi.bridge.v2.BlockMessage.display_hint:type_name -> gokapi.bridge.v2.DisplayHintMessage
 	5,  // 11: gokapi.bridge.v2.BlockMessage.skeleton:type_name -> gokapi.bridge.v2.SkeletonMessage
-	36, // 12: gokapi.bridge.v2.LayerMessage.properties:type_name -> gokapi.bridge.v2.LayerMessage.PropertiesEntry
-	37, // 13: gokapi.bridge.v2.DataMessage.properties:type_name -> gokapi.bridge.v2.DataMessage.PropertiesEntry
+	43, // 12: gokapi.bridge.v2.LayerMessage.properties:type_name -> gokapi.bridge.v2.LayerMessage.PropertiesEntry
+	44, // 13: gokapi.bridge.v2.DataMessage.properties:type_name -> gokapi.bridge.v2.DataMessage.PropertiesEntry
 	5,  // 14: gokapi.bridge.v2.DataMessage.skeleton:type_name -> gokapi.bridge.v2.SkeletonMessage
-	38, // 15: gokapi.bridge.v2.GroupStartMessage.properties:type_name -> gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	39, // 16: gokapi.bridge.v2.MediaMessage.properties:type_name -> gokapi.bridge.v2.MediaMessage.PropertiesEntry
+	45, // 15: gokapi.bridge.v2.GroupStartMessage.properties:type_name -> gokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	46, // 16: gokapi.bridge.v2.MediaMessage.properties:type_name -> gokapi.bridge.v2.MediaMessage.PropertiesEntry
 	8,  // 17: gokapi.bridge.v2.PartMessage.block:type_name -> gokapi.bridge.v2.BlockMessage
 	9,  // 18: gokapi.bridge.v2.PartMessage.layer:type_name -> gokapi.bridge.v2.LayerMessage
 	10, // 19: gokapi.bridge.v2.PartMessage.data:type_name -> gokapi.bridge.v2.DataMessage
@@ -2613,34 +3154,46 @@ var file_core_plugin_proto_v2_gokapi_bridge_proto_depIdxs = []int32{
 	12, // 21: gokapi.bridge.v2.PartMessage.group_end:type_name -> gokapi.bridge.v2.GroupEndMessage
 	13, // 22: gokapi.bridge.v2.PartMessage.media:type_name -> gokapi.bridge.v2.MediaMessage
 	18, // 23: gokapi.bridge.v2.ListFiltersResponse.filters:type_name -> gokapi.bridge.v2.FilterEntry
-	40, // 24: gokapi.bridge.v2.OpenRequest.filter_params:type_name -> gokapi.bridge.v2.OpenRequest.FilterParamsEntry
+	47, // 24: gokapi.bridge.v2.OpenRequest.filter_params:type_name -> gokapi.bridge.v2.OpenRequest.FilterParamsEntry
 	20, // 25: gokapi.bridge.v2.OpenRequest.content_ref:type_name -> gokapi.bridge.v2.ContentRef
 	26, // 26: gokapi.bridge.v2.WriteChunk.header:type_name -> gokapi.bridge.v2.WriteHeader
 	14, // 27: gokapi.bridge.v2.WriteChunk.part:type_name -> gokapi.bridge.v2.PartMessage
-	41, // 28: gokapi.bridge.v2.WriteHeader.filter_params:type_name -> gokapi.bridge.v2.WriteHeader.FilterParamsEntry
+	48, // 28: gokapi.bridge.v2.WriteHeader.filter_params:type_name -> gokapi.bridge.v2.WriteHeader.FilterParamsEntry
 	20, // 29: gokapi.bridge.v2.WriteHeader.original_content_ref:type_name -> gokapi.bridge.v2.ContentRef
 	21, // 30: gokapi.bridge.v2.WriteHeader.output_ref:type_name -> gokapi.bridge.v2.OutputRef
-	0,  // 31: gokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
-	0,  // 32: gokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
-	15, // 33: gokapi.bridge.v2.BridgeService.Info:input_type -> gokapi.bridge.v2.InfoRequest
-	17, // 34: gokapi.bridge.v2.BridgeService.ListFilters:input_type -> gokapi.bridge.v2.ListFiltersRequest
-	22, // 35: gokapi.bridge.v2.BridgeService.Open:input_type -> gokapi.bridge.v2.OpenRequest
-	24, // 36: gokapi.bridge.v2.BridgeService.Read:input_type -> gokapi.bridge.v2.ReadRequest
-	25, // 37: gokapi.bridge.v2.BridgeService.Write:input_type -> gokapi.bridge.v2.WriteChunk
-	28, // 38: gokapi.bridge.v2.BridgeService.Close:input_type -> gokapi.bridge.v2.CloseRequest
-	30, // 39: gokapi.bridge.v2.BridgeService.Shutdown:input_type -> gokapi.bridge.v2.ShutdownRequest
-	16, // 40: gokapi.bridge.v2.BridgeService.Info:output_type -> gokapi.bridge.v2.InfoResponse
-	19, // 41: gokapi.bridge.v2.BridgeService.ListFilters:output_type -> gokapi.bridge.v2.ListFiltersResponse
-	23, // 42: gokapi.bridge.v2.BridgeService.Open:output_type -> gokapi.bridge.v2.OpenResponse
-	14, // 43: gokapi.bridge.v2.BridgeService.Read:output_type -> gokapi.bridge.v2.PartMessage
-	27, // 44: gokapi.bridge.v2.BridgeService.Write:output_type -> gokapi.bridge.v2.WriteResponse
-	29, // 45: gokapi.bridge.v2.BridgeService.Close:output_type -> gokapi.bridge.v2.CloseResponse
-	31, // 46: gokapi.bridge.v2.BridgeService.Shutdown:output_type -> gokapi.bridge.v2.ShutdownResponse
-	40, // [40:47] is the sub-list for method output_type
-	33, // [33:40] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	34, // 31: gokapi.bridge.v2.RoundTripRequest.header:type_name -> gokapi.bridge.v2.RoundTripHeader
+	35, // 32: gokapi.bridge.v2.RoundTripRequest.processed_part:type_name -> gokapi.bridge.v2.RoundTripProcessed
+	37, // 33: gokapi.bridge.v2.RoundTripRequest.flush:type_name -> gokapi.bridge.v2.RoundTripFlush
+	14, // 34: gokapi.bridge.v2.RoundTripResponse.part:type_name -> gokapi.bridge.v2.PartMessage
+	36, // 35: gokapi.bridge.v2.RoundTripResponse.read_done:type_name -> gokapi.bridge.v2.RoundTripReadDone
+	38, // 36: gokapi.bridge.v2.RoundTripResponse.complete:type_name -> gokapi.bridge.v2.RoundTripComplete
+	49, // 37: gokapi.bridge.v2.RoundTripHeader.filter_params:type_name -> gokapi.bridge.v2.RoundTripHeader.FilterParamsEntry
+	20, // 38: gokapi.bridge.v2.RoundTripHeader.content_ref:type_name -> gokapi.bridge.v2.ContentRef
+	21, // 39: gokapi.bridge.v2.RoundTripHeader.output_ref:type_name -> gokapi.bridge.v2.OutputRef
+	14, // 40: gokapi.bridge.v2.RoundTripProcessed.part:type_name -> gokapi.bridge.v2.PartMessage
+	0,  // 41: gokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
+	0,  // 42: gokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> gokapi.bridge.v2.AnnotationEntry
+	15, // 43: gokapi.bridge.v2.BridgeService.Info:input_type -> gokapi.bridge.v2.InfoRequest
+	17, // 44: gokapi.bridge.v2.BridgeService.ListFilters:input_type -> gokapi.bridge.v2.ListFiltersRequest
+	22, // 45: gokapi.bridge.v2.BridgeService.Open:input_type -> gokapi.bridge.v2.OpenRequest
+	24, // 46: gokapi.bridge.v2.BridgeService.Read:input_type -> gokapi.bridge.v2.ReadRequest
+	25, // 47: gokapi.bridge.v2.BridgeService.Write:input_type -> gokapi.bridge.v2.WriteChunk
+	28, // 48: gokapi.bridge.v2.BridgeService.Close:input_type -> gokapi.bridge.v2.CloseRequest
+	30, // 49: gokapi.bridge.v2.BridgeService.Shutdown:input_type -> gokapi.bridge.v2.ShutdownRequest
+	32, // 50: gokapi.bridge.v2.BridgeService.RoundTrip:input_type -> gokapi.bridge.v2.RoundTripRequest
+	16, // 51: gokapi.bridge.v2.BridgeService.Info:output_type -> gokapi.bridge.v2.InfoResponse
+	19, // 52: gokapi.bridge.v2.BridgeService.ListFilters:output_type -> gokapi.bridge.v2.ListFiltersResponse
+	23, // 53: gokapi.bridge.v2.BridgeService.Open:output_type -> gokapi.bridge.v2.OpenResponse
+	14, // 54: gokapi.bridge.v2.BridgeService.Read:output_type -> gokapi.bridge.v2.PartMessage
+	27, // 55: gokapi.bridge.v2.BridgeService.Write:output_type -> gokapi.bridge.v2.WriteResponse
+	29, // 56: gokapi.bridge.v2.BridgeService.Close:output_type -> gokapi.bridge.v2.CloseResponse
+	31, // 57: gokapi.bridge.v2.BridgeService.Shutdown:output_type -> gokapi.bridge.v2.ShutdownResponse
+	33, // 58: gokapi.bridge.v2.BridgeService.RoundTrip:output_type -> gokapi.bridge.v2.RoundTripResponse
+	51, // [51:59] is the sub-list for method output_type
+	43, // [43:51] is the sub-list for method input_type
+	43, // [43:43] is the sub-list for extension type_name
+	43, // [43:43] is the sub-list for extension extendee
+	0,  // [0:43] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v2_gokapi_bridge_proto_init() }
@@ -2661,13 +3214,23 @@ func file_core_plugin_proto_v2_gokapi_bridge_proto_init() {
 		(*WriteChunk_Header)(nil),
 		(*WriteChunk_Part)(nil),
 	}
+	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[32].OneofWrappers = []any{
+		(*RoundTripRequest_Header)(nil),
+		(*RoundTripRequest_ProcessedPart)(nil),
+		(*RoundTripRequest_Flush)(nil),
+	}
+	file_core_plugin_proto_v2_gokapi_bridge_proto_msgTypes[33].OneofWrappers = []any{
+		(*RoundTripResponse_Part)(nil),
+		(*RoundTripResponse_ReadDone)(nil),
+		(*RoundTripResponse_Complete)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc), len(file_core_plugin_proto_v2_gokapi_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   42,
+			NumMessages:   50,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -1,0 +1,5 @@
+testdata/
+results/
+versions/
+pseudobench
+tikal.sh

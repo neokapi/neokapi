@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -879,12 +880,14 @@ func (p *wmlParser) skipAndSkel(d *xml.Decoder) error {
 // nsRegistry tracks namespace URI → prefix mappings discovered during parsing.
 // It supplements the static nsPrefixMap with dynamic mappings from xmlns: attributes.
 var nsRegistry = struct {
+	sync.RWMutex
 	m map[string]string
 }{m: make(map[string]string)}
 
 // registerNamespaces scans an element's attributes for xmlns declarations
 // and records the URI → prefix mapping.
 func registerNamespaces(attrs []xml.Attr) {
+	nsRegistry.Lock()
 	for _, a := range attrs {
 		if a.Name.Space == "xmlns" {
 			// xmlns:prefix="URI" → map URI to prefix
@@ -894,13 +897,17 @@ func registerNamespaces(attrs []xml.Attr) {
 			nsRegistry.m[a.Value] = ""
 		}
 	}
+	nsRegistry.Unlock()
 }
 
 // resolvePrefix returns the namespace prefix for a URI, checking the dynamic
 // registry first (which reflects the document's actual declarations), then
 // falling back to the static map.
 func resolvePrefix(ns string) string {
-	if p, ok := nsRegistry.m[ns]; ok {
+	nsRegistry.RLock()
+	p, ok := nsRegistry.m[ns]
+	nsRegistry.RUnlock()
+	if ok {
 		return p
 	}
 	if p, ok := nsPrefixMap[ns]; ok {

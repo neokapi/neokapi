@@ -29,6 +29,15 @@ import (
 // Deprecated: Use format.OriginalContentSetter directly.
 type OriginalContentSetter = format.OriginalContentSetter
 
+// skipFilters are bridge filter IDs that should not be registered.
+// AutoXLIFFFilter is a delegating meta-filter that wraps XLIFFFilter/XLIFF2Filter.
+// Its delegate initialization happens inside open(), but the bridge's lifecycle
+// calls setFilterConfigurationMapper before open(), causing an NPE. The concrete
+// okf_xliff and okf_xliff2 filters handle the same extensions and work correctly.
+var skipFilters = map[string]bool{
+	"okf_autoxliff": true,
+}
+
 // SourcePathSetter is an alias for format.SourcePathSetter.
 // Deprecated: Use format.SourcePathSetter directly.
 type SourcePathSetter = format.SourcePathSetter
@@ -62,6 +71,9 @@ type PluginLoader struct {
 	presets *preset.PresetRegistry // format and framework presets
 	logger  *log.Logger
 
+	// disabledPlugins is a set of plugin names to skip during scan and load.
+	disabledPlugins map[string]bool
+
 	// scanned tracks whether ScanMetadata has been called.
 	scanned bool
 	// bridgesLoaded tracks whether LoadBridges has been called.
@@ -89,6 +101,12 @@ func NewPluginLoader(dir string, logger *log.Logger) *PluginLoader {
 		presets: preset.NewPresetRegistry(),
 		logger:  logger,
 	}
+}
+
+// SetDisabledPlugins sets the plugin names to skip during scan and load.
+// Must be called before ScanMetadata.
+func (l *PluginLoader) SetDisabledPlugins(names map[string]bool) {
+	l.disabledPlugins = names
 }
 
 // ScanMetadata discovers plugins from the configured directory and reads their
@@ -133,6 +151,11 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 	bareNameCandidates := make(map[string][]versionedFmt)
 
 	for name, versions := range all {
+		if l.disabledPlugins[name] {
+			l.logf("skipping disabled plugin: %s", name)
+			continue
+		}
+
 		sort.Slice(versions, func(i, j int) bool {
 			return pluginreg.CompareSemver(versions[i].Version, versions[j].Version) < 0
 		})
@@ -194,6 +217,9 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 				if len(newFilterIDs) > 0 {
 					sort.Strings(newFilterIDs)
 					for _, filterID := range newFilterIDs {
+						if skipFilters[filterID] {
+							continue
+						}
 						versionedName := filterID + "@" + fmtVersion
 						formats = append(formats, versionedName)
 
@@ -422,8 +448,8 @@ func (l *PluginLoader) BridgesLoaded() bool {
 	return l.bridgesLoaded
 }
 
-func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
-	// Build BridgeConfig from manifest fields.
+// buildBridgeConfig builds a BridgeConfig from a manifest and version directory.
+func buildBridgeConfig(manifest *pluginreg.BundledManifest, versionDir string) bridge.BridgeConfig {
 	command := manifest.Command
 	if command == "" {
 		command = "java"
@@ -453,32 +479,24 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 		}
 	}
 
-	cfg := bridge.BridgeConfig{
+	return bridge.BridgeConfig{
 		Command:        command,
 		Args:           args,
 		Env:            manifest.Env,
 		StartupTimeout: startupTimeout,
 		CommandTimeout: commandTimeout,
 	}
+}
+
+func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
+	cfg := buildBridgeConfig(manifest, versionDir)
 
 	// Lazily create the shared pool on first bridge load.
+	// No JVM is started here — bridges are created on-demand by the pool
+	// when format readers/writers first acquire them.
 	if l.pool == nil {
 		l.pool = bridge.NewBridgePool(runtime.NumCPU(), l.logger)
 	}
-
-	// Start the first bridge for filter discovery, then seed it into the shared pool.
-	b := bridge.NewJavaBridge(cfg, l.logger)
-	if err := b.Start(); err != nil {
-		return nil, fmt.Errorf("starting bridge %q: %w", manifest.Name, err)
-	}
-
-	filters, err := b.ListFilters()
-	if err != nil {
-		_ = b.Stop()
-		return nil, fmt.Errorf("listing filters from bridge %q: %w", manifest.Name, err)
-	}
-
-	l.pool.Seed(b)
 
 	mb := &managedBridge{
 		cfg:      cfg,
@@ -489,19 +507,37 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 	sharedPool := l.pool
 	bridgeCfg := cfg
 
+	// Register formats using manifest capabilities + schema metadata.
+	// Filter class names come from schemas (loaded during ScanMetadata),
+	// eliminating the need to start a JVM and call ListFilters.
 	var formats []string
-	for _, f := range filters.Filters {
-		// Use the natural Okapi filter ID (e.g., "okf_html") from the bridge,
-		// falling back to a synthesized name for older bridges.
-		baseFmtName := f.FilterID
-		if baseFmtName == "" {
-			baseFmtName = manifest.Name + "-" + sanitizeFilterName(f.Name)
+	for _, cap := range manifest.Capabilities {
+		if cap.Type != "format" {
+			continue
 		}
-		versionedName := baseFmtName + "@" + version
+
+		filterID := cap.ID
+		if filterID == "" {
+			continue
+		}
+		if skipFilters[filterID] {
+			continue
+		}
+
+		// Look up the Java filter class from the schema registry.
+		// Schemas are loaded from disk during ScanMetadata — no JVM needed.
+		var filterClass string
+		if s, ok := l.schemas.GetSchema(filterID); ok && s.FilterMeta.Class != "" {
+			filterClass = s.FilterMeta.Class
+		}
+		if filterClass == "" {
+			l.logf("skipping bridge format %s: no filter class in schema", filterID)
+			continue
+		}
+
+		versionedName := filterID + "@" + version
 		mb.formats = append(mb.formats, versionedName)
 		formats = append(formats, versionedName)
-
-		filterClass := f.FilterClass
 
 		if formatReg != nil {
 			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
@@ -519,8 +555,8 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 	l.bridges = append(l.bridges, mb)
 
 	// Update the existing PluginInfo entry (added by ScanMetadata) with
-	// the actual format list discovered from the bridge, or add a new entry
-	// if loadBridge was called directly via LoadAll.
+	// the actual format list, or add a new entry if loadBridge was called
+	// directly via LoadAll.
 	updated := false
 	for i := range l.plugins {
 		if l.plugins[i].Name == manifest.Name && l.plugins[i].Version == version && l.plugins[i].Type == "bridge" {
@@ -560,6 +596,23 @@ func (l *PluginLoader) Schemas() *SchemaRegistry {
 // Presets returns the preset registry.
 func (l *PluginLoader) Presets() *preset.PresetRegistry {
 	return l.presets
+}
+
+// Pool returns the shared bridge pool, or nil if no bridges are loaded.
+func (l *PluginLoader) Pool() *bridge.BridgePool {
+	return l.pool
+}
+
+// WarmupBridges eagerly starts one JVM per bridge configuration so it's
+// ready when files arrive. Call this before concurrent file processing
+// to amortize JVM startup cost.
+func (l *PluginLoader) WarmupBridges() {
+	if l.pool == nil {
+		return
+	}
+	for _, mb := range l.bridges {
+		_ = l.pool.Warmup(mb.cfg)
+	}
 }
 
 // Shutdown stops all plugin processes.

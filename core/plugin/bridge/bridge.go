@@ -16,7 +16,9 @@ import (
 	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
 	"github.com/gokapi/gokapi/core/plugin/shared"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 // JavaBridge manages a JVM subprocess that runs the Okapi bridge gRPC server.
@@ -31,7 +33,7 @@ type JavaBridge struct {
 	cmd     *exec.Cmd
 	conn    *grpc.ClientConn
 	client  pb.BridgeServiceClient
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	logger  *log.Logger
 	running bool
 }
@@ -199,13 +201,18 @@ func (b *JavaBridge) Stop() error {
 
 // Info queries filter metadata.
 func (b *JavaBridge) Info(filterClass string) (*InfoData, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.mu.RLock()
+	if !b.running || b.client == nil {
+		b.mu.RUnlock()
+		return nil, fmt.Errorf("bridge not running")
+	}
+	client := b.client
+	b.mu.RUnlock()
 
 	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
 	defer cancel()
 
-	resp, err := b.client.Info(ctx, &pb.InfoRequest{FilterClass: filterClass})
+	resp, err := client.Info(ctx, &pb.InfoRequest{FilterClass: filterClass})
 	if err != nil {
 		return nil, fmt.Errorf("info: %w", err)
 	}
@@ -434,27 +441,41 @@ func (b *JavaBridge) CloseFilter() error {
 }
 
 // IsHealthy checks if the bridge's gRPC connection is still alive by
-// performing a short-timeout ListFilters RPC. Returns false if the call
-// fails or times out, indicating the bridge should be discarded.
-// Returns true if the bridge has no client (e.g. mock/test bridges).
+// performing a short-timeout Info RPC with an empty filter class. Returns
+// false if the call fails or times out due to connectivity issues,
+// indicating the bridge should be discarded. A NOT_FOUND error is expected
+// and indicates the bridge is healthy. Returns true if the bridge has no
+// client (e.g. mock/test bridges).
 func (b *JavaBridge) IsHealthy() bool {
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.mu.RLock()
+	running := b.running
+	client := b.client
+	b.mu.RUnlock()
 
-	if !b.running {
+	if !running {
 		return false
 	}
 
 	// No client means this is a mock/test bridge — skip the health check.
-	if b.client == nil {
+	if client == nil {
 		return true
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	_, err := b.client.ListFilters(ctx, &pb.ListFiltersRequest{})
-	return err == nil
+	// Use Info with an empty class as a lightweight health check.
+	// This avoids triggering full filter discovery on the Java side.
+	// A NOT_FOUND error means the bridge is alive but the class doesn't exist — that's fine.
+	_, err := client.Info(ctx, &pb.InfoRequest{})
+	if err == nil {
+		return true
+	}
+	// gRPC status errors (NOT_FOUND, INVALID_ARGUMENT, etc.) mean the server is alive.
+	if st, ok := status.FromError(err); ok {
+		return st.Code() != codes.Unavailable && st.Code() != codes.DeadlineExceeded
+	}
+	return false
 }
 
 // ListFilters returns all available Okapi filters.
@@ -482,6 +503,167 @@ func (b *JavaBridge) ListFilters() (*ListFiltersData, error) {
 		})
 	}
 	return &ListFiltersData{Filters: filters}, nil
+}
+
+// RoundTripParams configures a complete read→process→write cycle.
+type RoundTripParams struct {
+	FilterClass  string
+	URI          string
+	SourceLocale string
+	TargetLocale string
+	Encoding     string
+	MimeType     string
+	FilterParams map[string]any
+	SourcePath   string // Input file path (Java reads from disk)
+	OutputPath   string // Output file path (Java writes to disk)
+	OutputLocale string // Locale for the output document
+}
+
+// RoundTripResult holds the output from a RoundTrip call.
+type RoundTripResult struct {
+	Output     []byte
+	OutputPath string
+}
+
+// RoundTrip performs a complete read→process→write cycle on a single bridge
+// instance using bidirectional streaming. The processFn is called for each
+// part read from the document; it should return the (possibly modified) parts
+// to send back for writing.
+//
+// This eliminates the need for separate Open/Read + Write calls and uses only
+// one JVM bridge for the entire operation.
+func (b *JavaBridge) RoundTrip(ctx context.Context, params RoundTripParams,
+	processFn func(parts <-chan *model.Part) <-chan *model.Part) (*RoundTripResult, error) {
+	// Use RLock to allow concurrent RoundTrip calls on the same bridge.
+	// gRPC connections are thread-safe and support concurrent streams.
+	// RWMutex ensures Stop() (write lock) waits for all active RoundTrips.
+	b.mu.RLock()
+	if !b.running {
+		b.mu.RUnlock()
+		return nil, fmt.Errorf("bridge not running")
+	}
+	client := b.client
+	b.mu.RUnlock()
+
+	ctx, cancel := context.WithTimeout(ctx, b.cfg.streamTimeout())
+	defer cancel()
+
+	stream, err := client.RoundTrip(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("roundtrip: %w", err)
+	}
+
+	// 1. Send header.
+	header := &pb.RoundTripHeader{
+		FilterClass:  params.FilterClass,
+		Uri:          params.URI,
+		SourceLocale: params.SourceLocale,
+		TargetLocale: params.TargetLocale,
+		Encoding:     params.Encoding,
+		MimeType:     params.MimeType,
+		FilterParams: encodeFilterParams(params.FilterParams),
+		OutputLocale: params.OutputLocale,
+	}
+	if params.SourcePath != "" {
+		header.ContentRef = &pb.ContentRef{
+			Location: &pb.ContentRef_Path{Path: params.SourcePath},
+		}
+	}
+	if params.OutputPath != "" {
+		header.OutputRef = &pb.OutputRef{
+			Destination: &pb.OutputRef_Path{Path: params.OutputPath},
+		}
+	}
+
+	if err := stream.Send(&pb.RoundTripRequest{
+		Request: &pb.RoundTripRequest_Header{Header: header},
+	}); err != nil {
+		return nil, fmt.Errorf("roundtrip send header: %w", err)
+	}
+
+	// 2. Receive parts from Java (read phase) and feed to processFn.
+	readParts := make(chan *model.Part, 64)
+	readErr := make(chan error, 1)
+	go func() {
+		defer close(readParts)
+		for {
+			resp, err := stream.Recv()
+			if err != nil {
+				readErr <- fmt.Errorf("roundtrip recv: %w", err)
+				return
+			}
+			switch r := resp.Response.(type) {
+			case *pb.RoundTripResponse_Part:
+				part := shared.ProtoToPart(r.Part)
+				select {
+				case readParts <- part:
+				case <-ctx.Done():
+					readErr <- ctx.Err()
+					return
+				}
+			case *pb.RoundTripResponse_ReadDone:
+				readErr <- nil
+				return
+			case *pb.RoundTripResponse_Complete:
+				// Server sent early completion (error case).
+				if r.Complete.Error != "" {
+					readErr <- fmt.Errorf("roundtrip: %s", r.Complete.Error)
+				} else {
+					readErr <- nil
+				}
+				return
+			}
+		}
+	}()
+
+	// 3. Process parts through the tool chain.
+	processedParts := processFn(readParts)
+
+	// Wait for read phase to finish.
+	if err := <-readErr; err != nil {
+		return nil, err
+	}
+
+	// 4. Send processed parts back to Java.
+	for part := range processedParts {
+		msg := shared.PartToProto(part)
+		if err := stream.Send(&pb.RoundTripRequest{
+			Request: &pb.RoundTripRequest_ProcessedPart{
+				ProcessedPart: &pb.RoundTripProcessed{Part: msg},
+			},
+		}); err != nil {
+			return nil, fmt.Errorf("roundtrip send processed: %w", err)
+		}
+	}
+
+	// 5. Signal flush (all processed parts sent).
+	if err := stream.Send(&pb.RoundTripRequest{
+		Request: &pb.RoundTripRequest_Flush{Flush: &pb.RoundTripFlush{}},
+	}); err != nil {
+		return nil, fmt.Errorf("roundtrip send flush: %w", err)
+	}
+
+	// Close our send side.
+	if err := stream.CloseSend(); err != nil {
+		return nil, fmt.Errorf("roundtrip close send: %w", err)
+	}
+
+	// 6. Receive completion from Java.
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			return nil, fmt.Errorf("roundtrip recv complete: %w", err)
+		}
+		if c, ok := resp.Response.(*pb.RoundTripResponse_Complete); ok {
+			if c.Complete.Error != "" {
+				return nil, fmt.Errorf("roundtrip: %s", c.Complete.Error)
+			}
+			return &RoundTripResult{
+				Output:     c.Complete.Output,
+				OutputPath: c.Complete.OutputPath,
+			}, nil
+		}
+	}
 }
 
 // logWriter adapts a *log.Logger to io.Writer for stderr capture.

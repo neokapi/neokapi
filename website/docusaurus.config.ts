@@ -91,11 +91,6 @@ const config: Config = {
           label: 'Bowrain',
         },
         {
-          to: '/formats',
-          label: 'Formats',
-          position: 'left',
-        },
-        {
           href: 'https://github.com/gokapi/gokapi',
           label: 'GitHub',
           position: 'right',
