@@ -70,7 +70,6 @@ func (w *Writer) writeOutput(blocks []*model.Block) error {
 // writeFromSkeleton reconstructs the TTML from the original XML structure,
 // replacing <p> element content with translated text.
 func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
-	decoder := xml.NewDecoder(strings.NewReader(w.docContent))
 	blockIndex := 0
 
 	// We need to track whether we are inside a <p> element so we can
@@ -90,7 +89,7 @@ func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
 
 	// Track position using a simplified approach: re-read to find <p> tags.
 	reader := strings.NewReader(w.docContent)
-	decoder = xml.NewDecoder(reader)
+	decoder := xml.NewDecoder(reader)
 
 	inP := false
 	pDepth := 0
@@ -201,6 +200,6 @@ func (w *Writer) writeMinimalTTML(blocks []*model.Block) error {
 // xmlEscape escapes special XML characters.
 func xmlEscape(s string) string {
 	var b strings.Builder
-	xml.EscapeText(&b, []byte(s))
+	_ = xml.EscapeText(&b, []byte(s))
 	return b.String()
 }
