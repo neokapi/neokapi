@@ -36,9 +36,9 @@ func TestTraceRecorder(t *testing.T) {
 		assert.Equal(t, "tool-2", events[2].NodeID)
 
 		// Timestamps should be non-negative and non-decreasing.
-		assert.GreaterOrEqual(t, events[0].Ts, int64(0))
-		assert.GreaterOrEqual(t, events[1].Ts, events[0].Ts)
-		assert.GreaterOrEqual(t, events[2].Ts, events[1].Ts)
+		assert.GreaterOrEqual(t, events[0].TS, int64(0))
+		assert.GreaterOrEqual(t, events[1].TS, events[0].TS)
+		assert.GreaterOrEqual(t, events[2].TS, events[1].TS)
 	})
 
 	t.Run("snapshot capture", func(t *testing.T) {
