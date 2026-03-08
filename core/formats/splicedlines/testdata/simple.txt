@@ -1,0 +1,7 @@
+This is a single line.
+This is a continued \
+line that spans two.
+Another single line.
+Multi line \
+continuation \
+across three lines.

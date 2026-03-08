@@ -5,22 +5,30 @@ import (
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
+	"github.com/gokapi/gokapi/core/formats/fixedwidth"
 	"github.com/gokapi/gokapi/core/formats/html"
+	"github.com/gokapi/gokapi/core/formats/icml"
+	"github.com/gokapi/gokapi/core/formats/idml"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/messageformat"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
 	"github.com/gokapi/gokapi/core/formats/openxml"
+	"github.com/gokapi/gokapi/core/formats/paraplaintext"
 	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	regexfmt "github.com/gokapi/gokapi/core/formats/regex"
+	"github.com/gokapi/gokapi/core/formats/splicedlines"
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tex"
 	"github.com/gokapi/gokapi/core/formats/tmx"
+	"github.com/gokapi/gokapi/core/formats/transtable"
 	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	"github.com/gokapi/gokapi/core/formats/ttml"
+	"github.com/gokapi/gokapi/core/formats/versifiedtext"
+	"github.com/gokapi/gokapi/core/formats/vignette"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/wiki"
 	"github.com/gokapi/gokapi/core/formats/xliff"
@@ -75,6 +83,10 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// CSV
 	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
 	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
+
+	// TSV (Tab-Separated Values)
+	reg.RegisterReader("tsv", func() format.DataFormatReader { return csvfmt.NewTSVReader() })
+	reg.RegisterWriter("tsv", func() format.DataFormatWriter { return csvfmt.NewTSVWriter() })
 
 	// Moses Text
 	reg.RegisterReader("mosestext", func() format.DataFormatReader { return mosestext.NewReader() })
@@ -131,4 +143,36 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// PHP Content
 	reg.RegisterReader("phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
 	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
+
+	// ICML (InCopy Markup Language)
+	reg.RegisterReader("icml", func() format.DataFormatReader { return icml.NewReader() })
+	reg.RegisterWriter("icml", func() format.DataFormatWriter { return icml.NewWriter() })
+
+	// IDML (InDesign Markup Language)
+	reg.RegisterReader("idml", func() format.DataFormatReader { return idml.NewReader() })
+	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
+
+	// Fixed-Width Table
+	reg.RegisterReader("fixedwidth", func() format.DataFormatReader { return fixedwidth.NewReader() })
+	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
+
+	// Translation Table
+	reg.RegisterReader("transtable", func() format.DataFormatReader { return transtable.NewReader() })
+	reg.RegisterWriter("transtable", func() format.DataFormatWriter { return transtable.NewWriter() })
+
+	// Paragraph Plain Text
+	reg.RegisterReader("paraplaintext", func() format.DataFormatReader { return paraplaintext.NewReader() })
+	reg.RegisterWriter("paraplaintext", func() format.DataFormatWriter { return paraplaintext.NewWriter() })
+
+	// Spliced Lines
+	reg.RegisterReader("splicedlines", func() format.DataFormatReader { return splicedlines.NewReader() })
+	reg.RegisterWriter("splicedlines", func() format.DataFormatWriter { return splicedlines.NewWriter() })
+
+	// Versified Text
+	reg.RegisterReader("versifiedtext", func() format.DataFormatReader { return versifiedtext.NewReader() })
+	reg.RegisterWriter("versifiedtext", func() format.DataFormatWriter { return versifiedtext.NewWriter() })
+
+	// R Vignette
+	reg.RegisterReader("vignette", func() format.DataFormatReader { return vignette.NewReader() })
+	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
 }

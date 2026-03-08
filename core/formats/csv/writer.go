@@ -34,6 +34,18 @@ func NewWriter() *Writer {
 	}
 }
 
+// NewTSVWriter creates a new TSV writer (tab-separated values).
+func NewTSVWriter() *Writer {
+	return &Writer{
+		BaseFormatWriter: format.BaseFormatWriter{
+			FormatName: "tsv",
+		},
+		separator: '\t',
+		blocks:    make(map[string]*model.Block),
+		dataCells: make(map[string]string),
+	}
+}
+
 // SetSeparator sets the field delimiter for the writer.
 func (w *Writer) SetSeparator(sep rune) {
 	w.separator = sep
