@@ -1,0 +1,14 @@
+====== Formatting Syntax ======
+
+DokuWiki supports some simple markup language.
+
+===== Basic Text Formatting =====
+
+**Bold** and //italic// text can be combined.
+
+^ Header 1 ^ Header 2 ^
+| Cell 1 | Cell 2 |
+| Cell 3 | Cell 4 |
+
+This is a paragraph with
+multiple lines of text.
