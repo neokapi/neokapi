@@ -20,11 +20,19 @@ type TranslationJob struct {
 	ItemName         string    `json:"item_name"`
 	TargetLocale     string    `json:"target_locale"`
 	ProviderConfigID string    `json:"provider_config_id"`
+	Model            string    `json:"model,omitempty"` // deployment/model name (e.g. "gpt-4o", "gpt-4o-mini")
 	Status           JobStatus `json:"status"`
 	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`
 	DoneBlocks       int       `json:"done_blocks"`
+	TokensUsed       int       `json:"tokens_used"`
 	Error            string    `json:"error,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// IsPlatformProvider returns true if the job should use the platform-provided
+// Azure OpenAI service (managed identity auth) rather than a user-configured provider.
+func (j *TranslationJob) IsPlatformProvider() bool {
+	return j.ProviderConfigID == "" || j.ProviderConfigID == "platform"
 }

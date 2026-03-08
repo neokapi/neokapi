@@ -58,6 +58,9 @@ type Server struct {
 	// JobQueue enqueues and dequeues translation job IDs. Nil when job system is not configured.
 	JobQueue jobs.Queue
 
+	// QuotaStore tracks AI token usage per workspace. Nil when quota tracking is not configured.
+	QuotaStore jobs.QuotaStore
+
 	// GRPCServer is an optional gRPC server multiplexed on the same port.
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
@@ -377,6 +380,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/jobs", s.HandleListJobs)
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
+	g.GET("/ai/usage", s.HandleGetAIUsage)
 }
 
 // Start initializes the Echo server and starts listening.
