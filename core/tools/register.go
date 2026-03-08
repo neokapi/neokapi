@@ -84,4 +84,121 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.Register("layer-processor", func() tool.Tool {
 		return NewLayerProcessorTool(&LayerProcessorConfig{})
 	})
+
+	reg.Register("create-target", func() tool.Tool {
+		return NewCreateTargetTool(&CreateTargetConfig{})
+	})
+
+	reg.Register("remove-target", func() tool.Tool {
+		return NewRemoveTargetTool(&RemoveTargetConfig{})
+	})
+
+	reg.Register("linebreak-convert", func() tool.Tool {
+		return NewLineBreakConvertTool(&LineBreakConvertConfig{
+			Mode:        LineBreakLF,
+			ApplySource: true,
+			ApplyTarget: true,
+		})
+	})
+
+	reg.Register("bom-convert", func() tool.Tool {
+		return NewBOMConvertTool(&BOMConvertConfig{})
+	})
+
+	reg.Register("fullwidth-convert", func() tool.Tool {
+		return NewFullWidthConvertTool(&FullWidthConvertConfig{
+			Mode:        FullWidthToHalf,
+			ApplyTarget: true,
+		})
+	})
+
+	reg.Register("uri-convert", func() tool.Tool {
+		return NewURIConvertTool(&URIConvertConfig{
+			Mode:        URIDecode,
+			ApplyTarget: true,
+		})
+	})
+
+	reg.Register("inline-codes-remove", func() tool.Tool {
+		return NewInlineCodesRemoveTool(&InlineCodesRemoveConfig{
+			ApplyTarget: true,
+		})
+	})
+
+	reg.Register("properties-set", func() tool.Tool {
+		return NewPropertiesSetTool(&PropertiesSetConfig{
+			Overwrite:        true,
+			OnlyTranslatable: true,
+		})
+	})
+
+	reg.Register("translation-comparison", func() tool.Tool {
+		return NewTranslationComparisonTool(&TranslationComparisonConfig{})
+	})
+
+	reg.Register("repetition-analysis", func() tool.Tool {
+		return NewRepetitionAnalysisTool(&RepetitionAnalysisConfig{CaseSensitive: true})
+	})
+
+	reg.Register("whitespace-correct", func() tool.Tool {
+		return NewWhitespaceCorrectTool(&WhitespaceCorrectConfig{
+			TargetLocale:          model.LocaleEnglish,
+			NormalizeSpaces:       true,
+			MatchSourceWhitespace: true,
+			RemoveZeroWidthChars:  true,
+		})
+	})
+
+	reg.Register("encoding-convert", func() tool.Tool {
+		return NewEncodingConvertTool(&EncodingConvertConfig{
+			ApplyTarget: true,
+		})
+	})
+
+	reg.Register("inconsistency-check", func() tool.Tool {
+		return NewInconsistencyCheckTool(NewInconsistencyCheckConfig(model.LocaleEnglish))
+	})
+
+	reg.Register("length-check", func() tool.Tool {
+		return NewLengthCheckTool(&LengthCheckConfig{
+			TargetLocale: model.LocaleEnglish,
+		})
+	})
+
+	reg.Register("chars-check", func() tool.Tool {
+		return NewCharsCheckTool(NewCharsCheckConfig(model.LocaleEnglish))
+	})
+
+	reg.Register("diff-leverage", func() tool.Tool {
+		return NewDiffLeverageTool(&DiffLeverageConfig{
+			CaseSensitive: true,
+			PreviousTexts: map[string]PreviousBlock{},
+		})
+	})
+
+	reg.Register("external-command", func() tool.Tool {
+		return NewExternalCommandTool(&ExternalCommandConfig{
+			ApplyTarget: true,
+			SendAsStdin: true,
+			Timeout:     30,
+		})
+	})
+
+	reg.Register("pattern-check", func() tool.Tool {
+		return NewPatternCheckTool(&PatternCheckConfig{
+			TargetLocale: model.LocaleEnglish,
+		})
+	})
+
+	reg.Register("chars-listing", func() tool.Tool {
+		return NewCharsListingTool(&CharsListingConfig{
+			IncludeSource: true,
+			IncludeTarget: true,
+			TargetLocale:  model.LocaleEnglish,
+		}).Tool()
+	})
+
+	reg.Register("scoping-report", func() tool.Tool {
+		return NewScopingReportTool(&ScopingReportConfig{})
+	})
 }
