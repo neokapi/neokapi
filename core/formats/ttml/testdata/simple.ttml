@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">
+  <body>
+    <div>
+      <p xml:id="subtitle1" begin="00:00:01.000" end="00:00:04.000">Hello world</p>
+      <p xml:id="subtitle2" begin="00:00:05.000" end="00:00:08.000">Second subtitle</p>
+      <p xml:id="subtitle3" begin="00:00:09.000" end="00:00:12.000">Third subtitle</p>
+    </div>
+  </body>
+</tt>

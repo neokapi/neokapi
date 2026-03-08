@@ -1,0 +1,8 @@
+<!-- Window title -->
+<!ENTITY findWindow.title "Find Files">
+<!-- File menu -->
+<!ENTITY fileMenu.label "File">
+<!ENTITY editMenu.label "Edit">
+<!ENTITY escaped "Text with &amp; ampersand and &lt;angle brackets&gt;">
+<!ENTITY ncr "Char &#65; and hex &#x42;">
+<!ENTITY unicode "こんにちは世界">
