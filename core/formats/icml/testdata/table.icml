@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?aid style="50" type="snippet" readerVersion="6.0" featureSet="513" product="8.0(370)" ?>
+<Document DOMVersion="8.0">
+  <Story Self="story1" AppliedTOCStyle="n" TrackChanges="false" StoryTitle="$ID/" AppliedNamedGrid="n">
+    <StoryPreference OpticalMarginAlignment="false" OpticalMarginSize="12" FrameType="TextFrameType" StoryOrientation="Horizontal" StoryDirection="LeftToRightDirection" />
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Text before table</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Table HeaderRowCount="0" FooterRowCount="0" AppliedTableStyle="TableStyle/$ID/[Basic Table]" TableDirection="LeftToRightDirection">
+          <Cell Name="0:0" RowSpan="1" ColumnSpan="1">
+            <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+              <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                <Content>Cell one</Content>
+              </CharacterStyleRange>
+            </ParagraphStyleRange>
+          </Cell>
+          <Cell Name="1:0" RowSpan="1" ColumnSpan="1">
+            <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/$ID/NormalParagraphStyle">
+              <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+                <Content>Cell two</Content>
+              </CharacterStyleRange>
+            </ParagraphStyleRange>
+          </Cell>
+        </Table>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</Document>

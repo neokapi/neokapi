@@ -29,7 +29,12 @@ type Config struct {
 }
 
 // FormatName returns the format this config applies to.
-func (c *Config) FormatName() string { return "csv" }
+func (c *Config) FormatName() string {
+	if c.Separator == '\t' {
+		return "tsv"
+	}
+	return "csv"
+}
 
 // Reset restores default values.
 func (c *Config) Reset() {

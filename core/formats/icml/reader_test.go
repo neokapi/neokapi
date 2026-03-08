@@ -1,0 +1,470 @@
+package icml_test
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"testing"
+
+	"github.com/gokapi/gokapi/core/formats/icml"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// okapi: ICMLFilterTest#toString_WhenMultipleContent_ThenExtractInTranslationUnit
+// Verifies that multiple CharacterStyleRange Content elements within a
+// ParagraphStyleRange are concatenated into a single translation unit.
+func TestMultipleContentRanges(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.GreaterOrEqual(t, len(blocks), 3)
+
+	// First ParagraphStyleRange has two CharacterStyleRanges with "First paragraph" + " with bold"
+	assert.Equal(t, "First paragraph with bold", blocks[0].SourceText())
+	assert.Equal(t, "Second paragraph text", blocks[1].SourceText())
+	assert.Equal(t, "Third paragraph", blocks[2].SourceText())
+}
+
+// okapi: ICMLFilterTest#toString_WhenBreak_ThenTranslationUnitIsEmpty
+// Verifies that <Br/> between ParagraphStyleRanges creates separate TUs.
+func TestBreakSeparation(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	// Each ParagraphStyleRange produces a separate block
+	require.Len(t, blocks, 3)
+}
+
+// okapi: ICMLFilterTest#toString_WhenContentInTableCell_ThenSeparateTranslationUnit
+// Verifies that table cell content is extracted as separate translation units.
+func TestTableCellContent(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/table.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/table.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.GreaterOrEqual(t, len(blocks), 3)
+
+	// Text before table
+	assert.Equal(t, "Text before table", blocks[0].SourceText())
+	// Table cells
+	assert.Equal(t, "Cell one", blocks[1].SourceText())
+	assert.Equal(t, "Cell two", blocks[2].SourceText())
+
+	// Table cells should have the table property
+	assert.Equal(t, "true", blocks[1].Properties["table"])
+	assert.Equal(t, "true", blocks[2].Properties["table"])
+}
+
+// okapi: ICMLFilterTest#open_WhenSuccessfull_ThenReturnTrue
+// Verifies that the reader can open a valid ICML document.
+func TestOpenDocument(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/minimal.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/minimal.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	require.NotEmpty(t, parts)
+
+	// Verify LayerStart
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	layer := parts[0].Resource.(*model.Layer)
+	assert.Equal(t, "icml", layer.Format)
+}
+
+// okapi: ICMLFilterTest#getParameters_WhenNoParametersSet_ThenReturnParametersWithDefaultSettings
+func TestDefaultConfig(t *testing.T) {
+	reader := icml.NewReader()
+	cfg := reader.Config().(*icml.Config)
+	assert.False(t, cfg.ExtractNotes)
+	assert.False(t, cfg.NewTUOnBr)
+}
+
+// okapi: ICMLFilterTest#getParameters_WhenParametersSet_ThenReturnParametersWithSettings
+func TestCustomConfig(t *testing.T) {
+	cfg := &icml.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"extractNotes": true,
+		"newTuOnBr":    true,
+	})
+	require.NoError(t, err)
+	assert.True(t, cfg.ExtractNotes)
+	assert.True(t, cfg.NewTUOnBr)
+}
+
+// okapi: ICMLFilterTest#getName_ThenReturnName
+func TestReaderMetadata(t *testing.T) {
+	reader := icml.NewReader()
+	assert.Equal(t, "icml", reader.Name())
+	assert.Equal(t, "ICML (Adobe InCopy)", reader.DisplayName())
+}
+
+// okapi: ICMLFilterTest#getMimeType_ThenReturnMimeType
+func TestReaderMIMEType(t *testing.T) {
+	reader := icml.NewReader()
+	sig := reader.Signature()
+	assert.Contains(t, sig.MIMETypes, "application/x-icml+xml")
+}
+
+// okapi: ICMLFilterTest#getConfigurations_ThenReturnDefaultSettings
+func TestReaderSignature(t *testing.T) {
+	reader := icml.NewReader()
+	sig := reader.Signature()
+	assert.Contains(t, sig.Extensions, ".icml")
+	assert.Contains(t, sig.Extensions, ".wcml")
+}
+
+func TestReadNilDocument(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+	err := reader.Open(ctx, nil)
+	assert.Error(t, err)
+}
+
+func TestReadEmpty(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	blocks := testutil.FilterBlocks(parts)
+	assert.Empty(t, blocks)
+}
+
+func TestLayerStructure(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/minimal.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/minimal.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	require.NotEmpty(t, parts)
+	assert.Equal(t, model.PartLayerStart, parts[0].Type)
+	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
+
+	layer := parts[0].Resource.(*model.Layer)
+	assert.Equal(t, "icml", layer.Format)
+	assert.Equal(t, "application/x-icml+xml", layer.MimeType)
+}
+
+func TestSimpleExtraction(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/minimal.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/minimal.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Hello World", blocks[0].SourceText())
+}
+
+func TestBlockIDs(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.NotEmpty(t, blocks)
+
+	ids := make(map[string]bool)
+	for _, b := range blocks {
+		assert.NotEmpty(t, b.ID, "block should have an ID")
+		assert.False(t, ids[b.ID], "block IDs should be unique, got duplicate: %s", b.ID)
+		ids[b.ID] = true
+	}
+}
+
+func TestParagraphStylePreserved(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.NotEmpty(t, blocks)
+
+	assert.Equal(t, "ParagraphStyle/Title", blocks[0].Properties["paragraphStyle"])
+	assert.Equal(t, "ParagraphStyle/Body", blocks[1].Properties["paragraphStyle"])
+}
+
+func TestPropertiesElementSkipped(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="8.0">
+  <Story Self="story1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Properties>
+          <Leading type="unit">14</Leading>
+        </Properties>
+        <Content>Visible text only</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</Document>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Visible text only", blocks[0].SourceText())
+}
+
+func TestNotesExcludedByDefault(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	f, err := os.Open("testdata/notes.icml")
+	require.NoError(t, err)
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/notes.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	// Note content should be excluded; only visible text and " continues" are extracted.
+	assert.Equal(t, "Visible text continues", blocks[0].SourceText())
+}
+
+func TestInlineICMLContent(t *testing.T) {
+	ctx := context.Background()
+	reader := icml.NewReader()
+
+	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="8.0">
+  <Story Self="story1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Hello </Content>
+      </CharacterStyleRange>
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/Italic">
+        <Content>beautiful</Content>
+      </CharacterStyleRange>
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content> world</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</Document>`
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader.Close()
+
+	blocks := testutil.CollectBlocks(t, reader.Read(ctx))
+	require.Len(t, blocks, 1)
+	assert.Equal(t, "Hello beautiful world", blocks[0].SourceText())
+}
+
+func TestConfigApplyMapUnknownParam(t *testing.T) {
+	cfg := &icml.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"unknown": true,
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown parameter")
+}
+
+func TestConfigApplyMapWrongType(t *testing.T) {
+	cfg := &icml.Config{}
+	err := cfg.ApplyMap(map[string]any{
+		"extractNotes": "not a bool",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expected bool")
+}
+
+// okapi: RoundTripIcmlIT
+// Roundtrip test: read ICML, write back, verify content is preserved.
+func TestRoundTrip(t *testing.T) {
+	ctx := context.Background()
+
+	f, err := os.Open("testdata/minimal.icml")
+	require.NoError(t, err)
+	reader := icml.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/minimal.icml", model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := icml.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleEnglish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Hello World")
+	assert.Contains(t, output, "Document")
+	assert.Contains(t, output, "Story")
+}
+
+// okapi: RoundTripIcmlIT (with translation)
+// Roundtrip test with target translation.
+func TestRoundTripWithTargetLocale(t *testing.T) {
+	ctx := context.Background()
+
+	input := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Document DOMVersion="8.0">
+  <Story Self="story1">
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>Hello</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+    <ParagraphStyleRange AppliedParagraphStyle="ParagraphStyle/Body">
+      <CharacterStyleRange AppliedCharacterStyle="CharacterStyle/$ID/[No character style]">
+        <Content>World</Content>
+      </CharacterStyleRange>
+    </ParagraphStyleRange>
+  </Story>
+</Document>`
+
+	reader := icml.NewReader()
+	err := reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			if block.SourceText() == "Hello" {
+				block.SetTargetText(model.LocaleFrench, "Bonjour")
+			} else if block.SourceText() == "World" {
+				block.SetTargetText(model.LocaleFrench, "Monde")
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer := icml.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleFrench)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Bonjour")
+	assert.Contains(t, output, "Monde")
+}
+
+// TestRoundTripWCML tests roundtrip with the Test01.wcml file.
+func TestRoundTripWCML(t *testing.T) {
+	ctx := context.Background()
+
+	f, err := os.Open("testdata/Test01.wcml")
+	require.NoError(t, err)
+	reader := icml.NewReader()
+	err = reader.Open(ctx, testutil.RawDocFromReader(f, "testdata/Test01.wcml", model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer := icml.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetLocale(model.LocaleEnglish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "First paragraph")
+	assert.Contains(t, output, "with bold")
+	assert.Contains(t, output, "Second paragraph text")
+	assert.Contains(t, output, "Third paragraph")
+}
+
+// TestWriterMinimalICML verifies the writer can generate ICML without a skeleton.
+func TestWriterMinimalICML(t *testing.T) {
+	ctx := context.Background()
+
+	block1 := model.NewBlock("tu1", "Hello world")
+	block2 := model.NewBlock("tu2", "Goodbye")
+
+	parts := []*model.Part{
+		{Type: model.PartBlock, Resource: block1},
+		{Type: model.PartBlock, Resource: block2},
+	}
+
+	var buf bytes.Buffer
+	writer := icml.NewWriter()
+	err := writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Hello world")
+	assert.Contains(t, output, "Goodbye")
+	assert.Contains(t, output, "<Document")
+	assert.Contains(t, output, "<Story>")
+	assert.Contains(t, output, "<Content>")
+}
