@@ -5,6 +5,7 @@ import (
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
+	"github.com/gokapi/gokapi/core/formats/fixedwidth"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/icml"
 	"github.com/gokapi/gokapi/core/formats/json"
@@ -77,6 +78,10 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
 	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
 
+	// TSV (Tab-Separated Values)
+	reg.RegisterReader("tsv", func() format.DataFormatReader { return csvfmt.NewTSVReader() })
+	reg.RegisterWriter("tsv", func() format.DataFormatWriter { return csvfmt.NewTSVWriter() })
+
 	// Moses Text
 	reg.RegisterReader("mosestext", func() format.DataFormatReader { return mosestext.NewReader() })
 	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
@@ -117,7 +122,7 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 
-	// ICML (Adobe InCopy)
-	reg.RegisterReader("icml", func() format.DataFormatReader { return icml.NewReader() })
-	reg.RegisterWriter("icml", func() format.DataFormatWriter { return icml.NewWriter() })
+	// Fixed-Width Columns
+	reg.RegisterReader("fixedwidth", func() format.DataFormatReader { return fixedwidth.NewReader() })
+	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
 }
