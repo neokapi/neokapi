@@ -24,8 +24,8 @@ func TestRegisterAllReaders(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "ts", "wiki", "tex",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
+		"mosestext", "dtd", "ts", "wiki", "tex", "fixedwidth",
 	}
 
 	for _, name := range expectedFormats {
@@ -41,8 +41,8 @@ func TestRegisterAllWriters(t *testing.T) {
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "openxml",
-		"mosestext", "dtd", "ts", "wiki", "tex",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "openxml",
+		"mosestext", "dtd", "ts", "wiki", "tex", "fixedwidth",
 	}
 
 	for _, name := range expectedFormats {
@@ -75,11 +75,12 @@ func TestCollectNativeDecoders(t *testing.T) {
 	configReg := config.NewRegistry()
 	reg.CollectNativeDecoders(configReg)
 
-	// All 15 native formats should have decoders registered
+	// All native formats should have decoders registered
 	expectedFormats := []string{
 		"plaintext", "html", "xml", "xliff", "xliff2",
 		"yaml", "json", "po", "properties",
-		"markdown", "csv", "srt", "ttml", "vtt", "tmx", "ts",
+		"markdown", "csv", "tsv", "srt", "ttml", "vtt", "tmx", "ts",
+		"fixedwidth",
 	}
 	for _, name := range expectedFormats {
 		kind := config.FormatConfigKind(name)

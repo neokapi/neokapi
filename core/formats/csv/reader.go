@@ -26,7 +26,22 @@ func NewReader() *Reader {
 			FormatName:        "csv",
 			FormatDisplayName: "CSV",
 			FormatMimeType:    "text/csv",
-			FormatExtensions:  []string{".csv", ".tsv"},
+			FormatExtensions:  []string{".csv"},
+			Cfg:               cfg,
+		},
+		cfg: cfg,
+	}
+}
+
+// NewTSVReader creates a new TSV reader (tab-separated values).
+func NewTSVReader() *Reader {
+	cfg := &Config{Separator: '\t', HasHeader: true}
+	return &Reader{
+		BaseFormatReader: format.BaseFormatReader{
+			FormatName:        "tsv",
+			FormatDisplayName: "TSV",
+			FormatMimeType:    "text/tab-separated-values",
+			FormatExtensions:  []string{".tsv"},
 			Cfg:               cfg,
 		},
 		cfg: cfg,
@@ -35,9 +50,15 @@ func NewReader() *Reader {
 
 // Signature returns detection metadata for this format.
 func (r *Reader) Signature() format.FormatSignature {
+	if r.cfg.Separator == '\t' {
+		return format.FormatSignature{
+			MIMETypes:  []string{"text/tab-separated-values"},
+			Extensions: []string{".tsv"},
+		}
+	}
 	return format.FormatSignature{
-		MIMETypes:  []string{"text/csv", "text/tab-separated-values"},
-		Extensions: []string{".csv", ".tsv"},
+		MIMETypes:  []string{"text/csv"},
+		Extensions: []string{".csv"},
 	}
 }
 
@@ -71,10 +92,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		mimeType = "text/tab-separated-values"
 	}
 
+	formatName := "csv"
+	if r.cfg.Separator == '\t' {
+		formatName = "tsv"
+	}
+
 	layer := &model.Layer{
 		ID:       "doc1",
 		Name:     r.Doc.URI,
-		Format:   "csv",
+		Format:   formatName,
 		Locale:   locale,
 		Encoding: r.Doc.Encoding,
 		MimeType: mimeType,
