@@ -1,0 +1,206 @@
+package ttml
+
+import (
+	"context"
+	"encoding/xml"
+	"fmt"
+	"io"
+	"strings"
+
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/model"
+)
+
+// Writer implements DataFormatWriter for TTML subtitle files.
+type Writer struct {
+	format.BaseFormatWriter
+	docContent string // original document content for skeleton-based reconstruction
+}
+
+// NewWriter creates a new TTML writer.
+func NewWriter() *Writer {
+	return &Writer{
+		BaseFormatWriter: format.BaseFormatWriter{
+			FormatName: "ttml",
+		},
+	}
+}
+
+// Write consumes Parts from a channel and writes reconstructed TTML.
+func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Collect all parts first so we can do skeleton-based reconstruction.
+	var blocks []*model.Block
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				return w.writeOutput(blocks)
+			}
+			switch part.Type {
+			case model.PartBlock:
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocks = append(blocks, block)
+				}
+			case model.PartData:
+				if data, ok := part.Resource.(*model.Data); ok {
+					if data.Name == "ttml-document" {
+						w.docContent = data.Properties["content"]
+					}
+				}
+			}
+		}
+	}
+}
+
+// writeOutput reconstructs the TTML document, replacing <p> element text
+// with translated content where available.
+func (w *Writer) writeOutput(blocks []*model.Block) error {
+	if w.docContent == "" {
+		// No skeleton: generate minimal TTML from blocks
+		return w.writeMinimalTTML(blocks)
+	}
+
+	// Parse the original document and replace <p> text content with
+	// translated text from the blocks.
+	return w.writeFromSkeleton(blocks)
+}
+
+// writeFromSkeleton reconstructs the TTML from the original XML structure,
+// replacing <p> element content with translated text.
+func (w *Writer) writeFromSkeleton(blocks []*model.Block) error {
+	decoder := xml.NewDecoder(strings.NewReader(w.docContent))
+	blockIndex := 0
+
+	// We need to track whether we are inside a <p> element so we can
+	// replace its content. Rather than trying to manipulate the XML token
+	// stream precisely (which is fragile with namespaces), we use a
+	// string-replacement approach: find each <p>...</p> in the original
+	// and replace the text content.
+	output := w.docContent
+
+	// Walk through the XML to find <p> elements and build replacements.
+	type pElement struct {
+		startOffset int
+		endOffset   int
+		text        string
+	}
+	var pElements []pElement
+
+	// Track position using a simplified approach: re-read to find <p> tags.
+	reader := strings.NewReader(w.docContent)
+	decoder = xml.NewDecoder(reader)
+
+	inP := false
+	pDepth := 0
+	var currentTextParts []string
+	pStartCharOffset := int64(0)
+
+	for {
+		offset := decoder.InputOffset()
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "p" {
+				inP = true
+				pDepth = 1
+				currentTextParts = nil
+				pStartCharOffset = offset
+			} else if inP {
+				pDepth++
+			}
+		case xml.EndElement:
+			if inP {
+				pDepth--
+				if pDepth == 0 {
+					inP = false
+					endOffset := decoder.InputOffset()
+					pElements = append(pElements, pElement{
+						startOffset: int(pStartCharOffset),
+						endOffset:   int(endOffset),
+						text:        strings.Join(currentTextParts, ""),
+					})
+				}
+			}
+		case xml.CharData:
+			if inP {
+				currentTextParts = append(currentTextParts, string(t))
+			}
+		}
+	}
+
+	// Now replace each <p> element's content with the block text.
+	// Work backwards to preserve offsets.
+	for i := len(pElements) - 1; i >= 0; i-- {
+		pe := pElements[i]
+		bi := i
+		if bi >= len(blocks) {
+			continue // no block for this <p>
+		}
+		// Skip empty blocks that were filtered out during reading
+		for bi < len(blocks) && blockIndex <= bi {
+			break
+		}
+		if bi >= len(blocks) {
+			continue
+		}
+
+		block := blocks[bi]
+		text := block.SourceText()
+		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+			text = block.TargetText(w.Locale)
+		}
+
+		// Find the content between the <p ...> opening tag end and the </p> closing tag start.
+		segment := output[pe.startOffset:pe.endOffset]
+		openEnd := strings.Index(segment, ">")
+		closeStart := strings.LastIndex(segment, "</p>")
+		if openEnd >= 0 && closeStart > openEnd {
+			before := output[:pe.startOffset+openEnd+1]
+			after := output[pe.startOffset+closeStart:]
+			output = before + text + after
+		}
+	}
+
+	_, err := io.WriteString(w.Output, output)
+	return err
+}
+
+// writeMinimalTTML generates a minimal TTML document from blocks only.
+func (w *Writer) writeMinimalTTML(blocks []*model.Block) error {
+	var sb strings.Builder
+	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+	sb.WriteString(`<tt xml:lang="en" xmlns="http://www.w3.org/ns/ttml">` + "\n")
+	sb.WriteString("  <body>\n    <div>\n")
+
+	for _, block := range blocks {
+		text := block.SourceText()
+		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+			text = block.TargetText(w.Locale)
+		}
+
+		begin := block.Properties["begin"]
+		end := block.Properties["end"]
+
+		sb.WriteString(fmt.Sprintf(`      <p begin="%s" end="%s">%s</p>`,
+			xmlEscape(begin), xmlEscape(end), xmlEscape(text)))
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("    </div>\n  </body>\n</tt>\n")
+
+	_, err := io.WriteString(w.Output, sb.String())
+	return err
+}
+
+// xmlEscape escapes special XML characters.
+func xmlEscape(s string) string {
+	var b strings.Builder
+	xml.EscapeText(&b, []byte(s))
+	return b.String()
+}
