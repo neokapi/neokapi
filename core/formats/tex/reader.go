@@ -11,15 +11,6 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// Command classification for TeX commands.
-type cmdClass int
-
-const (
-	cmdNoText       cmdClass = iota // Arguments are non-translatable (e.g., \label, \ref)
-	cmdInlineText                   // Arguments are inline translatable (e.g., \textbf, \emph)
-	cmdParagraphText                // Arguments become separate text units (e.g., \section, \title)
-)
-
 // noTextCommands are commands whose arguments are non-translatable.
 var noTextCommands = map[string]bool{
 	"label":           true,
@@ -73,22 +64,6 @@ var paragraphTextCommands = map[string]bool{
 	"author":        true,
 	"date":          true,
 	"caption":       true,
-}
-
-// mathEnvironments that should be treated as non-translatable.
-var mathEnvironments = map[string]bool{
-	"equation":   true,
-	"equation*":  true,
-	"align":      true,
-	"align*":     true,
-	"gather":     true,
-	"gather*":    true,
-	"multline":   true,
-	"multline*":  true,
-	"eqnarray":   true,
-	"eqnarray*":  true,
-	"math":       true,
-	"displaymath": true,
 }
 
 // nonTranslatableEnvironments that should be emitted as Data.

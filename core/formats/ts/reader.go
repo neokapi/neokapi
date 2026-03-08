@@ -6,7 +6,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"strconv"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -488,20 +487,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 // byteElem holds a <byte value="xx"/> element.
 type byteElem struct {
 	value string // hex or decimal value
-}
-
-// decodeByte decodes a byte value from hex or decimal string.
-func decodeByte(value string) (byte, error) {
-	// Try hex first (with or without "x" prefix)
-	hexVal := strings.TrimPrefix(value, "x")
-	if n, err := strconv.ParseUint(hexVal, 16, 8); err == nil {
-		return byte(n), nil
-	}
-	// Try decimal
-	if n, err := strconv.ParseUint(value, 10, 8); err == nil {
-		return byte(n), nil
-	}
-	return 0, fmt.Errorf("ts: invalid byte value: %s", value)
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

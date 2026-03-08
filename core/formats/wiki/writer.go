@@ -13,8 +13,6 @@ type Writer struct {
 	format.BaseFormatWriter
 	cfg        *Config
 	firstBlock bool
-	// lastPartType tracks what we last wrote for whitespace decisions.
-	lastPartType model.PartType
 }
 
 // NewWriter creates a new wiki writer.
