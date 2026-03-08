@@ -1,5 +1,6 @@
-import {useState} from 'react';
-import type {TestCaseRow, TestState} from './_types';
+import {useState, useMemo} from 'react';
+import type {TestCaseRow, TestState, SkipCategory} from './_types';
+import {skipCategoryLabels, skipCategoryColors} from './_types';
 import styles from './_index.module.css';
 
 interface Props {
@@ -18,8 +19,9 @@ type FilterMode =
   | 'implemented'
   | 'pending'
   | 'skipped'
-  | 'unmapped';
-type SortMode = 'name' | 'status';
+  | 'unmapped'
+  | 'not-applicable';
+type SortMode = 'name' | 'status' | 'category';
 
 const statusBadgeClass: Record<string, string> = {
   pass: 'badge badge--success',
@@ -64,6 +66,21 @@ function statusOrder(s: string): number {
   }
 }
 
+/** Category badge for not-applicable tests. */
+function CategoryBadge({category}: {category?: SkipCategory}) {
+  if (!category) return null;
+  const label = skipCategoryLabels[category] ?? category;
+  const color = skipCategoryColors[category] ?? '#94a3b8';
+  return (
+    <span
+      className={styles.categoryBadge}
+      style={{backgroundColor: color}}
+      title={label}>
+      {label}
+    </span>
+  );
+}
+
 /** Build a GitHub source URL for a Go test file+line. */
 function goSourceUrl(
   file: string | undefined,
@@ -95,6 +112,15 @@ function okapiSourceUrl(
   return `https://gitlab.com/okapiframework/Okapi/-/blob/${ref}/${okapiFile}?ref_type=tags`;
 }
 
+/** Check if a test case is not-applicable (has skip reason but no state='implemented'). */
+function isNotApplicable(tc: TestCaseRow): boolean {
+  return (
+    tc.testState !== 'implemented' &&
+    tc.testState !== 'pending' &&
+    !!tc.skipReason
+  );
+}
+
 export default function TestCaseTable({
   testCases,
   filterName,
@@ -104,6 +130,40 @@ export default function TestCaseTable({
   const [filter, setFilter] = useState<FilterMode>('all');
   const [sort, setSort] = useState<SortMode>('name');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+
+  // Compute counts
+  const counts = useMemo(() => {
+    let implemented = 0;
+    let pending = 0;
+    let notApplicable = 0;
+    let unmapped = 0;
+    let failing = 0;
+    const categories: Record<string, number> = {};
+
+    for (const tc of testCases) {
+      if (tc.testState === 'implemented') implemented++;
+      else if (tc.testState === 'pending') pending++;
+      else if (isNotApplicable(tc)) {
+        notApplicable++;
+        if (tc.skipCategory) {
+          categories[tc.skipCategory] =
+            (categories[tc.skipCategory] || 0) + 1;
+        }
+      } else unmapped++;
+
+      if (
+        tc.okapiStatus === 'fail' ||
+        tc.okapiStatus === 'error' ||
+        tc.bridgeStatus === 'fail' ||
+        tc.bridgeStatus === 'error' ||
+        tc.nativeStatus === 'fail' ||
+        tc.nativeStatus === 'error'
+      )
+        failing++;
+    }
+
+    return {implemented, pending, notApplicable, unmapped, failing, categories};
+  }, [testCases]);
 
   const filtered = testCases.filter((tc) => {
     switch (filter) {
@@ -126,10 +186,10 @@ export default function TestCaseTable({
         return tc.testState === 'implemented';
       case 'pending':
         return tc.testState === 'pending';
-      case 'skipped':
-        return tc.testState === 'skipped';
+      case 'not-applicable':
+        return isNotApplicable(tc);
       case 'unmapped':
-        return tc.testState === 'unmapped' || !tc.testState;
+        return !tc.testState && !tc.skipReason;
       default:
         return true;
     }
@@ -148,66 +208,30 @@ export default function TestCaseTable({
         statusOrder(b.nativeStatus),
       );
       if (aMin !== bMin) return aMin - bMin;
+    } else if (sort === 'category') {
+      const aCat = a.skipCategory || 'zzz';
+      const bCat = b.skipCategory || 'zzz';
+      if (aCat !== bCat) return aCat.localeCompare(bCat);
     }
     return a.testName.localeCompare(b.testName);
   });
 
-  const okapiCount = testCases.filter((tc) => tc.okapiStatus !== '').length;
-  const bridgeCount = testCases.filter((tc) => tc.bridgeStatus !== '').length;
-  const nativeCount = testCases.filter((tc) => tc.nativeStatus !== '').length;
-  const failingCount = testCases.filter(
-    (tc) =>
-      tc.okapiStatus === 'fail' ||
-      tc.okapiStatus === 'error' ||
-      tc.bridgeStatus === 'fail' ||
-      tc.bridgeStatus === 'error' ||
-      tc.nativeStatus === 'fail' ||
-      tc.nativeStatus === 'error',
-  ).length;
-
-  // State-based counts
-  const hasTestState = testCases.some((tc) => tc.testState);
-  const implementedCount = testCases.filter(
-    (tc) => tc.testState === 'implemented',
-  ).length;
-  const pendingCount = testCases.filter(
-    (tc) => tc.testState === 'pending',
-  ).length;
-  const skippedCount = testCases.filter(
-    (tc) => tc.testState === 'skipped',
-  ).length;
-  const unmappedCount = testCases.filter(
-    (tc) => tc.testState === 'unmapped' || !tc.testState,
-  ).length;
-
-  const filterButtons: {mode: FilterMode; label: string}[] = [
-    {mode: 'all', label: `All (${testCases.length})`},
-    ...(hasTestState
-      ? [
-          {
-            mode: 'implemented' as FilterMode,
-            label: `Implemented (${implementedCount})`,
-          },
-          {
-            mode: 'pending' as FilterMode,
-            label: `Pending (${pendingCount})`,
-          },
-          {
-            mode: 'skipped' as FilterMode,
-            label: `Skipped (${skippedCount})`,
-          },
-          {
-            mode: 'unmapped' as FilterMode,
-            label: `Unmapped (${unmappedCount})`,
-          },
-        ]
-      : [
-          {mode: 'okapi' as FilterMode, label: `Okapi (${okapiCount})`},
-          {mode: 'bridge' as FilterMode, label: `Bridge (${bridgeCount})`},
-          {mode: 'native' as FilterMode, label: `Native (${nativeCount})`},
-        ]),
-    ...(failingCount > 0
-      ? [{mode: 'failing' as FilterMode, label: `Failing (${failingCount})`}]
+  const filterButtons: {mode: FilterMode; label: string; count: number}[] = [
+    {mode: 'all', label: 'All', count: testCases.length},
+    {mode: 'implemented', label: 'Implemented', count: counts.implemented},
+    {
+      mode: 'not-applicable',
+      label: 'Not Applicable',
+      count: counts.notApplicable,
+    },
+    ...(counts.pending > 0
+      ? [{mode: 'pending' as FilterMode, label: 'Pending', count: counts.pending}]
+      : []),
+    ...(counts.unmapped > 0
+      ? [{mode: 'unmapped' as FilterMode, label: 'Unmapped', count: counts.unmapped}]
+      : []),
+    ...(counts.failing > 0
+      ? [{mode: 'failing' as FilterMode, label: 'Failing', count: counts.failing}]
       : []),
   ];
 
@@ -217,6 +241,55 @@ export default function TestCaseTable({
 
   return (
     <div className={styles.testCaseTableWrap}>
+      {/* State summary mini-bar */}
+      {testCases.length > 0 && (
+        <div className={styles.filterStateBar}>
+          <div className={styles.filterStateSegments}>
+            {[
+              {value: counts.implemented, color: '#2e8555', label: 'Implemented'},
+              {value: counts.notApplicable, color: '#94a3b8', label: 'Not Applicable'},
+              {value: counts.pending, color: '#e3a008', label: 'Pending'},
+              {value: counts.unmapped, color: '#dc2626', label: 'Unmapped'},
+            ]
+              .filter((s) => s.value > 0)
+              .map((s, i) => (
+                <div
+                  key={i}
+                  className={styles.filterStateSegment}
+                  style={{
+                    width: `${(s.value / testCases.length) * 100}%`,
+                    backgroundColor: s.color,
+                  }}
+                  title={`${s.label}: ${s.value}`}
+                />
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category breakdown for this filter */}
+      {Object.keys(counts.categories).length > 0 && (
+        <div className={styles.filterCategoryRow}>
+          {Object.entries(counts.categories)
+            .sort(([, a], [, b]) => b - a)
+            .map(([cat, count]) => {
+              const label =
+                skipCategoryLabels[cat as SkipCategory] ?? cat;
+              const color =
+                skipCategoryColors[cat as SkipCategory] ?? '#94a3b8';
+              return (
+                <span key={cat} className={styles.filterCategoryTag}>
+                  <span
+                    className={styles.categoryDot}
+                    style={{backgroundColor: color}}
+                  />
+                  {label}: {count}
+                </span>
+              );
+            })}
+        </div>
+      )}
+
       <div className={styles.testCaseToolbar}>
         <div className={styles.testCaseFilterButtons}>
           {filterButtons.map((fb) => (
@@ -227,28 +300,23 @@ export default function TestCaseTable({
                 e.stopPropagation();
                 setFilter(fb.mode);
               }}>
-              {fb.label}
+              {fb.label} ({fb.count})
             </button>
           ))}
         </div>
         <div className={styles.testCaseSortButtons}>
           <span className={styles.sortLabel}>Sort:</span>
-          <button
-            className={`button button--sm ${sort === 'name' ? 'button--primary' : 'button--outline button--secondary'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSort('name');
-            }}>
-            Name
-          </button>
-          <button
-            className={`button button--sm ${sort === 'status' ? 'button--primary' : 'button--outline button--secondary'}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              setSort('status');
-            }}>
-            Status
-          </button>
+          {(['name', 'status', 'category'] as SortMode[]).map((mode) => (
+            <button
+              key={mode}
+              className={`button button--sm ${sort === mode ? 'button--primary' : 'button--outline button--secondary'}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSort(mode);
+              }}>
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
       <table className={styles.testCaseTable}>
@@ -264,12 +332,17 @@ export default function TestCaseTable({
           {sorted.map((tc, i) => {
             const rowKey = `${tc.testName}-${i}`;
             const isExpanded = expandedRow === rowKey;
+            const showCategory = isNotApplicable(tc);
             return (
               <>
                 <tr
                   key={rowKey}
-                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''} ${stateRowClass(tc.testState)}`}
-                  title={tc.skipReason ? `${tc.testState === 'skipped' ? 'Skipped' : 'Unmapped'}: ${tc.skipReason}` : undefined}
+                  className={`${styles.testCaseRow} ${isExpanded ? styles.testCaseRowExpanded : ''} ${stateRowClass(tc.testState)} ${showCategory ? styles.stateNotApplicable : ''}`}
+                  title={
+                    tc.skipReason
+                      ? `${isNotApplicable(tc) ? 'Not applicable' : tc.testState}: ${tc.skipReason}`
+                      : undefined
+                  }
                   onClick={(e) => {
                     e.stopPropagation();
                     toggleRow(rowKey);
@@ -288,6 +361,9 @@ export default function TestCaseTable({
                       <span className={styles.testCaseGoName}>
                         {tc.testName}
                       </span>
+                    )}
+                    {showCategory && tc.skipCategory && (
+                      <CategoryBadge category={tc.skipCategory} />
                     )}
                   </td>
                   <td className={styles.testCaseStatus}>
@@ -322,7 +398,10 @@ export default function TestCaseTable({
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Okapi:</span>
                             {(() => {
-                              const url = okapiSourceUrl(tc.okapiFile, okapiTag);
+                              const url = okapiSourceUrl(
+                                tc.okapiFile,
+                                okapiTag,
+                              );
                               return url ? (
                                 <a
                                   href={url}
@@ -398,6 +477,9 @@ export default function TestCaseTable({
                           <div className={styles.detailItem}>
                             <span className={styles.detailLabel}>Reason:</span>
                             <span>{tc.skipReason}</span>
+                            {tc.skipCategory && (
+                              <CategoryBadge category={tc.skipCategory} />
+                            )}
                           </div>
                         )}
                         {!tc.okapiStatus &&

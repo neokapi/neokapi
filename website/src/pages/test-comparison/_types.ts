@@ -19,6 +19,7 @@ export interface Summary {
   coveragePct: number;
   totalFuncsBridge?: number;
   totalFuncsNative?: number;
+  categoryCounts?: Record<string, number>;
   // Backward compat (old JSON may have these)
   totalFiltersGokapi?: number;
   totalTestsGokapi?: number;
@@ -66,6 +67,53 @@ export interface TestCase {
 /** Test state classification. */
 export type TestState = 'implemented' | 'pending' | 'skipped' | 'unmapped';
 
+/** Auto-classified category for not-applicable tests. */
+export type SkipCategory =
+  | 'subfilter'
+  | 'vendor'
+  | 'roundtrip'
+  | 'testdata'
+  | 'java-api'
+  | 'regex'
+  | 'config'
+  | 'format'
+  | 'dita'
+  | 'feature'
+  | 'not-implemented'
+  | 'other';
+
+/** Human-readable labels for skip categories. */
+export const skipCategoryLabels: Record<SkipCategory, string> = {
+  subfilter: 'Subfilter',
+  vendor: 'Vendor Extension',
+  roundtrip: 'Roundtrip',
+  testdata: 'Test Data',
+  'java-api': 'Java API',
+  regex: 'Regex',
+  config: 'Config',
+  format: 'Wrong Format',
+  dita: 'DITA',
+  feature: 'Feature',
+  'not-implemented': 'Not Implemented',
+  other: 'Other',
+};
+
+/** Colors for skip categories. */
+export const skipCategoryColors: Record<SkipCategory, string> = {
+  subfilter: '#8b5cf6',
+  vendor: '#ec4899',
+  roundtrip: '#06b6d4',
+  testdata: '#f59e0b',
+  'java-api': '#6366f1',
+  regex: '#14b8a6',
+  config: '#f97316',
+  format: '#ef4444',
+  dita: '#a855f7',
+  feature: '#3b82f6',
+  'not-implemented': '#64748b',
+  other: '#94a3b8',
+};
+
 /** Row in the unified test case table. */
 export interface TestCaseRow {
   /** Display name for the test (Java method or Go func). */
@@ -100,6 +148,8 @@ export interface TestCaseRow {
   bridgeSubtests?: number;
   /** Number of Go subtests under the native test function. */
   nativeSubtests?: number;
+  /** Auto-classified skip category. */
+  skipCategory?: SkipCategory;
 }
 
 /** Wire format from the Go testcompare tool (annotation-based). */
@@ -120,6 +170,7 @@ export interface TestCaseMatch {
   testState?: TestState;
   bridgeSubtests?: number;
   nativeSubtests?: number;
+  skipCategory?: SkipCategory;
 }
 
 export interface CoverageStats {
@@ -132,6 +183,11 @@ export interface CoverageStats {
   skippedCount?: number;
   pendingCount?: number;
   implementedPct?: number;
+  notApplicableCount?: number;
+  categoryCounts?: Record<string, number>;
+  bridgeAndNative?: number;
+  bridgeOnly?: number;
+  nativeOnly?: number;
 }
 
 /**
@@ -180,6 +236,7 @@ function convertAnnotatedRows(matches: TestCaseMatch[]): TestCaseRow[] {
     testState: m.testState,
     bridgeSubtests: m.bridgeSubtests,
     nativeSubtests: m.nativeSubtests,
+    skipCategory: m.skipCategory,
   }));
 }
 

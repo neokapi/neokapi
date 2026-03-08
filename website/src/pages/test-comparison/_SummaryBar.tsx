@@ -1,4 +1,6 @@
-import type {FilterComparison, Summary} from './_types';
+import {useMemo} from 'react';
+import type {FilterComparison, Summary, SkipCategory} from './_types';
+import {skipCategoryLabels, skipCategoryColors} from './_types';
 import styles from './_index.module.css';
 
 interface Props {
@@ -7,116 +9,332 @@ interface Props {
   filters?: FilterComparison[];
 }
 
-export default function SummaryBar({
-  summary,
-  generatedAt,
-  filters,
-}: Props) {
-  // Aggregate state counts from all filters
-  let implementedCount = 0;
-  let pendingCount = 0;
-  let skippedCount = 0;
-  let unmappedCount = 0;
-  let hasStateData = false;
+interface AggregateStats {
+  implemented: number;
+  notApplicable: number;
+  okapiSkipped: number;
+  pending: number;
+  unmapped: number;
+  bridgeAndNative: number;
+  bridgeOnly: number;
+  nativeOnly: number;
+  categoryCounts: Record<string, number>;
+  total: number;
+}
 
-  if (filters) {
-    for (const f of filters) {
-      if (f.coverage) {
-        if (f.coverage.skippedCount || f.coverage.pendingCount) {
-          hasStateData = true;
-        }
-        skippedCount += f.coverage.skippedCount ?? 0;
-        pendingCount += f.coverage.pendingCount ?? 0;
+function aggregateStats(filters: FilterComparison[]): AggregateStats {
+  const stats: AggregateStats = {
+    implemented: 0,
+    notApplicable: 0,
+    okapiSkipped: 0,
+    pending: 0,
+    unmapped: 0,
+    bridgeAndNative: 0,
+    bridgeOnly: 0,
+    nativeOnly: 0,
+    categoryCounts: {},
+    total: 0,
+  };
+
+  for (const f of filters) {
+    for (const tc of f.testCases) {
+      stats.total++;
+      switch (tc.testState) {
+        case 'implemented':
+          stats.implemented++;
+          break;
+        case 'pending':
+          stats.pending++;
+          break;
+        case 'skipped':
+          stats.notApplicable++;
+          break;
+        default:
+          // Check for not-applicable (has skipReason) vs truly unmapped
+          if (tc.skipReason) {
+            stats.notApplicable++;
+          } else {
+            stats.unmapped++;
+          }
       }
-      if (f.testCases) {
-        for (const tc of f.testCases) {
-          if (tc.testState === 'implemented') implementedCount++;
-          else if (tc.testState === 'unmapped' || !tc.testState)
-            unmappedCount++;
+
+      // Track bridge/native overlap
+      const hasBridge = !!tc.bridgeTest;
+      const hasNative = !!tc.nativeTest;
+      if (hasBridge && hasNative) stats.bridgeAndNative++;
+      else if (hasBridge) stats.bridgeOnly++;
+      else if (hasNative) stats.nativeOnly++;
+
+      // Track categories
+      if (tc.skipCategory) {
+        stats.categoryCounts[tc.skipCategory] =
+          (stats.categoryCounts[tc.skipCategory] || 0) + 1;
+      }
+    }
+  }
+
+  // Merge in summary-level category counts if test-case level is empty
+  if (
+    Object.keys(stats.categoryCounts).length === 0 &&
+    filters.some((f) => f.coverage?.categoryCounts)
+  ) {
+    for (const f of filters) {
+      if (f.coverage?.categoryCounts) {
+        for (const [cat, count] of Object.entries(f.coverage.categoryCounts)) {
+          stats.categoryCounts[cat] = (stats.categoryCounts[cat] || 0) + count;
         }
       }
     }
   }
 
+  return stats;
+}
+
+/** Stacked horizontal bar with colored segments. */
+function StackedBar({
+  segments,
+  total,
+  height = 20,
+}: {
+  segments: {value: number; color: string; label: string}[];
+  total: number;
+  height?: number;
+}) {
+  if (total === 0) return null;
   return (
-    <div className={styles.summaryBar}>
-      <div className={styles.statCard}>
-        <div className={styles.statValue}>{summary.totalTestsOkapi}</div>
-        <div className={styles.statLabel}>Okapi Tests</div>
+    <div
+      className={styles.stackedBar}
+      style={{height}}
+      title={segments
+        .filter((s) => s.value > 0)
+        .map((s) => `${s.label}: ${s.value} (${((s.value / total) * 100).toFixed(1)}%)`)
+        .join('\n')}>
+      {segments
+        .filter((s) => s.value > 0)
+        .map((s, i) => (
+          <div
+            key={i}
+            className={styles.stackedBarSegment}
+            style={{
+              width: `${(s.value / total) * 100}%`,
+              backgroundColor: s.color,
+            }}
+            title={`${s.label}: ${s.value} (${((s.value / total) * 100).toFixed(1)}%)`}
+          />
+        ))}
+    </div>
+  );
+}
+
+/** Category breakdown mini-chart. */
+function CategoryBreakdown({
+  categoryCounts,
+  total,
+}: {
+  categoryCounts: Record<string, number>;
+  total: number;
+}) {
+  const sorted = Object.entries(categoryCounts).sort(([, a], [, b]) => b - a);
+  if (sorted.length === 0) return null;
+
+  return (
+    <div className={styles.categoryBreakdown}>
+      <div className={styles.categoryTitle}>Skip Reasons</div>
+      <div className={styles.categoryList}>
+        {sorted.map(([cat, count]) => {
+          const label =
+            skipCategoryLabels[cat as SkipCategory] ?? cat;
+          const color =
+            skipCategoryColors[cat as SkipCategory] ?? '#94a3b8';
+          const pct = total > 0 ? ((count / total) * 100).toFixed(0) : '0';
+          return (
+            <div key={cat} className={styles.categoryItem}>
+              <div className={styles.categoryBar}>
+                <div
+                  className={styles.categoryBarFill}
+                  style={{
+                    width: `${(count / sorted[0][1]) * 100}%`,
+                    backgroundColor: color,
+                  }}
+                />
+              </div>
+              <span
+                className={styles.categoryDot}
+                style={{backgroundColor: color}}
+              />
+              <span className={styles.categoryLabel}>{label}</span>
+              <span className={styles.categoryCount}>
+                {count}{' '}
+                <span className={styles.categoryPct}>({pct}%)</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
-      {hasStateData ? (
-        <>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{implementedCount}</div>
-            <div className={styles.statLabel}>Implemented</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{pendingCount}</div>
-            <div className={styles.statLabel}>Pending</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{skippedCount}</div>
-            <div className={styles.statLabel}>Skipped</div>
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>{unmappedCount}</div>
-            <div className={styles.statLabel}>Unmapped</div>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>
-              {summary.totalFuncsBridge ?? summary.totalTestsBridge}
-            </div>
-            <div className={styles.statLabel}>Bridge Tests</div>
-            {summary.totalFuncsBridge != null &&
-              summary.totalFuncsBridge < summary.totalTestsBridge && (
-                <div
-                  className={styles.subtestCount}
-                  title={`${summary.totalTestsBridge} including subtests`}>
-                  ({summary.totalTestsBridge} incl. subtests)
-                </div>
-              )}
-          </div>
-          <div className={styles.statCard}>
-            <div className={styles.statValue}>
-              {summary.totalFuncsNative ?? summary.totalTestsNative}
-            </div>
-            <div className={styles.statLabel}>Native Tests</div>
-            {summary.totalFuncsNative != null &&
-              summary.totalFuncsNative < summary.totalTestsNative && (
-                <div
-                  className={styles.subtestCount}
-                  title={`${summary.totalTestsNative} including subtests`}>
-                  ({summary.totalTestsNative} incl. subtests)
-                </div>
-              )}
-          </div>
-        </>
-      )}
-      <div className={styles.statCard}>
-        <div className={styles.statValue}>
-          {summary.coveragePct > 0
-            ? `${summary.coveragePct.toFixed(1)}%`
-            : '\u2014'}
+    </div>
+  );
+}
+
+export default function SummaryBar({
+  summary,
+  generatedAt,
+  filters,
+}: Props) {
+  const stats = useMemo(
+    () => (filters ? aggregateStats(filters) : null),
+    [filters],
+  );
+
+  const coverageSegments = stats
+    ? [
+        {value: stats.implemented, color: '#2e8555', label: 'Implemented'},
+        {
+          value: stats.notApplicable,
+          color: '#94a3b8',
+          label: 'Not Applicable',
+        },
+        {value: stats.pending, color: '#e3a008', label: 'Pending'},
+        {value: stats.unmapped, color: '#dc2626', label: 'Unmapped'},
+      ]
+    : [];
+
+  const overlapSegments = stats
+    ? [
+        {
+          value: stats.bridgeAndNative,
+          color: '#2e8555',
+          label: 'Bridge + Native',
+        },
+        {value: stats.bridgeOnly, color: '#3b82f6', label: 'Bridge Only'},
+        {value: stats.nativeOnly, color: '#8b5cf6', label: 'Native Only'},
+      ]
+    : [];
+
+  return (
+    <div className={styles.summaryWrap}>
+      {/* Top row: key stats */}
+      <div className={styles.summaryBar}>
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>{summary.totalTestsOkapi}</div>
+          <div className={styles.statLabel}>Okapi Tests</div>
         </div>
-        <div className={styles.statLabel}>Coverage</div>
-        {summary.coveragePct > 0 && (
-          <div className={styles.coverageBarWrap}>
-            <div
-              className={styles.coverageBarFill}
-              style={{width: `${Math.min(summary.coveragePct, 100)}%`}}
-            />
-          </div>
+        {stats ? (
+          <>
+            <div className={styles.statCard}>
+              <div className={`${styles.statValue} ${styles.statGreen}`}>
+                {stats.implemented}
+              </div>
+              <div className={styles.statLabel}>Implemented</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statValue}>{stats.notApplicable}</div>
+              <div className={styles.statLabel}>Not Applicable</div>
+            </div>
+            <div className={styles.statCard}>
+              <div
+                className={`${styles.statValue} ${stats.unmapped > 0 ? styles.statRed : ''}`}>
+                {stats.unmapped}
+              </div>
+              <div className={styles.statLabel}>Unmapped</div>
+            </div>
+            {stats.pending > 0 && (
+              <div className={styles.statCard}>
+                <div className={`${styles.statValue} ${styles.statYellow}`}>
+                  {stats.pending}
+                </div>
+                <div className={styles.statLabel}>Pending</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className={styles.statCard}>
+              <div className={styles.statValue}>
+                {summary.totalFuncsBridge ?? summary.totalTestsBridge}
+              </div>
+              <div className={styles.statLabel}>Bridge Tests</div>
+            </div>
+            <div className={styles.statCard}>
+              <div className={styles.statValue}>
+                {summary.totalFuncsNative ?? summary.totalTestsNative}
+              </div>
+              <div className={styles.statLabel}>Native Tests</div>
+            </div>
+          </>
         )}
-      </div>
-      <div className={styles.statCard}>
-        <div className={styles.statLabel}>Generated</div>
-        <div className={styles.statDate}>
-          {new Date(generatedAt).toLocaleDateString()}
+        <div className={styles.statCard}>
+          <div className={styles.statValue}>
+            {summary.coveragePct > 0
+              ? `${summary.coveragePct.toFixed(1)}%`
+              : '\u2014'}
+          </div>
+          <div className={styles.statLabel}>Coverage</div>
+        </div>
+        <div className={styles.statCard}>
+          <div className={styles.statLabel}>Generated</div>
+          <div className={styles.statDate}>
+            {new Date(generatedAt).toLocaleDateString()}
+          </div>
         </div>
       </div>
+
+      {/* Coverage state bar */}
+      {stats && stats.total > 0 && (
+        <div className={styles.summaryBarsRow}>
+          <div className={styles.summaryBarSection}>
+            <div className={styles.barSectionLabel}>Coverage State</div>
+            <StackedBar segments={coverageSegments} total={stats.total} />
+            <div className={styles.barLegend}>
+              {coverageSegments
+                .filter((s) => s.value > 0)
+                .map((s) => (
+                  <span key={s.label} className={styles.legendItem}>
+                    <span
+                      className={styles.legendDot}
+                      style={{backgroundColor: s.color}}
+                    />
+                    {s.label} ({s.value})
+                  </span>
+                ))}
+            </div>
+          </div>
+
+          <div className={styles.summaryBarSection}>
+            <div className={styles.barSectionLabel}>
+              Implementation Coverage
+            </div>
+            <StackedBar
+              segments={overlapSegments}
+              total={
+                stats.bridgeAndNative + stats.bridgeOnly + stats.nativeOnly
+              }
+            />
+            <div className={styles.barLegend}>
+              {overlapSegments
+                .filter((s) => s.value > 0)
+                .map((s) => (
+                  <span key={s.label} className={styles.legendItem}>
+                    <span
+                      className={styles.legendDot}
+                      style={{backgroundColor: s.color}}
+                    />
+                    {s.label} ({s.value})
+                  </span>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category breakdown */}
+      {stats &&
+        Object.keys(stats.categoryCounts).length > 0 &&
+        stats.notApplicable > 0 && (
+          <CategoryBreakdown
+            categoryCounts={stats.categoryCounts}
+            total={stats.notApplicable}
+          />
+        )}
     </div>
   );
 }
