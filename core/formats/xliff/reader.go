@@ -758,9 +758,7 @@ func parseInlineContent(innerXML string) *model.Fragment {
 	depth := 0
 
 	flushText := func() {
-		if textBuf.Len() > 0 {
-			// Nothing to do: text is accumulated and will be set at the end
-		}
+		// Text is accumulated in textBuf and set at the end — nothing to flush mid-parse
 	}
 
 	for {

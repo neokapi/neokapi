@@ -166,9 +166,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				} else if currentTU != nil && !inSeg {
 					inTUNote = true
 					noteBuilder.Reset()
-				} else if inSeg && segBuilder != nil {
-					// <note> inside a <seg> — should not happen per TMX spec, ignore
 				}
+				// <note> inside a <seg> — not per TMX spec, ignored
 
 			case "prop":
 				propType := ""
@@ -363,11 +362,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				segBuilder.addText(text)
 			}
 		}
-	}
-
-	// Emit source language from header if not set
-	if srcLang == "" {
-		srcLang = string(locale)
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
