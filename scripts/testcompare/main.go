@@ -81,12 +81,13 @@ type Summary struct {
 }
 
 type FilterComparison struct {
-	FilterName string          `json:"filterName"`
-	Okapi      *FilterResult   `json:"okapi"`
-	Bridge     *FilterResult   `json:"bridge"`
-	Native     *FilterResult   `json:"native"`
-	TestCases  []TestCaseMatch `json:"testCases"`
-	Coverage   CoverageStats   `json:"coverage"`
+	FilterName       string          `json:"filterName"`
+	NativeFilterName string          `json:"nativeFilterName,omitempty"` // native Go package name if different from filterName
+	Okapi            *FilterResult   `json:"okapi"`
+	Bridge           *FilterResult   `json:"bridge"`
+	Native           *FilterResult   `json:"native"`
+	TestCases        []TestCaseMatch `json:"testCases"`
+	Coverage         CoverageStats   `json:"coverage"`
 }
 
 type FilterResult struct {
@@ -530,14 +531,32 @@ func bridgeFilterFromPkg(pkg string) string {
 	return strings.TrimPrefix(seg, "okf_")
 }
 
+// nativeToOkapiAlias maps native Go package names to their Okapi surefire filter names
+// when they differ. This ensures native test results are merged with the correct
+// Okapi filter entry in the comparison dashboard.
+var nativeToOkapiAlias = map[string]string{
+	"csv":  "table",
+	"xml":  "xmlstream",
+	"vtt":  "subtitles",
+	"srt":  "subtitles",
+}
+
+// canonicalFilterName returns the Okapi surefire name for a native filter.
+func canonicalFilterName(native string) string {
+	if alias, ok := nativeToOkapiAlias[native]; ok {
+		return alias
+	}
+	return native
+}
+
 // nativeFilterFromPkg extracts the filter name from a native format package path.
-// e.g. ".../formats/json" → "json"
+// e.g. ".../formats/json" → "json", ".../formats/csv" → "table"
 func nativeFilterFromPkg(pkg string) string {
 	// Check the package path contains "/formats/"
 	if !strings.Contains(pkg, "/formats/") {
 		return ""
 	}
-	return lastSegment(pkg)
+	return canonicalFilterName(lastSegment(pkg))
 }
 
 func lastSegment(s string) string {
@@ -624,7 +643,7 @@ func parseFileAnnotations(path, kind string) annotationResult {
 
 		// Check for // okapi-filter: directive (sets active filter for subsequent annotations)
 		if m := filterDirectiveRe.FindStringSubmatch(trimmed); m != nil {
-			activeFilter = m[1]
+			activeFilter = canonicalFilterName(m[1])
 			continue
 		}
 
@@ -705,7 +724,7 @@ func filterFromPath(path, kind string) string {
 		}
 		return strings.TrimPrefix(seg, "okf_")
 	default:
-		return seg
+		return canonicalFilterName(seg)
 	}
 }
 
@@ -767,7 +786,13 @@ func merge(
 		unmappedMap[annKey{u.Filter, u.JavaClass, u.JavaMethod}] = u
 	}
 
-	// Collect all filter names
+	// Build reverse alias map: canonical → native name
+	okapiToNative := map[string]string{}
+	for native, canonical := range nativeToOkapiAlias {
+		okapiToNative[canonical] = native
+	}
+
+	// Collect all filter names (using canonical/Okapi names)
 	names := map[string]struct{}{}
 	for n := range okapi {
 		names[n] = struct{}{}
@@ -786,6 +811,10 @@ func merge(
 		fc := FilterComparison{
 			FilterName: n,
 			Okapi:      okapi[n],
+		}
+		// Set native filter name if it differs from canonical
+		if nativeName, ok := okapiToNative[n]; ok {
+			fc.NativeFilterName = nativeName
 		}
 		if bridge != nil {
 			fc.Bridge = bridge[n]
