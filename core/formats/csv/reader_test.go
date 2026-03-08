@@ -1626,12 +1626,11 @@ func TestCSV_ContextCancellation(t *testing.T) {
 
 	cancel() // Cancel before reading
 	ch := reader.Read(ctx)
-	var parts []*model.Part
 	for result := range ch {
 		if result.Error != nil {
 			break
 		}
-		parts = append(parts, result.Part)
+		_ = result.Part
 	}
 	// After cancellation, we might get 0 or some parts, but no hang
 }

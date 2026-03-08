@@ -792,9 +792,9 @@ func (r *AttributeRule) HasAttrRule(rt RuleType) bool {
 	return false
 }
 
-// collapseWhitespace replaces sequences of whitespace with a single space
+// CollapseWhitespace replaces sequences of whitespace with a single space
 // and trims leading/trailing whitespace.
-func collapseWhitespace(s string) string {
+func CollapseWhitespace(s string) string {
 	var buf strings.Builder
 	inSpace := false
 	started := false

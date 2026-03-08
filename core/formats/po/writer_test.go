@@ -13,7 +13,7 @@ import (
 )
 
 // writeFromParts is a helper that writes parts to a PO string.
-func writeFromParts(t *testing.T, parts []*model.Part, locale model.LocaleID) string {
+func writeFromParts(t *testing.T, parts []*model.Part, locale model.LocaleID) string { //nolint:unused // reserved for future writer tests
 	t.Helper()
 	ctx := context.Background()
 

@@ -99,7 +99,7 @@ func roundtrip(t *testing.T, content string) string {
 }
 
 // findBlockContaining returns the first block whose source text contains substr.
-func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
+func findBlockContaining(blocks []*model.Block, substr string) *model.Block { //nolint:unused // reserved for future test use
 	for _, b := range blocks {
 		if strings.Contains(b.SourceText(), substr) {
 			return b
