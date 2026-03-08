@@ -211,17 +211,28 @@ func parseVersionedBinaries(s string) []VersionedBinary {
 
 // detectVersion tries to get the version string from a binary.
 func detectVersion(binPath string) string {
+	// Try kapi-style: kapi version --json → {"version": "..."}
 	out, err := runCommand(binPath, "version", "--json")
-	if err != nil {
-		return filepath.Base(binPath)
+	if err == nil {
+		var v struct {
+			Version string `json:"version"`
+		}
+		if err := json.Unmarshal([]byte(out), &v); err == nil && v.Version != "" {
+			return v.Version
+		}
 	}
-	var v struct {
-		Version string `json:"version"`
+
+	// Try tikal-style: tikal (no args) prints "Version: X.Y.Z" to combined output.
+	out, err = runCommandCombined(binPath)
+	if err == nil {
+		for _, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(line, "Version: ") {
+				return strings.TrimPrefix(line, "Version: ")
+			}
+		}
 	}
-	if err := json.Unmarshal([]byte(out), &v); err != nil || v.Version == "" {
-		return filepath.Base(binPath)
-	}
-	return v.Version
+
+	return filepath.Base(binPath)
 }
 
 func printSummary(report *Report) {
