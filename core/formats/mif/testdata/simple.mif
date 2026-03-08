@@ -1,0 +1,21 @@
+<MIFFile 2015>
+<TextFlow
+ <Para
+  <PgfTag `Body'>
+  <ParaLine
+   <String `This is the first paragraph.'>
+  >
+ >
+ <Para
+  <PgfTag `Body'>
+  <ParaLine
+   <String `This is the second paragraph.'>
+  >
+ >
+ <Para
+  <PgfTag `Heading'>
+  <ParaLine
+   <String `A heading paragraph.'>
+  >
+ >
+>
