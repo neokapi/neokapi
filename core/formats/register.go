@@ -7,7 +7,7 @@ import (
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/fixedwidth"
 	"github.com/gokapi/gokapi/core/formats/html"
-	"github.com/gokapi/gokapi/core/formats/icml"
+	"github.com/gokapi/gokapi/core/formats/idml"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/messageformat"
@@ -122,7 +122,7 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 
-	// Fixed-Width Columns
-	reg.RegisterReader("fixedwidth", func() format.DataFormatReader { return fixedwidth.NewReader() })
-	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
+	// IDML (Adobe InDesign)
+	reg.RegisterReader("idml", func() format.DataFormatReader { return idml.NewReader() })
+	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
 }
