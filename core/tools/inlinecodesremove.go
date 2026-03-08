@@ -1,0 +1,83 @@
+package tools
+
+import (
+	"fmt"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+)
+
+// InlineCodesRemoveConfig holds configuration for the inline codes remove tool.
+type InlineCodesRemoveConfig struct {
+	ApplySource  bool           // Apply to source segments (default: false)
+	ApplyTarget  bool           // Apply to target segments (default: true)
+	TargetLocale model.LocaleID // Target locale (required when ApplyTarget is true)
+}
+
+// ToolName returns the tool name this config applies to.
+func (c *InlineCodesRemoveConfig) ToolName() string { return "inline-codes-remove" }
+
+// Reset restores default values.
+func (c *InlineCodesRemoveConfig) Reset() {
+	c.ApplySource = false
+	c.ApplyTarget = true
+	c.TargetLocale = ""
+}
+
+// Validate checks configuration validity.
+func (c *InlineCodesRemoveConfig) Validate() error {
+	if c.ApplyTarget && c.TargetLocale == "" {
+		return fmt.Errorf("InlineCodesRemoveConfig: TargetLocale is required when ApplyTarget is true")
+	}
+	if !c.ApplySource && !c.ApplyTarget {
+		return fmt.Errorf("InlineCodesRemoveConfig: at least one of ApplySource or ApplyTarget must be true")
+	}
+	return nil
+}
+
+// NewInlineCodesRemoveTool creates a new tool that strips inline codes/spans
+// from fragment content, producing clean plain text.
+func NewInlineCodesRemoveTool(cfg *InlineCodesRemoveConfig) *tool.BaseTool {
+	t := &tool.BaseTool{
+		ToolName:        "inline-codes-remove",
+		ToolDescription: "Strips inline codes/spans from fragment content, producing clean plain text",
+		Cfg:             cfg,
+	}
+	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+		block, ok := part.Resource.(*model.Block)
+		if !ok {
+			return part, nil
+		}
+		if !block.Translatable {
+			return part, nil
+		}
+
+		if cfg.ApplySource {
+			for _, seg := range block.Source {
+				stripSpans(seg.Content)
+			}
+		}
+
+		if cfg.ApplyTarget {
+			segs, ok := block.Targets[cfg.TargetLocale]
+			if ok {
+				for _, seg := range segs {
+					stripSpans(seg.Content)
+				}
+			}
+		}
+
+		return part, nil
+	}
+	return t
+}
+
+// stripSpans removes all span markers from the fragment's coded text
+// and clears the Spans slice, leaving only plain text.
+func stripSpans(frag *model.Fragment) {
+	if frag == nil || !frag.HasSpans() {
+		return
+	}
+	frag.CodedText = frag.Text()
+	frag.Spans = nil
+}
