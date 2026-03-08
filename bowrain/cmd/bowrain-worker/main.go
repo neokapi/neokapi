@@ -34,6 +34,7 @@ func main() {
 
 	serviceBusConn := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION")
 	natsURL := os.Getenv("BOWRAIN_NATS_URL")
+	openaiEndpoint := os.Getenv("BOWRAIN_OPENAI_ENDPOINT")
 	credentialsPath := os.Getenv("BOWRAIN_CREDENTIALS_PATH")
 	if credentialsPath == "" {
 		credentialsPath = credentials.DefaultPath()
@@ -42,6 +43,7 @@ func main() {
 	// Open stores.
 	var cs store.ContentStore
 	var jobStore jobs.JobStore
+	var quotaStore jobs.QuotaStore
 
 	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
 		var pgdb *storage.PgDB
@@ -67,6 +69,12 @@ func main() {
 			log.Fatalf("Worker: open PostgreSQL job store: %v", err)
 		}
 		jobStore = pgJS
+
+		pgQS, err := jobs.NewPgQuotaStore(pgdb)
+		if err != nil {
+			log.Fatalf("Worker: open PostgreSQL quota store: %v", err)
+		}
+		quotaStore = pgQS
 	} else {
 		storePath := strings.TrimPrefix(dbURL, "sqlite:///")
 
@@ -112,8 +120,25 @@ func main() {
 
 	credStore := credentials.NewStore(credentialsPath)
 
+	// Build worker dependencies.
+	deps := &jobs.WorkerDeps{
+		JobStore:     jobStore,
+		ContentStore: cs,
+		CredStore:    credStore,
+		Queue:        queue,
+		QuotaStore:   quotaStore,
+	}
+
+	// Configure platform Azure OpenAI if endpoint is set.
+	if openaiEndpoint != "" {
+		deps.Platform = &jobs.PlatformProviderConfig{
+			Endpoint: openaiEndpoint,
+			ClientID: azureClientID,
+		}
+	}
+
 	log.Println("Starting bowrain worker...")
-	if err := jobs.RunWorker(ctx, jobStore, cs, credStore, queue); err != nil {
+	if err := jobs.RunWorkerWithDeps(ctx, deps); err != nil {
 		log.Fatalf("Worker failed: %v", err)
 	}
 }

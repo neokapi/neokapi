@@ -34,6 +34,14 @@ var pgJobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add model and tokens_used columns",
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS model TEXT NOT NULL DEFAULT '';
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS tokens_used INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }
 
 // PgJobStore implements JobStore using PostgreSQL.
@@ -61,11 +69,11 @@ func (s *PgJobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO translation_jobs
 			(id, workspace_slug, project_id, item_name, target_locale, provider_config_id,
-			 status, progress, total_blocks, done_blocks, error, created_at, updated_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+			 model, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.TargetLocale,
-		job.ProviderConfigID, string(job.Status), job.Progress, job.TotalBlocks,
-		job.DoneBlocks, job.Error, now, now)
+		job.ProviderConfigID, job.Model, string(job.Status), job.Progress, job.TotalBlocks,
+		job.DoneBlocks, job.TokensUsed, job.Error, now, now)
 	if err != nil {
 		return fmt.Errorf("insert job: %w", err)
 	}
@@ -75,8 +83,8 @@ func (s *PgJobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 func (s *PgJobStore) GetJob(ctx context.Context, id string) (*TranslationJob, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
-				provider_config_id, status, progress, total_blocks, done_blocks,
-				error, created_at, updated_at
+				provider_config_id, model, status, progress, total_blocks, done_blocks,
+				tokens_used, error, created_at, updated_at
 		 FROM translation_jobs WHERE id = $1`, id)
 	return scanJob(row)
 }
@@ -87,8 +95,8 @@ func (s *PgJobStore) ListJobs(ctx context.Context, workspaceSlug string, limit i
 	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
-				provider_config_id, status, progress, total_blocks, done_blocks,
-				error, created_at, updated_at
+				provider_config_id, model, status, progress, total_blocks, done_blocks,
+				tokens_used, error, created_at, updated_at
 		 FROM translation_jobs
 		 WHERE workspace_slug = $1
 		 ORDER BY created_at DESC
@@ -143,8 +151,8 @@ func scanJob(row *sql.Row) (*TranslationJob, error) {
 	var status string
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-		&j.ProviderConfigID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-		&j.Error, &j.CreatedAt, &j.UpdatedAt)
+		&j.ProviderConfigID, &j.Model, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+		&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan job: %w", err)
 	}
@@ -160,8 +168,8 @@ func scanJobs(rows *sql.Rows) ([]*TranslationJob, error) {
 		var status string
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-			&j.ProviderConfigID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
-			&j.Error, &j.CreatedAt, &j.UpdatedAt)
+			&j.ProviderConfigID, &j.Model, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)
 		}

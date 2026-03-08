@@ -12,14 +12,20 @@ import (
 
 const defaultAzureAPIVersion = "2024-10-21"
 
+// TokenProvider is a function that returns a Bearer token for Azure OpenAI authentication.
+// When set on AzureOpenAIProvider, Bearer token auth is used instead of API key auth.
+// This enables managed identity authentication without depending on the Azure SDK.
+type TokenProvider func(ctx context.Context) (string, error)
+
 // AzureOpenAIProvider implements LLMProvider for Azure OpenAI Service.
 // Azure OpenAI uses the same request/response format as OpenAI but with
 // different URL structure and authentication.
 type AzureOpenAIProvider struct {
-	config     Config
-	deployment string // Azure deployment name (defaults to config.Model)
-	apiVersion string
-	client     *http.Client
+	config        Config
+	deployment    string // Azure deployment name (defaults to config.Model)
+	apiVersion    string
+	client        *http.Client
+	tokenProvider TokenProvider // optional; if set, Bearer token auth is used instead of api-key
 }
 
 // NewAzureOpenAIProvider creates a new Azure OpenAI provider.
@@ -37,6 +43,23 @@ func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 		deployment: cfg.Model,
 		apiVersion: defaultAzureAPIVersion,
 		client:     &http.Client{},
+	}
+}
+
+// NewAzureOpenAITokenProvider creates an Azure OpenAI provider that uses
+// a TokenProvider for authentication instead of an API key. This is the
+// preferred method for Azure deployments using managed identities.
+func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) *AzureOpenAIProvider {
+	return &AzureOpenAIProvider{
+		config: Config{
+			BaseURL:   endpoint,
+			Model:     deployment,
+			MaxTokens: 4096,
+		},
+		deployment:    deployment,
+		apiVersion:    defaultAzureAPIVersion,
+		client:        &http.Client{},
+		tokenProvider: tp,
 	}
 }
 
@@ -101,7 +124,15 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("api-key", p.config.APIKey)
+	if p.tokenProvider != nil {
+		token, err := p.tokenProvider(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("azureopenai: get token: %w", err)
+		}
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	} else {
+		httpReq.Header.Set("api-key", p.config.APIKey)
+	}
 
 	httpResp, err := p.client.Do(httpReq)
 	if err != nil {
