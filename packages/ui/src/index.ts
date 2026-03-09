@@ -53,6 +53,9 @@ export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
 export { InviteManager } from "./components/InviteManager";
 export { ApiTokenManager } from "./components/ApiTokenManager";
+export { AutomationsPage } from "./components/AutomationsPage";
+export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
+export { AutomationHistory } from "./components/AutomationHistory";
 
 // Editor components
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
@@ -122,6 +125,8 @@ export type {
   FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
   Invite, AcceptInviteResponse, ClaimProjectResponse,
   ApiToken, CreateApiTokenResponse,
+  AutomationRule, AutomationCondition, AutomationAction, AutomationEvent,
+  SaveAutomationRuleRequest, AutomationHistoryEntry,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

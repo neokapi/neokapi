@@ -1,43 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
-import { Badge, GlassCard } from "@gokapi/ui";
-import { api } from "../api";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface HistoryEntry {
-  id: string;
-  rule_id: string;
-  project_id: string;
-  event_id: string;
-  status: "success" | "failed" | "skipped";
-  error: string;
-  started_at: string;
-  ended_at: string;
-}
-
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-async function fetchHistory(ws: string, projectId: string): Promise<HistoryEntry[]> {
-  const resp = await fetch(
-    `/api/v1/workspaces/${encodeURIComponent(ws)}/projects/${encodeURIComponent(projectId)}/automations/history`,
-    { credentials: "same-origin" },
-  );
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
+import { useApi } from "../context/ApiContext";
+import type { AutomationHistoryEntry } from "../types/api";
+import { Badge } from "./ui/badge";
+import { GlassCard } from "./ui/card";
 
 // ---------------------------------------------------------------------------
 // Status badge
 // ---------------------------------------------------------------------------
 
-function StatusBadge({ status }: { status: HistoryEntry["status"] }) {
+function StatusBadge({ status }: { status: AutomationHistoryEntry["status"] }) {
   const variant =
     status === "success"
       ? "default"
@@ -73,14 +44,14 @@ function relativeTime(iso: string): string {
 interface AutomationHistoryProps {
   workspaceSlug: string;
   projectId: string;
-  /** Optional map of rule IDs to rule names for display. */
   ruleNames?: Record<string, string>;
 }
 
 export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: AutomationHistoryProps) {
+  const api = useApi();
   const { data: entries, isLoading, error } = useQuery({
     queryKey: ["automations", "history", workspaceSlug, projectId],
-    queryFn: () => fetchHistory(workspaceSlug, projectId),
+    queryFn: () => api.listAutomationHistory(workspaceSlug, projectId),
     staleTime: 15_000,
   });
 

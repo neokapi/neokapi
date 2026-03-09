@@ -9,6 +9,7 @@ import type {
   Invite, AcceptInviteResponse, ClaimProjectResponse,
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
+  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
 } from "../types/api";
 
 /**
@@ -112,6 +113,15 @@ export interface ApiAdapter {
   saveProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<ProviderConfig>;
   deleteProviderConfig(workspaceSlug: string, id: string): Promise<void>;
   testProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<void>;
+
+  // Automations
+  listAutomationRules(workspaceSlug: string, projectId: string): Promise<AutomationRule[]>;
+  createAutomationRule(workspaceSlug: string, projectId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule>;
+  updateAutomationRule(workspaceSlug: string, projectId: string, ruleId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule>;
+  deleteAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<void>;
+  toggleAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<AutomationRule>;
+  listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]>;
+  listAutomationHistory(workspaceSlug: string, projectId: string): Promise<AutomationHistoryEntry[]>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

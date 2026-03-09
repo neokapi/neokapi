@@ -1,6 +1,5 @@
 import { useParams, useRouteContext } from "@tanstack/react-router";
-import { GlassCard } from "@gokapi/ui";
-import { AutomationsPage } from "../../components/AutomationsPage";
+import { GlassCard, AutomationsPage } from "@gokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function AutomationsRoute() {

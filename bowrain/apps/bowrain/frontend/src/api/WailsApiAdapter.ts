@@ -10,6 +10,7 @@ import type {
   Invite, AcceptInviteResponse, ClaimProjectResponse,
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
+  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -293,6 +294,29 @@ export class WailsApiAdapter implements ApiAdapter {
     targetLocale: string,
   ): Promise<string> {
     return Backend.RenderBlockHTML(projectId, "", blockId, targetLocale);
+  }
+
+  // --- Automations (desktop: not yet backed by Wails bindings) ---
+  async listAutomationRules(_ws: string, _projectId: string): Promise<AutomationRule[]> {
+    return [];
+  }
+  async createAutomationRule(_ws: string, _projectId: string, _data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+    throw new Error("Automations not yet supported in desktop mode");
+  }
+  async updateAutomationRule(_ws: string, _projectId: string, _ruleId: string, _data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+    throw new Error("Automations not yet supported in desktop mode");
+  }
+  async deleteAutomationRule(_ws: string, _projectId: string, _ruleId: string): Promise<void> {
+    throw new Error("Automations not yet supported in desktop mode");
+  }
+  async toggleAutomationRule(_ws: string, _projectId: string, _ruleId: string): Promise<AutomationRule> {
+    throw new Error("Automations not yet supported in desktop mode");
+  }
+  async listAutomationEvents(_ws: string, _projectId: string): Promise<AutomationEvent[]> {
+    return [];
+  }
+  async listAutomationHistory(_ws: string, _projectId: string): Promise<AutomationHistoryEntry[]> {
+    return [];
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

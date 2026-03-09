@@ -384,6 +384,64 @@ export interface ToolInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Automation types
+// ---------------------------------------------------------------------------
+
+/** Automation rule condition */
+export interface AutomationCondition {
+  Field: string;
+  Operator: string;
+  Value: string;
+}
+
+/** Automation rule action */
+export interface AutomationAction {
+  Type: string;
+  Config: Record<string, string>;
+}
+
+/** Automation rule */
+export interface AutomationRule {
+  id: string;
+  project_id: string;
+  name: string;
+  trigger: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  enabled: boolean;
+  builtin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Automation event descriptor */
+export interface AutomationEvent {
+  type: string;
+  description: string;
+}
+
+/** Save automation rule request (create or update) */
+export interface SaveAutomationRuleRequest {
+  name: string;
+  trigger: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  enabled: boolean;
+}
+
+/** Automation execution history entry */
+export interface AutomationHistoryEntry {
+  id: string;
+  rule_id: string;
+  project_id: string;
+  event_id: string;
+  status: "success" | "failed" | "skipped";
+  error: string;
+  started_at: string;
+  ended_at: string;
+}
+
+// ---------------------------------------------------------------------------
 // Flow types
 // ---------------------------------------------------------------------------
 

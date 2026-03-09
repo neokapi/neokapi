@@ -10,6 +10,7 @@ import type {
   Invite, AcceptInviteResponse, ClaimProjectResponse,
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
+  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
 } from "../types/api";
 
 /**
@@ -580,6 +581,50 @@ export class RestApiAdapter implements ApiAdapter {
       method: "POST",
       body: JSON.stringify(cfg),
     });
+  }
+
+  // ── Automations ────────────────────────────────────────────────────────
+
+  private automationsEp(ws: string, projectId: string) {
+    return `/api/v1/workspaces/${ws}/projects/${encodeURIComponent(projectId)}/automations`;
+  }
+
+  async listAutomationRules(workspaceSlug: string, projectId: string): Promise<AutomationRule[]> {
+    return this.fetchJSON(this.automationsEp(workspaceSlug, projectId));
+  }
+
+  async createAutomationRule(workspaceSlug: string, projectId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+    return this.fetchJSON(this.automationsEp(workspaceSlug, projectId), {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAutomationRule(workspaceSlug: string, projectId: string, ruleId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/${encodeURIComponent(ruleId)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<void> {
+    await this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/${encodeURIComponent(ruleId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async toggleAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<AutomationRule> {
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/${encodeURIComponent(ruleId)}/toggle`, {
+      method: "PATCH",
+    });
+  }
+
+  async listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]> {
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/events`);
+  }
+
+  async listAutomationHistory(workspaceSlug: string, projectId: string): Promise<AutomationHistoryEntry[]> {
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────
