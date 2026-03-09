@@ -1,85 +1,13 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, GlassCard, Switch, Badge } from "@gokapi/ui";
-import { AutomationRuleEditor, type AutomationRule, type AutomationCondition, type AutomationAction } from "./AutomationRuleEditor";
+import { useApi } from "../context/ApiContext";
+import type { AutomationRule, AutomationCondition, AutomationAction } from "../types/api";
+import { Button } from "./ui/button";
+import { GlassCard } from "./ui/card";
+import { Switch } from "./ui/switch";
+import { Badge } from "./ui/badge";
+import { AutomationRuleEditor } from "./AutomationRuleEditor";
 import { AutomationHistory } from "./AutomationHistory";
-
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-function automationsUrl(ws: string, projectId: string): string {
-  return `/api/v1/workspaces/${encodeURIComponent(ws)}/projects/${encodeURIComponent(projectId)}/automations`;
-}
-
-async function fetchRules(ws: string, projectId: string): Promise<AutomationRule[]> {
-  const resp = await fetch(automationsUrl(ws, projectId), { credentials: "same-origin" });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
-
-async function createRule(
-  ws: string,
-  projectId: string,
-  data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean },
-): Promise<AutomationRule> {
-  const resp = await fetch(automationsUrl(ws, projectId), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(data),
-  });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
-
-async function updateRule(
-  ws: string,
-  projectId: string,
-  ruleId: string,
-  data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean },
-): Promise<AutomationRule> {
-  const resp = await fetch(`${automationsUrl(ws, projectId)}/${encodeURIComponent(ruleId)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(data),
-  });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
-
-async function deleteRule(ws: string, projectId: string, ruleId: string): Promise<void> {
-  const resp = await fetch(`${automationsUrl(ws, projectId)}/${encodeURIComponent(ruleId)}`, {
-    method: "DELETE",
-    credentials: "same-origin",
-  });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-}
-
-async function toggleRule(ws: string, projectId: string, ruleId: string): Promise<AutomationRule> {
-  const resp = await fetch(`${automationsUrl(ws, projectId)}/${encodeURIComponent(ruleId)}/toggle`, {
-    method: "PATCH",
-    credentials: "same-origin",
-  });
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -91,24 +19,22 @@ interface AutomationsPageProps {
 }
 
 export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPageProps) {
+  const api = useApi();
   const queryClient = useQueryClient();
   const rulesQueryKey = ["automations", "rules", workspaceSlug, projectId];
 
-  // ---- Data fetching ----
   const { data: rules, isLoading, error } = useQuery({
     queryKey: rulesQueryKey,
-    queryFn: () => fetchRules(workspaceSlug, projectId),
+    queryFn: () => api.listAutomationRules(workspaceSlug, projectId),
     staleTime: 15_000,
   });
 
-  // ---- Editor state ----
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<AutomationRule | undefined>();
 
-  // ---- Mutations ----
   const createMutation = useMutation({
     mutationFn: (data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean }) =>
-      createRule(workspaceSlug, projectId, data),
+      api.createAutomationRule(workspaceSlug, projectId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
@@ -117,7 +43,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
 
   const updateMutation = useMutation({
     mutationFn: ({ ruleId, data }: { ruleId: string; data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean } }) =>
-      updateRule(workspaceSlug, projectId, ruleId, data),
+      api.updateAutomationRule(workspaceSlug, projectId, ruleId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
@@ -126,20 +52,19 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (ruleId: string) => deleteRule(workspaceSlug, projectId, ruleId),
+    mutationFn: (ruleId: string) => api.deleteAutomationRule(workspaceSlug, projectId, ruleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rulesQueryKey });
     },
   });
 
   const toggleMutation = useMutation({
-    mutationFn: (ruleId: string) => toggleRule(workspaceSlug, projectId, ruleId),
+    mutationFn: (ruleId: string) => api.toggleAutomationRule(workspaceSlug, projectId, ruleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: rulesQueryKey });
     },
   });
 
-  // ---- Handlers ----
   const handleNewRule = useCallback(() => {
     setEditingRule(undefined);
     setEditorOpen(true);
@@ -170,7 +95,6 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
     [deleteMutation],
   );
 
-  // Build rule name map for history display.
   const ruleNames = useMemo(() => {
     const map: Record<string, string> = {};
     for (const r of rules ?? []) {
@@ -179,7 +103,6 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
     return map;
   }, [rules]);
 
-  // ---- Render ----
   return (
     <div className="space-y-6 max-w-[720px]">
       {/* Active Rules */}

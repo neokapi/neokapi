@@ -1,73 +1,28 @@
 import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useApi } from "../context/ApiContext";
+import type { AutomationCondition, AutomationAction, AutomationRule } from "../types/api";
+import { Button } from "./ui/button";
 import {
-  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  Input,
-  Label,
+} from "./ui/dialog";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Switch,
-} from "@gokapi/ui";
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-export interface AutomationCondition {
-  Field: string;
-  Operator: string;
-  Value: string;
-}
-
-export interface AutomationAction {
-  Type: string;
-  Config: Record<string, string>;
-}
-
-export interface AutomationRule {
-  id: string;
-  project_id: string;
-  name: string;
-  trigger: string;
-  conditions: AutomationCondition[];
-  actions: AutomationAction[];
-  enabled: boolean;
-  builtin: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface AutomationEvent {
-  type: string;
-  description: string;
-}
+} from "./ui/select";
+import { Switch } from "./ui/switch";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
 const ACTION_TYPES = ["auto_translate", "run_flow", "webhook", "notify"] as const;
-
-// ---------------------------------------------------------------------------
-// API helpers
-// ---------------------------------------------------------------------------
-
-async function fetchEvents(ws: string, projectId: string): Promise<AutomationEvent[]> {
-  const resp = await fetch(
-    `/api/v1/workspaces/${encodeURIComponent(ws)}/projects/${encodeURIComponent(projectId)}/automations/events`,
-    { credentials: "same-origin" },
-  );
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`${resp.status}: ${body}`);
-  }
-  return resp.json();
-}
 
 // ---------------------------------------------------------------------------
 // Condition row
@@ -207,7 +162,6 @@ interface AutomationRuleEditorProps {
   onOpenChange: (open: boolean) => void;
   workspaceSlug: string;
   projectId: string;
-  /** If provided, the dialog is in edit mode. */
   rule?: AutomationRule;
   onSave: (data: {
     name: string;
@@ -228,13 +182,13 @@ export function AutomationRuleEditor({
   onSave,
   saving,
 }: AutomationRuleEditorProps) {
+  const api = useApi();
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState("");
   const [conditions, setConditions] = useState<AutomationCondition[]>([]);
   const [actions, setActions] = useState<AutomationAction[]>([]);
   const [enabled, setEnabled] = useState(true);
 
-  // Reset form when rule or open state changes.
   useEffect(() => {
     if (open) {
       setName(rule?.name ?? "");
@@ -247,7 +201,7 @@ export function AutomationRuleEditor({
 
   const { data: events } = useQuery({
     queryKey: ["automations", "events", workspaceSlug, projectId],
-    queryFn: () => fetchEvents(workspaceSlug, projectId),
+    queryFn: () => api.listAutomationEvents(workspaceSlug, projectId),
     staleTime: 60_000,
     enabled: open,
   });

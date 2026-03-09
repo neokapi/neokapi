@@ -12,10 +12,14 @@ import type {
   TMMatchInfo, BlockTermMatch, BlockNote, BlockHistoryEntry,
   QAIssue, FileQAResult,
 } from "../types/api";
+import type {
+  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
+} from "../types/api";
 import {
   sampleBlocks, sampleProject,
   sampleBlockNotes, sampleBlockHistory,
   sampleQAIssues, sampleFileQAResults,
+  sampleAutomationRules, sampleAutomationEvents, sampleAutomationHistory,
 } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -135,6 +139,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
   const _blocks: BlockInfo[] = blocks
     ? blocks.map((b) => ({ ...b, targets: { ...b.targets }, targets_coded: { ...b.targets_coded } }))
     : sampleBlocks.map((b) => ({ ...b, targets: { ...b.targets }, targets_coded: { ...b.targets_coded } }));
+
+  const _automationRules: AutomationRule[] = sampleAutomationRules.map((r) => ({ ...r, conditions: [...r.conditions], actions: [...r.actions] }));
 
   const noop = async () => {};
   const notImpl = () => { throw new Error("Not implemented in mock"); };
@@ -283,6 +289,44 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     importTermsCSV: async () => 0,
     importTermsJSON: async () => 0,
     exportTermsJSON: async () => "{}",
+
+    // --- Automations -----------------------------------------------------
+    listAutomationRules: async (): Promise<AutomationRule[]> => [..._automationRules],
+    createAutomationRule: async (_ws: string, _pid: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> => {
+      const rule: AutomationRule = {
+        id: `rule-${Date.now()}`,
+        project_id: "proj-demo-1",
+        ...data,
+        builtin: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      _automationRules.push(rule);
+      return rule;
+    },
+    updateAutomationRule: async (_ws: string, _pid: string, ruleId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> => {
+      const idx = _automationRules.findIndex((r) => r.id === ruleId);
+      if (idx >= 0) {
+        _automationRules[idx] = { ..._automationRules[idx], ...data, updated_at: new Date().toISOString() };
+        return _automationRules[idx];
+      }
+      throw new Error("Rule not found");
+    },
+    deleteAutomationRule: async (_ws: string, _pid: string, ruleId: string): Promise<void> => {
+      const idx = _automationRules.findIndex((r) => r.id === ruleId);
+      if (idx >= 0) _automationRules.splice(idx, 1);
+    },
+    toggleAutomationRule: async (_ws: string, _pid: string, ruleId: string): Promise<AutomationRule> => {
+      const rule = _automationRules.find((r) => r.id === ruleId);
+      if (rule) {
+        rule.enabled = !rule.enabled;
+        rule.updated_at = new Date().toISOString();
+        return rule;
+      }
+      throw new Error("Rule not found");
+    },
+    listAutomationEvents: async (): Promise<AutomationEvent[]> => sampleAutomationEvents,
+    listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> => sampleAutomationHistory,
 
     // --- Providers ------------------------------------------------------
     listProviderConfigs: async () => [

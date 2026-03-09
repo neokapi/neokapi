@@ -9,6 +9,7 @@ import type {
   SpanInfo, BlockInfo, ProjectInfo,
   TMMatchInfo, BlockTermMatch, QAIssue, FileQAResult,
   BlockNote, BlockHistoryEntry,
+  AutomationRule, AutomationEvent, AutomationHistoryEntry,
 } from "../types/api";
 
 // ---------------------------------------------------------------------------
@@ -547,5 +548,110 @@ export const inlineCodeBlocks: BlockInfo[] = [
     translatable: true,
     has_spans: true,
     properties: {},
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Automation fixtures
+// ---------------------------------------------------------------------------
+
+export const sampleAutomationEvents: AutomationEvent[] = [
+  { type: "file.uploaded", description: "A file is uploaded to the project" },
+  { type: "file.updated", description: "A file is updated in the project" },
+  { type: "translation.completed", description: "All blocks in a file are translated" },
+  { type: "connector.sync", description: "A connector sync completes" },
+  { type: "project.created", description: "A new project is created" },
+];
+
+export const sampleAutomationRules: AutomationRule[] = [
+  {
+    id: "rule-1",
+    project_id: "proj-demo-1",
+    name: "Auto-translate on upload",
+    trigger: "file.uploaded",
+    conditions: [
+      { Field: "file.format", Operator: "equals", Value: "json" },
+    ],
+    actions: [
+      { Type: "auto_translate", Config: { provider: "claude", target_locale: "fr" } },
+    ],
+    enabled: true,
+    builtin: false,
+    created_at: "2026-02-15T10:00:00Z",
+    updated_at: "2026-02-20T14:30:00Z",
+  },
+  {
+    id: "rule-2",
+    project_id: "proj-demo-1",
+    name: "QA check after translation",
+    trigger: "translation.completed",
+    conditions: [],
+    actions: [
+      { Type: "run_flow", Config: { flow: "qa-check" } },
+    ],
+    enabled: true,
+    builtin: true,
+    created_at: "2026-01-10T08:00:00Z",
+    updated_at: "2026-01-10T08:00:00Z",
+  },
+  {
+    id: "rule-3",
+    project_id: "proj-demo-1",
+    name: "Notify on sync",
+    trigger: "connector.sync",
+    conditions: [
+      { Field: "connector.type", Operator: "equals", Value: "git" },
+    ],
+    actions: [
+      { Type: "webhook", Config: { url: "https://hooks.example.com/notify" } },
+      { Type: "notify", Config: { channel: "#localization" } },
+    ],
+    enabled: false,
+    builtin: false,
+    created_at: "2026-02-01T12:00:00Z",
+    updated_at: "2026-03-01T09:15:00Z",
+  },
+];
+
+export const sampleAutomationHistory: AutomationHistoryEntry[] = [
+  {
+    id: "exec-1",
+    rule_id: "rule-1",
+    project_id: "proj-demo-1",
+    event_id: "evt-upload-123",
+    status: "success",
+    error: "",
+    started_at: "2026-03-08T14:20:00Z",
+    ended_at: "2026-03-08T14:20:05Z",
+  },
+  {
+    id: "exec-2",
+    rule_id: "rule-2",
+    project_id: "proj-demo-1",
+    event_id: "evt-translate-456",
+    status: "success",
+    error: "",
+    started_at: "2026-03-08T14:20:06Z",
+    ended_at: "2026-03-08T14:20:08Z",
+  },
+  {
+    id: "exec-3",
+    rule_id: "rule-3",
+    project_id: "proj-demo-1",
+    event_id: "evt-sync-789",
+    status: "failed",
+    error: "webhook returned 503: Service Unavailable",
+    started_at: "2026-03-07T09:00:00Z",
+    ended_at: "2026-03-07T09:00:02Z",
+  },
+  {
+    id: "exec-4",
+    rule_id: "rule-1",
+    project_id: "proj-demo-1",
+    event_id: "evt-upload-100",
+    status: "skipped",
+    error: "",
+    started_at: "2026-03-06T16:45:00Z",
+    ended_at: "2026-03-06T16:45:00Z",
   },
 ];
