@@ -5,7 +5,7 @@ title: Overview
 
 # Translation Flows
 
-Flows are composable pipelines that process localization files through a sequence of tools.
+Flows are composable pipelines that process localization files through a sequence of tools. With 41+ format readers and 46+ processing tools, flows can handle everything from AI translation to source QA to terminology enforcement.
 
 ## What Are Flows?
 
@@ -91,28 +91,114 @@ Run with:
 bowrain flow run translate-with-qa
 ```
 
-## Flow Tools
+## Tool Catalog (46+ Tools)
 
-Available tools for flows:
+All tools can be used as flow steps. They are organized into the following categories.
+
+### Content Analysis
+
+| Tool | Description |
+|------|-------------|
+| `word-count` | Count words in source and target content |
+| `char-count` | Count characters in source and target content |
+| `segment-count` | Count translatable segments |
+| `scoping-report` | Generate a detailed scoping report (word counts, repetitions, file breakdown) |
+| `repetition-analysis` | Identify repeated segments across files for TM leverage |
+| `chars-listing` | List all distinct characters used in source and/or target |
+| `translation-comparison` | Compare translations across locales or versions |
 
 ### Translation
-- **ai-translate** — LLM-based translation
-- **mt-translate** — Machine translation (DeepL, Google, Microsoft)
-- **tm-leverage** — Translation memory matching
-- **pseudo-translate** — Pseudo-localization
+
+| Tool | Description |
+|------|-------------|
+| `ai-translate` | LLM-based translation (Anthropic, OpenAI, Ollama) |
+| `mt-translate` | Machine translation (DeepL, Google, Microsoft, ModernMT, MyMemory) |
+| `tm-leverage` | Pre-fill from translation memory with fuzzy matching |
+| `diff-leverage` | Leverage translations from a previous version using diff analysis |
+| `pseudo-translate` | Generate pseudo-translations for UI testing and internationalization validation |
+| `create-target` | Create target segments from source (copy source to target) |
+| `remove-target` | Remove target segments |
 
 ### Terminology
-- **term-lookup** — Find terms in source text
-- **term-enforce** — Validate required terminology
+
+| Tool | Description |
+|------|-------------|
+| `term-lookup` | Find terms in source text and annotate blocks |
+| `term-enforce` | Validate that required terminology is used in translations |
+| `term-check` | Check terminology consistency across content |
+| `ai-terminology` | Extract terminology using AI/LLM |
 
 ### Quality Assurance
-- **qa-check** — Rule-based quality checks
-- **ai-qa** — LLM-based quality review
 
-### Utilities
-- **segmentation** — Sentence segmentation
-- **word-count** — Count words/characters
-- **search-replace** — Find and replace patterns
+| Tool | Description |
+|------|-------------|
+| `qa-check` | Rule-based quality checks (whitespace, punctuation, placeholders, length) |
+| `ai-qa` | LLM-based quality review and error detection |
+| `ai-review` | LLM-based translation review with scoring |
+| `xml-validation` | Validate XML/HTML structure in source and target |
+| `inconsistency-check` | Detect inconsistent translations of identical source strings |
+| `length-check` | Validate string length against configured limits |
+| `chars-check` | Check for invalid or unexpected Unicode characters |
+| `pattern-check` | Validate content against custom regex patterns |
+
+### Text Processing
+
+| Tool | Description |
+|------|-------------|
+| `search-replace` | Find and replace patterns (literal or regex) |
+| `case-transform` | Transform text case (upper, lower, title) |
+| `linebreak-convert` | Normalize line endings (LF, CRLF, CR) |
+| `whitespace-correct` | Normalize spaces, match source whitespace, remove zero-width characters |
+| `fullwidth-convert` | Convert between fullwidth and halfwidth characters (CJK) |
+| `uri-convert` | Encode or decode URI components |
+| `bom-convert` | Add or remove byte order marks |
+| `segmentation` | Split text into sentence-level segments |
+
+### Inline Formatting
+
+| Tool | Description |
+|------|-------------|
+| `span-classify` | Classify inline spans by type (bold, italic, link, etc.) |
+| `tag-protect` | Protect inline tags from modification during translation |
+| `inline-codes-remove` | Remove inline formatting codes from content |
+| `layer-processor` | Process embedded content layers (e.g., HTML inside JSON) |
+
+### Encoding and Format
+
+| Tool | Description |
+|------|-------------|
+| `encoding-detect` | Detect character encoding of source files |
+| `encoding-convert` | Convert between character encodings |
+| `xslt-transform` | Apply XSLT transformations to XML content |
+
+### Metadata and Properties
+
+| Tool | Description |
+|------|-------------|
+| `properties-set` | Set or update block properties (state, notes, metadata) |
+
+### External Integration
+
+| Tool | Description |
+|------|-------------|
+| `external-command` | Run an external command on block content (stdin/stdout) |
+
+## Supported Formats (41+)
+
+Flows can process files in any of the 41+ supported formats:
+
+| Category | Formats |
+|----------|---------|
+| **Localization** | XLIFF 1.2, XLIFF 2.0, PO (GNU gettext), Qt TS, Java Properties, TMX |
+| **Structured Data** | JSON, YAML, CSV, TSV, XML, DTD, ICU MessageFormat |
+| **Documents** | HTML, Markdown, OpenXML (DOCX/PPTX/XLSX), ODF, RTF, PDF, TeX/LaTeX, EPUB |
+| **Desktop Publishing** | InDesign IDML, InCopy ICML, FrameMaker MIF |
+| **Subtitles** | SRT, TTML, WebVTT |
+| **Wiki** | MediaWiki/DokuWiki |
+| **CAT Tools** | Trados TTX, Trados TXML, Translation Table |
+| **Specialized** | Regex, Doxygen, PHP Content, Moses Text, Fixed-Width, Paragraph Plain Text, Spliced Lines, Versified Text, R Vignette |
+| **Archives** | ZIP Archive |
+| **Plain Text** | Plain Text |
 
 ## How Flows Work
 
@@ -140,5 +226,6 @@ Benefits:
 
 - [Create Custom Flows](/docs/bowrain-cli/flows/custom-flows)
 - [Configure Hooks](/docs/bowrain-cli/flows/hooks)
-- [Available Tools](/docs/features/formats)
+- [Available Formats](/docs/features/formats)
 - [Flow Command Reference](/docs/bowrain-cli/commands/flow)
+- [Server-Side Flows](/docs/bowrain-server/flows)

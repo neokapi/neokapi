@@ -32,6 +32,12 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	return &SQLiteStore{db: db}, nil
 }
 
+// DB returns the underlying *sql.DB for sharing with other stores
+// that need the same database connection (e.g., AutomationRuleStore).
+func (s *SQLiteStore) DB() *sql.DB {
+	return s.db.DB
+}
+
 // Close closes the underlying database.
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()

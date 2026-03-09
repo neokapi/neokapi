@@ -240,6 +240,18 @@ const memoryRoute = createRoute({
   ),
 });
 
+const automationsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "project/$projectId/automations",
+  component: lazyRouteComponent(
+    () => import("./workspace/automations"),
+    "AutomationsRoute",
+  ),
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId));
+  },
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "settings",
@@ -289,6 +301,7 @@ const routeTree = rootRoute.addChildren([
     dashboardRoute,
     projectRoute,
     translateRoute,
+    automationsRoute,
     termbaseRoute,
     memoryRoute,
     settingsRoute.addChildren([

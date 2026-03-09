@@ -185,4 +185,42 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_block_notes_lookup ON block_notes(project_id, block_id);
 		`,
 	},
+	{
+		Version:     11,
+		Description: "create automation_rules table",
+		SQL: `
+			CREATE TABLE automation_rules (
+				id         TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				name       TEXT NOT NULL,
+				trigger    TEXT NOT NULL,
+				conditions TEXT NOT NULL DEFAULT '[]',
+				actions    TEXT NOT NULL DEFAULT '[]',
+				enabled    INTEGER NOT NULL DEFAULT 1,
+				builtin    INTEGER NOT NULL DEFAULT 0,
+				created_at TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+				FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+			);
+			CREATE INDEX idx_automation_rules_project ON automation_rules(project_id);
+		`,
+	},
+	{
+		Version:     12,
+		Description: "create automation_history table",
+		SQL: `
+			CREATE TABLE automation_history (
+				id         TEXT PRIMARY KEY,
+				rule_id    TEXT NOT NULL,
+				project_id TEXT NOT NULL,
+				event_id   TEXT NOT NULL DEFAULT '',
+				status     TEXT NOT NULL,
+				error      TEXT NOT NULL DEFAULT '',
+				started_at TEXT NOT NULL DEFAULT (datetime('now')),
+				ended_at   TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_automation_history_project ON automation_history(project_id);
+			CREATE INDEX idx_automation_history_rule ON automation_history(rule_id);
+		`,
+	},
 }

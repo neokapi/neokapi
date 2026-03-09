@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: ProjectConfig
+metadata:
+    name: Acme Docs
+spec:
+    project:
+        name: Acme Docs
+        source_locale: en
+        target_locales:
+            - nb
+            - qps
+    mappings:
+        - local: i18n/en/**/*.json
+          remote: "{path}/{filename}"
+          format: json
+          target_path: "i18n/{locale}/{path}/{filename}"
+        - local: docs/**/*.md
+          remote: "{path}/{filename}"
+          format: markdown
+          target_path: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"
+        - local: blog/**/*.md
+          remote: "{path}/{filename}"
+          format: markdown
+          target_path: "i18n/{locale}/docusaurus-plugin-content-blog/{path}/{filename}"
+    automations:
+        - name: qa-before-push
+          trigger: pre-push
+          actions:
+              - type: run_flow
+                config:
+                    flow: qa-check
+        - name: sync-on-push
+          trigger: post-push
+          actions:
+              - type: wait_translate
+                config:
+                    timeout: 5m
+              - type: pull

@@ -1,0 +1,14 @@
+{
+  "plugin.blog.title": {
+    "message": "[!!! Blööğ !!!]",
+    "description": "The title for the blog section"
+  },
+  "plugin.blog.description": {
+    "message": "[!!! Làtëst ñëws àñd üpdàtës fröm thë Àçmë tëàm !!!]",
+    "description": "The description for the blog section"
+  },
+  "plugin.blog.sidebar.title": {
+    "message": "[!!! Rëçëñt pösts !!!]",
+    "description": "The title for the blog sidebar"
+  }
+}

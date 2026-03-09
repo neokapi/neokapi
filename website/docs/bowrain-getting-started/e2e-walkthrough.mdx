@@ -12,7 +12,7 @@ using the gokapi toolchain: from initializing a project in the CLI, to pushing
 content to a Bowrain Server, inviting a translator, and pulling finished
 translations back into the codebase.
 
-We use a real Docusaurus site (included in the repo at `examples/docusaurus-e2e/`)
+We use a real Docusaurus site ([github.com/gokapi/docusaurus-e2e](https://github.com/gokapi/docusaurus-e2e))
 as the source project. The walkthrough has seven steps:
 
 1. [Initialize the project](#step-1-initialize-the-project)
@@ -47,7 +47,8 @@ Navigate to the example Docusaurus project and create a Bowrain project. You can
 create an anonymous project and receive a claim link by email:
 
 ```bash
-cd examples/docusaurus-e2e
+git clone https://github.com/gokapi/docusaurus-e2e.git
+cd docusaurus-e2e
 
 bowrain init --name "Docusaurus E2E Demo" --email alex@example.com
 ```
@@ -63,8 +64,8 @@ This creates a `.bowrain/` directory with the project configuration and prints a
 
 ```
 Creating project on https://bowrain.example.com...
-Initialized .bowrain/ project in: /path/to/examples/docusaurus-e2e
-Configuration: /path/to/examples/docusaurus-e2e/.bowrain/config.yaml
+Initialized .bowrain/ project in: /path/to/docusaurus-e2e
+Configuration: /path/to/docusaurus-e2e/.bowrain/config.yaml
 
 Project created: proj_abc123
 Claim URL: https://bowrain.example.com/claim/clm_def456
@@ -283,6 +284,7 @@ npm run serve
 
 ## Next Steps
 
+- [Automation Walkthrough](/docs/bowrain/automation-walkthrough) — automated translation with QA gates and CI/CD
 - [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.bowrain/` project model
 - [Website Translation](/docs/bowrain-cli/use-cases/website-translation) — production workflow with CI/CD integration
 - [Flows](/docs/bowrain-cli/flows/overview) — create custom translation pipelines

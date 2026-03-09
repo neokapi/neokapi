@@ -30,6 +30,13 @@ Use --no-wait to push without waiting for translations.`,
 func runSync(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
+	// Run pre-push automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
+			return fmt.Errorf("pre-push automation: %w", err)
+		}
+	}
+
 	// Phase 1: Push.
 	fmt.Fprintln(cmd.OutOrStdout(), "Pushing content...")
 	pushResult, conn, err := doPush(ctx, connector.PushOptions{}, args)
@@ -114,7 +121,18 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Phase 3: Pull.
-	return syncPull(cmd, conn)
+	if err := syncPull(cmd, conn); err != nil {
+		return err
+	}
+
+	// Run post-pull automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
+			return fmt.Errorf("post-pull automation: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func syncPull(cmd *cobra.Command, conn *project.BrainSourceConnector) error {

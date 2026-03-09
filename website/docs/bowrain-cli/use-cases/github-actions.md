@@ -43,6 +43,45 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version` | Installed version (e.g. `0.5.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
+## Recommended: Full Sync with `bowrain sync`
+
+The simplest and most powerful CI pattern is `bowrain sync` — push source content, wait for server-side translation, and pull back the results in one step:
+
+```yaml
+name: Sync Translations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/locales/en/**"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: gokapi/setup-bowrain@v1
+        with:
+          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
+          server: https://bowrain.example.com
+
+      - name: Sync translations
+        run: bowrain sync --timeout 10m
+
+      - name: Commit translated files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/locales/
+          git diff --cached --quiet || git commit -m "chore: sync translations"
+          git push
+```
+
+This single `bowrain sync` call replaces a multi-step push/wait/pull workflow. The `--timeout` flag controls how long to wait for server-side flows (AI translation, QA checks, terminology enforcement) to complete.
+
 ## Example: Translation on Pull Request
 
 Run AI translation and quality checks whenever localization files change:
@@ -235,5 +274,7 @@ Use `latest` (the default) for workflows where you always want the newest releas
 
 - [Bowrain CLI Overview](/docs/bowrain-cli/overview)
 - [Flow Hooks](/docs/bowrain-cli/flows/hooks)
+- [bowrain sync](/docs/bowrain-cli/commands/sync) — push + wait + pull in one command
 - [bowrain push](/docs/bowrain-cli/commands/push) and [bowrain pull](/docs/bowrain-cli/commands/pull)
 - [bowrain auth](/docs/bowrain-cli/commands/auth)
+- [Source Language Preparation](/docs/bowrain-cli/use-cases/source-prep) — QA on source content in CI

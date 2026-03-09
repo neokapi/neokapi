@@ -37,6 +37,20 @@ func (s *Server) registerDefaultAutomations() {
 			{Type: "auto_translate_new_locale"},
 		},
 	})
+
+	// Load user-defined rules from database.
+	if s.AutomationRuleStore != nil {
+		s.loadStoredAutomationRules()
+	}
+}
+
+// loadStoredAutomationRules loads all enabled user-defined rules from the database
+// and registers them with the automation engine.
+func (s *Server) loadStoredAutomationRules() {
+	// Rules will be loaded per-project when events occur.
+	// The automation engine's event handler checks the rule's project scope
+	// against the event's project ID. For now, this is a placeholder for
+	// future project-scoped rule loading on startup.
 }
 
 // executeAutomationAction is the callback for the automation engine.

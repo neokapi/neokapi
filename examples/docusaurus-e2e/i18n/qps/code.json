@@ -1,0 +1,102 @@
+{
+  "theme.navbar.title": {
+    "message": "[!!! Àçmë Dööçs !!!]",
+    "description": "The title in the navbar"
+  },
+  "theme.navbar.docs": {
+    "message": "[!!! Dööçümëñtàtîöñ !!!]",
+    "description": "Navbar link to documentation"
+  },
+  "theme.navbar.blog": {
+    "message": "[!!! Blööğ !!!]",
+    "description": "Navbar link to blog"
+  },
+  "homepage.hero.title": {
+    "message": "[!!! Büîld Àmàzîñğ Thîñğs wîth Àçmë !!!]",
+    "description": "The homepage hero title"
+  },
+  "homepage.hero.subtitle": {
+    "message": "[!!! Àçmë prövîdës thë tööls àñd îñfràstrüçtürë yöü ñëëd tö shîp fàstër àñd mörë rëlîàbly. !!!]",
+    "description": "The homepage hero subtitle"
+  },
+  "homepage.cta.getStarted": {
+    "message": "[!!! Ğët Stàrtëd !!!]",
+    "description": "CTA button to get started"
+  },
+  "homepage.cta.learnMore": {
+    "message": "[!!! Lëàrñ Mörë !!!]",
+    "description": "CTA button to learn more"
+  },
+  "homepage.features.speed.title": {
+    "message": "[!!! Lîğhtñîñğ Fàst !!!]",
+    "description": "Feature card title for speed"
+  },
+  "homepage.features.speed.description": {
+    "message": "[!!! Büîlt för përförmàñçë fröm thë ğröüñd üp. Süb-mîllîsëçöñd rëspöñsë tîmës ëvëñ üñdër hëàvy löàd. !!!]",
+    "description": "Feature card description for speed"
+  },
+  "homepage.features.security.title": {
+    "message": "[!!! Ëñtërprîsë Sëçürîty !!!]",
+    "description": "Feature card title for security"
+  },
+  "homepage.features.security.description": {
+    "message": "[!!! SÖÇ 2 Typë ÎÎ çërtîfîëd. Ëñd-tö-ëñd ëñçryptîöñ för àll dàtà îñ tràñsît àñd àt rëst. !!!]",
+    "description": "Feature card description for security"
+  },
+  "homepage.features.integration.title": {
+    "message": "[!!! Ëàsy Îñtëğràtîöñ !!!]",
+    "description": "Feature card title for integration"
+  },
+  "homepage.features.integration.description": {
+    "message": "[!!! Çöññëçt wîth yöür ëxîstîñğ tööls îñ mîñütës. SDKs àvàîlàblë för àll màjör làñğüàğës. !!!]",
+    "description": "Feature card description for integration"
+  },
+  "homepage.features.scalability.title": {
+    "message": "[!!! Îñfîñîtë Sçàlàbîlîty !!!]",
+    "description": "Feature card title for scalability"
+  },
+  "homepage.features.scalability.description": {
+    "message": "[!!! Àütö-sçàlës fröm zërö tö mîllîöñs öf rëqüësts. Pày öñly för whàt yöü üsë. !!!]",
+    "description": "Feature card description for scalability"
+  },
+  "homepage.features.monitoring.title": {
+    "message": "[!!! Rëàl-Tîmë Möñîtörîñğ !!!]",
+    "description": "Feature card title for monitoring"
+  },
+  "homepage.features.monitoring.description": {
+    "message": "[!!! Tràçk ëvëry mëtrîç thàt màttërs. Çüstöm dàshböàrds àñd îñtëllîğëñt àlërtîñğ büîlt îñ. !!!]",
+    "description": "Feature card description for monitoring"
+  },
+  "homepage.features.support.title": {
+    "message": "[!!! 24/7 Süppört !!!]",
+    "description": "Feature card title for support"
+  },
+  "homepage.features.support.description": {
+    "message": "[!!! Öür ëxpërt tëàm îs àvàîlàblë àröüñd thë çlöçk. Àvëràğë rëspöñsë tîmë üñdër 5 mîñütës. !!!]",
+    "description": "Feature card description for support"
+  },
+  "homepage.testimonial.quote": {
+    "message": "[!!! Àçmë rëdüçëd öür dëplöymëñt tîmë fröm höürs tö mîñütës. Ît's tràñsförmëd höw wë shîp söftwàrë. !!!]",
+    "description": "Customer testimonial quote"
+  },
+  "homepage.testimonial.author": {
+    "message": "[!!! Jàñë Smîth, ÇTÖ àt TëçhÇörp !!!]",
+    "description": "Customer testimonial author"
+  },
+  "footer.docs.title": {
+    "message": "[!!! Dööçs !!!]",
+    "description": "Footer column title for docs"
+  },
+  "footer.community.title": {
+    "message": "[!!! Çömmüñîty !!!]",
+    "description": "Footer column title for community"
+  },
+  "footer.more.title": {
+    "message": "[!!! Mörë !!!]",
+    "description": "Footer column title for more links"
+  },
+  "footer.copyright": {
+    "message": "[!!! Çöpyrîğht © 2026 Àçmë, Îñç. Àll rîğhts rësërvëd. !!!]",
+    "description": "Footer copyright text"
+  }
+}

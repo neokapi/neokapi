@@ -67,6 +67,23 @@ func (e *AutomationEngine) AddRule(rule AutomationRule) {
 	e.rules = append(e.rules, rule)
 }
 
+// ReplaceRules atomically replaces all automation rules.
+func (e *AutomationEngine) ReplaceRules(rules []AutomationRule) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.rules = make([]AutomationRule, len(rules))
+	copy(e.rules, rules)
+}
+
+// Rules returns a copy of the current rules.
+func (e *AutomationEngine) Rules() []AutomationRule {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	rules := make([]AutomationRule, len(e.rules))
+	copy(rules, e.rules)
+	return rules
+}
+
 // SetMaxChainDepth sets the maximum causation chain depth.
 func (e *AutomationEngine) SetMaxChainDepth(depth int) {
 	e.mu.Lock()
