@@ -8,8 +8,8 @@ import (
 
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/termbase"
-	"github.com/google/uuid"
 )
 
 // processDecisionSideEffects handles the downstream effects of a review decision.
@@ -91,7 +91,7 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 	}
 
 	concept := termbase.Concept{
-		ID:         uuid.NewString(),
+		ID:         id.New(),
 		Domain:     string(candidate.Category),
 		Definition: candidate.Definition,
 		Terms: []termbase.Term{

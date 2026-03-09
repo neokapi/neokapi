@@ -10,10 +10,10 @@ import (
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/termbase"
 	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/gokapi/gokapi/platform/store"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -339,7 +339,7 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 	}
 
 	entry := sievepen.TMEntry{
-		ID:           uuid.New().String(),
+		ID:           id.New(),
 		Source:       &model.Fragment{CodedText: req.Source},
 		Target:       &model.Fragment{CodedText: req.Target},
 		SourceLocale: model.LocaleID(req.SourceLocale),
@@ -443,7 +443,7 @@ func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptReq
 	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
 
 	concept := termbase.Concept{
-		ID:         uuid.New().String(),
+		ID:         id.New(),
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      protoToTerms(req.Terms),
@@ -825,7 +825,7 @@ func (g *EditorGRPCServer) emitBlockChange(projectID, blockID, itemName, changeT
 		userName = claims.Name
 	}
 	g.srv.EventBus.Publish(platev.Event{
-		ID:        uuid.New().String(),
+		ID:        id.New(),
 		Type:      platev.EventType("editor.block." + changeType),
 		Source:    "editor-grpc",
 		ProjectID: projectID,
@@ -842,7 +842,7 @@ func (g *EditorGRPCServer) emitBlockChange(projectID, blockID, itemName, changeT
 // presenceJoinedEvent creates an event for a user joining a project.
 func presenceJoinedEvent(projectID string, entry *presenceEntry) platev.Event {
 	return platev.Event{
-		ID:        uuid.New().String(),
+		ID:        id.New(),
 		Type:      "editor.presence.joined",
 		Source:    "editor-grpc",
 		ProjectID: projectID,
@@ -859,7 +859,7 @@ func presenceJoinedEvent(projectID string, entry *presenceEntry) platev.Event {
 // presenceLeftEvent creates an event for a user leaving a project.
 func presenceLeftEvent(projectID string, entry *presenceEntry) platev.Event {
 	return platev.Event{
-		ID:        uuid.New().String(),
+		ID:        id.New(),
 		Type:      "editor.presence.left",
 		Source:    "editor-grpc",
 		ProjectID: projectID,

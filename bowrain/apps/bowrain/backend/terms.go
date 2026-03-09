@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/platform/store"
-	"github.com/google/uuid"
 )
 
 // TermInfo is the frontend-facing representation of a term.
@@ -186,7 +186,7 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	}
 	tb := a.getOrCreateTB()
 	concept := termbase.Concept{
-		ID:         uuid.New().String(),
+		ID:         id.New(),
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      termsFromInfo(req.Terms),

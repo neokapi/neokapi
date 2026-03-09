@@ -13,8 +13,8 @@ import (
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/termbase"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -478,7 +478,7 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 	}
 
 	entry := sievepen.TMEntry{
-		ID:           uuid.New().String(),
+		ID:           id.New(),
 		Source:       &model.Fragment{CodedText: req.Source},
 		Target:       &model.Fragment{CodedText: req.Target},
 		SourceLocale: model.LocaleID(req.SourceLocale),
@@ -610,7 +610,7 @@ func (s *Server) HandleAddConcept(c echo.Context) error {
 
 	tb := s.wsStores.getTB(ws)
 	concept := termbase.Concept{
-		ID:         uuid.New().String(),
+		ID:         id.New(),
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      editorTermsFromInfo(req.Terms),

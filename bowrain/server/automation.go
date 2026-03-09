@@ -8,8 +8,8 @@ import (
 	"github.com/gokapi/gokapi/bowrain/event"
 	"github.com/gokapi/gokapi/bowrain/jobs"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
+	"github.com/gokapi/gokapi/core/id"
 	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/google/uuid"
 )
 
 // registerDefaultAutomations registers the built-in automation rules.
@@ -140,7 +140,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 	for _, itemName := range itemNames {
 		for _, locale := range locales {
 			job := &jobs.TranslationJob{
-				ID:               uuid.NewString(),
+				ID:               id.New(),
 				WorkspaceSlug:    wsSlug,
 				ProjectID:        projectID,
 				ItemName:         itemName,
@@ -226,7 +226,7 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 
 	for _, itemName := range itemNames {
 		job := &jobs.ExtractionJob{
-			ID:            uuid.NewString(),
+			ID:            id.New(),
 			WorkspaceSlug: wsSlug,
 			ProjectID:     projectID,
 			ItemName:      itemName,
@@ -263,7 +263,7 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 		return
 	}
 
-	pushID := uuid.NewString()
+	pushID := id.New()
 	var itemNames []string
 	for _, item := range items {
 		itemNames = append(itemNames, item.Name)
