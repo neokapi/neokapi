@@ -165,8 +165,9 @@ type BlockInput struct {
 
 // SyncPushResponse is the response from a push.
 type SyncPushResponse struct {
-	Stored    int   `json:"stored"`
-	NewCursor int64 `json:"new_cursor"`
+	Stored    int    `json:"stored"`
+	NewCursor int64  `json:"new_cursor"`
+	PushID    string `json:"push_id,omitempty"`
 }
 
 // ChangeEntry represents a single change log entry from the server.
@@ -184,6 +185,16 @@ type SyncPullResponse struct {
 	Changes   []ChangeEntry `json:"changes"`
 	NewCursor int64         `json:"new_cursor"`
 	HasMore   bool          `json:"has_more"`
+}
+
+// PushStatusResponse is the response from the push status endpoint.
+type PushStatusResponse struct {
+	PushID     string `json:"push_id"`
+	Status     string `json:"status"` // "in_progress", "completed", "failed"
+	Total      int    `json:"total"`
+	Completed  int    `json:"completed"`
+	Failed     int    `json:"failed"`
+	InProgress int    `json:"in_progress"`
 }
 
 // BlockContent represents a block with its translations from the server.
@@ -263,6 +274,40 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 	var result SyncPullResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("decode pull response: %w", err)
+	}
+	return &result, nil
+}
+
+// PushStatus checks the status of auto-triggered translation jobs for a push.
+func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushStatusResponse, error) {
+	u, err := url.Parse(c.projectPrefix() + "/sync/status")
+	if err != nil {
+		return nil, fmt.Errorf("parse URL: %w", err)
+	}
+
+	q := u.Query()
+	q.Set("push_id", pushID)
+	u.RawQuery = q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("push status request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("push status failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result PushStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode push status response: %w", err)
 	}
 	return &result, nil
 }

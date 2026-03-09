@@ -65,6 +65,9 @@ type Server struct {
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
 	GRPCServer *grpc.Server
+
+	// AutomationEngine evaluates automation rules on events. Nil when event system is not wired up.
+	AutomationEngine *event.AutomationEngine
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -167,6 +170,10 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
+	// Wire up automation engine.
+	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.executeAutomationAction)
+	s.registerDefaultAutomations()
+
 	return s
 }
 
@@ -261,6 +268,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.GET("/pull", s.HandleSyncPull)
 			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
+			syncGroup.GET("/status", s.HandleSyncPushStatus)
 		}
 
 		// Workspace endpoints (require auth + workspace membership)
@@ -326,6 +334,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/projects/:id/sync/push", s.HandleSyncPush)
 	g.GET("/projects/:id/sync/pull", s.HandleSyncPull)
 	g.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
+	g.GET("/projects/:id/sync/status", s.HandleSyncPushStatus)
 
 	// Editor project routes
 	g.POST("/editor/projects", s.HandleCreateEditorProject)
