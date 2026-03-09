@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { TermExplorer, useWorkspace, GlassCard } from "@gokapi/ui";
 
@@ -5,6 +6,12 @@ export function TermbaseRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
+
+  useEffect(() => {
+    if (activeWorkspace) {
+      document.title = `Terminology — ${activeWorkspace.name} — Bowrain`;
+    }
+  }, [activeWorkspace]);
 
   if (!activeWorkspace) {
     return (

@@ -5,6 +5,7 @@
 
 import React from "react";
 import type { Decorator } from "@storybook/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
@@ -27,14 +28,19 @@ const mockWorkspace: Workspace = {
  */
 export function createProvidersDecorator(blocks?: BlockInfo[]): Decorator {
   const adapter = createMockAdapter(blocks);
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return (Story) => (
-    <ApiProvider adapter={adapter}>
-      <WorkspaceProvider initialWorkspace={mockWorkspace}>
-        <BreadcrumbProvider>
-          <Story />
-        </BreadcrumbProvider>
-      </WorkspaceProvider>
-    </ApiProvider>
+    <QueryClientProvider client={queryClient}>
+      <ApiProvider adapter={adapter}>
+        <WorkspaceProvider initialWorkspace={mockWorkspace}>
+          <BreadcrumbProvider>
+            <Story />
+          </BreadcrumbProvider>
+        </WorkspaceProvider>
+      </ApiProvider>
+    </QueryClientProvider>
   );
 }
 
