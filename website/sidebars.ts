@@ -87,9 +87,7 @@ const sidebars: SidebarsConfig = {
         'bowrain-getting-started/introduction',
         'bowrain-getting-started/installation',
         'bowrain-getting-started/quickstart',
-        'bowrain-getting-started/project-walkthrough',
-        'bowrain-getting-started/e2e-walkthrough',
-        'bowrain-getting-started/automation-walkthrough',
+        'bowrain-getting-started/walkthrough',
       ],
     },
     {

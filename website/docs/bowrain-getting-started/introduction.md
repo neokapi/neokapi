@@ -75,7 +75,7 @@ The developer initializes a `.bowrain/` project, runs `bowrain sync` to push sou
 
 - [Installation](/docs/bowrain/installation) — install Bowrain CLI, Bowrain Desktop, or Bowrain Server
 - [Quick Start](/docs/bowrain/quickstart) — initialize a project and sync with Bowrain
-- [Project Walkthrough](/docs/bowrain/project-walkthrough) — deep dive into the `.bowrain/` project model
+- [Walkthrough](/docs/bowrain/walkthrough) — complete guide from init to automated CI/CD
 - [`bowrain sync` command](/docs/bowrain-cli/commands/sync) — the flagship one-command workflow
 
 ## Standalone File Processing

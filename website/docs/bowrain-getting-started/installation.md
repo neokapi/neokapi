@@ -77,4 +77,4 @@ For standalone file processing without a server, install the [kapi CLI](/docs/ge
 ## Next Steps
 
 - [Quick Start](/docs/bowrain/quickstart)
-- [Project Walkthrough](/docs/bowrain/project-walkthrough)
+- [Walkthrough](/docs/bowrain/walkthrough)
