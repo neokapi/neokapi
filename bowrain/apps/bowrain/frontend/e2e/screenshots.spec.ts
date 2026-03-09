@@ -163,6 +163,10 @@ async function openEditor(page: any) {
     const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
     if (btn) btn.click();
   });
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+  });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
@@ -240,6 +244,10 @@ test.describe("Screenshots", () => {
       await page.evaluate(() => {
         const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
         if (btn) btn.click();
+      });
+      await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+      await page.evaluate(() => {
+        (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
       });
       await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
@@ -335,6 +343,10 @@ test.describe("Screenshots", () => {
       await page.evaluate(() => {
         const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
         if (btn) btn.click();
+      });
+      await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+      await page.evaluate(() => {
+        (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
       });
       await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 

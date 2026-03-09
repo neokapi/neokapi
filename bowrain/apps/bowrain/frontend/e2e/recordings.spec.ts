@@ -331,6 +331,10 @@ describeOrSkip("Video Recordings", () => {
     // Open the HTML file in editor
     await expect(page.getByTestId("open-file-about-us.html")).toBeVisible({ timeout: 5000 });
     await humanClick(page, page.getByTestId("open-file-about-us.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
@@ -418,6 +422,10 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByText("Company Website").first());
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await humanClickNative(page, "open-file-about-us.html");
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 4000); // Hold for 4 seconds to show completed state
   });
@@ -461,6 +469,10 @@ describeOrSkip("Video Recordings", () => {
 
     // Open file in editor
     await humanClick(page, page.getByTestId("open-file-homepage.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 500);
 
@@ -535,6 +547,10 @@ describeOrSkip("Video Recordings", () => {
 
     // Open file in editor
     await humanClick(page, page.getByTestId("open-file-landing-page.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("block-row-0")).toBeVisible();
     await pause(page, 500);
@@ -584,6 +600,10 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByText("Product Launch").first());
     await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
     await humanClickNative(page, "open-file-landing-page.html");
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
     // Switch to grid to see all translations
@@ -708,6 +728,10 @@ describeOrSkip("Video Recordings", () => {
 
     // Open file in editor
     await humanClick(page, page.getByTestId("open-file-landing.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 500);
 
@@ -727,6 +751,10 @@ describeOrSkip("Video Recordings", () => {
     await page.waitForTimeout(200);
     await page.evaluate(() => {
       (document.querySelector('[data-testid="open-file-landing.html"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
@@ -926,6 +954,10 @@ describeOrSkip("Video Recordings", () => {
 
     // Open editor
     await humanClick(page, page.getByTestId("open-file-app.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 500);
 
@@ -1272,6 +1304,10 @@ describeOrSkip("Video Recordings", () => {
     // Open the HTML file in editor (grid view)
     await expect(page.getByTestId("open-file-help-center.html")).toBeVisible({ timeout: 5000 });
     await humanClick(page, page.getByTestId("open-file-help-center.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 
@@ -1605,6 +1641,10 @@ describeOrSkip("Video Recordings", () => {
 
     // Open a file to show quick access
     await humanClick(page, page.getByTestId("open-file-index.html"));
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 600);
 

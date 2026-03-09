@@ -48,7 +48,11 @@ async function openEditorWithBlocks(page: any) {
     if (btn) btn.click();
   });
 
-  // Step 6: Wait for editor
+  // Step 6: Wait for editor — switch from visual (default) to grid layout for testing
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+  });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
@@ -75,6 +79,11 @@ async function pseudoTranslateViaBackend(page: any) {
   await page.evaluate(() => {
     const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
     if (btn) btn.click();
+  });
+  // Switch from visual (default) to grid layout for testing
+  await page.getByTestId("layout-switcher").waitFor({ state: "visible", timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
   });
   await page.getByTestId("block-grid").waitFor({ state: "visible", timeout: 5000 });
 }
@@ -192,6 +201,11 @@ test.describe("Translation Editor", () => {
       const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
       if (btn) btn.click();
     });
+    // Switch from visual (default) to grid layout for testing
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
     const target0 = page.getByTestId("target-text-0");
@@ -211,7 +225,7 @@ test.describe("Translation Editor", () => {
     await expect(page.getByText("Exported to")).toBeVisible();
   });
 
-  test("should show layout switcher with grid selected by default", async ({ page }) => {
+  test("should show layout switcher with layout options", async ({ page }) => {
     await openEditorWithBlocks(page);
 
     await expect(page.getByTestId("layout-switcher")).toBeVisible();
@@ -456,6 +470,11 @@ test.describe("Translation Editor", () => {
     await page.evaluate(() => {
       const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
       if (btn) btn.click();
+    });
+    // Switch from visual (default) to grid layout for testing
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
