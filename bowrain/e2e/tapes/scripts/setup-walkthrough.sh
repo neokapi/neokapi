@@ -20,7 +20,7 @@ if [ -d "$LOCAL_EXAMPLE" ]; then
   git add -A
   git commit -q -m "Initial commit"
 else
-  git clone -q https://github.com/gokapi/docusaurus-e2e.git "$WALKTHROUGH_DIR"
+  git clone -q https://github.com/gokapi/bowrain-example-docusaurus.git "$WALKTHROUGH_DIR"
   cd "$WALKTHROUGH_DIR"
   git config user.email "alex@example.com"
   git config user.name "Alex Developer"

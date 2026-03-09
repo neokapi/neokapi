@@ -18,7 +18,7 @@ Type "# Run pseudo-translation flow"
 Enter
 Sleep 500ms
 
-Type "bowrain flow run pseudo"
+Type "bowrain flow run pseudo-translate"
 Enter
 Sleep 3s
 

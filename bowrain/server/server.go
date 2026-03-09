@@ -216,6 +216,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.POST("/fetch", s.HandleFetch)
 	v1.POST("/publish", s.HandlePublish)
 
+	// Public badge endpoint (shields.io-compatible, CDN-cacheable).
+	v1.GET("/badges/projects/:id", s.HandleProjectBadge)
+
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required).

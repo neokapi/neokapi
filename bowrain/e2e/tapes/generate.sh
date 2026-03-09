@@ -43,7 +43,7 @@ export BOWRAIN_CONFIG_DIR="$(mktemp -d)"
 mkdir -p output
 
 # Tapes that need a running server
-SERVER_TAPES="workspaces walkthrough-init walkthrough-push walkthrough-pull walkthrough-sync"
+SERVER_TAPES="workspaces walkthrough-init walkthrough-push walkthrough-pull walkthrough-sync walkthrough-automation"
 
 # Check if server-backed recordings are possible.
 SERVER_AVAILABLE=false
