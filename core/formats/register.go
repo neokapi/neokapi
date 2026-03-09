@@ -2,24 +2,30 @@ package formats
 
 import (
 	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/formats/archive"
 	csvfmt "github.com/gokapi/gokapi/core/formats/csv"
 	"github.com/gokapi/gokapi/core/formats/doxygen"
 	dtdfmt "github.com/gokapi/gokapi/core/formats/dtd"
 	"github.com/gokapi/gokapi/core/formats/fixedwidth"
+	"github.com/gokapi/gokapi/core/formats/epub"
 	"github.com/gokapi/gokapi/core/formats/html"
 	"github.com/gokapi/gokapi/core/formats/icml"
 	"github.com/gokapi/gokapi/core/formats/idml"
 	"github.com/gokapi/gokapi/core/formats/json"
 	"github.com/gokapi/gokapi/core/formats/markdown"
 	"github.com/gokapi/gokapi/core/formats/messageformat"
+	"github.com/gokapi/gokapi/core/formats/mif"
 	"github.com/gokapi/gokapi/core/formats/mosestext"
+	"github.com/gokapi/gokapi/core/formats/odf"
 	"github.com/gokapi/gokapi/core/formats/openxml"
 	"github.com/gokapi/gokapi/core/formats/paraplaintext"
 	"github.com/gokapi/gokapi/core/formats/phpcontent"
 	"github.com/gokapi/gokapi/core/formats/plaintext"
 	"github.com/gokapi/gokapi/core/formats/po"
+	"github.com/gokapi/gokapi/core/formats/pdf"
 	"github.com/gokapi/gokapi/core/formats/properties"
 	regexfmt "github.com/gokapi/gokapi/core/formats/regex"
+	"github.com/gokapi/gokapi/core/formats/rtf"
 	"github.com/gokapi/gokapi/core/formats/splicedlines"
 	"github.com/gokapi/gokapi/core/formats/srt"
 	"github.com/gokapi/gokapi/core/formats/tex"
@@ -28,6 +34,8 @@ import (
 	tsfmt "github.com/gokapi/gokapi/core/formats/ts"
 	"github.com/gokapi/gokapi/core/formats/ttml"
 	"github.com/gokapi/gokapi/core/formats/versifiedtext"
+	"github.com/gokapi/gokapi/core/formats/ttx"
+	"github.com/gokapi/gokapi/core/formats/txml"
 	"github.com/gokapi/gokapi/core/formats/vignette"
 	"github.com/gokapi/gokapi/core/formats/vtt"
 	"github.com/gokapi/gokapi/core/formats/wiki"
@@ -175,4 +183,36 @@ func RegisterAll(reg *registry.FormatRegistry) {
 	// R Vignette
 	reg.RegisterReader("vignette", func() format.DataFormatReader { return vignette.NewReader() })
 	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
+
+	// ODF (Open Document Format)
+	reg.RegisterReader("odf", func() format.DataFormatReader { return odf.NewReader() })
+	reg.RegisterWriter("odf", func() format.DataFormatWriter { return odf.NewWriter() })
+
+	// Archive (ZIP)
+	reg.RegisterReader("archive", func() format.DataFormatReader { return archive.NewReader() })
+	reg.RegisterWriter("archive", func() format.DataFormatWriter { return archive.NewWriter() })
+
+	// EPUB
+	reg.RegisterReader("epub", func() format.DataFormatReader { return epub.NewReader() })
+	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
+
+	// RTF (Rich Text Format)
+	reg.RegisterReader("rtf", func() format.DataFormatReader { return rtf.NewReader() })
+	reg.RegisterWriter("rtf", func() format.DataFormatWriter { return rtf.NewWriter() })
+
+	// MIF (Adobe FrameMaker)
+	reg.RegisterReader("mif", func() format.DataFormatReader { return mif.NewReader() })
+	reg.RegisterWriter("mif", func() format.DataFormatWriter { return mif.NewWriter() })
+
+	// TTX (Trados TagEditor)
+	reg.RegisterReader("ttx", func() format.DataFormatReader { return ttx.NewReader() })
+	reg.RegisterWriter("ttx", func() format.DataFormatWriter { return ttx.NewWriter() })
+
+	// TXML (Trados XML)
+	reg.RegisterReader("txml", func() format.DataFormatReader { return txml.NewReader() })
+	reg.RegisterWriter("txml", func() format.DataFormatWriter { return txml.NewWriter() })
+
+	// PDF (extraction only)
+	reg.RegisterReader("pdf", func() format.DataFormatReader { return pdf.NewReader() })
+	reg.RegisterWriter("pdf", func() format.DataFormatWriter { return pdf.NewWriter() })
 }

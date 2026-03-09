@@ -29,6 +29,7 @@ func TestRegisterAllReaders(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
+		"odf", "archive", "epub", "rtf", "mif", "ttx", "txml", "pdf",
 	}
 
 	for _, name := range expectedFormats {
@@ -49,6 +50,7 @@ func TestRegisterAllWriters(t *testing.T) {
 		"regex", "doxygen", "messageformat", "phpcontent",
 		"icml", "idml", "fixedwidth",
 		"transtable", "paraplaintext", "splicedlines", "versifiedtext", "vignette",
+		"odf", "archive", "epub", "rtf", "mif", "ttx", "txml", "pdf",
 	}
 
 	for _, name := range expectedFormats {
