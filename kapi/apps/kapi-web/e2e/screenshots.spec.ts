@@ -69,9 +69,21 @@ test.describe("Web App Screenshots", () => {
     await page.getByTestId("open-file-index.html").click();
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
-    // Pseudo-translate all blocks
-    await page.getByTestId("pseudo-btn").click();
-    await page.waitForTimeout(500);
+    // Pseudo-translate via API
+    await page.evaluate(async () => {
+      const url = new URL(window.location.href);
+      const pathParts = url.pathname.split("/");
+      // Path: /project/:id or similar — find the project ID
+      const pid = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+      await fetch(`/api/v1/workspaces/_local/editor/projects/${pid}/file-pseudo/index.html`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_locale: "fr" }),
+      });
+    });
+    // Reload to pick up pseudo-translated blocks
+    await page.reload();
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await expect(page.getByTestId("progress-text")).toContainText("100%");
 
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "editor-translated.png") });
@@ -88,9 +100,19 @@ test.describe("Web App Screenshots", () => {
     await page.getByTestId("open-file-index.html").click();
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
-    // Pseudo-translate first so there's content to show
-    await page.getByTestId("pseudo-btn").click();
-    await page.waitForTimeout(500);
+    // Pseudo-translate via API
+    await page.evaluate(async () => {
+      const url = new URL(window.location.href);
+      const pathParts = url.pathname.split("/");
+      const pid = pathParts[pathParts.length - 1] || pathParts[pathParts.length - 2];
+      await fetch(`/api/v1/workspaces/_local/editor/projects/${pid}/file-pseudo/index.html`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_locale: "fr" }),
+      });
+    });
+    await page.reload();
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
     // Switch to focus view
     await page.getByTestId("layout-focus").click();

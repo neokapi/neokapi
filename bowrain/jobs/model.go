@@ -26,6 +26,8 @@ type TranslationJob struct {
 	Progress         int       `json:"progress"` // 0-100
 	TotalBlocks      int       `json:"total_blocks"`
 	DoneBlocks       int       `json:"done_blocks"`
+	BatchSize        int       `json:"batch_size,omitempty"`
+	Concurrency      int       `json:"concurrency,omitempty"`
 	TokensUsed       int       `json:"tokens_used"`
 	Error            string    `json:"error,omitempty"`
 	CreatedAt        time.Time `json:"created_at"`

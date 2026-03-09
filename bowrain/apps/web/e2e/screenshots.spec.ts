@@ -10,6 +10,7 @@ import {
   seedTMEntries,
   seedConcepts,
   createInvite,
+  pseudoTranslateFile,
   waitForServer,
 } from "./helpers/api-client";
 
@@ -123,9 +124,10 @@ test.describe("Web App Screenshots", () => {
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "editor.png") });
 
-      // Pseudo-translate all blocks
-      await page.getByTestId("pseudo-btn").click();
-      await page.waitForTimeout(1000);
+      // Pseudo-translate all blocks via API and reload
+      await pseudoTranslateFile(token, wsSlug, p.id, "about-us.html", "fr");
+      await page.reload();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId("progress-text")).toContainText("100%", { timeout: 10000 });
 
       await page.screenshot({ path: path.join(dir, "editor-translated.png") });

@@ -358,7 +358,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
 
-	// Translation operations
+	// Translation operations (pseudo + AI are automation/API-only, not exposed in editor UI)
 	g.POST("/editor/projects/:pid/file-pseudo/*", s.HandlePseudoTranslate)
 	g.POST("/editor/projects/:pid/file-ai-translate/*", s.HandleAITranslate)
 	g.POST("/editor/projects/:pid/file-tm-translate/*", s.HandleTMTranslate)

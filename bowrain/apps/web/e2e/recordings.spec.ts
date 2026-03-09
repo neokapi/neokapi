@@ -8,6 +8,7 @@ import {
   seedTMEntries,
   seedConcepts,
   createInvite,
+  pseudoTranslateFile,
   waitForServer,
 } from "./helpers/api-client";
 import {
@@ -173,12 +174,11 @@ test.describe("Web App Recordings", () => {
       await page.keyboard.press("ArrowDown");
       await pause(page, 500);
 
-      // Use pseudo translate for remaining
-      await humanClick(page, page.getByTestId("pseudo-btn"));
+      // Pseudo-translate remaining blocks via API
+      await pseudoTranslateFile(token, wsSlug, p.id, "about-us.html", "fr");
+      await page.reload();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await pause(page, 2000);
-
-      // Show progress at 100%
-      await pause(page, 1500);
 
       // Clean up
       try {
@@ -207,9 +207,11 @@ test.describe("Web App Recordings", () => {
       await moveCursorTo(page, 640, 400, 0);
       await pause(page, 1000);
 
-      // Pseudo translate first so there's content
-      await humanClick(page, page.getByTestId("pseudo-btn"));
-      await pause(page, 2000);
+      // Pseudo-translate via API so there's content
+      await pseudoTranslateFile(token, wsSlug, p.id, "release-notes.md", "fr");
+      await page.reload();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await pause(page, 1000);
 
       // Switch to focus view
       await humanClick(page, page.getByTestId("layout-focus"));
@@ -253,11 +255,10 @@ test.describe("Web App Recordings", () => {
       // Show the empty state first
       await pause(page, 1500);
 
-      // Click pseudo-translate
-      await humanClick(page, page.getByTestId("pseudo-btn"));
-      await pause(page, 2000);
-
-      // Show progress going to 100%
+      // Pseudo-translate via API
+      await pseudoTranslateFile(token, wsSlug, p.id, "app-strings.json", "fr");
+      await page.reload();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
       await expect(page.getByTestId("progress-text")).toContainText("100%", { timeout: 10000 });
       await pause(page, 2000);
 

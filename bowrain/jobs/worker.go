@@ -156,47 +156,60 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		return fmt.Errorf("resolve provider: %w", err)
 	}
 
+	// Default batch/concurrency for automation jobs if not explicitly set.
+	batchSz := job.BatchSize
+	concurrency := job.Concurrency
+	if batchSz < 1 {
+		batchSz = 20
+	}
+	if concurrency < 1 {
+		concurrency = 5
+	}
+
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
 		SourceLocale: proj.SourceLocale,
 		TargetLocale: model.LocaleID(job.TargetLocale),
+		BatchSize:    batchSz,
+		Concurrency:  concurrency,
 	})
 
-	// Process blocks in batches to report progress.
-	const batchSize = 10
+	// Process blocks in progress-reporting chunks. The tool handles
+	// internal batching + concurrency; we chunk for progress updates.
+	const progressChunk = 50
 	var allOutParts []*model.Part
 	totalTokensUsed := 0
 
-	for i := 0; i < totalBlocks; i += batchSize {
-		end := i + batchSize
+	for i := 0; i < totalBlocks; i += progressChunk {
+		end := i + progressChunk
 		if end > totalBlocks {
 			end = totalBlocks
 		}
-		batch := storedBlocks[i:end]
+		chunk := storedBlocks[i:end]
 
 		// Rate limit.
 		if err := limiter.Wait(ctx); err != nil {
 			return fmt.Errorf("rate limit: %w", err)
 		}
 
-		parts := storedBlocksToParts(batch)
+		parts := storedBlocksToParts(chunk)
 		outParts, err := runToolOnParts(ctx, translateTool, parts)
 		if err != nil {
-			return fmt.Errorf("translate batch %d-%d: %w", i, end, err)
+			return fmt.Errorf("translate chunk %d-%d: %w", i, end, err)
 		}
 		allOutParts = append(allOutParts, outParts...)
 
 		// Estimate token usage (rough: ~4 chars per token for source + target).
-		batchTokens := estimateTokens(batch)
-		totalTokensUsed += batchTokens
+		chunkTokens := estimateTokens(chunk)
+		totalTokensUsed += chunkTokens
 
-		// Record usage per batch so quota is updated incrementally.
+		// Record usage per chunk so quota is updated incrementally.
 		if deps.QuotaStore != nil {
 			_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
 				WorkspaceSlug: job.WorkspaceSlug,
 				ProjectID:     job.ProjectID,
 				JobID:         job.ID,
 				Model:         job.Model,
-				TotalTokens:   batchTokens,
+				TotalTokens:   chunkTokens,
 			})
 		}
 

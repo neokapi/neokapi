@@ -168,6 +168,8 @@ type TranslateRequest struct {
 	APIKey           string `json:"api_key,omitempty"`
 	Model            string `json:"model,omitempty"`
 	ProviderConfigID string `json:"provider_config_id,omitempty"`
+	BatchSize        int    `json:"batch_size,omitempty"`
+	Concurrency      int    `json:"concurrency,omitempty"`
 }
 
 // TranslationStatsResponse holds statistics about a translation operation.
@@ -597,6 +599,8 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, it
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
 		SourceLocale: proj.SourceLocale,
 		TargetLocale: model.LocaleID(req.TargetLocale),
+		BatchSize:    req.BatchSize,
+		Concurrency:  req.Concurrency,
 	})
 
 	outParts, err := runToolOnParts(ctx, translateTool, parts)
