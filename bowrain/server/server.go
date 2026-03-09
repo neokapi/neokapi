@@ -52,6 +52,9 @@ type Server struct {
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
 
+	// notificationHub manages per-user WebSocket connections for real-time notifications.
+	notificationHub *notificationHub
+
 	// JobStore persists translation job state. Nil when job system is not configured.
 	JobStore jobs.JobStore
 
@@ -74,6 +77,15 @@ type Server struct {
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
+
+	// NotificationStore persists user notifications. Nil when not configured.
+	NotificationStore *bstore.NotificationStore
+
+	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
+	ExtractionJobStore jobs.ExtractionJobStore
+
+	// ExtractionQueue enqueues extraction job IDs. Nil when not configured.
+	ExtractionQueue jobs.Queue
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -93,7 +105,8 @@ func NewServer(cfg ServerConfig) *Server {
 		ConnectorReg:   connReg,
 		EventBus:       event.NewChannelEventBus(),
 		wsStores:       newWorkspaceStores(cfg.DataDir),
-		collabHub:      newCollabHub(),
+		collabHub:       newCollabHub(),
+		notificationHub: newNotificationHub(),
 	}
 
 	// Initialize credential store.
@@ -143,6 +156,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
 			s.AutomationRuleStore = event.NewSQLiteRuleStore(cs.DB())
 			s.ReviewQueueStore = bstore.NewReviewQueueStore(cs.DB())
+			s.NotificationStore = bstore.NewNotificationStore(cs.DB())
 		}
 
 		// Initialize auth store when authentication is configured.
@@ -439,6 +453,23 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/projects/:id/review-queue/:itemId/split", s.HandleSplitReviewItem)
 	g.POST("/projects/:id/review-queue/batch-decide", s.HandleBatchDecideReviewItems)
 	g.POST("/projects/:id/review-queue/sync", s.HandleSyncReviewDecisions)
+
+	// Notifications (user-scoped)
+	g.GET("/notifications", s.HandleListNotifications)
+	g.POST("/notifications/:nid/read", s.HandleMarkNotificationRead)
+	g.POST("/notifications/read-all", s.HandleMarkAllNotificationsRead)
+	g.DELETE("/notifications/:nid", s.HandleDeleteNotification)
+	g.GET("/notifications/ws", s.HandleNotificationWebSocket)
+
+	// Entity annotations (block-scoped, AD-022)
+	g.POST("/editor/projects/:pid/blocks/:bid/entities", s.HandleCreateEntity)
+	g.PUT("/editor/projects/:pid/blocks/:bid/entities/:idx", s.HandleUpdateEntity)
+	g.DELETE("/editor/projects/:pid/blocks/:bid/entities/:idx", s.HandleDeleteEntity)
+	g.POST("/editor/projects/:pid/blocks/:bid/entities/:idx/promote", s.HandlePromoteEntity)
+
+	// Extraction settings (project-scoped, AD-022)
+	g.GET("/projects/:id/settings/extraction", s.HandleGetExtractionSettings)
+	g.PUT("/projects/:id/settings/extraction", s.HandleUpdateExtractionSettings)
 }
 
 // Start initializes the Echo server and starts listening.

@@ -7,6 +7,7 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/event"
 	"github.com/gokapi/gokapi/bowrain/jobs"
+	bstore "github.com/gokapi/gokapi/bowrain/store"
 	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/google/uuid"
 )
@@ -26,7 +27,16 @@ func (s *Server) registerDefaultAutomations() {
 		},
 	})
 
-	// Rule 2: Auto-translate when new locales are added.
+	// Rule 2: Auto-extract entities and terms on push.
+	s.AutomationEngine.AddRule(event.AutomationRule{
+		Name:      "auto-extract-on-push",
+		EventType: platev.EventPushCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "auto_extract"},
+		},
+	})
+
+	// Rule 3: Auto-translate when new locales are added.
 	s.AutomationEngine.AddRule(event.AutomationRule{
 		Name:      "auto-translate-new-locale",
 		EventType: platev.EventProjectUpdated,
@@ -65,6 +75,19 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 		}
 		itemNames := strings.Split(items, ",")
 		go s.triggerAutoTranslate(context.Background(), ev.ProjectID, itemNames, nil, pushID, wsSlug)
+
+	case "auto_extract":
+		items := ev.Data["items"]
+		pushID := ev.Data["push_id"]
+		wsSlug := ev.Data["workspace_slug"]
+		if items == "" || pushID == "" {
+			return nil
+		}
+		itemNames := strings.Split(items, ",")
+		go s.triggerAutoExtract(context.Background(), ev.ProjectID, itemNames, pushID, wsSlug)
+
+	case "notify":
+		s.executeNotifyAction(action, ev)
 
 	case "auto_translate_new_locale":
 		newLocales := ev.Data["new_locales"]
@@ -137,6 +160,90 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 				log.Printf("auto-translate: failed to enqueue job %s: %v", job.ID, err)
 				_ = s.JobStore.DeleteJob(ctx, job.ID)
 			}
+		}
+	}
+}
+
+// executeNotifyAction sends a notification to specified users.
+func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Event) {
+	if s.NotificationStore == nil {
+		return
+	}
+
+	userID := action.Config["user_id"]
+	if userID == "" {
+		userID = ev.Data["user_id"]
+	}
+	if userID == "" {
+		return
+	}
+
+	title := action.Config["title"]
+	if title == "" {
+		title = "Automation notification"
+	}
+	body := action.Config["body"]
+
+	ctx := context.Background()
+	n := &bstore.Notification{
+		UserID:    userID,
+		Type:      bstore.NotificationType(action.Config["notification_type"]),
+		Title:     title,
+		Body:      body,
+		ProjectID: ev.ProjectID,
+	}
+	if err := s.NotificationStore.Create(ctx, n); err == nil {
+		s.NotifyUser(userID, n)
+	}
+}
+
+// triggerAutoExtract creates extraction jobs for each item pushed.
+func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemNames []string, pushID, wsSlug string) {
+	if s.ExtractionJobStore == nil || s.ExtractionQueue == nil || s.ContentStore == nil {
+		return
+	}
+
+	proj, err := s.ContentStore.GetProject(ctx, projectID)
+	if err != nil {
+		log.Printf("auto-extract: failed to load project %s: %v", projectID, err)
+		return
+	}
+
+	// Check opt-out.
+	if proj.Properties != nil && proj.Properties["auto_extract"] == "false" {
+		return
+	}
+
+	locale := string(proj.SourceLocale)
+	model := "gpt-4o-mini"
+	if proj.Properties != nil && proj.Properties["extraction_model"] != "" {
+		model = proj.Properties["extraction_model"]
+	}
+
+	if wsSlug == "" {
+		wsSlug = "_anon"
+	}
+
+	for _, itemName := range itemNames {
+		job := &jobs.ExtractionJob{
+			ID:            uuid.NewString(),
+			WorkspaceSlug: wsSlug,
+			ProjectID:     projectID,
+			ItemName:      itemName,
+			Locale:        locale,
+			PushID:        pushID,
+			Model:         model,
+			Status:        jobs.ExtractionStatusQueued,
+		}
+
+		if err := s.ExtractionJobStore.CreateExtractionJob(ctx, job); err != nil {
+			log.Printf("auto-extract: failed to create job for %s: %v", itemName, err)
+			continue
+		}
+
+		if err := s.ExtractionQueue.Enqueue(ctx, job.ID); err != nil {
+			log.Printf("auto-extract: failed to enqueue job %s: %v", job.ID, err)
+			_ = s.ExtractionJobStore.UpdateExtractionJobStatus(ctx, job.ID, jobs.ExtractionStatusFailed, "enqueue failed")
 		}
 	}
 }

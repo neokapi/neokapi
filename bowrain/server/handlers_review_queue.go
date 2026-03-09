@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -83,7 +84,8 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 	}
 
 	userID, _ := c.Get("user_id").(string)
-	err := s.ReviewQueueStore.Decide(c.Request().Context(), itemID, bstore.DecideRequest{
+	ctx := c.Request().Context()
+	err := s.ReviewQueueStore.Decide(ctx, itemID, bstore.DecideRequest{
 		Decision: req.Decision,
 		Comment:  req.Comment,
 		Edits:    req.Edits,
@@ -91,6 +93,12 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 	})
 	if err != nil {
 		return c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: err.Error()})
+	}
+
+	// Process side effects (termbase creation, rejected terms, DNT entries).
+	if item, getErr := s.ReviewQueueStore.GetItem(ctx, itemID); getErr == nil {
+		wsSlug, _ := c.Get("workspace_slug").(string)
+		go s.processDecisionSideEffects(context.Background(), item, wsSlug)
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
@@ -164,13 +172,25 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 	}
 
 	userID, _ := c.Get("user_id").(string)
-	decided, err := s.ReviewQueueStore.BatchDecide(c.Request().Context(), req.ItemIDs, bstore.DecideRequest{
+	ctx := c.Request().Context()
+	decided, err := s.ReviewQueueStore.BatchDecide(ctx, req.ItemIDs, bstore.DecideRequest{
 		Decision: req.Decision,
 		UserID:   userID,
 	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+
+	// Process side effects for each decided item.
+	wsSlug, _ := c.Get("workspace_slug").(string)
+	go func() {
+		bgCtx := context.Background()
+		for _, id := range req.ItemIDs {
+			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {
+				s.processDecisionSideEffects(bgCtx, item, wsSlug)
+			}
+		}
+	}()
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true, "decided": decided})
 }
@@ -194,11 +214,14 @@ func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
 	}
 
 	userID, _ := c.Get("user_id").(string)
+	ctx := c.Request().Context()
+	wsSlug, _ := c.Get("workspace_slug").(string)
 	var synced int
 	var conflicts []string
+	var decidedIDs []string
 
 	for _, d := range req.Decisions {
-		err := s.ReviewQueueStore.Decide(c.Request().Context(), d.ItemID, bstore.DecideRequest{
+		err := s.ReviewQueueStore.Decide(ctx, d.ItemID, bstore.DecideRequest{
 			Decision: d.Decision,
 			Comment:  d.Comment,
 			Edits:    d.Edits,
@@ -208,8 +231,19 @@ func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
 			conflicts = append(conflicts, d.ItemID)
 		} else {
 			synced++
+			decidedIDs = append(decidedIDs, d.ItemID)
 		}
 	}
+
+	// Process side effects for decided items.
+	go func() {
+		bgCtx := context.Background()
+		for _, id := range decidedIDs {
+			if item, getErr := s.ReviewQueueStore.GetItem(bgCtx, id); getErr == nil {
+				s.processDecisionSideEffects(bgCtx, item, wsSlug)
+			}
+		}
+	}()
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"synced":    synced,

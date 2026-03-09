@@ -145,6 +145,32 @@ export interface BlockInfo {
   translatable: boolean;
   has_spans: boolean;
   properties: Record<string, string>;
+  entities?: EntityInfo[];
+}
+
+/** Entity annotation on a block */
+export interface EntityInfo {
+  key: string;
+  text: string;
+  type: string;
+  start: number;
+  end: number;
+  dnt: boolean;
+  source?: string;
+  locale?: string;
+}
+
+/** Notification info */
+export interface NotificationInfo {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  body: string;
+  project_id?: string;
+  link_url?: string;
+  read: boolean;
+  created_at: string;
 }
 
 /** Update block request */

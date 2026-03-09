@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type {
   ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch,
-  BlockNote, QAIssue, BlockHistoryEntry, FileQAResult, AddConceptRequest,
+  BlockNote, QAIssue, BlockHistoryEntry, FileQAResult, AddConceptRequest, EntityInfo,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
@@ -11,7 +11,8 @@ import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
 import { TargetCellEditor } from "./editor/TargetCellEditor";
 import { validateTags } from "./editor/tagSemantics";
-import { HighlightedSource } from "./editor/HighlightedSource";
+import { HighlightedSource, entityLabel } from "./editor/HighlightedSource";
+import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
@@ -123,6 +124,11 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const [blockHistory, setBlockHistory] = useState<BlockHistoryEntry[]>([]);
   const [blockNotes, setBlockNotes] = useState<BlockNote[]>([]);
 
+  // Entity marking state
+  const [entityMarkState, setEntityMarkState] = useState<{
+    text: string; start: number; end: number; position: { x: number; y: number };
+  } | null>(null);
+
   const { getDisplayName } = useLocales();
   const fullApi = useApi();
   const { activeWorkspace } = useWorkspace();
@@ -217,6 +223,29 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         } else if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           handleSaveEdit();
+        }
+        return;
+      }
+
+      // Cmd+E: mark selected text as entity
+      if (e.key === "e" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        const sel = window.getSelection();
+        if (sel && sel.toString().trim().length > 0 && selectedIndex >= 0) {
+          const block = filteredBlocks[selectedIndex];
+          const selectedText = sel.toString().trim();
+          const sourceText = block?.source ?? "";
+          const startIdx = sourceText.indexOf(selectedText);
+          if (startIdx >= 0) {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            setEntityMarkState({
+              text: selectedText,
+              start: startIdx,
+              end: startIdx + selectedText.length,
+              position: { x: rect.left, y: rect.bottom },
+            });
+          }
         }
         return;
       }
@@ -318,6 +347,33 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     }
   };
   startEditingRef.current = startEditing;
+
+  const handleCreateEntity = useCallback(async (type: string, dnt: boolean) => {
+    if (!entityMarkState || selectedIndex < 0) return;
+    const block = filteredBlocks[selectedIndex];
+    if (!block) return;
+    try {
+      const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
+        text: entityMarkState.text,
+        type,
+        start: entityMarkState.start,
+        end: entityMarkState.end,
+        dnt,
+        source: "manual",
+      });
+      // Update block entities in local state.
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.id === block.id
+            ? { ...b, entities: [...(b.entities ?? []), created] }
+            : b,
+        ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create entity");
+    }
+    setEntityMarkState(null);
+  }, [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName]);
 
   const handleSaveEdit = async () => {
     if (editingIndex === null) return;
@@ -705,8 +761,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                   codedText={block.source_coded}
                   spans={block.source_spans}
                 />
-              ) : showContextPanel && selectedIndex === index && termMatches.length > 0 ? (
-                <HighlightedSource text={block.source} termMatches={termMatches} />
+              ) : showContextPanel && selectedIndex === index && (termMatches.length > 0 || (block.entities && block.entities.length > 0)) ? (
+                <HighlightedSource text={block.source} termMatches={termMatches} entities={block.entities} />
               ) : (
                 block.source
               )}
@@ -840,8 +896,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         <div className="text-base leading-relaxed" data-testid="focus-source">
           {currentBlock.has_spans && currentBlock.source_coded && currentBlock.source_spans ? (
             <FormattedSourceDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
-          ) : showContextPanel && termMatches.length > 0 ? (
-            <HighlightedSource text={currentBlock.source} termMatches={termMatches} />
+          ) : showContextPanel && (termMatches.length > 0 || (currentBlock.entities && currentBlock.entities.length > 0)) ? (
+            <HighlightedSource text={currentBlock.source} termMatches={termMatches} entities={currentBlock.entities} />
           ) : (
             currentBlock.source
           )}
@@ -1265,6 +1321,41 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                 ))
               )}
             </div>
+
+            {/* Entities */}
+            {(() => {
+              const currentEntities = filteredBlocks[selectedIndex]?.entities ?? [];
+              return (
+                <div className="mt-4">
+                  <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 pb-1 border-b border-border">
+                    Entities
+                    {currentEntities.length > 0 && (
+                      <span className="ml-1.5 font-normal text-[10px]">({currentEntities.length})</span>
+                    )}
+                  </div>
+                  {!contextLoading && currentEntities.length === 0 ? (
+                    <div className="text-xs text-muted-foreground italic py-2">No entities in this block</div>
+                  ) : (
+                    currentEntities.map((e: EntityInfo, i: number) => (
+                      <div key={e.key} className="p-2 bg-muted rounded-md mb-1.5 border border-border" data-testid={`entity-${i}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[13px] font-semibold">{e.text}</span>
+                          {e.dnt && (
+                            <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-red-500/10 text-red-500">DNT</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] px-1.5 py-px rounded bg-card border border-border text-muted-foreground">{entityLabel(e.type)}</span>
+                          {e.source && (
+                            <span className="text-[10px] text-muted-foreground">{e.source}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -1287,8 +1378,21 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
             <> | Ctrl+1..9: insert tag</>
           )}
+          {editingIndex === null && <> | {"\u2318"}E: mark entity</>}
         </span>
       </div>
+
+      {/* Entity mark popover */}
+      {entityMarkState && (
+        <EntityMarkPopover
+          text={entityMarkState.text}
+          start={entityMarkState.start}
+          end={entityMarkState.end}
+          position={entityMarkState.position}
+          onConfirm={handleCreateEntity}
+          onCancel={() => setEntityMarkState(null)}
+        />
+      )}
     </div>
   );
 }

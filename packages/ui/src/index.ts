@@ -56,8 +56,13 @@ export { ApiTokenManager } from "./components/ApiTokenManager";
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationHistory } from "./components/AutomationHistory";
+export { NotificationCenter } from "./components/NotificationCenter";
 
 // Editor components
+export { HighlightedSource } from "./components/editor/HighlightedSource";
+export { entityLabel } from "./components/editor/HighlightedSource";
+export { EntityPopover } from "./components/editor/EntityPopover";
+export { EntityMarkPopover } from "./components/editor/EntityMarkPopover";
 export { SourceCellDisplay } from "./components/editor/SourceCellDisplay";
 export { FormattedSourceDisplay } from "./components/editor/FormattedSourceDisplay";
 export { TargetCellEditor } from "./components/editor/TargetCellEditor";
@@ -110,6 +115,8 @@ export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
 export { useTools } from "./hooks/useTools";
+export { useNotificationApi } from "./hooks/useNotificationApi";
+export { useNotifications } from "./hooks/useNotifications";
 
 // Types
 export type {
@@ -127,6 +134,7 @@ export type {
   ApiToken, CreateApiTokenResponse,
   AutomationRule, AutomationCondition, AutomationAction, AutomationEvent,
   SaveAutomationRuleRequest, AutomationHistoryEntry,
+  EntityInfo, NotificationInfo,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

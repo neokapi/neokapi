@@ -11,6 +11,7 @@ import type {
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
+  NotificationInfo, EntityInfo,
 } from "../types/api";
 
 /**
@@ -625,6 +626,63 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listAutomationHistory(workspaceSlug: string, projectId: string): Promise<AutomationHistoryEntry[]> {
     return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
+  }
+
+  // ── Notifications ──────────────────────────────────────────────────────
+
+  async listNotifications(workspaceSlug: string, limit?: number, unreadOnly?: boolean): Promise<{ notifications: NotificationInfo[]; unread_count: number }> {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (unreadOnly) params.set("unread", "true");
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications?${params}`);
+  }
+
+  async markNotificationRead(workspaceSlug: string, id: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/${id}/read`, {
+      method: "PUT",
+    });
+  }
+
+  async markAllNotificationsRead(workspaceSlug: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/read-all`, {
+      method: "PUT",
+    });
+  }
+
+  async deleteNotification(workspaceSlug: string, id: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/${id}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ── Entity Annotations ──────────────────────────────────────────────────
+
+  async createEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entity: Partial<EntityInfo>): Promise<EntityInfo> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities`,
+      { method: "POST", body: JSON.stringify({ item_name: itemName, ...entity }) },
+    );
+  }
+
+  async updateEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string, entity: Partial<EntityInfo>): Promise<EntityInfo> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}`,
+      { method: "PUT", body: JSON.stringify({ item_name: itemName, ...entity }) },
+    );
+  }
+
+  async deleteEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}?item_name=${encodeURIComponent(itemName)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async promoteEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}/promote`,
+      { method: "POST", body: JSON.stringify({ item_name: itemName }) },
+    );
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

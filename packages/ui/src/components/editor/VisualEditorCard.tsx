@@ -325,11 +325,11 @@ export function VisualEditorCard({
             )}
           </div>
           <div className="text-sm leading-relaxed">
-            {termMatches.length > 0 ? (
-              <HighlightedSource text={block.source} termMatches={termMatches} />
+            {termMatches.length > 0 || (block.entities && block.entities.length > 0) ? (
+              <HighlightedSource text={block.source} termMatches={termMatches} entities={block.entities} />
             ) : block.has_spans && block.source_coded ? (
               codeView ? (
-                <SourceCellDisplay codedText={sourceCodedText} spans={sourceSpans} />
+                <SourceCellDisplay codedText={sourceCodedText} spans={sourceSpans} entities={block.entities} />
               ) : (
                 <FormattedSourceDisplay codedText={sourceCodedText} spans={sourceSpans} />
               )

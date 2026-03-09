@@ -137,15 +137,42 @@ type SpanInfoResponse struct {
 
 // BlockInfoResponse is a serializable representation of a translatable block.
 type BlockInfoResponse struct {
-	ID           string             `json:"id"`
-	Source       string             `json:"source"`
-	SourceCoded  string             `json:"source_coded,omitempty"`
-	SourceSpans  []SpanInfoResponse `json:"source_spans,omitempty"`
-	Targets      map[string]string  `json:"targets"`
-	TargetsCoded map[string]string  `json:"targets_coded,omitempty"`
-	Translatable bool               `json:"translatable"`
-	HasSpans     bool               `json:"has_spans"`
-	Properties   map[string]string  `json:"properties"`
+	ID           string               `json:"id"`
+	Source       string               `json:"source"`
+	SourceCoded  string               `json:"source_coded,omitempty"`
+	SourceSpans  []SpanInfoResponse   `json:"source_spans,omitempty"`
+	Targets      map[string]string    `json:"targets"`
+	TargetsCoded map[string]string    `json:"targets_coded,omitempty"`
+	Translatable bool                 `json:"translatable"`
+	HasSpans     bool                 `json:"has_spans"`
+	Properties   map[string]string    `json:"properties"`
+	Entities     []EntityInfoResponse `json:"entities,omitempty"`
+}
+
+// EntityInfoResponse represents an entity annotation on a block.
+type EntityInfoResponse struct {
+	Key    string `json:"key"`              // annotation key (e.g. "entity:0")
+	Text   string `json:"text"`
+	Type   string `json:"type"`
+	Start  int    `json:"start"`
+	End    int    `json:"end"`
+	DNT    bool   `json:"dnt"`
+	Source string `json:"source,omitempty"` // "llm", "ner", "manual"
+	Locale string `json:"locale,omitempty"`
+}
+
+// TermCandidateInfoResponse represents a term candidate annotation on a block.
+type TermCandidateInfoResponse struct {
+	Key             string  `json:"key"` // annotation key (e.g. "term-candidate:0")
+	Text            string  `json:"text"`
+	Definition      string  `json:"definition"`
+	Category        string  `json:"category"`
+	Translatability string  `json:"translatability"`
+	Confidence      float64 `json:"confidence"`
+	Start           int     `json:"start"`
+	End             int     `json:"end"`
+	Source          string  `json:"source,omitempty"`
+	Status          string  `json:"status,omitempty"`
 }
 
 // UpdateBlockTargetRequest holds parameters for updating a block target.
@@ -981,6 +1008,7 @@ func storedBlockToInfoResponse(sb *store.StoredBlock, targetLocales []string) Bl
 	}
 
 	enrichBlockInfoResponse(&bi, sb.Block, targetLocales)
+	enrichBlockEntities(&bi, sb.Block)
 	return bi
 }
 
@@ -1008,6 +1036,29 @@ func enrichBlockInfoResponse(bi *BlockInfoResponse, block *model.Block, targetLo
 		}
 		if segs[0].Content != nil {
 			bi.TargetsCoded[locale] = segs[0].Content.CodedText
+		}
+	}
+}
+
+// enrichBlockEntities extracts entity and term-candidate annotations from a block.
+func enrichBlockEntities(bi *BlockInfoResponse, block *model.Block) {
+	if block.Annotations == nil {
+		return
+	}
+
+	for key, ann := range block.Annotations {
+		switch a := ann.(type) {
+		case *model.EntityAnnotation:
+			bi.Entities = append(bi.Entities, EntityInfoResponse{
+				Key:    key,
+				Text:   a.Text,
+				Type:   string(a.Type),
+				Start:  a.Position.Start,
+				End:    a.Position.End,
+				DNT:    a.DNT,
+				Source: string(a.Source),
+				Locale: string(a.Locale),
+			})
 		}
 	}
 }

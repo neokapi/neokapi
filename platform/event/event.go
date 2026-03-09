@@ -33,6 +33,9 @@ const (
 	EventFlowCompleted EventType = "flow.completed"
 	EventFlowFailed    EventType = "flow.failed"
 
+	// Extraction events
+	EventExtractionCompleted EventType = "extraction.completed"
+
 	// Quality events
 	EventQualityGatePass EventType = "quality.gate.pass"
 	EventQualityGateFail EventType = "quality.gate.fail"
