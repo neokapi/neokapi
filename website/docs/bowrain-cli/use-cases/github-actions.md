@@ -43,18 +43,25 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | `version` | Installed version (e.g. `0.5.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
-## Recommended: Full Sync with `bowrain sync`
+## Recommended: Full Sync with `bowrain-action`
 
-The simplest and most powerful CI pattern is `bowrain sync` — push source content, wait for server-side translation, and pull back the results in one step:
+The simplest CI pattern uses two actions together:
+
+- [`gokapi/setup-bowrain`](https://github.com/gokapi/setup-bowrain) — installs the Bowrain CLI
+- [`gokapi/bowrain-action`](https://github.com/gokapi/bowrain-action) — runs `bowrain sync` and commits translations
 
 ```yaml
 name: Sync Translations
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
       - "src/locales/en/**"
+
+permissions:
+  contents: write
 
 jobs:
   sync:
@@ -66,21 +73,39 @@ jobs:
         with:
           token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
-          server: https://bowrain.example.com
+          server: https://dev.bowrain.cloud
 
-      - name: Sync translations
-        run: bowrain sync --timeout 10m
+      - uses: gokapi/bowrain-action@v1
+        id: sync
 
-      - name: Commit translated files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/locales/
-          git diff --cached --quiet || git commit -m "chore: sync translations"
-          git push
+      - name: Summary
+        if: steps.sync.outputs.committed == 'true'
+        run: echo "Translations committed at ${{ steps.sync.outputs.commit-sha }}"
 ```
 
-This single `bowrain sync` call replaces a multi-step push/wait/pull workflow. The `--timeout` flag controls how long to wait for server-side flows (AI translation, QA checks, terminology enforcement) to complete.
+The `bowrain-action` runs `bowrain sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
+
+| Output | Description |
+|--------|-------------|
+| `status` | `success`, `no-changes`, or `failed` |
+| `committed` | `true` if a commit was created |
+| `commit-sha` | SHA of the created commit |
+
+### bowrain-action Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `command` | `sync` | Bowrain command to run |
+| `args` | `--timeout 10m` | Additional arguments |
+| `commit` | `true` | Whether to commit changes |
+| `commit-message` | `chore: sync translations via Bowrain` | Commit message |
+| `git-user-name` | `Bowrain Bot` | Git committer name |
+| `git-user-email` | `bot@bowrain.cloud` | Git committer email |
+| `paths` | `i18n/ docs/ blog/` | Paths to stage for commit |
+
+:::note
+The workflow needs `permissions: contents: write` for the action to push commits.
+:::
 
 ## Example: Translation on Pull Request
 
@@ -116,7 +141,7 @@ jobs:
 
 ## Example: Server Sync on Push to Main
 
-Automatically push translations to Bowrain Server when changes land on `main`:
+Automatically push translations to Bowrain Cloud when changes land on `main`:
 
 ```yaml
 name: Sync Translations
@@ -137,9 +162,9 @@ jobs:
         with:
           token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
-          server: https://bowrain.example.com
+          server: https://dev.bowrain.cloud
 
-      - name: Push to Bowrain Server
+      - name: Push to Bowrain Cloud
         run: bowrain push -m "Sync from CI (${GITHUB_SHA::7})"
 ```
 
@@ -182,7 +207,7 @@ jobs:
 
 ## Example: Pull and Merge Server Changes
 
-Pull translations from Bowrain Server and open a PR:
+Pull translations from Bowrain Cloud and open a PR:
 
 ```yaml
 name: Pull Translations
@@ -202,9 +227,9 @@ jobs:
         with:
           token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
-          server: https://bowrain.example.com
+          server: https://dev.bowrain.cloud
 
-      - name: Pull from Bowrain Server
+      - name: Pull from Bowrain Cloud
         run: bowrain pull
 
       - name: Create PR if changed
@@ -217,11 +242,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore: pull translations from Bowrain Server"
+          git commit -m "chore: pull translations from Bowrain Cloud"
           git push -u origin "${BRANCH}"
           gh pr create \
-            --title "Pull translations from Bowrain Server" \
-            --body "Automated pull of latest translations from Bowrain Server."
+            --title "Pull translations from Bowrain Cloud" \
+            --body "Automated pull of latest translations from Bowrain Cloud."
 ```
 
 ## Authentication
@@ -237,10 +262,20 @@ The `auth-token` input on the setup action is the simplest approach — it expor
 
 ### Generating a CI Token
 
-1. Log in to your Bowrain Server dashboard
-2. Navigate to **Settings > API Tokens**
-3. Create a token with the required scopes
-4. Store it as a GitHub Actions secret (e.g. `BOWRAIN_AUTH_TOKEN`)
+Create an API token using the Bowrain CLI:
+
+```bash
+bowrain auth login                               # authenticate with Bowrain Cloud
+bowrain auth token create --name "CI" --expire-days 90
+```
+
+The token (`bwt_...`) is shown once — store it immediately as a GitHub Actions secret:
+
+```bash
+gh secret set BOWRAIN_AUTH_TOKEN --repo your-org/your-repo
+```
+
+You can list and revoke tokens with `bowrain auth token list` and `bowrain auth token delete`.
 
 ## Plugins
 

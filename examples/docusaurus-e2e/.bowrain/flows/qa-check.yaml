@@ -1,6 +1,0 @@
-name: qa-check
-description: Run quality checks on source content
-
-steps:
-  - tool: qa-check
-  - tool: term-check

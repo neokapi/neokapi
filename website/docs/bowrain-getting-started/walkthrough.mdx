@@ -13,23 +13,21 @@ in under 10 minutes. You will:
 1. Set up a Bowrain project with file mappings and automation rules
 2. Generate pseudo-translations to validate your i18n setup
 3. Push content and sync real translations with one command
-4. Claim the project and invite translators through the web UI
+4. Claim the project and set up an API token
 5. Automate the entire pipeline with GitHub Actions
 
 We use a real Docusaurus site as the example project:
 [github.com/gokapi/bowrain-example-docusaurus](https://github.com/gokapi/bowrain-example-docusaurus).
+This project is connected to [Bowrain Cloud](https://dev.bowrain.cloud) with live
+badges showing real translation progress.
 
 ---
 
 ## Prerequisites
 
 - **Bowrain CLI** installed ([Installation](/docs/bowrain/installation))
-- **Bowrain Server** running locally or in Docker ([Self-Hosting](/docs/bowrain-server/self-hosting))
 
 ```bash
-# Start the server stack
-docker compose up -d --wait
-
 # Verify bowrain is installed
 bowrain --version
 ```
@@ -44,7 +42,7 @@ Clone the example project and create a Bowrain project:
 git clone https://github.com/gokapi/bowrain-example-docusaurus.git
 cd bowrain-example-docusaurus
 
-bowrain init --anonymous --name "Acme Docs" --source en
+bowrain init --anonymous --name "Acme Docs" --source en --server https://dev.bowrain.cloud
 ```
 
 This creates a `.bowrain/` directory — think of it as a git-like project root
@@ -69,8 +67,11 @@ bowrain-example-docusaurus/
 └── docusaurus.config.ts
 ```
 
-The init command also prints a **claim URL** — save it for
-[Step 5](#step-5-claim-the-project-and-invite-translators).
+The init command prints two important things — save them both:
+
+- **Claim URL** — use in [Step 4](#step-4-claim-the-project-and-create-an-api-token)
+  to take ownership of the project
+- **Project ID** — stored in `.bowrain/config.yaml`
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/bowrain-cli/walkthrough-init.webm" type="video/webm" />
@@ -81,11 +82,18 @@ Bowrain CLI searches upward for `.bowrain/` like git searches for `.git/`.
 All commands work from any subdirectory in your project.
 :::
 
+:::warning
+The init command stores a **claim token** in `.bowrain/config.yaml`. This token
+grants push/pull access to the project until it is claimed. **Do not commit the
+claim token to a public repository.** Add it to `.gitignore` or claim the project
+first (Step 4), which removes the token from the config.
+:::
+
 ---
 
 ## Step 2: Configure File Mappings and Automation
 
-The `.bowrain/config.yaml` file maps your source files to the Bowrain Server and
+The `.bowrain/config.yaml` file maps your source files to Bowrain Cloud and
 declares automation rules that run at lifecycle hooks:
 
 ```yaml
@@ -100,6 +108,8 @@ spec:
     target_locales:
       - nb
       - qps
+  server:
+    url: https://dev.bowrain.cloud
   mappings:
     - local: "i18n/en/**/*.json"
       remote: "{path}/{filename}"
@@ -128,6 +138,11 @@ spec:
 ```
 
 ### Key sections
+
+**`server`** points to Bowrain Cloud. The `project_id` is added automatically
+by `bowrain init`. No credentials are stored in the config — authentication
+is handled separately via `bowrain auth login` or the `BOWRAIN_AUTH_TOKEN`
+environment variable.
 
 **`mappings`** define which files contain translatable content and what format to
 use. The `local` pattern matches source files, `remote` defines the server-side
@@ -192,7 +207,7 @@ bowrain sync --timeout 2m
 
 Three phases run automatically:
 
-1. **Push** — uploads source content to the server based on your mappings
+1. **Push** — uploads source content to Bowrain Cloud based on your mappings
 2. **Wait** — polls the server until translations are ready (server-side
    automation translates via AI)
 3. **Pull** — downloads translated content and writes it to the mapped paths
@@ -204,7 +219,7 @@ Running pre-push automation: qa-before-push
   ✓ qa-check        (27 blocks checked)
   ✓ term-check      (27 blocks checked)
 
-Pushing to http://localhost:8080...
+Pushing to https://dev.bowrain.cloud...
   i18n/en/code.json                 27 blocks
   docs/intro.md                      8 blocks
 Done. 74 blocks pushed.
@@ -242,20 +257,47 @@ timeout (e.g., `--timeout 10m`).
 
 ---
 
-## Step 5: Claim the Project and Invite Translators
+## Step 5: Claim the Project and Create an API Token
 
-The project was created anonymously. To manage it in the web UI, open the claim
-URL from Step 1:
+The project was created anonymously. To manage it and set up CI, you need to
+claim it and create an API token.
 
-1. Open the claim URL in your browser
-2. Sign in (or create an account)
-3. The project appears in your workspace dashboard
+### Claim the project
+
+Open the claim URL from Step 1 in your browser:
+
+1. Sign in (or create an account) on [Bowrain Cloud](https://dev.bowrain.cloud)
+2. The project appears in your workspace dashboard
+3. The claim token is automatically removed from `.bowrain/config.yaml`
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/web-app/dark/login-and-workspace.webm" type="video/webm" />
 </video>
 
-### Invite a translator
+### Create an API token for CI
+
+After claiming, create a long-lived API token for use in GitHub Actions:
+
+```bash
+bowrain auth login                           # authenticate with Bowrain Cloud
+bowrain auth token create --name "CI" --expire-days 90
+```
+
+The command prints the token once — copy it and store it as a GitHub repository
+secret named `BOWRAIN_AUTH_TOKEN`:
+
+```bash
+# Or set it via the GitHub CLI
+gh secret set BOWRAIN_AUTH_TOKEN --repo your-org/your-repo
+```
+
+:::warning
+API tokens (`bwt_...`) are shown only once at creation. Store the token
+immediately as a GitHub secret. You can revoke and recreate tokens at any time
+with `bowrain auth token list` and `bowrain auth token delete`.
+:::
+
+### Invite translators
 
 From the Bowrain web app:
 
@@ -275,7 +317,7 @@ suggestions, terminology lookup, and AI-assisted drafts.
 
 ## Step 6: Server-Side Automation
 
-While the CLI runs local automation (QA gates, sync), the Bowrain Server has
+While the CLI runs local automation (QA gates, sync), Bowrain Cloud has
 its own event-driven automation engine. Navigate to **Automations** in the
 project sidebar to configure server-side rules.
 
@@ -318,13 +360,21 @@ Example: translate on push, then notify Slack when all locales are done.
 The final piece: run `bowrain sync` in CI so translations stay up to date
 whenever source content changes.
 
+Two actions work together:
+- [`gokapi/setup-bowrain`](https://github.com/gokapi/setup-bowrain) — installs the Bowrain CLI
+- [`gokapi/bowrain-action`](https://github.com/gokapi/bowrain-action) — runs sync and commits translations
+
 ```yaml
-name: Translation Sync
+name: Bowrain Sync
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths: ['i18n/en/**', 'docs/**', 'blog/**']
+
+permissions:
+  contents: write
 
 jobs:
   sync:
@@ -334,19 +384,16 @@ jobs:
 
       - uses: gokapi/setup-bowrain@v1
         with:
+          token: $\{{ secrets.GOKAPI_REGISTRY_TOKEN }}
           auth-token: $\{{ secrets.BOWRAIN_AUTH_TOKEN }}
-          server: $\{{ secrets.BOWRAIN_SERVER_URL }}
+          server: https://dev.bowrain.cloud
 
-      - name: Sync translations
-        run: bowrain sync --timeout 10m
+      - uses: gokapi/bowrain-action@v1
+        id: sync
 
-      - name: Commit translations
-        run: |
-          git config user.name "Bowrain Bot"
-          git config user.email "bot@bowrain.cloud"
-          git add i18n/
-          git diff --cached --quiet || git commit -m "chore: sync translations"
-          git push
+      - name: Summary
+        if: steps.sync.outputs.committed == 'true'
+        run: echo "Translations committed at $\{{ steps.sync.outputs.commit-sha }}"
 ```
 
 The pipeline:
@@ -354,19 +401,19 @@ The pipeline:
 ```
 Developer pushes code
   → GitHub Actions detects source content changes
-    → bowrain sync pushes to server
-      → Server auto-translates via AI
-        → bowrain sync pulls translations
-          → Bot commits translated files back to repo
+    → setup-bowrain installs CLI + configures auth
+      → bowrain-action syncs translations + commits
+        → Translated files committed back to repo
 ```
 
 <video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
   <source src="/video/bowrain-cli/walkthrough-gh-actions.webm" type="video/webm" />
 </video>
 
-:::warning
-Store `BOWRAIN_SERVER_URL` and `BOWRAIN_TOKEN` as GitHub repository secrets.
-Never commit credentials to the repository.
+:::tip
+The `GOKAPI_REGISTRY_TOKEN` secret is needed to download the Bowrain CLI from
+private releases. If you're in the `gokapi` GitHub organization, this is
+available as an organization secret.
 :::
 
 ---
@@ -428,9 +475,9 @@ pulled back — all automatically.
 | 2. Configure | File mappings + automation rules | `.bowrain/config.yaml` |
 | 3. Pseudo-translate | Validate i18n setup | `bowrain flow run pseudo-translate` |
 | 4. Sync | Push, translate, pull in one step | `bowrain sync --timeout 2m` |
-| 5. Claim + invite | Manage project in web UI | Claim URL + invite members |
+| 5. Claim + token | Own the project, create CI token | Claim URL + `bowrain auth token create` |
 | 6. Server automation | Auto-translate on push | Server-side automation rules |
-| 7. CI/CD | Continuous translation | GitHub Actions + `setup-bowrain` |
+| 7. CI/CD | Continuous translation | `setup-bowrain` + `bowrain-action` |
 
 ## What's Next
 
@@ -438,4 +485,3 @@ pulled back — all automatically.
 - [Automation](/docs/bowrain-server/automation) — deep dive into server-side automation rules
 - [Flows](/docs/bowrain-cli/flows/overview) — create custom translation and QA flows
 - [GitHub Actions](/docs/bowrain-cli/use-cases/github-actions) — production CI/CD patterns
-- [Self-Hosting](/docs/bowrain-server/self-hosting) — deploy your own Bowrain Server

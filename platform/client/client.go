@@ -50,6 +50,18 @@ func NewClaimTokenClient(serverURL, projectID, claimToken string) *BowrainClient
 	}
 }
 
+// NewProjectBearerClient creates a client that uses bearer auth (JWT or API token)
+// with flat project routes (no workspace). This supports CI scenarios where the
+// project has been claimed but the local config doesn't store the workspace slug.
+func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClient {
+	return &BowrainClient{
+		baseURL:    strings.TrimRight(serverURL, "/"),
+		projectID:  projectID,
+		authToken:  authToken,
+		httpClient: &http.Client{},
+	}
+}
+
 // projectPrefix returns the URL prefix for project-scoped endpoints.
 // Workspace project: /api/v1/workspaces/{ws}/projects/{pid}
 // Unclaimed project: /api/v1/projects/{pid}
