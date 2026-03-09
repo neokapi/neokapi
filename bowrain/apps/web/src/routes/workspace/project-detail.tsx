@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { ProjectView, useApi } from "@gokapi/ui";
@@ -14,6 +14,10 @@ export function ProjectDetailRoute() {
   const ws = activeWorkspace.slug;
 
   const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
+
+  useEffect(() => {
+    document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
+  }, [project.name, activeWorkspace.name]);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {

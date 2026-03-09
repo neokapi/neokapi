@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -17,6 +18,10 @@ export function TranslateRoute() {
   const ws = activeWorkspace.slug;
 
   const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
+
+  useEffect(() => {
+    document.title = `${fileName} — ${project.name} — Bowrain`;
+  }, [fileName, project.name]);
 
   // Set up collaborative editing via WebSocket + Yjs.
   const { connectedUsers, connectionState } = useCollaboration({

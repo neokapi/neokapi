@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { TMExplorer, useWorkspace, GlassCard } from "@gokapi/ui";
 
@@ -5,6 +6,12 @@ export function MemoryRoute() {
   const navigate = useNavigate();
   const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
+
+  useEffect(() => {
+    if (activeWorkspace) {
+      document.title = `Translation Memory — ${activeWorkspace.name} — Bowrain`;
+    }
+  }, [activeWorkspace]);
 
   if (!activeWorkspace) {
     return (
