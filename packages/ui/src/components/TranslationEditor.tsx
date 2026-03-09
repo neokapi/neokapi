@@ -1240,6 +1240,16 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                       <span className="text-[10px] text-muted-foreground">
                         {m.match_type.replace(/-/g, " ")}
                       </span>
+                      {m.project_id && (
+                        <span className={cn(
+                          "text-[10px] px-1 py-px rounded ml-1",
+                          m.project_id === project.id
+                            ? "text-green-600 dark:text-green-400 bg-green-500/10"
+                            : "text-blue-600 dark:text-blue-400 bg-blue-500/10"
+                        )}>
+                          {m.project_id === project.id ? "same project" : "cross-project"}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs mb-1 text-muted-foreground">
                       {m.source}

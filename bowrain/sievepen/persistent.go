@@ -64,6 +64,11 @@ var tmMigrations = []storage.Migration{
 		Description: "drop unused annotations column",
 		SQL:         `ALTER TABLE tm_entries DROP COLUMN annotations;`,
 	},
+	{
+		Version:     3,
+		Description: "add project_id column",
+		SQL:         `ALTER TABLE tm_entries ADD COLUMN project_id TEXT NOT NULL DEFAULT '';`,
+	},
 }
 
 // Add inserts or updates a translation memory entry.
@@ -101,13 +106,14 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 	}
 
 	_, err = tm.db.Exec(`
-		INSERT INTO tm_entries (id, source_coded, target_coded,
+		INSERT INTO tm_entries (id, project_id, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
 			entities, properties,
 			created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
+			project_id = excluded.project_id,
 			source_coded = excluded.source_coded,
 			target_coded = excluded.target_coded,
 			source_plain = excluded.source_plain,
@@ -118,7 +124,7 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 			entities = excluded.entities,
 			properties = excluded.properties,
 			updated_at = excluded.updated_at
-	`, entry.ID,
+	`, entry.ID, entry.ProjectID,
 		string(sourceJSON), string(targetJSON),
 		fw.NormalizeText(entry.SourceText()),
 		fw.NormalizeText(entry.SourceStructural()),
@@ -170,7 +176,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 
 	// Tier 1-3: Exact matches (indexed lookups — fast even for large TMs).
 	if modeEnabled[fw.MatchModeGeneralized] {
-		exactMatches, err := tm.queryExact("source_general", generalKey, sourceLocale, targetLocale)
+		exactMatches, err := tm.queryExact("source_general", generalKey, sourceLocale, targetLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -182,6 +188,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 					Entry:             entry,
 					Score:             1.0,
 					MatchType:         fw.MatchGeneralizedExact,
+					ProjectID:         entry.ProjectID,
 					EntityAdaptations: adaptations,
 				})
 			}
@@ -189,7 +196,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 	}
 
 	if modeEnabled[fw.MatchModeStructural] {
-		exactMatches, err := tm.queryExact("source_struct", structKey, sourceLocale, targetLocale)
+		exactMatches, err := tm.queryExact("source_struct", structKey, sourceLocale, targetLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -200,13 +207,14 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 					Entry:     entry,
 					Score:     1.0,
 					MatchType: fw.MatchStructuralExact,
+					ProjectID: entry.ProjectID,
 				})
 			}
 		}
 	}
 
 	if modeEnabled[fw.MatchModePlain] {
-		exactMatches, err := tm.queryExact("source_plain", plainKey, sourceLocale, targetLocale)
+		exactMatches, err := tm.queryExact("source_plain", plainKey, sourceLocale, targetLocale, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -217,6 +225,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 					Entry:     entry,
 					Score:     1.0,
 					MatchType: fw.MatchExact,
+					ProjectID: entry.ProjectID,
 				})
 			}
 		}
@@ -229,7 +238,7 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 
 	// Tier 4-6: Fuzzy matches (scan with Levenshtein — acceptable because
 	// exact/near-exact matches dominate in localization workflows).
-	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
+	allEntries, err := tm.queryLocale(sourceLocale, targetLocale, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -271,10 +280,19 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 
 		if bestScore >= opts.MinScore {
 			seen[entry.ID] = true
+			// Apply project boost: +0.03 for same project (when not already exact).
+			score := bestScore
+			if opts.ProjectID != "" && entry.ProjectID == opts.ProjectID && score < 1.0 {
+				score += 0.03
+				if score > 1.0 {
+					score = 1.0
+				}
+			}
 			matches = append(matches, fw.TMMatch{
 				Entry:             entry,
-				Score:             bestScore,
+				Score:             score,
 				MatchType:         bestType,
+				ProjectID:         entry.ProjectID,
 				EntityAdaptations: adaptations,
 			})
 		}
@@ -292,15 +310,20 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 	return fw.LimitResults(matches, opts.MaxResults), nil
 }
 
-func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
+	where := fmt.Sprintf("%s = ? AND source_locale = ? AND target_locale = ?", column)
+	args := []any{value, string(sourceLocale), string(targetLocale)}
+
+	where, args = appendSQLiteProjectFilter(where, args, opts.ProjectID, opts.ProjectScope)
+
 	query := fmt.Sprintf(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
+		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
-		WHERE %s = ? AND source_locale = ? AND target_locale = ?
-	`, column)
+		WHERE %s
+	`, where)
 
-	rows, err := tm.db.Query(query, value, string(sourceLocale), string(targetLocale))
+	rows, err := tm.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query exact: %w", err)
 	}
@@ -309,19 +332,37 @@ func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale 
 	return tm.scanEntries(rows)
 }
 
-func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
-	rows, err := tm.db.Query(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
+func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID, opts fw.LookupOptions) ([]fw.TMEntry, error) {
+	where := "source_locale = ? AND target_locale = ?"
+	args := []any{string(sourceLocale), string(targetLocale)}
+
+	where, args = appendSQLiteProjectFilter(where, args, opts.ProjectID, opts.ProjectScope)
+
+	rows, err := tm.db.Query(fmt.Sprintf(`
+		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
-		WHERE source_locale = ? AND target_locale = ?
-	`, string(sourceLocale), string(targetLocale))
+		WHERE %s
+	`, where), args...)
 	if err != nil {
 		return nil, fmt.Errorf("query locale: %w", err)
 	}
 	defer rows.Close()
 
 	return tm.scanEntries(rows)
+}
+
+// appendSQLiteProjectFilter adds project scope filtering to a WHERE clause (SQLite).
+func appendSQLiteProjectFilter(where string, args []any, projectID string, scope fw.ProjectScope) (string, []any) {
+	switch scope {
+	case fw.ProjectScopeOnly:
+		where += " AND project_id = ?"
+		args = append(args, projectID)
+	case fw.ProjectScopeExclude:
+		where += " AND project_id != ?"
+		args = append(args, projectID)
+	}
+	return where, args
 }
 
 func (tm *SQLiteTM) scanEntries(rows interface {
@@ -337,7 +378,7 @@ func (tm *SQLiteTM) scanEntries(rows interface {
 		var entitiesJSON, propertiesJSON *string
 		var createdStr, updatedStr string
 
-		if err := rows.Scan(&entry.ID, &sourceJSON, &targetJSON,
+		if err := rows.Scan(&entry.ID, &entry.ProjectID, &sourceJSON, &targetJSON,
 			&srcLocale, &tgtLocale,
 			&entitiesJSON, &propertiesJSON,
 			&createdStr, &updatedStr); err != nil {
@@ -424,7 +465,7 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 	copy(countArgs, args)
 	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
 
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+	q := fmt.Sprintf(`SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 		entities, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?`, where)
 	args = append(args, limit, offset)
@@ -441,7 +482,7 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 // GetEntry fetches a single entry by ID.
 func (tm *SQLiteTM) GetEntry(id string) (fw.TMEntry, bool) {
 	rows, err := tm.db.Query(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
+		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries WHERE id = ?
 	`, id)
@@ -460,7 +501,7 @@ func (tm *SQLiteTM) GetEntry(id string) (fw.TMEntry, bool) {
 // Entries returns all entries. Used for export operations.
 func (tm *SQLiteTM) Entries() []fw.TMEntry {
 	rows, err := tm.db.Query(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
+		SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries ORDER BY id
 	`)

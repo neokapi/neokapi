@@ -46,6 +46,7 @@ type EntityMapping struct {
 // to preserve inline markup and entity metadata.
 type TMEntry struct {
 	ID           string
+	ProjectID    string          // project scope (empty = workspace-scoped)
 	Source       *model.Fragment // coded text + inline spans
 	Target       *model.Fragment // coded text + inline spans
 	SourceLocale model.LocaleID
@@ -103,14 +104,26 @@ type TMMatch struct {
 	Entry             TMEntry
 	Score             float64 // 0.0-1.0 (1.0 = exact match)
 	MatchType         MatchType
+	ProjectID         string // provenance: project ID of the matched entry
 	EntityAdaptations []EntityAdaptation
 }
 
+// ProjectScope controls project filtering in TM lookups.
+type ProjectScope int
+
+const (
+	ProjectScopeAll     ProjectScope = iota // workspace-wide, boost current project (default)
+	ProjectScopeOnly                        // current project only
+	ProjectScopeExclude                     // other projects only
+)
+
 // LookupOptions controls the behavior of TM lookups.
 type LookupOptions struct {
-	MinScore   float64     // minimum match score (default 0.7)
-	MaxResults int         // maximum results to return (default 10)
-	MatchModes []MatchMode // which key types to use (default: all)
+	MinScore     float64      // minimum match score (default 0.7)
+	MaxResults   int          // maximum results to return (default 10)
+	MatchModes   []MatchMode  // which key types to use (default: all)
+	ProjectID    string       // project context for scoring boost
+	ProjectScope ProjectScope // project filtering mode (default: all)
 }
 
 // MatchMode controls which matching tiers to use.

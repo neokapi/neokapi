@@ -423,6 +423,7 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 	query := c.QueryParam("q")
 	sourceLocale := c.QueryParam("source_locale")
 	targetLocale := c.QueryParam("target_locale")
+	projectID := c.QueryParam("project_id")
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	if limit <= 0 {
@@ -435,6 +436,19 @@ func (s *Server) HandleGetTMEntries(c echo.Context) error {
 	}
 
 	entries, total := tm.SearchEntries(query, sourceLocale, targetLocale, offset, limit)
+
+	// Post-filter by project_id if specified.
+	if projectID != "" {
+		filtered := make([]sievepen.TMEntry, 0, len(entries))
+		for _, e := range entries {
+			if e.ProjectID == projectID {
+				filtered = append(filtered, e)
+			}
+		}
+		entries = filtered
+		total = len(filtered)
+	}
+
 	infos := make([]TMEntryInfoResponse, len(entries))
 	for i, e := range entries {
 		infos[i] = editorEntryToInfo(e)
@@ -483,6 +497,7 @@ func (s *Server) HandleAddTMEntry(c echo.Context) error {
 		Target:       &model.Fragment{CodedText: req.Target},
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
+		ProjectID:    req.ProjectID,
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
@@ -566,6 +581,7 @@ func (s *Server) HandleGetTerms(c echo.Context) error {
 	query := c.QueryParam("q")
 	sourceLocale := c.QueryParam("source_locale")
 	targetLocale := c.QueryParam("target_locale")
+	projectID := c.QueryParam("project_id")
 	offset, _ := strconv.Atoi(c.QueryParam("offset"))
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	if limit <= 0 {
@@ -575,9 +591,21 @@ func (s *Server) HandleGetTerms(c echo.Context) error {
 	tb := s.wsStores.getTB(ws)
 	concepts, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
 
+	// Post-filter by project_id if specified.
+	if projectID != "" {
+		filtered := make([]termbase.Concept, 0, len(concepts))
+		for _, cp := range concepts {
+			if cp.ProjectID == projectID {
+				filtered = append(filtered, cp)
+			}
+		}
+		concepts = filtered
+		total = len(filtered)
+	}
+
 	infos := make([]ConceptInfoResponse, len(concepts))
-	for i, c := range concepts {
-		infos[i] = editorConceptToInfo(c)
+	for i, cp := range concepts {
+		infos[i] = editorConceptToInfo(cp)
 	}
 
 	return c.JSON(http.StatusOK, TermSearchResponse{Concepts: infos, TotalCount: total})
@@ -610,7 +638,8 @@ func (s *Server) HandleAddConcept(c echo.Context) error {
 
 	tb := s.wsStores.getTB(ws)
 	concept := termbase.Concept{
-		ID:         id.New(),
+		ID:        id.New(),
+		ProjectID: req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      editorTermsFromInfo(req.Terms),

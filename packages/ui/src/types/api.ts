@@ -247,6 +247,7 @@ export interface TMEntryInfo {
   target: string;
   source_locale: string;
   target_locale: string;
+  project_id?: string;
   updated_at: string;
 }
 
@@ -272,6 +273,7 @@ export interface TMMatchInfo {
   target: string;
   score: number;
   match_type: string;
+  project_id?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +293,7 @@ export interface TermInfo {
 /** Concept info */
 export interface ConceptInfo {
   id: string;
+  project_id?: string;
   domain: string;
   definition: string;
   terms: TermInfo[];
@@ -330,6 +333,7 @@ export interface BlockTermMatch {
   status: string;
   start: number;
   end: number;
+  project_id?: string;
 }
 
 /** Term enforcement result */
