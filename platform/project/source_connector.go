@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
 	apiclient "github.com/gokapi/gokapi/platform/client"
@@ -626,6 +627,18 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 		return fmt.Errorf("create reader for %s: %w", formatName, err)
 	}
 
+	// Create a shared skeleton store so the writer can reconstruct non-translatable
+	// content (frontmatter, structural markup, etc.) byte-exactly from the source.
+	skelStore, err := format.NewSkeletonStore()
+	if err != nil {
+		return fmt.Errorf("create skeleton store: %w", err)
+	}
+	defer skelStore.Close()
+
+	if emitter, ok := reader.(format.SkeletonStoreEmitter); ok {
+		emitter.SetSkeletonStore(skelStore)
+	}
+
 	f, err := os.Open(sourcePath)
 	if err != nil {
 		return fmt.Errorf("open source file %s: %w", sourcePath, err)
@@ -663,6 +676,10 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 	writer, err := c.formatReg.NewWriter(formatName)
 	if err != nil {
 		return fmt.Errorf("create writer for %s: %w", formatName, err)
+	}
+
+	if consumer, ok := writer.(format.SkeletonStoreConsumer); ok {
+		consumer.SetSkeletonStore(skelStore)
 	}
 
 	// Ensure output directory exists.
