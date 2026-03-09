@@ -328,9 +328,39 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 			if err := logChange(ctx, tx, projectID, b.ID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", b.ID, err)
 			}
-		} else if existingHash != identity.ContentHash {
-			if err := logChange(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
-				return fmt.Errorf("log change for block %s: %w", b.ID, err)
+			// Log target additions for new blocks that already have translations.
+			for locale := range b.Targets {
+				if err := logChange(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
+					return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+				}
+			}
+		} else {
+			if existingHash != identity.ContentHash {
+				if err := logChange(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
+					return fmt.Errorf("log change for block %s: %w", b.ID, err)
+				}
+			}
+			// Log target changes by comparing old and new targets.
+			if len(b.Targets) > 0 {
+				oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, b.ID)
+				if loadErr == nil {
+					for locale, newSegs := range b.Targets {
+						oldSegs, had := oldTargets[locale]
+						if !had {
+							if err := logChange(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
+								return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+							}
+						} else {
+							oldJSON, _ := json.Marshal(oldSegs)
+							newJSON, _ := json.Marshal(newSegs)
+							if string(oldJSON) != string(newJSON) {
+								if err := logChange(ctx, tx, projectID, b.ID, "target_modified", string(locale), ""); err != nil {
+									return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}

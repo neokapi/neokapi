@@ -6,9 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gokapi/gokapi/bowrain/jobs"
 	"github.com/gokapi/gokapi/core/model"
 	apiclient "github.com/gokapi/gokapi/platform/client"
+	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/gokapi/gokapi/platform/store"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -40,6 +43,7 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 
 	projectID := c.Param("id")
 	ctx := c.Request().Context()
+	pushID := uuid.NewString()
 	totalStored := 0
 	for itemName, blocks := range itemGroups {
 		if itemName == "" {
@@ -59,9 +63,37 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	// Publish push completed event if blocks were stored.
+	if totalStored > 0 && s.EventBus != nil {
+		var itemNames []string
+		for name := range itemGroups {
+			if name != "" {
+				itemNames = append(itemNames, name)
+			}
+		}
+
+		// Determine workspace slug from context.
+		wsSlug := ""
+		if ws, ok := c.Get("workspace_slug").(string); ok {
+			wsSlug = ws
+		}
+
+		s.EventBus.Publish(platev.Event{
+			Type:      platev.EventPushCompleted,
+			Source:    "sync",
+			ProjectID: projectID,
+			Data: map[string]string{
+				"items":          strings.Join(itemNames, ","),
+				"push_id":        pushID,
+				"workspace_slug": wsSlug,
+			},
+		})
+	}
+
 	return c.JSON(http.StatusOK, apiclient.SyncPushResponse{
 		Stored:    totalStored,
 		NewCursor: cursor,
+		PushID:    pushID,
 	})
 }
 
@@ -163,4 +195,54 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, result)
+}
+
+// HandleSyncPushStatus returns the aggregated status of jobs triggered by a push.
+// GET /api/v1/projects/:id/sync/status?push_id=xxx
+func (s *Server) HandleSyncPushStatus(c echo.Context) error {
+	if s.JobStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
+	}
+
+	pushID := c.QueryParam("push_id")
+	if pushID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "push_id is required"})
+	}
+
+	jobList, err := s.JobStore.ListJobsByPushID(c.Request().Context(), pushID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	total := len(jobList)
+	completed := 0
+	failed := 0
+	inProgress := 0
+
+	for _, j := range jobList {
+		switch j.Status {
+		case jobs.StatusCompleted:
+			completed++
+		case jobs.StatusFailed:
+			failed++
+		case jobs.StatusProcessing, jobs.StatusQueued:
+			inProgress++
+		}
+	}
+
+	status := "completed"
+	if inProgress > 0 {
+		status = "in_progress"
+	} else if failed > 0 && completed == 0 {
+		status = "failed"
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"push_id":     pushID,
+		"status":      status,
+		"total":       total,
+		"completed":   completed,
+		"failed":      failed,
+		"in_progress": inProgress,
+	})
 }

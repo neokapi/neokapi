@@ -257,7 +257,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 	defer stmt.Close()
 
 	hashStmt, err := tx.PrepareContext(ctx,
-		`SELECT content_hash FROM blocks WHERE project_id = $1 AND item_name = $2 AND id = $3`)
+		`SELECT content_hash, targets_json FROM blocks WHERE project_id = $1 AND item_name = $2 AND id = $3`)
 	if err != nil {
 		return fmt.Errorf("prepare hash lookup: %w", err)
 	}
@@ -267,8 +267,8 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 	for _, b := range blocks {
 		identity := model.ComputeIdentity(b)
 
-		var existingHash string
-		hashErr := hashStmt.QueryRowContext(ctx, projectID, itemName, b.ID).Scan(&existingHash)
+		var existingHash, existingTargetsJSON string
+		hashErr := hashStmt.QueryRowContext(ctx, projectID, itemName, b.ID).Scan(&existingHash, &existingTargetsJSON)
 		if hashErr != nil && hashErr != sql.ErrNoRows {
 			return fmt.Errorf("hash lookup for block %s: %w", b.ID, hashErr)
 		}
@@ -304,9 +304,40 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 			if err := logChangePg(ctx, tx, projectID, b.ID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", b.ID, err)
 			}
-		} else if existingHash != identity.ContentHash {
-			if err := logChangePg(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
-				return fmt.Errorf("log change for block %s: %w", b.ID, err)
+			// Log target additions for new blocks that already have translations.
+			for locale := range b.Targets {
+				if err := logChangePg(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
+					return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+				}
+			}
+		} else {
+			if existingHash != identity.ContentHash {
+				if err := logChangePg(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
+					return fmt.Errorf("log change for block %s: %w", b.ID, err)
+				}
+			}
+			// Log target changes by comparing old and new targets.
+			if len(b.Targets) > 0 {
+				var oldTargets map[model.LocaleID][]*model.Segment
+				if existingTargetsJSON != "" {
+					_ = json.Unmarshal([]byte(existingTargetsJSON), &oldTargets)
+				}
+				for locale, newSegs := range b.Targets {
+					oldSegs, had := oldTargets[locale]
+					if !had {
+						if err := logChangePg(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
+							return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+						}
+					} else {
+						oldJSON, _ := json.Marshal(oldSegs)
+						newJSON, _ := json.Marshal(newSegs)
+						if string(oldJSON) != string(newJSON) {
+							if err := logChangePg(ctx, tx, projectID, b.ID, "target_modified", string(locale), ""); err != nil {
+								return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+							}
+						}
+					}
+				}
 			}
 		}
 	}
