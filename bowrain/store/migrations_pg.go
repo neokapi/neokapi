@@ -115,13 +115,14 @@ var storeMigrationsPg = []storage.Migration{
 		Version:     2,
 		Description: "add source_id to blocks and change PK to (project_id, id)",
 		SQL: `
-			ALTER TABLE blocks ADD COLUMN source_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE blocks ADD COLUMN IF NOT EXISTS source_id TEXT NOT NULL DEFAULT '';
 
 			-- Copy existing id to source_id for backward compatibility.
-			UPDATE blocks SET source_id = id;
+			UPDATE blocks SET source_id = id WHERE source_id = '';
 
 			-- Drop old PK and recreate with (project_id, id).
 			-- Postgres cannot ALTER PK, so recreate the table.
+			DROP TABLE IF EXISTS blocks_new;
 			CREATE TABLE blocks_new (
 				id           TEXT NOT NULL,
 				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -141,9 +142,13 @@ var storeMigrationsPg = []storage.Migration{
 				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				PRIMARY KEY (project_id, id)
 			);
-			INSERT INTO blocks_new SELECT id, project_id, item_name, source_id, name, type, mime_type,
-				translatable, content_hash, context_hash, source_json, targets_json,
-				properties, annotations, stored_at, updated_at FROM blocks;
+			INSERT INTO blocks_new
+				SELECT DISTINCT ON (project_id, id)
+					id, project_id, item_name, source_id, name, type, mime_type,
+					translatable, content_hash, context_hash, source_json, targets_json,
+					properties, annotations, stored_at, updated_at
+				FROM blocks
+				ORDER BY project_id, id, updated_at DESC;
 			DROP TABLE blocks;
 			ALTER TABLE blocks_new RENAME TO blocks;
 			CREATE INDEX idx_blocks_content_hash ON blocks(content_hash);
