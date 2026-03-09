@@ -1,16 +1,44 @@
 {
   "formats": [
     {
-      "id": "csv",
-      "displayName": "CSV",
-      "description": "Configuration for the CSV/TSV format reader/writer",
+      "id": "archive",
+      "displayName": "ZIP Archive",
+      "description": "ZIP archive extraction with glob-based file filtering for translatable content",
       "extensions": [
-        ".csv",
-        ".tsv"
+        ".zip"
       ],
       "mimeTypes": [
-        "text/csv",
-        "text/tab-separated-values"
+        "application/zip",
+        "application/x-zip-compressed"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "filePatterns"
+          ]
+        }
+      ],
+      "properties": {
+        "filePatterns": {
+          "type": "array",
+          "description": "Glob patterns for files to extract (e.g., \"*.txt\", \"*.xml\"). If empty, common text file patterns are used.",
+          "default": ["*.txt", "*.xml", "*.json", "*.yaml", "*.csv", "*.po", "*.xliff"]
+        }
+      }
+    },
+    {
+      "id": "csv",
+      "displayName": "CSV",
+      "description": "Comma-separated values with column-level extraction control",
+      "extensions": [
+        ".csv"
+      ],
+      "mimeTypes": [
+        "text/csv"
       ],
       "hasReader": true,
       "hasWriter": true,
@@ -27,7 +55,19 @@
           "id": "extraction",
           "label": "Extraction",
           "fields": [
-            "translatableColumns"
+            "translatableColumns",
+            "keyColumns",
+            "commentColumns"
+          ]
+        },
+        {
+          "id": "advanced",
+          "label": "Advanced",
+          "collapsed": true,
+          "fields": [
+            "trimValues",
+            "valuesStartRow",
+            "columnNamesRow"
           ]
         }
       ],
@@ -45,13 +85,128 @@
         "translatableColumns": {
           "type": "array",
           "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+        },
+        "keyColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) whose values are used as block IDs"
+        },
+        "commentColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) whose values become notes on the translatable block"
+        },
+        "trimValues": {
+          "type": "boolean",
+          "description": "Trim whitespace from cell values",
+          "default": false
+        },
+        "valuesStartRow": {
+          "type": "number",
+          "description": "Row number (0-based) where translatable data starts",
+          "default": 0
+        },
+        "columnNamesRow": {
+          "type": "number",
+          "description": "Row number (0-based) containing column names",
+          "default": 0
+        }
+      }
+    },
+    {
+      "id": "doxygen",
+      "displayName": "Doxygen Comments",
+      "description": "Doxygen/Javadoc comment extraction from source code files",
+      "extensions": [
+        ".c",
+        ".cpp",
+        ".h",
+        ".java",
+        ".m",
+        ".py"
+      ],
+      "mimeTypes": [
+        "text/x-doxygen-txt"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "dtd",
+      "displayName": "DTD",
+      "description": "XML Document Type Definition — extracts entity values",
+      "extensions": [
+        ".dtd"
+      ],
+      "mimeTypes": [
+        "application/xml-dtd"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "epub",
+      "displayName": "EPUB E-Book",
+      "description": "EPUB 2/3 e-book extraction",
+      "extensions": [
+        ".epub"
+      ],
+      "mimeTypes": [
+        "application/epub+zip"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "fixedwidth",
+      "displayName": "Fixed-Width",
+      "description": "Fixed-width column text files with configurable column definitions",
+      "extensions": [
+        ".txt",
+        ".dat",
+        ".fixed"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "columns",
+          "label": "Column Definitions",
+          "fields": [
+            "columns"
+          ]
+        },
+        {
+          "id": "parsing",
+          "label": "Parsing",
+          "fields": [
+            "hasHeader",
+            "trimValues"
+          ]
+        }
+      ],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "description": "Column definitions: each entry has name (string), start (0-based position), width (in runes), and translatable (boolean)"
+        },
+        "hasHeader": {
+          "type": "boolean",
+          "description": "If true, the first row is treated as a header",
+          "default": false
+        },
+        "trimValues": {
+          "type": "boolean",
+          "description": "Trim whitespace from column values",
+          "default": false
         }
       }
     },
     {
       "id": "html",
       "displayName": "HTML",
-      "description": "Configuration for the native HTML format reader/writer",
+      "description": "HTML documents with configurable element/attribute extraction rules and inline code detection",
       "extensions": [
         ".html",
         ".htm",
@@ -114,9 +269,86 @@
       }
     },
     {
+      "id": "icml",
+      "displayName": "ICML (Adobe InCopy)",
+      "description": "Adobe InCopy Markup Language with note and line-break handling",
+      "extensions": [
+        ".icml",
+        ".wcml"
+      ],
+      "mimeTypes": [
+        "application/x-icml+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "extractNotes",
+            "newTUOnBr"
+          ]
+        }
+      ],
+      "properties": {
+        "extractNotes": {
+          "type": "boolean",
+          "description": "Extract InCopy notes as translatable content",
+          "default": false
+        },
+        "newTUOnBr": {
+          "type": "boolean",
+          "description": "Start a new translation unit on <Br/> elements",
+          "default": false
+        }
+      }
+    },
+    {
+      "id": "idml",
+      "displayName": "IDML (Adobe InDesign)",
+      "description": "Adobe InDesign Markup Language with master spread and note extraction",
+      "extensions": [
+        ".idml"
+      ],
+      "mimeTypes": [
+        "application/vnd.adobe.indesign-idml-package"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "extractMasterSpreads",
+            "extractNotes",
+            "skipDiscretionaryHyphens"
+          ]
+        }
+      ],
+      "properties": {
+        "extractMasterSpreads": {
+          "type": "boolean",
+          "description": "Extract content from master spreads",
+          "default": false
+        },
+        "extractNotes": {
+          "type": "boolean",
+          "description": "Extract InDesign notes as translatable content",
+          "default": true
+        },
+        "skipDiscretionaryHyphens": {
+          "type": "boolean",
+          "description": "Skip discretionary hyphen characters during extraction",
+          "default": true
+        }
+      }
+    },
+    {
       "id": "json",
       "displayName": "JSON",
-      "description": "Configuration for the native JSON format reader/writer",
+      "description": "Highly configurable JSON extraction with regex-based rules for extraction, notes, IDs, metadata, and subfilters",
       "extensions": [
         ".json"
       ],
@@ -296,7 +528,7 @@
     {
       "id": "markdown",
       "displayName": "Markdown",
-      "description": "Configuration for the Markdown format reader/writer",
+      "description": "Markdown with control over code blocks, front matter, image alt text, URLs, blockquotes, and HTML blocks",
       "extensions": [
         ".md",
         ".markdown"
@@ -355,9 +587,87 @@
       }
     },
     {
+      "id": "messageformat",
+      "displayName": "ICU MessageFormat",
+      "description": "ICU MessageFormat extraction for pluralization and gender handling",
+      "extensions": [
+        ".mf",
+        ".messageformat"
+      ],
+      "mimeTypes": [
+        "text/x-messageformat"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "mif",
+      "displayName": "Adobe FrameMaker MIF",
+      "description": "Adobe FrameMaker Maker Interchange Format",
+      "extensions": [
+        ".mif"
+      ],
+      "mimeTypes": [
+        "application/x-mif",
+        "application/vnd.mif"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "mosestext",
+      "displayName": "Moses Text",
+      "description": "Moses machine translation plain text format — one translatable segment per line",
+      "extensions": [
+        ".txt"
+      ],
+      "mimeTypes": [
+        "text/x-mosestext"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "odf",
+      "displayName": "Open Document Format",
+      "description": "ODF documents (ODT, ODS, ODP) with note and hidden content handling",
+      "extensions": [
+        ".odt",
+        ".ods",
+        ".odp"
+      ],
+      "mimeTypes": [
+        "application/vnd.oasis.opendocument.text"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "translateNotes",
+            "translateHiddenContent"
+          ]
+        }
+      ],
+      "properties": {
+        "translateNotes": {
+          "type": "boolean",
+          "description": "Extract document notes as translatable content",
+          "default": true
+        },
+        "translateHiddenContent": {
+          "type": "boolean",
+          "description": "Extract hidden text and hidden sections",
+          "default": false
+        }
+      }
+    },
+    {
       "id": "openxml",
       "displayName": "Office Open XML",
-      "description": "Configuration for the DOCX/PPTX/XLSX format reader/writer",
+      "description": "Microsoft Office formats (Word, Excel, PowerPoint) with extensive extraction controls",
       "extensions": [
         ".docx",
         ".docm",
@@ -426,7 +736,7 @@
         },
         {
           "id": "styles",
-          "label": "Style \u0026 Color Filtering",
+          "label": "Style & Color Filtering",
           "collapsed": true,
           "fields": [
             "excludeColors",
@@ -607,9 +917,65 @@
       }
     },
     {
+      "id": "paraplaintext",
+      "displayName": "Paragraph Plain Text",
+      "description": "Plain text segmented by paragraphs (blank line separators)",
+      "extensions": [
+        ".txt"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "pdf",
+      "displayName": "PDF",
+      "description": "PDF text extraction",
+      "extensions": [
+        ".pdf"
+      ],
+      "mimeTypes": [
+        "application/pdf"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "phpcontent",
+      "displayName": "PHP Content",
+      "description": "PHP source file extraction with //okapi directives for controlling translatable regions",
+      "extensions": [
+        ".php",
+        ".phpcnt"
+      ],
+      "mimeTypes": [
+        "application/x-php"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "useDirectives"
+          ]
+        }
+      ],
+      "properties": {
+        "useDirectives": {
+          "type": "boolean",
+          "description": "Use //okapi directives to control which regions are extracted",
+          "default": true
+        }
+      }
+    },
+    {
       "id": "plaintext",
       "displayName": "Plain Text",
-      "description": "Configuration for the plain text format reader/writer",
+      "description": "Plain text with configurable line or paragraph segmentation",
       "extensions": [
         ".txt",
         ".text"
@@ -639,7 +1005,7 @@
     {
       "id": "po",
       "displayName": "PO (Gettext)",
-      "description": "Configuration for the PO/POT format reader/writer",
+      "description": "GNU gettext translation catalog with optional empty translation handling",
       "extensions": [
         ".po",
         ".pot"
@@ -669,7 +1035,7 @@
     {
       "id": "properties",
       "displayName": "Java Properties",
-      "description": "Configuration for the Java .properties format reader/writer",
+      "description": "Java .properties files with configurable separator and escape sequences",
       "extensions": [
         ".properties"
       ],
@@ -696,9 +1062,85 @@
       }
     },
     {
+      "id": "regex",
+      "displayName": "Regex Extraction",
+      "description": "Regex-based line-by-line extraction with capture groups for text, IDs, and notes",
+      "extensions": [
+        ".strings",
+        ".ini",
+        ".info",
+        ".rls"
+      ],
+      "mimeTypes": [
+        "text/x-regex"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "rules",
+          "label": "Extraction Rules",
+          "fields": [
+            "rules"
+          ]
+        },
+        {
+          "id": "escaping",
+          "label": "Escaping",
+          "fields": [
+            "escapeType",
+            "escapeChar"
+          ]
+        }
+      ],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "description": "Extraction rules: each entry has pattern (regex), sourceGroup (capture group for text, >= 1), idGroup (0 = auto), noteGroup (0 = none)"
+        },
+        "escapeType": {
+          "type": "string",
+          "description": "Escape handling: 'none', 'backslash', or 'doublechar'",
+          "default": "none"
+        },
+        "escapeChar": {
+          "type": "string",
+          "description": "Character used for doublechar escaping",
+          "default": "\""
+        }
+      }
+    },
+    {
+      "id": "rtf",
+      "displayName": "Rich Text Format",
+      "description": "RTF document extraction",
+      "extensions": [
+        ".rtf"
+      ],
+      "mimeTypes": [
+        "application/rtf",
+        "text/rtf"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "splicedlines",
+      "displayName": "Spliced Lines",
+      "description": "Lines ending with backslash are continued on the next line and merged into single blocks",
+      "extensions": [
+        ".txt"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
       "id": "srt",
       "displayName": "SRT Subtitles",
-      "description": "SubRip subtitle format — no configurable parameters",
+      "description": "SubRip subtitle format",
       "extensions": [
         ".srt"
       ],
@@ -710,9 +1152,24 @@
       "hasWriter": true
     },
     {
+      "id": "tex",
+      "displayName": "TeX/LaTeX",
+      "description": "TeX/LaTeX document extraction",
+      "extensions": [
+        ".tex",
+        ".latex"
+      ],
+      "mimeTypes": [
+        "application/x-tex",
+        "text/x-tex"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
       "id": "tmx",
       "displayName": "TMX",
-      "description": "TMX translation memory format — no configurable parameters",
+      "description": "Translation Memory eXchange format",
       "extensions": [
         ".tmx"
       ],
@@ -723,9 +1180,201 @@
       "hasWriter": true
     },
     {
+      "id": "transtable",
+      "displayName": "Translation Table",
+      "description": "Two-column tab-separated translation table (source | target)",
+      "extensions": [
+        ".tab",
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text/tab-separated-values"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "ts",
+      "displayName": "Qt TS",
+      "description": "Qt Linguist translation files",
+      "extensions": [
+        ".ts"
+      ],
+      "mimeTypes": [
+        "application/x-ts"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "tsv",
+      "displayName": "TSV",
+      "description": "Tab-separated values with column-level extraction control",
+      "extensions": [
+        ".tsv"
+      ],
+      "mimeTypes": [
+        "text/tab-separated-values"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "parsing",
+          "label": "Parsing",
+          "fields": [
+            "hasHeader"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "translatableColumns",
+            "keyColumns",
+            "commentColumns"
+          ]
+        },
+        {
+          "id": "advanced",
+          "label": "Advanced",
+          "collapsed": true,
+          "fields": [
+            "trimValues",
+            "valuesStartRow",
+            "columnNamesRow"
+          ]
+        }
+      ],
+      "properties": {
+        "hasHeader": {
+          "type": "boolean",
+          "description": "If true, the first row is treated as headers (non-translatable)",
+          "default": true
+        },
+        "translatableColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable."
+        },
+        "keyColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) whose values are used as block IDs"
+        },
+        "commentColumns": {
+          "type": "array",
+          "description": "Column indices (0-based) whose values become notes on the translatable block"
+        },
+        "trimValues": {
+          "type": "boolean",
+          "description": "Trim whitespace from cell values",
+          "default": false
+        },
+        "valuesStartRow": {
+          "type": "number",
+          "description": "Row number (0-based) where translatable data starts",
+          "default": 0
+        },
+        "columnNamesRow": {
+          "type": "number",
+          "description": "Row number (0-based) containing column names",
+          "default": 0
+        }
+      }
+    },
+    {
+      "id": "ttml",
+      "displayName": "TTML Subtitles",
+      "description": "Timed Text Markup Language / DFXP subtitle format with optional caption merging",
+      "extensions": [
+        ".ttml",
+        ".dfxp"
+      ],
+      "mimeTypes": [
+        "application/ttml+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "mergeAdjacentCaptions",
+            "escapeBR"
+          ]
+        }
+      ],
+      "properties": {
+        "mergeAdjacentCaptions": {
+          "type": "boolean",
+          "description": "Merge adjacent captions into a single translatable block",
+          "default": false
+        },
+        "escapeBR": {
+          "type": "boolean",
+          "description": "Escape <br/> elements as inline codes rather than line breaks",
+          "default": true
+        }
+      }
+    },
+    {
+      "id": "ttx",
+      "displayName": "Trados TagEditor TTX",
+      "description": "Trados TagEditor translation format",
+      "extensions": [
+        ".ttx"
+      ],
+      "mimeTypes": [
+        "application/x-ttx+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "txml",
+      "displayName": "Trados XML",
+      "description": "Trados native XML translation format",
+      "extensions": [
+        ".txml"
+      ],
+      "mimeTypes": [
+        "application/x-txml+xml"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "versifiedtext",
+      "displayName": "Versified Text",
+      "description": "Poetry and scripture text organized as verses with verse markers",
+      "extensions": [
+        ".txt",
+        ".ver"
+      ],
+      "mimeTypes": [
+        "text/plain"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
+      "id": "vignette",
+      "displayName": "R Vignette",
+      "description": "R documentation vignette extraction",
+      "extensions": [
+        ".Rmd",
+        ".Rnw"
+      ],
+      "mimeTypes": [
+        "text/x-r-markdown"
+      ],
+      "hasReader": true,
+      "hasWriter": true
+    },
+    {
       "id": "vtt",
       "displayName": "WebVTT",
-      "description": "Web Video Text Tracks format — no configurable parameters",
+      "description": "Web Video Text Tracks subtitle format",
       "extensions": [
         ".vtt"
       ],
@@ -736,9 +1385,39 @@
       "hasWriter": true
     },
     {
+      "id": "wiki",
+      "displayName": "Wiki Markup",
+      "description": "MediaWiki and DokuWiki markup extraction with dialect selection",
+      "extensions": [
+        ".wiki",
+        ".mediawiki"
+      ],
+      "mimeTypes": [
+        "text/x-wiki"
+      ],
+      "hasReader": true,
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "parsing",
+          "label": "Parsing",
+          "fields": [
+            "variant"
+          ]
+        }
+      ],
+      "properties": {
+        "variant": {
+          "type": "string",
+          "description": "Wiki dialect: 'mediawiki' or 'dokuwiki'",
+          "default": "mediawiki"
+        }
+      }
+    },
+    {
       "id": "xliff",
       "displayName": "XLIFF 1.2",
-      "description": "XLIFF 1.2 bilingual exchange format — no configurable parameters",
+      "description": "XLIFF 1.2 bilingual exchange format",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -753,7 +1432,7 @@
     {
       "id": "xliff2",
       "displayName": "XLIFF 2.0",
-      "description": "XLIFF 2.0/2.1 bilingual exchange format with segment support — no configurable parameters",
+      "description": "XLIFF 2.0/2.1 bilingual exchange format with segment support",
       "extensions": [
         ".xlf",
         ".xliff"
@@ -767,7 +1446,7 @@
     {
       "id": "xml",
       "displayName": "XML",
-      "description": "Configuration for the generic XML format reader/writer",
+      "description": "Generic XML with configurable translatable elements, attributes, subfilters, and whitespace control",
       "extensions": [
         ".xml"
       ],
@@ -812,7 +1491,7 @@
     {
       "id": "yaml",
       "displayName": "YAML",
-      "description": "YAML format reader/writer — no configurable parameters",
+      "description": "YAML with optional inline code detection and glob-based key path filtering",
       "extensions": [
         ".yaml",
         ".yml"
@@ -823,7 +1502,45 @@
         "application/x-yaml"
       ],
       "hasReader": true,
-      "hasWriter": true
+      "hasWriter": true,
+      "groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction",
+          "fields": [
+            "extractNonStrings",
+            "keyPathPatterns",
+            "subfilter"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "useCodeFinder"
+          ]
+        }
+      ],
+      "properties": {
+        "extractNonStrings": {
+          "type": "boolean",
+          "description": "Extract non-string values (numbers, booleans) as translatable content",
+          "default": false
+        },
+        "keyPathPatterns": {
+          "type": "array",
+          "description": "Glob patterns for key paths to extract (e.g., \"*.title\", \"messages.**\"). If empty, all string values are extracted."
+        },
+        "subfilter": {
+          "type": "string",
+          "description": "Subfilter format name (e.g., 'html') applied to extracted string values"
+        },
+        "useCodeFinder": {
+          "type": "boolean",
+          "description": "Enable regex-based inline code detection",
+          "default": false
+        }
+      }
     }
   ]
 }
