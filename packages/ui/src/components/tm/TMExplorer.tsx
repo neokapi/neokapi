@@ -185,6 +185,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
                     <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Target</th>
                     <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Source Locale</th>
                     <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Target Locale</th>
+                    <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Scope</th>
                     <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Updated</th>
                     <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[120px]">Actions</th>
                   </tr>
@@ -204,6 +205,13 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{getDisplayName(entry.source_locale)}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{getDisplayName(entry.target_locale)}</td>
+                      <td className="px-4 py-2.5 text-sm text-muted-foreground">
+                        {entry.project_id ? (
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">Project</span>
+                        ) : (
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Workspace</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{new Date(entry.updated_at).toLocaleDateString()}</td>
                       <td className="px-4 py-2.5 text-sm">
                         {editingId !== entry.id && (

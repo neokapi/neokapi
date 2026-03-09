@@ -62,6 +62,11 @@ var tbMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_text ON tb_terms(text_lower, locale);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add project_id column to concepts",
+		SQL:         `ALTER TABLE tb_concepts ADD COLUMN project_id TEXT NOT NULL DEFAULT '';`,
+	},
 }
 
 // AddConcept inserts or updates a concept with all its terms.
@@ -91,14 +96,15 @@ func (tb *SQLiteTermBase) AddConcept(concept fw.Concept) error {
 
 	// Upsert concept.
 	_, err = tx.Exec(`
-		INSERT INTO tb_concepts (id, domain, definition, properties, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO tb_concepts (id, project_id, domain, definition, properties, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
+			project_id = excluded.project_id,
 			domain = excluded.domain,
 			definition = excluded.definition,
 			properties = excluded.properties,
 			updated_at = excluded.updated_at
-	`, concept.ID, concept.Domain, concept.Definition,
+	`, concept.ID, concept.ProjectID, concept.Domain, concept.Definition,
 		nullableString(propsJSON),
 		concept.CreatedAt.Format(time.RFC3339),
 		concept.UpdatedAt.Format(time.RFC3339))
@@ -196,10 +202,17 @@ func (tb *SQLiteTermBase) LookupAll(sourceText string, opts fw.LookupOptions) []
 	lowerSource := strings.ToLower(sourceText)
 
 	// Get all terms for the source locale.
-	terms, err := tb.queryTermsByLocale(opts.SourceLocale, opts.Domains, opts.StatusFilter)
+	terms, err := tb.queryTermsByLocale(opts.SourceLocale, opts.Domains, opts.StatusFilter, opts)
 	if err != nil {
 		return nil
 	}
+
+	// Track seen text to deduplicate: project-scoped entries take precedence.
+	type matchKey struct {
+		text string
+		pos  int
+	}
+	seen := make(map[matchKey]int) // key -> index in matches
 
 	for _, entry := range terms {
 		searchIn := sourceText
@@ -216,13 +229,27 @@ func (tb *SQLiteTermBase) LookupAll(sourceText string, opts fw.LookupOptions) []
 				break
 			}
 			pos := offset + idx
-			matches = append(matches, fw.TermMatch{
+			key := matchKey{text: searchFor, pos: pos}
+
+			m := fw.TermMatch{
 				Concept:   entry.concept,
 				Term:      entry.term,
 				Score:     1.0,
 				MatchType: model.MatchStrategyExact,
 				Position:  model.TextRange{Start: pos, End: pos + len(searchFor)},
-			})
+			}
+
+			if existingIdx, exists := seen[key]; exists {
+				// Project-scoped concept takes precedence over workspace-scoped.
+				if opts.ProjectID != "" && entry.concept.ProjectID == opts.ProjectID &&
+					matches[existingIdx].Concept.ProjectID != opts.ProjectID {
+					matches[existingIdx] = m
+				}
+			} else {
+				seen[key] = len(matches)
+				matches = append(matches, m)
+			}
+
 			offset = pos + len(searchFor)
 		}
 	}
@@ -337,9 +364,9 @@ func (tb *SQLiteTermBase) scanConcept(id string) (fw.Concept, error) {
 	var createdStr, updatedStr string
 
 	err := tb.db.QueryRow(`
-		SELECT id, domain, definition, properties, created_at, updated_at
+		SELECT id, project_id, domain, definition, properties, created_at, updated_at
 		FROM tb_concepts WHERE id = ?
-	`, id).Scan(&c.ID, &c.Domain, &c.Definition, &propsJSON, &createdStr, &updatedStr)
+	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &createdStr, &updatedStr)
 	if err != nil {
 		return fw.Concept{}, err
 	}
@@ -388,13 +415,36 @@ func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts fw.LookupOptio
 		column = "t.text_lower"
 	}
 
-	q := fmt.Sprintf(`
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
-		FROM tb_terms t
-		WHERE %s = ? AND t.locale = ?
-	`, column)
-
+	where := fmt.Sprintf("%s = ? AND t.locale = ?", column)
 	args := []any{searchText, string(opts.SourceLocale)}
+
+	needsJoin := false
+	switch opts.ProjectScope {
+	case fw.ProjectScopeOnly:
+		where += " AND c.project_id = ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	case fw.ProjectScopeExclude:
+		where += " AND c.project_id != ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	}
+
+	var q string
+	if needsJoin {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
+			WHERE %s
+		`, where)
+	} else {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t
+			WHERE %s
+		`, where)
+	}
+
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {
 		return nil
@@ -405,11 +455,37 @@ func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts fw.LookupOptio
 }
 
 func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
-	rows, err := tb.db.Query(`
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
-		FROM tb_terms t
-		WHERE t.text_lower = ? AND t.locale = ?
-	`, normalizedSource, string(opts.SourceLocale))
+	where := "t.text_lower = ? AND t.locale = ?"
+	args := []any{normalizedSource, string(opts.SourceLocale)}
+
+	needsJoin := false
+	switch opts.ProjectScope {
+	case fw.ProjectScopeOnly:
+		where += " AND c.project_id = ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	case fw.ProjectScopeExclude:
+		where += " AND c.project_id != ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	}
+
+	var q string
+	if needsJoin {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
+			WHERE %s
+		`, where)
+	} else {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t
+			WHERE %s
+		`, where)
+	}
+
+	rows, err := tb.db.Query(q, args...)
 	if err != nil {
 		return nil
 	}
@@ -419,11 +495,37 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts fw.
 }
 
 func (tb *SQLiteTermBase) queryFuzzyTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
-	rows, err := tb.db.Query(`
-		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
-		FROM tb_terms t
-		WHERE t.locale = ?
-	`, string(opts.SourceLocale))
+	where := "t.locale = ?"
+	args := []any{string(opts.SourceLocale)}
+
+	needsJoin := false
+	switch opts.ProjectScope {
+	case fw.ProjectScopeOnly:
+		where += " AND c.project_id = ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	case fw.ProjectScopeExclude:
+		where += " AND c.project_id != ?"
+		args = append(args, opts.ProjectID)
+		needsJoin = true
+	}
+
+	var q string
+	if needsJoin {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
+			WHERE %s
+		`, where)
+	} else {
+		q = fmt.Sprintf(`
+			SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+			FROM tb_terms t
+			WHERE %s
+		`, where)
+	}
+
+	rows, err := tb.db.Query(q, args...)
 	if err != nil {
 		return nil
 	}
@@ -471,7 +573,7 @@ func (tb *SQLiteTermBase) queryFuzzyTerms(normalizedSource string, opts fw.Looku
 	return matches
 }
 
-func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []string, statusFilter []model.TermStatus) ([]termWithConcept, error) {
+func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []string, statusFilter []model.TermStatus, opts fw.LookupOptions) ([]termWithConcept, error) {
 	where := "t.locale = ?"
 	args := []any{string(locale)}
 
@@ -493,8 +595,17 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 		where += " AND t.status IN (" + strings.Join(placeholders, ",") + ")"
 	}
 
+	switch opts.ProjectScope {
+	case fw.ProjectScopeOnly:
+		where += " AND c.project_id = ?"
+		args = append(args, opts.ProjectID)
+	case fw.ProjectScopeExclude:
+		where += " AND c.project_id != ?"
+		args = append(args, opts.ProjectID)
+	}
+
 	rows, err := tb.db.Query(fmt.Sprintf(`
-		SELECT c.id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT c.id, c.project_id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
 	`, where), args...)
@@ -505,12 +616,12 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 
 	var results []termWithConcept
 	for rows.Next() {
-		var cID, domain, definition, text, loc, status, pos, gender, note string
-		if err := rows.Scan(&cID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note); err != nil {
+		var cID, projectID, domain, definition, text, loc, status, pos, gender, note string
+		if err := rows.Scan(&cID, &projectID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note); err != nil {
 			continue
 		}
 		results = append(results, termWithConcept{
-			concept: fw.Concept{ID: cID, Domain: domain, Definition: definition},
+			concept: fw.Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition},
 			term: fw.Term{
 				Text:         text,
 				Locale:       model.LocaleID(loc),
@@ -569,10 +680,4 @@ func (tb *SQLiteTermBase) scanTermMatches(rows interface {
 	return matches
 }
 
-func nullableString(b []byte) *string {
-	if len(b) == 0 {
-		return nil
-	}
-	s := string(b)
-	return &s
-}
+// nullableString is defined in postgres.go (shared by both backends).

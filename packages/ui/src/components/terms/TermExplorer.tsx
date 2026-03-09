@@ -14,10 +14,12 @@ import {
 import { AlertGlass, AlertGlassDescription } from "../ui/alert";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
+import { cn } from "../../lib/utils";
 
 interface TermExplorerProps {
   sourceLocale: string;
   targetLocales: string[];
+  projectId?: string;
   projectName?: string;
   onBack: () => void;
 }
@@ -25,7 +27,7 @@ interface TermExplorerProps {
 const PAGE_SIZE = 50;
 const STATUS_OPTIONS = ["preferred", "approved", "admitted", "proposed", "deprecated", "forbidden"];
 
-export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack }: TermExplorerProps) {
+export function TermExplorer({ sourceLocale, targetLocales, projectId, projectName, onBack }: TermExplorerProps) {
   const { getDisplayName } = useLocales();
 
   const breadcrumbNode = useMemo(() => (
@@ -51,6 +53,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [newProjectScoped, setNewProjectScoped] = useState(false);
   const [newDomain, setNewDomain] = useState("");
   const [newDefinition, setNewDefinition] = useState("");
   const [newTerms, setNewTerms] = useState<TermInfo[]>([
@@ -85,11 +88,12 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     if (validTerms.length === 0) return;
     try {
       await addConcept({
-        project_id: "",
+        project_id: newProjectScoped && projectId ? projectId : "",
         domain: newDomain,
         definition: newDefinition,
         terms: validTerms,
       });
+      setNewProjectScoped(false);
       setNewDomain("");
       setNewDefinition("");
       setNewTerms([
@@ -101,10 +105,11 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
     } catch (e) {
       console.error("Failed to add concept:", e);
     }
-  }, [addConcept, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [addConcept, newProjectScoped, projectId, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleAddDialogChange = useCallback((open: boolean) => {
     if (!open) {
+      setNewProjectScoped(false);
       setNewDomain("");
       setNewDefinition("");
       setNewTerms([
@@ -321,7 +326,14 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
                         </>
                       ) : (
                         <>
-                          <td className="px-3 py-2 align-top"><span className="text-[11px] text-muted-foreground">{concept.domain || "-"}</span></td>
+                          <td className="px-3 py-2 align-top">
+                            <span className="text-[11px] text-muted-foreground">{concept.domain || "-"}</span>
+                            {concept.project_id ? (
+                              <span className="block text-[10px] mt-0.5 px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 w-fit">Project</span>
+                            ) : (
+                              <span className="block text-[10px] mt-0.5 px-1.5 py-px rounded bg-muted text-muted-foreground w-fit">Workspace</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2 align-top">
                             {concept.terms.map((term, idx) => (
                               <div key={idx} className="mb-0.5">
@@ -376,6 +388,25 @@ export function TermExplorer({ sourceLocale, targetLocales, projectName, onBack 
             <DialogTitle>New Concept</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
+            {projectId && (
+              <div className="flex gap-2 items-center">
+                <Label className="text-muted-foreground">Scope</Label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className={cn("text-xs px-2.5 py-1 rounded border transition-colors",
+                      !newProjectScoped ? "bg-primary text-primary-foreground border-primary" : "border-input hover:bg-accent")}
+                    onClick={() => setNewProjectScoped(false)}
+                  >Workspace</button>
+                  <button
+                    type="button"
+                    className={cn("text-xs px-2.5 py-1 rounded border transition-colors",
+                      newProjectScoped ? "bg-primary text-primary-foreground border-primary" : "border-input hover:bg-accent")}
+                    onClick={() => setNewProjectScoped(true)}
+                  >Project</button>
+                </div>
+              </div>
+            )}
             <div className="flex gap-3">
               <div className="flex-1">
                 <Label className="text-muted-foreground">Domain</Label>

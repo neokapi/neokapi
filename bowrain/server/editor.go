@@ -17,6 +17,8 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
+	"github.com/gokapi/gokapi/bowrain/storage"
+	sqltb "github.com/gokapi/gokapi/bowrain/termbase"
 	"github.com/gokapi/gokapi/core/ai/provider"
 	"github.com/gokapi/gokapi/core/ai/tools"
 	"github.com/gokapi/gokapi/core/editor"
@@ -34,8 +36,8 @@ import (
 
 // workspaceTMTB holds workspace-scoped TM and terminology stores.
 type workspaceTMTB struct {
-	tm *sqltm.SQLiteTM
-	tb *termbase.InMemoryTermBase
+	tm sqltm.TMStore
+	tb termbase.TermBase
 }
 
 // workspaceStores manages per-workspace TM and terminology stores.
@@ -43,6 +45,7 @@ type workspaceStores struct {
 	mu      sync.RWMutex
 	stores  map[string]*workspaceTMTB
 	dataDir string
+	pgDB    *storage.PgDB // non-nil in PostgreSQL (SaaS) mode
 }
 
 func newWorkspaceStores(dataDir string) *workspaceStores {
@@ -63,13 +66,23 @@ func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceTMTB {
 	return w
 }
 
-func (ws *workspaceStores) getTM(wsSlug string) (*sqltm.SQLiteTM, error) {
+func (ws *workspaceStores) getTM(wsSlug string) (sqltm.TMStore, error) {
 	w := ws.getOrCreate(wsSlug)
 	if w.tm != nil {
 		return w.tm, nil
 	}
 
-	// Create file-backed TM if data dir is configured.
+	// PostgreSQL mode: all workspaces share the same database, scoped by workspace_id.
+	if ws.pgDB != nil {
+		tm, err := sqltm.NewPostgresTMFromDB(ws.pgDB, wsSlug)
+		if err != nil {
+			return nil, err
+		}
+		w.tm = tm
+		return tm, nil
+	}
+
+	// SQLite mode: file-backed per workspace (or in-memory).
 	tmPath := ":memory:"
 	if ws.dataDir != "" {
 		tmDir := filepath.Join(ws.dataDir, "tm")
@@ -87,11 +100,23 @@ func (ws *workspaceStores) getTM(wsSlug string) (*sqltm.SQLiteTM, error) {
 	return tm, nil
 }
 
-func (ws *workspaceStores) getTB(wsSlug string) *termbase.InMemoryTermBase {
+func (ws *workspaceStores) getTB(wsSlug string) termbase.TermBase {
 	w := ws.getOrCreate(wsSlug)
 	if w.tb != nil {
 		return w.tb
 	}
+
+	// PostgreSQL mode: persistent workspace-scoped termbase.
+	if ws.pgDB != nil {
+		tb, err := sqltb.NewPostgresTermBaseFromDB(ws.pgDB, wsSlug)
+		if err == nil {
+			w.tb = tb
+			return tb
+		}
+		// Fall back to in-memory on error.
+	}
+
+	// SQLite / in-memory mode.
 	w.tb = termbase.NewInMemoryTermBase()
 	return w.tb
 }
@@ -220,6 +245,7 @@ type TMMatchInfoResponse struct {
 	Target    string  `json:"target"`
 	Score     float64 `json:"score"`
 	MatchType string  `json:"match_type"`
+	ProjectID string  `json:"project_id,omitempty"` // which project this match came from
 }
 
 // BlockTermMatchResponse is a term match for a block.
@@ -230,6 +256,7 @@ type BlockTermMatchResponse struct {
 	Status      string   `json:"status"`
 	Start       int      `json:"start"`
 	End         int      `json:"end"`
+	ProjectID   string   `json:"project_id,omitempty"` // scope info
 }
 
 // --- TM types ---
@@ -241,6 +268,7 @@ type TMEntryInfoResponse struct {
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
+	ProjectID    string `json:"project_id,omitempty"`
 	UpdatedAt    string `json:"updated_at"`
 }
 
@@ -256,6 +284,7 @@ type TMAddRequest struct {
 	Target       string `json:"target"`
 	SourceLocale string `json:"source_locale"`
 	TargetLocale string `json:"target_locale"`
+	ProjectID    string `json:"project_id"` // which project to associate with
 }
 
 // TMUpdateRequest holds parameters for updating a TM entry.
@@ -281,6 +310,7 @@ type TermInfoResponse struct {
 // ConceptInfoResponse is the API response for a concept.
 type ConceptInfoResponse struct {
 	ID         string             `json:"id"`
+	ProjectID  string             `json:"project_id,omitempty"` // empty = workspace-scoped
 	Domain     string             `json:"domain"`
 	Definition string             `json:"definition"`
 	Terms      []TermInfoResponse `json:"terms"`
@@ -297,6 +327,7 @@ type TermSearchResponse struct {
 
 // AddConceptRequest holds parameters for adding a concept.
 type AddConceptRequest struct {
+	ProjectID  string             `json:"project_id"` // empty = workspace-scoped
 	Domain     string             `json:"domain"`
 	Definition string             `json:"definition"`
 	Terms      []TermInfoResponse `json:"terms"`
@@ -861,6 +892,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 
 	opts := sievepen.DefaultLookupOptions()
 	opts.MaxResults = 5
+	opts.ProjectID = projectID // for scoring boost
 	matches, err := tm.Lookup(sb.Block, proj.SourceLocale, model.LocaleID(targetLocale), opts)
 	if err != nil {
 		return nil, err
@@ -873,6 +905,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 			Target:    m.Entry.TargetText(),
 			Score:     m.Score,
 			MatchType: string(m.MatchType),
+			ProjectID: m.Entry.ProjectID,
 		}
 	}
 	return result, nil
@@ -903,6 +936,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
 		SourceLocale: proj.SourceLocale,
 		TargetLocale: model.LocaleID(targetLocale),
+		ProjectID:    projectID,
 	})
 
 	result := make([]BlockTermMatchResponse, 0)
@@ -920,6 +954,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 			Status:      string(m.Term.Status),
 			Start:       m.Position.Start,
 			End:         m.Position.End,
+			ProjectID:   m.Concept.ProjectID,
 		})
 	}
 	return result, nil
@@ -1239,6 +1274,7 @@ func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
 		Target:       e.TargetText(),
 		SourceLocale: string(e.SourceLocale),
 		TargetLocale: string(e.TargetLocale),
+		ProjectID:    e.ProjectID,
 		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
 	}
 }
@@ -1257,6 +1293,7 @@ func editorConceptToInfo(c termbase.Concept) ConceptInfoResponse {
 	}
 	return ConceptInfoResponse{
 		ID:         c.ID,
+		ProjectID:  c.ProjectID,
 		Domain:     c.Domain,
 		Definition: c.Definition,
 		Terms:      terms,

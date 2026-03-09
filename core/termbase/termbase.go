@@ -20,6 +20,7 @@ type Term struct {
 // with terms in multiple locales, organized following TBX principles.
 type Concept struct {
 	ID         string            // unique concept identifier
+	ProjectID  string            // project scope (empty = workspace-scoped)
 	Domain     string            // subject field (software, medical, legal, etc.)
 	Definition string            // language-neutral definition
 	Terms      []Term            // terms across locales
@@ -76,6 +77,15 @@ type TermMatch struct {
 	Position  model.TextRange // where in the source text
 }
 
+// ProjectScope controls project filtering in term lookups.
+type ProjectScope int
+
+const (
+	ProjectScopeAll     ProjectScope = iota // workspace-wide, project-scoped takes precedence
+	ProjectScopeOnly                        // current project only
+	ProjectScopeExclude                     // other projects only
+)
+
 // LookupOptions controls term lookup behavior.
 type LookupOptions struct {
 	SourceLocale  model.LocaleID
@@ -85,6 +95,8 @@ type LookupOptions struct {
 	MatchModes    []model.MatchStrategy
 	Domains       []string           // restrict to specific domains
 	StatusFilter  []model.TermStatus // only return terms with these statuses
+	ProjectID    string              // project context for scope filtering
+	ProjectScope ProjectScope        // project filtering mode (default: all)
 }
 
 // TermBase defines the interface for a terminology database.

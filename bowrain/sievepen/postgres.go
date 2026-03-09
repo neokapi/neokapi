@@ -1,6 +1,7 @@
 package sievepen
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -13,20 +14,28 @@ import (
 )
 
 // PostgresTM is a persistent translation memory backed by PostgreSQL.
-// Unlike SQLiteTM (one database file per workspace), PostgresTM stores all
-// workspaces in a single shared database with a workspace_id column.
+// All workspace TMs share the same PostgreSQL database, isolated by workspace_id.
 type PostgresTM struct {
 	db          *storage.PgDB
 	workspaceID string
 }
 
+// NewPostgresTMFromDB creates a PostgresTM using an existing shared PgDB connection.
+// workspaceID scopes all entries to a specific workspace.
+func NewPostgresTMFromDB(db *storage.PgDB, workspaceID string) (*PostgresTM, error) {
+	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", tmMigrationsPg); err != nil {
+		return nil, fmt.Errorf("migrate TM schema: %w", err)
+	}
+	return &PostgresTM{db: db, workspaceID: workspaceID}, nil
+}
+
 var tmMigrationsPg = []storage.Migration{
 	{
 		Version:     1,
-		Description: "content-aware TM schema for PostgreSQL",
+		Description: "content-aware TM schema",
 		SQL: `
 		CREATE TABLE IF NOT EXISTS tm_entries (
-			id              TEXT PRIMARY KEY,
+			id              TEXT NOT NULL,
 			workspace_id    TEXT NOT NULL,
 			source_coded    TEXT NOT NULL,
 			target_coded    TEXT NOT NULL,
@@ -37,23 +46,15 @@ var tmMigrationsPg = []storage.Migration{
 			target_locale   TEXT NOT NULL,
 			entities        TEXT,
 			properties      TEXT,
-			created_at      TIMESTAMPTZ NOT NULL,
-			updated_at      TIMESTAMPTZ NOT NULL
+			created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (workspace_id, id)
 		);
-		CREATE INDEX IF NOT EXISTS idx_tm_workspace ON tm_entries(workspace_id);
-		CREATE INDEX IF NOT EXISTS idx_tm_general ON tm_entries(workspace_id, source_general, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_struct  ON tm_entries(workspace_id, source_struct, source_locale, target_locale);
-		CREATE INDEX IF NOT EXISTS idx_tm_plain   ON tm_entries(workspace_id, source_plain, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_ws_general ON tm_entries(workspace_id, source_general, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_ws_struct  ON tm_entries(workspace_id, source_struct, source_locale, target_locale);
+		CREATE INDEX IF NOT EXISTS idx_tm_ws_plain   ON tm_entries(workspace_id, source_plain, source_locale, target_locale);
 		`,
 	},
-}
-
-// NewPostgresTM creates a PostgreSQL-backed translation memory scoped to a workspace.
-func NewPostgresTM(db *storage.PgDB, workspaceID string) (*PostgresTM, error) {
-	if err := storage.MigratePostgresNS(db, "tm_schema_migrations", tmMigrationsPg); err != nil {
-		return nil, fmt.Errorf("migrate TM schema: %w", err)
-	}
-	return &PostgresTM{db: db, workspaceID: workspaceID}, nil
 }
 
 // Add inserts or updates a translation memory entry.
@@ -97,7 +98,7 @@ func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 			entities, properties,
 			created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		ON CONFLICT(id) DO UPDATE SET
+		ON CONFLICT (workspace_id, id) DO UPDATE SET
 			source_coded = EXCLUDED.source_coded,
 			target_coded = EXCLUDED.target_coded,
 			source_plain = EXCLUDED.source_plain,
@@ -214,6 +215,7 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
+	// Fuzzy matching: scan all entries for locale pair.
 	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
 	if err != nil {
 		return nil, err
@@ -277,12 +279,6 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 }
 
 func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
-	switch column {
-	case "source_plain", "source_struct", "source_general":
-		// valid column names
-	default:
-		return nil, fmt.Errorf("invalid TM lookup column: %q", column)
-	}
 	query := fmt.Sprintf(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
@@ -296,7 +292,7 @@ func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocal
 	}
 	defer rows.Close()
 
-	return tm.scanEntries(rows)
+	return scanTMEntries(rows)
 }
 
 func (tm *PostgresTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
@@ -311,14 +307,116 @@ func (tm *PostgresTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]
 	}
 	defer rows.Close()
 
-	return tm.scanEntries(rows)
+	return scanTMEntries(rows)
 }
 
-func (tm *PostgresTM) scanEntries(rows interface {
-	Next() bool
-	Scan(...any) error
-	Err() error
-}) ([]fw.TMEntry, error) {
+// Delete removes an entry by ID.
+func (tm *PostgresTM) Delete(id string) error {
+	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE workspace_id = $1 AND id = $2", tm.workspaceID, id)
+	if err != nil {
+		return fmt.Errorf("delete entry: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("entry not found: %s", id)
+	}
+	return nil
+}
+
+// Count returns the total number of entries for this workspace.
+func (tm *PostgresTM) Count() int {
+	var count int
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count)
+	return count
+}
+
+// Close is a no-op for PostgresTM since the connection is shared.
+func (tm *PostgresTM) Close() error {
+	return nil
+}
+
+// SearchEntries performs a case-insensitive substring search on source/target text.
+func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
+	where := "workspace_id = $1"
+	args := []any{tm.workspaceID}
+	argN := 2
+
+	if query != "" {
+		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", argN, argN+1)
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern)
+		argN += 2
+	}
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND source_locale = $%d", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND target_locale = $%d", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+
+	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	entries, _ := scanTMEntries(rows)
+	return entries, total
+}
+
+// GetEntry fetches a single entry by ID.
+func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
+	rows, err := tm.db.Query(`
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries WHERE workspace_id = $1 AND id = $2
+	`, tm.workspaceID, id)
+	if err != nil {
+		return fw.TMEntry{}, false
+	}
+	defer rows.Close()
+
+	entries, err := scanTMEntries(rows)
+	if err != nil || len(entries) == 0 {
+		return fw.TMEntry{}, false
+	}
+	return entries[0], true
+}
+
+// Entries returns all entries for this workspace.
+func (tm *PostgresTM) Entries() []fw.TMEntry {
+	rows, err := tm.db.Query(`
+		SELECT id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries WHERE workspace_id = $1 ORDER BY id
+	`, tm.workspaceID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+
+	entries, _ := scanTMEntries(rows)
+	return entries
+}
+
+// scanTMEntries is a shared scanner for both SQLite and PostgreSQL.
+func scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 	var entries []fw.TMEntry
 	for rows.Next() {
 		var entry fw.TMEntry
@@ -363,107 +461,3 @@ func (tm *PostgresTM) scanEntries(rows interface {
 	return entries, nil
 }
 
-// Delete removes an entry by ID (scoped to workspace).
-func (tm *PostgresTM) Delete(id string) error {
-	result, err := tm.db.Exec("DELETE FROM tm_entries WHERE id = $1 AND workspace_id = $2", id, tm.workspaceID)
-	if err != nil {
-		return fmt.Errorf("delete entry: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("rows affected: %w", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("entry not found: %s", id)
-	}
-	return nil
-}
-
-// Count returns the total number of entries for this workspace.
-func (tm *PostgresTM) Count() int {
-	var count int
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count)
-	return count
-}
-
-// Close is a no-op for PostgresTM since the PgDB is shared and managed externally.
-func (tm *PostgresTM) Close() error {
-	return nil
-}
-
-// SearchEntries performs a case-insensitive substring search on source/target text.
-func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
-	where := "workspace_id = $1"
-	args := []any{tm.workspaceID}
-	paramN := 2
-
-	if query != "" {
-		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", paramN, paramN+1)
-		pattern := "%" + strings.ToLower(query) + "%"
-		args = append(args, pattern, pattern)
-		paramN += 2
-	}
-	if sourceLocale != "" {
-		where += fmt.Sprintf(" AND source_locale = $%d", paramN)
-		args = append(args, sourceLocale)
-		paramN++
-	}
-	if targetLocale != "" {
-		where += fmt.Sprintf(" AND target_locale = $%d", paramN)
-		args = append(args, targetLocale)
-		paramN++
-	}
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
-
-	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
-		entities, properties, created_at, updated_at
-		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, paramN, paramN+1)
-	args = append(args, limit, offset)
-	rows, err := tm.db.Query(q, args...)
-	if err != nil {
-		return nil, total
-	}
-	defer rows.Close()
-
-	entries, _ := tm.scanEntries(rows)
-	return entries, total
-}
-
-// GetEntry fetches a single entry by ID (scoped to workspace).
-func (tm *PostgresTM) GetEntry(id string) (fw.TMEntry, bool) {
-	rows, err := tm.db.Query(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			entities, properties, created_at, updated_at
-		FROM tm_entries WHERE id = $1 AND workspace_id = $2
-	`, id, tm.workspaceID)
-	if err != nil {
-		return fw.TMEntry{}, false
-	}
-	defer rows.Close()
-
-	entries, err := tm.scanEntries(rows)
-	if err != nil || len(entries) == 0 {
-		return fw.TMEntry{}, false
-	}
-	return entries[0], true
-}
-
-// Entries returns all entries for this workspace. Used for export operations.
-func (tm *PostgresTM) Entries() []fw.TMEntry {
-	rows, err := tm.db.Query(`
-		SELECT id, source_coded, target_coded, source_locale, target_locale,
-			entities, properties, created_at, updated_at
-		FROM tm_entries WHERE workspace_id = $1 ORDER BY id
-	`, tm.workspaceID)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	entries, _ := tm.scanEntries(rows)
-	return entries
-}
