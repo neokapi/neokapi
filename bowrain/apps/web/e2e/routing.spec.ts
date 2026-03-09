@@ -68,8 +68,8 @@ test.describe("Routing", () => {
     await injectAuthCookie(page, token);
     await page.goto(`/${wsSlug}/project/${projectId}/translate/about-us.html`);
 
-    // Editor should load with blocks
-    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+    // Editor should load (layout switcher is always visible regardless of mode)
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
 
     // URL should contain the file name
     expect(page.url()).toContain("/translate/about-us.html");
