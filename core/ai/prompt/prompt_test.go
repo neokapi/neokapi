@@ -15,7 +15,7 @@ func TestTranslatePromptBuild(t *testing.T) {
 	}
 
 	sys, user := p.Build("Hello World")
-	assert.Contains(t, sys, "professional translator")
+	assert.Contains(t, sys, "localization specialist")
 	assert.Contains(t, sys, "en")
 	assert.Contains(t, sys, "fr")
 	assert.Contains(t, user, "Hello World")
