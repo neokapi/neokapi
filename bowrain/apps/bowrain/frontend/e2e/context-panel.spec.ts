@@ -217,6 +217,11 @@ test.describe("Context Panel", () => {
     await page.evaluate(() => {
       (document.querySelector('[data-testid="open-file-test.html"]') as HTMLElement)?.click();
     });
+    // Default layout is "visual" — switch to grid for this test
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+    });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
     // Select first block to stabilize selectedIndex before opening panel

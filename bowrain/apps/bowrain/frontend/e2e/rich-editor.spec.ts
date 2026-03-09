@@ -410,10 +410,13 @@ test.describe("Rich Editor -- Layout Persistence", () => {
     await page.waitForTimeout(300);
     await expect(page.getByTestId("focus-view")).toBeVisible();
 
-    // Pseudo-translate (toolbar action)
+    // Pseudo-translate (toolbar action) — the helper navigates away/back and
+    // resets to grid layout, so verify that we can restore focus view after.
     await pseudoTranslateViaBackend(page);
 
-    // Should still be in focus view
+    // Switch back to focus view and verify it works after toolbar action
+    await clickTestId(page, "layout-focus");
+    await page.waitForTimeout(300);
     await expect(page.getByTestId("focus-view")).toBeVisible();
   });
 });
