@@ -170,14 +170,20 @@ func TestSyncGetBlocks(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
 	assert.Len(t, blocks, 2)
 
-	// Verify block content.
-	blockMap := map[string]apiclient.BlockContent{}
+	// Verify block content (IDs are internal random IDs, not the pushed source IDs).
+	sourceMap := map[string]apiclient.BlockContent{}
 	for _, b := range blocks {
-		blockMap[b.ID] = b
+		sourceMap[b.Source] = b
 	}
-	assert.Equal(t, "Hello", blockMap["b1"].Source)
-	assert.Equal(t, "World", blockMap["b2"].Source)
-	assert.Equal(t, "en.json", blockMap["b1"].ItemName)
+	assert.Contains(t, sourceMap, "Hello")
+	assert.Contains(t, sourceMap, "World")
+	assert.Equal(t, "en.json", sourceMap["Hello"].ItemName)
+	assert.Equal(t, "en.json", sourceMap["World"].ItemName)
+	// Internal IDs should be 8-char random strings, not the original "b1"/"b2".
+	assert.Len(t, sourceMap["Hello"].ID, 8)
+	assert.NotEqual(t, "b1", sourceMap["Hello"].ID)
+	assert.Len(t, sourceMap["World"].ID, 8)
+	assert.NotEqual(t, "b2", sourceMap["World"].ID)
 }
 
 func TestSyncGetBlocks_Empty(t *testing.T) {

@@ -222,10 +222,10 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Update total token usage on the job.
 	job.TokensUsed = totalTokensUsed
 
-	// Store translated blocks.
+	// Store translated blocks — they already have internal IDs from GetBlocks.
 	blocks := partsToBlocks(allOutParts)
 	if len(blocks) > 0 {
-		if err := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, job.ItemName, blocks); err != nil {
+		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
 	}

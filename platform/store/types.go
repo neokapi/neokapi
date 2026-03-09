@@ -46,6 +46,7 @@ type StoredBlock struct {
 	*model.Block
 	ProjectID   string
 	ItemName    string
+	SourceID    string // format-reader-assigned ID (e.g., "tu1"); empty for blocks stored without an item
 	ContentHash string
 	ContextHash string
 	StoredAt    time.Time

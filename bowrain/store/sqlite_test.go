@@ -357,12 +357,18 @@ func TestBlockItemAssociation(t *testing.T) {
 	item := &platstore.Item{Name: "messages.json", Format: "json", ItemType: "file"}
 	require.NoError(t, s.StoreItem(ctx, p.ID, item))
 
-	// Store blocks associated with the item.
+	// Store blocks associated with the item — format-reader IDs get mapped to internal IDs.
 	b1 := model.NewBlock("msg-1", "Hello")
 	b2 := model.NewBlock("msg-2", "Goodbye")
 	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "messages.json", []*model.Block{b1, b2}))
 
-	// Store blocks without item association.
+	// After StoreBlocksForItem, b1.ID and b2.ID are mutated to internal IDs.
+	assert.NotEqual(t, "msg-1", b1.ID, "block ID should be remapped")
+	assert.NotEqual(t, "msg-2", b2.ID, "block ID should be remapped")
+	assert.Len(t, b1.ID, 8, "internal ID should be 8 chars")
+	assert.Len(t, b2.ID, 8, "internal ID should be 8 chars")
+
+	// Store blocks without item association — keeps original ID.
 	b3 := model.NewBlock("other-1", "Other")
 	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b3}))
 
@@ -384,10 +390,12 @@ func TestBlockItemAssociation(t *testing.T) {
 		assert.Len(t, blocks, 3)
 	})
 
-	t.Run("get block has item_name", func(t *testing.T) {
-		sb, err := s.GetBlock(ctx, p.ID, "msg-1")
+	t.Run("get block by internal ID", func(t *testing.T) {
+		sb, err := s.GetBlock(ctx, p.ID, b1.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "messages.json", sb.ItemName)
+		assert.Equal(t, "msg-1", sb.SourceID)
+		assert.Equal(t, "Hello", sb.SourceText())
 	})
 
 	t.Run("delete item cascades blocks", func(t *testing.T) {
@@ -397,5 +405,60 @@ func TestBlockItemAssociation(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, blocks, 1)
 		assert.Equal(t, "other-1", blocks[0].ID)
+	})
+}
+
+func TestBlockIDUniqueness(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Two items with blocks that have the same format-reader IDs.
+	item1 := &platstore.Item{Name: "file1.json", Format: "json", ItemType: "file"}
+	item2 := &platstore.Item{Name: "file2.json", Format: "json", ItemType: "file"}
+	require.NoError(t, s.StoreItem(ctx, p.ID, item1))
+	require.NoError(t, s.StoreItem(ctx, p.ID, item2))
+
+	blocks1 := []*model.Block{model.NewBlock("tu1", "Hello"), model.NewBlock("tu2", "World")}
+	blocks2 := []*model.Block{model.NewBlock("tu1", "Bonjour"), model.NewBlock("tu2", "Monde")}
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file1.json", blocks1))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file2.json", blocks2))
+
+	t.Run("different internal IDs", func(t *testing.T) {
+		// All four blocks should have unique 8-char IDs.
+		ids := map[string]bool{blocks1[0].ID: true, blocks1[1].ID: true, blocks2[0].ID: true, blocks2[1].ID: true}
+		assert.Len(t, ids, 4, "all four blocks should have unique IDs")
+		for id := range ids {
+			assert.Len(t, id, 8, "internal ID should be 8 chars")
+		}
+	})
+
+	t.Run("no ambiguity on GetBlock", func(t *testing.T) {
+		sb1, err := s.GetBlock(ctx, p.ID, blocks1[0].ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Hello", sb1.SourceText())
+		assert.Equal(t, "tu1", sb1.SourceID)
+		assert.Equal(t, "file1.json", sb1.ItemName)
+
+		sb3, err := s.GetBlock(ctx, p.ID, blocks2[0].ID)
+		require.NoError(t, err)
+		assert.Equal(t, "Bonjour", sb3.SourceText())
+		assert.Equal(t, "tu1", sb3.SourceID)
+		assert.Equal(t, "file2.json", sb3.ItemName)
+	})
+
+	t.Run("re-ingest reuses IDs", func(t *testing.T) {
+		savedID1 := blocks1[0].ID
+		savedID2 := blocks1[1].ID
+
+		// Re-store same blocks for file1 — should reuse existing internal IDs.
+		reBlocks := []*model.Block{model.NewBlock("tu1", "Hello updated"), model.NewBlock("tu2", "World")}
+		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file1.json", reBlocks))
+		assert.Equal(t, savedID1, reBlocks[0].ID, "re-ingested block should keep same internal ID")
+		assert.Equal(t, savedID2, reBlocks[1].ID, "re-ingested block should keep same internal ID")
+
+		sb, err := s.GetBlock(ctx, p.ID, savedID1)
+		require.NoError(t, err)
+		assert.Equal(t, "Hello updated", sb.SourceText())
 	})
 }
