@@ -66,21 +66,26 @@ func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) 
 func (p *AzureOpenAIProvider) Name() string { return "azureopenai" }
 
 func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
-	var prompt strings.Builder
-	prompt.WriteString(fmt.Sprintf(
-		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLocale, req.TargetLocale, req.Source,
-	))
+	system := fmt.Sprintf(
+		"You are a software localization specialist. Your task is to translate user interface strings from %s to %s. "+
+			"These are UI labels, error messages, and status texts from a software application. "+
+			"Return ONLY the translated text, nothing else. Preserve any placeholders.",
+		req.SourceLocale, req.TargetLocale,
+	)
 
+	var user strings.Builder
 	if len(req.Glossary) > 0 {
-		prompt.WriteString("\n\nGlossary:\n")
+		user.WriteString("Glossary:\n")
 		for term, translation := range req.Glossary {
-			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
+			user.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
 		}
+		user.WriteString("\n")
 	}
+	user.WriteString(req.Source)
 
 	resp, err := p.Chat(ctx, []Message{
-		{Role: "user", Content: prompt.String()},
+		{Role: "system", Content: system},
+		{Role: "user", Content: user.String()},
 	})
 	if err != nil {
 		return nil, err
