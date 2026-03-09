@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gokapi/gokapi/core/id"
 )
 
 // ReviewItemType classifies review queue items.
@@ -98,7 +98,7 @@ func NewReviewQueueStore(db *sql.DB) *ReviewQueueStore {
 // CreateItem inserts a new review item. ID and CreatedAt are auto-set if empty/zero.
 func (s *ReviewQueueStore) CreateItem(ctx context.Context, item *ReviewItem) error {
 	if item.ID == "" {
-		item.ID = uuid.NewString()
+		item.ID = id.New()
 	}
 	if item.CreatedAt.IsZero() {
 		item.CreatedAt = time.Now().UTC()
@@ -344,7 +344,7 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 
 	// Create new item.
 	newItem := &ReviewItem{
-		ID:         uuid.NewString(),
+		ID:         id.New(),
 		ProjectID:  original.ProjectID,
 		Type:       original.Type,
 		Status:     ReviewItemPending,

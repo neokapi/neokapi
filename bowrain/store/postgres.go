@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
 	platstore "github.com/gokapi/gokapi/platform/store"
-	"github.com/google/uuid"
 )
 
 // PostgresStore implements ContentStore using PostgreSQL.
@@ -51,7 +51,7 @@ func (s *PostgresStore) Close() error {
 
 func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project) error {
 	if p.ID == "" {
-		p.ID = uuid.NewString()
+		p.ID = id.New()
 	}
 	now := time.Now().UTC()
 	p.CreatedAt = now
@@ -487,7 +487,7 @@ func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, label, des
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	versionID := uuid.NewString()
+	versionID := id.New()
 	now := time.Now().UTC()
 
 	var blockCount int

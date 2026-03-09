@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -38,7 +38,7 @@ func (s *Server) HandleAddBlockNote(c echo.Context) error {
 	}
 
 	note := model.BlockNote{
-		ID:        uuid.NewString(),
+		ID:        id.New(),
 		BlockID:   bid,
 		Author:    extractAuthor(c),
 		Text:      req.Text,
