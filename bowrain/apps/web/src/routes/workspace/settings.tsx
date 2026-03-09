@@ -54,6 +54,12 @@ function VersionSection() {
 export function SettingsIndexRoute() {
   const { activeWorkspace } = useWorkspace();
 
+  useEffect(() => {
+    if (activeWorkspace) {
+      document.title = `Settings — ${activeWorkspace.name} — Bowrain`;
+    }
+  }, [activeWorkspace]);
+
   if (!activeWorkspace) {
     return (
       <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">

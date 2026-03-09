@@ -84,7 +84,7 @@ export function ProjectView({
   };
 
   return (
-    <div>
+    <div className="flex-1 min-h-0 overflow-auto">
       {serverMode && (
         <OpenInDesktop
           projectId={project.id}

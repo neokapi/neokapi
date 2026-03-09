@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { ProjectDashboard, useApi, type ProjectInfo } from "@gokapi/ui";
@@ -12,6 +12,10 @@ export function ProjectDashboardRoute() {
   const queryClient = useQueryClient();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
+
+  useEffect(() => {
+    document.title = `${activeWorkspace.name} — Bowrain`;
+  }, [activeWorkspace.name]);
 
   const { data: projects } = useSuspenseQuery(projectsQueryOptions(adapter, ws));
 
