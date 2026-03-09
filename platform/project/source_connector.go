@@ -51,7 +51,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		if err != nil {
 			return nil, fmt.Errorf("workspace sync requires authentication: run 'bowrain auth login'")
 		}
-		if authInfo.ServerURL != srv.URL {
+		if authInfo.ServerURL != "" && authInfo.ServerURL != srv.URL {
 			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, srv.URL)
 		}
 		client = apiclient.NewWorkspaceBowrainClient(srv.URL, srv.Workspace, srv.ProjectID, authInfo.AccessToken)
@@ -584,7 +584,24 @@ func (c *BrainSourceConnector) resolveTargetPath(itemName, locale string) string
 	for _, m := range c.project.Config.Mappings {
 		matched, err := doublestar.Match(m.Local, relPath)
 		if err == nil && matched && m.TargetPath != "" {
-			return strings.ReplaceAll(m.TargetPath, "{locale}", locale)
+			result := m.TargetPath
+			result = strings.ReplaceAll(result, "{locale}", locale)
+
+			// Extract {path} and {filename} relative to the glob's fixed prefix.
+			prefix := globFixedPrefix(m.Local)
+			relative := strings.TrimPrefix(relPath, prefix)
+			dir := filepath.Dir(relative)
+			if dir == "." {
+				dir = ""
+			}
+			file := filepath.Base(relative)
+			result = strings.ReplaceAll(result, "{filename}", file)
+			result = strings.ReplaceAll(result, "{path}", dir)
+			// Clean up double slashes from empty {path}.
+			for strings.Contains(result, "//") {
+				result = strings.ReplaceAll(result, "//", "/")
+			}
+			return result
 		}
 	}
 
@@ -669,6 +686,23 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 	}
 
 	return writer.Close()
+}
+
+// globFixedPrefix returns the fixed directory prefix of a glob pattern,
+// i.e. everything before the first glob metacharacter (*, ?, [, {).
+func globFixedPrefix(pattern string) string {
+	for i, c := range pattern {
+		if c == '*' || c == '?' || c == '[' || c == '{' {
+			// Return everything up to the last path separator before the metachar.
+			return pattern[:i]
+		}
+	}
+	// No glob chars — return the directory portion.
+	dir := filepath.Dir(pattern)
+	if dir == "." {
+		return ""
+	}
+	return dir + string(filepath.Separator)
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
