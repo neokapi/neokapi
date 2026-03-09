@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gokapi/gokapi/core/id"
 	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/google/uuid"
 )
 
 // ChannelEventBus is an in-process, channel-based EventBus implementation.
@@ -32,7 +32,7 @@ func NewChannelEventBus() *ChannelEventBus {
 // Publish sends an event to all matching subscribers.
 func (b *ChannelEventBus) Publish(ev platev.Event) {
 	if ev.ID == "" {
-		ev.ID = uuid.NewString()
+		ev.ID = id.New()
 	}
 	if ev.Timestamp.IsZero() {
 		ev.Timestamp = time.Now().UTC()
@@ -59,7 +59,7 @@ func (b *ChannelEventBus) Publish(ev platev.Event) {
 // Subscribe registers a handler for a specific event type.
 func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.EventHandler) *platev.Subscription {
 	sub := &platev.Subscription{
-		ID:        uuid.NewString(),
+		ID:        id.New(),
 		EventType: eventType,
 		Handler:   handler,
 	}
@@ -70,7 +70,7 @@ func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.E
 // SubscribeAll registers a handler for all events.
 func (b *ChannelEventBus) SubscribeAll(handler platev.EventHandler) *platev.Subscription {
 	sub := &platev.Subscription{
-		ID:      uuid.NewString(),
+		ID:      id.New(),
 		Handler: handler,
 	}
 	b.addSubscriber(sub)

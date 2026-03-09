@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
+	"github.com/gokapi/gokapi/core/id"
 	platauth "github.com/gokapi/gokapi/platform/auth"
-	"github.com/google/uuid"
 )
 
 // AuthService provides authentication and workspace business logic.
@@ -118,7 +118,7 @@ func (s *AuthService) Store() auth.AuthStore {
 // CreateAnonymousProject creates an unclaimed project with a claim token.
 // Returns the plaintext claim token (caller must persist it).
 func (s *AuthService) CreateAnonymousProject(ctx context.Context, name, sourceLoc string, targetLocs []string) (projectID, claimToken string, err error) {
-	projectID = uuid.NewString()
+	projectID = id.New()
 
 	// Generate claim token: clm_ + 32 random hex bytes.
 	tokenBytes := make([]byte, 32)

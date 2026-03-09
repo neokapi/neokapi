@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -10,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
 	platstore "github.com/gokapi/gokapi/platform/store"
-	"github.com/google/uuid"
 )
 
 // SQLiteStore implements ContentStore using SQLite via the shared storage layer.
@@ -50,7 +49,7 @@ func (s *SQLiteStore) Close() error {
 
 func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) error {
 	if p.ID == "" {
-		p.ID = uuid.NewString()
+		p.ID = id.New()
 	}
 	now := time.Now().UTC()
 	p.CreatedAt = now
@@ -416,22 +415,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 	return tx.Commit()
 }
 
-// base62 is the alphabet for short random IDs.
-const base62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-
 // newBlockID generates a short random block ID (8 chars, base62-encoded).
-// This gives ~48 bits of entropy — collision-resistant without coordination.
-func newBlockID() string {
-	var buf [8]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		panic("crypto/rand failed: " + err.Error())
-	}
-	out := make([]byte, 8)
-	for i, b := range buf {
-		out[i] = base62[int(b)%len(base62)]
-	}
-	return string(out)
-}
+func newBlockID() string { return id.New() }
 
 func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*platstore.StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
@@ -537,7 +522,7 @@ func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, descr
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	versionID := uuid.NewString()
+	versionID := id.New()
 	now := time.Now().UTC()
 
 	// Count blocks.

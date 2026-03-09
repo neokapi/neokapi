@@ -11,8 +11,8 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 	apiclient "github.com/gokapi/gokapi/platform/client"
 	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/platform/store"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -44,7 +44,7 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 
 	projectID := c.Param("id")
 	ctx := c.Request().Context()
-	pushID := uuid.NewString()
+	pushID := id.New()
 	totalStored := 0
 	for itemName, blocks := range itemGroups {
 		if itemName == "" {

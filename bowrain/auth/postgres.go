@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/id"
 	platauth "github.com/gokapi/gokapi/platform/auth"
-	"github.com/google/uuid"
 )
 
 // PostgresAuthStore implements AuthStore using PostgreSQL.
@@ -46,7 +46,7 @@ func (s *PostgresAuthStore) Close() error {
 
 func (s *PostgresAuthStore) CreateUser(ctx context.Context, u *platauth.User) error {
 	if u.ID == "" {
-		u.ID = uuid.NewString()
+		u.ID = id.New()
 	}
 	if u.CreatedAt.IsZero() {
 		u.CreatedAt = time.Now().UTC()
@@ -98,7 +98,7 @@ func (s *PostgresAuthStore) UpdateUser(ctx context.Context, u *platauth.User) er
 
 func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	if w.ID == "" {
-		w.ID = uuid.NewString()
+		w.ID = id.New()
 	}
 	now := time.Now().UTC()
 	if w.CreatedAt.IsZero() {
@@ -312,7 +312,7 @@ func (s *PostgresAuthStore) PurgeExpiredUnclaimed(ctx context.Context) (int, err
 
 func (s *PostgresAuthStore) CreateInvite(ctx context.Context, inv *platauth.Invite) error {
 	if inv.ID == "" {
-		inv.ID = uuid.NewString()
+		inv.ID = id.New()
 	}
 	if inv.CreatedAt.IsZero() {
 		inv.CreatedAt = time.Now().UTC()
@@ -390,7 +390,7 @@ func (s *PostgresAuthStore) DeleteInvite(ctx context.Context, inviteID string) e
 // ---------------------------------------------------------------------------
 
 func (s *PostgresAuthStore) StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
-	id := uuid.NewString()
+	id := id.New()
 	now := time.Now().UTC()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES ($1, $2, $3, $4, $5)`,
@@ -443,7 +443,7 @@ func (s *PostgresAuthStore) RevokeUserRefreshTokens(ctx context.Context, userID 
 
 func (s *PostgresAuthStore) CreateAPIToken(ctx context.Context, token *platauth.APIToken, tokenHash string) error {
 	if token.ID == "" {
-		token.ID = uuid.NewString()
+		token.ID = id.New()
 	}
 	if token.CreatedAt.IsZero() {
 		token.CreatedAt = time.Now().UTC()

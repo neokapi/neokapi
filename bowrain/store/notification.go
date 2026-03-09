@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/gokapi/gokapi/core/id"
 )
 
 // NotificationType classifies notifications.
@@ -45,7 +45,7 @@ func NewNotificationStore(db *sql.DB) *NotificationStore {
 // Create inserts a new notification.
 func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
 	if n.ID == "" {
-		n.ID = uuid.NewString()
+		n.ID = id.New()
 	}
 	if n.CreatedAt.IsZero() {
 		n.CreatedAt = time.Now().UTC()
