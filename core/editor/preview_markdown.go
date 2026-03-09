@@ -36,7 +36,7 @@ func buildMarkdownPreview(parts []*model.Part, sourceBytes []byte) string {
 // writeMarkdownBlockPreview renders a Markdown block as HTML with <kat-block>.
 func writeMarkdownBlockPreview(buf *strings.Builder, block *model.Block) {
 	text := block.SourceText()
-	blockType := block.Properties["type"]
+	blockType := block.Type
 	level := block.Properties["level"]
 
 	switch blockType {
@@ -66,7 +66,7 @@ func writeMarkdownBlockPreview(buf *strings.Builder, block *model.Block) {
 
 // writeMarkdownDataPreview renders non-translatable Markdown data (code blocks, etc.).
 func writeMarkdownDataPreview(buf *strings.Builder, data *model.Data) {
-	dataType := data.Properties["type"]
+	dataType := data.Name
 	content := data.Properties["content"]
 
 	switch dataType {
