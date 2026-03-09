@@ -83,6 +83,11 @@ async function openEditorWithTMAndTerms(page: any) {
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement)?.click();
   });
+  // Default layout is "visual" — switch to grid for these tests
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+  });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 

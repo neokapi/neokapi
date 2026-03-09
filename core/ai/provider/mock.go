@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // MockProvider implements LLMProvider for testing.
@@ -13,6 +14,7 @@ type MockProvider struct {
 	ChatFunc       func(ctx context.Context, messages []Message) (*ChatResponse, error)
 	TranslateCalls []TranslateRequest
 	ChatCalls      [][]Message
+	mu             sync.Mutex
 }
 
 // NewMockProvider creates a new mock provider with default behavior.
@@ -25,7 +27,9 @@ func NewMockProvider() *MockProvider {
 func (p *MockProvider) Name() string { return p.ProviderName }
 
 func (p *MockProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
+	p.mu.Lock()
 	p.TranslateCalls = append(p.TranslateCalls, req)
+	p.mu.Unlock()
 	if p.TranslateFunc != nil {
 		return p.TranslateFunc(ctx, req)
 	}
@@ -38,7 +42,9 @@ func (p *MockProvider) Translate(ctx context.Context, req TranslateRequest) (*Tr
 }
 
 func (p *MockProvider) Chat(ctx context.Context, messages []Message) (*ChatResponse, error) {
+	p.mu.Lock()
 	p.ChatCalls = append(p.ChatCalls, messages)
+	p.mu.Unlock()
 	if p.ChatFunc != nil {
 		return p.ChatFunc(ctx, messages)
 	}

@@ -51,6 +51,10 @@ async function openEditorWithTM(page: any) {
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-file-page.html"]') as HTMLElement)?.click();
   });
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+  });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
@@ -86,6 +90,10 @@ test.describe("TM Leverage", () => {
     await expect(page.getByTestId("open-file-page.html")).toBeVisible({ timeout: 5000 });
     await page.evaluate(() => {
       (document.querySelector('[data-testid="open-file-page.html"]') as HTMLElement)?.click();
+    });
+    await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
     });
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 

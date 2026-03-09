@@ -39,6 +39,10 @@ async function openEditorWithBlocks(page: any) {
     if (btn) btn.click();
   });
 
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
+  });
   await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 }
 
@@ -65,6 +69,10 @@ async function pseudoTranslateViaBackend(page: any) {
   await page.evaluate(() => {
     const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
     if (btn) btn.click();
+  });
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
+  await page.evaluate(() => {
+    (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
   });
   await page.getByTestId("block-grid").waitFor({ state: "visible", timeout: 5000 });
 }
