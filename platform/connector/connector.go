@@ -126,7 +126,8 @@ type PushResult struct {
 	BlocksPushed int
 	FilesScanned int
 	ChunkCount   int
-	WordCount    int // total source words across pushed blocks
+	WordCount    int    // total source words across pushed blocks
+	PushID       string // server-assigned push correlation ID (empty if nothing stored)
 }
 
 // PullResult summarizes the result of a pull operation.

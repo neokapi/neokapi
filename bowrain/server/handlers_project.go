@@ -2,10 +2,12 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/model"
 	platauth "github.com/gokapi/gokapi/platform/auth"
 	apiclient "github.com/gokapi/gokapi/platform/client"
+	platev "github.com/gokapi/gokapi/platform/event"
 	"github.com/gokapi/gokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
@@ -135,20 +137,59 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
+	ctx := c.Request().Context()
+	projectID := c.Param("id")
+
+	// Fetch current project to detect new locales.
+	existing, err := s.Services.Project.GetProject(ctx, projectID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
 	locales := make([]model.LocaleID, len(req.TargetLocales))
 	for i, l := range req.TargetLocales {
 		locales[i] = model.LocaleID(l)
 	}
 
 	p := &store.Project{
-		ID:            c.Param("id"),
+		ID:            projectID,
 		Name:          req.Name,
 		SourceLocale:  model.LocaleID(req.SourceLocale),
 		TargetLocales: locales,
 	}
-	if err := s.Services.Project.UpdateProject(c.Request().Context(), p); err != nil {
+	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
+
+	// Detect new locales and publish event.
+	if s.EventBus != nil {
+		oldLocales := make(map[model.LocaleID]bool)
+		for _, l := range existing.TargetLocales {
+			oldLocales[l] = true
+		}
+		var newLocales []string
+		for _, l := range locales {
+			if !oldLocales[l] {
+				newLocales = append(newLocales, string(l))
+			}
+		}
+		if len(newLocales) > 0 {
+			wsSlug := ""
+			if ws, ok := c.Get("workspace_slug").(string); ok {
+				wsSlug = ws
+			}
+			s.EventBus.Publish(platev.Event{
+				Type:      platev.EventProjectUpdated,
+				Source:    "api",
+				ProjectID: projectID,
+				Data: map[string]string{
+					"new_locales":    strings.Join(newLocales, ","),
+					"workspace_slug": wsSlug,
+				},
+			})
+		}
+	}
+
 	return c.JSON(http.StatusOK, p)
 }
 
