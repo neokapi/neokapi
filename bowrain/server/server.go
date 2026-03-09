@@ -71,6 +71,9 @@ type Server struct {
 
 	// AutomationRuleStore persists automation rules. Nil when not configured.
 	AutomationRuleStore *event.SQLiteRuleStore
+
+	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
+	ReviewQueueStore *bstore.ReviewQueueStore
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -139,6 +142,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.ContentStore = cs
 			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
 			s.AutomationRuleStore = event.NewSQLiteRuleStore(cs.DB())
+			s.ReviewQueueStore = bstore.NewReviewQueueStore(cs.DB())
 		}
 
 		// Initialize auth store when authentication is configured.
@@ -426,6 +430,15 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PATCH("/projects/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
 	g.GET("/projects/:id/automations/events", s.HandleListAutomationEvents)
 	g.GET("/projects/:id/automations/history", s.HandleListAutomationHistory)
+
+	// Review queue (project-scoped, AD-022)
+	g.GET("/projects/:id/review-queue", s.HandleListReviewQueue)
+	g.GET("/projects/:id/review-queue/:itemId", s.HandleGetReviewQueueItem)
+	g.POST("/projects/:id/review-queue/:itemId/decide", s.HandleDecideReviewItem)
+	g.POST("/projects/:id/review-queue/:itemId/assign", s.HandleAssignReviewItem)
+	g.POST("/projects/:id/review-queue/:itemId/split", s.HandleSplitReviewItem)
+	g.POST("/projects/:id/review-queue/batch-decide", s.HandleBatchDecideReviewItems)
+	g.POST("/projects/:id/review-queue/sync", s.HandleSyncReviewDecisions)
 }
 
 // Start initializes the Echo server and starts listening.
