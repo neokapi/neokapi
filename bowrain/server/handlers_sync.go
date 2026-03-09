@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -53,6 +54,14 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		} else {
 			if err := s.Services.Project.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
 				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			}
+			// Ensure the item exists in the ContentStore so it appears in the editor UI.
+			if s.ContentStore != nil {
+				_ = s.ContentStore.StoreItem(ctx, projectID, &store.Item{
+					Name:     itemName,
+					Format:   detectFormatFromName(itemName),
+					ItemType: "file",
+				})
 			}
 		}
 		totalStored += len(blocks)
@@ -245,4 +254,30 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 		"failed":      failed,
 		"in_progress": inProgress,
 	})
+}
+
+// detectFormatFromName infers a format identifier from the file extension.
+func detectFormatFromName(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".json":
+		return "json"
+	case ".md", ".mdx":
+		return "markdown"
+	case ".html", ".htm":
+		return "html"
+	case ".xml":
+		return "xml"
+	case ".yaml", ".yml":
+		return "yaml"
+	case ".po":
+		return "po"
+	case ".properties":
+		return "properties"
+	case ".csv":
+		return "csv"
+	case ".txt":
+		return "plaintext"
+	default:
+		return filepath.Ext(name)
+	}
 }
