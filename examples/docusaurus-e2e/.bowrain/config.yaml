@@ -9,6 +9,10 @@ spec:
         target_locales:
             - nb
             - qps
+    server:
+        url: https://dev.bowrain.cloud
+        project_id: 47ae4493-8f1a-4abe-9844-54fd0454154b
+        claim_token: clm_1a20f947756eacf0f40960f410b4504bfa7bc847a4bced36f20c6ebdb46f7559
     mappings:
         - local: i18n/en/**/*.json
           remote: "{path}/{filename}"

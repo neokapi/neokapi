@@ -1,8 +1,8 @@
 # Bowrain Example: Docusaurus
 
 [![Bowrain Sync](https://github.com/gokapi/bowrain-example-docusaurus/actions/workflows/bowrain-sync.yml/badge.svg)](https://github.com/gokapi/bowrain-example-docusaurus/actions/workflows/bowrain-sync.yml)
-[![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fdev.bowrain.cloud%2Fapi%2Fv1%2Fbadges%2Fprojects%2FPROJECT_ID&label=bowrain)](https://dev.bowrain.cloud)
-[![Locales](https://img.shields.io/endpoint?url=https%3A%2F%2Fdev.bowrain.cloud%2Fapi%2Fv1%2Fbadges%2Fprojects%2FPROJECT_ID%3Ftype%3Dlocales)](https://dev.bowrain.cloud)
+[![Translation Progress](https://img.shields.io/endpoint?url=https%3A%2F%2Fdev.bowrain.cloud%2Fapi%2Fv1%2Fbadges%2Fprojects%2F47ae4493-8f1a-4abe-9844-54fd0454154b&label=bowrain)](https://dev.bowrain.cloud)
+[![Locales](https://img.shields.io/endpoint?url=https%3A%2F%2Fdev.bowrain.cloud%2Fapi%2Fv1%2Fbadges%2Fprojects%2F47ae4493-8f1a-4abe-9844-54fd0454154b%3Ftype%3Dlocales)](https://dev.bowrain.cloud)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](./LICENSE)
 
 A complete example showing [Bowrain](https://dev.bowrain.cloud) localization for a [Docusaurus](https://docusaurus.io) site. This project is connected to the live Bowrain server at `dev.bowrain.cloud`.
