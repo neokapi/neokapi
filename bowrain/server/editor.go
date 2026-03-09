@@ -13,6 +13,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/labstack/echo/v4"
+
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
 	"github.com/gokapi/gokapi/core/ai/provider"
@@ -890,6 +892,12 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// fileParam extracts the filename from an Echo wildcard (*) route parameter.
+// Wildcard params include a leading slash, so we trim it.
+func fileParam(c echo.Context) string {
+	return strings.TrimPrefix(c.Param("*"), "/")
+}
 
 // projectToInfoResponse converts a store.Project to ProjectInfoResponse.
 func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {

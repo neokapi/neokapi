@@ -82,7 +82,20 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 	var result []*ProjectInfoResponse
 	for _, p := range projects {
 		if p.WorkspaceID == wsID {
-			result = append(result, projectToInfoResponse(p))
+			info := projectToInfoResponse(p)
+			// Populate items so the dashboard can show file counts.
+			items, err := s.ContentStore.ListItems(ctx, p.ID)
+			if err == nil {
+				for _, item := range items {
+					info.Items = append(info.Items, ProjectItemResponse{
+						Name:   item.Name,
+						Format: item.Format,
+						Type:   item.ItemType,
+						Size:   int64(len(item.SourceBytes)),
+					})
+				}
+			}
+			result = append(result, info)
 		}
 	}
 	if result == nil {
@@ -151,7 +164,7 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 
 	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, fname)
 	if err != nil {
@@ -168,7 +181,7 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 	ctx := c.Request().Context()
 
 	// Get project to know target locales.
@@ -239,7 +252,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 
 	var req struct {
 		TargetLocale string `json:"target_locale"`
@@ -263,7 +276,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 
 	var req TranslateRequest
 	if err := c.Bind(&req); err != nil {
@@ -286,7 +299,7 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 
 	ws := c.Param("ws")
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 
 	var req struct {
 		TargetLocale string `json:"target_locale"`
@@ -310,7 +323,7 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 	ctx := c.Request().Context()
 
 	proj, err := s.ContentStore.GetProject(ctx, pid)
@@ -338,7 +351,7 @@ func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 
 	var req struct {
 		TargetLocale string `json:"target_locale"`

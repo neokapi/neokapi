@@ -47,14 +47,14 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 }
 
 // HandleQACheckFile runs QA checks on all blocks in a file.
-// POST /editor/projects/:pid/files/:fname/qa-check?locale=xx
+// POST /editor/projects/:pid/file-qa-check/*?locale=xx
 func (s *Server) HandleQACheckFile(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 	locale := c.QueryParam("locale")
 	if locale == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale query parameter is required"})

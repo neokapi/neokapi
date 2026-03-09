@@ -104,10 +104,10 @@ export function WorkspaceLayout() {
   );
 
   const handleWorkspaceCreated = useCallback(
-    (ws: Workspace) => {
+    async (ws: Workspace) => {
       setLastWorkspaceSlug(ws.slug);
       setShowCreateWs(false);
-      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      await queryClient.refetchQueries({ queryKey: ["workspaces"] });
       navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
     [setLastWorkspaceSlug, navigate, queryClient],

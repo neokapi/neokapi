@@ -13,14 +13,14 @@ import (
 )
 
 // HandleRenderDocumentPreview returns a full HTML preview for a file in a project.
-// GET /editor/projects/:pid/files/:fname/preview?locale=xx
+// GET /editor/projects/:pid/file-preview/*?locale=xx
 func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
 	pid := c.Param("pid")
-	fname := c.Param("fname")
+	fname := fileParam(c)
 	ctx := c.Request().Context()
 
 	proj, err := s.ContentStore.GetProject(ctx, pid)
