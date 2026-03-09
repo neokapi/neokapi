@@ -334,8 +334,13 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 
 // Pull retrieves translated content from Bowrain.
 func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
-	locales := make([]string, len(opts.Locales))
-	for i, l := range opts.Locales {
+	// Default to project's target locales when none specified.
+	pullLocales := opts.Locales
+	if len(pullLocales) == 0 {
+		pullLocales = c.project.Config.Project.TargetLocales
+	}
+	locales := make([]string, len(pullLocales))
+	for i, l := range pullLocales {
 		locales[i] = string(l)
 	}
 
@@ -364,7 +369,7 @@ func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOpti
 	if opts.DryRun {
 		return &connector.PullResult{
 			BlocksPulled: totalPulled,
-			LocalesCount: len(opts.Locales),
+			LocalesCount: len(locales),
 		}, nil
 	}
 
@@ -441,7 +446,7 @@ func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOpti
 
 	return &connector.PullResult{
 		BlocksPulled: totalPulled,
-		LocalesCount: len(opts.Locales),
+		LocalesCount: len(locales),
 		FilesWritten: filesWritten,
 	}, nil
 }

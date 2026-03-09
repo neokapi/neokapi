@@ -109,6 +109,18 @@ func (s *Server) HandleClaimProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
+	// Associate the project with the workspace in the content store.
+	if s.Services.Project != nil && s.AuthStore != nil {
+		ws, err := s.AuthStore.GetWorkspaceBySlug(ctx, wsSlug)
+		if err == nil {
+			p, err := s.Services.Project.GetProject(ctx, projectID)
+			if err == nil {
+				p.WorkspaceID = ws.ID
+				_ = s.Services.Project.UpdateProject(ctx, p)
+			}
+		}
+	}
+
 	return c.JSON(http.StatusOK, ClaimResponse{
 		ProjectID:     projectID,
 		WorkspaceSlug: wsSlug,
