@@ -216,7 +216,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 					count := 1
 					for _, a := range t.Attr {
 						if a.Name.Local == "c" {
-							fmt.Sscanf(a.Value, "%d", &count)
+							_, _ = fmt.Sscanf(a.Value, "%d", &count)
 						}
 					}
 					for i := 0; i < count; i++ {

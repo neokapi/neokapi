@@ -23,15 +23,15 @@ func makeODFZip(mimetype, contentXML string) []byte {
 	// mimetype must be first, uncompressed
 	fh := &zip.FileHeader{Name: "mimetype", Method: zip.Store}
 	w, _ := zw.CreateHeader(fh)
-	w.Write([]byte(mimetype))
+	_, _ = w.Write([]byte(mimetype))
 
 	// content.xml
 	w, _ = zw.Create("content.xml")
-	w.Write([]byte(contentXML))
+	_, _ = w.Write([]byte(contentXML))
 
 	// META-INF/manifest.xml (minimal)
 	w, _ = zw.Create("META-INF/manifest.xml")
-	w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
+	_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
 <manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0">
   <manifest:file-entry manifest:full-path="/" manifest:media-type="` + mimetype + `"/>
   <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>

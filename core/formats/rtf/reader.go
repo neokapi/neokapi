@@ -341,7 +341,7 @@ func tokenize(data []byte) []token {
 					break
 				}
 				if b2 == '{' || b2 == '}' || b2 == '\\' || b2 == '\r' || b2 == '\n' {
-					rd.UnreadByte()
+					_ = rd.UnreadByte()
 					break
 				}
 				text.WriteByte(b2)
@@ -408,7 +408,7 @@ func parseControlWord(rd *bufio.Reader) token {
 				} else {
 					// Space delimiter is consumed; anything else is unread.
 					if c != ' ' {
-						rd.UnreadByte()
+						_ = rd.UnreadByte()
 					}
 					break
 				}
@@ -425,7 +425,7 @@ func parseControlWord(rd *bufio.Reader) token {
 				return token{typ: tokenUnicode, text: string(buf[:n])}
 			}
 			// Not a valid number - treat as control word "u" + what we read.
-			rd.UnreadByte()
+			_ = rd.UnreadByte()
 			return token{typ: tokenControl, text: "u" + numBuf.String()}
 		}
 		// Not a digit after \u - it's a control word starting with 'u'.

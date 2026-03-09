@@ -180,18 +180,18 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 					}
 				}
 				for _, tok := range newTokens {
-					encoder.EncodeToken(tok)
+					_ = encoder.EncodeToken(tok)
 				}
 			} else {
 				for _, tok := range pendingTokens {
-					encoder.EncodeToken(tok)
+					_ = encoder.EncodeToken(tok)
 				}
 			}
 			textBuf.Reset()
 			pendingTokens = nil
 		} else {
 			for _, tok := range pendingTokens {
-				encoder.EncodeToken(tok)
+				_ = encoder.EncodeToken(tok)
 			}
 			pendingTokens = nil
 		}
