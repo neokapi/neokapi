@@ -66,6 +66,62 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	})
 }
 
+// HandleCreateProjectTranslationJob creates a translation job scoped to a project.
+// POST /api/v1/projects/:id/sync/translate
+// Uses ClaimOrAuth middleware (no workspace required).
+func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
+	if s.JobStore == nil || s.JobQueue == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
+	}
+
+	projectID := c.Param("id")
+
+	var req struct {
+		ItemName         string `json:"item_name"`
+		TargetLocale     string `json:"target_locale"`
+		ProviderConfigID string `json:"provider_config_id"`
+		Model            string `json:"model,omitempty"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	if req.ItemName == "" || req.TargetLocale == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "item_name and target_locale are required"})
+	}
+
+	providerConfigID := req.ProviderConfigID
+	if providerConfigID == "" {
+		providerConfigID = "platform"
+	}
+
+	job := &jobs.TranslationJob{
+		ID:               uuid.NewString(),
+		WorkspaceSlug:    "_anon",
+		ProjectID:        projectID,
+		ItemName:         req.ItemName,
+		TargetLocale:     req.TargetLocale,
+		ProviderConfigID: providerConfigID,
+		Model:            req.Model,
+		Status:           jobs.StatusQueued,
+	}
+
+	ctx := c.Request().Context()
+	if err := s.JobStore.CreateJob(ctx, job); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
+		_ = s.JobStore.DeleteJob(ctx, job.ID)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "enqueue failed: " + err.Error()})
+	}
+
+	return c.JSON(http.StatusAccepted, map[string]any{
+		"job_id": job.ID,
+		"status": string(job.Status),
+	})
+}
+
 // HandleGetJob returns the current status and progress of a job.
 // GET /api/v1/workspaces/:ws/jobs/:id
 func (s *Server) HandleGetJob(c echo.Context) error {
