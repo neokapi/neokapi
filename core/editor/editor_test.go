@@ -239,7 +239,8 @@ func TestMarkdownPreview(t *testing.T) {
 			Translatable: true,
 			Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment("My Title")}},
 			Targets:      make(map[model.LocaleID][]*model.Segment),
-			Properties:   map[string]string{"type": "heading", "level": "1"},
+			Type:         "heading",
+			Properties:   map[string]string{"level": "1"},
 			Annotations:  make(map[string]model.Annotation),
 		}},
 		{Type: model.PartBlock, Resource: &model.Block{
