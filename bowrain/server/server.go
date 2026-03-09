@@ -351,23 +351,23 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// File management
 	g.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
-	g.DELETE("/editor/projects/:pid/files/:fname", s.HandleRemoveFile)
+	g.DELETE("/editor/projects/:pid/file/*", s.HandleRemoveFile)
 
 	// Block editing
-	g.GET("/editor/projects/:pid/files/:fname/blocks", s.HandleGetFileBlocks)
+	g.GET("/editor/projects/:pid/file-blocks/*", s.HandleGetFileBlocks)
 	g.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
 	g.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
 
 	// Translation operations
-	g.POST("/editor/projects/:pid/files/:fname/pseudo", s.HandlePseudoTranslate)
-	g.POST("/editor/projects/:pid/files/:fname/ai-translate", s.HandleAITranslate)
-	g.POST("/editor/projects/:pid/files/:fname/tm-translate", s.HandleTMTranslate)
-	g.GET("/editor/projects/:pid/files/:fname/wordcount", s.HandleGetWordCount)
-	g.POST("/editor/projects/:pid/files/:fname/export", s.HandleExportTranslatedFile)
+	g.POST("/editor/projects/:pid/file-pseudo/*", s.HandlePseudoTranslate)
+	g.POST("/editor/projects/:pid/file-ai-translate/*", s.HandleAITranslate)
+	g.POST("/editor/projects/:pid/file-tm-translate/*", s.HandleTMTranslate)
+	g.GET("/editor/projects/:pid/file-wordcount/*", s.HandleGetWordCount)
+	g.POST("/editor/projects/:pid/file-export/*", s.HandleExportTranslatedFile)
 
 	// QA checks
 	g.POST("/editor/projects/:pid/blocks/:bid/qa-check", s.HandleQACheckBlock)
-	g.POST("/editor/projects/:pid/files/:fname/qa-check", s.HandleQACheckFile)
+	g.POST("/editor/projects/:pid/file-qa-check/*", s.HandleQACheckFile)
 
 	// Block history
 	g.GET("/editor/projects/:pid/blocks/:bid/history", s.HandleGetBlockHistory)
@@ -399,11 +399,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/terms/export/json", s.HandleExportTermsJSON)
 
 	// Preview rendering
-	g.GET("/editor/projects/:pid/files/:fname/preview", s.HandleRenderDocumentPreview)
+	g.GET("/editor/projects/:pid/file-preview/*", s.HandleRenderDocumentPreview)
 	g.GET("/editor/projects/:pid/blocks/:bid/html", s.HandleRenderBlockHTML)
 
 	// Collaborative editing WebSocket
-	g.GET("/editor/projects/:pid/collab/:fname", s.HandleCollabWebSocket)
+	g.GET("/editor/projects/:pid/collab/*", s.HandleCollabWebSocket)
 
 	// Provider configs (workspace-level)
 	g.GET("/providers", s.HandleListProviderConfigs)

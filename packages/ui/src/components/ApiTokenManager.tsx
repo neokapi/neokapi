@@ -63,6 +63,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [error, setError] = useState("");
   const [createdToken, setCreatedToken] = useState<CreateApiTokenResponse | null>(null);
   const [copied, setCopied] = useState(false);
+  const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
 
   const loadTokens = useCallback(async () => {
     try {
@@ -133,12 +134,15 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     }
   };
 
-  const handleDelete = async (tokenId: string) => {
+  const handleConfirmDelete = async () => {
+    if (!deleteTokenId) return;
     try {
-      await api.deleteApiToken(workspace.slug, tokenId);
-      setTokens((prev) => prev.filter((t) => t.id !== tokenId));
+      await api.deleteApiToken(workspace.slug, deleteTokenId);
+      setTokens((prev) => prev.filter((t) => t.id !== deleteTokenId));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Failed to delete token");
+    } finally {
+      setDeleteTokenId(null);
     }
   };
 
@@ -255,7 +259,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                             variant="ghost"
                             size="sm"
                             className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                            onClick={() => handleDelete(t.id)}
+                            onClick={() => setDeleteTokenId(t.id)}
                             title="Delete token"
                             data-testid="token-delete-btn"
                           >
@@ -382,6 +386,26 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteTokenId !== null} onOpenChange={(open: boolean) => { if (!open) setDeleteTokenId(null); }}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete API Token</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete this token? Any applications using it will lose access immediately.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTokenId(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} data-testid="token-confirm-delete-btn">
+              Delete
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

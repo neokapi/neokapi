@@ -333,7 +333,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async removeFile(workspaceSlug: string, projectId: string, fileName: string): Promise<ProjectInfo> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}`,
+      `${this.ep(workspaceSlug)}/${projectId}/file/${encodeURIComponent(fileName)}`,
       { method: "DELETE" },
     );
   }
@@ -342,7 +342,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getFileBlocks(workspaceSlug: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/blocks`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-blocks/${encodeURIComponent(fileName)}`,
     );
   }
 
@@ -362,34 +362,34 @@ export class RestApiAdapter implements ApiAdapter {
 
   async pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/pseudo`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`,
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
 
   async aiTranslateFile(workspaceSlug: string, req: AITranslateFileRequest): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${req.project_id}/files/${encodeURIComponent(req.item_name)}/ai-translate`,
+      `${this.ep(workspaceSlug)}/${req.project_id}/file-ai-translate/${encodeURIComponent(req.item_name)}`,
       { method: "POST", body: JSON.stringify(req) },
     );
   }
 
   async tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/tm-translate`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${encodeURIComponent(fileName)}`,
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
 
   async getWordCount(workspaceSlug: string, projectId: string, fileName: string): Promise<WordCountResult> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/wordcount`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${encodeURIComponent(fileName)}`,
     );
   }
 
   async exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<Blob> {
     return this.fetchBlob(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/export`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-export/${encodeURIComponent(fileName)}`,
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
@@ -451,7 +451,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/qa-check?locale=${locale}`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${encodeURIComponent(fileName)}?locale=${locale}`,
       { method: "POST" },
     );
   }
@@ -460,7 +460,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<string> {
     return this.fetchText(
-      `${this.ep(workspaceSlug)}/${projectId}/files/${encodeURIComponent(fileName)}/preview?locale=${targetLocale}`,
+      `${this.ep(workspaceSlug)}/${projectId}/file-preview/${encodeURIComponent(fileName)}?locale=${targetLocale}`,
     );
   }
 

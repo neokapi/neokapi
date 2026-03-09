@@ -80,7 +80,7 @@ export function AppShell<V extends string = string>({
                 onCollapsedChange={onCollapsedChange}
                 {...sidebarProps}
               />
-              <SidebarGlass.Inset className="bg-transparent min-h-0">
+              <SidebarGlass.Inset className="bg-transparent !min-h-0 flex flex-col">
                 {!hasTopBar && <HeaderBar headerSlot={headerSlot} />}
                 <div className={cn("flex-1 p-6 flex flex-col min-h-0", contentClassName)}>
                   {children}

@@ -204,7 +204,7 @@ export async function pseudoTranslateFile(
   targetLocale: string,
 ): Promise<{ total_blocks: number; translated_blocks: number }> {
   return apiPost(
-    `/workspaces/${wsSlug}/editor/projects/${projectId}/files/${encodeURIComponent(fileName)}/pseudo`,
+    `/workspaces/${wsSlug}/editor/projects/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`,
     token,
     { target_locale: targetLocale },
   );
