@@ -48,9 +48,13 @@ services:
 
   keycloak:
     image: ghcr.io/gokapi/bowrain-keycloak:latest
+    # Override CMD: use start-dev (H2 in-memory DB) instead of the production
+    # "start --optimized" which requires PostgreSQL.
+    command: ["start-dev", "--import-realm"]
     environment:
       KC_HOSTNAME: http://localhost:8180
       KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       OIDC_CLIENT_SECRET: bowrain-secret
