@@ -73,7 +73,7 @@ type Server struct {
 	AutomationEngine *event.AutomationEngine
 
 	// AutomationRuleStore persists automation rules. Nil when not configured.
-	AutomationRuleStore *event.SQLiteRuleStore
+	AutomationRuleStore *event.RuleStore
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
@@ -138,6 +138,13 @@ func NewServer(cfg ServerConfig) *Server {
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
 			s.QuotaStore = pg.Quota
+			// In PostgreSQL (SaaS) mode, TM and termbase use the shared PG pool.
+			s.wsStores.pgDB = pg.DB
+			// Wire up automation, review queue, and notification stores for PG.
+			pgSQL := pg.DB.DB // embedded *sql.DB
+			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
+			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
+			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)

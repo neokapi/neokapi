@@ -85,14 +85,24 @@ type DecideRequest struct {
 	UserID   string          `json:"user_id"`
 }
 
-// ReviewQueueStore persists review queue items in SQLite.
+// ReviewQueueStore persists review queue items.
 type ReviewQueueStore struct {
-	db *sql.DB
+	db      *sql.DB
+	dialect Dialect
 }
 
-// NewReviewQueueStore creates a new review queue store sharing the given database.
+// NewReviewQueueStore creates a new review queue store sharing the given database (SQLite).
 func NewReviewQueueStore(db *sql.DB) *ReviewQueueStore {
-	return &ReviewQueueStore{db: db}
+	return &ReviewQueueStore{db: db, dialect: DialectSQLite}
+}
+
+// NewPostgresReviewQueueStore creates a review queue store backed by PostgreSQL.
+func NewPostgresReviewQueueStore(db *sql.DB) *ReviewQueueStore {
+	return &ReviewQueueStore{db: db, dialect: DialectPostgres}
+}
+
+func (s *ReviewQueueStore) q(query string) string {
+	return Rebind(s.dialect, query)
 }
 
 // CreateItem inserts a new review item. ID and CreatedAt are auto-set if empty/zero.
@@ -113,26 +123,26 @@ func (s *ReviewQueueStore) CreateItem(ctx context.Context, item *ReviewItem) err
 		edits = string(item.Edits)
 	}
 
-	_, err := s.db.ExecContext(ctx,
+	_, err := s.db.ExecContext(ctx, s.q(
 		`INSERT INTO review_items (id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '', ?, ?, ?, ?, ?)`),
 		item.ID, item.ProjectID, string(item.Type), string(item.Status),
 		item.PushID, string(item.Data), string(occJSON),
 		item.AssignedTo, item.Comment, edits,
 		item.Confidence, item.Locale,
-		item.CreatedAt.Format(time.RFC3339),
+		item.CreatedAt.UTC().Format(time.RFC3339),
 	)
 	return err
 }
 
 // GetItem retrieves a single review item by ID.
 func (s *ReviewQueueStore) GetItem(ctx context.Context, id string) (*ReviewItem, error) {
-	row := s.db.QueryRowContext(ctx,
+	row := s.db.QueryRowContext(ctx, s.q(
 		`SELECT id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at
-		 FROM review_items WHERE id = ?`, id)
-	return scanReviewItem(row)
+		 FROM review_items WHERE id = ?`), id)
+	return s.scanReviewItem(row)
 }
 
 // ListItems returns review items matching the query.
@@ -164,7 +174,7 @@ func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*
 	// Get total count for this query (without pagination).
 	var total int
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM review_items WHERE %s", where)
-	if err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, s.q(countQuery), args...).Scan(&total); err != nil {
 		return nil, err
 	}
 
@@ -179,7 +189,7 @@ func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*
 		 FROM review_items WHERE %s ORDER BY created_at ASC LIMIT ?`, where)
 	args = append(args, limit+1)
 
-	rows, err := s.db.QueryContext(ctx, query, args...)
+	rows, err := s.db.QueryContext(ctx, s.q(query), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +197,7 @@ func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*
 
 	var items []ReviewItem
 	for rows.Next() {
-		item, err := scanReviewItemRow(rows)
+		item, err := s.scanReviewItem(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -208,7 +218,7 @@ func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*
 	// Count remaining pending items for this project.
 	countArgs := []any{q.ProjectID}
 	remainQuery := "SELECT COUNT(*) FROM review_items WHERE project_id = ? AND status = 'pending'"
-	if err := s.db.QueryRowContext(ctx, remainQuery, countArgs...).Scan(&result.Remaining); err != nil {
+	if err := s.db.QueryRowContext(ctx, s.q(remainQuery), countArgs...).Scan(&result.Remaining); err != nil {
 		return nil, err
 	}
 
@@ -228,9 +238,9 @@ func (s *ReviewQueueStore) Decide(ctx context.Context, itemID string, req Decide
 	}
 
 	now := time.Now().UTC().Format(time.RFC3339)
-	result, err := s.db.ExecContext(ctx,
+	result, err := s.db.ExecContext(ctx, s.q(
 		`UPDATE review_items SET status = ?, decided_by = ?, decided_at = ?, comment = ?, edits = ?
-		 WHERE id = ? AND status IN ('pending', 'assigned')`,
+		 WHERE id = ? AND status IN ('pending', 'assigned')`),
 		string(status), req.UserID, now, req.Comment, edits, itemID)
 	if err != nil {
 		return err
@@ -267,9 +277,9 @@ func (s *ReviewQueueStore) BatchDecide(ctx context.Context, itemIDs []string, re
 	now := time.Now().UTC().Format(time.RFC3339)
 	var decided int
 	for _, id := range itemIDs {
-		result, err := tx.ExecContext(ctx,
+		result, err := tx.ExecContext(ctx, s.q(
 			`UPDATE review_items SET status = ?, decided_by = ?, decided_at = ?, comment = ?, edits = ?
-			 WHERE id = ? AND status IN ('pending', 'assigned')`,
+			 WHERE id = ? AND status IN ('pending', 'assigned')`),
 			string(status), req.UserID, now, req.Comment, edits, id)
 		if err != nil {
 			return 0, err
@@ -283,9 +293,9 @@ func (s *ReviewQueueStore) BatchDecide(ctx context.Context, itemIDs []string, re
 
 // Assign assigns a review item to a user.
 func (s *ReviewQueueStore) Assign(ctx context.Context, itemID, userID string) error {
-	result, err := s.db.ExecContext(ctx,
+	result, err := s.db.ExecContext(ctx, s.q(
 		`UPDATE review_items SET assigned_to = ?, status = 'assigned'
-		 WHERE id = ? AND status IN ('pending', 'assigned')`,
+		 WHERE id = ? AND status IN ('pending', 'assigned')`),
 		userID, itemID)
 	if err != nil {
 		return err
@@ -306,11 +316,11 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 	defer tx.Rollback()
 
 	// Load existing item.
-	row := tx.QueryRowContext(ctx,
+	row := tx.QueryRowContext(ctx, s.q(
 		`SELECT id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at
-		 FROM review_items WHERE id = ?`, itemID)
-	original, err := scanReviewItem(row)
+		 FROM review_items WHERE id = ?`), itemID)
+	original, err := s.scanReviewItem(row)
 	if err != nil {
 		return nil, err
 	}
@@ -336,8 +346,8 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 
 	// Update original.
 	keepJSON, _ := json.Marshal(keep)
-	if _, err := tx.ExecContext(ctx,
-		`UPDATE review_items SET occurrences = ? WHERE id = ?`,
+	if _, err := tx.ExecContext(ctx, s.q(
+		`UPDATE review_items SET occurrences = ? WHERE id = ?`),
 		string(keepJSON), itemID); err != nil {
 		return nil, err
 	}
@@ -357,14 +367,14 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 	}
 
 	splitJSON, _ := json.Marshal(split)
-	if _, err := tx.ExecContext(ctx,
+	if _, err := tx.ExecContext(ctx, s.q(
 		`INSERT INTO review_items (id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '', '', '{}', ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '', '', '{}', ?, ?, ?)`),
 		newItem.ID, newItem.ProjectID, string(newItem.Type), string(newItem.Status),
 		newItem.PushID, string(newItem.Data), string(splitJSON),
 		newItem.Confidence, newItem.Locale,
-		newItem.CreatedAt.Format(time.RFC3339),
+		newItem.CreatedAt.UTC().Format(time.RFC3339),
 	); err != nil {
 		return nil, err
 	}
@@ -377,33 +387,31 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 
 // AddRejectedTerm records a rejected term to prevent re-proposal.
 func (s *ReviewQueueStore) AddRejectedTerm(ctx context.Context, projectID, termText, locale string) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO rejected_terms (project_id, term_text, locale) VALUES (?, ?, ?)`,
-		projectID, termText, locale)
+	q := `INSERT INTO rejected_terms (project_id, term_text, locale) VALUES (?, ?, ?) ON CONFLICT DO NOTHING`
+	_, err := s.db.ExecContext(ctx, s.q(q), projectID, termText, locale)
 	return err
 }
 
 // IsRejected checks if a term was previously rejected.
 func (s *ReviewQueueStore) IsRejected(ctx context.Context, projectID, termText, locale string) (bool, error) {
 	var count int
-	err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM rejected_terms WHERE project_id = ? AND term_text = ? AND locale = ?`,
+	err := s.db.QueryRowContext(ctx, s.q(
+		`SELECT COUNT(*) FROM rejected_terms WHERE project_id = ? AND term_text = ? AND locale = ?`),
 		projectID, termText, locale).Scan(&count)
 	return count > 0, err
 }
 
 // AddDNTEntry adds an entry to the do-not-translate list.
 func (s *ReviewQueueStore) AddDNTEntry(ctx context.Context, projectID, text, entityType, locale, source string) error {
-	_, err := s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO dnt_entries (project_id, text, entity_type, locale, source) VALUES (?, ?, ?, ?, ?)`,
-		projectID, text, entityType, locale, source)
+	q := `INSERT INTO dnt_entries (project_id, text, entity_type, locale, source) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`
+	_, err := s.db.ExecContext(ctx, s.q(q), projectID, text, entityType, locale, source)
 	return err
 }
 
 // ListDNTEntries returns all DNT entries for a project.
 func (s *ReviewQueueStore) ListDNTEntries(ctx context.Context, projectID string) ([]DNTEntry, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT project_id, text, entity_type, locale, source, created_at FROM dnt_entries WHERE project_id = ? ORDER BY text`,
+	rows, err := s.db.QueryContext(ctx, s.q(
+		`SELECT project_id, text, entity_type, locale, source, created_at FROM dnt_entries WHERE project_id = ? ORDER BY text`),
 		projectID)
 	if err != nil {
 		return nil, err
@@ -417,7 +425,7 @@ func (s *ReviewQueueStore) ListDNTEntries(ctx context.Context, projectID string)
 		if err := rows.Scan(&e.ProjectID, &e.Text, &e.EntityType, &e.Locale, &e.Source, &createdAt); err != nil {
 			return nil, err
 		}
-		e.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
+		e.CreatedAt, _ = parseTime(createdAt)
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
@@ -437,15 +445,15 @@ type DNTEntry struct {
 // Scan helpers
 // ---------------------------------------------------------------------------
 
-func scanReviewItem(row scanner) (*ReviewItem, error) {
+func (s *ReviewQueueStore) scanReviewItem(row scanner) (*ReviewItem, error) {
 	var item ReviewItem
-	var typ, status, pushID, occJSON, assignedTo, decidedBy, decidedAt, comment, editsStr, locale, createdAt string
+	var typ, status, pushID, occJSON, assignedTo, decidedBy, decidedAtStr, comment, editsStr, locale, createdAtStr string
 	var data string
 
 	err := row.Scan(
 		&item.ID, &item.ProjectID, &typ, &status, &pushID,
-		&data, &occJSON, &assignedTo, &decidedBy, &decidedAt,
-		&comment, &editsStr, &item.Confidence, &locale, &createdAt,
+		&data, &occJSON, &assignedTo, &decidedBy, &decidedAtStr,
+		&comment, &editsStr, &item.Confidence, &locale, &createdAtStr,
 	)
 	if err != nil {
 		return nil, err
@@ -460,8 +468,8 @@ func scanReviewItem(row scanner) (*ReviewItem, error) {
 	item.Comment = comment
 	item.Locale = locale
 
-	if decidedAt != "" {
-		if t, err := time.Parse(time.RFC3339, decidedAt); err == nil {
+	if decidedAtStr != "" {
+		if t, err := parseTime(decidedAtStr); err == nil {
 			item.DecidedAt = &t
 		}
 	}
@@ -470,14 +478,18 @@ func scanReviewItem(row scanner) (*ReviewItem, error) {
 	}
 
 	_ = json.Unmarshal([]byte(occJSON), &item.Occurrences)
-	item.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
-	if item.CreatedAt.IsZero() {
-		item.CreatedAt, _ = time.Parse("2006-01-02 15:04:05", createdAt)
-	}
+	item.CreatedAt, _ = parseTime(createdAtStr)
 
 	return &item, nil
 }
 
-func scanReviewItemRow(rows *sql.Rows) (*ReviewItem, error) {
-	return scanReviewItem(rows)
+// parseTime parses a timestamp string in various formats (RFC3339, SQLite datetime).
+func parseTime(s string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02T15:04:05Z07:00", s); err == nil {
+		return t, nil
+	}
+	return time.Parse("2006-01-02 15:04:05", s)
 }

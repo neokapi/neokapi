@@ -57,7 +57,7 @@ func TestProvider_DetectEntities(t *testing.T) {
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		require.NoError(t, json.NewEncoder(w).Encode(resp))
 	}))
 	defer server.Close()
 
@@ -85,7 +85,7 @@ func TestProvider_DetectEntities(t *testing.T) {
 func TestProvider_DetectEntitiesBatch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req analyzeRequest
-		json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 
 		results := make([]documentResult, len(req.AnalysisInput.Documents))
 		for i, doc := range req.AnalysisInput.Documents {
@@ -99,7 +99,7 @@ func TestProvider_DetectEntitiesBatch(t *testing.T) {
 
 		resp := analyzeResponse{Results: analyzeResults{Documents: results}}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		require.NoError(t, json.NewEncoder(w).Encode(resp))
 	}))
 	defer server.Close()
 

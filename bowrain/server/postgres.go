@@ -18,6 +18,7 @@ type pgStores struct {
 	Auth    auth.AuthStore
 	Job     jobs.JobStore
 	Quota   jobs.QuotaStore
+	DB      *storage.PgDB // shared connection pool for TM/TB
 }
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {
@@ -61,5 +62,5 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		return nil, fmt.Errorf("init PostgreSQL quota store: %w", err)
 	}
 
-	return &pgStores{Content: cs, Auth: as, Job: js, Quota: qs}, nil
+	return &pgStores{Content: cs, Auth: as, Job: js, Quota: qs, DB: db}, nil
 }
