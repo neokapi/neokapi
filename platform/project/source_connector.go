@@ -682,6 +682,18 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 		consumer.SetSkeletonStore(skelStore)
 	}
 
+	// For formats that need the original file content for reconstruction
+	// (openxml, idml, odf, epub — ZIP-based formats that rebuild from original).
+	if sps, ok := writer.(format.SourcePathSetter); ok {
+		sps.SetSourcePath(sourcePath)
+	} else if ocs, ok := writer.(format.OriginalContentSetter); ok {
+		srcBytes, err := os.ReadFile(sourcePath)
+		if err != nil {
+			return fmt.Errorf("read source for writer: %w", err)
+		}
+		ocs.SetOriginalContent(srcBytes)
+	}
+
 	// Ensure output directory exists.
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
