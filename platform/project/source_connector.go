@@ -63,7 +63,15 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 			})
 		}
 	default:
-		return nil, fmt.Errorf("server config requires either workspace or claim_token")
+		// No workspace or claim token — try env-based auth (BOWRAIN_AUTH_TOKEN).
+		// This supports CI scenarios where the project has been claimed but the
+		// config only has server URL + project ID (no workspace slug stored).
+		authInfo, err := config.LoadAuth()
+		if err != nil {
+			return nil, fmt.Errorf("server config requires either workspace or claim_token, or set BOWRAIN_AUTH_TOKEN")
+		}
+		// Use flat project routes with bearer auth (works for API tokens and JWTs).
+		client = apiclient.NewProjectBearerClient(srv.URL, srv.ProjectID, authInfo.AccessToken)
 	}
 
 	return &BrainSourceConnector{
