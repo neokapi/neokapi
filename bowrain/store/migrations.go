@@ -269,4 +269,22 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     14,
+		Description: "create notifications table",
+		SQL: `
+			CREATE TABLE notifications (
+				id          TEXT PRIMARY KEY,
+				user_id     TEXT NOT NULL,
+				type        TEXT NOT NULL DEFAULT 'general',
+				title       TEXT NOT NULL,
+				body        TEXT NOT NULL DEFAULT '',
+				project_id  TEXT NOT NULL DEFAULT '',
+				link_url    TEXT NOT NULL DEFAULT '',
+				read        INTEGER NOT NULL DEFAULT 0,
+				created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_notifications_user ON notifications(user_id, read, created_at DESC);
+		`,
+	},
 }

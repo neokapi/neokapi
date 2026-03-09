@@ -161,6 +161,40 @@
   --orb-4: var(--oklch-copper-600-15);
 }
 
+/* ── Entity type colors ───────────────────────────────── */
+
+/* Entity highlight colors — per-type, light theme */
+:root {
+  --entity-person-bg: oklch(85% .08 25 / 0.25);
+  --entity-person-border: oklch(65% .12 25);
+  --entity-org-bg: oklch(85% .08 260 / 0.25);
+  --entity-org-border: oklch(55% .12 260);
+  --entity-location-bg: oklch(85% .08 145 / 0.25);
+  --entity-location-border: oklch(55% .12 145);
+  --entity-date-bg: oklch(85% .08 80 / 0.25);
+  --entity-date-border: oklch(60% .12 80);
+  --entity-product-bg: oklch(85% .08 310 / 0.25);
+  --entity-product-border: oklch(55% .12 310);
+  --entity-default-bg: oklch(85% .06 220 / 0.20);
+  --entity-default-border: oklch(60% .08 220);
+}
+
+/* Entity highlight colors — dark theme */
+.dark {
+  --entity-person-bg: oklch(45% .08 25 / 0.30);
+  --entity-person-border: oklch(70% .10 25);
+  --entity-org-bg: oklch(40% .08 260 / 0.30);
+  --entity-org-border: oklch(72% .10 260);
+  --entity-location-bg: oklch(40% .08 145 / 0.30);
+  --entity-location-border: oklch(72% .10 145);
+  --entity-date-bg: oklch(45% .08 80 / 0.30);
+  --entity-date-border: oklch(72% .10 80);
+  --entity-product-bg: oklch(40% .08 310 / 0.30);
+  --entity-product-border: oklch(72% .10 310);
+  --entity-default-bg: oklch(40% .06 220 / 0.25);
+  --entity-default-border: oklch(68% .08 220);
+}
+
 /* Light theme semantic overrides */
 [data-theme="light"] {
   --semantic-primary: var(--oklch-copper-500);

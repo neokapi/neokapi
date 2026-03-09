@@ -80,6 +80,14 @@ function createMockAdapter(): ApiAdapter {
     toggleAutomationRule: vi.fn(),
     listAutomationEvents: vi.fn(),
     listAutomationHistory: vi.fn(),
+    listNotifications: vi.fn(),
+    markNotificationRead: vi.fn(),
+    markAllNotificationsRead: vi.fn(),
+    deleteNotification: vi.fn(),
+    createEntity: vi.fn(),
+    updateEntity: vi.fn(),
+    deleteEntity: vi.fn(),
+    promoteEntity: vi.fn(),
   } as ApiAdapter;
 }
 

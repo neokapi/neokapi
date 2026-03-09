@@ -10,6 +10,7 @@ import type {
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
+  NotificationInfo, EntityInfo,
 } from "../types/api";
 
 /**
@@ -122,6 +123,18 @@ export interface ApiAdapter {
   toggleAutomationRule(workspaceSlug: string, projectId: string, ruleId: string): Promise<AutomationRule>;
   listAutomationEvents(workspaceSlug: string, projectId: string): Promise<AutomationEvent[]>;
   listAutomationHistory(workspaceSlug: string, projectId: string): Promise<AutomationHistoryEntry[]>;
+
+  // Notifications
+  listNotifications(workspaceSlug: string, limit?: number, unreadOnly?: boolean): Promise<{ notifications: NotificationInfo[]; unread_count: number }>;
+  markNotificationRead(workspaceSlug: string, id: string): Promise<void>;
+  markAllNotificationsRead(workspaceSlug: string): Promise<void>;
+  deleteNotification(workspaceSlug: string, id: string): Promise<void>;
+
+  // Entity annotations
+  createEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entity: Partial<EntityInfo>): Promise<EntityInfo>;
+  updateEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string, entity: Partial<EntityInfo>): Promise<EntityInfo>;
+  deleteEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string): Promise<void>;
+  promoteEntity(workspaceSlug: string, projectId: string, itemName: string, blockId: string, entityKey: string): Promise<void>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

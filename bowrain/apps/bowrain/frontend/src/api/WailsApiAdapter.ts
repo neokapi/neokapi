@@ -11,6 +11,7 @@ import type {
   ApiToken, CreateApiTokenResponse,
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
+  NotificationInfo, EntityInfo,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -317,6 +318,28 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async listAutomationHistory(_ws: string, _projectId: string): Promise<AutomationHistoryEntry[]> {
     return [];
+  }
+
+  // --- Notifications (desktop: not yet backed by Wails bindings) ---
+  async listNotifications(_ws: string, _limit?: number, _unreadOnly?: boolean): Promise<{ notifications: NotificationInfo[]; unread_count: number }> {
+    return { notifications: [], unread_count: 0 };
+  }
+  async markNotificationRead(_ws: string, _id: string): Promise<void> {}
+  async markAllNotificationsRead(_ws: string): Promise<void> {}
+  async deleteNotification(_ws: string, _id: string): Promise<void> {}
+
+  // --- Entity annotations (desktop: not yet backed by Wails bindings) ---
+  async createEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entity: Partial<EntityInfo>): Promise<EntityInfo> {
+    throw new Error("Entity annotations not yet supported in desktop mode");
+  }
+  async updateEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string, _entity: Partial<EntityInfo>): Promise<EntityInfo> {
+    throw new Error("Entity annotations not yet supported in desktop mode");
+  }
+  async deleteEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string): Promise<void> {
+    throw new Error("Entity annotations not yet supported in desktop mode");
+  }
+  async promoteEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string): Promise<void> {
+    throw new Error("Entity annotations not yet supported in desktop mode");
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

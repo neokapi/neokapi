@@ -1,0 +1,326 @@
+package jobs
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"strings"
+	"time"
+
+	"github.com/gokapi/gokapi/bowrain/credentials"
+	"github.com/gokapi/gokapi/core/ai/ner"
+	"github.com/gokapi/gokapi/core/ai/provider"
+	"github.com/gokapi/gokapi/core/ai/tools"
+	"github.com/gokapi/gokapi/core/model"
+	bstore "github.com/gokapi/gokapi/platform/store"
+	"golang.org/x/time/rate"
+)
+
+// KnownTermsLoader loads known terms for a project and locale.
+// Used to avoid re-proposing already-approved terms during extraction.
+type KnownTermsLoader interface {
+	LoadKnownTerms(ctx context.Context, projectID string, locale string) ([]string, error)
+}
+
+// ExtractionWorkerDeps holds dependencies for the extraction worker.
+type ExtractionWorkerDeps struct {
+	ExtractionJobStore ExtractionJobStore
+	ContentStore       bstore.ContentStore
+	CredStore          *credentials.Store
+	Queue              Queue
+	ReviewQueueCreator ReviewQueueCreator
+	KnownTermsLoader   KnownTermsLoader        // optional; nil disables known term filtering
+	NERProvider        ner.Provider            // optional; nil disables NER pass
+	Platform           *PlatformProviderConfig // optional; nil disables platform provider
+}
+
+// ReviewQueueCreator creates review queue items from extraction results.
+// This is implemented by the review queue store.
+type ReviewQueueCreator interface {
+	CreateReviewItem(ctx context.Context, item *ReviewQueueItem) error
+	IsTermRejected(ctx context.Context, projectID, text, locale string) (bool, error)
+}
+
+// ReviewQueueItem is a lightweight struct for creating review items from the worker.
+// It maps to bstore.ReviewItem but avoids importing the bowrain/store package.
+type ReviewQueueItem struct {
+	ProjectID   string
+	Type        string // "term_candidate" or "entity_review"
+	PushID      string
+	Data        json.RawMessage
+	Occurrences json.RawMessage
+	Confidence  float64
+	Locale      string
+}
+
+// RunExtractionWorker runs the extraction worker loop. It blocks until ctx is cancelled.
+func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error {
+	log.Println("extraction worker started")
+	defer log.Println("extraction worker stopped")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
+		jobID, ack, _, err := deps.Queue.Dequeue(ctx)
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			log.Printf("extraction dequeue error: %v", err)
+			sleepCtx(ctx, 2*time.Second)
+			continue
+		}
+
+		if processErr := processExtractionJob(ctx, deps, jobID); processErr != nil {
+			log.Printf("extraction job %s failed: %v", jobID, processErr)
+		}
+		ack()
+	}
+}
+
+func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID string) error {
+	job, err := deps.ExtractionJobStore.GetExtractionJob(ctx, jobID)
+	if err != nil {
+		return fmt.Errorf("load extraction job: %w", err)
+	}
+
+	if job.Status != ExtractionStatusQueued {
+		log.Printf("extraction job %s has status %s, skipping", jobID, job.Status)
+		return nil
+	}
+
+	if err := deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusProcessing, ""); err != nil {
+		return fmt.Errorf("set processing: %w", err)
+	}
+
+	if err := executeExtraction(ctx, deps, job); err != nil {
+		_ = deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusFailed, err.Error())
+		return err
+	}
+
+	if err := deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusCompleted, ""); err != nil {
+		return fmt.Errorf("set completed: %w", err)
+	}
+	return nil
+}
+
+func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob) error {
+	proj, err := deps.ContentStore.GetProject(ctx, job.ProjectID)
+	if err != nil {
+		return fmt.Errorf("get project: %w", err)
+	}
+
+	storedBlocks, err := deps.ContentStore.GetBlocks(ctx, bstore.BlockQuery{
+		ProjectID: job.ProjectID,
+		ItemName:  job.ItemName,
+	})
+	if err != nil {
+		return fmt.Errorf("get blocks: %w", err)
+	}
+
+	totalBlocks := len(storedBlocks)
+	if totalBlocks == 0 {
+		return nil
+	}
+
+	if err := deps.ExtractionJobStore.UpdateExtractionJobProgress(ctx, job.ID, 0, totalBlocks, 0); err != nil {
+		return fmt.Errorf("set total blocks: %w", err)
+	}
+
+	// Resolve AI provider.
+	prov, limiter, err := resolveExtractionProvider(ctx, deps, job, proj)
+	if err != nil {
+		return fmt.Errorf("resolve provider: %w", err)
+	}
+
+	locale := model.LocaleID(job.Locale)
+	if locale == "" {
+		locale = proj.SourceLocale
+	}
+
+	// Collect known terms from the project's termbase to avoid re-proposing.
+	var knownTerms []string
+	if deps.KnownTermsLoader != nil {
+		loaded, err := deps.KnownTermsLoader.LoadKnownTerms(ctx, job.ProjectID, string(locale))
+		if err != nil {
+			log.Printf("extraction: failed to load known terms for %s: %v", job.ProjectID, err)
+		} else {
+			knownTerms = loaded
+		}
+	}
+
+	extractTool := tools.NewAIEntityExtractTool(prov, deps.NERProvider, tools.AIEntityExtractConfig{
+		Locale:      locale,
+		KnownTerms:  knownTerms,
+		BatchSize:   10,
+		Concurrency: 3,
+	})
+
+	// Process blocks through extraction tool.
+	const progressChunk = 50
+	var itemsCreated int
+
+	for i := 0; i < totalBlocks; i += progressChunk {
+		end := i + progressChunk
+		if end > totalBlocks {
+			end = totalBlocks
+		}
+		chunk := storedBlocks[i:end]
+
+		if err := limiter.Wait(ctx); err != nil {
+			return fmt.Errorf("rate limit: %w", err)
+		}
+
+		parts := storedBlocksToParts(chunk)
+		outParts, err := runToolOnParts(ctx, extractTool, parts)
+		if err != nil {
+			return fmt.Errorf("extract chunk %d-%d: %w", i, end, err)
+		}
+
+		// Create review queue items from annotations.
+		created, err := createReviewItemsFromParts(ctx, deps, job, outParts, string(locale))
+		if err != nil {
+			log.Printf("warning: create review items for chunk %d-%d: %v", i, end, err)
+		}
+		itemsCreated += created
+
+		if err := deps.ExtractionJobStore.UpdateExtractionJobProgress(ctx, job.ID, end, totalBlocks, itemsCreated); err != nil {
+			log.Printf("warning: update extraction progress for %s: %v", job.ID, err)
+		}
+	}
+
+	// Store annotated blocks back.
+	allParts := storedBlocksToParts(storedBlocks)
+	outParts, err := runToolOnParts(ctx, extractTool, allParts)
+	if err == nil {
+		blocks := partsToBlocks(outParts)
+		if len(blocks) > 0 {
+			if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, job.ItemName, blocks); storeErr != nil {
+				log.Printf("warning: store annotated blocks: %v", storeErr)
+			}
+		}
+	}
+
+	return nil
+}
+
+// createReviewItemsFromParts extracts annotations from processed parts and creates review queue items.
+func createReviewItemsFromParts(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, parts []*model.Part, locale string) (int, error) {
+	if deps.ReviewQueueCreator == nil {
+		return 0, nil
+	}
+
+	var created int
+	for _, pt := range parts {
+		if pt.Type != model.PartBlock {
+			continue
+		}
+		block, ok := pt.Resource.(*model.Block)
+		if !ok || block.Annotations == nil {
+			continue
+		}
+
+		for key, ann := range block.Annotations {
+			switch a := ann.(type) {
+			case *model.TermCandidateAnnotation:
+				// Skip rejected terms.
+				rejected, _ := deps.ReviewQueueCreator.IsTermRejected(ctx, job.ProjectID, a.Text, locale)
+				if rejected {
+					continue
+				}
+
+				data, _ := json.Marshal(a)
+				occ, _ := json.Marshal([]map[string]any{{
+					"block_id": block.ID,
+					"start":    a.Position.Start,
+					"end":      a.Position.End,
+					"context":  block.SourceText(),
+				}})
+
+				if err := deps.ReviewQueueCreator.CreateReviewItem(ctx, &ReviewQueueItem{
+					ProjectID:   job.ProjectID,
+					Type:        "term_candidate",
+					PushID:      job.PushID,
+					Data:        data,
+					Occurrences: occ,
+					Confidence:  a.Confidence,
+					Locale:      locale,
+				}); err != nil {
+					log.Printf("warning: create term candidate review item: %v", err)
+					continue
+				}
+				created++
+
+			case *model.EntityAnnotation:
+				if !strings.HasPrefix(key, "entity:") {
+					continue
+				}
+
+				data, _ := json.Marshal(a)
+				occ, _ := json.Marshal([]map[string]any{{
+					"block_id": block.ID,
+					"start":    a.Position.Start,
+					"end":      a.Position.End,
+					"context":  block.SourceText(),
+				}})
+
+				if err := deps.ReviewQueueCreator.CreateReviewItem(ctx, &ReviewQueueItem{
+					ProjectID:   job.ProjectID,
+					Type:        "entity_review",
+					PushID:      job.PushID,
+					Data:        data,
+					Occurrences: occ,
+					Confidence:  0.9, // entities from LLM/NER are high-confidence
+					Locale:      locale,
+				}); err != nil {
+					log.Printf("warning: create entity review item: %v", err)
+					continue
+				}
+				created++
+			}
+		}
+	}
+
+	return created, nil
+}
+
+func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, job *ExtractionJob, proj *bstore.Project) (provider.LLMProvider, *rate.Limiter, error) {
+	// Check for project-level AI provider config.
+	providerConfigID := "platform"
+	if proj.Properties != nil && proj.Properties["extraction_provider"] != "" {
+		providerConfigID = proj.Properties["extraction_provider"]
+	}
+
+	modelName := job.Model
+	if modelName == "" && proj.Properties != nil && proj.Properties["extraction_model"] != "" {
+		modelName = proj.Properties["extraction_model"]
+	}
+	if modelName == "" {
+		modelName = "gpt-4o-mini"
+	}
+
+	if providerConfigID == "" || providerConfigID == "platform" {
+		if deps.Platform == nil {
+			return nil, nil, fmt.Errorf("platform provider not configured (set BOWRAIN_OPENAI_ENDPOINT)")
+		}
+		prov, err := NewPlatformProvider(*deps.Platform, modelName)
+		if err != nil {
+			return nil, nil, err
+		}
+		limiter := rate.NewLimiter(providerRateLimit("azureopenai"), 1)
+		return prov, limiter, nil
+	}
+
+	prov, err := credentials.NewProvider(deps.CredStore, providerConfigID)
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg, _ := deps.CredStore.Get(providerConfigID)
+	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
+	return prov, limiter, nil
+}

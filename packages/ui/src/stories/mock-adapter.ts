@@ -347,5 +347,21 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     ],
     listFormats: async () => [],
     listTools: async () => [],
+
+    // --- Notifications ---------------------------------------------------
+    listNotifications: async () => ({ notifications: [], unread_count: 0 }),
+    markNotificationRead: noop,
+    markAllNotificationsRead: noop,
+    deleteNotification: noop,
+
+    // --- Entities ---------------------------------------------------------
+    createEntity: async (_ws, _pid, _item, _bid, entity) => ({
+      key: `entity-${Date.now()}`, text: "", type: "generic", start: 0, end: 0, dnt: false, ...entity,
+    }),
+    updateEntity: async (_ws, _pid, _item, _bid, entityKey, entity) => ({
+      key: entityKey, text: "", type: "generic", start: 0, end: 0, dnt: false, ...entity,
+    }),
+    deleteEntity: noop,
+    promoteEntity: noop,
   };
 }

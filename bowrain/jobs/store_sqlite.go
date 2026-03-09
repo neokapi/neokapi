@@ -49,6 +49,31 @@ var sqliteJobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id);
 		`,
 	},
+	{
+		Version:     4,
+		Description: "create extraction_jobs table",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS extraction_jobs (
+				id              TEXT PRIMARY KEY,
+				workspace_slug  TEXT NOT NULL,
+				project_id      TEXT NOT NULL,
+				item_name       TEXT NOT NULL,
+				locale          TEXT NOT NULL DEFAULT '',
+				push_id         TEXT NOT NULL DEFAULT '',
+				model           TEXT NOT NULL DEFAULT '',
+				status          TEXT NOT NULL DEFAULT 'queued',
+				total_blocks    INTEGER NOT NULL DEFAULT 0,
+				done_blocks     INTEGER NOT NULL DEFAULT 0,
+				items_created   INTEGER NOT NULL DEFAULT 0,
+				error           TEXT NOT NULL DEFAULT '',
+				created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_project ON extraction_jobs(project_id);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_status ON extraction_jobs(status);
+			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_push_id ON extraction_jobs(push_id);
+		`,
+	},
 }
 
 // SQLiteJobStore implements JobStore using SQLite.
@@ -64,6 +89,9 @@ func NewSQLiteJobStore(db *storage.DB) (*SQLiteJobStore, error) {
 	}
 	return &SQLiteJobStore{db: db}, nil
 }
+
+// DB returns the underlying storage.DB for sharing with other stores (e.g. extraction).
+func (s *SQLiteJobStore) DB() *storage.DB { return s.db }
 
 func (s *SQLiteJobStore) CreateJob(ctx context.Context, job *TranslationJob) error {
 	now := time.Now().UTC()

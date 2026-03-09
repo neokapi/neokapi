@@ -42,6 +42,14 @@ function createMockAdapter(locales: LocaleInfo[] = mockLocales): ApiAdapter {
     listAutomationRules: vi.fn(), createAutomationRule: vi.fn(), updateAutomationRule: vi.fn(),
     deleteAutomationRule: vi.fn(), toggleAutomationRule: vi.fn(), listAutomationEvents: vi.fn(),
     listAutomationHistory: vi.fn(),
+    listNotifications: vi.fn(),
+    markNotificationRead: vi.fn(),
+    markAllNotificationsRead: vi.fn(),
+    deleteNotification: vi.fn(),
+    createEntity: vi.fn(),
+    updateEntity: vi.fn(),
+    deleteEntity: vi.fn(),
+    promoteEntity: vi.fn(),
   } as ApiAdapter;
 }
 

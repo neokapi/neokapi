@@ -1,7 +1,8 @@
-import type { User } from "../types/api";
+import type { User, NotificationInfo } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Sun, Moon, Monitor, Bell, WifiOff } from "./icons";
+import { Sun, Moon, Monitor, WifiOff } from "./icons";
 import { AccountMenu } from "./AccountMenu";
+import { NotificationCenter } from "./NotificationCenter";
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
@@ -12,6 +13,13 @@ export interface TopBarProps {
   connectionState?: ConnectionState;
   /** Number of pending sync changes (shown when offline). */
   pendingChanges?: number;
+  /** Notification data (omit to hide notification center). */
+  notifications?: NotificationInfo[];
+  unreadCount?: number;
+  onMarkNotificationRead?: (id: string) => void;
+  onMarkAllNotificationsRead?: () => void;
+  onDeleteNotification?: (id: string) => void;
+  onNotificationClick?: (notification: NotificationInfo) => void;
 }
 
 const nextTheme: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
@@ -34,7 +42,11 @@ function connectionToAvatarStatus(state?: ConnectionState) {
   }
 }
 
-export function TopBar({ user, onSignOut, connectionState, pendingChanges }: TopBarProps) {
+export function TopBar({
+  user, onSignOut, connectionState, pendingChanges,
+  notifications, unreadCount, onMarkNotificationRead, onMarkAllNotificationsRead,
+  onDeleteNotification, onNotificationClick,
+}: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isOffline = connectionState === "offline";
 
@@ -48,10 +60,17 @@ export function TopBar({ user, onSignOut, connectionState, pendingChanges }: Top
         </span>
       )}
 
-      {/* Notification bell (placeholder) */}
-      <button className={iconBtnClass} title="Notifications">
-        <Bell className="w-4 h-4" />
-      </button>
+      {/* Notification center */}
+      {notifications && onMarkNotificationRead && onMarkAllNotificationsRead && onDeleteNotification ? (
+        <NotificationCenter
+          notifications={notifications}
+          unreadCount={unreadCount ?? 0}
+          onMarkRead={onMarkNotificationRead}
+          onMarkAllRead={onMarkAllNotificationsRead}
+          onDelete={onDeleteNotification}
+          onNotificationClick={onNotificationClick}
+        />
+      ) : null}
 
       {/* Theme toggle */}
       <button
