@@ -68,6 +68,9 @@ type Server struct {
 
 	// AutomationEngine evaluates automation rules on events. Nil when event system is not wired up.
 	AutomationEngine *event.AutomationEngine
+
+	// AutomationRuleStore persists automation rules. Nil when not configured.
+	AutomationRuleStore *event.SQLiteRuleStore
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -135,6 +138,7 @@ func NewServer(cfg ServerConfig) *Server {
 		} else {
 			s.ContentStore = cs
 			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
+			s.AutomationRuleStore = event.NewSQLiteRuleStore(cs.DB())
 		}
 
 		// Initialize auth store when authentication is configured.
@@ -410,6 +414,15 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
 	g.GET("/ai/usage", s.HandleGetAIUsage)
+
+	// Automation rules (project-scoped)
+	g.GET("/projects/:id/automations", s.HandleListAutomationRules)
+	g.POST("/projects/:id/automations", s.HandleCreateAutomationRule)
+	g.PUT("/projects/:id/automations/:ruleId", s.HandleUpdateAutomationRule)
+	g.DELETE("/projects/:id/automations/:ruleId", s.HandleDeleteAutomationRule)
+	g.PATCH("/projects/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
+	g.GET("/projects/:id/automations/events", s.HandleListAutomationEvents)
+	g.GET("/projects/:id/automations/history", s.HandleListAutomationHistory)
 }
 
 // Start initializes the Echo server and starts listening.

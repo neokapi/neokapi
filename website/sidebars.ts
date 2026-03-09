@@ -89,6 +89,7 @@ const sidebars: SidebarsConfig = {
         'bowrain-getting-started/quickstart',
         'bowrain-getting-started/project-walkthrough',
         'bowrain-getting-started/e2e-walkthrough',
+        'bowrain-getting-started/automation-walkthrough',
       ],
     },
     {
@@ -107,6 +108,7 @@ const sidebars: SidebarsConfig = {
             'bowrain-cli/commands/diff',
             'bowrain-cli/commands/pull',
             'bowrain-cli/commands/push',
+            'bowrain-cli/commands/sync',
             'bowrain-cli/commands/flow',
             'bowrain-cli/commands/serve',
             'bowrain-cli/commands/auth',
@@ -128,6 +130,7 @@ const sidebars: SidebarsConfig = {
           items: [
             'bowrain-cli/use-cases/website-translation',
             'bowrain-cli/use-cases/github-actions',
+            'bowrain-cli/use-cases/source-prep',
           ],
         },
         'bowrain-cli/mcp',
@@ -161,6 +164,7 @@ const sidebars: SidebarsConfig = {
         'bowrain-server/workspaces',
         'bowrain-server/connectors',
         'bowrain-server/automation',
+        'bowrain-server/flows',
         'bowrain-server/demo-videos',
       ],
     },

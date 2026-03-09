@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/core/model"
@@ -79,6 +80,13 @@ func doPull(ctx context.Context, conn *project.BrainSourceConnector, locales []s
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
+	// Run pre-pull automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "pre-pull"); err != nil {
+			return fmt.Errorf("pre-pull automation: %w", err)
+		}
+	}
+
 	result, err := doPull(cmd.Context(), nil, pullLocales, pullForce, pullDryRun)
 	if err != nil {
 		return err
@@ -92,7 +100,18 @@ func runPull(cmd *cobra.Command, args []string) error {
 		UpToDate:     result.UpToDate,
 	}
 
-	return output.Print(cmd, out)
+	if err := output.Print(cmd, out); err != nil {
+		return err
+	}
+
+	// Run post-pull automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "post-pull"); err != nil {
+			return fmt.Errorf("post-pull automation: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func init() {

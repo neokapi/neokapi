@@ -1,0 +1,39 @@
+name: Bowrain Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'i18n/en/**'
+      - 'docs/**'
+      - 'blog/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bowrain CLI
+        run: |
+          curl -fsSL https://bowrain.dev/install.sh | bash
+          echo "$HOME/.bowrain/bin" >> $GITHUB_PATH
+
+      - name: Sync translations
+        env:
+          BOWRAIN_TOKEN: ${{ secrets.BOWRAIN_TOKEN }}
+          BOWRAIN_SERVER_URL: ${{ secrets.BOWRAIN_SERVER_URL }}
+        run: |
+          bowrain sync --timeout 10m
+
+      - name: Commit translations
+        run: |
+          git config user.name "Bowrain Bot"
+          git config user.email "bot@bowrain.dev"
+          git add i18n/
+          if git diff --cached --quiet; then
+            echo "No translation changes"
+          else
+            git commit -m "chore: update translations via bowrain sync"
+            git push
+          fi

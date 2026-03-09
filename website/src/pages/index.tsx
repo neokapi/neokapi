@@ -46,9 +46,9 @@ type ProductItem = {
 
 const GokapiFeatures: ProductItem[] = [
   {
-    title: '15+ Formats & Plugins',
+    title: '41+ Formats & Plugins',
     description:
-      'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.',
+      'HTML, XML, XLIFF, JSON, YAML, PO, Markdown, OpenXML, InDesign, and more. Crash-isolated gRPC plugins in any language. Java bridge for 40+ Okapi filters.',
     link: '/docs/features/formats',
     linkText: 'Formats',
   },
@@ -72,7 +72,7 @@ const BowrainFeatures: ProductItem[] = [
   {
     title: 'Bowrain CLI',
     description:
-      'Git-like project management for localization. Initialize projects, sync with servers, run flows, and manage terminology from the terminal.',
+      'Git-like project management for localization. One command to push, translate, and pull: bowrain sync. Run flows, manage terminology, and integrate with CI/CD.',
     link: '/docs/bowrain-cli/overview',
     linkText: 'Bowrain CLI',
   },
@@ -86,7 +86,7 @@ const BowrainFeatures: ProductItem[] = [
   {
     title: 'Automation & Connectors',
     description:
-      'Event-driven triggers, quality gates, and webhooks. Bidirectional connectors sync content from CMS, code repos, and design tools.',
+      'Configurable automation rules locally in YAML and visually on the server. Event-driven triggers, quality gates, webhooks, and CI integration. Bidirectional connectors sync content from CMS, code repos, and design tools.',
     link: '/docs/bowrain-server/automation',
     linkText: 'Automation',
   },

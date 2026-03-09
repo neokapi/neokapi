@@ -158,6 +158,9 @@ type Config struct {
 
 	// Flow-specific settings
 	Flows map[string]map[string]any `yaml:"flows,omitempty"`
+
+	// Automations defines local automation rules (pre-push, post-push, etc.)
+	Automations []AutomationConfig `yaml:"automations,omitempty"`
 }
 
 // ProjectMeta contains project metadata.
@@ -203,6 +206,25 @@ type Mapping struct {
 	Format     string         `yaml:"format"`                // Format ID (json, html, etc.)
 	TargetPath string         `yaml:"target_path,omitempty"` // Target locale template (e.g. "locales/{locale}.json")
 	Overrides  map[string]any `yaml:"overrides,omitempty"`   // Layer 3: per-mapping config overrides
+}
+
+// AutomationConfig defines a local automation rule in .bowrain/config.yaml.
+type AutomationConfig struct {
+	Name    string         `yaml:"name"`
+	Trigger string         `yaml:"trigger"` // "pre-push", "post-push", "pre-pull", "post-pull", "pre-flow", "post-flow"
+	Actions []ActionConfig `yaml:"actions"`
+	Enabled *bool          `yaml:"enabled,omitempty"` // nil = true
+}
+
+// IsEnabled returns whether the automation is enabled (defaults to true).
+func (a AutomationConfig) IsEnabled() bool {
+	return a.Enabled == nil || *a.Enabled
+}
+
+// ActionConfig defines a single action in a local automation rule.
+type ActionConfig struct {
+	Type   string            `yaml:"type"`             // "run_flow", "wait_translate", "pull", "push"
+	Config map[string]string `yaml:"config,omitempty"` // e.g. {"flow": "qa-check", "timeout": "5m"}
 }
 
 // DefaultConfig returns a default configuration.

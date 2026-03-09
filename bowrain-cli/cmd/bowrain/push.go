@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
 	"github.com/gokapi/gokapi/platform/connector"
@@ -71,6 +72,13 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 }
 
 func runPush(cmd *cobra.Command, args []string) error {
+	// Run pre-push automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "pre-push"); err != nil {
+			return fmt.Errorf("pre-push automation: %w", err)
+		}
+	}
+
 	pr, conn, err := doPush(cmd.Context(), connector.PushOptions{
 		Force:  pushForce,
 		DryRun: pushDryRun,
@@ -88,7 +96,18 @@ func runPush(cmd *cobra.Command, args []string) error {
 		UpToDate:     pr.UpToDate,
 	}
 
-	return output.Print(cmd, out)
+	if err := output.Print(cmd, out); err != nil {
+		return err
+	}
+
+	// Run post-push automations.
+	if proj := findProjectForAutomations(); proj != nil {
+		if err := runLocalAutomations(cmd, proj, "post-push"); err != nil {
+			return fmt.Errorf("post-push automation: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func init() {

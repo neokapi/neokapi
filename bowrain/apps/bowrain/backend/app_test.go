@@ -40,7 +40,7 @@ func TestListFormats(t *testing.T) {
 func TestListTools(t *testing.T) {
 	app := NewApp()
 	tools := app.ListTools()
-	assert.Equal(t, 20, len(tools), "expected 20 tools")
+	assert.Equal(t, 40, len(tools), "expected 40 tools")
 
 	names := make(map[string]bool)
 	for _, tl := range tools {

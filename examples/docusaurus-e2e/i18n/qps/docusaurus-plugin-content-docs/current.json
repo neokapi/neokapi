@@ -1,0 +1,18 @@
+{
+  "sidebar.tutorialSidebar.doc.intro": {
+    "message": "[!!! Ğëttîñğ Stàrtëd !!!]",
+    "description": "Sidebar label for the intro doc"
+  },
+  "sidebar.tutorialSidebar.doc.features": {
+    "message": "[!!! Fëàtürës !!!]",
+    "description": "Sidebar label for the features doc"
+  },
+  "sidebar.tutorialSidebar.doc.installation": {
+    "message": "[!!! Îñstàllàtîöñ !!!]",
+    "description": "Sidebar label for the installation doc"
+  },
+  "sidebar.tutorialSidebar.doc.configuration": {
+    "message": "[!!! Çöñfîğüràtîöñ !!!]",
+    "description": "Sidebar label for the configuration doc"
+  }
+}

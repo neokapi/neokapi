@@ -1,0 +1,14 @@
+{
+  "plugin.blog.title": {
+    "message": "Blogg",
+    "description": "The title for the blog section"
+  },
+  "plugin.blog.description": {
+    "message": "Siste nytt og oppdateringer fra Acme-teamet",
+    "description": "The description for the blog section"
+  },
+  "plugin.blog.sidebar.title": {
+    "message": "Nylige innlegg",
+    "description": "The title for the blog sidebar"
+  }
+}
