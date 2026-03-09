@@ -1,11 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import type { FlowTrace } from './_types';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import type { FlowTrace, TraceEvent, FlowNode, PartSnapshotSet } from './_types';
 import { usePlayback } from './_usePlayback';
 import FlowGraph from './_FlowGraph';
 import TimelineControls from './_TimelineControls';
 import PartInspector from './_PartInspector';
 import TraceSelector from './_TraceSelector';
 import styles from './_index.module.css';
+
+const EMPTY_EVENTS: TraceEvent[] = [];
+const EMPTY_NODES: FlowNode[] = [];
+const EMPTY_PARTS: Record<string, PartSnapshotSet> = {};
 
 const AVAILABLE_TRACES = [
   { name: 'Pseudo-translate JSON', description: 'Basic native pipeline with 6 Parts', path: '/data/traces/pseudo-translate-json.json' },
@@ -51,9 +55,9 @@ export default function FlowVisualization(): React.ReactElement {
   }, []);
 
   const playback = usePlayback({
-    events: trace?.events ?? [],
-    nodes: trace?.nodes ?? [],
-    parts: trace?.parts ?? {},
+    events: trace?.events ?? EMPTY_EVENTS,
+    nodes: trace?.nodes ?? EMPTY_NODES,
+    parts: trace?.parts ?? EMPTY_PARTS,
     channelSize: trace?.channelSize ?? 64,
   });
 

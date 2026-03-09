@@ -31,17 +31,18 @@ function computeParticles(
   nodes.forEach((n, i) => nodeIndex.set(n.id, i));
 
   // Track per-part state: last event at or before current time
-  const partStates = new Map<string, { lastEvent: TraceEvent; prevExit?: TraceEvent }>();
+  const partStates = new Map<string, { lastEvent: TraceEvent; prevExit?: TraceEvent; worker?: number }>();
 
   for (const evt of events) {
     if (evt.ts > time) break;
     if (!evt.partId) continue;
 
     const existing = partStates.get(evt.partId);
+    const worker = (evt.meta?.worker as number | undefined) ?? existing?.worker;
     if (existing && existing.lastEvent.type === 'exit') {
-      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing.lastEvent });
+      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing.lastEvent, worker });
     } else {
-      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing?.prevExit });
+      partStates.set(evt.partId, { lastEvent: evt, prevExit: existing?.prevExit, worker });
     }
   }
 
@@ -55,7 +56,7 @@ function computeParticles(
   }
 
   for (const [partId, state] of partStates) {
-    const { lastEvent, prevExit } = state;
+    const { lastEvent, prevExit, worker } = state;
     const partInfo = parts[partId];
     const snapshot = partInfo?.initial;
     if (!snapshot) continue;
@@ -72,6 +73,7 @@ function computeParticles(
         position: 'node',
         nodeId: lastEvent.nodeId,
         summary: snapshot.summary,
+        worker,
       });
     } else if (lastEvent.type === 'exit') {
       // Part has exited a node - is it traveling to next node?
