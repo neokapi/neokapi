@@ -482,10 +482,46 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	proj.Config.Mappings[0].TargetPath = "output/{locale}.json"
 	assert.Equal(t, "output/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 
+	// With {path} and {filename} placeholders.
+	proj.Config.Mappings[0].TargetPath = "i18n/{locale}/{path}/{filename}"
+	assert.Equal(t, "i18n/fr/en.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
+
+	// Docusaurus-style: deeper glob with {path}/{filename}.
+	proj.Config.Mappings = []Mapping{
+		{Local: "docs/**/*.md", Format: "markdown", TargetPath: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"},
+	}
+	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/intro.md", conn.resolveTargetPath("docs/intro.md", "nb"))
+	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/features/overview.md", conn.resolveTargetPath("docs/features/overview.md", "nb"))
+
+	// JSON with nested path.
+	proj.Config.Mappings = []Mapping{
+		{Local: "i18n/en/**/*.json", Format: "json", TargetPath: "i18n/{locale}/{path}/{filename}"},
+	}
+	assert.Equal(t, "i18n/nb/code.json", conn.resolveTargetPath("i18n/en/code.json", "nb"))
+	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current.json", conn.resolveTargetPath("i18n/en/docusaurus-plugin-content-docs/current.json", "nb"))
+
 	// Fallback when source locale not in path.
 	proj.Config.Mappings[0].TargetPath = ""
 	proj.Config.Project.SourceLocale = "en-US"
 	assert.Equal(t, "src/messages.fr.json", conn.resolveTargetPath("src/messages.json", "fr"))
+}
+
+func TestGlobFixedPrefix(t *testing.T) {
+	tests := []struct {
+		pattern  string
+		expected string
+	}{
+		{"docs/**/*.md", "docs/"},
+		{"src/locales/*.json", "src/locales/"},
+		{"i18n/en/**/*.json", "i18n/en/"},
+		{"*.json", ""},
+		{"blog/**/*.md", "blog/"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.pattern, func(t *testing.T) {
+			assert.Equal(t, tt.expected, globFixedPrefix(tt.pattern))
+		})
+	}
 }
 
 func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
