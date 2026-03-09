@@ -585,10 +585,10 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
 
-	// Store updated blocks back.
+	// Store updated blocks back — they already have internal IDs from GetBlocks.
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -637,7 +637,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, it
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -681,7 +681,7 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -777,9 +777,14 @@ func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, form
 		return "", fmt.Errorf("get blocks: %w", err)
 	}
 
+	// Build blockMap keyed by source_id (the format reader's ID) for target injection.
 	blockMap := make(map[string]*model.Block, len(storedBlocks))
 	for _, sb := range storedBlocks {
-		blockMap[sb.Block.ID] = sb.Block
+		key := sb.SourceID
+		if key == "" {
+			key = sb.Block.ID
+		}
+		blockMap[key] = sb.Block
 	}
 
 	// Inject stored targets into the parsed parts.

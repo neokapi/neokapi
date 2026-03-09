@@ -287,4 +287,42 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_notifications_user ON notifications(user_id, read, created_at DESC);
 		`,
 	},
+	{
+		Version:     15,
+		Description: "add source_id to blocks and change PK to (project_id, id)",
+		SQL: `
+			CREATE TABLE blocks_new (
+				id           TEXT NOT NULL,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_name    TEXT NOT NULL DEFAULT '',
+				source_id    TEXT NOT NULL DEFAULT '',
+				name         TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL DEFAULT '',
+				mime_type    TEXT NOT NULL DEFAULT '',
+				translatable INTEGER NOT NULL DEFAULT 1,
+				content_hash TEXT NOT NULL DEFAULT '',
+				context_hash TEXT NOT NULL DEFAULT '',
+				source_json  TEXT NOT NULL DEFAULT '[]',
+				targets_json TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				annotations  TEXT NOT NULL DEFAULT '{}',
+				stored_at    TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, id)
+			);
+			INSERT INTO blocks_new (id, project_id, item_name, source_id, name, type, mime_type,
+				translatable, content_hash, context_hash, source_json, targets_json,
+				properties, annotations, stored_at, updated_at)
+			SELECT id, project_id, item_name, id, name, type, mime_type,
+				translatable, content_hash, context_hash, source_json, targets_json,
+				properties, annotations, stored_at, updated_at FROM blocks;
+			DROP TABLE blocks;
+			ALTER TABLE blocks_new RENAME TO blocks;
+			CREATE INDEX idx_blocks_content_hash ON blocks(content_hash);
+			CREATE INDEX idx_blocks_project ON blocks(project_id);
+			CREATE INDEX idx_blocks_item ON blocks(project_id, item_name);
+			CREATE UNIQUE INDEX idx_blocks_source_id ON blocks(project_id, item_name, source_id)
+				WHERE source_id != '';
+		`,
+	},
 }

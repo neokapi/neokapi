@@ -91,7 +91,9 @@ func (a *App) cacheBlocks(projectID, itemName string, blocks []BlockInfo) {
 	}
 
 	if len(modelBlocks) > 0 {
-		_ = a.store.StoreBlocksForItem(ctx, projectID, itemName, modelBlocks)
+		// Use StoreBlocks (not StoreBlocksForItem) because the blocks already
+		// carry internal IDs from the server — they should not be re-mapped.
+		_ = a.store.StoreBlocks(ctx, projectID, modelBlocks)
 	}
 }
 
@@ -246,7 +248,9 @@ func (a *App) updateBlockTargetLocal(projectID, blockID, targetLocale, text stri
 		return err
 	}
 	sb.Block.SetTargetText(model.LocaleID(targetLocale), text)
-	return a.store.StoreBlocksForItem(ctx, projectID, sb.ItemName, []*model.Block{sb.Block})
+	// Use StoreBlocks (not StoreBlocksForItem) because the block already carries
+	// an internal ID — it should not be re-mapped through source_id assignment.
+	return a.store.StoreBlocks(ctx, projectID, []*model.Block{sb.Block})
 }
 
 // UpdateBlockTargetCoded updates the target for a block using coded text with span data.
@@ -287,7 +291,7 @@ func (a *App) updateBlockTargetCodedLocal(req UpdateBlockTargetCodedRequest) err
 	}
 	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
 
-	return a.store.StoreBlocksForItem(ctx, req.ProjectID, sb.ItemName, []*model.Block{sb.Block})
+	return a.store.StoreBlocks(ctx, req.ProjectID, []*model.Block{sb.Block})
 }
 
 // ReviewBlock marks a block as reviewed or un-reviewed for a target locale.
@@ -331,7 +335,7 @@ func (a *App) reviewBlockLocal(projectID, blockID string, reviewed bool) error {
 	} else {
 		sb.Block.Properties["translation-status"] = "translated"
 	}
-	return a.store.StoreBlocksForItem(ctx, projectID, sb.ItemName, []*model.Block{sb.Block})
+	return a.store.StoreBlocks(ctx, projectID, []*model.Block{sb.Block})
 }
 
 // stripMarkers removes Unicode span markers from coded text, returning plain text.
@@ -413,10 +417,10 @@ func (a *App) PseudoTranslateItem(projectID, itemName, targetLocale string) (*Tr
 		return nil, fmt.Errorf("pseudo-translate: %w", err)
 	}
 
-	// Store updated blocks back.
+	// Store updated blocks back — they already have internal IDs from GetBlocks.
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		if err := a.store.StoreBlocks(ctx, projectID, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -461,7 +465,8 @@ func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*Transl
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+		// Blocks already have internal IDs from GetBlocks — use StoreBlocks.
+		if err := a.store.StoreBlocks(ctx, projectID, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -569,9 +574,14 @@ func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (st
 		return "", fmt.Errorf("get blocks: %w", err)
 	}
 
+	// Build blockMap keyed by source_id (the format reader's ID) for target injection.
 	blockMap := make(map[string]*model.Block, len(storedBlocks))
 	for _, sb := range storedBlocks {
-		blockMap[sb.Block.ID] = sb.Block
+		key := sb.SourceID
+		if key == "" {
+			key = sb.Block.ID
+		}
+		blockMap[key] = sb.Block
 	}
 
 	// Inject stored targets into the parsed parts.

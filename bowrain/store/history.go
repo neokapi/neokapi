@@ -114,11 +114,11 @@ func segmentsCodedText(segs []*model.Segment) string {
 }
 
 // loadExistingTargets fetches existing targets JSON for a block within a transaction.
-func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, itemName, blockID string) (map[model.LocaleID][]*model.Segment, error) {
+func loadExistingTargets(ctx context.Context, tx *sql.Tx, projectID, _, blockID string) (map[model.LocaleID][]*model.Segment, error) {
 	var targetsJSON string
 	err := tx.QueryRowContext(ctx,
-		`SELECT targets_json FROM blocks WHERE project_id = ? AND item_name = ? AND id = ?`,
-		projectID, itemName, blockID).Scan(&targetsJSON)
+		`SELECT targets_json FROM blocks WHERE project_id = ? AND id = ?`,
+		projectID, blockID).Scan(&targetsJSON)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
