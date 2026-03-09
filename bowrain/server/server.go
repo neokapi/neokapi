@@ -241,6 +241,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.POST("/push", s.HandleSyncPush)
 			syncGroup.GET("/pull", s.HandleSyncPull)
 			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
+			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 		}
 
 		// Workspace endpoints (require auth + workspace membership)
