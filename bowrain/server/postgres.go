@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gokapi/gokapi/bowrain/auth"
+	"github.com/gokapi/gokapi/bowrain/jobs"
 	"github.com/gokapi/gokapi/bowrain/storage"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/platform/store"
@@ -11,36 +12,54 @@ import (
 
 // openPostgresStores opens PostgreSQL-backed ContentStore and AuthStore
 // from a postgres:// connection URL, sharing a single connection pool.
-func openPostgresStores(databaseURL string) (store.ContentStore, auth.AuthStore, error) {
+// pgStores holds all PostgreSQL-backed stores opened from a shared connection pool.
+type pgStores struct {
+	Content store.ContentStore
+	Auth    auth.AuthStore
+	Job     jobs.JobStore
+	Quota   jobs.QuotaStore
+}
+
+func openPostgresStores(databaseURL string) (*pgStores, error) {
 	db, err := storage.OpenPostgres(databaseURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open PostgreSQL: %w", err)
+		return nil, fmt.Errorf("open PostgreSQL: %w", err)
 	}
 	return initPostgresStores(db)
 }
 
 // openPostgresStoresAzure opens PostgreSQL-backed stores using Azure
 // Managed Identity for authentication (passwordless).
-func openPostgresStoresAzure(databaseURL, clientID string) (store.ContentStore, auth.AuthStore, error) {
+func openPostgresStoresAzure(databaseURL, clientID string) (*pgStores, error) {
 	db, err := storage.OpenPostgresAzure(databaseURL, clientID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
+		return nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
 	}
 	return initPostgresStores(db)
 }
 
-func initPostgresStores(db *storage.PgDB) (store.ContentStore, auth.AuthStore, error) {
+func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	cs, err := bstore.NewPostgresStoreFromDB(db)
 	if err != nil {
 		db.Close()
-		return nil, nil, fmt.Errorf("init PostgreSQL content store: %w", err)
+		return nil, fmt.Errorf("init PostgreSQL content store: %w", err)
 	}
 
 	as, err := auth.NewPostgresAuthStoreFromDB(db)
 	if err != nil {
 		cs.Close()
-		return nil, nil, fmt.Errorf("init PostgreSQL auth store: %w", err)
+		return nil, fmt.Errorf("init PostgreSQL auth store: %w", err)
 	}
 
-	return cs, as, nil
+	js, err := jobs.NewPgJobStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("init PostgreSQL job store: %w", err)
+	}
+
+	qs, err := jobs.NewPgQuotaStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("init PostgreSQL quota store: %w", err)
+	}
+
+	return &pgStores{Content: cs, Auth: as, Job: js, Quota: qs}, nil
 }

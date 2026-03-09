@@ -102,22 +102,23 @@ func NewServer(cfg ServerConfig) *Server {
 	}
 
 	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
-		var cs store.ContentStore
-		var as auth.AuthStore
+		var pg *pgStores
 		var err error
 		if cfg.DatabaseAuth == "azure" {
-			cs, as, err = openPostgresStoresAzure(dbURL, cfg.AzureClientID)
+			pg, err = openPostgresStoresAzure(dbURL, cfg.AzureClientID)
 		} else {
-			cs, as, err = openPostgresStores(dbURL)
+			pg, err = openPostgresStores(dbURL)
 		}
 		if err != nil {
 			log.Printf("WARNING: failed to open PostgreSQL stores: %v", err)
 		} else {
-			s.ContentStore = cs
-			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
+			s.ContentStore = pg.Content
+			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
+			s.JobStore = pg.Job
+			s.QuotaStore = pg.Quota
 			if cfg.JWTSecret != "" {
-				s.AuthStore = as
-				s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
+				s.AuthStore = pg.Auth
+				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
 			}
 		}
 	} else if cfg.StorePath != "" || strings.HasPrefix(dbURL, "sqlite:///") {
@@ -145,6 +146,24 @@ func NewServer(cfg ServerConfig) *Server {
 					s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
 				}
 			}
+		}
+	}
+
+	// Initialize job queue if Service Bus or NATS is configured.
+	switch {
+	case cfg.ServiceBusConnection != "":
+		q, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "translation-jobs")
+		if err != nil {
+			log.Printf("WARNING: failed to connect to Service Bus queue: %v", err)
+		} else {
+			s.JobQueue = q
+		}
+	case cfg.NATSUrl != "":
+		q, err := jobs.NewNATSQueue(cfg.NATSUrl)
+		if err != nil {
+			log.Printf("WARNING: failed to connect to NATS queue: %v", err)
+		} else {
+			s.JobQueue = q
 		}
 	}
 
