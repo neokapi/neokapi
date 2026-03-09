@@ -192,8 +192,8 @@ export async function setupMockApi(page: Page) {
     }
   });
 
-  // Export (must be before generic files/*)
-  await page.route(/\/files\/[^/]+\/export(\?|$)/, (route) => {
+  // Export
+  await page.route(/\/file-export\//, (route) => {
     route.fulfill({
       status: 200,
       contentType: "application/octet-stream",
@@ -202,12 +202,12 @@ export async function setupMockApi(page: Page) {
   });
 
   // Pseudo-translate
-  await page.route(/\/files\/[^/]+\/pseudo(\?|$)/, async (route) => {
+  await page.route(/\/file-pseudo\//, async (route) => {
     const url = route.request().url();
     const pid = extractPathSegment(url, "projects");
     const parts = new URL(url).pathname.split("/");
-    const pseudoIdx = parts.indexOf("pseudo");
-    const fileName = parts[pseudoIdx - 1];
+    const pseudoIdx = parts.indexOf("file-pseudo");
+    const fileName = parts.slice(pseudoIdx + 1).join("/");
     const blocks = projectBlocks[pid]?.[fileName] || [];
     let body: Record<string, string> = {};
     try { body = route.request().postDataJSON(); } catch { /* ignore */ }
@@ -225,12 +225,12 @@ export async function setupMockApi(page: Page) {
   });
 
   // AI translate
-  await page.route(/\/files\/[^/]+\/ai-translate(\?|$)/, async (route) => {
+  await page.route(/\/file-ai-translate\//, async (route) => {
     const url = route.request().url();
     const pid = extractPathSegment(url, "projects");
     const parts = new URL(url).pathname.split("/");
-    const aiIdx = parts.indexOf("ai-translate");
-    const fileName = parts[aiIdx - 1];
+    const aiIdx = parts.indexOf("file-ai-translate");
+    const fileName = parts.slice(aiIdx + 1).join("/");
     const blocks = projectBlocks[pid]?.[fileName] || [];
     let body: Record<string, string> = {};
     try { body = route.request().postDataJSON(); } catch { /* ignore */ }
@@ -248,28 +248,70 @@ export async function setupMockApi(page: Page) {
   });
 
   // TM translate
-  await page.route(/\/files\/[^/]+\/tm-translate(\?|$)/, (route) => {
+  await page.route(/\/file-tm-translate\//, (route) => {
     const url = route.request().url();
     const pid = extractPathSegment(url, "projects");
     const parts = new URL(url).pathname.split("/");
-    const tmIdx = parts.indexOf("tm-translate");
-    const fileName = parts[tmIdx - 1];
+    const tmIdx = parts.indexOf("file-tm-translate");
+    const fileName = parts.slice(tmIdx + 1).join("/");
     const blocks = projectBlocks[pid]?.[fileName] || [];
     json(route, blocks);
   });
 
+  // Document preview
+  await page.route(/\/file-preview\//, (route) => {
+    const url = route.request().url();
+    const pid = extractPathSegment(url, "projects");
+    const parts = new URL(url).pathname.split("/");
+    const previewIdx = parts.indexOf("file-preview");
+    const fileName = parts.slice(previewIdx + 1).join("/");
+    const blocks = projectBlocks[pid]?.[fileName] || [];
+    // Build a simple preview HTML with kat-block elements (test-only mock)
+    const blockElements = blocks
+      .map((b: any) => {
+        const escaped = String(b.source).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        return `<p><kat-block id="${b.id}">${escaped}</kat-block></p>`;
+      })
+      .join("\n");
+    const previewHTML = [
+      '<!DOCTYPE html><html><head><meta charset="UTF-8">',
+      '<style>body{font-family:sans-serif;padding:16px}kat-block{display:inline}.kat-wrapper{cursor:pointer;border-radius:6px;padding:6px 8px;margin:-6px -8px}.kat-selected{background:rgba(59,130,246,.08)}.kat-active-line{background:rgba(59,130,246,.08);position:relative}.kat-active-line::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#3b82f6;border-radius:2px 0 0 2px}#kat-editor-spacer{transition:height .15s ease-out}</style>',
+      '</head><body>',
+      blockElements,
+      '<script>',
+      'document.querySelectorAll("kat-block").forEach(function(el){var w=el.closest("p")||el.parentElement;if(w)w.classList.add("kat-wrapper")});',
+      'document.addEventListener("click",function(e){e.preventDefault();var b=e.target.closest&&e.target.closest("kat-block");if(!b){var w=e.target.closest&&e.target.closest(".kat-wrapper");if(w)b=w.querySelector("kat-block")}if(b)window.parent.postMessage({type:"kat-block-click",blockId:b.id},"*")});',
+      'function reportHeight(){window.parent.postMessage({type:"kat-content-height",height:document.body.scrollHeight},"*")}',
+      'new ResizeObserver(reportHeight).observe(document.body);reportHeight();',
+      'window.addEventListener("message",function(e){',
+      '  if(e.data&&e.data.type==="kat-select-block"){var old=document.querySelector(".kat-selected");if(old)old.classList.remove("kat-selected");var al=document.querySelector(".kat-active-line");if(al)al.classList.remove("kat-active-line");var el=document.getElementById(e.data.blockId);if(el){el.classList.add("kat-selected");var wr=el.closest("p")||el;wr.classList.add("kat-active-line")}}',
+      '  if(e.data&&e.data.type==="kat-update-block"){var el=document.getElementById(e.data.blockId);if(el)el.textContent=e.data.text||""}',
+      '  if(e.data&&e.data.type==="kat-insert-spacer"){var os=document.getElementById("kat-editor-spacer");if(os)os.remove();var el=document.getElementById(e.data.blockId);if(el){var a=el.closest("p")||el;var s=document.createElement("div");s.id="kat-editor-spacer";s.style.height=e.data.height+"px";a.parentNode.insertBefore(s,a.nextSibling);var r=s.getBoundingClientRect();window.parent.postMessage({type:"kat-spacer-position",y:r.top+window.pageYOffset,contentHeight:document.body.scrollHeight},"*")}}',
+      '  if(e.data&&e.data.type==="kat-remove-spacer"){var os=document.getElementById("kat-editor-spacer");if(os)os.remove();reportHeight()}',
+      '});',
+      'window.parent.postMessage({type:"kat-iframe-ready"},"*");',
+      '</script></body></html>',
+    ].join("\n");
+    route.fulfill({ status: 200, contentType: "text/html", body: previewHTML });
+  });
+
+  // Block HTML rendering
+  await page.route(/\/blocks\/[^/]+\/html(\?|$)/, (route) => {
+    route.fulfill({ status: 200, contentType: "text/html", body: "<span>rendered</span>" });
+  });
+
   // Word count
-  await page.route(/\/files\/[^/]+\/wordcount(\?|$)/, (route) => {
+  await page.route(/\/file-wordcount\//, (route) => {
     json(route, { source_words: 42, source_chars: 210, target_words: {}, target_chars: {} });
   });
 
   // Get blocks for file
-  await page.route(/\/files\/[^/]+\/blocks(\?|$)/, (route) => {
+  await page.route(/\/file-blocks\//, (route) => {
     const url = route.request().url();
     const pid = extractPathSegment(url, "projects");
     const parts = new URL(url).pathname.split("/");
-    const blocksIdx = parts.indexOf("blocks");
-    const fileName = parts[blocksIdx - 1];
+    const blocksIdx = parts.indexOf("file-blocks");
+    const fileName = parts.slice(blocksIdx + 1).join("/");
     const blocks = projectBlocks[pid]?.[fileName] || [];
     json(route, blocks);
   });
@@ -294,11 +336,12 @@ export async function setupMockApi(page: Page) {
   });
 
   // Remove file
-  await page.route(/\/editor\/projects\/[^/]+\/files\/[^/]+(\?|$)/, (route, request) => {
+  await page.route(/\/editor\/projects\/[^/]+\/file\//, (route, request) => {
     if (request.method() === "DELETE") {
       const pid = extractPathSegment(request.url(), "projects");
       const parts = new URL(request.url()).pathname.split("/");
-      const fileName = parts[parts.length - 1];
+      const fileIdx = parts.indexOf("file");
+      const fileName = parts.slice(fileIdx + 1).join("/");
       const p = projects.find((p) => p.id === pid);
       if (p) {
         p.items = p.items.filter((i) => i.name !== fileName);

@@ -60,6 +60,25 @@ async function clickTestId(page: any, testId: string) {
   }, testId);
 }
 
+/** Pseudo-translate via mock backend, then reload editor to pick up changes. */
+async function pseudoTranslateViaBackend(page: any) {
+  await page.evaluate(async () => {
+    const backend = (window as any).__wailsMockByName;
+    const projects = await backend.ListProjects();
+    if (projects.length > 0) {
+      await backend.PseudoTranslateItem(projects[0].id, "hello.txt", "fr");
+    }
+  });
+  // Navigate away and back to reload blocks with updated data
+  await clickTestId(page, "back-to-project");
+  await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
+  await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+    if (btn) btn.click();
+  });
+  await page.getByTestId("block-grid").waitFor({ state: "visible", timeout: 5000 });
+}
+
 test.describe("Translation Editor", () => {
   test("should display blocks with source text", async ({ page }) => {
     await openEditorWithBlocks(page);
@@ -98,23 +117,8 @@ test.describe("Translation Editor", () => {
   test("should show toolbar buttons", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await expect(page.getByTestId("pseudo-btn")).toBeVisible();
-    await expect(page.getByTestId("ai-translate-btn")).toBeVisible();
     await expect(page.getByTestId("tm-btn")).toBeVisible();
     await expect(page.getByTestId("export-btn")).toBeVisible();
-  });
-
-  test("should pseudo-translate all blocks", async ({ page }) => {
-    await openEditorWithBlocks(page);
-
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
-
-    const progress = page.getByTestId("progress-text");
-    await expect(progress).toContainText("100%");
-
-    const target0 = page.getByTestId("target-text-0");
-    await expect(target0).toContainText("[");
   });
 
   test("should show word count in status bar", async ({ page }) => {
@@ -198,8 +202,7 @@ test.describe("Translation Editor", () => {
     await openEditorWithBlocks(page);
 
     // Pseudo-translate first
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(300);
+    await pseudoTranslateViaBackend(page);
 
     // Export
     await clickTestId(page, "export-btn");
@@ -355,8 +358,13 @@ test.describe("Translation Editor", () => {
     await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
 
     // Pseudo-translate to generate target text
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
+
+    // Re-enter split-v layout (lost during navigate-away-and-back)
+    await clickTestId(page, "layout-split-v");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    const iframe2 = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe2.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
 
     // Hover to reveal toggle, then click it
     await page.getByTestId("preview-iframe").hover();
@@ -367,23 +375,24 @@ test.describe("Translation Editor", () => {
     await expect(page.getByTestId("preview-target-toggle")).toContainText("Target");
 
     // Preview should show pseudo-translated text
-    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
-    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
+    await expect(iframe2.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+    await expect(iframe2.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
   });
 
   test("should switch preview back to source text", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Switch to split-v, pseudo-translate, switch to target
+    // Pseudo-translate first
+    await pseudoTranslateViaBackend(page);
+
+    // Enter split-v layout
     await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
     await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
 
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
-
+    // Switch to target
     await page.getByTestId("preview-iframe").hover();
     await clickTestId(page, "preview-target-toggle");
     await page.waitForTimeout(300);
@@ -472,15 +481,15 @@ test.describe("Translation Editor", () => {
   test("should preserve toggle state when switching locale", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    // Switch to split-v and pseudo-translate for fr
+    // Pseudo-translate for fr first
+    await pseudoTranslateViaBackend(page);
+
+    // Switch to split-v
     await clickTestId(page, "layout-split-v");
     await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
 
     const iframe = page.frameLocator('[data-testid="preview-iframe"]');
     await expect(iframe.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
-
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
 
     // Hover and toggle to Target
     await page.getByTestId("preview-iframe").hover();
@@ -522,14 +531,22 @@ test.describe("Translation Editor", () => {
     await page.waitForTimeout(300);
     await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("Hello from hello.txt");
 
-    // Now pseudo-translate while Target mode is active
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    // Now pseudo-translate via backend
+    await pseudoTranslateViaBackend(page);
 
-    // Preview should update to show translated text
-    await expect(iframe.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
-    await expect(iframe.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
-    await expect(iframe.locator('[id="hello.txt-block-3"]')).toContainText("[Click here to continue]");
+    // Re-enter split-v with target toggle
+    await clickTestId(page, "layout-split-v");
+    await expect(page.getByTestId("preview-iframe")).toBeVisible({ timeout: 5000 });
+    const iframe2 = page.frameLocator('[data-testid="preview-iframe"]');
+    await expect(iframe2.locator('kat-block').first()).toBeVisible({ timeout: 5000 });
+    await page.getByTestId("preview-iframe").hover();
+    await clickTestId(page, "preview-target-toggle");
+    await page.waitForTimeout(300);
+
+    // Preview should show translated text
+    await expect(iframe2.locator('[id="hello.txt-block-1"]')).toContainText("[Hello from hello.txt]");
+    await expect(iframe2.locator('[id="hello.txt-block-2"]')).toContainText("[Welcome to our application]");
+    await expect(iframe2.locator('[id="hello.txt-block-3"]')).toContainText("[Click here to continue]");
   });
 
   test("should enter edit mode on single click of target cell", async ({ page }) => {

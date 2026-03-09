@@ -226,9 +226,22 @@ test.describe("Screenshots", () => {
       await openEditor(page);
       await setTheme(page, theme);
 
-      // Pseudo-translate all blocks
-      await clickTestId(page, "pseudo-btn");
-      await page.waitForTimeout(500);
+      // Pseudo-translate via backend
+      await page.evaluate(async () => {
+        const backend = (window as any).__wailsMockByName;
+        const projects = await backend.ListProjects();
+        if (projects.length > 0) {
+          await backend.PseudoTranslateItem(projects[0].id, "index.html", "fr");
+        }
+      });
+      // Navigate away and back to reload
+      await clickTestId(page, "back-to-project");
+      await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+      await page.evaluate(() => {
+        const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
+        if (btn) btn.click();
+      });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
       // Verify 100% progress
       await expect(page.getByTestId("progress-text")).toContainText("100%");
@@ -308,9 +321,22 @@ test.describe("Screenshots", () => {
       await openEditor(page);
       await setTheme(page, theme);
 
-      // Pseudo-translate to create mixed statuses
-      await clickTestId(page, "pseudo-btn");
-      await page.waitForTimeout(500);
+      // Pseudo-translate via backend
+      await page.evaluate(async () => {
+        const backend = (window as any).__wailsMockByName;
+        const projects = await backend.ListProjects();
+        if (projects.length > 0) {
+          await backend.PseudoTranslateItem(projects[0].id, "index.html", "fr");
+        }
+      });
+      // Navigate away and back to reload
+      await clickTestId(page, "back-to-project");
+      await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+      await page.evaluate(() => {
+        const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
+        if (btn) btn.click();
+      });
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
 
       // Switch to focus view
       await clickTestId(page, "layout-focus");

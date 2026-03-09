@@ -23,6 +23,8 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		TargetLocale     string `json:"target_locale"`
 		ProviderConfigID string `json:"provider_config_id"`
 		Model            string `json:"model,omitempty"`
+		BatchSize        int    `json:"batch_size,omitempty"`
+		Concurrency      int    `json:"concurrency,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -46,6 +48,8 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 		TargetLocale:     req.TargetLocale,
 		ProviderConfigID: providerConfigID,
 		Model:            req.Model,
+		BatchSize:        req.BatchSize,
+		Concurrency:      req.Concurrency,
 		Status:           jobs.StatusQueued,
 	}
 

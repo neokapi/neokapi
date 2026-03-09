@@ -50,6 +50,25 @@ async function clickTestId(page: any, testId: string) {
   }, testId);
 }
 
+/** Pseudo-translate via mock backend, then reload editor to pick up changes. */
+async function pseudoTranslateViaBackend(page: any) {
+  await page.evaluate(async () => {
+    const backend = (window as any).__wailsMockByName;
+    const projects = await backend.ListProjects();
+    if (projects.length > 0) {
+      await backend.PseudoTranslateItem(projects[0].id, "hello.txt", "fr");
+    }
+  });
+  // Navigate away and back to reload blocks with updated data
+  await clickTestId(page, "back-to-project");
+  await page.getByTestId("open-file-hello.txt").waitFor({ state: "visible", timeout: 5000 });
+  await page.evaluate(() => {
+    const btn = document.querySelector('[data-testid="open-file-hello.txt"]') as HTMLElement;
+    if (btn) btn.click();
+  });
+  await page.getByTestId("block-grid").waitFor({ state: "visible", timeout: 5000 });
+}
+
 test.describe("Rich Editor -- Layout Modes", () => {
   test("should show all layout mode buttons", async ({ page }) => {
     await openEditorWithBlocks(page);
@@ -218,8 +237,7 @@ test.describe("Rich Editor -- Block Status", () => {
   test("should show draft status after pseudo-translate", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     const dot0 = page.getByTestId("status-dot-0");
     await expect(dot0).toHaveAttribute("title", "draft");
@@ -229,8 +247,7 @@ test.describe("Rich Editor -- Block Status", () => {
     await openEditorWithBlocks(page);
 
     // Pseudo-translate first to have content
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     // Select first block and mark reviewed
     await clickTestId(page, "block-row-0");
@@ -245,8 +262,7 @@ test.describe("Rich Editor -- Block Status", () => {
   test("should show status breakdown in progress bar after pseudo-translate", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     const progress = page.getByTestId("progress-text");
     await expect(progress).toContainText("draft");
@@ -255,8 +271,7 @@ test.describe("Rich Editor -- Block Status", () => {
   test("should show progress segments after pseudo-translate", async ({ page }) => {
     await openEditorWithBlocks(page);
 
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     await expect(page.getByTestId("progress-draft")).toBeVisible();
   });
@@ -292,8 +307,7 @@ test.describe("Rich Editor -- Toolbar Actions", () => {
     await openEditorWithBlocks(page);
 
     // Pseudo-translate first
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     // Select first block and mark reviewed
     await clickTestId(page, "block-row-0");
@@ -350,8 +364,7 @@ test.describe("Rich Editor -- Focus View Status Badge", () => {
     await openEditorWithBlocks(page);
 
     // Pseudo-translate
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     // Switch to focus view
     await clickTestId(page, "layout-focus");
@@ -365,8 +378,7 @@ test.describe("Rich Editor -- Focus View Status Badge", () => {
     await openEditorWithBlocks(page);
 
     // Pseudo-translate
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     // Switch to focus view
     await clickTestId(page, "layout-focus");
@@ -391,8 +403,7 @@ test.describe("Rich Editor -- Layout Persistence", () => {
     await expect(page.getByTestId("focus-view")).toBeVisible();
 
     // Pseudo-translate (toolbar action)
-    await clickTestId(page, "pseudo-btn");
-    await page.waitForTimeout(500);
+    await pseudoTranslateViaBackend(page);
 
     // Should still be in focus view
     await expect(page.getByTestId("focus-view")).toBeVisible();

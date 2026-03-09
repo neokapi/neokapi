@@ -402,8 +402,23 @@ describeOrSkip("Video Recordings", () => {
     await page.keyboard.press("Tab");
     await pause(page, 400);
 
-    // === PHASE 4: Use pseudo-translate for remaining blocks ===
-    await humanClick(page, page.getByTestId("pseudo-btn"));
+    // === PHASE 4: Pseudo-translate remaining blocks via backend ===
+    await page.evaluate(async () => {
+      const backend = (window as any).__wailsMockByName;
+      const projects = await backend.ListProjects();
+      if (projects.length > 0) {
+        await backend.PseudoTranslateItem(projects[0].id, "about-us.html", "fr");
+      }
+    });
+    // Navigate away and back to reload blocks
+    await page.getByTestId("nav-settings").click();
+    await page.waitForTimeout(100);
+    await page.getByTestId("nav-translate").click();
+    await page.waitForTimeout(200);
+    await humanClick(page, page.getByText("Company Website").first());
+    await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
+    await humanClickNative(page, "open-file-about-us.html");
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 4000); // Hold for 4 seconds to show completed state
   });
 
@@ -556,11 +571,22 @@ describeOrSkip("Video Recordings", () => {
     await humanType(page, focusTarget, "Cliquez ici pour en savoir plus");
     await pause(page, 400);
 
-    // Use pseudo-translate for rest
-    await humanClick(page, page.getByTestId("pseudo-btn"));
-    await pause(page, 600);
+    // Pseudo-translate remaining blocks via backend
+    if (e2eProj) {
+      await callBackend(page, "PseudoTranslateItem", e2eProj.id, "landing-page.html", "fr");
+    }
 
-    // Switch back to grid to see all translations
+    // Navigate away and back to reload
+    await humanClick(page, page.getByTestId("nav-settings"));
+    await pause(page, 200);
+    await humanClick(page, page.getByTestId("nav-translate"));
+    await pause(page, 200);
+    await humanClick(page, page.getByText("Product Launch").first());
+    await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
+    await humanClickNative(page, "open-file-landing-page.html");
+    await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+
+    // Switch to grid to see all translations
     await humanClick(page, page.getByTestId("layout-grid"));
     await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
     await pause(page, 1200);

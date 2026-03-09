@@ -6,7 +6,6 @@ import type {
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import { useProviderConfigs } from "../hooks/useProviderApi";
 import { useLocales } from "../hooks/useLocales";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { FormattedSourceDisplay } from "./editor/FormattedSourceDisplay";
@@ -105,7 +104,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("grid");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("visual");
   const [editorMode, setEditorMode] = useState<VisualEditorMode>("translate");
   const [previewContentMode, setPreviewContentMode] = useState<PreviewContentMode>("source");
   const [focusEditValue, setFocusEditValue] = useState("");
@@ -139,8 +138,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
   const api = useEditorApi();
   const { getFileBlocks, getWordCount: getWordCountApi } = api;
-  const { configs: providerConfigs } = useProviderConfigs();
-  const [selectedProvider, setSelectedProvider] = useState("");
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const blockListRef = useRef<HTMLDivElement>(null);
 
@@ -396,43 +393,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     }
   };
 
-  const handlePseudoTranslate = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const stats = await api.pseudoTranslateFile(project.id, fileName, targetLocale);
-      setMessage(`Pseudo-translated ${stats.translated_blocks} of ${stats.total_blocks} blocks`);
-      await loadBlocks();
-      await loadWordCount();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Pseudo-translate failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAITranslate = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const stats = await api.aiTranslateFile({
-        project_id: project.id,
-        item_name: fileName,
-        target_locale: targetLocale,
-        provider: "",
-        api_key: "",
-        model: "",
-        provider_config_id: selectedProvider || undefined,
-      });
-      setMessage(`AI-translated ${stats.translated_blocks} of ${stats.total_blocks} blocks`);
-      await loadBlocks();
-      await loadWordCount();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "AI translate failed");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleTMTranslate = async () => {
     setLoading(true);
@@ -699,11 +659,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   // Current block for focus view
   const currentBlock = filteredBlocks[selectedIndex] || null;
 
-  // Available layout modes depend on whether preview is available
-  // Visual mode is always available regardless of renderPreview
-  const availableLayouts: LayoutMode[] = renderPreview
-    ? ["grid", "focus", "split-h", "split-v", "visual"]
-    : ["grid", "focus", "visual"];
+  // All layout modes are always available — DocumentPreview is used as fallback
+  // when renderPreview is not provided
+  const availableLayouts: LayoutMode[] = ["grid", "focus", "split-h", "split-v", "visual"];
 
   const blockGrid = (
     <div ref={blockListRef} className="flex-1 overflow-auto border border-border rounded-lg bg-card" data-testid="block-grid">
@@ -1110,30 +1068,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
       {/* Toolbar */}
       <div className="flex gap-2 py-2 items-center flex-wrap backdrop-blur-sm">
-        <Button variant="outline" size="sm" onClick={handlePseudoTranslate} disabled={loading} data-testid="pseudo-btn">
-          Pseudo
-        </Button>
-        <Button variant="outline" size="sm" onClick={handleAITranslate} disabled={loading} data-testid="ai-translate-btn">
-          AI Translate
-        </Button>
-        {providerConfigs.length > 0 && (
-          <select
-            value={selectedProvider}
-            onChange={(e) => setSelectedProvider(e.target.value)}
-            className="px-3 py-1.5 bg-muted border border-border rounded-md text-foreground text-sm"
-            data-testid="provider-select"
-          >
-            <option value="">Default provider</option>
-            {providerConfigs.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
-        {providerConfigs.length === 0 && (
-          <span className="text-[11px] text-muted-foreground" data-testid="provider-hint">
-            Configure providers in Settings
-          </span>
-        )}
         <Button variant="outline" size="sm" onClick={handleTMTranslate} disabled={loading} data-testid="tm-btn">
           TM Lookup
         </Button>
