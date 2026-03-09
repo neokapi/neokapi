@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 
@@ -42,6 +44,23 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.SourceLocale, req.TargetLocales)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Also create the project in the content store so blocks can reference it.
+	if s.Services.Project != nil {
+		targetLocales := make([]model.LocaleID, len(req.TargetLocales))
+		for i, l := range req.TargetLocales {
+			targetLocales[i] = model.LocaleID(l)
+		}
+		p := &store.Project{
+			ID:            projectID,
+			Name:          req.Name,
+			SourceLocale:  model.LocaleID(req.SourceLocale),
+			TargetLocales: targetLocales,
+		}
+		if err := s.Services.Project.CreateProject(ctx, p); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create content project: " + err.Error()})
+		}
 	}
 
 	// TODO: if req.Email != "", send claim email via EmailService once available.
