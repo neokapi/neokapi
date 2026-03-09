@@ -111,4 +111,46 @@ var storeMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, block_id);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add source_id to blocks and change PK to (project_id, id)",
+		SQL: `
+			ALTER TABLE blocks ADD COLUMN source_id TEXT NOT NULL DEFAULT '';
+
+			-- Copy existing id to source_id for backward compatibility.
+			UPDATE blocks SET source_id = id;
+
+			-- Drop old PK and recreate with (project_id, id).
+			-- Postgres cannot ALTER PK, so recreate the table.
+			CREATE TABLE blocks_new (
+				id           TEXT NOT NULL,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_name    TEXT NOT NULL DEFAULT '',
+				source_id    TEXT NOT NULL DEFAULT '',
+				name         TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL DEFAULT '',
+				mime_type    TEXT NOT NULL DEFAULT '',
+				translatable BOOLEAN NOT NULL DEFAULT TRUE,
+				content_hash TEXT NOT NULL DEFAULT '',
+				context_hash TEXT NOT NULL DEFAULT '',
+				source_json  TEXT NOT NULL DEFAULT '[]',
+				targets_json TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				annotations  TEXT NOT NULL DEFAULT '{}',
+				stored_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, id)
+			);
+			INSERT INTO blocks_new SELECT id, project_id, item_name, source_id, name, type, mime_type,
+				translatable, content_hash, context_hash, source_json, targets_json,
+				properties, annotations, stored_at, updated_at FROM blocks;
+			DROP TABLE blocks;
+			ALTER TABLE blocks_new RENAME TO blocks;
+			CREATE INDEX idx_blocks_content_hash ON blocks(content_hash);
+			CREATE INDEX idx_blocks_project ON blocks(project_id);
+			CREATE INDEX idx_blocks_item ON blocks(project_id, item_name);
+			CREATE UNIQUE INDEX idx_blocks_source_id ON blocks(project_id, item_name, source_id)
+				WHERE source_id != '';
+		`,
+	},
 }
