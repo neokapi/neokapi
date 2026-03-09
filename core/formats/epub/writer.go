@@ -216,7 +216,7 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 				depth++
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else {
-				encoder.EncodeToken(xml.CopyToken(t))
+				_ = encoder.EncodeToken(xml.CopyToken(t))
 			}
 		case xml.EndElement:
 			if blockElements[t.Name.Local] {
@@ -231,21 +231,21 @@ func replaceXHTMLText(content []byte, blocks []*model.Block, locale model.Locale
 				depth--
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else {
-				encoder.EncodeToken(xml.CopyToken(t))
+				_ = encoder.EncodeToken(xml.CopyToken(t))
 			}
 		case xml.CharData:
 			if inBlock {
 				textBuf.Write(t)
 				pendingTokens = append(pendingTokens, xml.CopyToken(t))
 			} else {
-				encoder.EncodeToken(xml.CopyToken(t))
+				_ = encoder.EncodeToken(xml.CopyToken(t))
 			}
 		case xml.ProcInst:
-			encoder.EncodeToken(xml.CopyToken(t))
+			_ = encoder.EncodeToken(xml.CopyToken(t))
 		case xml.Comment:
-			encoder.EncodeToken(xml.CopyToken(t))
+			_ = encoder.EncodeToken(xml.CopyToken(t))
 		case xml.Directive:
-			encoder.EncodeToken(xml.CopyToken(t))
+			_ = encoder.EncodeToken(xml.CopyToken(t))
 		}
 	}
 

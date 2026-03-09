@@ -429,7 +429,7 @@ func parseControlWord(rd *bufio.Reader) token {
 			return token{typ: tokenControl, text: "u" + numBuf.String()}
 		}
 		// Not a digit after \u - it's a control word starting with 'u'.
-		rd.UnreadByte()
+		_ = rd.UnreadByte()
 		return readControlWordFrom(rd, "u")
 	}
 
@@ -456,7 +456,7 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 		if b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' {
 			word.WriteByte(b)
 		} else {
-			rd.UnreadByte()
+			_ = rd.UnreadByte()
 			break
 		}
 	}
@@ -475,7 +475,7 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 		} else {
 			// Space delimiter after control word is consumed.
 			if b != ' ' {
-				rd.UnreadByte()
+				_ = rd.UnreadByte()
 			}
 			break
 		}
