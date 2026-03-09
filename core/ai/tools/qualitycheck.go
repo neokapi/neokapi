@@ -44,6 +44,41 @@ func NewAIQACheckTool(p provider.LLMProvider, cfg AIQAConfig) *AIQACheckTool {
 	return t
 }
 
+// qaSchema returns a JSON schema for structured QA check output.
+func qaSchema() provider.JSONSchema {
+	return provider.JSONSchema{
+		Name:        "qa_check",
+		Description: "Quality check results for a translation",
+		Strict:      true,
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"issues": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"type":        map[string]any{"type": "string"},
+							"severity":    map[string]any{"type": "string", "enum": []string{"error", "warning", "info"}},
+							"description": map[string]any{"type": "string"},
+							"suggestion":  map[string]any{"type": "string"},
+						},
+						"required":             []string{"type", "severity", "description", "suggestion"},
+						"additionalProperties": false,
+					},
+				},
+			},
+			"required":             []string{"issues"},
+			"additionalProperties": false,
+		},
+	}
+}
+
+// qaResult is the JSON structure returned by structured QA check.
+type qaResult struct {
+	Issues []provider.QAIssue `json:"issues"`
+}
+
 func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
@@ -58,34 +93,27 @@ func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 	targetText := block.TargetText(t.targetLocale)
 
 	prompt := fmt.Sprintf(
-		`Analyze the following translation for quality issues. Check for: %s.
-
-Source (%s): %s
-Translation (%s): %s
-
-Respond in JSON format with an array of issues:
-[{"type": "<check-type>", "severity": "<error|warning|info>", "description": "<issue>", "suggestion": "<fix>"}]
-If no issues found, return an empty array: []`,
+		"Analyze the following translation for quality issues. Check for: %s.\n\n"+
+			"Source (%s): %s\nTranslation (%s): %s\n\n"+
+			"Return all issues found, or an empty array if none.",
 		strings.Join(t.checks, ", "),
 		t.sourceLocale, sourceText,
 		t.targetLocale, targetText,
 	)
 
-	resp, err := t.provider.Chat(context.Background(), []provider.Message{
+	resp, err := t.provider.ChatStructured(context.Background(), []provider.Message{
 		{Role: "user", Content: prompt},
-	})
+	}, qaSchema())
 	if err != nil {
 		return nil, fmt.Errorf("ai-qa: %w", err)
 	}
 
-	var issues []provider.QAIssue
-	content := strings.TrimSpace(resp.Content)
-	if err := json.Unmarshal([]byte(content), &issues); err != nil {
-		// If the response isn't valid JSON, wrap it as a single info issue
-		issues = []provider.QAIssue{{
+	var result qaResult
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		result.Issues = []provider.QAIssue{{
 			Type:        "parse-error",
 			Severity:    "info",
-			Description: content,
+			Description: resp.Content,
 		}}
 	}
 
@@ -93,7 +121,7 @@ If no issues found, return an empty array: []`,
 		block.Properties = make(map[string]string)
 	}
 
-	issuesJSON, _ := json.Marshal(issues)
+	issuesJSON, _ := json.Marshal(result.Issues)
 	block.Properties["qa-issues"] = string(issuesJSON)
 	block.Properties["qa-provider"] = t.provider.Name()
 	block.Properties["qa-checks"] = strings.Join(t.checks, ",")

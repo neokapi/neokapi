@@ -18,8 +18,23 @@ type LLMProvider interface {
 	// Chat sends a general chat message and returns the response.
 	Chat(ctx context.Context, messages []Message) (*ChatResponse, error)
 
+	// ChatStructured sends a chat message and constrains the response to match
+	// the given JSON schema. The response Content will be valid JSON conforming
+	// to the schema. This uses provider-specific mechanisms: OpenAI/Azure use
+	// response_format with json_schema, Anthropic uses tool use, Ollama uses
+	// the format field.
+	ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
+
 	// Close releases provider resources.
 	Close() error
+}
+
+// JSONSchema defines a JSON schema for structured LLM output.
+type JSONSchema struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Schema      map[string]any `json:"schema"`
+	Strict      bool           `json:"strict,omitempty"`
 }
 
 // Message represents a chat message.

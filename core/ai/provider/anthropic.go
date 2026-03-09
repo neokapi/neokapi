@@ -122,6 +122,83 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 	}, nil
 }
 
+func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+	apiMessages := make([]anthropicMessage, len(messages))
+	for i, m := range messages {
+		apiMessages[i] = anthropicMessage(m)
+	}
+
+	toolName := schema.Name
+	if toolName == "" {
+		toolName = "structured_output"
+	}
+
+	body := anthropicRequest{
+		Model:     p.config.Model,
+		MaxTokens: p.config.MaxTokens,
+		Messages:  apiMessages,
+		Tools: []anthropicTool{{
+			Name:        toolName,
+			Description: schema.Description,
+			InputSchema: schema.Schema,
+		}},
+		ToolChoice: &anthropicToolChoice{
+			Type: "tool",
+			Name: toolName,
+		},
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/messages", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", p.config.APIKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+	httpResp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("anthropic: read response: %w", err)
+	}
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("anthropic: API error %d: %s", httpResp.StatusCode, string(respBody))
+	}
+
+	var apiResp anthropicResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("anthropic: unmarshal response: %w", err)
+	}
+
+	// Extract the tool_use input as JSON.
+	for _, block := range apiResp.Content {
+		if block.Type == "tool_use" && block.Name == toolName {
+			inputJSON, err := json.Marshal(block.Input)
+			if err != nil {
+				return nil, fmt.Errorf("anthropic: marshal tool input: %w", err)
+			}
+			return &ChatResponse{
+				Content: string(inputJSON),
+				Model:   apiResp.Model,
+			}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("anthropic: no tool_use block in structured response")
+}
+
 func (p *AnthropicProvider) Close() error { return nil }
 
 // Anthropic API types
@@ -131,9 +208,22 @@ type anthropicMessage struct {
 }
 
 type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	Messages  []anthropicMessage `json:"messages"`
+	Model      string              `json:"model"`
+	MaxTokens  int                 `json:"max_tokens"`
+	Messages   []anthropicMessage  `json:"messages"`
+	Tools      []anthropicTool     `json:"tools,omitempty"`
+	ToolChoice *anthropicToolChoice `json:"tool_choice,omitempty"`
+}
+
+type anthropicTool struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	InputSchema map[string]any `json:"input_schema"`
+}
+
+type anthropicToolChoice struct {
+	Type string `json:"type"` // "tool"
+	Name string `json:"name"`
 }
 
 type anthropicResponse struct {
@@ -142,6 +232,9 @@ type anthropicResponse struct {
 }
 
 type anthropicContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type  string `json:"type"`            // "text" or "tool_use"
+	Text  string `json:"text,omitempty"`  // for "text" type
+	ID    string `json:"id,omitempty"`    // for "tool_use" type
+	Name  string `json:"name,omitempty"`  // for "tool_use" type
+	Input any    `json:"input,omitempty"` // for "tool_use" type
 }

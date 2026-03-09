@@ -207,9 +207,9 @@ func TestAITranslateToolInFlow(t *testing.T) {
 
 func TestAIQACheckToolAddsProperties(t *testing.T) {
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
 		return &provider.ChatResponse{
-			Content: `[{"type":"fluency","severity":"warning","description":"awkward phrasing","suggestion":"rephrase"}]`,
+			Content: `{"issues":[{"type":"fluency","severity":"warning","description":"awkward phrasing","suggestion":"rephrase"}]}`,
 			Model:   "test",
 		}, nil
 	}
@@ -266,13 +266,14 @@ func TestAIQACheckToolSkipsUntranslated(t *testing.T) {
 
 	<-out
 	assert.Equal(t, 0, len(mock.ChatCalls))
+	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
 }
 
 func TestAITerminologyToolExtractsTerms(t *testing.T) {
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
 		return &provider.ChatResponse{
-			Content: `[{"term":"API","definition":"Application Programming Interface","domain":"technology"}]`,
+			Content: `{"terms":[{"term":"API","definition":"Application Programming Interface","domain":"technology"}]}`,
 			Model:   "test",
 		}, nil
 	}
@@ -360,11 +361,27 @@ func TestAIReviewToolSkipsUntranslated(t *testing.T) {
 	assert.Equal(t, 0, len(mock.ChatCalls))
 }
 
+// batchJSON builds a structured batch response JSON string.
+func batchJSON(translations map[int]string) string {
+	type item struct {
+		Index int    `json:"index"`
+		Text  string `json:"text"`
+	}
+	result := struct {
+		Translations []item `json:"translations"`
+	}{}
+	for idx, text := range translations {
+		result.Translations = append(result.Translations, item{Index: idx, Text: text})
+	}
+	b, _ := json.Marshal(result)
+	return string(b)
+}
+
 func TestAITranslateBatchMode(t *testing.T) {
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
 		return &provider.ChatResponse{
-			Content: "[1] Bonjour le monde\n[2] Bienvenue\n[3] Paramètres",
+			Content: batchJSON(map[int]string{1: "Bonjour le monde", 2: "Bienvenue", 3: "Paramètres"}),
 			Model:   "test-model",
 		}, nil
 	}
@@ -395,8 +412,8 @@ func TestAITranslateBatchMode(t *testing.T) {
 	}
 	require.Len(t, parts, 3)
 
-	// All 3 blocks translated in a single Chat call (batch).
-	assert.Equal(t, 1, len(mock.ChatCalls), "should use 1 batch Chat call, not 3 Translate calls")
+	// All 3 blocks translated in a single ChatStructured call (batch).
+	assert.Equal(t, 1, len(mock.ChatStructuredCalls), "should use 1 batch ChatStructured call")
 	assert.Equal(t, 0, len(mock.TranslateCalls), "should not call Translate in batch mode")
 
 	assert.Equal(t, "Bonjour le monde", parts[0].Resource.(*model.Block).TargetText(model.LocaleFrench))
@@ -407,19 +424,19 @@ func TestAITranslateBatchMode(t *testing.T) {
 func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 	var mu sync.Mutex
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		// Parse which segments were requested and return translations.
 		content := messages[len(messages)-1].Content
-		var resp strings.Builder
+		translations := make(map[int]string)
 		for i := 1; i <= 10; i++ {
 			marker := fmt.Sprintf("[%d]", i)
 			if strings.Contains(content, marker) {
-				fmt.Fprintf(&resp, "[%d] translated-%d\n", i, i)
+				translations[i] = fmt.Sprintf("translated-%d", i)
 			}
 		}
-		return &provider.ChatResponse{Content: resp.String(), Model: "test"}, nil
+		return &provider.ChatResponse{Content: batchJSON(translations), Model: "test"}, nil
 	}
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
@@ -449,8 +466,8 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 	require.Len(t, parts, 5)
 
 	// With batch size 2, we get 3 batches: [2, 2, 1].
-	// The single-item batch (size 1) uses handleBlock → Translate(), not Chat().
-	assert.Equal(t, 2, len(mock.ChatCalls), "5 blocks / batch_size=2 → 2 full batches via Chat")
+	// The single-item batch (size 1) uses handleBlock → Translate(), not ChatStructured().
+	assert.Equal(t, 2, len(mock.ChatStructuredCalls), "5 blocks / batch_size=2 → 2 full batches via ChatStructured")
 	assert.Equal(t, 1, len(mock.TranslateCalls), "1 remaining block uses single Translate")
 
 	// All blocks should have targets.
@@ -462,9 +479,9 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 
 func TestAITranslateBatchPreservesNonBlockParts(t *testing.T) {
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
 		return &provider.ChatResponse{
-			Content: "[1] Bonjour\n[2] Monde",
+			Content: batchJSON(map[int]string{1: "Bonjour", 2: "Monde"}),
 			Model:   "test",
 		}, nil
 	}
@@ -511,12 +528,8 @@ func TestAITranslateBatchPreservesNonBlockParts(t *testing.T) {
 
 func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 	mock := provider.NewMockProvider()
-	mock.ChatFunc = func(ctx context.Context, messages []provider.Message) (*provider.ChatResponse, error) {
-		return &provider.ChatResponse{
-			Content: "[1] Bonjour",
-			Model:   "test",
-		}, nil
-	}
+	// With only 1 translatable block, it falls through to single Translate.
+	// No ChatStructured call expected.
 
 	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
 		SourceLocale: model.LocaleEnglish,
@@ -546,52 +559,54 @@ func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 	}
 	require.Len(t, parts, 2)
 
-	// Only 1 translatable block → single Translate call (not batch Chat).
+	// Only 1 translatable block → single Translate call (not batch ChatStructured).
 	assert.Equal(t, 1, len(mock.TranslateCalls))
-	assert.Equal(t, 0, len(mock.ChatCalls))
+	assert.Equal(t, 0, len(mock.ChatStructuredCalls))
 	assert.True(t, parts[0].Resource.(*model.Block).HasTarget(model.LocaleFrench))
 	assert.False(t, parts[1].Resource.(*model.Block).HasTarget(model.LocaleFrench))
 }
 
-func TestParseBatchResponse(t *testing.T) {
-	tests := []struct {
-		name     string
-		content  string
-		expected int
-		want     []string
-	}{
-		{
-			name:     "clean response",
-			content:  "[1] Bonjour\n[2] Monde\n[3] Paramètres",
-			expected: 3,
-			want:     []string{"Bonjour", "Monde", "Paramètres"},
-		},
-		{
-			name:     "with extra whitespace",
-			content:  "  [1]   Bonjour  \n  [2]   Monde  \n",
-			expected: 2,
-			want:     []string{"Bonjour", "Monde"},
-		},
-		{
-			name:     "with preamble text",
-			content:  "Here are the translations:\n\n[1] Bonjour\n[2] Monde",
-			expected: 2,
-			want:     []string{"Bonjour", "Monde"},
-		},
-		{
-			name:     "missing entry",
-			content:  "[1] Bonjour\n[3] Paramètres",
-			expected: 3,
-			want:     []string{"Bonjour", "", "Paramètres"},
-		},
+func TestAITranslateBatchStructuredSchema(t *testing.T) {
+	// Verify that the schema passed to ChatStructured has the expected structure.
+	mock := provider.NewMockProvider()
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
+		assert.Equal(t, "batch_translations", schema.Name)
+		assert.True(t, schema.Strict)
+		props, ok := schema.Schema["properties"].(map[string]any)
+		require.True(t, ok)
+		_, hasTrans := props["translations"]
+		assert.True(t, hasTrans, "schema should have 'translations' property")
+		return &provider.ChatResponse{
+			Content: batchJSON(map[int]string{1: "Hola", 2: "Mundo"}),
+			Model:   "test",
+		}, nil
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := tools.ParseBatchResponse(tt.content, tt.expected)
-			assert.Equal(t, tt.want, got)
-		})
+	tool := tools.NewAITranslateTool(mock, tools.AITranslateConfig{
+		SourceLocale: model.LocaleEnglish,
+		TargetLocale: "es",
+		BatchSize:    10,
+		Concurrency:  1,
+	})
+
+	ctx := context.Background()
+	in := make(chan *model.Part, 10)
+	out := make(chan *model.Part, 10)
+
+	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
+	in <- &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu2", "World")}
+	close(in)
+
+	err := tool.Process(ctx, in, out)
+	require.NoError(t, err)
+	close(out)
+
+	var parts []*model.Part
+	for p := range out {
+		parts = append(parts, p)
 	}
+	require.Len(t, parts, 2)
+	assert.Equal(t, 1, len(mock.ChatStructuredCalls))
 }
 
 func TestProviderMockDefaultBehavior(t *testing.T) {
@@ -612,4 +627,21 @@ func TestProviderMockDefaultBehavior(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Contains(t, chatResp.Content, "Mock response")
+
+	structResp, err := mock.ChatStructured(ctx, []provider.Message{
+		{Role: "user", Content: "Test"},
+	}, provider.JSONSchema{
+		Name: "test",
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"items": map[string]any{"type": "array"},
+			},
+		},
+	})
+	require.NoError(t, err)
+	// Default mock returns empty arrays for array properties.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(structResp.Content), &parsed))
+	assert.NotNil(t, parsed)
 }
