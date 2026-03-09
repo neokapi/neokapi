@@ -223,6 +223,13 @@
   font-family: var(--ifm-font-family-monospace);
 }
 
+.workerLabel {
+  font-size: 9px;
+  fill: var(--ifm-color-emphasis-400);
+  font-family: var(--ifm-font-family-monospace);
+  dominant-baseline: central;
+}
+
 .edgePath {
   fill: none;
   stroke: var(--ifm-color-emphasis-300);
