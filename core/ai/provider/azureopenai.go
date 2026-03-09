@@ -170,4 +170,82 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	}, nil
 }
 
+func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+	apiMessages := make([]openaiMessage, len(messages))
+	for i, m := range messages {
+		apiMessages[i] = openaiMessage(m)
+	}
+
+	body := openaiRequest{
+		Model:    p.deployment,
+		Messages: apiMessages,
+		ResponseFormat: &openaiResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &openaiJSONSchemaRef{
+				Name:        schema.Name,
+				Description: schema.Description,
+				Schema:      schema.Schema,
+				Strict:      schema.Strict,
+			},
+		},
+	}
+	if p.config.MaxTokens > 0 {
+		body.MaxTokens = &p.config.MaxTokens
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("azureopenai: marshal request: %w", err)
+	}
+
+	endpoint := strings.TrimRight(p.config.BaseURL, "/")
+	url := fmt.Sprintf("%s/openai/deployments/%s/chat/completions?api-version=%s",
+		endpoint, p.deployment, p.apiVersion)
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("azureopenai: create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if p.tokenProvider != nil {
+		token, err := p.tokenProvider(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("azureopenai: get token: %w", err)
+		}
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	} else {
+		httpReq.Header.Set("api-key", p.config.APIKey)
+	}
+
+	httpResp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("azureopenai: request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("azureopenai: read response: %w", err)
+	}
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("azureopenai: API error %d: %s", httpResp.StatusCode, string(respBody))
+	}
+
+	var apiResp openaiResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("azureopenai: unmarshal response: %w", err)
+	}
+
+	if len(apiResp.Choices) == 0 {
+		return nil, fmt.Errorf("azureopenai: no choices in response")
+	}
+
+	return &ChatResponse{
+		Content: apiResp.Choices[0].Message.Content,
+		Model:   apiResp.Model,
+	}, nil
+}
+
 func (p *AzureOpenAIProvider) Close() error { return nil }

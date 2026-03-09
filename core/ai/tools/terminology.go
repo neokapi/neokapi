@@ -45,6 +45,40 @@ type TermEntry struct {
 	Domain     string `json:"domain,omitempty"`
 }
 
+// terminologySchema returns a JSON schema for structured terminology extraction output.
+func terminologySchema() provider.JSONSchema {
+	return provider.JSONSchema{
+		Name:        "terminology_extraction",
+		Description: "Extracted terminology entries from text",
+		Strict:      true,
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"terms": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"term":       map[string]any{"type": "string"},
+							"definition": map[string]any{"type": "string"},
+							"domain":     map[string]any{"type": "string"},
+						},
+						"required":             []string{"term", "definition", "domain"},
+						"additionalProperties": false,
+					},
+				},
+			},
+			"required":             []string{"terms"},
+			"additionalProperties": false,
+		},
+	}
+}
+
+// terminologyResult is the JSON structure returned by structured terminology extraction.
+type terminologyResult struct {
+	Terms []TermEntry `json:"terms"`
+}
+
 func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
@@ -62,35 +96,29 @@ func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
 	}
 
 	prompt := fmt.Sprintf(
-		`Extract key terminology%s from the following %s text.
-
-Text: %s
-
-Respond in JSON format with an array of term entries:
-[{"term": "<term>", "definition": "<brief definition>", "domain": "<domain>"}]
-If no notable terms found, return an empty array: []`,
+		"Extract key terminology%s from the following %s text. "+
+			"Return notable terms, or an empty array if none found.\n\nText: %s",
 		domainHint, t.locale, sourceText,
 	)
 
-	resp, err := t.provider.Chat(context.Background(), []provider.Message{
+	resp, err := t.provider.ChatStructured(context.Background(), []provider.Message{
 		{Role: "user", Content: prompt},
-	})
+	}, terminologySchema())
 	if err != nil {
 		return nil, fmt.Errorf("ai-terminology: %w", err)
 	}
 
-	var terms []TermEntry
-	content := strings.TrimSpace(resp.Content)
-	if err := json.Unmarshal([]byte(content), &terms); err != nil {
-		terms = nil
+	var result terminologyResult
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		result.Terms = nil
 	}
 
 	if block.Properties == nil {
 		block.Properties = make(map[string]string)
 	}
 
-	if len(terms) > 0 {
-		termsJSON, _ := json.Marshal(terms)
+	if len(result.Terms) > 0 {
+		termsJSON, _ := json.Marshal(result.Terms)
 		block.Properties["terminology"] = string(termsJSON)
 	}
 

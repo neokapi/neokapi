@@ -100,6 +100,56 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}, nil
 }
 
+func (p *OllamaProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+	ollamaMessages := make([]ollamaMessage, len(messages))
+	for i, m := range messages {
+		ollamaMessages[i] = ollamaMessage(m)
+	}
+
+	body := ollamaChatRequest{
+		Model:    p.config.Model,
+		Messages: ollamaMessages,
+		Stream:   false,
+		Format:   schema.Schema,
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/api/chat", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("ollama: create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	httpResp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("ollama: read response: %w", err)
+	}
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("ollama: API error %d: %s", httpResp.StatusCode, string(respBody))
+	}
+
+	var apiResp ollamaChatResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("ollama: unmarshal response: %w", err)
+	}
+
+	return &ChatResponse{
+		Content: apiResp.Message.Content,
+		Model:   apiResp.Model,
+	}, nil
+}
+
 func (p *OllamaProvider) Close() error { return nil }
 
 // Ollama API types
@@ -112,6 +162,7 @@ type ollamaChatRequest struct {
 	Model    string          `json:"model"`
 	Messages []ollamaMessage `json:"messages"`
 	Stream   bool            `json:"stream"`
+	Format   any             `json:"format,omitempty"` // JSON schema for structured output
 }
 
 type ollamaChatResponse struct {

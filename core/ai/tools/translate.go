@@ -2,8 +2,8 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -261,8 +261,46 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 	return nil
 }
 
-// translateBatch translates a batch of blocks in a single LLM call using a
-// numbered-list prompt. Falls back to individual translation on parse failure.
+// batchTranslationSchema returns a JSON schema for structured batch translation output.
+func batchTranslationSchema() provider.JSONSchema {
+	return provider.JSONSchema{
+		Name:        "batch_translations",
+		Description: "Batch translation results with index-text pairs",
+		Strict:      true,
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"translations": map[string]any{
+					"type": "array",
+					"items": map[string]any{
+						"type": "object",
+						"properties": map[string]any{
+							"index": map[string]any{"type": "integer"},
+							"text":  map[string]any{"type": "string"},
+						},
+						"required":             []string{"index", "text"},
+						"additionalProperties": false,
+					},
+				},
+			},
+			"required":             []string{"translations"},
+			"additionalProperties": false,
+		},
+	}
+}
+
+// batchResult is the JSON structure returned by structured batch translation.
+type batchResult struct {
+	Translations []struct {
+		Index int    `json:"index"`
+		Text  string `json:"text"`
+	} `json:"translations"`
+}
+
+// translateBatch translates a batch of blocks in a single LLM call using
+// structured output. The response is constrained to a JSON schema with
+// index-text pairs, eliminating text parsing ambiguity.
+// Falls back to individual translation for any missing entries.
 func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEntry) error {
 	if len(entries) == 1 {
 		_, err := t.handleBlock(entries[0].part)
@@ -273,10 +311,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	var prompt strings.Builder
 	fmt.Fprintf(&prompt,
 		"Translate each numbered segment from %s to %s.\n"+
-			"Rules:\n"+
-			"- Return ONLY the translations in the same [N] format\n"+
-			"- Preserve any XML/HTML tags exactly as they appear\n"+
-			"- One translation per line, starting with [N]\n\n",
+			"Preserve any XML/HTML tags exactly as they appear.\n\n",
 		t.sourceLocale, t.targetLocale,
 	)
 
@@ -292,63 +327,47 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
 	}
 
-	resp, err := t.provider.Chat(ctx, []provider.Message{
+	resp, err := t.provider.ChatStructured(ctx, []provider.Message{
 		{Role: "user", Content: prompt.String()},
-	})
+	}, batchTranslationSchema())
 	if err != nil {
 		return fmt.Errorf("ai-translate batch: %w", err)
 	}
 
-	// Parse numbered responses.
-	translations := ParseBatchResponse(resp.Content, len(entries))
+	// Parse structured JSON response.
+	var result batchResult
+	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {
+		return fmt.Errorf("ai-translate batch: unmarshal response: %w", err)
+	}
+
+	// Build index → text map from the structured response.
+	translations := make(map[int]string, len(result.Translations))
+	for _, tr := range result.Translations {
+		translations[tr.Index] = tr.Text
+	}
 
 	// Apply translations (fall back to individual calls for missing entries).
 	for i, entry := range entries {
-		if i >= len(translations) || translations[i] == "" {
+		text, ok := translations[i+1]
+		if !ok || text == "" {
 			if _, err := t.handleBlock(entry.part); err != nil {
 				return err
 			}
 			continue
 		}
 
-		translation := translations[i]
 		if entry.hasSpans {
-			targetFrag := model.ParsePlaceholderText(translation, entry.frag.Spans)
+			targetFrag := model.ParsePlaceholderText(text, entry.frag.Spans)
 			entry.block.SetTargetFragment(t.targetLocale, targetFrag)
 		} else {
-			entry.block.SetTargetText(t.targetLocale, translation)
+			entry.block.SetTargetText(t.targetLocale, text)
 		}
 		t.annotateTranslation(entry.block, &provider.TranslateResponse{
-			Translation: translation,
+			Translation: text,
 			Confidence:  0.85,
 			Model:       resp.Model,
 		})
 	}
 
 	return nil
-}
-
-// ParseBatchResponse extracts translations from a numbered-list LLM response.
-// Expected format: "[1] Translation one\n[2] Translation two\n..."
-func ParseBatchResponse(content string, expected int) []string {
-	result := make([]string, expected)
-	lines := strings.Split(content, "\n")
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if !strings.HasPrefix(line, "[") {
-			continue
-		}
-		closeBracket := strings.Index(line, "]")
-		if closeBracket < 2 {
-			continue
-		}
-		num, err := strconv.Atoi(line[1:closeBracket])
-		if err != nil || num < 1 || num > expected {
-			continue
-		}
-		result[num-1] = strings.TrimSpace(line[closeBracket+1:])
-	}
-
-	return result
 }

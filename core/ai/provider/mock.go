@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -9,12 +10,17 @@ import (
 
 // MockProvider implements LLMProvider for testing.
 type MockProvider struct {
-	ProviderName   string
-	TranslateFunc  func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
-	ChatFunc       func(ctx context.Context, messages []Message) (*ChatResponse, error)
-	TranslateCalls []TranslateRequest
-	ChatCalls      [][]Message
-	mu             sync.Mutex
+	ProviderName       string
+	TranslateFunc      func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
+	ChatFunc           func(ctx context.Context, messages []Message) (*ChatResponse, error)
+	ChatStructuredFunc func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
+	TranslateCalls     []TranslateRequest
+	ChatCalls          [][]Message
+	ChatStructuredCalls []struct {
+		Messages []Message
+		Schema   JSONSchema
+	}
+	mu sync.Mutex
 }
 
 // NewMockProvider creates a new mock provider with default behavior.
@@ -57,6 +63,39 @@ func (p *MockProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 	}
 	return &ChatResponse{
 		Content: "Mock response to: " + truncate(lastMsg, 50),
+		Model:   "mock-model",
+	}, nil
+}
+
+func (p *MockProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+	p.mu.Lock()
+	p.ChatStructuredCalls = append(p.ChatStructuredCalls, struct {
+		Messages []Message
+		Schema   JSONSchema
+	}{Messages: messages, Schema: schema})
+	p.mu.Unlock()
+	if p.ChatStructuredFunc != nil {
+		return p.ChatStructuredFunc(ctx, messages, schema)
+	}
+	// Default: return an empty JSON object matching common patterns
+	content := "{}"
+	if schema.Schema != nil {
+		if props, ok := schema.Schema["properties"].(map[string]any); ok {
+			result := make(map[string]any)
+			for key, prop := range props {
+				if propMap, ok := prop.(map[string]any); ok {
+					if propMap["type"] == "array" {
+						result[key] = []any{}
+					}
+				}
+			}
+			if b, err := json.Marshal(result); err == nil {
+				content = string(b)
+			}
+		}
+	}
+	return &ChatResponse{
+		Content: content,
 		Model:   "mock-model",
 	}, nil
 }

@@ -120,6 +120,72 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}, nil
 }
 
+func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error) {
+	apiMessages := make([]openaiMessage, len(messages))
+	for i, m := range messages {
+		apiMessages[i] = openaiMessage(m)
+	}
+
+	body := openaiRequest{
+		Model:    p.config.Model,
+		Messages: apiMessages,
+		ResponseFormat: &openaiResponseFormat{
+			Type: "json_schema",
+			JSONSchema: &openaiJSONSchemaRef{
+				Name:        schema.Name,
+				Description: schema.Description,
+				Schema:      schema.Schema,
+				Strict:      schema.Strict,
+			},
+		},
+	}
+	if p.config.MaxTokens > 0 {
+		body.MaxTokens = &p.config.MaxTokens
+	}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("openai: marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", p.config.BaseURL+"/v1/chat/completions", bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("openai: create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+p.config.APIKey)
+
+	httpResp, err := p.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("openai: request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	respBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("openai: read response: %w", err)
+	}
+
+	if httpResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("openai: API error %d: %s", httpResp.StatusCode, string(respBody))
+	}
+
+	var apiResp openaiResponse
+	if err := json.Unmarshal(respBody, &apiResp); err != nil {
+		return nil, fmt.Errorf("openai: unmarshal response: %w", err)
+	}
+
+	if len(apiResp.Choices) == 0 {
+		return nil, fmt.Errorf("openai: no choices in response")
+	}
+
+	return &ChatResponse{
+		Content: apiResp.Choices[0].Message.Content,
+		Model:   apiResp.Model,
+	}, nil
+}
+
 func (p *OpenAIProvider) Close() error { return nil }
 
 // OpenAI API types
@@ -129,9 +195,22 @@ type openaiMessage struct {
 }
 
 type openaiRequest struct {
-	Model     string          `json:"model"`
-	Messages  []openaiMessage `json:"messages"`
-	MaxTokens *int            `json:"max_tokens,omitempty"`
+	Model          string               `json:"model"`
+	Messages       []openaiMessage      `json:"messages"`
+	MaxTokens      *int                 `json:"max_tokens,omitempty"`
+	ResponseFormat *openaiResponseFormat `json:"response_format,omitempty"`
+}
+
+type openaiResponseFormat struct {
+	Type       string               `json:"type"` // "json_schema"
+	JSONSchema *openaiJSONSchemaRef `json:"json_schema,omitempty"`
+}
+
+type openaiJSONSchemaRef struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Schema      map[string]any `json:"schema"`
+	Strict      bool           `json:"strict"`
 }
 
 type openaiResponse struct {
