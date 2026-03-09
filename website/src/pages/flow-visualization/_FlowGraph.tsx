@@ -14,6 +14,7 @@ interface FlowGraphProps {
 
 const NODE_WIDTH = 160;
 const NODE_HEIGHT = 80;
+const WORKER_LANE_HEIGHT = 24;
 const BRIDGE_WIDTH = 240;
 const NODE_GAP = 120;
 const PADDING_X = 60;
@@ -41,6 +42,19 @@ function getNodeWidth(node: FlowNode): number {
   return node.bridge ? BRIDGE_WIDTH : NODE_WIDTH;
 }
 
+function getNodeHeight(node: FlowNode): number {
+  const c = node.concurrency ?? 0;
+  if (c > 1) {
+    // Base height + lanes for each worker
+    return NODE_HEIGHT + (c - 1) * WORKER_LANE_HEIGHT;
+  }
+  return NODE_HEIGHT;
+}
+
+function getMaxNodeHeight(nodes: FlowNode[]): number {
+  return Math.max(NODE_HEIGHT, ...nodes.map(getNodeHeight));
+}
+
 function getNodeX(nodes: FlowNode[], index: number): number {
   let x = PADDING_X;
   for (let i = 0; i < index; i++) {
@@ -49,9 +63,9 @@ function getNodeX(nodes: FlowNode[], index: number): number {
   return x;
 }
 
-function getNodeCenter(nodes: FlowNode[], index: number): { x: number; y: number } {
+function getNodeCenter(nodes: FlowNode[], index: number, maxHeight: number): { x: number; y: number } {
   const x = getNodeX(nodes, index) + getNodeWidth(nodes[index]) / 2;
-  const y = PADDING_Y + NODE_HEIGHT / 2;
+  const y = PADDING_Y + maxHeight / 2;
   return { x, y };
 }
 
@@ -78,8 +92,9 @@ export default function FlowGraph({
   selectedPartId,
   onPartClick,
 }: FlowGraphProps): React.ReactElement {
+  const maxNodeHeight = getMaxNodeHeight(nodes);
   const totalWidth = getTotalWidth(nodes);
-  const totalHeight = PADDING_Y * 2 + NODE_HEIGHT;
+  const totalHeight = PADDING_Y * 2 + maxNodeHeight;
 
   // Build node index for particle lookups
   const nodeIndexMap = new Map<string, number>();
@@ -111,8 +126,8 @@ export default function FlowGraph({
       {/* Edges */}
       {nodes.map((node, i) => {
         if (i >= nodes.length - 1) return null;
-        const fromCenter = getNodeCenter(nodes, i);
-        const toCenter = getNodeCenter(nodes, i + 1);
+        const fromCenter = getNodeCenter(nodes, i, maxNodeHeight);
+        const toCenter = getNodeCenter(nodes, i + 1, maxNodeHeight);
         const fromX = fromCenter.x + getNodeWidth(node) / 2;
         const toX = toCenter.x - getNodeWidth(nodes[i + 1]) / 2;
         const y = fromCenter.y;
@@ -125,7 +140,7 @@ export default function FlowGraph({
         const fillRatio = Math.min(1, fill / Math.max(1, channelSize));
 
         const meterX = (fromX + toX) / 2 - 30;
-        const meterY = y + NODE_HEIGHT / 2 + 8;
+        const meterY = y + maxNodeHeight / 2 + 8;
         const meterWidth = 60;
         const meterHeight = 6;
 
@@ -171,10 +186,13 @@ export default function FlowGraph({
       {/* Nodes */}
       {nodes.map((node, i) => {
         const x = getNodeX(nodes, i);
-        const y = PADDING_Y;
+        const h = getNodeHeight(node);
+        // Vertically center each node within maxNodeHeight
+        const y = PADDING_Y + (maxNodeHeight - h) / 2;
         const w = getNodeWidth(node);
         const isActive = activeNodes.has(node.id);
         const colors = NODE_COLORS[node.type] || NODE_COLORS.tool;
+        const concurrency = node.concurrency ?? 0;
 
         return (
           <g key={node.id} className={isActive ? styles.nodeActive : undefined}>
@@ -182,7 +200,7 @@ export default function FlowGraph({
               x={x}
               y={y}
               width={w}
-              height={NODE_HEIGHT}
+              height={h}
               fill={colors.fill}
               stroke={colors.stroke}
               className={styles.nodeRect}
@@ -192,7 +210,7 @@ export default function FlowGraph({
                 x={x + 12}
                 y={y + 12}
                 width={w - 24}
-                height={NODE_HEIGHT - 24}
+                height={h - 24}
                 fill="none"
                 stroke={colors.stroke}
                 strokeDasharray="4 3"
@@ -209,7 +227,7 @@ export default function FlowGraph({
             </text>
             <text
               x={x + w / 2}
-              y={y + NODE_HEIGHT / 2 + 4}
+              y={y + 38}
               className={styles.nodeLabel}
             >
               {node.label}
@@ -217,11 +235,50 @@ export default function FlowGraph({
             {node.bridge && (
               <text
                 x={x + w / 2}
-                y={y + NODE_HEIGHT - 10}
+                y={y + h - 10}
                 className={styles.bridgeLabel}
               >
                 {node.bridge.filterClass}
               </text>
+            )}
+            {/* Worker lanes for concurrent nodes */}
+            {concurrency > 1 && (
+              <g>
+                {Array.from({ length: concurrency }, (_, wi) => {
+                  const laneY = y + 52 + wi * WORKER_LANE_HEIGHT;
+                  const laneW = w - 20;
+                  const laneH = WORKER_LANE_HEIGHT - 4;
+                  // Count active particles in this worker lane
+                  const laneActive = particles.some(
+                    p => p.position === 'node' && p.nodeId === node.id && p.worker === wi,
+                  );
+                  return (
+                    <g key={`lane-${wi}`}>
+                      <rect
+                        x={x + 10}
+                        y={laneY}
+                        width={laneW}
+                        height={laneH}
+                        rx={4}
+                        ry={4}
+                        fill={laneActive ? colors.stroke : 'transparent'}
+                        opacity={laneActive ? 0.15 : 1}
+                        stroke={colors.stroke}
+                        strokeWidth={1}
+                        strokeDasharray={laneActive ? 'none' : '3 2'}
+                        strokeOpacity={0.4}
+                      />
+                      <text
+                        x={x + 18}
+                        y={laneY + laneH / 2 + 1}
+                        className={styles.workerLabel}
+                      >
+                        w{wi}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
             )}
           </g>
         );
@@ -235,14 +292,26 @@ export default function FlowGraph({
         if (particle.position === 'node' && particle.nodeId) {
           const nIdx = nodeIndexMap.get(particle.nodeId);
           if (nIdx === undefined) return null;
-          const center = getNodeCenter(nodes, nIdx);
+          const node = nodes[nIdx];
+          const center = getNodeCenter(nodes, nIdx, maxNodeHeight);
           cx = center.x;
           cy = center.y;
+
+          // Position in worker lane if concurrent node
+          const concurrency = node.concurrency ?? 0;
+          if (concurrency > 1 && particle.worker !== undefined) {
+            const h = getNodeHeight(node);
+            const nodeY = PADDING_Y + (maxNodeHeight - h) / 2;
+            const laneY = nodeY + 52 + particle.worker * WORKER_LANE_HEIGHT;
+            const laneH = WORKER_LANE_HEIGHT - 4;
+            cy = laneY + laneH / 2;
+            cx = center.x + 16; // offset right of the "w0" label
+          }
         } else if (particle.position === 'edge' && particle.edgeIndex !== undefined) {
           const i = particle.edgeIndex;
           if (i >= nodes.length - 1) return null;
-          const fromCenter = getNodeCenter(nodes, i);
-          const toCenter = getNodeCenter(nodes, i + 1);
+          const fromCenter = getNodeCenter(nodes, i, maxNodeHeight);
+          const toCenter = getNodeCenter(nodes, i + 1, maxNodeHeight);
           const fromX = fromCenter.x + getNodeWidth(nodes[i]) / 2;
           const toX = toCenter.x - getNodeWidth(nodes[i + 1]) / 2;
           const progress = particle.progress ?? 0.5;
