@@ -151,12 +151,21 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		locales[i] = model.LocaleID(l)
 	}
 
+	workspaceID := existing.WorkspaceID // preserve existing workspace association
+	if req.Workspace != "" && s.AuthStore != nil {
+		// Allow setting/changing workspace via slug.
+		ws, err := s.AuthStore.GetWorkspaceBySlug(ctx, req.Workspace)
+		if err == nil {
+			workspaceID = ws.ID
+		}
+	}
+
 	p := &store.Project{
 		ID:            projectID,
 		Name:          req.Name,
 		SourceLocale:  model.LocaleID(req.SourceLocale),
 		TargetLocales: locales,
-		WorkspaceID:   existing.WorkspaceID, // preserve existing workspace association
+		WorkspaceID:   workspaceID,
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

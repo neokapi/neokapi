@@ -24,7 +24,7 @@ func (s *Server) HandleCreateEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	ws := c.Param("ws")
+	wsID, _ := c.Get("workspace_id").(string)
 	var req struct {
 		Name          string   `json:"name"`
 		SourceLocale  string   `json:"source_locale"`
@@ -34,7 +34,7 @@ func (s *Server) HandleCreateEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, ws, req.Name, req.SourceLocale, req.TargetLocales)
+	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, wsID, req.Name, req.SourceLocale, req.TargetLocales)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -70,7 +70,7 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	ws := c.Param("ws")
+	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()
 
 	projects, err := s.ContentStore.ListProjects(ctx)
@@ -78,10 +78,10 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Filter by workspace.
+	// Filter by workspace (using UUID from middleware context).
 	var result []*ProjectInfoResponse
 	for _, p := range projects {
-		if p.WorkspaceID == ws {
+		if p.WorkspaceID == wsID {
 			result = append(result, projectToInfoResponse(p))
 		}
 	}
