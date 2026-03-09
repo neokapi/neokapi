@@ -29,11 +29,12 @@ func IsEntityTypeString(typeName string) bool {
 // Implements the Annotation interface. Used by entity-annotate tool,
 // TM generalization (ADR-010), and terminology management (ADR-016).
 type EntityAnnotation struct {
-	Text     string     // the entity text as found in source
-	Type     EntityType // classification
-	Position TextRange  // character offset range in source text
-	Locale   LocaleID   // locale-specific formatting hint
-	DNT      bool       // do-not-translate flag
+	Text     string           // the entity text as found in source
+	Type     EntityType       // classification
+	Position TextRange        // character offset range in source text
+	Locale   LocaleID         // locale-specific formatting hint
+	DNT      bool             // do-not-translate flag
+	Source   ExtractionSource // how this entity was discovered ("llm", "ner", "manual")
 }
 
 // AnnotationType returns the type identifier for entity annotations.
