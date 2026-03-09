@@ -156,6 +156,7 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		Name:          req.Name,
 		SourceLocale:  model.LocaleID(req.SourceLocale),
 		TargetLocales: locales,
+		WorkspaceID:   existing.WorkspaceID, // preserve existing workspace association
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
