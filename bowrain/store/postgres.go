@@ -249,7 +249,8 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
-			targets_json=EXCLUDED.targets_json, properties=EXCLUDED.properties,
+			targets_json=CASE WHEN EXCLUDED.targets_json IN ('{}', 'null', '') THEN blocks.targets_json ELSE EXCLUDED.targets_json END,
+			properties=EXCLUDED.properties,
 			annotations=EXCLUDED.annotations, updated_at=EXCLUDED.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)

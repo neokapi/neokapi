@@ -266,7 +266,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 			name=excluded.name, type=excluded.type, mime_type=excluded.mime_type,
 			translatable=excluded.translatable, content_hash=excluded.content_hash,
 			context_hash=excluded.context_hash, source_json=excluded.source_json,
-			targets_json=excluded.targets_json, properties=excluded.properties,
+			targets_json=CASE WHEN excluded.targets_json IN ('{}', 'null', '') THEN blocks.targets_json ELSE excluded.targets_json END,
+			properties=excluded.properties,
 			annotations=excluded.annotations, updated_at=excluded.updated_at`)
 	if err != nil {
 		return fmt.Errorf("prepare stmt: %w", err)
