@@ -223,4 +223,50 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_automation_history_rule ON automation_history(rule_id);
 		`,
 	},
+	{
+		Version:     13,
+		Description: "create review queue tables (AD-022)",
+		SQL: `
+			CREATE TABLE review_items (
+				id            TEXT PRIMARY KEY,
+				project_id    TEXT NOT NULL,
+				type          TEXT NOT NULL,
+				status        TEXT NOT NULL DEFAULT 'pending',
+				push_id       TEXT NOT NULL DEFAULT '',
+				data          TEXT NOT NULL,
+				occurrences   TEXT NOT NULL DEFAULT '[]',
+				assigned_to   TEXT NOT NULL DEFAULT '',
+				decided_by    TEXT NOT NULL DEFAULT '',
+				decided_at    TEXT NOT NULL DEFAULT '',
+				comment       TEXT NOT NULL DEFAULT '',
+				edits         TEXT NOT NULL DEFAULT '{}',
+				confidence    REAL NOT NULL DEFAULT 0,
+				locale        TEXT NOT NULL DEFAULT '',
+				created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+				FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+			);
+			CREATE INDEX idx_review_items_project_status ON review_items(project_id, status);
+			CREATE INDEX idx_review_items_project_type ON review_items(project_id, type);
+			CREATE INDEX idx_review_items_assigned ON review_items(project_id, assigned_to);
+			CREATE INDEX idx_review_items_confidence ON review_items(project_id, confidence);
+
+			CREATE TABLE rejected_terms (
+				project_id  TEXT NOT NULL,
+				term_text   TEXT NOT NULL,
+				locale      TEXT NOT NULL,
+				rejected_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, term_text, locale)
+			);
+
+			CREATE TABLE dnt_entries (
+				project_id  TEXT NOT NULL,
+				text        TEXT NOT NULL,
+				entity_type TEXT NOT NULL DEFAULT '',
+				locale      TEXT NOT NULL,
+				source      TEXT NOT NULL DEFAULT '',
+				created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, text, locale)
+			);
+		`,
+	},
 }
