@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/gokapi/gokapi/bowrain/event"
+	"github.com/gokapi/gokapi/core/id"
 	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -46,7 +46,7 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 	}
 
 	rule := &event.StoredRule{
-		ID:         uuid.NewString(),
+		ID:         id.New(),
 		ProjectID:  projectID,
 		Name:       req.Name,
 		Trigger:    platev.EventType(req.Trigger),

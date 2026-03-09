@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/google/uuid"
 )
 
 // AddBlockNote inserts a new block note.
 func (s *PostgresStore) AddBlockNote(ctx context.Context, projectID, blockID string, note model.BlockNote) error {
 	if note.ID == "" {
-		note.ID = uuid.NewString()
+		note.ID = id.New()
 	}
 	if note.CreatedAt.IsZero() {
 		note.CreatedAt = time.Now().UTC()

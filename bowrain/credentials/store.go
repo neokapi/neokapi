@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/google/uuid"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/zalando/go-keyring"
 )
 
@@ -82,7 +82,7 @@ func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
 	defer s.mu.Unlock()
 
 	if cfg.ID == "" {
-		cfg.ID = uuid.New().String()
+		cfg.ID = id.New()
 	}
 
 	for i, c := range s.configs {

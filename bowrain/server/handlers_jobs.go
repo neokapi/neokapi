@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/google/uuid"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/labstack/echo/v4"
 )
 
@@ -41,7 +41,7 @@ func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	}
 
 	job := &jobs.TranslationJob{
-		ID:               uuid.NewString(),
+		ID:               id.New(),
 		WorkspaceSlug:    ws,
 		ProjectID:        req.ProjectID,
 		ItemName:         req.ItemName,
@@ -100,7 +100,7 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 	}
 
 	job := &jobs.TranslationJob{
-		ID:               uuid.NewString(),
+		ID:               id.New(),
 		WorkspaceSlug:    "_anon",
 		ProjectID:        projectID,
 		ItemName:         req.ItemName,

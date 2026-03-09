@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/gokapi/gokapi/core/id"
 	platauth "github.com/gokapi/gokapi/platform/auth"
-	"github.com/google/uuid"
 )
 
 var authMigrations = []storage.Migration{
@@ -175,7 +175,7 @@ func (s *SQLiteAuthStore) Close() error {
 
 func (s *SQLiteAuthStore) CreateUser(ctx context.Context, u *platauth.User) error {
 	if u.ID == "" {
-		u.ID = uuid.NewString()
+		u.ID = id.New()
 	}
 	if u.CreatedAt.IsZero() {
 		u.CreatedAt = time.Now().UTC()
@@ -227,7 +227,7 @@ func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *platauth.User) erro
 
 func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	if w.ID == "" {
-		w.ID = uuid.NewString()
+		w.ID = id.New()
 	}
 	now := time.Now().UTC()
 	if w.CreatedAt.IsZero() {
@@ -508,7 +508,7 @@ func (s *SQLiteAuthStore) PurgeExpiredUnclaimed(ctx context.Context) (int, error
 
 func (s *SQLiteAuthStore) CreateInvite(ctx context.Context, inv *platauth.Invite) error {
 	if inv.ID == "" {
-		inv.ID = uuid.NewString()
+		inv.ID = id.New()
 	}
 	if inv.CreatedAt.IsZero() {
 		inv.CreatedAt = time.Now().UTC()
@@ -590,7 +590,7 @@ func (s *SQLiteAuthStore) DeleteInvite(ctx context.Context, inviteID string) err
 // ---------------------------------------------------------------------------
 
 func (s *SQLiteAuthStore) StoreRefreshToken(ctx context.Context, userID, tokenHash string, expiresAt time.Time) (string, error) {
-	id := uuid.NewString()
+	id := id.New()
 	now := time.Now().UTC()
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`,
@@ -644,7 +644,7 @@ func (s *SQLiteAuthStore) RevokeUserRefreshTokens(ctx context.Context, userID st
 
 func (s *SQLiteAuthStore) CreateAPIToken(ctx context.Context, token *platauth.APIToken, tokenHash string) error {
 	if token.ID == "" {
-		token.ID = uuid.NewString()
+		token.ID = id.New()
 	}
 	if token.CreatedAt.IsZero() {
 		token.CreatedAt = time.Now().UTC()

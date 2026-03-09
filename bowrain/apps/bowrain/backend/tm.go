@@ -8,8 +8,8 @@ import (
 
 	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
 	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/sievepen"
-	"github.com/google/uuid"
 )
 
 // TMEntryInfo is the frontend-facing representation of a TM entry.
@@ -208,7 +208,7 @@ func (a *App) AddTMEntry(projectID, source, target, sourceLocale, targetLocale s
 
 	now := time.Now()
 	entry := sievepen.TMEntry{
-		ID:           uuid.New().String(),
+		ID:           id.New(),
 		Source:       model.NewFragment(source),
 		Target:       model.NewFragment(target),
 		SourceLocale: model.LocaleID(sourceLocale),
