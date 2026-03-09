@@ -241,11 +241,35 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	// When storing blocks for a specific item, map format-reader IDs (source_id)
+	// to internal project-unique IDs.
+	existingSourceIDs := map[string]string{} // source_id → internal id
+	if itemName != "" {
+		rows, err := tx.QueryContext(ctx,
+			`SELECT source_id, id FROM blocks WHERE project_id=$1 AND item_name=$2 AND source_id != ''`,
+			projectID, itemName)
+		if err != nil {
+			return fmt.Errorf("load source_id mapping: %w", err)
+		}
+		for rows.Next() {
+			var srcID, intID string
+			if err := rows.Scan(&srcID, &intID); err != nil {
+				rows.Close()
+				return fmt.Errorf("scan source_id mapping: %w", err)
+			}
+			existingSourceIDs[srcID] = intID
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return fmt.Errorf("source_id mapping rows: %w", err)
+		}
+	}
+
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO blocks (id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
+		`INSERT INTO blocks (id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-		 ON CONFLICT(project_id, item_name, id) DO UPDATE SET
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		 ON CONFLICT(project_id, id) DO UPDATE SET
 			name=EXCLUDED.name, type=EXCLUDED.type, mime_type=EXCLUDED.mime_type,
 			translatable=EXCLUDED.translatable, content_hash=EXCLUDED.content_hash,
 			context_hash=EXCLUDED.context_hash, source_json=EXCLUDED.source_json,
@@ -258,7 +282,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 	defer stmt.Close()
 
 	hashStmt, err := tx.PrepareContext(ctx,
-		`SELECT content_hash, targets_json FROM blocks WHERE project_id = $1 AND item_name = $2 AND id = $3`)
+		`SELECT content_hash, targets_json FROM blocks WHERE project_id = $1 AND id = $2`)
 	if err != nil {
 		return fmt.Errorf("prepare hash lookup: %w", err)
 	}
@@ -266,58 +290,70 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 
 	now := time.Now().UTC()
 	for _, b := range blocks {
+		sourceID := ""
+		internalID := b.ID
+
+		if itemName != "" {
+			sourceID = b.ID
+			if existingID, found := existingSourceIDs[sourceID]; found {
+				internalID = existingID
+			} else {
+				internalID = newBlockID()
+				existingSourceIDs[sourceID] = internalID
+			}
+			b.ID = internalID
+		}
+
 		identity := model.ComputeIdentity(b)
 
 		var existingHash, existingTargetsJSON string
-		hashErr := hashStmt.QueryRowContext(ctx, projectID, itemName, b.ID).Scan(&existingHash, &existingTargetsJSON)
+		hashErr := hashStmt.QueryRowContext(ctx, projectID, internalID).Scan(&existingHash, &existingTargetsJSON)
 		if hashErr != nil && hashErr != sql.ErrNoRows {
-			return fmt.Errorf("hash lookup for block %s: %w", b.ID, hashErr)
+			return fmt.Errorf("hash lookup for block %s: %w", internalID, hashErr)
 		}
 		isNew := hashErr == sql.ErrNoRows
 
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
-			return fmt.Errorf("marshal source for block %s: %w", b.ID, err)
+			return fmt.Errorf("marshal source for block %s: %w", internalID, err)
 		}
 		targetsJSON, err := json.Marshal(b.Targets)
 		if err != nil {
-			return fmt.Errorf("marshal targets for block %s: %w", b.ID, err)
+			return fmt.Errorf("marshal targets for block %s: %w", internalID, err)
 		}
 		propsJSON, err := json.Marshal(b.Properties)
 		if err != nil {
-			return fmt.Errorf("marshal properties for block %s: %w", b.ID, err)
+			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
 		annsJSON, err := json.Marshal(b.Annotations)
 		if err != nil {
-			return fmt.Errorf("marshal annotations for block %s: %w", b.ID, err)
+			return fmt.Errorf("marshal annotations for block %s: %w", internalID, err)
 		}
 
 		_, err = stmt.ExecContext(ctx,
-			b.ID, projectID, itemName, b.Name, b.Type, b.MimeType, b.Translatable,
+			internalID, projectID, itemName, sourceID, b.Name, b.Type, b.MimeType, b.Translatable,
 			identity.ContentHash, identity.ContextHash,
 			string(sourceJSON), string(targetsJSON),
 			string(propsJSON), string(annsJSON), now, now)
 		if err != nil {
-			return fmt.Errorf("store block %s: %w", b.ID, err)
+			return fmt.Errorf("store block %s: %w", internalID, err)
 		}
 
 		if isNew {
-			if err := logChangePg(ctx, tx, projectID, b.ID, "source_added", "", identity.ContentHash); err != nil {
-				return fmt.Errorf("log change for block %s: %w", b.ID, err)
+			if err := logChangePg(ctx, tx, projectID, internalID, "source_added", "", identity.ContentHash); err != nil {
+				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
-			// Log target additions for new blocks that already have translations.
 			for locale := range b.Targets {
-				if err := logChangePg(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
-					return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+				if err := logChangePg(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 				}
 			}
 		} else {
 			if existingHash != identity.ContentHash {
-				if err := logChangePg(ctx, tx, projectID, b.ID, "source_modified", "", identity.ContentHash); err != nil {
-					return fmt.Errorf("log change for block %s: %w", b.ID, err)
+				if err := logChangePg(ctx, tx, projectID, internalID, "source_modified", "", identity.ContentHash); err != nil {
+					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
-			// Log target changes by comparing old and new targets.
 			if len(b.Targets) > 0 {
 				var oldTargets map[model.LocaleID][]*model.Segment
 				if existingTargetsJSON != "" {
@@ -326,15 +362,15 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 				for locale, newSegs := range b.Targets {
 					oldSegs, had := oldTargets[locale]
 					if !had {
-						if err := logChangePg(ctx, tx, projectID, b.ID, "target_added", string(locale), ""); err != nil {
-							return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+						if err := logChangePg(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+							return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 						}
 					} else {
 						oldJSON, _ := json.Marshal(oldSegs)
 						newJSON, _ := json.Marshal(newSegs)
 						if string(oldJSON) != string(newJSON) {
-							if err := logChangePg(ctx, tx, projectID, b.ID, "target_modified", string(locale), ""); err != nil {
-								return fmt.Errorf("log target change for block %s locale %s: %w", b.ID, locale, err)
+							if err := logChangePg(ctx, tx, projectID, internalID, "target_modified", string(locale), ""); err != nil {
+								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 							}
 						}
 					}
@@ -346,34 +382,17 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 	return tx.Commit()
 }
 
+
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, blockID string) (*platstore.StoredBlock, error) {
-	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
 		 FROM blocks WHERE project_id=$1 AND id=$2`, projectID, blockID)
+	sb, err := scanStoredBlockPg(row)
 	if err != nil {
-		return nil, fmt.Errorf("query block: %w", err)
-	}
-	defer rows.Close()
-
-	var result *platstore.StoredBlock
-	for rows.Next() {
-		sb, err := scanStoredBlockPg(rows)
-		if err != nil {
-			return nil, err
-		}
-		if result != nil {
-			return nil, fmt.Errorf("block ID %s is ambiguous - found in multiple items", blockID)
-		}
-		result = sb
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	if result == nil {
 		return nil, fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
-	return result, nil
+	return sb, nil
 }
 
 func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuery) ([]*platstore.StoredBlock, error) {
@@ -406,7 +425,7 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	}
 
 	q := fmt.Sprintf(
-		`SELECT id, project_id, item_name, name, type, mime_type, translatable, content_hash, context_hash,
+		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
 		 FROM blocks WHERE %s ORDER BY id`, strings.Join(where, " AND "))
 
@@ -618,7 +637,7 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	var sourceJSON, targetsJSON, propsJSON, annsJSON string
 
 	err := row.Scan(
-		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.Block.Name, &sb.Block.Type,
+		&sb.Block.ID, &sb.ProjectID, &sb.ItemName, &sb.SourceID, &sb.Block.Name, &sb.Block.Type,
 		&sb.Block.MimeType, &sb.Block.Translatable, &sb.ContentHash, &sb.ContextHash,
 		&sourceJSON, &targetsJSON, &propsJSON, &annsJSON, &sb.StoredAt, &sb.UpdatedAt)
 	if err != nil {
