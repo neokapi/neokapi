@@ -262,6 +262,7 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 	chunkCount := 0
 	totalStored := 0
 	var lastCursor int64
+	var pushID string
 
 	for i := 0; i < len(changed); i += c.maxBatch {
 		end := min(i+c.maxBatch, len(changed))
@@ -284,6 +285,9 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 		}
 		totalStored += resp.Stored
 		lastCursor = resp.NewCursor
+		if resp.PushID != "" {
+			pushID = resp.PushID
+		}
 		chunkCount++
 	}
 
@@ -312,6 +316,7 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 		FilesScanned: len(hashMap),
 		ChunkCount:   chunkCount,
 		WordCount:    pushWords,
+		PushID:       pushID,
 	}, nil
 }
 
@@ -657,6 +662,11 @@ func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string)
 	}
 	hash, found := fc.Blocks[blockID]
 	return hash, found
+}
+
+// Client returns the underlying BowrainClient for direct API calls (e.g. PushStatus).
+func (c *BrainSourceConnector) Client() *apiclient.BowrainClient {
+	return c.client
 }
 
 // Ensure BrainSourceConnector implements SourceConnector at compile time.

@@ -10,4 +10,5 @@ type JobStore interface {
 	UpdateJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks int) error
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
 	DeleteJob(ctx context.Context, id string) error
+	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
 }
