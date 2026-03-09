@@ -1,0 +1,159 @@
+package tools
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/tool"
+)
+
+// Diff leverage property keys stored on Block.Properties.
+const (
+	PropDiffLeverageStatus = "diff-leverage-status" // "unchanged", "modified", "new", "leveraged"
+	PropDiffLeverageScore  = "diff-leverage-score"  // Similarity score (0-100) for fuzzy matches
+)
+
+// PreviousBlock holds the previous version of a block's source and target text.
+type PreviousBlock struct {
+	SourceText string
+	TargetText string
+}
+
+// DiffLeverageConfig holds configuration for the diff leverage tool.
+type DiffLeverageConfig struct {
+	TargetLocale  model.LocaleID          // Required
+	PreviousTexts map[string]PreviousBlock // Map of block ID → previous source text + translation
+	CaseSensitive bool                    // Whether comparison is case-sensitive (default: true)
+	FuzzyMatch    bool                    // Enable fuzzy matching for similar texts (default: false)
+}
+
+// ToolName returns the tool name this config applies to.
+func (c *DiffLeverageConfig) ToolName() string { return "diff-leverage" }
+
+// Reset restores default values.
+func (c *DiffLeverageConfig) Reset() {
+	c.TargetLocale = ""
+	c.PreviousTexts = nil
+	c.CaseSensitive = true
+	c.FuzzyMatch = false
+}
+
+// Validate checks configuration validity.
+func (c *DiffLeverageConfig) Validate() error {
+	if c.TargetLocale.IsEmpty() {
+		return fmt.Errorf("diff-leverage: TargetLocale is required")
+	}
+	if c.PreviousTexts == nil {
+		return fmt.Errorf("diff-leverage: PreviousTexts is required")
+	}
+	return nil
+}
+
+// NewDiffLeverageTool creates a diff leverage tool that compares blocks between
+// an old document version and the current pipeline. It preserves existing
+// translations for unchanged source text, avoiding re-translation of unchanged content.
+func NewDiffLeverageTool(cfg *DiffLeverageConfig) *tool.BaseTool {
+	t := &tool.BaseTool{
+		ToolName:        "diff-leverage",
+		ToolDescription: "Compares blocks against previous version, preserving translations for unchanged text",
+		Cfg:             cfg,
+	}
+	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
+		block, ok := part.Resource.(*model.Block)
+		if !ok {
+			return part, nil
+		}
+		if !block.Translatable {
+			return part, nil
+		}
+
+		conf := t.Cfg.(*DiffLeverageConfig)
+
+		if block.Properties == nil {
+			block.Properties = make(map[string]string)
+		}
+
+		sourceText := block.SourceText()
+
+		prev, found := conf.PreviousTexts[block.ID]
+		if !found {
+			block.Properties[PropDiffLeverageStatus] = "new"
+			return part, nil
+		}
+
+		// Compare source texts.
+		srcMatch := sourceText == prev.SourceText
+		if !conf.CaseSensitive {
+			srcMatch = strings.EqualFold(sourceText, prev.SourceText)
+		}
+
+		if srcMatch {
+			block.Properties[PropDiffLeverageStatus] = "unchanged"
+			if prev.TargetText != "" {
+				block.SetTargetText(conf.TargetLocale, prev.TargetText)
+			}
+			return part, nil
+		}
+
+		// Source text differs.
+		if conf.FuzzyMatch {
+			a, b := sourceText, prev.SourceText
+			if !conf.CaseSensitive {
+				a = strings.ToLower(a)
+				b = strings.ToLower(b)
+			}
+			score := similarityScore(a, b)
+			if score > 70 {
+				block.Properties[PropDiffLeverageStatus] = "leveraged"
+				block.Properties[PropDiffLeverageScore] = strconv.Itoa(score)
+				if prev.TargetText != "" {
+					block.SetTargetText(conf.TargetLocale, prev.TargetText)
+				}
+				return part, nil
+			}
+		}
+
+		block.Properties[PropDiffLeverageStatus] = "modified"
+		return part, nil
+	}
+	return t
+}
+
+// levenshteinDistance computes the Levenshtein edit distance between two strings.
+func levenshteinDistance(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	la, lb := len(ra), len(rb)
+	d := make([][]int, la+1)
+	for i := range d {
+		d[i] = make([]int, lb+1)
+		d[i][0] = i
+	}
+	for j := 0; j <= lb; j++ {
+		d[0][j] = j
+	}
+	for i := 1; i <= la; i++ {
+		for j := 1; j <= lb; j++ {
+			cost := 0
+			if ra[i-1] != rb[j-1] {
+				cost = 1
+			}
+			d[i][j] = min(d[i-1][j]+1, min(d[i][j-1]+1, d[i-1][j-1]+cost))
+		}
+	}
+	return d[la][lb]
+}
+
+// similarityScore returns a percentage (0-100) indicating how similar two strings are.
+func similarityScore(a, b string) int {
+	if a == b {
+		return 100
+	}
+	maxLen := max(len([]rune(a)), len([]rune(b)))
+	if maxLen == 0 {
+		return 100
+	}
+	dist := levenshteinDistance(a, b)
+	return int(float64(maxLen-dist) / float64(maxLen) * 100)
+}
