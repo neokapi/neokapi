@@ -4,6 +4,7 @@ export interface FlowNode {
   type: 'reader' | 'tool' | 'writer' | 'bridge-reader' | 'bridge-writer';
   name: string;
   label: string;
+  concurrency?: number; // number of parallel workers (e.g. 3 for --parallel-blocks 3)
   bridge?: {
     filterClass: string;
     protocol: 'grpc' | 'netrpc';
@@ -87,4 +88,5 @@ export interface Particle {
   edgeIndex?: number;
   progress?: number;
   summary: string;
+  worker?: number; // which worker lane (0-indexed) for concurrent nodes
 }

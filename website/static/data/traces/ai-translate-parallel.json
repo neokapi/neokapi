@@ -3,7 +3,7 @@
   "description": "AI translation with --parallel-blocks 3: blocks enter the tool quickly but are processed concurrently by 3 workers, showing overlapping API calls",
   "nodes": [
     { "id": "reader", "type": "reader", "name": "json", "label": "JSON Reader" },
-    { "id": "tool-0", "type": "tool", "name": "ai-translate", "label": "AI Translate (×3)" },
+    { "id": "tool-0", "type": "tool", "name": "ai-translate", "label": "AI Translate", "concurrency": 3 },
     { "id": "writer", "type": "writer", "name": "json", "label": "JSON Writer" }
   ],
   "channelSize": 64,
@@ -22,9 +22,9 @@
     { "ts": 270, "type": "enter", "nodeId": "writer", "partId": "layer-1" },
     { "ts": 290, "type": "exit", "nodeId": "writer", "partId": "layer-1" },
 
-    { "ts": 300, "type": "enter", "nodeId": "tool-0", "partId": "block-title" },
-    { "ts": 310, "type": "enter", "nodeId": "tool-0", "partId": "block-subtitle" },
-    { "ts": 320, "type": "enter", "nodeId": "tool-0", "partId": "block-intro" },
+    { "ts": 300, "type": "enter", "nodeId": "tool-0", "partId": "block-title", "meta": { "worker": 0 } },
+    { "ts": 310, "type": "enter", "nodeId": "tool-0", "partId": "block-subtitle", "meta": { "worker": 1 } },
+    { "ts": 320, "type": "enter", "nodeId": "tool-0", "partId": "block-intro", "meta": { "worker": 2 } },
 
     { "ts": 620, "type": "exit", "nodeId": "tool-0", "partId": "block-title", "meta": { "parallel": true, "worker": 0 } },
     { "ts": 630, "type": "enter", "nodeId": "writer", "partId": "block-title" },
@@ -34,13 +34,13 @@
     { "ts": 690, "type": "enter", "nodeId": "writer", "partId": "block-subtitle" },
     { "ts": 730, "type": "exit", "nodeId": "writer", "partId": "block-subtitle" },
 
-    { "ts": 700, "type": "enter", "nodeId": "tool-0", "partId": "block-body" },
+    { "ts": 700, "type": "enter", "nodeId": "tool-0", "partId": "block-body", "meta": { "worker": 0 } },
 
     { "ts": 750, "type": "exit", "nodeId": "tool-0", "partId": "block-intro", "meta": { "parallel": true, "worker": 2 } },
     { "ts": 760, "type": "enter", "nodeId": "writer", "partId": "block-intro" },
     { "ts": 800, "type": "exit", "nodeId": "writer", "partId": "block-intro" },
 
-    { "ts": 770, "type": "enter", "nodeId": "tool-0", "partId": "block-cta" },
+    { "ts": 770, "type": "enter", "nodeId": "tool-0", "partId": "block-cta", "meta": { "worker": 1 } },
 
     { "ts": 1020, "type": "exit", "nodeId": "tool-0", "partId": "block-body", "meta": { "parallel": true, "worker": 0 } },
     { "ts": 1030, "type": "enter", "nodeId": "writer", "partId": "block-body" },
