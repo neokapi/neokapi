@@ -129,20 +129,25 @@ func (p *Project) FlowsDirPath() string {
 }
 
 // Config represents the .bowrain/config.yaml structure.
-// The version field is a top-level schema version (e.g. "v1") — not wrapped
-// in a k8s-style envelope because config.yaml is a well-known file at a
-// well-known path (.bowrain/config.yaml) and doesn't need kind discrimination.
 type Config struct {
 	// Version is the config schema version (e.g. "v1").
 	Version string `yaml:"version,omitempty"`
 
-	Project ProjectMeta `yaml:"project"`
+	// URL is a compound project URL that encodes the server, workspace, and project ID.
+	// Examples:
+	//   https://bowrain.example.com/my-team/abc123     (workspace project)
+	//   https://bowrain.example.com/claim/clm_xyz      (claim URL)
+	//   https://bowrain.example.com/projects/abc123     (direct project)
+	URL string `yaml:"url,omitempty"`
 
-	// Server connection (optional)
-	Server *ServerConfig `yaml:"server,omitempty"`
+	// Defaults contains project-wide defaults for language and organization.
+	Defaults Defaults `yaml:"defaults"`
 
-	// Plugin configuration
-	Plugins *PluginsConfig `yaml:"plugins,omitempty"`
+	// Content entries define which files to track (replaces v1 "mappings").
+	Content []ContentEntry `yaml:"content,omitempty"`
+
+	// Plugins is a flat list of plugin dependencies (e.g. ["okapi@1.0.0"]).
+	Plugins []string `yaml:"plugins,omitempty"`
 
 	// Plugin registries (overrides global registries when present)
 	Registries []RegistryConfig `yaml:"registries,omitempty"`
@@ -153,13 +158,10 @@ type Config struct {
 	// Local format preset definitions
 	FormatPresets map[string]LocalFormatPreset `yaml:"format_presets,omitempty"`
 
-	// File mappings
-	Mappings []Mapping `yaml:"mappings,omitempty"`
-
 	// Exclude patterns — files matching these are skipped during scanning
 	Exclude []string `yaml:"exclude,omitempty"`
 
-	// Flow hooks
+	// Flow hooks — flows that run automatically at lifecycle points
 	Hooks map[string][]string `yaml:"hooks,omitempty"`
 
 	// Flow-specific settings
@@ -169,26 +171,39 @@ type Config struct {
 	Automations []AutomationConfig `yaml:"automations,omitempty"`
 }
 
-// ProjectMeta contains project metadata.
-type ProjectMeta struct {
-	Name          string           `yaml:"name"`
-	SourceLocale  model.LocaleID   `yaml:"source_locale"`
-	TargetLocales []model.LocaleID `yaml:"target_locales,omitempty"`
+// Defaults contains project-wide language and organization settings.
+type Defaults struct {
+	SourceLanguage  model.LocaleID   `yaml:"source_language"`
+	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
+	Collection      string           `yaml:"collection,omitempty"`
 }
 
-// ServerConfig contains Bowrain Server connection details.
-type ServerConfig struct {
-	URL        string `yaml:"url"`
-	ProjectID  string `yaml:"project_id"`
-	Workspace  string `yaml:"workspace,omitempty"`
-	ClaimToken string `yaml:"claim_token,omitempty"`
-	// Auth token comes from bowrain auth login (stored separately)
-}
+// ContentEntry defines a tracked file pattern (replaces v1 Mapping).
+type ContentEntry struct {
+	// Path is the glob pattern for source files. May contain {lang} placeholder.
+	Path string `yaml:"path"`
 
-// PluginsConfig specifies plugin dependencies.
-type PluginsConfig struct {
-	Framework []string `yaml:"framework,omitempty"` // e.g. ["okapi@1.48.0"]
-	Presets   []string `yaml:"presets,omitempty"`   // e.g. ["okapi-presets@1.48.0"]
+	// Dest is the output path pattern for target files. May contain {lang} placeholder.
+	Dest string `yaml:"dest,omitempty"`
+
+	// Format is the file format ID (e.g. "json", "html") or "$auto" for auto-detection.
+	Format string `yaml:"format,omitempty"`
+
+	// Base is the path prefix to strip when reporting files to Bowrain.
+	Base string `yaml:"base,omitempty"`
+
+	// Collection overrides the default collection for this content entry.
+	Collection string `yaml:"collection,omitempty"`
+
+	// Locale overrides the source language for this entry.
+	Locale string `yaml:"locale,omitempty"`
+
+	// TargetLanguages overrides the default target languages for this entry.
+	// Use "$auto" to inherit from defaults or auto-detect from server.
+	TargetLanguages []model.LocaleID `yaml:"target_languages,omitempty"`
+
+	// Overrides are per-entry format config overrides.
+	Overrides map[string]any `yaml:"overrides,omitempty"`
 }
 
 // RegistryConfig represents a named plugin registry in project config.
@@ -203,15 +218,6 @@ type LocalFormatPreset struct {
 	Description string         `yaml:"description,omitempty"`
 	Base        string         `yaml:"base,omitempty"` // base format ID
 	Config      map[string]any `yaml:"config"`
-}
-
-// Mapping defines a local - remote file mapping.
-type Mapping struct {
-	Local      string         `yaml:"local"`                 // Glob pattern
-	Remote     string         `yaml:"remote"`                // Template with {path}, {filename}, {basename}
-	Format     string         `yaml:"format"`                // Format ID (json, html, etc.)
-	TargetPath string         `yaml:"target_path,omitempty"` // Target locale template (e.g. "locales/{locale}.json")
-	Overrides  map[string]any `yaml:"overrides,omitempty"`   // Layer 3: per-mapping config overrides
 }
 
 // AutomationConfig defines a local automation rule in .bowrain/config.yaml.
@@ -233,16 +239,58 @@ type ActionConfig struct {
 	Config map[string]string `yaml:"config,omitempty"` // e.g. {"flow": "qa-check", "timeout": "5m"}
 }
 
+// --- Convenience accessors for server details parsed from the compound URL ---
+
+// ServerURL returns the base server URL extracted from the compound URL.
+// Returns empty string if no URL is configured.
+func (c *Config) ServerURL() string {
+	info := ParseProjectURL(c.URL)
+	return info.ServerURL
+}
+
+// ProjectID returns the project ID extracted from the compound URL.
+func (c *Config) ProjectID() string {
+	info := ParseProjectURL(c.URL)
+	return info.ProjectID
+}
+
+// Workspace returns the workspace slug extracted from the compound URL.
+func (c *Config) Workspace() string {
+	info := ParseProjectURL(c.URL)
+	return info.Workspace
+}
+
+// ClaimToken returns the claim token extracted from the compound URL.
+func (c *Config) ClaimToken() string {
+	info := ParseProjectURL(c.URL)
+	return info.ClaimToken
+}
+
+// HasServer returns true if a server URL is configured.
+func (c *Config) HasServer() bool {
+	return c.URL != ""
+}
+
+// SourceLocale returns the source language as a convenience accessor.
+func (c *Config) SourceLocale() model.LocaleID {
+	return c.Defaults.SourceLanguage
+}
+
+// TargetLocales returns the target languages as a convenience accessor.
+func (c *Config) TargetLocales() []model.LocaleID {
+	return c.Defaults.TargetLanguages
+}
+
 // DefaultConfig returns a default configuration.
 func DefaultConfig() *Config {
 	return &Config{
-		Project: ProjectMeta{
-			Name:          "my-project",
-			SourceLocale:  "en",
-			TargetLocales: []model.LocaleID{},
+		Version: ProjectConfigVersion,
+		Defaults: Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{},
 		},
-		Mappings: []Mapping{},
-		Hooks:    map[string][]string{},
-		Flows:    map[string]map[string]any{},
+		Content: []ContentEntry{},
+		Hooks:   map[string][]string{},
+		Flows:   map[string]map[string]any{},
 	}
 }

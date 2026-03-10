@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/spf13/cobra"
@@ -20,9 +21,9 @@ Shows which blocks have changed locally or remotely since the last sync.`,
 			return fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
 		}
 
-		fmt.Printf("Project: %s\n\n", proj.Config.Project.Name)
+		fmt.Printf("Project: %s\n\n", filepath.Base(proj.Root))
 
-		if proj.Config.Server == nil {
+		if !proj.Config.HasServer() {
 			fmt.Println("No server configured")
 			fmt.Println("Run 'bowrain init' to connect to a server")
 			return nil

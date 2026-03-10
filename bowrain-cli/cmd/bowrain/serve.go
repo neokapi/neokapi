@@ -50,12 +50,11 @@ If no directory is given, the current directory is used.`,
 		mux.HandleFunc("GET /api/project", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"name":           proj.Config.Project.Name,
-				"root":           proj.Root,
-				"source_locale":  proj.Config.Project.SourceLocale,
-				"target_locales": proj.Config.Project.TargetLocales,
-				"has_server":     proj.Config.Server != nil,
-				"mappings":       len(proj.Config.Mappings),
+				"root":             proj.Root,
+				"source_language":  proj.Config.Defaults.SourceLanguage,
+				"target_languages": proj.Config.Defaults.TargetLanguages,
+				"has_server":       proj.Config.HasServer(),
+				"content":          len(proj.Config.Content),
 			})
 		})
 		mux.HandleFunc("GET /api/flows", func(w http.ResponseWriter, r *http.Request) {
@@ -71,13 +70,14 @@ If no directory is given, the current directory is used.`,
 		})
 		mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			dirName := filepath.Base(proj.Root)
 			fmt.Fprintf(w, `<!DOCTYPE html>
 <html><head><title>bowrain — %s</title></head><body>
 <h1>bowrain project: %s</h1>
 <p>Root: %s</p>
-<p>Source locale: %s</p>
+<p>Source language: %s</p>
 <p>API: <a href="/api/project">/api/project</a> | <a href="/api/flows">/api/flows</a></p>
-</body></html>`, proj.Config.Project.Name, proj.Config.Project.Name, proj.Root, proj.Config.Project.SourceLocale)
+</body></html>`, dirName, dirName, proj.Root, proj.Config.Defaults.SourceLanguage)
 		})
 
 		fmt.Printf("Starting local project dashboard at %s\n", url)

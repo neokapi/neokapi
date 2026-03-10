@@ -5,10 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gokapi/gokapi/cli"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/cli"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,13 +25,12 @@ func TestHandleProjectConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &project.Config{
-		Project: project.ProjectMeta{
-			Name:          "test-project",
-			SourceLocale:  "en",
-			TargetLocales: []model.LocaleID{"fr", "de"},
+		Defaults: project.Defaults{
+			SourceLanguage:  "en",
+			TargetLanguages: []model.LocaleID{"fr", "de"},
 		},
-		Mappings: []project.Mapping{
-			{Local: "locales/*.json", Format: "json"},
+		Content: []project.ContentEntry{
+			{Path: "locales/*.json", Format: "json"},
 		},
 	}
 
@@ -43,10 +42,9 @@ func TestHandleProjectConfig(t *testing.T) {
 
 	_, out, err := handleProjectConfig()
 	require.NoError(t, err)
-	assert.Equal(t, "test-project", out.ProjectName)
-	assert.Equal(t, "en", out.SourceLocale)
-	assert.Equal(t, []string{"fr", "de"}, out.TargetLocales)
-	assert.Equal(t, 1, out.MappingCount)
+	assert.Equal(t, "en", out.SourceLanguage)
+	assert.Equal(t, []string{"fr", "de"}, out.TargetLanguages)
+	assert.Equal(t, 1, out.ContentCount)
 	assert.Empty(t, out.ServerURL)
 }
 
@@ -54,15 +52,11 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &project.Config{
-		Project: project.ProjectMeta{
-			Name:         "server-project",
-			SourceLocale: "en",
+		URL: project.FormatProjectURL("https://bowrain.example.com", "", "proj-123", ""),
+		Defaults: project.Defaults{
+			SourceLanguage: "en",
 		},
-		Server: &project.ServerConfig{
-			URL:       "https://bowrain.example.com",
-			ProjectID: "proj-123",
-		},
-		Mappings: []project.Mapping{},
+		Content: []project.ContentEntry{},
 	}
 
 	_, err := project.InitProject(tmpDir, cfg)
@@ -84,12 +78,11 @@ func TestHandleProjectLsFast(t *testing.T) {
 	writeTestFile(t, tmpDir, "locales/en.json", `{"hello": "world"}`)
 
 	cfg := &project.Config{
-		Project: project.ProjectMeta{
-			Name:         "ls-test",
-			SourceLocale: "en",
+		Defaults: project.Defaults{
+			SourceLanguage: "en",
 		},
-		Mappings: []project.Mapping{
-			{Local: "locales/*.json", Format: "json"},
+		Content: []project.ContentEntry{
+			{Path: "locales/*.json", Format: "json"},
 		},
 	}
 
@@ -111,13 +104,12 @@ func TestHandleProjectLsPathFilter(t *testing.T) {
 	writeTestFile(t, tmpDir, "other/data.json", `{"key": "value"}`)
 
 	cfg := &project.Config{
-		Project: project.ProjectMeta{
-			Name:         "filter-test",
-			SourceLocale: "en",
+		Defaults: project.Defaults{
+			SourceLanguage: "en",
 		},
-		Mappings: []project.Mapping{
-			{Local: "locales/*.json", Format: "json"},
-			{Local: "other/*.json", Format: "json"},
+		Content: []project.ContentEntry{
+			{Path: "locales/*.json", Format: "json"},
+			{Path: "other/*.json", Format: "json"},
 		},
 	}
 

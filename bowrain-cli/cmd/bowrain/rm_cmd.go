@@ -44,9 +44,9 @@ Examples:
 // processRmPattern handles a single rm pattern against the project config.
 func processRmPattern(proj *project.Project, pattern string) output.RmEntry {
 	// Check for exact mapping match.
-	for i, m := range proj.Config.Mappings {
-		if m.Local == pattern {
-			proj.Config.Mappings = append(proj.Config.Mappings[:i], proj.Config.Mappings[i+1:]...)
+	for i, m := range proj.Config.Content {
+		if m.Path == pattern {
+			proj.Config.Content = append(proj.Config.Content[:i], proj.Config.Content[i+1:]...)
 			return output.RmEntry{
 				Pattern: pattern,
 				Action:  "removed",

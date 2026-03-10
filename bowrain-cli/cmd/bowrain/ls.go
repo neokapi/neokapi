@@ -47,8 +47,10 @@ func runLs(cmd *cobra.Command, args []string) error {
 func runLsFast(cmd *cobra.Command, proj *project.Project, filterPaths []string) error {
 	var out output.LsOutput
 
-	for _, m := range proj.Config.Mappings {
-		relPaths, err := project.ExpandGlob(proj.Root, m.Local, proj.Config.Exclude...)
+	srcLang := string(proj.Config.SourceLocale())
+	for _, ce := range proj.Config.Content {
+		pattern := project.ResolvePathPattern(ce.Path, srcLang)
+		relPaths, err := project.ExpandGlob(proj.Root, pattern, proj.Config.Exclude...)
 		if err != nil {
 			continue
 		}
@@ -57,7 +59,7 @@ func runLsFast(cmd *cobra.Command, proj *project.Project, filterPaths []string) 
 				continue
 			}
 
-			formatName := m.Format
+			formatName := project.ResolveFormat(ce.Format)
 			if formatName == "" {
 				ext := filepath.Ext(rp)
 				if ext != "" {

@@ -164,10 +164,10 @@ Requires authentication (run 'bowrain auth login' first).`,
 			if err != nil {
 				return fmt.Errorf("no claim token provided and no .bowrain/ project found")
 			}
-			if proj.Config.Server == nil || proj.Config.Server.ClaimToken == "" {
-				return fmt.Errorf("no claim_token in .bowrain/config.yaml — provide token as argument")
+			if proj.Config.ClaimToken() == "" {
+				return fmt.Errorf("no claim token in .bowrain/config.yaml — provide token as argument")
 			}
-			claimToken = proj.Config.Server.ClaimToken
+			claimToken = proj.Config.ClaimToken()
 		}
 
 		// Call server to claim.
@@ -198,12 +198,15 @@ Requires authentication (run 'bowrain auth login' first).`,
 			return fmt.Errorf("decode claim response: %w", err)
 		}
 
-		// Update .bowrain/config.yaml: remove claim_token, update project_id.
+		// Update .bowrain/config.yaml: update URL from claim to workspace project.
 		proj, err := project.FindProject("")
-		if err == nil && proj.Config.Server != nil {
-			proj.Config.Server.ClaimToken = ""
-			proj.Config.Server.ProjectID = result.ProjectID
-			proj.Config.Server.Workspace = result.WorkspaceSlug
+		if err == nil && proj.Config.HasServer() {
+			proj.Config.URL = project.FormatProjectURL(
+				proj.Config.ServerURL(),
+				result.WorkspaceSlug,
+				result.ProjectID,
+				"",
+			)
 			if saveErr := project.SaveConfig(proj.ConfigDir, proj.Config); saveErr != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not update .bowrain/config.yaml: %v\n", saveErr)
 			}

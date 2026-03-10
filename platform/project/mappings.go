@@ -8,8 +8,8 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-// ResolveRemotePath resolves a local path to a remote path using mappings.
-// Returns the remote path and format, or an error if no mapping matches.
+// ResolveRemotePath resolves a local path to a remote path using content entries.
+// Returns the remote path and format, or an error if no content entry matches.
 func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format string, err error) {
 	// Normalize local path (relative to project root)
 	relPath, err := p.RelativePath(p.ResolvePath(localPath))
@@ -17,41 +17,44 @@ func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format
 		return "", "", fmt.Errorf("relativize path: %w", err)
 	}
 
-	// Try each mapping in order
-	for _, m := range p.Config.Mappings {
+	// Try each content entry in order
+	for _, c := range p.Config.Content {
+		// Resolve the glob pattern (expand {lang} with source language).
+		pattern := resolvePathPattern(c.Path, string(p.Config.SourceLocale()))
+
 		// Check if local path matches the glob pattern
-		matched, err := doublestar.Match(m.Local, relPath)
+		matched, err := doublestar.Match(pattern, relPath)
 		if err != nil {
 			continue
 		}
 
 		if matched {
-			// Apply template substitution
-			remote := expandTemplate(m.Remote, relPath)
-			return remote, m.Format, nil
+			// Use the base to strip prefix, or fall back to the path itself.
+			if c.Base != "" {
+				base := resolvePathPattern(c.Base, string(p.Config.SourceLocale()))
+				relFromBase := strings.TrimPrefix(relPath, base)
+				relFromBase = strings.TrimPrefix(relFromBase, "/")
+				return relFromBase, resolveFormat(c.Format), nil
+			}
+			return relPath, resolveFormat(c.Format), nil
 		}
 	}
 
-	return "", "", fmt.Errorf("no mapping found for local path: %s", localPath)
+	return "", "", fmt.Errorf("no content entry found for local path: %s", localPath)
 }
 
-// ResolveLocalPath resolves a remote path to a local path using mappings.
-// Returns the local path and format, or an error if no mapping matches.
+// ResolveLocalPath resolves a remote path to a local path using content entries.
+// Returns the local path and format, or an error if no content entry matches.
 func (p *Project) ResolveLocalPath(remotePath string) (localPath string, format string, err error) {
-	// This is a simplified implementation
-	// In production, would need reverse template matching
-
-	for _, m := range p.Config.Mappings {
-		// For now, just check if the remote template is a simple pattern
-		// Full implementation would do reverse template resolution
-		if strings.Contains(m.Remote, remotePath) {
-			// Rough match - would need proper implementation
-			local := p.ResolvePath(m.Local)
-			return local, m.Format, nil
+	for _, c := range p.Config.Content {
+		pattern := resolvePathPattern(c.Path, string(p.Config.SourceLocale()))
+		if strings.Contains(pattern, remotePath) {
+			local := p.ResolvePath(pattern)
+			return local, resolveFormat(c.Format), nil
 		}
 	}
 
-	return "", "", fmt.Errorf("no mapping found for remote path: %s", remotePath)
+	return "", "", fmt.Errorf("no content entry found for remote path: %s", remotePath)
 }
 
 // expandTemplate expands a template string with path variables.
@@ -72,4 +75,27 @@ func expandTemplate(template string, localPath string) string {
 	result = strings.ReplaceAll(result, "{basename}", basename)
 
 	return result
+}
+
+// ResolvePathPattern expands {lang} placeholders in a path pattern.
+func ResolvePathPattern(pattern, lang string) string {
+	return strings.ReplaceAll(pattern, "{lang}", lang)
+}
+
+// resolvePathPattern is an internal alias for ResolvePathPattern.
+func resolvePathPattern(pattern, lang string) string {
+	return ResolvePathPattern(pattern, lang)
+}
+
+// ResolveFormat returns the format, treating "$auto" and empty as equivalent (auto-detect).
+func ResolveFormat(format string) string {
+	if format == "$auto" {
+		return ""
+	}
+	return format
+}
+
+// resolveFormat is an internal alias for ResolveFormat.
+func resolveFormat(format string) string {
+	return ResolveFormat(format)
 }
