@@ -49,8 +49,8 @@ The connector system has two layers:
      │        │         │         │         │
      │        │         │         │         │ REST API
      ▼        ▼         ▼         ▼         ▼
-Contentful Figma     GitHub   HubSpot    Kapi
-   CMS      Design     Repo    Marketing  (.kapi/ projects)
+Contentful Figma     GitHub   HubSpot    Bowrain CLI
+   CMS      Design     Repo    Marketing  (.bowrain/ projects)
 ```
 
 ### Connector Interfaces
@@ -65,18 +65,18 @@ Six connector categories are defined: CMS, Design, Code, Marketing, File (Kapi),
 
 See [Connector Interfaces](/docs/notes/connector-interfaces) for the full `ConnectorCategory` enum and `ContentItem` struct definitions.
 
-**Kapi as the file connector:**
+**Bowrain CLI as the file connector:**
 
-- Kapi is **not a server-side connector**. It is a CLI tool that acts as the file connector for Bowrain Server.
-- Kapi operates on local file systems with `.kapi/` project directories ([AD-016](./016-kapi-project-model.md))
-- `kapi pull/push` syncs local files with Bowrain Server via REST API
-- Kapi uses the FormatRegistry to read/write files (15+ native formats + plugins + Okapi bridge)
+- Bowrain CLI is **not a server-side connector**. It is a CLI tool that acts as the file connector for Bowrain Server.
+- Bowrain CLI operates on local file systems with `.bowrain/` project directories ([AD-016](./016-kapi-project-model.md))
+- `bowrain pull/push` syncs local files with Bowrain Server via REST API
+- Bowrain CLI uses the FormatRegistry to read/write files (15+ native formats + plugins + Okapi bridge)
 
-### Kapi: The File Connector
+### Bowrain CLI: The File Connector
 
-Kapi's role in the connector ecosystem:
+Bowrain CLI's role in the connector ecosystem:
 
-**What Kapi does:**
+**What Bowrain CLI does:**
 - Reads local files via FormatRegistry (HTML, JSON, XLIFF, Markdown, etc.)
 - Extracts Blocks from file content (streaming Parts → Blocks)
 - Computes content hashes (`BlockIdentity` from [AD-002](./002-content-model.md))
@@ -85,17 +85,17 @@ Kapi's role in the connector ecosystem:
 - Runs file-based flows (pseudo-translate, QA, segmentation, etc.)
 
 **What Kapi doesn't do:**
-- Kapi does **not** manage server-side connectors (no `kapi connect add contentful`)
-- Kapi does **not** access the ContentStore directly (it's a REST API client)
-- Kapi does **not** run server-side automation or event-driven workflows
+- Bowrain CLI does **not** manage server-side connectors (no `bowrain connect add contentful`)
+- Bowrain CLI does **not** access the ContentStore directly (it's a REST API client)
+- Bowrain CLI does **not** run server-side automation or event-driven workflows
 
 **Architecture:**
 
 ```
-.kapi/ Project Directory
+.bowrain/ Project Directory
      |
      v
-  Kapi CLI (reads config.yaml, mappings)
+  Bowrain CLI (reads config.yaml, mappings)
      |
      v
   FormatRegistry (HTML, JSON, XLIFF, etc.)
@@ -113,17 +113,17 @@ Kapi's role in the connector ecosystem:
   ContentStore
 ```
 
-Kapi is to Bowrain Server as **git is to GitHub** — a local tool that syncs with a remote platform.
+Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local tool that syncs with a remote platform.
 
 ### Format System Integration
 
-Kapi inherits the **three-tier format system** from [AD-004](./004-processing-engine.md):
+Both Kapi and Bowrain CLI use the **three-tier format system** from [AD-004](./004-processing-engine.md):
 
 1. **Native formats** (Go): 15 built-in — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
 2. **Plugin formats** (any language): External executables via gRPC ([AD-007](./007-plugin-system.md))
 3. **Bridge formats** (Okapi): Subprocess-hosted filters via gRPC bridge protocol ([AD-007](./007-plugin-system.md))
 
-All three tiers register into the `FormatRegistry`. Kapi uses this registry to read/write files based on `.kapi/config.yaml` mappings.
+All three tiers register into the `FormatRegistry`. Bowrain CLI uses this registry to read/write files based on `.bowrain/config.yaml` mappings. Kapi uses the same registry for direct file processing.
 
 **Format detection cascade:**
 1. **MIME type** — explicit type declaration
@@ -167,15 +167,15 @@ See [Connector Interfaces](/docs/notes/connector-interfaces) for PullOptions, Pu
 
 ## Consequences
 
-- **Clear role separation**: Kapi handles files, Bowrain Server handles integrations.
+- **Clear role separation**: Bowrain CLI handles files, Bowrain Server handles integrations.
 
-- **Kapi is the file connector** for Bowrain Server — it reads/writes local files and syncs with the server via REST API. It does not manage server-side connectors.
+- **Bowrain CLI is the file connector** for Bowrain Server — it reads/writes local files and syncs with the server via REST API. It does not manage server-side connectors.
 
 - Server-side connectors (CMS, design, code, marketing) live in Bowrain Server and write extracted content into the ContentStore ([AD-003](./003-content-store.md)).
 
-- The FormatRegistry (15+ native formats, plugins, Okapi bridge) is Kapi's domain. All file processing goes through Kapi's format system.
+- The FormatRegistry (15+ native formats, plugins, Okapi bridge) is shared by both Kapi and Bowrain CLI. All file processing goes through the format system.
 
-- `.kapi/` project directories ([AD-016](./016-kapi-project-model.md)) define file mappings (local paths ↔ remote items), enabling `kapi pull/push` to sync with the server.
+- `.bowrain/` project directories ([AD-016](./016-kapi-project-model.md)) define file mappings (local paths ↔ remote items), enabling `bowrain pull/push` to sync with the server.
 
 - Connectors are the primary integration mechanism for Bowrain Server, positioning it as a localization platform rather than a file processing tool.
 

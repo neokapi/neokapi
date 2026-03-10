@@ -7,16 +7,35 @@ title: "AD-001: Vision — The Open Localization Platform"
 
 ## Vision
 
-Gokapi is an open platform for localization. It connects CMS platforms, design
-tools, code repositories, and marketing systems through bidirectional
-connectors. Content flows into a versioned store, gets processed by composable
-tools (translation, QA, terminology enforcement), and flows back to its source
-system.
+**gokapi** is an open-source localization framework in Go, licensed under
+Apache 2.0. It provides format-aware document parsing, a channel-based
+concurrent processing engine, and composable tools for translation, quality
+assurance, terminology management, and review. gokapi is the foundation — a
+library and toolkit with zero platform dependencies. As the Apache-licensed
+core, gokapi is the primary vehicle for driving open localization innovation,
+including format support, processing tools, and AI integration.
 
-File-based workflows are fully supported — the `FileConnector` treats local
-files and format filters as just another integration path — but the platform
-is designed around the assumption that most production content lives in systems,
-not in files on disk.
+**Bowrain** is a localization platform built on gokapi. It adds a versioned
+content store, bidirectional connectors to live systems (CMS, design tools,
+code repositories, marketing platforms), event-driven automation, multi-user
+workspaces, and collaborative editing. Content flows into the store, gets
+processed by gokapi's composable tools, and flows back to its source system.
+Bowrain is dual-licensed under AGPL and a commercial license, available as a
+SaaS offering or for open-source self-hosting.
+
+**The boundary:** gokapi handles content models, format parsing, tool
+execution, and pipeline orchestration. Bowrain handles persistence, sync,
+connectors, authentication, and multi-user collaboration. gokapi has no
+database, no server, no authentication. Bowrain depends on gokapi but not
+the reverse.
+
+Two CLIs demonstrate this separation:
+- **Kapi** (`kapi` binary) — standalone file-processing tool that demonstrates
+  gokapi's capabilities. No project directory, no server, no sync. Processes
+  files directly.
+- **Bowrain CLI** (`bowrain` binary) — project-centric sync companion for
+  Bowrain Server. Manages `.bowrain/` project directories, syncs with the
+  server via push/pull, runs flows within a project context.
 
 The architecture draws inspiration from
 [Speckle](https://speckle.systems/) — the open data platform for AEC — where
@@ -41,10 +60,10 @@ data model.
    collaboration as needs evolve. The same content model and tool chain
    works at every scale.
 
-4. **Single binary** — Go compiles to one static binary. The same codebase
-   produces the `kapi` CLI, the `bowrain-server` REST/gRPC server, and the
-   Bowrain desktop app (via Wails v3). No JVM, no Node.js runtime, no
-   container required for basic usage.
+4. **Single binary** — Go compiles to static binaries. The shared codebase
+   produces the `kapi` CLI, the `bowrain` CLI, the `bowrain-server`
+   REST/gRPC server, and the Bowrain desktop app (via Wails v3). No JVM,
+   no Node.js runtime, no container required for basic usage.
 
 5. **AI-native** — LLM-powered translation, quality assurance, terminology
    extraction, and review are composable pipeline tools
@@ -96,57 +115,83 @@ goroutine.
 
 ### Package Layout
 
-The project is a multi-module monorepo with two Go modules coordinated by
-`go.work`: the **framework** (`github.com/gokapi/gokapi`) provides the
-localization engine, and the **platform** (`github.com/gokapi/gokapi/bowrain`)
-builds the full-stack application on top.
+The project is a multi-module monorepo with six Go modules coordinated by
+`go.work`:
+
+- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine
+- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base for kapi and bowrain
+- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types (project model, auth, connectors)
+- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI for local file processing
+- **Bowrain CLI** (`github.com/gokapi/gokapi/bowrain-cli`) — project sync companion CLI
+- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — full-stack localization platform
 
 ```
-gokapi/                    ── Framework Module ──
-  model/          content model types (Part, Block, Layer, Fragment, Span)
-  format/         DataFormatReader/Writer interfaces, detection
-  tool/           Tool interface, BaseTool dispatch
-  flow/           FlowExecutor, FlowBuilder, FlowDefinition
-  registry/       FormatRegistry, ToolRegistry
-  encoding/       text encoding utilities
-  locale/         BCP-47 locale handling
-  editor/         block index serialization and preview generation
-  version/        build version info
-  formats/        built-in format implementations (15 formats: html, xml,
-                  xliff, xliff2, json, yaml, po, properties, plaintext,
-                  markdown, csv, srt, vtt, tmx, etc.)
-  ai/             LLM provider interface (Anthropic, OpenAI, Ollama) and
-                  AI-powered tools (translate, QA, terminology, review)
-  mt/             MT provider interface (DeepL, Google, Microsoft,
-                  ModernMT, MyMemory) and MT translate tool
-  sievepen/       translation memory interface + in-memory impl,
-                  Levenshtein fuzzy matching, TMX import/export
-  termbase/       concept-oriented terminology interface + in-memory impl
-  tools/          utility tools (wordcount, charcount, pseudo-translation,
-                  search/replace, term lookup, term enforce)
-  plugin/         plugin system: gRPC host, bridge protocol, loader, registry
-  testutil/       shared test helpers
+gokapi/                    ── Framework Module (open-source, Apache 2.0) ──
+  core/
+    model/          content model types (Part, Block, Layer, Fragment, Span)
+    format/         DataFormatReader/Writer interfaces, detection
+    tool/           Tool interface, BaseTool dispatch
+    flow/           FlowExecutor, FlowBuilder, FlowDefinition
+    registry/       FormatRegistry, ToolRegistry
+    encoding/       text encoding utilities
+    locale/         BCP-47 locale handling
+    editor/         block index serialization and preview generation
+    version/        build version info
+    formats/        built-in format implementations (15 formats)
+    ai/             LLM providers + AI tools (translate, QA, terminology, review, entity extraction)
+    mt/             MT providers + MT translate tool
+    sievepen/       translation memory interface + in-memory impl
+    termbase/       concept-oriented terminology interface + in-memory impl
+    tools/          utility tools (wordcount, pseudo-translation, term lookup, etc.)
+    plugin/         plugin system: gRPC host, Java bridge, loader, registry
+    testutil/       shared test helpers
 
-bowrain/                   ── Platform Module ──
-  config/         Viper-based app configuration
-  store/          ContentStore + SQLite implementation
-  auth/           OIDC, JWT, device flow authentication
-  connector/      bidirectional system connectors (CMS, file, git)
-  project/        .kapi/ project model
-  event/          event bus, webhooks, automation
-  service/        auth, project, connector, flow services
-  credentials/    credential management
-  server/         HTTP/gRPC server handlers
-  storage/        SQLite migration utilities
-  sievepen/       SQLite TM implementation
-  termbase/       SQLite TermBase implementation
-  cmd/kapi/       Cobra CLI
+cli/                       ── CLI Module ──
+  config/           Viper-based app configuration (~/.config/kapi/)
+  output/           shared output formatting + types
+
+platform/                  ── Platform Module ──
+  project/          .bowrain/ project model (types, config, sync cache)
+  auth/             auth types, JWT, device flow client
+  connector/        connector interfaces + base types
+  client/           REST client for Bowrain API
+  config/           auth persistence
+  store/            ContentStore interface + domain types
+  event/            event types + bus interface
+  credentials/      provider credential management
+
+kapi/                      ── Kapi Module (standalone CLI) ──
+  cmd/kapi/         thin root cmd wiring shared CLI commands
+  apps/kapi-web/    kapi serve web UI
+
+bowrain-cli/               ── Bowrain CLI Module ──
+  cmd/bowrain/      project commands + shared CLI base
+
+bowrain/                   ── Bowrain Module (platform) ──
+  auth/             OIDC, AuthStore, SQLite auth
+  connector/        concrete connector implementations (file, git, etc.)
+  store/            SQLite ContentStore implementation
+  server/           HTTP/gRPC server handlers
+  service/          auth, project, connector, flow services
+  event/            event bus implementation + automation
+  credentials/      keyring-backed credentials
+  sievepen/         SQLite TM implementation
+  termbase/         SQLite TermBase implementation
   cmd/bowrain-server/  Echo v4 REST API server + gRPC services
-  apps/bowrain/   Wails v3 desktop app (Go + React 19/TypeScript/Vite)
-  apps/web/       SaaS web UI
+  apps/bowrain/     Wails v3 desktop app (Go + React/TypeScript)
+  apps/web/         SaaS web UI
 
-website/          Docusaurus 3 documentation site
+packages/ui/       shared React component library
+website/           Docusaurus 3 documentation site
 ```
+
+**Dependency boundaries:**
+- Framework has zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC)
+- CLI depends on framework only
+- Platform depends on framework only (no CLI dependency)
+- Kapi depends on framework + CLI (no platform, no heavy dependencies)
+- Bowrain CLI depends on framework + CLI + platform
+- Bowrain depends on framework + platform (no CLI dependency)
 
 ### Configuration
 
@@ -154,39 +199,15 @@ Configuration uses [Viper](https://github.com/spf13/viper) for layered
 merging with the following precedence (highest to lowest):
 
 1. **CLI flags** (via Cobra) — one-off overrides
-2. **Environment variables** (`KAPI_*` prefix) — CI/CD and Docker
-3. **Project config** (`./kapi.yaml`) — team-shared, committed to repo
+2. **Environment variables** (`KAPI_*` / `BOWRAIN_*` prefix) — CI/CD and Docker
+3. **Project config** (`.bowrain/config.yaml`, Bowrain CLI only) — team-shared, committed to repo
 4. **User config** (`~/.config/kapi/kapi.yaml`) — personal defaults
-5. **System config** (`/etc/kapi/kapi.yaml`) — organization defaults
-6. **Code defaults** — sensible zero-config behavior
+5. **Code defaults** — sensible zero-config behavior
 
-```yaml
-source_lang: en
-target_langs: [fr, de, ja]
-
-formats:
-  html:
-    preserveWhitespace: false
-    extractAltText: true
-  json:
-    extractStringsOnly: true
-
-tools:
-  ai-translation:
-    provider: anthropic
-    model: claude-sonnet-4-5-20250929
-  term-enforce:
-    action: warn  # warn | reject | fix
-
-connectors:
-  wordpress:
-    url: https://example.com/wp-json
-    auth: env:WORDPRESS_TOKEN
-```
-
-The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical
-subcommands (`kapi convert`, `kapi flow run`, `kapi plugins install`,
-`kapi termbase import`). Viper's automatic env binding means
+Both CLIs use [Cobra](https://github.com/spf13/cobra) for hierarchical
+subcommands. Kapi operates directly on files (`kapi flow run pseudo-translate
+-i file.json`). Bowrain CLI operates within a project context
+(`bowrain flow run pseudo`). Viper's automatic env binding means
 `BOWRAIN_TOOLS_AI_TRANSLATION_MODEL` overrides the nested YAML path
 `tools.ai-translation.model`.
 
@@ -261,5 +282,5 @@ All subsystems validate locale codes at their boundaries:
   shows friendly display names. No silent propagation of invalid codes.
 
 - **Progressive scalability** — The same content model and tool chain works
-  for a solo translator running `kapi translate` and a team running the
-  server with connectors, automation, and collaborative editing.
+  for a solo developer running `kapi flow run` on local files and a team
+  using Bowrain with connectors, automation, and collaborative editing.
