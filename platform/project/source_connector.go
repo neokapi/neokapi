@@ -278,7 +278,27 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 	}
 
 	if len(changed) == 0 {
-		return &connector.PushResult{FilesScanned: len(hashMap)}, nil
+		// Verify server still has our data. If the server was reset/rebuilt,
+		// the cached cursor will be stale and we need to force re-push.
+		if c.client != nil && len(blockMap) > 0 {
+			cursor := c.cache.GetStreamCursor(c.stream)
+			if cursor > 0 {
+				// Quick probe: pull with cursor=0, limit=1 to check if server has data.
+				resp, err := c.client.Pull(ctx, 0, nil, 1)
+				if err == nil && resp.NewCursor == 0 {
+					// Server is empty but cache says we've pushed — re-push everything.
+					for itemName, blocks := range blockMap {
+						for _, b := range blocks {
+							changed = append(changed, itemBlock{itemName: itemName, block: b})
+						}
+					}
+				}
+			}
+		}
+
+		if len(changed) == 0 {
+			return &connector.PushResult{FilesScanned: len(hashMap)}, nil
+		}
 	}
 
 	// Build a map of item → collection for efficient lookup.
