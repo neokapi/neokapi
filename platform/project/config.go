@@ -11,13 +11,18 @@ import (
 )
 
 const (
-	// ProjectConfigAPIVersion is the apiVersion for project config envelopes.
-	ProjectConfigAPIVersion = "v1"
+	// ProjectConfigVersion is the current schema version for config.yaml.
+	ProjectConfigVersion = "v1"
 )
 
 // LoadConfig loads the project configuration from .bowrain/config.yaml.
-// Supports both enveloped (apiVersion + kind) and bare YAML formats.
-// Bare YAML is migrated transparently — the in-memory Config is the same either way.
+//
+// Supports three formats (detected automatically):
+//  1. Flat with version (current): version + fields at top level
+//  2. Envelope (legacy): apiVersion + kind + metadata + spec
+//  3. Bare YAML (legacy): no version or envelope
+//
+// Legacy formats are read transparently — the in-memory Config is the same.
 func LoadConfig(configDir string) (*Config, error) {
 	configPath := filepath.Join(configDir, ConfigFile)
 
@@ -26,7 +31,7 @@ func LoadConfig(configDir string) (*Config, error) {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	// Probe for envelope format
+	// Probe for envelope format (legacy)
 	var probe struct {
 		APIVersion string `yaml:"apiVersion"`
 	}
@@ -36,7 +41,7 @@ func LoadConfig(configDir string) (*Config, error) {
 		return loadEnvelopedConfig(data)
 	}
 
-	// Bare YAML — direct unmarshal (backward compat)
+	// Flat YAML (current format or bare legacy)
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parse config: %w", err)
@@ -44,7 +49,7 @@ func LoadConfig(configDir string) (*Config, error) {
 	return &cfg, nil
 }
 
-// loadEnvelopedConfig parses an enveloped project config.
+// loadEnvelopedConfig parses a legacy enveloped project config.
 func loadEnvelopedConfig(data []byte) (*Config, error) {
 	env, err := config.Parse(data, ".yaml")
 	if err != nil {
@@ -71,13 +76,13 @@ func loadEnvelopedConfig(data []byte) (*Config, error) {
 		return nil, fmt.Errorf("parse config spec: %w", err)
 	}
 
+	// Set version from the envelope's apiVersion.
+	cfg.Version = env.APIVersion
 	return &cfg, nil
 }
 
 // GetConfigValue reads a dot-notation key from .bowrain/config.yaml.
 // For example, "project.name" or "server.url".
-// Note: this uses viper which operates on the raw YAML structure. For
-// enveloped configs, keys are under "spec." (e.g., "spec.project.name").
 func GetConfigValue(configDir, key string) string {
 	configPath := filepath.Join(configDir, ConfigFile)
 	v := viper.New()
@@ -85,7 +90,7 @@ func GetConfigValue(configDir, key string) string {
 	v.SetConfigType("yaml")
 	_ = v.ReadInConfig()
 
-	// Try direct key first, then try under "spec." for enveloped configs
+	// Try direct key first, then try under "spec." for legacy enveloped configs
 	val := v.GetString(key)
 	if val == "" {
 		val = v.GetString("spec." + key)
@@ -102,7 +107,7 @@ func SetConfigValue(configDir, key, value string) error {
 	v.SetConfigType("yaml")
 	_ = v.ReadInConfig()
 
-	// If this is an enveloped config, set under "spec."
+	// If this is a legacy enveloped config, set under "spec."
 	if v.GetString("apiVersion") != "" {
 		v.Set("spec."+key, value)
 	} else {
@@ -112,32 +117,16 @@ func SetConfigValue(configDir, key, value string) error {
 }
 
 // SaveConfig saves the project configuration to .bowrain/config.yaml
-// in envelope format (apiVersion + kind + metadata + spec).
+// as flat YAML with a top-level version field.
 func SaveConfig(configDir string, cfg *Config) error {
 	configPath := filepath.Join(configDir, ConfigFile)
 
-	// Marshal the config to get the spec as a map
-	specData, err := yaml.Marshal(cfg)
+	// Ensure the version is set.
+	cfg.Version = ProjectConfigVersion
+
+	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)
-	}
-	var spec map[string]any
-	if err := yaml.Unmarshal(specData, &spec); err != nil {
-		return fmt.Errorf("round-trip config: %w", err)
-	}
-
-	env := &config.Envelope{
-		APIVersion: ProjectConfigAPIVersion,
-		Kind:       config.KindProjectConfig,
-		Metadata: config.Metadata{
-			Name: cfg.Project.Name,
-		},
-		Spec: spec,
-	}
-
-	data, err := yaml.Marshal(env)
-	if err != nil {
-		return fmt.Errorf("marshal envelope: %w", err)
 	}
 
 	if err := os.WriteFile(configPath, data, 0644); err != nil {
