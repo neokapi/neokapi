@@ -18,6 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// writeClaimToken writes a claim token to the sync cache file in the given bowrain dir.
+func writeClaimToken(t *testing.T, bowrainDir, token string) {
+	t.Helper()
+	cache := &SyncCache{
+		ClaimToken: token,
+		Files:      map[string]*FileCache{},
+	}
+	require.NoError(t, cache.Save(bowrainDir))
+}
+
 // setupTestProject creates a temporary bowrain project with a JSON source file and
 // a mock Bowrain server. Returns the project, format registry, and cleanup func.
 func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.FormatRegistry) {
@@ -41,17 +51,12 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 	))
 
 	cfg := &Config{
-		Project: ProjectMeta{
-			Name:         "test-project",
-			SourceLocale: "en",
+		URL: FormatProjectURL(srv.URL, "", "proj-123"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
 		},
-		Server: &ServerConfig{
-			URL:        srv.URL,
-			ProjectID:  "proj-123",
-			ClaimToken: "test-token",
-		},
-		Mappings: []Mapping{
-			{Local: "src/locales/*.json", Format: "json"},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json"},
 		},
 	}
 
@@ -60,6 +65,9 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 		ConfigDir: bowrainDir,
 		Config:    cfg,
 	}
+
+	// Write claim token to sync cache (gitignored, not in config).
+	writeClaimToken(t, bowrainDir, "test-token")
 
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
@@ -148,12 +156,13 @@ func TestNewSourceConnector_RequiresURL(t *testing.T) {
 	proj := &Project{
 		Root:      t.TempDir(),
 		ConfigDir: filepath.Join(t.TempDir(), ".bowrain"),
-		Config:    &Config{Server: &ServerConfig{ProjectID: "p1"}},
+		Config: &Config{
+			URL: FormatProjectURL("", "", "p1"),
+		},
 	}
 
 	_, err := NewSourceConnector(proj, registry.NewFormatRegistry())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "server URL not configured")
 }
 
 func TestSourceConnector_Push(t *testing.T) {
@@ -438,8 +447,8 @@ func TestSourceConnector_Pull_TargetPathTemplate(t *testing.T) {
 	}
 	proj, formatReg := setupTestProject(t, mock)
 
-	// Set a target_path template on the mapping.
-	proj.Config.Mappings[0].TargetPath = "src/locales/{locale}.json"
+	// Set a dest pattern on the content entry.
+	proj.Config.Content[0].Dest = "src/locales/{locale}.json"
 
 	conn, err := NewSourceConnector(proj, formatReg)
 	require.NoError(t, err)
@@ -463,11 +472,11 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	proj := &Project{
 		Root: "/project",
 		Config: &Config{
-			Project: ProjectMeta{
-				SourceLocale: "en",
+			Defaults: Defaults{
+				SourceLanguage: "en",
 			},
-			Mappings: []Mapping{
-				{Local: "src/locales/*.json", Format: "json"},
+			Content: []ContentEntry{
+				{Path: "src/locales/*.json", Format: "json"},
 			},
 		},
 	}
@@ -478,31 +487,31 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	assert.Equal(t, "src/locales/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 	assert.Equal(t, "src/locales/de.json", conn.resolveTargetPath("src/locales/en.json", "de"))
 
-	// With target_path template.
-	proj.Config.Mappings[0].TargetPath = "output/{locale}.json"
+	// With dest template using {locale} placeholder.
+	proj.Config.Content[0].Dest = "output/{locale}.json"
 	assert.Equal(t, "output/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 
 	// With {path} and {filename} placeholders.
-	proj.Config.Mappings[0].TargetPath = "i18n/{locale}/{path}/{filename}"
+	proj.Config.Content[0].Dest = "i18n/{locale}/{path}/{filename}"
 	assert.Equal(t, "i18n/fr/en.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 
 	// Docusaurus-style: deeper glob with {path}/{filename}.
-	proj.Config.Mappings = []Mapping{
-		{Local: "docs/**/*.md", Format: "markdown", TargetPath: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"},
+	proj.Config.Content = []ContentEntry{
+		{Path: "docs/**/*.md", Format: "markdown", Dest: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"},
 	}
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/intro.md", conn.resolveTargetPath("docs/intro.md", "nb"))
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/features/overview.md", conn.resolveTargetPath("docs/features/overview.md", "nb"))
 
 	// JSON with nested path.
-	proj.Config.Mappings = []Mapping{
-		{Local: "i18n/en/**/*.json", Format: "json", TargetPath: "i18n/{locale}/{path}/{filename}"},
+	proj.Config.Content = []ContentEntry{
+		{Path: "i18n/en/**/*.json", Format: "json", Dest: "i18n/{locale}/{path}/{filename}"},
 	}
 	assert.Equal(t, "i18n/nb/code.json", conn.resolveTargetPath("i18n/en/code.json", "nb"))
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current.json", conn.resolveTargetPath("i18n/en/docusaurus-plugin-content-docs/current.json", "nb"))
 
 	// Fallback when source locale not in path.
-	proj.Config.Mappings[0].TargetPath = ""
-	proj.Config.Project.SourceLocale = "en-US"
+	proj.Config.Content[0].Dest = ""
+	proj.Config.Defaults.SourceLanguage = "en-US"
 	assert.Equal(t, "src/messages.fr.json", conn.resolveTargetPath("src/messages.json", "fr"))
 }
 
@@ -537,9 +546,9 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 		0644,
 	))
 
-	// Change mapping to a recursive glob, add an exclude.
-	proj.Config.Mappings = []Mapping{
-		{Local: "src/locales/**/*.json", Format: "json"},
+	// Change content entry to a recursive glob, add an exclude.
+	proj.Config.Content = []ContentEntry{
+		{Path: "src/locales/**/*.json", Format: "json"},
 	}
 	proj.Config.Exclude = []string{"src/locales/legacy/*.json"}
 
@@ -559,6 +568,184 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 	for _, bi := range mock.pushBlocks {
 		assert.NotContains(t, bi.ItemName, "legacy", "excluded file should not produce blocks")
 	}
+}
+
+func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
+	mock := &mockSyncHandler{}
+	srv := httptest.NewServer(mock)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	// Create files in two source languages.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "en"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "es"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en", "ui.json"), []byte(`{"hello":"Hello"}`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "es", "ui.json"), []byte(`{"hola":"Hola"}`), 0644))
+
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-multi"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+		},
+		Content: []ContentEntry{
+			{Path: "src/en/**/*.json", Format: "json"},
+			{Path: "src/es/**/*.json", Format: "json", Language: "es"},
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "tok")
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Push should pick up files from both content entries.
+	result, err := conn.Push(context.Background(), connector.PushOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.FilesScanned, "should scan files from both source languages")
+	assert.Equal(t, 2, result.BlocksPushed, "should push blocks from both files")
+
+	// Verify both item names are present.
+	itemNames := map[string]bool{}
+	for _, bi := range mock.pushBlocks {
+		itemNames[bi.ItemName] = true
+	}
+	assert.True(t, itemNames["src/en/ui.json"], "should include English file")
+	assert.True(t, itemNames["src/es/ui.json"], "should include Spanish file")
+}
+
+func TestSourceConnector_CollectionInPush(t *testing.T) {
+	mock := &mockSyncHandler{}
+	srv := httptest.NewServer(mock)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "locales"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "locales", "en.json"), []byte(`{"hello":"Hello"}`), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "intro.json"), []byte(`{"title":"Welcome"}`), 0644))
+
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-col"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+			Collection:     "default-col",
+		},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json", Collection: "ui"},
+			{Path: "docs/*.json", Format: "json"}, // inherits default-col
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "tok")
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_, err = conn.Push(context.Background(), connector.PushOptions{})
+	require.NoError(t, err)
+
+	// Verify collections are set on pushed blocks.
+	collections := map[string]string{} // itemName → collection
+	for _, bi := range mock.pushBlocks {
+		collections[bi.ItemName] = bi.Collection
+	}
+	assert.Equal(t, "ui", collections["src/locales/en.json"], "ui file should have 'ui' collection")
+	assert.Equal(t, "default-col", collections["docs/intro.json"], "docs file should inherit default collection")
+}
+
+func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
+	// Mock a server that returns project metadata AND handles sync endpoints.
+	mock := &mockSyncHandler{
+		pullChanges: []apiclient.ChangeEntry{
+			{Seq: 1, BlockID: "tu1", ChangeType: "target_added", Locale: "fr"},
+		},
+	}
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Metadata endpoint: GET on project prefix without /sync/
+		if r.Method == http.MethodGet && !contains(r.URL.Path, "/sync/") && contains(r.URL.Path, "/projects/") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
+				ID:            "proj-auto",
+				Name:          "Test",
+				SourceLocale:  "en",
+				TargetLocales: []string{"fr", "de"},
+			})
+			return
+		}
+		mock.ServeHTTP(w, r)
+	})
+
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "locales"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "locales", "en.json"), []byte(`{"hello":"Hello"}`), 0644))
+
+	// Config has NO target_languages — should fall back to server metadata.
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-auto"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+			// No TargetLanguages — force fallback to server.
+		},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json"},
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "test-token")
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Pull should resolve target locales from server metadata.
+	result, err := conn.Pull(context.Background(), connector.PullOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.LocalesCount, "should use server's fr+de target locales")
+
+	// Verify metadata was cached.
+	require.NotNil(t, conn.cache.ServerMeta)
+	assert.Equal(t, []string{"fr", "de"}, conn.cache.ServerMeta.TargetLocales)
+}
+
+func TestContentEntry_EffectiveLanguage(t *testing.T) {
+	ce := ContentEntry{Path: "src/*.json"}
+	assert.Equal(t, "en", ce.EffectiveLanguage("en"))
+
+	ce.Language = "es"
+	assert.Equal(t, "es", ce.EffectiveLanguage("en"))
+}
+
+func TestContentEntry_EffectiveTargetLanguages(t *testing.T) {
+	defaults := []model.LocaleID{"fr", "de"}
+
+	ce := ContentEntry{Path: "src/*.json"}
+	assert.Equal(t, defaults, ce.EffectiveTargetLanguages(defaults))
+
+	ce.TargetLanguages = []model.LocaleID{"ja", "ko"}
+	assert.Equal(t, []model.LocaleID{"ja", "ko"}, ce.EffectiveTargetLanguages(defaults))
 }
 
 func TestSourceConnector_InterfaceCompliance(t *testing.T) {

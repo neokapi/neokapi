@@ -15,6 +15,7 @@ var (
 	pullLocales []string
 	pullForce   bool
 	pullDryRun  bool
+	pullStream  string
 )
 
 var pullCmd = &cobra.Command{
@@ -87,7 +88,22 @@ func runPull(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	result, err := doPull(cmd.Context(), nil, pullLocales, pullForce, pullDryRun)
+	// Create connector and apply --stream override.
+	proj, err := project.FindProject("")
+	if err != nil {
+		return err
+	}
+	conn, err := project.NewSourceConnector(proj, app.FormatReg)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	if pullStream != "" {
+		conn.SetStream(pullStream)
+	}
+
+	result, err := doPull(cmd.Context(), conn, pullLocales, pullForce, pullDryRun)
 	if err != nil {
 		return err
 	}
@@ -96,6 +112,7 @@ func runPull(cmd *cobra.Command, args []string) error {
 		BlocksPulled: result.BlocksPulled,
 		LocalesCount: result.LocalesCount,
 		FilesWritten: result.FilesWritten,
+		Stream:       conn.Stream(),
 		DryRun:       result.DryRun,
 		UpToDate:     result.UpToDate,
 	}
@@ -118,5 +135,6 @@ func init() {
 	pullCmd.Flags().StringSliceVar(&pullLocales, "locale", nil, "languages to download (e.g. fr,de)")
 	pullCmd.Flags().BoolVar(&pullForce, "force", false, "Re-download everything, even unchanged content")
 	pullCmd.Flags().BoolVar(&pullDryRun, "dry-run", false, "Show what would change without writing files")
+	pullCmd.Flags().StringVar(&pullStream, "stream", "", "Source stream (default: auto-detect from git/CI)")
 	rootCmd.AddCommand(pullCmd)
 }

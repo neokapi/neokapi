@@ -34,8 +34,8 @@ Examples:
 		for _, pattern := range args {
 			// Check if pattern is already tracked.
 			alreadyTracked := false
-			for _, m := range proj.Config.Mappings {
-				if m.Local == pattern {
+			for _, m := range proj.Config.Content {
+				if m.Path == pattern {
 					alreadyTracked = true
 					break
 				}
@@ -64,8 +64,8 @@ Examples:
 			matches, _ := project.ExpandGlob(proj.Root, pattern)
 
 			// Append mapping to config.
-			proj.Config.Mappings = append(proj.Config.Mappings, project.Mapping{
-				Local:  pattern,
+			proj.Config.Content = append(proj.Config.Content, project.ContentEntry{
+				Path:   pattern,
 				Format: format,
 			})
 

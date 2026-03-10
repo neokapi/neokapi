@@ -101,6 +101,23 @@ type BlockChange struct {
 }
 
 // ---------------------------------------------------------------------------
+// Streams
+// ---------------------------------------------------------------------------
+
+// Stream represents a named branch of content within a project.
+// Every project has an implicit "main" stream. Additional streams branch
+// from a parent stream at a specific cursor position (copy-on-write).
+type Stream struct {
+	ProjectID  string    `json:"project_id"`
+	Name       string    `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
+	Parent     string    `json:"parent"`       // parent stream name; empty for "main"
+	BaseCursor int64     `json:"base_cursor"`  // cursor in parent at branch point
+	Archived   bool      `json:"archived"`
+	CreatedAt  time.Time `json:"created_at"`
+	CreatedBy  string    `json:"created_by"`
+}
+
+// ---------------------------------------------------------------------------
 // Change Log (incremental sync)
 // ---------------------------------------------------------------------------
 
