@@ -7,16 +7,11 @@ title: "AD-002: Content Model"
 
 ## Context
 
-Okapi's content model uses a deep inheritance hierarchy rooted in `IResource`
-with subtypes like `TextUnit`, `DocumentPart`, `StartDocument`, etc. Each event
-type carries different fields, leading to type casts and instanceof checks
-throughout filter and step code. Embedded content (HTML inside JSON, CDATA in
-XML) is handled with flat `START_SUBDOCUMENT` / `END_SUBDOCUMENT` events where
-nesting depth is tracked implicitly.
-
-Go does not have class inheritance. The content model needed to work with Go's
-composition and interface system while remaining type-safe, extensible, and
-able to represent recursive embedded content naturally.
+A localization content model must represent translatable documents in a way
+that is format-independent, type-safe, extensible, and able to represent
+recursive embedded content naturally. Go's composition and interface system
+(no class inheritance) shapes the design toward discriminated unions and
+explicit resource types rather than deep type hierarchies.
 
 Beyond structural representation, real-world localization workflows demand
 stable content identity across extraction cycles for incremental processing,
@@ -53,15 +48,13 @@ columns, HTML in XLIFF notes. These need format-aware extraction — a JSON
 reader that only sees `"<p>Hello <b>world</b></p>"` as a flat string misses
 the inline formatting and produces inferior translation results.
 
-Okapi Framework solves this with **subfilters**: a filter can delegate content
-to another filter via `FilterConfigurationMapper`. The parent filter fires
-`START_SUBDOCUMENT` / `END_SUBDOCUMENT` events, and the subfilter produces
-TextUnits within that boundary. This works but has limitations:
+Traditional approaches use flat start/end events where nesting depth is tracked
+implicitly. This works but has limitations:
 
-- Subfilters must be Okapi filters registered in the same Java process
-- Configuration is format-specific (each filter has its own subfilter params)
-- The subfilter mechanism is invisible to the pipeline — steps don't know
-  content came from a subfilter and can't apply format-specific processing
+- Embedded content handling is invisible to the pipeline — tools don't know
+  content came from an embedded format and can't apply format-specific processing
+- Nesting depth must be tracked manually by each tool
+- Configuration tends to be format-specific rather than composable
 
 ### Industry precedent for inline codes
 
@@ -857,22 +850,44 @@ badges (`[B]`, `[/B]`, `[IMG]`) that translators can drag to reorder but
 cannot edit. The `Deletable` and `CanReorder` flags control which operations
 the editor permits.
 
+## Comparison with Okapi Framework
+
+gokapi's content model draws from Okapi's proven concepts but adapts them
+to Go's type system and modern localization needs:
+
+| Concern | Okapi Framework | gokapi |
+|---|---|---|
+| **Type hierarchy** | Deep `IResource` inheritance (`TextUnit`, `DocumentPart`, `StartDocument`, etc.) with instanceof checks | Single `Part` struct with `PartType` discriminator and `Resource` interface — switch dispatch, no casts |
+| **Inline codes** | `Code` objects with type flags; code simplification step collapses redundant codes | Six-layer `Span` model with semantic types, native data, display text, and editing constraints — no simplification step needed |
+| **Semantic abstraction** | Format-specific code types; cross-format matching requires normalization | Defined semantic type vocabulary (`fmt:bold`, `link:hyperlink`, etc.) with `SubType` for format-specific refinement |
+| **Embedded content** | `START_SUBDOCUMENT`/`END_SUBDOCUMENT` flat events; subfilters via `FilterConfigurationMapper` | Nested `Layer` tree with recursive subfilter resolution; child layers are visible to tools |
+| **Block identity** | Opaque IDs assigned at extraction time; don't survive re-extraction | Content-addressable identity (SHA-256 of normalized source + context hash); stable across extraction cycles |
+| **Properties** | Dedicated fields per metadata type; requires model changes | `map[string]any` dynamic properties; tools attach arbitrary metadata without model changes |
+| **Annotations** | No equivalent — metadata like TM matches or term hits are separate | `Annotation` interface with character-level positions; carried on blocks through the pipeline |
+| **Text projections** | Single text representation; tools extract what they need | Multiple projections (`Text()`, `StructuralText()`, `SemanticHTML()`, `PlaceholderText()`) for different consumers |
+
+The key insight is separating semantic meaning (what a code represents) from
+native markup (what a code looks like in the source format). Okapi's code
+simplification step exists because the model conflates these two layers —
+tools must normalize adjacent codes that differ in markup but agree in
+semantics. gokapi's Span model eliminates this by design: tools process at
+the semantic level, writers replay native markup verbatim.
+
 ## Alternatives Considered
 
-- **Inheritance hierarchy** (Okapi style): idiomatic in Java but requires
-  type casts in Go; deep trees are hard to navigate.
-- **Flat START/END events for embedded content** (Okapi style): loses
-  hierarchical structure; tools must track nesting depth manually.
+- **Inheritance hierarchy**: idiomatic in Java but requires type casts in Go;
+  deep trees are hard to navigate.
+- **Flat START/END events for embedded content**: loses hierarchical structure;
+  tools must track nesting depth manually.
 - **UUID-based block identity**: doesn't survive re-extraction; content hash
   is stable across extraction cycles and enables deduplication.
 - **Schema-driven properties**: over-constrains extensibility;
   `map[string]any` is simpler and sufficient for pipeline metadata.
 - **Separate sub-document channel**: overcomplicates the pipeline; breaks the
   single-stream model that enables simple tool composition.
-- **Code simplification step** (Okapi pattern): a separate processing step
-  that collapses redundant codes (e.g., adjacent `</b><b>` pairs). This
-  introduces a bug-prone intermediate representation and is the source of
-  many inline code issues in Okapi. The semantic type abstraction
+- **Code simplification step**: a separate processing step that collapses
+  redundant codes (e.g., adjacent `</b><b>` pairs). This introduces a
+  bug-prone intermediate representation. The semantic type abstraction
   eliminates the need — tools process at the semantic level, writers replay
   native markup.
 - **Single type field with free strings** (no vocabulary): format readers

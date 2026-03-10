@@ -27,24 +27,40 @@ no crash isolation and limited platform support (Linux/macOS only).
 
 ### Out-of-Process Plugins via go-plugin
 
-Use [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with gRPC
-transport. Each plugin is a separate executable that communicates with the host
-over stdin/stdout using gRPC. Protocol buffers define the service contract.
+Use [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) for Go binary
+plugins and direct gRPC for bridge plugins. Go binary plugins communicate via
+`net/rpc` over stdin/stdout with a magic cookie handshake. Bridge plugins (like
+the Okapi bridge) run a gRPC server and the Go side connects as a client;
+protocol buffers define the service contract.
 
-Plugin discovery scans a directory for executables matching the naming convention
-for each plugin type. The host launches each plugin, performs a version handshake,
-queries capabilities via the `Info()` RPC, and registers the plugin's capabilities
-into the appropriate registry.
+Plugin discovery uses a two-phase approach that avoids launching external
+processes (JVMs, binaries) until they are actually needed:
+
+1. **`ScanMetadata`** — scans versioned plugin directories and reads
+   `manifest.json` files and parameter schemas from disk. Format metadata
+   (names, MIME types, extensions, capabilities) is registered into the
+   format registry so that `kapi formats list` works without starting any
+   external process.
+2. **`LoadBridges`** — called lazily when a flow actually needs a bridge
+   format. Creates the shared `BridgePool` and registers reader/writer
+   factories that acquire a bridge instance on demand.
+
+This design means listing installed plugins and formats is instant, and
+JVM startup cost is only paid when processing files.
 
 ### Plugin Types
 
-| Type | What it adds | Discovery | Example |
-|------|-------------|-----------|---------|
-| **Bundle** | Collection of formats and/or tools | varies | Okapi bridge (40+ formats) |
-| **Format** | Reader + Writer for a file format | `gokapi-format-*` | `gokapi-format-docx` |
-| **Tool** | Processing step in a flow | `gokapi-tool-*` | `gokapi-tool-terminology` |
-| **Connector** | Bidirectional system integration | `gokapi-connector-*` | `gokapi-connector-contentful` |
-| **Provider** | AI/LLM or MT backend | `gokapi-provider-*` | `gokapi-provider-deepl-v2` |
+| Type | What it adds | Example |
+|------|-------------|---------|
+| **Bundle** | Collection of formats and/or tools | Okapi bridge (40+ formats) |
+| **Format** | Reader + Writer for a file format | `gokapi-plugin-docx` |
+| **Tool** | Processing step in a flow | `gokapi-plugin-terminology` |
+| **Connector** | Bidirectional system integration | `gokapi-plugin-contentful` |
+| **Provider** | AI/LLM or MT backend | `gokapi-plugin-deepl-v2` |
+
+Go binary plugins are discovered by scanning for executables named
+`gokapi-plugin-*` in versioned directories. Bridge plugins are discovered
+via `manifest.json` files in their version directories.
 
 ### Bundles
 
@@ -84,16 +100,21 @@ versioned directory layout:
   okapi/
     1.46.0/
       version.json
-      okapi.bridge.json
+      manifest.json
+      schemas/
       gokapi-okapi-bridge.jar
     1.47.0/
       version.json
-      okapi.bridge.json
+      manifest.json
+      schemas/
       gokapi-okapi-bridge.jar
 ```
 
-Each version directory contains a `version.json` manifest with name, version,
-and install type. The plugin loader scans all version directories and registers
+Each version directory contains a `version.json` with name, version, and
+install type, and a `manifest.json` (`BundledManifest`) listing capabilities,
+command configuration, and plugin type. Bridge plugins also ship a `schemas/`
+directory with filter parameter schemas that drive configuration, preset
+extraction, and format metadata — all readable without starting the JVM. The plugin loader scans all version directories and registers
 capabilities with versioned names:
 
 - `okapi-html@1.46.0` -- specific version
@@ -106,12 +127,14 @@ if no explicit bare-name registration exists, preventing conflicts.
 
 The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
-- Scans the plugin directory for versioned subdirectories
-- Loads Go binary plugins via `host.PluginManager`
-- Loads bridge plugins via bridge descriptors (`*.bridge.json`)
-- Registers all discovered formats, tools, connectors, and providers into the
-  core registries
-- Manages the shared bridge pool and plugin lifecycle
+- **`ScanMetadata`**: Scans versioned subdirectories, reads `manifest.json`
+  and `schemas/` from disk, extracts presets, registers format metadata into
+  registries — all without starting any external process
+- **`LoadBridges`**: Starts the shared `BridgePool`, launches Go binary plugins
+  via `host.PluginManager`, and registers reader/writer factories for bridge
+  formats
+- **`LoadAll`**: Convenience method that calls `ScanMetadata` then `LoadBridges`
+- Manages the shared bridge pool and plugin lifecycle (`Shutdown`, `WarmupBridges`)
 
 ### Okapi Bridge
 
@@ -122,20 +145,34 @@ and Okapi's Event model. The adapter layer wraps the bridge behind standard
 `DataFormatReader` / `DataFormatWriter` interfaces — bridge-backed formats are
 indistinguishable from native Go formats at the registry level.
 
-The bridge protocol (`core/plugin/proto/v2/gokapi_bridge.proto`) defines seven RPCs:
+The bridge protocol (`core/plugin/proto/v2/gokapi_bridge.proto`) defines eight RPCs:
 
 | RPC | Direction | Purpose |
 |-----|-----------|---------|
-| `ListFilters` | Unary | Discover available filters |
+| `ListFilters` | Unary | Discover available filters (runtime fallback; metadata preferred) |
 | `Info` | Unary | Get metadata for a specific filter |
 | `Open` | Unary | Open a document with a filter for reading |
 | `Read` | Server-streaming | Stream extracted Parts from the document |
 | `Write` | Client-streaming | Send Parts to reconstruct the document |
 | `Close` | Unary | Release filter resources |
+| `RoundTrip` | Bidirectional-streaming | Complete read→process→write cycle in a single RPC |
 | `Shutdown` | Unary | Gracefully stop the bridge process |
 
 The `Read` and `Write` RPCs use gRPC streaming, so content flows incrementally
 rather than requiring the entire document to be buffered in memory.
+
+`RoundTrip` combines the Open/Read/Write/Close lifecycle into a single
+bidirectional stream: the server reads the document and streams Parts to the
+client, the client processes each Part and sends it back, and the server writes
+the output. This eliminates multiple RPC round-trips and ensures only one bridge
+instance is needed for the entire operation. Multiple `RoundTrip` calls can
+share the same JVM via concurrent gRPC streams.
+
+Note: `ListFilters` and `Info` exist in the protocol but are not the primary
+discovery mechanism. The `PluginLoader` reads format metadata from
+`manifest.json` and schema files on disk during `ScanMetadata`, avoiding JVM
+startup for format listing and configuration. The RPCs serve as a runtime
+fallback when schemas are unavailable.
 
 ### Global Bridge Pool
 
@@ -149,9 +186,16 @@ definition, BridgePool acquire algorithm, and bridge descriptor format.
 
 ### Plugin Configuration
 
-Plugins declare their configuration parameters via the `Info()` RPC response using `ParameterDescriptor` structs. Configuration is namespaced by plugin type and name in the project config file, integrated with the Viper-based layered configuration system ([AD-001](./001-vision.md)). On the CLI, plugin parameters become namespaced flags.
+Plugins declare their configuration parameters via JSON schema files shipped in
+the `schemas/` directory of each plugin version. Schemas define parameter groups,
+defaults, and validation rules. The `SchemaRegistry` loads these from disk
+during `ScanMetadata` — no external process needed. Configuration is namespaced
+by plugin type and name in the project config file, integrated with the
+Viper-based layered configuration system ([AD-001](./001-vision.md)). On the
+CLI, plugin parameters become namespaced flags.
 
-See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the ParameterDescriptor struct and configuration examples.
+See [Plugin Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the schema
+format and configuration examples.
 
 ### Presets
 
