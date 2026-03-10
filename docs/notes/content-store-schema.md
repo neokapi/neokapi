@@ -72,21 +72,34 @@ CREATE TABLE version_blocks (
     PRIMARY KEY (version_id, block_id)
 );
 
+CREATE TABLE streams (
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    parent      TEXT NOT NULL DEFAULT '',
+    base_cursor INTEGER NOT NULL DEFAULT 0,
+    archived    INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_by  TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (project_id, name)
+);
+
 CREATE TABLE change_log (
     seq          INTEGER PRIMARY KEY AUTOINCREMENT,
     project_id   TEXT NOT NULL,
     block_id     TEXT NOT NULL,
     change_type  TEXT NOT NULL,  -- source_added, source_modified, source_removed,
                                 -- target_added, target_modified
+    stream       TEXT NOT NULL DEFAULT 'main',
     locale       TEXT,
     content_hash TEXT,
     logged_at    TEXT NOT NULL
 );
 CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
 CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
+CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
 ```
 
-Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The append-only `change_log` enables cursor-based incremental sync.
+Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The `streams` table tracks content branches within a project ([AD-024](/docs/ad/024-streams)). The append-only `change_log` enables cursor-based incremental sync, with a `stream` column scoping changes to their branch.
 
 SQLite provides zero-deployment overhead for local development and single-instance deployments. A PostgreSQL backend serves the multi-instance team server scenario where multiple server replicas share a central database.
 

@@ -68,6 +68,7 @@ func (o RmOutput) FormatText(w io.Writer) error {
 // StatusOutput represents sync status.
 type StatusOutput struct {
 	Project     ProjectInfo `json:"project"`
+	Stream      string      `json:"stream,omitempty"`
 	ItemCount   int         `json:"item_count"`
 	FileCount   int         `json:"file_count"`
 	WordCount   int         `json:"word_count"`
@@ -88,6 +89,9 @@ type ProjectInfo struct {
 func (s StatusOutput) FormatText(w io.Writer) error {
 	fmt.Fprintf(w, "Project root: %s\n", s.Project.Root)
 	fmt.Fprintf(w, "Config:       %s\n", s.Project.ConfigDir)
+	if s.Stream != "" && s.Stream != "main" {
+		fmt.Fprintf(w, "Stream:       %s\n", s.Stream)
+	}
 
 	if s.Project.Server == "" {
 		fmt.Fprintln(w, "\nNot connected to a server.")
@@ -283,14 +287,18 @@ func (o LsOutput) FormatText(w io.Writer) error {
 
 // PullOutput represents the result of bowrain pull.
 type PullOutput struct {
-	BlocksPulled int  `json:"blocks_pulled"`
-	LocalesCount int  `json:"locales_count"`
-	FilesWritten int  `json:"files_written,omitempty"`
-	DryRun       bool `json:"dry_run,omitempty"`
-	UpToDate     bool `json:"up_to_date,omitempty"`
+	BlocksPulled int    `json:"blocks_pulled"`
+	LocalesCount int    `json:"locales_count"`
+	FilesWritten int    `json:"files_written,omitempty"`
+	Stream       string `json:"stream,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	UpToDate     bool   `json:"up_to_date,omitempty"`
 }
 
 func (o PullOutput) FormatText(w io.Writer) error {
+	if o.Stream != "" && o.Stream != "main" {
+		fmt.Fprintf(w, "Stream: %s\n", o.Stream)
+	}
 	if o.DryRun {
 		fmt.Fprintf(w, "Would pull %d blocks for %d locales\n", o.BlocksPulled, o.LocalesCount)
 		return nil
@@ -308,14 +316,18 @@ func (o PullOutput) FormatText(w io.Writer) error {
 
 // PushOutput represents the result of bowrain push.
 type PushOutput struct {
-	BlocksPushed int  `json:"blocks_pushed"`
-	WordCount    int  `json:"word_count"`
-	FilesScanned int  `json:"files_scanned"`
-	DryRun       bool `json:"dry_run,omitempty"`
-	UpToDate     bool `json:"up_to_date,omitempty"`
+	BlocksPushed int    `json:"blocks_pushed"`
+	WordCount    int    `json:"word_count"`
+	FilesScanned int    `json:"files_scanned"`
+	Stream       string `json:"stream,omitempty"`
+	DryRun       bool   `json:"dry_run,omitempty"`
+	UpToDate     bool   `json:"up_to_date,omitempty"`
 }
 
 func (o PushOutput) FormatText(w io.Writer) error {
+	if o.Stream != "" && o.Stream != "main" {
+		fmt.Fprintf(w, "Stream: %s\n", o.Stream)
+	}
 	if o.DryRun {
 		fmt.Fprintf(w, "Would push %d blocks, %d words (scanned %d files)\n", o.BlocksPushed, o.WordCount, o.FilesScanned)
 		return nil
