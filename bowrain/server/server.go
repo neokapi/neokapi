@@ -13,6 +13,7 @@ import (
 	"github.com/gokapi/gokapi/bowrain/credentials"
 	"github.com/gokapi/gokapi/bowrain/event"
 	"github.com/gokapi/gokapi/bowrain/jobs"
+	"github.com/gokapi/gokapi/bowrain/mailer"
 	"github.com/gokapi/gokapi/bowrain/service"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/formats"
@@ -45,9 +46,14 @@ type Server struct {
 	// CredentialStore manages AI provider credentials.
 	CredentialStore *credentials.Store
 
-	// EmailSender sends transactional emails (invitations, etc.).
-	// Nil if SMTP is not configured.
+	// EmailSender sends raw transactional emails. Prefer Mailer for
+	// template-rendered messages. Kept for backward compatibility with tests.
+	// Nil if email is not configured.
 	EmailSender EmailSenderI
+
+	// Mailer renders branded email templates and dispatches them via
+	// EmailSender. Nil when email sending is not configured.
+	Mailer *mailer.Mailer
 
 	// collabHub manages collaborative editing WebSocket rooms.
 	collabHub *collabHub
@@ -130,10 +136,8 @@ func NewServer(cfg ServerConfig) *Server {
 	// Initialize credential store.
 	s.CredentialStore = credentials.NewStore(credentials.DefaultPath())
 
-	// Initialize email sender if SMTP is configured.
-	if cfg.SMTPHost != "" && cfg.SMTPFrom != "" {
-		s.EmailSender = &SMTPSender{Host: cfg.SMTPHost, From: cfg.SMTPFrom}
-	}
+	// Initialize email sender and mailer.
+	s.initMailer(cfg)
 
 	// Initialize stores based on DatabaseURL or StorePath.
 	dbURL := cfg.DatabaseURL

@@ -18,6 +18,7 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/stretchr/testify v1.11.1
 	github.com/wailsapp/wails/v3 v3.0.0-alpha.64
+	github.com/wneessen/go-mail v0.7.2
 	github.com/zalando/go-keyring v0.2.6
 	golang.org/x/net v0.49.0
 	golang.org/x/oauth2 v0.35.0

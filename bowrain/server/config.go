@@ -45,9 +45,20 @@ type ServerConfig struct {
 	OIDCClientSecret string
 	OIDCPublicURL    string // browser-facing OIDC URL; defaults to OIDCIssuerURL
 
-	// Email
-	SMTPHost string // SMTP server host:port
-	SMTPFrom string // sender email address
+	// Email — SMTP sender.
+	// Set SMTPHost + SMTPFrom for unauthenticated relay (local dev / Mailpit).
+	// Set SMTPUsername + SMTPPassword for authenticated SMTP (production).
+	// Set SMTPUseTLS=true for implicit TLS (port 465 / SMTPS).
+	SMTPHost     string // SMTP server host:port  (e.g. "smtp.example.com:587")
+	SMTPFrom     string // Sender address         (e.g. "noreply@bowrain.cloud")
+	SMTPUsername string // SMTP auth username     (empty = no auth)
+	SMTPPassword string // SMTP auth password
+	SMTPUseTLS   bool   // Use implicit TLS (SMTPS); false = try STARTTLS
+
+	// Email — Resend API sender (alternative to SMTP for SaaS deployments).
+	// When ResendAPIKey is set, Resend is used instead of SMTP.
+	// SMTPFrom is reused as the "from" address.
+	ResendAPIKey string // Resend API key (sk_live_…)
 
 	// WebUIDir is the path to built web UI static files (development only).
 	// In production, the web UI is served by a separate container (bowrain-web).

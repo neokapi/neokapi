@@ -1,0 +1,21 @@
+{
+  "name": "@bowrain/emails",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx scripts/render.ts",
+    "dev": "email dev --dir src --port 3001"
+  },
+  "dependencies": {
+    "@react-email/components": "0.0.35",
+    "@react-email/render": "1.0.5",
+    "react": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.1.0",
+    "react-email": "3.0.7",
+    "tsx": "^4.19.3",
+    "typescript": "5.8.3"
+  }
+}
