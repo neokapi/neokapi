@@ -334,7 +334,7 @@ Review queue changes need to reach users across all surfaces: desktop app, web a
 
 **Notification architecture:**
 
-1. **Server-side notification store.** Persistent notifications per user with read/unread state, stored in SQLite alongside review items. Notification types: `queue_item_added`, `queue_item_assigned`, `queue_item_decided`, `extraction_completed`.
+1. **Server-side notification store.** Persistent notifications per user with read/unread state, stored alongside review items (SQLite or PostgreSQL, depending on the deployment — see [AD-003](./003-content-store.md)). Notification types: `queue_item_added`, `queue_item_assigned`, `queue_item_decided`, `extraction_completed`.
 
 2. **Real-time delivery.** Extend the existing WebSocket infrastructure with a notification channel. Clients subscribe on connect; the server pushes notification events as they occur. Falls back to polling for clients without WebSocket support (mobile in background).
 
@@ -410,7 +410,7 @@ No backfill on feature enable. Extraction runs incrementally on future pushes on
 ## Consequences
 
 - **New framework types:** `TermCandidateAnnotation`, `NERProvider` interface, `AIEntityExtractTool`, `AITermExtractTool`
-- **New bowrain components:** review queue store (SQLite), review queue API endpoints, extraction automation rule, extraction worker, notification store + WebSocket delivery
+- **New bowrain components:** review queue store (SQLite and PostgreSQL), review queue API endpoints, extraction automation rule, extraction worker, notification store + WebSocket delivery
 - **New platform types:** `ReviewItem`, `ReviewItemType`, `ReviewItemStatus` in `platform/store/`
 - **New editor components:** entity highlighting in `FormattedSourceDisplay` and `HighlightedSource`, entity context panel, manual entity marking, entity popover editor
 - **bowrain-app:** Full auth flow + workspace/project selection + review queue integration

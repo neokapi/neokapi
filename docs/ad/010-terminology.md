@@ -25,7 +25,7 @@ Key gaps in the market:
 
 Standards: **TBX** (ISO 30042:2019) is the universal interchange format for
 concept-oriented terminological data. **CSV/TSV** provides simple glossary
-import. TBX is used for import/export; native storage uses SQLite.
+import. TBX is used for import/export; native storage uses SQLite or PostgreSQL.
 
 ## Decision
 
@@ -34,7 +34,7 @@ import. TBX is used for import/export; native storage uses SQLite.
 Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
-Shared SQLite infrastructure with Sievepen TM ([AD-009](./009-translation-memory.md))
+Shared storage infrastructure (SQLite and PostgreSQL) with Sievepen TM ([AD-009](./009-translation-memory.md))
 and Content Store ([AD-003](./003-content-store.md)) via `bowrain/storage/`.
 
 ### Data Model: Concept-Oriented
@@ -43,7 +43,7 @@ The core data model is concept-oriented, following TBX principles. A Concept gro
 
 ### TermBase Interface
 
-The TermBase interface provides concept CRUD, term lookup, search, and import/export. Backends: In-memory (CLI batch) and SQLite (persistent), both using the shared `bowrain/storage` layer from [AD-003](./003-content-store.md).
+The TermBase interface provides concept CRUD, term lookup, search, and import/export. Backends: In-memory (CLI batch), SQLite (persistent, local/desktop), and PostgreSQL (persistent, SaaS), all using the shared `bowrain/storage` layer from [AD-003](./003-content-store.md). PostgreSQL termbases are workspace-scoped via `workspace_id`.
 
 See [Terminology Data Model](/docs/notes/terminology-data-model) for full Go struct definitions (Concept, Term, TermContext, TermBase interface).
 
@@ -78,7 +78,7 @@ Two annotation types (`TermAnnotation`, `EntityAnnotation`) implement the `Annot
 
 **Embed in Sievepen (TM)**: Terminology has fundamentally different data
 requirements (concept-orientation, lifecycle, relations). Separate systems
-sharing SQLite infrastructure is the right balance.
+sharing storage infrastructure is the right balance.
 
 **External terminology server**: Adds deployment complexity and defeats the
 single-binary goal.
@@ -93,8 +93,9 @@ capability without merge conflicts.
 
 - Terminology is first-class in the pipeline, not a bolt-on
 - Progressive complexity: CSV glossary to concept management to brand governance
-- Shared SQLite infrastructure with TM ([AD-009](./009-translation-memory.md))
-  and Content Store ([AD-003](./003-content-store.md))
+- Shared storage infrastructure (SQLite and PostgreSQL) with TM
+  ([AD-009](./009-translation-memory.md)) and Content Store
+  ([AD-003](./003-content-store.md))
 - Character-level annotation positions enable precise Bowrain highlighting
   ([AD-012](./012-bowrain.md))
 - Entity annotation drives both terminology and TM generalization

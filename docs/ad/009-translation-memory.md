@@ -84,6 +84,19 @@ Spans for the structural key. No separate pre-processing step is needed.
    pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
    layer with TermBase ([AD-010](./010-terminology.md)) and Content Store
    ([AD-003](./003-content-store.md)). Pure Go with no CGo dependencies.
+   SQLite is the default for local development, single-instance deployments,
+   and the desktop app.
+3. **PostgreSQL** (via `pgx`): persistent; same schema and matching logic as
+   SQLite, with workspace-scoped isolation (`workspace_id` column). All
+   workspace TMs share the same PostgreSQL database. Uses the shared
+   `bowrain/storage/` infrastructure layer with independent migration tables.
+   PostgreSQL is used for SaaS and multi-instance deployments, sharing the
+   connection pool with ContentStore, AuthStore, TermBase, JobStore, and
+   QuotaStore ([AD-003](./003-content-store.md)).
+
+Both SQLite and PostgreSQL backends implement the same `TranslationMemory`
+interface. The server selects the backend at startup based on the
+`DATABASE_URL` connection string prefix ([AD-003](./003-content-store.md)).
 
 Generalized and structural exact matching is an indexed lookup -- fast even for
 large TMs. Fuzzy matching falls back to scanning with Levenshtein, which is
@@ -116,8 +129,9 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
   the single-binary goal. gokapi's TM must work out of the box.
 - **BoltDB / BadgerDB**: key-value stores lack query flexibility for tiered
   matching with multiple indexed keys.
-- **PostgreSQL**: overkill for local TM; requires external service. SQLite
-  provides indexed queries with zero deployment overhead.
+- **PostgreSQL only**: Requires an external service; SQLite provides
+  zero-deployment overhead for local, single-instance, and desktop use. Both
+  backends are now production-ready, with PostgreSQL used for SaaS deployments.
 - **`mattn/go-sqlite3`**: CGo dependency breaks cross-compilation. Chose pure
   Go `modernc.org/sqlite` instead.
 
@@ -133,6 +147,7 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
 - The tiered matching pipeline (generalized, structural, plain) maximizes reuse
   while falling back gracefully for legacy content
 - TMX roundtrip preserves inline codes via standard TMX elements
-- Shared SQLite infrastructure with TermBase ([AD-010](./010-terminology.md))
-  and Content Store ([AD-003](./003-content-store.md)) reduces code duplication
+- Shared storage infrastructure (SQLite and PostgreSQL) with TermBase
+  ([AD-010](./010-terminology.md)) and Content Store
+  ([AD-003](./003-content-store.md)) reduces code duplication
 - TMX import/export provides portability for offline sharing
