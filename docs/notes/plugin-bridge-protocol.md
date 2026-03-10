@@ -21,6 +21,10 @@ service BridgeService {
   rpc Write(stream WriteChunk) returns (WriteResponse);
   rpc Close(CloseRequest) returns (CloseResponse);
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+
+  // RoundTrip performs a complete read → process → write cycle on a single
+  // filter instance using bidirectional streaming.
+  rpc RoundTrip(stream RoundTripRequest) returns (stream RoundTripResponse);
 }
 ```
 
@@ -28,16 +32,23 @@ service BridgeService {
 
 A typical read cycle:
 
-1. **ListFilters** — called once during plugin discovery to register available formats
-2. **Open** — sends the document content (or a file path) and filter configuration
-3. **Read** — streams `PartMessage` values (Blocks, Layers, Data, Groups, Media) as the filter extracts them
-4. **Close** — releases filter resources; the bridge becomes available for the next document
+1. **Open** — sends the document content (or a file path) and filter configuration
+2. **Read** — streams `PartMessage` values (Blocks, Layers, Data, GroupStart/GroupEnd, Media) as the filter extracts them
+3. **Close** — releases filter resources; the bridge becomes available for the next document
 
 A write cycle:
 
 1. **Open** — opens the filter with the original document for skeleton reconstruction
-2. **Write** — client-streams a `WriteHeader` (filter class, locale, original content) followed by `PartMessage` values; returns the reconstructed document bytes
+2. **Write** — client-streams a `WriteHeader` (filter class, locale, original content, optional `OutputRef` for direct disk output) followed by `PartMessage` values; returns the reconstructed document bytes
 3. **Close** — releases resources
+
+A roundtrip cycle (bidirectional streaming, single bridge):
+
+1. **RoundTrip** — client sends `RoundTripHeader`, server reads document and streams `PartMessage` values back, client processes parts and returns them as `RoundTripProcessed`, server writes output and sends `RoundTripComplete`
+
+The roundtrip mode enables concurrent processing: multiple goroutines share a single bridge via `AcquireShared()`, each running its own RoundTrip stream on the same JVM.
+
+**Note:** `ListFilters` is defined in the protocol but is NOT called during plugin discovery. Instead, format capabilities are loaded from `manifest.json` and schema files on disk (see Plugin Loader below), eliminating the need to start a JVM during discovery.
 
 ### Subprocess Startup
 
@@ -45,7 +56,26 @@ On launch, the bridge subprocess starts a gRPC server on a random port and print
 
 ### Content Transfer
 
-For small files, document content is sent inline in the `OpenRequest.content` or `WriteHeader.original_content` fields (protobuf `bytes`). For large files or formats that require auxiliary file resolution (e.g., XLIFF with external ITS references), the `source_path` field passes an absolute file path and the bridge reads directly from disk.
+Content can be referenced in three ways via `ContentRef`:
+
+```protobuf
+message ContentRef {
+  oneof location {
+    bytes  inline = 1;  // Inline bytes
+    string path   = 2;  // Local filesystem path
+    string uri    = 3;  // Remote/local URI (file://, s3://, gs://)
+  }
+}
+
+message OutputRef {
+  oneof destination {
+    string path = 1;  // Local filesystem path
+    string uri  = 2;  // Remote/local URI
+  }
+}
+```
+
+`ContentRef` is the preferred way to pass document content in `OpenRequest`, `WriteHeader`, and `RoundTripHeader`. Legacy fields (`content` bytes and `source_path` string) are still supported for backward compatibility. `OutputRef` allows the bridge to write output directly to disk rather than returning bytes inline.
 
 The `Read` and `Write` RPCs use gRPC streaming, so Parts flow incrementally without buffering the entire document in memory.
 
@@ -58,19 +88,39 @@ type BridgePool struct {
     mu      sync.Mutex
     cond    *sync.Cond
     maxSize int
-    active  int                       // total running (idle + in-use)
+    active  int                       // total running bridges (idle + in-use + shared)
     closed  bool
     logger  *log.Logger
     idle    map[string][]*JavaBridge   // keyed by PoolKey
+    shared  map[string]*sharedEntry   // keyed by PoolKey — one shared bridge per config
+}
+
+// sharedEntry tracks a bridge with active concurrent sessions.
+type sharedEntry struct {
+    bridge   *JavaBridge
+    sessions int
 }
 ```
 
-### Acquire Algorithm
+The pool supports two access modes:
+
+- **Exclusive** (`Acquire`/`Release`): one goroutine owns the bridge for stateful Open→Read→Close or Write cycles
+- **Shared** (`AcquireShared`/`ReleaseShared`): multiple goroutines share a single bridge for concurrent RoundTrip streams, using reference counting via `sessions`
+
+### Acquire Algorithm (Exclusive)
 
 1. Return idle bridge for requested key (LIFO for cache warmth)
 2. If capacity available, create new bridge
 3. If at capacity but idle bridges exist for a different key, **evict one** (stop it, start a new one for the requested key)
 4. If all bridges are in-use with none idle, block until one is released
+
+### AcquireShared Algorithm
+
+1. Reuse existing shared bridge for this config (increment session count)
+2. Promote idle bridge to shared if available
+3. Create new bridge if capacity available
+4. Evict idle bridge from different bucket if at capacity
+5. Block if all bridges in-use
 
 The eviction step is critical: without it, the pool deadlocks when all capacity is consumed by one key and a request arrives for a different key. `sync.Cond` with `Broadcast()` is used because waiters may be for different keys.
 
@@ -78,25 +128,15 @@ The eviction step is critical: without it, the pool deadlocks when all capacity 
 
 On release back to the pool, bridges undergo a health check to verify the gRPC connection is still alive. Unhealthy bridges are discarded rather than returned to the idle set, preventing stale subprocesses from causing hangs on subsequent use.
 
-### Seeding
+### Warmup
 
-The first bridge for each descriptor is seeded during plugin loading (needed for `ListFilters` discovery). The `PluginLoader` creates one pool and shares it across all bridge descriptors and versions.
+The pool provides a `Warmup(cfg)` method to eagerly start a bridge for a given configuration before it's needed. The `PluginLoader` creates one pool and shares it across all bridge descriptors and versions.
 
-## ParameterDescriptor
+## Plugin Parameters
 
-Plugins declare their configuration parameters as part of the `Info()` RPC response:
+Plugin parameters are described by JSON Schema files bundled in the `schemas/` directory of each plugin version. The `FilterSchema` type (`core/format/schema/schema.go`) loads these schemas, which define available configuration options per filter.
 
-```go
-type ParameterDescriptor struct {
-    Name         string      `json:"name"`
-    Type         string      `json:"type"`          // string, int, float, bool, []string, file
-    Default      interface{} `json:"default"`
-    Description  string      `json:"description"`
-    Required     bool        `json:"required"`
-    Choices      []string    `json:"choices,omitempty"`
-    Sensitive    bool        `json:"sensitive"`          // API keys, passwords
-}
-```
+The `Info()` RPC response provides only basic metadata (name, display name, MIME types, extensions) — it does not contain parameter definitions. Parameters are passed as `map<string, string>` in `OpenRequest.filter_params`, `WriteHeader.filter_params`, and `RoundTripHeader.filter_params`.
 
 Plugin configuration lives under a namespace in the project configuration file, scoped by plugin type and name:
 
@@ -137,11 +177,11 @@ Multiple versions of the same plugin can be installed side-by-side:
   okapi/
     1.46.0/
       version.json
-      okapi.bridge.json
+      manifest.json
       gokapi-okapi-bridge.jar
     1.47.0/
       version.json
-      okapi.bridge.json
+      manifest.json
       gokapi-okapi-bridge.jar
 ```
 
@@ -173,7 +213,7 @@ distributable unit. In the remote registry, bundles are declared with
 ```
 
 The Okapi bridge is the canonical bundle example. Bridge-backed bundles use the
-same `*.bridge.json` descriptor and gRPC subprocess protocol described above.
+same `manifest.json` descriptor and gRPC subprocess protocol described above.
 Go binary bundles can also exist — they simply register multiple format readers,
 writers, and/or tools via the go-plugin handshake.
 
@@ -196,7 +236,7 @@ The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
 - Scans the plugin directory for versioned subdirectories
 - Loads Go binary plugins via `host.PluginManager`
-- Loads bridge plugins via bridge descriptors (`*.bridge.json`)
+- Loads bridge plugins via `manifest.json` descriptors and schema files
 - Registers all discovered formats, tools, connectors, and providers into the core registries
 - Manages the shared bridge pool and plugin lifecycle
 - Bundles are loaded the same way as standalone plugins; their individual capabilities are registered separately into format and tool registries

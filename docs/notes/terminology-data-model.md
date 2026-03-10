@@ -11,37 +11,25 @@ This note provides implementation details for [AD-010](/docs/ad/010-terminology)
 The core data model is concept-oriented, following TBX principles. A Concept groups terms across languages, each with context dimensions:
 
 ```go
-type Concept struct {
-    ID            string
-    SubjectFields []string          // domain tags: "medical", "ui"
-    Definition    string
-    Notes         string
-    Relations     []ConceptRelation // links to other concepts (Phase 2)
-    Terms         []Term
-    Properties    map[string]string
-    Status        ConceptStatus     // draft, active, deprecated
-    CreatedAt     time.Time
-    UpdatedAt     time.Time
-}
-
 type Term struct {
-    ID           string
-    Text         string
-    Locale       model.LocaleID
-    Status       TermStatus  // proposed, approved, preferred,
-                             // admitted, deprecated, forbidden
-    Type         TermType    // fullForm, abbreviation, acronym, shortForm, variant
-    PartOfSpeech string
-    Context      TermContext
-    CreatedAt    time.Time
+    Text         string           // the term text
+    Locale       model.LocaleID   // language/locale
+    Status       model.TermStatus // lifecycle status (proposed, approved, preferred,
+                                  // admitted, deprecated, forbidden)
+    PartOfSpeech string           // noun, verb, adjective, etc.
+    Gender       string           // grammatical gender (if applicable)
+    Note         string           // usage note or context
 }
 
-type TermContext struct {
-    Products   []string  // "Gokapi CLI", "Bowrain"
-    Markets    []string  // "US", "EMEA", "JP"
-    Audiences  []string  // "developer", "end-user"
-    ValidFrom  time.Time // temporal validity start
-    ValidUntil time.Time // temporal validity end
+type Concept struct {
+    ID         string            // unique concept identifier
+    ProjectID  string            // project scope (empty = workspace-scoped)
+    Domain     string            // subject field (software, medical, legal, etc.)
+    Definition string            // language-neutral definition
+    Terms      []Term            // terms across locales
+    Properties map[string]string // extensible metadata
+    CreatedAt  time.Time
+    UpdatedAt  time.Time
 }
 ```
 
@@ -52,27 +40,28 @@ Progressive disclosure: CSV import auto-creates Concepts with a single preferred
 ```go
 type TermBase interface {
     AddConcept(concept Concept) error
-    GetConcept(id string) (*Concept, error)
-    UpdateConcept(concept Concept) error
+    GetConcept(id string) (Concept, bool)
     DeleteConcept(id string) error
-    AddTerm(conceptID string, term Term) error
-    LookupTerm(text string, locale model.LocaleID, opts LookupOptions) ([]TermMatch, error)
-    Search(query SearchQuery) ([]Concept, error)
-    Import(reader io.Reader, format ImportFormat) (ImportResult, error)
-    Export(writer io.Writer, format ExportFormat) error
+    Lookup(sourceText string, opts LookupOptions) []TermMatch
+    LookupAll(sourceText string, opts LookupOptions) []TermMatch
+    Search(query string, sourceLocale, targetLocale string, offset, limit int) ([]Concept, int)
+    Count() int
+    Concepts() []Concept
     Close() error
 }
 ```
 
-Backends: In-memory (CLI batch) and SQLite (persistent). Both use the shared `bowrain/storage` layer from [AD-003](/docs/ad/003-content-store).
+Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Backends: In-memory (CLI batch) and SQLite (persistent). Both use the shared `bowrain/storage` layer from [AD-003](/docs/ad/003-content-store).
 
 ## Pipeline Tools
 
-Six pipeline tools integrate terminology, entity annotation, and privacy into the streaming pipeline ([AD-006](/docs/ad/006-tool-system)):
+Two pipeline tools integrate terminology into the streaming pipeline ([AD-006](/docs/ad/006-tool-system)):
 
 **`term-lookup`** (Enrich) -- Scans source text for known terms, attaches `TermAnnotation` with `TextRange` character positions. Downstream tools (AI translate, QA) use these annotations for context.
 
 **`term-enforce`** (Validate) -- Checks preferred term usage in target text. Reports forbidden terms, non-preferred variants, deprecated terms, and missing target counterparts.
+
+Additional tools planned but not yet implemented:
 
 **`term-extract`** (Enrich, AI) -- LLM extraction of candidate terms with `status: proposed`. Uses AI provider from [AD-008](/docs/ad/008-ai-integration).
 
