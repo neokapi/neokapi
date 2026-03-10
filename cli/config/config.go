@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -13,7 +14,8 @@ type AppConfig struct {
 }
 
 // NewAppConfig creates a config reader that searches for kapi.yaml
-// in standard locations.
+// in standard locations. This is the shared config used by both kapi
+// and bowrain for common settings (plugins, formats, flow config).
 func NewAppConfig() *AppConfig {
 	v := viper.New()
 	v.SetConfigName("kapi")
@@ -25,7 +27,6 @@ func NewAppConfig() *AppConfig {
 	v.AutomaticEnv()
 
 	// Set defaults
-	v.SetDefault("server.url", "http://localhost:8080")
 	v.SetDefault("flow.channelBuffer", 64)
 	pluginDir := "./plugins"
 	if configDir, err := os.UserConfigDir(); err == nil {
@@ -34,10 +35,37 @@ func NewAppConfig() *AppConfig {
 	v.SetDefault("plugins.directory", pluginDir)
 	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
 
-	// Explicit env bindings for keys that don't follow simple prefix rules.
-	_ = v.BindEnv("server.url", "BOWRAIN_SERVER_URL")
-
 	return &AppConfig{v: v}
+}
+
+// NewBowrainAppConfig creates a config reader for bowrain that layers
+// bowrain-specific config (~/.config/bowrain/bowrain.yaml) on top of the
+// shared kapi config. Bowrain-specific settings like server.url are read
+// from the bowrain config; shared settings (plugins, formats, flow) come
+// from the kapi config.
+func NewBowrainAppConfig() *AppConfig {
+	cfg := NewAppConfig()
+
+	// Overlay bowrain-specific config.
+	bowrainPath := GlobalConfigFilePath("bowrain")
+	if _, err := os.Stat(bowrainPath); err == nil {
+		overlay := viper.New()
+		overlay.SetConfigFile(bowrainPath)
+		overlay.SetConfigType("yaml")
+		if err := overlay.ReadInConfig(); err == nil {
+			for _, key := range overlay.AllKeys() {
+				cfg.v.Set(key, overlay.Get(key))
+			}
+		}
+	}
+
+	// Bowrain-specific defaults and env bindings.
+	if cfg.v.GetString("server.url") == "" {
+		cfg.v.SetDefault("server.url", "http://localhost:8080")
+	}
+	_ = cfg.v.BindEnv("server.url", "BOWRAIN_SERVER_URL")
+
+	return cfg
 }
 
 // Load reads the configuration file.
@@ -179,30 +207,37 @@ func parseStringSlice(raw any) []string {
 }
 
 // ServerURL returns the configured Bowrain Server URL.
-// Resolved from config file (server.url) or BOWRAIN_SERVER_URL env var.
-// Note: the config file and directory use the shared "kapi" namespace
-// (~/.config/kapi/kapi.yaml), but the server URL env var uses BOWRAIN_
-// since it refers to the Bowrain Server.
+// Resolved from bowrain config file (server.url) or BOWRAIN_SERVER_URL env var.
+// Only available when using NewBowrainAppConfig.
 func (c *AppConfig) ServerURL() string {
 	return c.v.GetString("server.url")
 }
 
-// GlobalConfigFilePath returns the path to the global config file (~/.config/kapi/kapi.yaml).
-func GlobalConfigFilePath() string {
-	if dir := os.Getenv("KAPI_CONFIG_DIR"); dir != "" {
-		return filepath.Join(dir, "kapi.yaml")
+// GlobalConfigFilePath returns the path to the global config file
+// for the given app name (e.g. ~/.config/bowrain/bowrain.yaml).
+// If no app name is provided, defaults to "kapi".
+func GlobalConfigFilePath(appName ...string) string {
+	name := "kapi"
+	if len(appName) > 0 && appName[0] != "" {
+		name = appName[0]
+	}
+	envKey := strings.ToUpper(name) + "_CONFIG_DIR"
+	if dir := os.Getenv(envKey); dir != "" {
+		return filepath.Join(dir, name+".yaml")
 	}
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
 	}
-	return filepath.Join(configDir, "kapi", "kapi.yaml")
+	return filepath.Join(configDir, name, name+".yaml")
 }
 
 // SetGlobalConfig sets a key-value pair in the global config file.
 // The file is loaded, updated, and written back as YAML.
-func SetGlobalConfig(key, value string) error {
-	path := GlobalConfigFilePath()
+// If an app name is provided, it determines the config path;
+// otherwise defaults to "kapi".
+func SetGlobalConfig(key, value string, appName ...string) error {
+	path := GlobalConfigFilePath(appName...)
 
 	v := viper.New()
 	v.SetConfigFile(path)

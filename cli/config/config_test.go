@@ -51,12 +51,12 @@ func TestChannelBufferDefault(t *testing.T) {
 }
 
 func TestServerURLDefault(t *testing.T) {
-	cfg := NewAppConfig()
+	cfg := NewBowrainAppConfig()
 	assert.Equal(t, "http://localhost:8080", cfg.ServerURL())
 }
 
 func TestServerURLOverride(t *testing.T) {
-	cfg := NewAppConfig()
+	cfg := NewBowrainAppConfig()
 	cfg.Set("server.url", "https://bowrain.example.com")
 	assert.Equal(t, "https://bowrain.example.com", cfg.ServerURL())
 }
@@ -66,16 +66,35 @@ func TestGlobalConfigFilePath(t *testing.T) {
 	assert.Equal(t, "/tmp/test-kapi-config/kapi.yaml", GlobalConfigFilePath())
 }
 
+func TestGlobalConfigFilePathBowrain(t *testing.T) {
+	t.Setenv("BOWRAIN_CONFIG_DIR", "/tmp/test-bowrain-config")
+	assert.Equal(t, "/tmp/test-bowrain-config/bowrain.yaml", GlobalConfigFilePath("bowrain"))
+}
+
 func TestSetGlobalConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", dir)
 
-	err := SetGlobalConfig("server.url", "https://bowrain.example.com")
+	err := SetGlobalConfig("flow.channelBuffer", "128")
 	require.NoError(t, err)
 
 	// Verify by reading back.
 	cfg := NewAppConfig()
 	cfg.v.SetConfigFile(GlobalConfigFilePath())
+	require.NoError(t, cfg.v.ReadInConfig())
+	assert.Equal(t, "128", cfg.v.GetString("flow.channelBuffer"))
+}
+
+func TestSetGlobalConfigBowrain(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
+
+	err := SetGlobalConfig("server.url", "https://bowrain.example.com", "bowrain")
+	require.NoError(t, err)
+
+	// Verify by reading back.
+	cfg := NewBowrainAppConfig()
+	cfg.v.SetConfigFile(GlobalConfigFilePath("bowrain"))
 	require.NoError(t, cfg.v.ReadInConfig())
 	assert.Equal(t, "https://bowrain.example.com", cfg.v.GetString("server.url"))
 }

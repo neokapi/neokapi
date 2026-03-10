@@ -41,7 +41,7 @@ wizard. Use flags for non-interactive CI/CD usage.
 
 The server URL is determined from (first match wins):
   1. --server flag
-  2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/kapi/kapi.yaml
+  2. BOWRAIN_SERVER_URL environment variable / server.url in ~/.config/bowrain/bowrain.yaml
   3. Existing auth state (from bowrain auth login)
   4. Built-in default (http://localhost:8080)
 
@@ -157,10 +157,15 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		return runInitAnonymous(cwd, cfg, serverURL, projectName, initEmail)
 	}
 
-	// Default non-interactive: use auth if available, otherwise local only.
+	// Default non-interactive: use auth if available, otherwise set server URL if provided.
+	serverURL := resolveServerURL()
 	auth, err := loadAuth()
 	if err != nil {
-		// No auth available — local only.
+		// No auth available — set server URL in config if provided, so the
+		// project is pre-configured for later auth + push.
+		if serverURL != "" {
+			cfg.URL = project.FormatProjectURL(serverURL, "", "")
+		}
 		return finishInit(cwd, cfg)
 	}
 
