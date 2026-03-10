@@ -98,6 +98,7 @@ func rawDocFromBytes(data []byte, locale model.LocaleID) *model.RawDocument {
 	}
 }
 
+// okapi: EpubFilterTests#testSimpleReadWrite — extracts text from EPUB chapters.
 func TestReadEPUBContent(t *testing.T) {
 	ctx := context.Background()
 	data := makeEPUB(t)
@@ -117,6 +118,7 @@ func TestReadEPUBContent(t *testing.T) {
 	assert.Contains(t, texts, "Final thoughts here.")
 }
 
+// okapi: EpubFilterTests#testSimpleReadWrite — verifies sub-document layer structure per chapter.
 func TestReadEPUBLayerStructure(t *testing.T) {
 	ctx := context.Background()
 	data := makeEPUB(t)
@@ -174,6 +176,7 @@ func TestReadEPUBNonContentAsData(t *testing.T) {
 	assert.True(t, hasCSS, "CSS file should be emitted as Data")
 }
 
+// okapi: EpubFilterTests#testInformation — title elements are extracted as translatable content.
 func TestReadEPUBTitleExtraction(t *testing.T) {
 	ctx := context.Background()
 	data := makeEPUB(t)
@@ -198,6 +201,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: EpubFilterTests#testInformation — verifies EPUB MIME type and file signature.
 func TestReaderSignature(t *testing.T) {
 	reader := epub.NewReader()
 	sig := reader.Signature()

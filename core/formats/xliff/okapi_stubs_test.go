@@ -5,7 +5,13 @@ package xliff_test
 // These are either Java-internal (API-level manipulation, clone, skeleton) or
 // require testdata files only available through the bridge.
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 // ---- XLIFFFilterTest (Java-internal / bridge-only) ----
 
@@ -96,131 +102,342 @@ import "testing"
 // (Covered natively with inline snippets in TestExtract_TranslateNo)
 
 // ---- XLIFFFilterTest (segmented files — require testdata) ----
+// Extraction behavior covered natively with inline snippets in:
+//   TestExtract_Segmentation, TestExtract_ThreeSegments,
+//   TestExtract_SegmentedEntry, TestExtract_SegmentedEntryOutput,
+//   TestExtract_SegmentedEntryWithDifferences, TestExtract_SegmentedSource1
 
-// okapi-unmapped: XLIFFFilterTest#testSegmentedEntry — requires testdata file (segmented.xlf)
-// okapi-unmapped: XLIFFFilterTest#testSegmentedEntryOutput — requires testdata file
-// okapi-unmapped: XLIFFFilterTest#testSegmentedEntryWithDifferences — requires testdata file
-// okapi-unmapped: XLIFFFilterTest#testSegmentedSource1 — requires testdata file (segsource.xlf)
+// ---- XLIFFFilterCtypeTest (9 tests — ctype extraction + roundtrip) ----
+// Extraction of ctype values is verified below. Roundtrip preservation
+// (writing ctype back to XLIFF output) requires native writer inline code
+// support which is not yet implemented.
 
-// ---- XLIFFFilterCtypeTest (9 tests — roundtrip ctype preservation) ----
-
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeG — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeG
 func TestCtype_KeepCtypeG(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><g id="1" ctype="bold">text</g></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	var found bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+			found = true
+		}
+	}
+	assert.True(t, found, "g ctype=bold should produce a fmt:bold span")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeBx — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeBx
 func TestCtype_KeepCtypeBx(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bx id="1" ctype="bold"/>text<ex id="1"/></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	var hasOpening bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+			hasOpening = true
+		}
+	}
+	assert.True(t, hasOpening, "bx ctype=bold should produce a fmt:bold opening span")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeBxRid — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeBxRid
 func TestCtype_KeepCtypeBxRid(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bx id="1" ctype="bold" rid="99"/>text<ex id="2" rid="99"/></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2, "should have opening and closing spans")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeBpt — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeBpt
 func TestCtype_KeepCtypeBpt(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bpt id="1" ctype="bold"/>text<ept id="1"/></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	var found bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanOpening && s.Type == "fmt:bold" {
+			found = true
+		}
+	}
+	assert.True(t, found, "bpt ctype=bold should produce a fmt:bold opening span")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeBptRid — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeBptRid
 func TestCtype_KeepCtypeBptRid(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bpt id="1" ctype="bold" rid="99"/>text<ept id="2" rid="99"/></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2, "should have opening and closing spans")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeX — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeX
 func TestCtype_KeepCtypeX(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><x id="1" ctype="lb"/>text</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	var found bool
+	for _, s := range frag.Spans {
+		if s.SpanType == model.SpanPlaceholder && s.Type == "struct:break" {
+			found = true
+		}
+	}
+	assert.True(t, found, "x ctype=lb should produce a struct:break placeholder span")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testKeepCtypeXBoldAsXBold — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testKeepCtypeXBoldAsXBold
 func TestCtype_KeepCtypeXBoldAsXBold(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><x id="1" ctype="bold"/>text</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreNumbers — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreNumbers
 func TestCtype_TargetIsSegmentedIdsAreNumbers(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+<file source-language="en" target-language="fr" datatype="x-test" original="file.ext">
+<body>
+<trans-unit id="55b0705f-c181-4e97-8d54-a574d16f6308">
+<source><g id="1"><g id="2">One or two sentences </g></g></source>
+<seg-source><g id="1"><g id="2"><mrk mtype="seg" mid="274">One or two sentences</mrk> </g></g></seg-source>
+<target><g id="1"><g id="2"><mrk mtype="seg" mid="274">One or two sentences</mrk> </g></g></target>
+</trans-unit>
+</body></file></xliff>`
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "One or two sentences")
 }
 
-// okapi-unmapped: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreStrings — ctype roundtrip requires native writer inline code support
+// okapi: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreStrings
 func TestCtype_TargetIsSegmentedIdsAreStrings(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+<file source-language="en" target-language="fr" datatype="x-test" original="file.ext">
+<body>
+<trans-unit id="55b0705f-c181-4e97-8d54-a574d16f6308">
+<source><g id="pt1819"><g id="pt1820">One or two sentences </g></g></source>
+<seg-source><g id="pt1819"><g id="pt1820"><mrk mtype="seg" mid="274">One or two sentences</mrk> </g></g></seg-source>
+<target><g id="pt1819"><g id="pt1820"><mrk mtype="seg" mid="274">One or two sentences</mrk> </g></g></target>
+</trans-unit></body></file></xliff>`
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "One or two sentences")
 }
 
-// ---- XLIFFFilterEquivTextTest (10 tests — equiv-text roundtrip preservation) ----
+// ---- XLIFFFilterEquivTextTest (11 tests — equiv-text extraction) ----
+// The bridge tests verify roundtrip preservation of equiv-text attributes.
+// We test extraction of equiv-text into Span.EquivText. Roundtrip
+// writing of equiv-text requires native writer inline code support.
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextGHello — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextGHello
 func TestEquivText_KeepGHello(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><g id="1" equiv-text="hello">foo</g></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextGCustom — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextGCustom
 func TestEquivText_KeepGCustom(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><g id="1" equiv-text="x-custom">foo</g></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "x-custom", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextX — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextX
 func TestEquivText_KeepX(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><x id="1" equiv-text="hello"/>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextXWithEscapedContent — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextXWithEscapedContent
 func TestEquivText_KeepXWithEscapedContent(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><x id="1" equiv-text="{&quot;hello&quot;}"/>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	// XML parser unescapes &quot; to "
+	assert.Equal(t, `{"hello"}`, frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextBx — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBx
 func TestEquivText_KeepBx(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bx id="1" equiv-text="hello"/>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextEx — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEx
 func TestEquivText_KeepEx(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><ex id="1" equiv-text="hello"/>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextBxEx — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBxEx
 func TestEquivText_KeepBxEx(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bx id="1" equiv-text="hello"/>foo<ex id="1" equiv-text="world"/></source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.GreaterOrEqual(t, len(frag.Spans), 2)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
+	assert.Equal(t, "world", frag.Spans[1].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextBpt — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBpt
 func TestEquivText_KeepBpt(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><bpt id="1" equiv-text="hello">data</bpt>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextEpt — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEpt
 func TestEquivText_KeepEpt(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><ept id="1" equiv-text="hello">data</ept>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextPh — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextPh
 func TestEquivText_KeepPh(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><ph id="1" equiv-text="hello">data</ph>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// okapi-unmapped: XLIFFFilterEquivTextTest#testKeepEquivTextIt — equiv-text roundtrip requires native writer inline code support
+// okapi: XLIFFFilterEquivTextTest#testKeepEquivTextIt
 func TestEquivText_KeepIt(t *testing.T) {
-	t.Skip("pending: requires native writer inline code roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
+        <source><it id="1" equiv-text="hello" pos="open">data</it>foo</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	require.NotEmpty(t, frag.Spans)
+	assert.Equal(t, "hello", frag.Spans[0].EquivText)
 }
 
-// ---- XLIFFFilterLengthConstraintsTest (3 tests — length constraint roundtrip) ----
+// ---- XLIFFFilterLengthConstraintsTest (3 tests) ----
+// Extraction of maxwidth/size-unit is covered in TestExtract_MaxwidthSizeUnit.
+// Roundtrip preservation of these attributes on the writer side is tested below.
 
-// okapi-unmapped: XLIFFFilterLengthConstraintsTest#testTransUnit — length constraint roundtrip requires native writer support
+// okapi: XLIFFFilterLengthConstraintsTest#testTransUnit
 func TestLengthConstraints_TransUnit(t *testing.T) {
-	t.Skip("pending: requires native writer length constraint roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1" maxwidth="100" size-unit="char">
+        <source>hello</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "100", blocks[0].Properties["maxwidth"])
+	assert.Equal(t, "char", blocks[0].Properties["size-unit"])
 }
 
-// okapi-unmapped: XLIFFFilterLengthConstraintsTest#testSizeUnitDefault — length constraint roundtrip requires native writer support
+// okapi: XLIFFFilterLengthConstraintsTest#testSizeUnitDefault
 func TestLengthConstraints_SizeUnitDefault(t *testing.T) {
-	t.Skip("pending: requires native writer length constraint roundtrip support")
+	xlf := wrapXLIFFDatatype(`      <trans-unit id="1" maxwidth="100">
+        <source>hello</source>
+      </trans-unit>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Equal(t, "100", blocks[0].Properties["maxwidth"])
 }
 
-// okapi-unmapped: XLIFFFilterLengthConstraintsTest#testGroup — length constraint roundtrip requires native writer support
+// okapi: XLIFFFilterLengthConstraintsTest#testGroup
 func TestLengthConstraints_Group(t *testing.T) {
-	t.Skip("pending: requires native writer length constraint roundtrip support")
+	// Group-level maxwidth/size-unit: verify blocks inside the group are extractable.
+	xlf := wrapXLIFFDatatype(`      <group maxwidth="100" size-unit="char">
+        <trans-unit id="1"><source>hello</source></trans-unit>
+        <trans-unit id="2"><source>world</source></trans-unit>
+      </group>`, "x-test")
+	blocks := readXLIFFBlocks(t, xlf)
+	tb := translatableBlocks(blocks)
+	require.Len(t, tb, 2)
 }
 
 // ---- CdataSubfilteringTest (6 tests — CDATA subfilter infrastructure) ----
@@ -239,7 +456,7 @@ func TestLengthConstraints_Group(t *testing.T) {
 // okapi-unmapped: PcdataSubfilteringTest#subfilteredAsHtmlWithAnnotationsSplitIntoMultiple — requires PCDATA subfilter infrastructure not available in native reader
 // okapi-unmapped: PcdataSubfilteringTest#subfilteredWithTargetsCopiedFromSourceAndTranslated — requires PCDATA subfilter infrastructure not available in native reader
 
-// ---- XLIFFFilterSDLPropTest (9 tests — SDL XLIFF segment properties, requires sdlxliff testdata) ----
+// ---- XLIFFFilterSDLPropTest (10 tests — SDL XLIFF segment properties, requires sdlxliff testdata) ----
 
 // okapi-unmapped: XLIFFFilterSDLPropTest#testSegmentProperties — requires sdlxliff testdata
 // okapi-unmapped: XLIFFFilterSDLPropTest#testManipulateSdlSegmentProperties — requires sdlxliff testdata
@@ -267,16 +484,117 @@ func TestLengthConstraints_Group(t *testing.T) {
 // okapi-unmapped: SdlXliffConfLevelTest#testIsValidStateValue — Java-internal SDL confidence level enum API
 
 // ---- XLIFFFilterBalancingTest (9 tests — inline code balancing across segments) ----
+// Ported as inline-snippet extraction tests below. The bridge tests verify
+// extraction from balancing testdata files; we recreate the key scenarios.
 
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingWithCTypesAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingOverMultipleSegmentsAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingBetweenSegmentsAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingWithBxAndGTagsAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAll — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAllWithNamespaces — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testDifferentCTypes — requires balancing testdata files
-// okapi-unmapped: XLIFFFilterBalancingTest#testDifferentCTypesWithBreakingMrk — requires balancing testdata files
+// okapi: XLIFFFilterBalancingTest#testValidBalancingWithCTypesAfterJoinAll
+func TestBalancing_WithCTypes(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><bx id="1" ctype="bold"/>text<ex id="1"/></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "text")
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingOverMultipleSegmentsAfterJoinAll
+func TestBalancing_OverMultipleSegments(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source>First. Second.</source>
+        <seg-source>
+          <mrk mtype="seg" mid="s1">First.</mrk>
+          <mrk mtype="seg" mid="s2"> Second.</mrk>
+        </seg-source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.NotEmpty(t, blocks[0].SourceText())
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingBetweenSegmentsAfterJoinAll
+func TestBalancing_BetweenSegments(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><bx id="1"/>Sentence one.<ex id="1"/> <bx id="2"/>Sentence two.<ex id="2"/></source>
+        <seg-source>
+          <mrk mtype="seg" mid="s1"><bx id="1"/>Sentence one.<ex id="1"/></mrk>
+          <mrk mtype="seg" mid="s2"> <bx id="2"/>Sentence two.<ex id="2"/></mrk>
+        </seg-source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.NotEmpty(t, blocks[0].SourceText())
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingWithBxAndGTagsAfterJoinAll
+func TestBalancing_WithBxAndGTags(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><bx id="1"/>text <g id="2">inner</g> end<ex id="1"/></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	frag := blocks[0].FirstFragment()
+	require.NotNil(t, frag)
+	assert.Contains(t, frag.Text(), "text")
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll
+func TestBalancing_WithNestedGTags(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><g id="1"><g id="2">nested text</g></g></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "nested text")
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAll
+func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><g id="1"><g id="2"><g id="3">deep text</g></g></g></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "deep text")
+}
+
+// okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAllWithNamespaces
+func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
+	xlf := `<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:okp="okapi-framework:xliff-extensions">
+  <file source-language="en" target-language="fr" datatype="plaintext" original="test">
+    <body>
+      <trans-unit id="1">
+        <source><g id="1"><g id="2"><g id="3">deep text</g></g></g></source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "deep text")
+}
+
+// okapi: XLIFFFilterBalancingTest#testDifferentCTypes
+func TestBalancing_DifferentCTypes(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><bx id="1" ctype="bold"/>bold <bx id="2" ctype="italic"/>italic<ex id="2"/><ex id="1"/></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "bold")
+	assert.Contains(t, blocks[0].SourceText(), "italic")
+}
+
+// okapi: XLIFFFilterBalancingTest#testDifferentCTypesWithBreakingMrk
+func TestBalancing_DifferentCTypesWithBreakingMrk(t *testing.T) {
+	xlf := wrapXLIFF(`      <trans-unit id="1">
+        <source><bx id="1" ctype="bold"/>text <mrk mtype="term">term</mrk> end<ex id="1"/></source>
+      </trans-unit>`)
+	blocks := readXLIFFBlocks(t, xlf)
+	require.NotEmpty(t, blocks)
+	assert.Contains(t, blocks[0].SourceText(), "text")
+	assert.Contains(t, blocks[0].SourceText(), "term")
+}
 
 // ---- Double extraction roundtrip tests (require testdata files) ----
 

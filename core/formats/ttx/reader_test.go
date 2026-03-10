@@ -50,6 +50,7 @@ const inlineTagsTTX = `<?xml version="1.0" encoding="utf-8"?>
 </Body>
 </TRADOStag>`
 
+// okapi: TTXFilterTest#testBasicNoUT — extracts source and target from TTX translation units.
 func TestReadSimpleTTX(t *testing.T) {
 	ctx := context.Background()
 	reader := ttx.NewReader()
@@ -67,6 +68,7 @@ func TestReadSimpleTTX(t *testing.T) {
 	assert.Equal(t, "Au revoir", blocks[1].TargetText("FR-FR"))
 }
 
+// okapi: TTXFilterTest#testMatchPercent — MatchPercent attribute is extracted as block property.
 func TestReadMatchPercent(t *testing.T) {
 	ctx := context.Background()
 	reader := ttx.NewReader()
@@ -81,6 +83,7 @@ func TestReadMatchPercent(t *testing.T) {
 	assert.Equal(t, "100", blocks[1].Properties["match-percent"])
 }
 
+// okapi: TTXFilterTest#testSourceOnly — TU with only source (no target) is extracted correctly.
 func TestReadSourceOnly(t *testing.T) {
 	ctx := context.Background()
 	reader := ttx.NewReader()
@@ -94,6 +97,7 @@ func TestReadSourceOnly(t *testing.T) {
 	assert.Equal(t, "Source only text", blocks[0].SourceText())
 }
 
+// okapi: TTXFilterTest#testBasicWithUT — inline <ut> tags are processed within text content.
 func TestReadInlineTags(t *testing.T) {
 	ctx := context.Background()
 	reader := ttx.NewReader()
@@ -107,6 +111,7 @@ func TestReadInlineTags(t *testing.T) {
 	assert.Equal(t, "Text with tag inside", blocks[0].SourceText())
 }
 
+// okapi: TTXFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TTX content.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := context.Background()
 	reader := ttx.NewReader()
@@ -124,6 +129,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "ttx", layer.Format)
 }
 
+// okapi: TTXFilterTest#testDefaultInfo — verifies TTX MIME type and file signature.
 func TestReaderSignature(t *testing.T) {
 	reader := ttx.NewReader()
 	sig := reader.Signature()
@@ -160,6 +166,7 @@ func TestReadEmpty(t *testing.T) {
 	assert.Empty(t, blocks)
 }
 
+// okapi: TTXFilterTest#testDoubleExtraction — roundtrip read/write preserves TTX content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 

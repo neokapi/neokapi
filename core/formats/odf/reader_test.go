@@ -154,6 +154,7 @@ func TestReaderMetadata(t *testing.T) {
 	assert.Equal(t, "Open Document Format", reader.DisplayName())
 }
 
+// okapi: OpenOfficeFilterTest#testDefaultInfo — verifies ODF MIME types and file extensions.
 func TestReaderSignature(t *testing.T) {
 	reader := odf.NewReader()
 	sig := reader.Signature()
@@ -172,6 +173,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: OpenOfficeFilterTest#testFirstTextUnit — extracts paragraphs from ODT content.
 func TestReadSimpleODT(t *testing.T) {
 	data := makeODFZip(mimeODT, simpleODTContent("Hello, World!", "Second paragraph"))
 	parts := readParts(t, data)
@@ -228,6 +230,7 @@ func TestReadODTHeadings(t *testing.T) {
 	assert.Equal(t, "Body text here.", blocks[1].SourceText())
 }
 
+// okapi: OpenOfficeFilterTest#testFormulaResultExtraction — extracts spreadsheet cell content.
 func TestReadODSSpreadsheet(t *testing.T) {
 	cells := [][]string{
 		{"Name", "Value"},
@@ -266,6 +269,7 @@ func TestReadODPPresentation(t *testing.T) {
 	assert.Equal(t, "Content Slide", blocks[1].SourceText())
 }
 
+// okapi: ODFFilterTest#testFirstTextUnit — inline formatting produces spans within blocks.
 func TestReadInlineFormatting(t *testing.T) {
 	content := `<?xml version="1.0" encoding="UTF-8"?>
 <office:document-content
@@ -368,6 +372,7 @@ func TestReadInvalidZip(t *testing.T) {
 	assert.Contains(t, readErr.Error(), "not a valid ZIP archive")
 }
 
+// okapi: OpenOfficeFilterTest#testDoubleExtraction — roundtrip read/write/re-read preserves ODF content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	originalContent := simpleODTContent("Hello, World!", "Second paragraph")

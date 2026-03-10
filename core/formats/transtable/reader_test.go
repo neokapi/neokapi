@@ -152,6 +152,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: TransTableFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps transtable content.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := context.Background()
 	reader := transtable.NewReader()

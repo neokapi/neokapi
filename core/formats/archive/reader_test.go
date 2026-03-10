@@ -66,6 +66,8 @@ func writeTmpZip(t *testing.T, data []byte) string {
 	return f.Name()
 }
 
+// okapi: ArchiveFilterTest#testExtractXLIFFOnly — tests extraction of content from archive entries.
+// Native implementation extracts text entries directly rather than via sub-filters.
 func TestReadArchiveWithTextEntries(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
@@ -90,6 +92,7 @@ func TestReadArchiveWithTextEntries(t *testing.T) {
 	assert.Contains(t, texts, "Read me")
 }
 
+// okapi: ArchiveFilterTest#testSubFilterOpen — verifies sub-document layer structure in archive.
 func TestReadArchiveLayerStructure(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
@@ -128,6 +131,7 @@ func TestReadArchiveLayerStructure(t *testing.T) {
 	assert.Equal(t, rootLayer.ID, childLayer.ParentID)
 }
 
+// okapi: ArchiveFilterTest#testNoTUs — binary/unknown entries produce no translatable blocks.
 func TestReadArchiveBinaryAsData(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
@@ -154,6 +158,7 @@ func TestReadArchiveBinaryAsData(t *testing.T) {
 	assert.Equal(t, "image.png", dataEntry.Properties["entry"])
 }
 
+// okapi: ArchiveFilterTest#testNoExtraction — file pattern filtering controls which entries are extracted.
 func TestReadArchiveWithFilePatterns(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
@@ -185,6 +190,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: ArchiveFilterTest#testMimeType — verifies MIME type and signature of archive format.
 func TestReaderSignature(t *testing.T) {
 	reader := archive.NewReader()
 	sig := reader.Signature()
@@ -199,6 +205,7 @@ func TestReaderMetadata(t *testing.T) {
 	assert.Equal(t, "ZIP Archive", reader.DisplayName())
 }
 
+// okapi: ArchiveFilterTest#testDoubelextraction — roundtrip read/write/re-read preserves content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	entries := map[string]string{
