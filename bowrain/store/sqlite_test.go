@@ -95,9 +95,9 @@ func TestBlockStorage(t *testing.T) {
 		b.Name = "greeting"
 		b.Type = "text"
 
-		require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b}))
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
-		got, err := s.GetBlock(ctx, p.ID, "b1")
+		got, err := s.GetBlock(ctx, p.ID, "", "b1")
 		require.NoError(t, err)
 		assert.Equal(t, "b1", got.ID)
 		assert.Equal(t, "greeting", got.Name)
@@ -108,9 +108,9 @@ func TestBlockStorage(t *testing.T) {
 	t.Run("upsert on conflict", func(t *testing.T) {
 		b := model.NewBlock("b1", "Updated text")
 		b.Name = "greeting"
-		require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b}))
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
-		got, err := s.GetBlock(ctx, p.ID, "b1")
+		got, err := s.GetBlock(ctx, p.ID, "", "b1")
 		require.NoError(t, err)
 		assert.Equal(t, "Updated text", got.SourceText())
 	})
@@ -118,9 +118,9 @@ func TestBlockStorage(t *testing.T) {
 	t.Run("store with targets", func(t *testing.T) {
 		b := model.NewBlock("b2", "Hello")
 		b.SetTargetText(model.LocaleFrench, "Bonjour")
-		require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b}))
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
 
-		got, err := s.GetBlock(ctx, p.ID, "b2")
+		got, err := s.GetBlock(ctx, p.ID, "", "b2")
 		require.NoError(t, err)
 		assert.Equal(t, "Bonjour", got.TargetText(model.LocaleFrench))
 	})
@@ -164,10 +164,10 @@ func TestBlockStorage(t *testing.T) {
 
 	t.Run("delete block", func(t *testing.T) {
 		b := model.NewBlock("b-del", "Delete me")
-		require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b}))
-		require.NoError(t, s.DeleteBlock(ctx, p.ID, "b-del"))
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b}))
+		require.NoError(t, s.DeleteBlock(ctx, p.ID, "", "b-del"))
 
-		_, err := s.GetBlock(ctx, p.ID, "b-del")
+		_, err := s.GetBlock(ctx, p.ID, "", "b-del")
 		assert.Error(t, err)
 	})
 }
@@ -182,27 +182,27 @@ func TestVersioning(t *testing.T) {
 	p := createTestProject(t, s)
 
 	// Store initial blocks.
-	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{
 		model.NewBlock("b1", "Hello"),
 		model.NewBlock("b2", "World"),
 	}))
 
 	t.Run("create version", func(t *testing.T) {
-		v, err := s.CreateVersion(ctx, p.ID, "v1.0", "Initial version")
+		v, err := s.CreateVersion(ctx, p.ID, "", "v1.0", "Initial version")
 		require.NoError(t, err)
 		assert.Equal(t, "v1.0", v.Label)
 		assert.Equal(t, 2, v.BlockCount)
 	})
 
 	t.Run("list versions", func(t *testing.T) {
-		versions, err := s.ListVersions(ctx, p.ID)
+		versions, err := s.ListVersions(ctx, p.ID, "")
 		require.NoError(t, err)
 		assert.Len(t, versions, 1)
 		assert.Equal(t, "v1.0", versions[0].Label)
 	})
 
 	t.Run("get version", func(t *testing.T) {
-		versions, err := s.ListVersions(ctx, p.ID)
+		versions, err := s.ListVersions(ctx, p.ID, "")
 		require.NoError(t, err)
 
 		v, err := s.GetVersion(ctx, versions[0].ID)
@@ -211,17 +211,17 @@ func TestVersioning(t *testing.T) {
 	})
 
 	t.Run("diff between versions", func(t *testing.T) {
-		v1, err := s.ListVersions(ctx, p.ID)
+		v1, err := s.ListVersions(ctx, p.ID, "")
 		require.NoError(t, err)
 
 		// Modify b1, add b3, remove b2.
-		require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{
+		require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{
 			model.NewBlock("b1", "Hello modified"),
 			model.NewBlock("b3", "New block"),
 		}))
-		require.NoError(t, s.DeleteBlock(ctx, p.ID, "b2"))
+		require.NoError(t, s.DeleteBlock(ctx, p.ID, "", "b2"))
 
-		v2, err := s.CreateVersion(ctx, p.ID, "v2.0", "Modified version")
+		v2, err := s.CreateVersion(ctx, p.ID, "", "v2.0", "Modified version")
 		require.NoError(t, err)
 
 		diff, err := s.Diff(ctx, v1[0].ID, v2.ID)
@@ -255,7 +255,7 @@ func TestConcurrentAccess(t *testing.T) {
 				fmt.Sprintf("concurrent-%d", i),
 				fmt.Sprintf("Text %d", i),
 			)
-			done <- s.StoreBlocks(ctx, p.ID, []*model.Block{b})
+			done <- s.StoreBlocks(ctx, p.ID, "", []*model.Block{b})
 		}(i)
 	}
 
@@ -285,9 +285,9 @@ func TestItemCRUD(t *testing.T) {
 			SourceBytes: []byte(`{"hello":"world"}`),
 			Properties:  map[string]string{"encoding": "UTF-8"},
 		}
-		require.NoError(t, s.StoreItem(ctx, p.ID, item))
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
 
-		got, err := s.GetItem(ctx, p.ID, "messages.json")
+		got, err := s.GetItem(ctx, p.ID, "", "messages.json")
 		require.NoError(t, err)
 		assert.Equal(t, "messages.json", got.Name)
 		assert.Equal(t, "json", got.Format)
@@ -305,9 +305,9 @@ func TestItemCRUD(t *testing.T) {
 			SourceBytes: []byte(`{"hello":"updated"}`),
 			Properties:  map[string]string{},
 		}
-		require.NoError(t, s.StoreItem(ctx, p.ID, item))
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
 
-		got, err := s.GetItem(ctx, p.ID, "messages.json")
+		got, err := s.GetItem(ctx, p.ID, "", "messages.json")
 		require.NoError(t, err)
 		assert.Equal(t, []byte(`{"hello":"updated"}`), got.SourceBytes)
 	})
@@ -318,28 +318,28 @@ func TestItemCRUD(t *testing.T) {
 			Format:   "xml",
 			ItemType: "file",
 		}
-		require.NoError(t, s.StoreItem(ctx, p.ID, item2))
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item2))
 
-		items, err := s.ListItems(ctx, p.ID)
+		items, err := s.ListItems(ctx, p.ID, "")
 		require.NoError(t, err)
 		assert.Len(t, items, 2)
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		require.NoError(t, s.DeleteItem(ctx, p.ID, "strings.xml"))
+		require.NoError(t, s.DeleteItem(ctx, p.ID, "", "strings.xml"))
 
-		items, err := s.ListItems(ctx, p.ID)
+		items, err := s.ListItems(ctx, p.ID, "")
 		require.NoError(t, err)
 		assert.Len(t, items, 1)
 	})
 
 	t.Run("delete nonexistent", func(t *testing.T) {
-		err := s.DeleteItem(ctx, p.ID, "nonexistent.txt")
+		err := s.DeleteItem(ctx, p.ID, "", "nonexistent.txt")
 		assert.Error(t, err)
 	})
 
 	t.Run("get nonexistent", func(t *testing.T) {
-		_, err := s.GetItem(ctx, p.ID, "nonexistent.txt")
+		_, err := s.GetItem(ctx, p.ID, "", "nonexistent.txt")
 		assert.Error(t, err)
 	})
 }
@@ -355,12 +355,12 @@ func TestBlockItemAssociation(t *testing.T) {
 
 	// Store an item.
 	item := &platstore.Item{Name: "messages.json", Format: "json", ItemType: "file"}
-	require.NoError(t, s.StoreItem(ctx, p.ID, item))
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
 
 	// Store blocks associated with the item — format-reader IDs get mapped to internal IDs.
 	b1 := model.NewBlock("msg-1", "Hello")
 	b2 := model.NewBlock("msg-2", "Goodbye")
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "messages.json", []*model.Block{b1, b2}))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "messages.json", []*model.Block{b1, b2}))
 
 	// After StoreBlocksForItem, b1.ID and b2.ID are mutated to internal IDs.
 	assert.NotEqual(t, "msg-1", b1.ID, "block ID should be remapped")
@@ -370,7 +370,7 @@ func TestBlockItemAssociation(t *testing.T) {
 
 	// Store blocks without item association — keeps original ID.
 	b3 := model.NewBlock("other-1", "Other")
-	require.NoError(t, s.StoreBlocks(ctx, p.ID, []*model.Block{b3}))
+	require.NoError(t, s.StoreBlocks(ctx, p.ID, "", []*model.Block{b3}))
 
 	t.Run("query by item name", func(t *testing.T) {
 		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{
@@ -391,7 +391,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	})
 
 	t.Run("get block by internal ID", func(t *testing.T) {
-		sb, err := s.GetBlock(ctx, p.ID, b1.ID)
+		sb, err := s.GetBlock(ctx, p.ID, "", b1.ID)
 		require.NoError(t, err)
 		assert.Equal(t, "messages.json", sb.ItemName)
 		assert.Equal(t, "msg-1", sb.SourceID)
@@ -399,7 +399,7 @@ func TestBlockItemAssociation(t *testing.T) {
 	})
 
 	t.Run("delete item cascades blocks", func(t *testing.T) {
-		require.NoError(t, s.DeleteItem(ctx, p.ID, "messages.json"))
+		require.NoError(t, s.DeleteItem(ctx, p.ID, "", "messages.json"))
 
 		blocks, err := s.GetBlocks(ctx, platstore.BlockQuery{ProjectID: p.ID})
 		require.NoError(t, err)
@@ -416,13 +416,13 @@ func TestBlockIDUniqueness(t *testing.T) {
 	// Two items with blocks that have the same format-reader IDs.
 	item1 := &platstore.Item{Name: "file1.json", Format: "json", ItemType: "file"}
 	item2 := &platstore.Item{Name: "file2.json", Format: "json", ItemType: "file"}
-	require.NoError(t, s.StoreItem(ctx, p.ID, item1))
-	require.NoError(t, s.StoreItem(ctx, p.ID, item2))
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", item1))
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", item2))
 
 	blocks1 := []*model.Block{model.NewBlock("tu1", "Hello"), model.NewBlock("tu2", "World")}
 	blocks2 := []*model.Block{model.NewBlock("tu1", "Bonjour"), model.NewBlock("tu2", "Monde")}
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file1.json", blocks1))
-	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file2.json", blocks2))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "file1.json", blocks1))
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "file2.json", blocks2))
 
 	t.Run("different internal IDs", func(t *testing.T) {
 		// All four blocks should have unique 8-char IDs.
@@ -434,13 +434,13 @@ func TestBlockIDUniqueness(t *testing.T) {
 	})
 
 	t.Run("no ambiguity on GetBlock", func(t *testing.T) {
-		sb1, err := s.GetBlock(ctx, p.ID, blocks1[0].ID)
+		sb1, err := s.GetBlock(ctx, p.ID, "", blocks1[0].ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Hello", sb1.SourceText())
 		assert.Equal(t, "tu1", sb1.SourceID)
 		assert.Equal(t, "file1.json", sb1.ItemName)
 
-		sb3, err := s.GetBlock(ctx, p.ID, blocks2[0].ID)
+		sb3, err := s.GetBlock(ctx, p.ID, "", blocks2[0].ID)
 		require.NoError(t, err)
 		assert.Equal(t, "Bonjour", sb3.SourceText())
 		assert.Equal(t, "tu1", sb3.SourceID)
@@ -453,11 +453,11 @@ func TestBlockIDUniqueness(t *testing.T) {
 
 		// Re-store same blocks for file1 — should reuse existing internal IDs.
 		reBlocks := []*model.Block{model.NewBlock("tu1", "Hello updated"), model.NewBlock("tu2", "World")}
-		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "file1.json", reBlocks))
+		require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "file1.json", reBlocks))
 		assert.Equal(t, savedID1, reBlocks[0].ID, "re-ingested block should keep same internal ID")
 		assert.Equal(t, savedID2, reBlocks[1].ID, "re-ingested block should keep same internal ID")
 
-		sb, err := s.GetBlock(ctx, p.ID, savedID1)
+		sb, err := s.GetBlock(ctx, p.ID, "", savedID1)
 		require.NoError(t, err)
 		assert.Equal(t, "Hello updated", sb.SourceText())
 	})

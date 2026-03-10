@@ -495,6 +495,15 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Extraction settings (project-scoped, AD-022)
 	g.GET("/projects/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/projects/:id/settings/extraction", s.HandleUpdateExtractionSettings)
+
+	// Stream management (project-scoped)
+	g.GET("/projects/:id/streams", s.HandleListStreams)
+	g.POST("/projects/:id/streams", s.HandleCreateStream)
+	g.GET("/projects/:id/streams/:stream", s.HandleGetStream)
+	g.PATCH("/projects/:id/streams/:stream", s.HandleUpdateStream)
+	g.DELETE("/projects/:id/streams/:stream", s.HandleArchiveStream)
+	g.POST("/projects/:id/streams/:stream/merge", s.HandleMergeStream)
+	g.GET("/projects/:id/streams/:stream/diff", s.HandleDiffStream)
 }
 
 // Start initializes the Echo server and starts listening.

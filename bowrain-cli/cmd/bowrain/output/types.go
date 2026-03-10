@@ -497,3 +497,159 @@ func (p PresetsValidateOutput) FormatText(w io.Writer) error {
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// Stream types
+// ---------------------------------------------------------------------------
+
+// StreamEntry represents a single stream in list output.
+type StreamEntry struct {
+	Name        string `json:"name"`
+	Parent      string `json:"parent,omitempty"`
+	Visibility  string `json:"visibility"`
+	Description string `json:"description,omitempty"`
+	Archived    bool   `json:"archived,omitempty"`
+	Active      bool   `json:"active,omitempty"`
+}
+
+// StreamListOutput represents the result of bowrain stream list.
+type StreamListOutput struct {
+	Streams []StreamEntry `json:"streams"`
+}
+
+func (o StreamListOutput) FormatText(w io.Writer) error {
+	if len(o.Streams) == 0 {
+		fmt.Fprintln(w, "No streams.")
+		return nil
+	}
+
+	nameW := 4
+	for _, s := range o.Streams {
+		if len(s.Name) > nameW {
+			nameW = len(s.Name)
+		}
+	}
+	nameW += 2
+
+	fmt.Fprintf(w, "  %-*s %-10s %-10s %s\n", nameW, "NAME", "PARENT", "VISIBILITY", "DESCRIPTION")
+	fmt.Fprintf(w, "  %-*s %-10s %-10s %s\n", nameW, "----", "------", "----------", "-----------")
+
+	for _, s := range o.Streams {
+		marker := "  "
+		if s.Active {
+			marker = "* "
+		}
+		archived := ""
+		if s.Archived {
+			archived = " (archived)"
+		}
+		parent := s.Parent
+		if parent == "" {
+			parent = "-"
+		}
+		fmt.Fprintf(w, "%s%-*s %-10s %-10s %s%s\n", marker, nameW, s.Name, parent, s.Visibility, s.Description, archived)
+	}
+
+	fmt.Fprintf(w, "\n%d stream(s)\n", len(o.Streams))
+	return nil
+}
+
+// StreamCreateOutput represents the result of bowrain stream create.
+type StreamCreateOutput struct {
+	Name        string `json:"name"`
+	Parent      string `json:"parent"`
+	Visibility  string `json:"visibility"`
+	Description string `json:"description,omitempty"`
+}
+
+func (o StreamCreateOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Created stream %q (parent: %s, visibility: %s)\n", o.Name, o.Parent, o.Visibility)
+	if o.Description != "" {
+		fmt.Fprintf(w, "Description: %s\n", o.Description)
+	}
+	fmt.Fprintf(w, "\nSwitch to it with: bowrain push --stream %s\n", o.Name)
+	return nil
+}
+
+// DiffChangeEntry represents a single block change in a diff.
+type DiffChangeEntry struct {
+	BlockID    string `json:"block_id"`
+	ChangeType string `json:"change_type"`
+}
+
+// StreamDiffOutput represents the result of bowrain stream diff.
+type StreamDiffOutput struct {
+	Stream  string           `json:"stream"`
+	Parent  string           `json:"parent"`
+	Changes []DiffChangeEntry `json:"changes"`
+}
+
+func (o StreamDiffOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Stream: %s (parent: %s)\n\n", o.Stream, o.Parent)
+
+	if len(o.Changes) == 0 {
+		fmt.Fprintln(w, "No changes.")
+		return nil
+	}
+
+	added, modified, removed := 0, 0, 0
+	for _, c := range o.Changes {
+		switch c.ChangeType {
+		case "added":
+			added++
+		case "modified":
+			modified++
+		case "removed":
+			removed++
+		}
+	}
+
+	fmt.Fprintf(w, "%d change(s):", len(o.Changes))
+	if added > 0 {
+		fmt.Fprintf(w, " %d added", added)
+	}
+	if modified > 0 {
+		fmt.Fprintf(w, " %d modified", modified)
+	}
+	if removed > 0 {
+		fmt.Fprintf(w, " %d removed", removed)
+	}
+	fmt.Fprintln(w)
+
+	for _, c := range o.Changes {
+		fmt.Fprintf(w, "  %s  %s\n", c.ChangeType, c.BlockID)
+	}
+	return nil
+}
+
+// StreamMergeOutput represents the result of bowrain stream merge.
+type StreamMergeOutput struct {
+	Stream         string `json:"stream"`
+	MergedBlocks   int    `json:"merged_blocks"`
+	AddedBlocks    int    `json:"added_blocks"`
+	ModifiedBlocks int    `json:"modified_blocks"`
+	RemovedBlocks  int    `json:"removed_blocks"`
+	DryRun         bool   `json:"dry_run,omitempty"`
+}
+
+func (o StreamMergeOutput) FormatText(w io.Writer) error {
+	if o.DryRun {
+		fmt.Fprintf(w, "Dry run — would merge %d blocks from %q:\n", o.MergedBlocks, o.Stream)
+	} else {
+		fmt.Fprintf(w, "Merged %d blocks from %q:\n", o.MergedBlocks, o.Stream)
+	}
+	fmt.Fprintf(w, "  Added:    %d\n", o.AddedBlocks)
+	fmt.Fprintf(w, "  Modified: %d\n", o.ModifiedBlocks)
+	fmt.Fprintf(w, "  Removed:  %d\n", o.RemovedBlocks)
+	return nil
+}
+
+// StreamArchiveOutput represents the result of bowrain stream archive.
+type StreamArchiveOutput struct {
+	Stream string `json:"stream"`
+}
+
+func (o StreamArchiveOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Archived stream %q\n", o.Stream)
+	return nil
+}

@@ -15,9 +15,16 @@ const syncCacheFile = ".sync-cache"
 type SyncCache struct {
 	ServerURL  string                `json:"server_url"`
 	ProjectID  string                `json:"project_id"`
-	SyncCursor int64                 `json:"sync_cursor"`
+	SyncCursor int64                 `json:"sync_cursor"` // deprecated: use StreamCursors
 	LastSync   time.Time             `json:"last_sync"`
 	Files      map[string]*FileCache `json:"files,omitempty"`
+
+	// StreamCursors tracks per-stream sync cursors.
+	// Key is stream name (e.g., "main", "feature/new-ui").
+	StreamCursors map[string]int64 `json:"stream_cursors,omitempty"`
+
+	// ActiveStream is the last active stream name used for sync.
+	ActiveStream string `json:"active_stream,omitempty"`
 
 	// ClaimToken stores the claim token for anonymous projects.
 	// Stored here (gitignored) rather than in config.yaml to avoid
@@ -42,20 +49,62 @@ type FileCache struct {
 	Blocks map[string]string `json:"blocks"` // blockID → contentHash
 }
 
+// GetStreamCursor returns the sync cursor for a specific stream.
+// Falls back to the legacy SyncCursor field for backwards compatibility.
+func (c *SyncCache) GetStreamCursor(stream string) int64 {
+	if stream == "" {
+		stream = "main"
+	}
+	if c.StreamCursors != nil {
+		if cursor, ok := c.StreamCursors[stream]; ok {
+			return cursor
+		}
+	}
+	// Fall back to legacy field for "main" stream.
+	if stream == "main" {
+		return c.SyncCursor
+	}
+	return 0
+}
+
+// SetStreamCursor updates the sync cursor for a specific stream.
+func (c *SyncCache) SetStreamCursor(stream string, cursor int64) {
+	if stream == "" {
+		stream = "main"
+	}
+	if c.StreamCursors == nil {
+		c.StreamCursors = map[string]int64{}
+	}
+	c.StreamCursors[stream] = cursor
+	// Also update legacy field for backwards compatibility.
+	if stream == "main" {
+		c.SyncCursor = cursor
+	}
+}
+
 // LoadSyncCache loads the sync cache from .bowrain/.sync-cache.
 // Returns an empty cache if the file doesn't exist or is corrupt.
 func LoadSyncCache(configDir string) *SyncCache {
 	data, err := os.ReadFile(filepath.Join(configDir, syncCacheFile))
 	if err != nil {
-		return &SyncCache{Files: map[string]*FileCache{}}
+		return &SyncCache{Files: map[string]*FileCache{}, StreamCursors: map[string]int64{}}
 	}
 
 	var cache SyncCache
 	if err := json.Unmarshal(data, &cache); err != nil {
-		return &SyncCache{Files: map[string]*FileCache{}}
+		return &SyncCache{Files: map[string]*FileCache{}, StreamCursors: map[string]int64{}}
 	}
 	if cache.Files == nil {
 		cache.Files = map[string]*FileCache{}
+	}
+	if cache.StreamCursors == nil {
+		cache.StreamCursors = map[string]int64{}
+	}
+	// Migrate legacy SyncCursor to StreamCursors.
+	if cache.SyncCursor > 0 {
+		if _, ok := cache.StreamCursors["main"]; !ok {
+			cache.StreamCursors["main"] = cache.SyncCursor
+		}
 	}
 	return &cache
 }

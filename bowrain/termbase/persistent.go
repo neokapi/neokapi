@@ -68,10 +68,23 @@ var tbMigrations = []storage.Migration{
 		Description: "add project_id column to concepts",
 		SQL:         `ALTER TABLE tb_concepts ADD COLUMN project_id TEXT NOT NULL DEFAULT '';`,
 	},
+	{
+		Version:     3,
+		Description: "add stream column to concepts",
+		SQL: `ALTER TABLE tb_concepts ADD COLUMN stream TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_tb_concepts_stream ON tb_concepts(stream);`,
+	},
 }
 
-// AddConcept inserts or updates a concept with all its terms.
+// AddConcept inserts or updates a concept with all its terms using an empty stream.
 func (tb *SQLiteTermBase) AddConcept(concept fw.Concept) error {
+	return tb.AddConceptWithStream(concept, "")
+}
+
+// AddConceptWithStream inserts or updates a concept associated with a stream.
+// The stream parameter is a persistence concern (e.g., a git branch name) not stored
+// in the framework Concept type.
+func (tb *SQLiteTermBase) AddConceptWithStream(concept fw.Concept, stream string) error {
 	if concept.ID == "" {
 		return fmt.Errorf("concept ID is required")
 	}
@@ -97,15 +110,16 @@ func (tb *SQLiteTermBase) AddConcept(concept fw.Concept) error {
 
 	// Upsert concept.
 	_, err = tx.Exec(`
-		INSERT INTO tb_concepts (id, project_id, domain, definition, properties, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
+			stream = excluded.stream,
 			domain = excluded.domain,
 			definition = excluded.definition,
 			properties = excluded.properties,
 			updated_at = excluded.updated_at
-	`, concept.ID, concept.ProjectID, concept.Domain, concept.Definition,
+	`, concept.ID, concept.ProjectID, stream, concept.Domain, concept.Definition,
 		nullableString(propsJSON),
 		concept.CreatedAt.Format(time.RFC3339),
 		concept.UpdatedAt.Format(time.RFC3339))
@@ -300,6 +314,78 @@ func (tb *SQLiteTermBase) Search(query, sourceLocale, targetLocale string, offse
 	defer rows.Close()
 
 	// Collect IDs first to release the connection before loading concepts.
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	var concepts []fw.Concept
+	for _, id := range ids {
+		if c, err := tb.scanConcept(id); err == nil {
+			concepts = append(concepts, c)
+		}
+	}
+	return concepts, total
+}
+
+// SearchForStream performs a case-insensitive text search with stream inheritance.
+// The streamChain is an ordered list of ancestor streams to search (e.g.,
+// ["feature/rebrand", "main", ""]). Concepts from earlier streams take priority.
+func (tb *SQLiteTermBase) SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	placeholders := make([]string, len(streams))
+	var args []any
+	for i, s := range streams {
+		placeholders[i] = "?"
+		args = append(args, s)
+	}
+
+	where := "c.stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	if query != "" {
+		where += ` AND (LOWER(c.definition) LIKE ? OR LOWER(c.domain) LIKE ?
+			OR c.id IN (SELECT concept_id FROM tb_terms WHERE text_lower LIKE ?))`
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern, pattern)
+	}
+
+	if sourceLocale != "" {
+		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
+		args = append(args, sourceLocale)
+	}
+	if targetLocale != "" {
+		where += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
+		args = append(args, targetLocale)
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+
+	// Build CASE expression for stream priority ordering.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE c.stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN ? THEN %d", i))
+		args = append(args, s)
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT ? OFFSET ?`, where, caseExpr.String())
+	args = append(args, limit, offset)
+	rows, err := tb.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
 	var ids []string
 	for rows.Next() {
 		var id string

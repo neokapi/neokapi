@@ -257,7 +257,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 			BlockIndex:  string(blockIndexJSON),
 			Properties:  map[string]string{},
 		}
-		if err := a.store.StoreItem(ctx, projectID, item); err != nil {
+		if err := a.store.StoreItem(ctx, projectID, "main", item); err != nil {
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
@@ -272,7 +272,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 			}
 		}
 		if len(blocks) > 0 {
-			if err := a.store.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+			if err := a.store.StoreBlocksForItem(ctx, projectID, "main", itemName, blocks); err != nil {
 				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
 			}
 		}
@@ -289,7 +289,7 @@ func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
 		return nil, err
 	}
 
-	if err := a.store.DeleteItem(ctx, projectID, itemName); err != nil {
+	if err := a.store.DeleteItem(ctx, projectID, "main", itemName); err != nil {
 		return nil, err
 	}
 
@@ -299,7 +299,7 @@ func (a *App) RemoveItem(projectID, itemName string) (*ProjectInfo, error) {
 // ListProjectFiles returns the items in a project.
 func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 	ctx := context.Background()
-	items, err := a.store.ListItems(ctx, projectID)
+	items, err := a.store.ListItems(ctx, projectID, "main")
 	if err != nil {
 		return nil, err
 	}
@@ -308,6 +308,7 @@ func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 	for _, item := range items {
 		blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: projectID,
+			Stream:    "main",
 			ItemName:  item.Name,
 		})
 		if err != nil {
@@ -354,7 +355,7 @@ func projectToInfo(p *store.Project) ProjectInfo {
 func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project) (*ProjectInfo, error) {
 	info := projectToInfo(proj)
 
-	items, err := cs.ListItems(ctx, proj.ID)
+	items, err := cs.ListItems(ctx, proj.ID, "main")
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
@@ -362,6 +363,7 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 	for _, item := range items {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: proj.ID,
+			Stream:    "main",
 			ItemName:  item.Name,
 		})
 		if err != nil {

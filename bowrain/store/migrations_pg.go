@@ -160,6 +160,65 @@ var storeMigrationsPg = []storage.Migration{
 	},
 	{
 		Version:     3,
+		Description: "add streams support",
+		SQL: `
+			CREATE TABLE streams (
+				project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name        TEXT NOT NULL,
+				parent      TEXT NOT NULL DEFAULT '',
+				base_cursor BIGINT NOT NULL DEFAULT 0,
+				archived    BOOLEAN NOT NULL DEFAULT FALSE,
+				visibility  TEXT NOT NULL DEFAULT 'public',
+				description TEXT NOT NULL DEFAULT '',
+				created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				created_by  TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (project_id, name)
+			);
+
+			CREATE TABLE stream_members (
+				project_id  TEXT NOT NULL,
+				stream      TEXT NOT NULL,
+				user_id     TEXT NOT NULL,
+				added_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, user_id),
+				FOREIGN KEY (project_id, stream) REFERENCES streams(project_id, name) ON DELETE CASCADE
+			);
+
+			ALTER TABLE items ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			ALTER TABLE change_log ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			ALTER TABLE block_history ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			ALTER TABLE block_notes ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+
+			-- Update items primary key to include stream.
+			DROP TABLE IF EXISTS items_new;
+			CREATE TABLE items_new (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				format       TEXT NOT NULL DEFAULT '',
+				item_type    TEXT NOT NULL DEFAULT 'file',
+				source_bytes BYTEA,
+				block_index  TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, stream, name)
+			);
+			INSERT INTO items_new
+				SELECT project_id, name, stream, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+				FROM items;
+			DROP TABLE items;
+			ALTER TABLE items_new RENAME TO items;
+			CREATE INDEX idx_items_project ON items(project_id);
+			CREATE INDEX idx_items_project_stream ON items(project_id, stream);
+
+			CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
+			CREATE INDEX idx_block_history_stream ON block_history(project_id, stream, block_id, locale);
+			CREATE INDEX idx_block_notes_stream ON block_notes(project_id, stream, block_id);
+		`,
+	},
+	{
+		Version:     4,
 		Description: "automation, review queue, and notification tables",
 		SQL: `
 			CREATE TABLE automation_rules (

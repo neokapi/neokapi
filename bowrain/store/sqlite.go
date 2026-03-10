@@ -38,6 +38,14 @@ func (s *SQLiteStore) DB() *sql.DB {
 	return s.db.DB
 }
 
+// defaultStream returns "main" when stream is empty.
+func defaultStream(stream string) string {
+	if stream == "" {
+		return "main"
+	}
+	return stream
+}
+
 // Close closes the underlying database.
 func (s *SQLiteStore) Close() error {
 	return s.db.Close()
@@ -138,7 +146,8 @@ func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
 // Item management
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *platstore.Item) error {
+func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, item *platstore.Item) error {
+	stream = defaultStream(stream)
 	now := time.Now().UTC()
 	item.CreatedAt = now
 	item.UpdatedAt = now
@@ -155,13 +164,13 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *pla
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		 ON CONFLICT(project_id, name) DO UPDATE SET
+		`INSERT INTO items (project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=excluded.format, item_type=excluded.item_type,
 			source_bytes=excluded.source_bytes, block_index=excluded.block_index,
 			properties=excluded.properties, updated_at=excluded.updated_at`,
-		projectID, item.Name, item.Format, item.ItemType, item.SourceBytes,
+		projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
 		item.BlockIndex, string(propsJSON),
 		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
@@ -170,17 +179,19 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID string, item *pla
 	return nil
 }
 
-func (s *SQLiteStore) GetItem(ctx context.Context, projectID, itemName string) (*platstore.Item, error) {
+func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
+	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
-		 FROM items WHERE project_id=? AND name=?`, projectID, itemName)
+		 FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
 	return scanItem(row)
 }
 
-func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*platstore.Item, error) {
+func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
+	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
-		 FROM items WHERE project_id=? ORDER BY name`, projectID)
+		 FROM items WHERE project_id=? AND stream=? ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
@@ -197,7 +208,8 @@ func (s *SQLiteStore) ListItems(ctx context.Context, projectID string) ([]*plats
 	return result, rows.Err()
 }
 
-func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, itemName string) error {
+func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -211,7 +223,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, itemName string
 	}
 
 	// Delete the item itself.
-	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=? AND name=?`, projectID, itemName)
+	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
 	if err != nil {
 		return fmt.Errorf("delete item: %w", err)
 	}
@@ -243,15 +255,16 @@ func scanItem(row scanner) (*platstore.Item, error) {
 // Block storage
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, "", blocks)
+func (s *SQLiteStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, stream, "", blocks)
 }
 
-func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, itemName, blocks)
+func (s *SQLiteStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, stream, itemName, blocks)
 }
 
-func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
+func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -335,7 +348,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 		if !isNew && len(b.Targets) > 0 {
 			oldTargets, loadErr := loadExistingTargets(ctx, tx, projectID, itemName, internalID)
 			if loadErr == nil && oldTargets != nil {
-				_ = recordTargetHistory(ctx, tx, projectID, internalID, oldTargets, b.Targets)
+				_ = recordTargetHistory(ctx, tx, projectID, stream, internalID, oldTargets, b.Targets)
 			}
 		}
 
@@ -372,18 +385,18 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 
 		// Append to change log.
 		if isNew {
-			if err := logChange(ctx, tx, projectID, internalID, "source_added", "", identity.ContentHash); err != nil {
+			if err := logChange(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			// Log target additions for new blocks that already have translations.
 			for locale := range b.Targets {
-				if err := logChange(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+				if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 				}
 			}
 		} else {
 			if existingHash != identity.ContentHash {
-				if err := logChange(ctx, tx, projectID, internalID, "source_modified", "", identity.ContentHash); err != nil {
+				if err := logChange(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
@@ -394,14 +407,14 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 					for locale, newSegs := range b.Targets {
 						oldSegs, had := oldTargets[locale]
 						if !had {
-							if err := logChange(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+							if err := logChange(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 							}
 						} else {
 							oldJSON, _ := json.Marshal(oldSegs)
 							newJSON, _ := json.Marshal(newSegs)
 							if string(oldJSON) != string(newJSON) {
-								if err := logChange(ctx, tx, projectID, internalID, "target_modified", string(locale), ""); err != nil {
+								if err := logChange(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
 									return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 								}
 							}
@@ -418,7 +431,8 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 // newBlockID generates a short random block ID (8 chars, base62-encoded).
 func newBlockID() string { return id.New() }
 
-func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, blockID string) (*platstore.StoredBlock, error) {
+func (s *SQLiteStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
+	_ = defaultStream(stream) // stream not used for blocks table (content-addressed, shared)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
@@ -488,7 +502,8 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 	return result, rows.Err()
 }
 
-func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string) error {
+func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -504,7 +519,7 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string
 		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
 
-	if err := logChange(ctx, tx, projectID, blockID, "source_removed", "", ""); err != nil {
+	if err := logChange(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {
 		return fmt.Errorf("log change for deleted block %s: %w", blockID, err)
 	}
 
@@ -515,7 +530,8 @@ func (s *SQLiteStore) DeleteBlock(ctx context.Context, projectID, blockID string
 // Version management
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, label, description string) (*platstore.Version, error) {
+func (s *SQLiteStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*platstore.Version, error) {
+	_ = defaultStream(stream) // versions snapshot all blocks in the project
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -578,7 +594,8 @@ func (s *SQLiteStore) GetVersion(ctx context.Context, versionID string) (*platst
 	return &v, nil
 }
 
-func (s *SQLiteStore) ListVersions(ctx context.Context, projectID string) ([]*platstore.Version, error) {
+func (s *SQLiteStore) ListVersions(ctx context.Context, projectID, stream string) ([]*platstore.Version, error) {
+	_ = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, label, description, block_count, created_at
 		 FROM versions WHERE project_id=? ORDER BY created_at DESC`, projectID)

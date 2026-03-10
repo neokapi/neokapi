@@ -37,7 +37,7 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "locale query parameter is required"})
 	}
 
-	sb, err := s.ContentStore.GetBlock(c.Request().Context(), pid, bid)
+	sb, err := s.ContentStore.GetBlock(c.Request().Context(), pid, "main", bid)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -62,6 +62,7 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 
 	storedBlocks, err := s.ContentStore.GetBlocks(c.Request().Context(), store.BlockQuery{
 		ProjectID: pid,
+		Stream:    "main",
 		ItemName:  fname,
 	})
 	if err != nil {

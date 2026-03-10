@@ -45,7 +45,7 @@ func (s *Server) HandleAddBlockNote(c echo.Context) error {
 		CreatedAt: time.Now().UTC(),
 	}
 
-	if err := s.ContentStore.AddBlockNote(c.Request().Context(), pid, bid, note); err != nil {
+	if err := s.ContentStore.AddBlockNote(c.Request().Context(), pid, "main", bid, note); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -61,7 +61,7 @@ func (s *Server) HandleListBlockNotes(c echo.Context) error {
 	pid := c.Param("pid")
 	bid := c.Param("bid")
 
-	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, bid)
+	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -83,7 +83,7 @@ func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
 	pid := c.Param("pid")
 	nid := c.Param("nid")
 
-	if err := s.ContentStore.DeleteBlockNote(c.Request().Context(), pid, nid); err != nil {
+	if err := s.ContentStore.DeleteBlockNote(c.Request().Context(), pid, "main", nid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
