@@ -26,6 +26,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new MIF reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "mif",
@@ -89,8 +90,8 @@ type stringRef struct {
 	stringIdx   int // which string within the block (0-based)
 }
 
-// skipTags are top-level MIF tags whose content is non-translatable.
-var skipTags = map[string]bool{
+// alwaysSkipTags are top-level MIF tags whose content is always non-translatable.
+var alwaysSkipTags = map[string]bool{
 	"Units":                true,
 	"ColorCatalog":         true,
 	"ConditionCatalog":     true,
@@ -100,8 +101,6 @@ var skipTags = map[string]bool{
 	"RulingCatalog":        true,
 	"TblCatalog":           true,
 	"Views":                true,
-	"VariableFormats":      true,
-	"XRefFormats":          true,
 	"Document":             true,
 	"BookComponent":        true,
 	"InitialAutoNums":      true,
@@ -111,10 +110,27 @@ var skipTags = map[string]bool{
 	"FmtChangeListCatalog": true,
 	"DefAttrValuesCatalog": true,
 	"AttrCondExprCatalog":  true,
-	"MasterPage":           true,
-	"ReferencePage":        true,
-	"Page":                 true,
 	"AFrames":              true,
+}
+
+// skipTag returns true if the tag should be skipped based on config.
+func (r *Reader) skipTag(tag string) bool {
+	if alwaysSkipTags[tag] {
+		return true
+	}
+	switch tag {
+	case "MasterPage":
+		return !r.cfg.ExtractMasterPages
+	case "ReferencePage":
+		return !r.cfg.ExtractReferencePages
+	case "Page":
+		return !r.cfg.ExtractBodyPages
+	case "VariableFormats":
+		return !r.cfg.ExtractVariables
+	case "XRefFormats":
+		return !r.cfg.ExtractReferenceFormats
+	}
+	return false
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -147,7 +163,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Build skeleton if needed
 	if r.skeletonStore != nil {
-		refs := findStringPositions(rawText, stmts)
+		refs := r.findStringPositions(rawText, stmts)
 		if len(refs) > 0 {
 			skelPos := 0
 			for _, sr := range refs {
@@ -170,12 +186,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 // findStringPositions scans raw MIF content for <String `...'> patterns and associates
 // them with block indices based on the parsed statement tree.
-func findStringPositions(rawText string, stmts []*mifStatement) []stringRef {
+func (r *Reader) findStringPositions(rawText string, stmts []*mifStatement) []stringRef {
 	// First, figure out which paragraphs are translatable and in which order
 	// (matching the same logic as emitStatements/processContainer).
 	var translatableParas []*mifStatement
 	for _, stmt := range stmts {
-		if skipTags[stmt.tag] || stmt.tag == "MIFFile" {
+		if r.skipTag(stmt.tag) || stmt.tag == "MIFFile" {
 			continue
 		}
 		if stmt.tag == "TextFlow" || stmt.tag == "Tbls" || stmt.tag == "Notes" {
@@ -282,7 +298,7 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 	dataCounter := 0
 
 	for _, stmt := range stmts {
-		if skipTags[stmt.tag] {
+		if r.skipTag(stmt.tag) {
 			// Emit as non-translatable data.
 			dataCounter++
 			d := &model.Data{
@@ -342,7 +358,7 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResult, stmt *mifStatement, blockCounter, dataCounter int) (int, int) {
 	for _, child := range stmt.children {
 		if child.tag == "Para" {
-			text := extractParaText(child)
+			text := extractParaTextImpl(child, r.cfg.ExtractHardReturnsAsText)
 			if strings.TrimSpace(text) != "" {
 				blockCounter++
 				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
@@ -368,7 +384,14 @@ func (r *Reader) processContainer(ctx context.Context, ch chan<- model.PartResul
 }
 
 // extractParaText extracts translatable text from a Para statement.
+// This standalone version always treats hard returns as text (used by findStringPositions
+// and collectTranslatableParas where config doesn't affect presence/absence of text).
 func extractParaText(para *mifStatement) string {
+	return extractParaTextImpl(para, true)
+}
+
+// extractParaTextImpl extracts translatable text with configurable hard return handling.
+func extractParaTextImpl(para *mifStatement, hardReturnsAsText bool) string {
 	var texts []string
 	for _, child := range para.children {
 		if child.tag == "ParaLine" {
@@ -379,7 +402,9 @@ func extractParaText(para *mifStatement) string {
 				case "Char":
 					switch lc.value {
 					case "HardReturn":
-						texts = append(texts, "\n")
+						if hardReturnsAsText {
+							texts = append(texts, "\n")
+						}
 					case "Tab":
 						texts = append(texts, "\t")
 					case "HardSpace":

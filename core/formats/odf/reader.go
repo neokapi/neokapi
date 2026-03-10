@@ -94,11 +94,14 @@ func odfResolvePrefix(ns string) string {
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
+	resolver      format.SubfilterResolver
 	skeletonStore *format.SkeletonStore
 	tmpFile       string // path to temp file for ZIP access
+	layerSeq      int    // counter for generating unique child layer IDs
 }
 
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new ODF reader.
 func NewReader() *Reader {
@@ -114,6 +117,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSubfilterResolver sets the resolver for creating sub-format readers.
+func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	r.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming skeleton output.
@@ -233,9 +241,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			tmpFile.Close()
 			return
 		}
-		r.skelPartStart("content.xml")
-		r.parseODFContent(ctx, ch, contentData, docType, &blockCounter, "content.xml")
-		r.skelPartEnd("content.xml")
+
+		if r.resolver != nil {
+			// Route through XML sub-format reader
+			r.layerSeq++
+			childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+			childLayer := &model.Layer{
+				ID:       childLayerID,
+				Name:     "content.xml",
+				Format:   "xml",
+				Locale:   locale,
+				ParentID: rootLayer.ID,
+				Properties: map[string]string{
+					"subfilter.source": "odf",
+					"entry":            "content.xml",
+				},
+			}
+			r.skelPartStart("content.xml")
+			if r.skeletonStore != nil {
+				_ = r.skeletonStore.WriteRef("layer:content.xml")
+			}
+			r.skelPartEnd("content.xml")
+			r.emitSubfiltered(ctx, ch, contentData, "content.xml", rootLayer.ID, childLayer, &blockCounter)
+		} else {
+			r.skelPartStart("content.xml")
+			r.parseODFContent(ctx, ch, contentData, docType, &blockCounter, "content.xml")
+			r.skelPartEnd("content.xml")
+		}
 	}
 
 	// Process styles.xml (may contain translatable master page content)
@@ -247,9 +279,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			tmpFile.Close()
 			return
 		}
-		r.skelPartStart("styles.xml")
-		r.parseODFContent(ctx, ch, stylesData, docType, &blockCounter, "styles.xml")
-		r.skelPartEnd("styles.xml")
+
+		if r.resolver != nil {
+			// Route through XML sub-format reader
+			r.layerSeq++
+			childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+			childLayer := &model.Layer{
+				ID:       childLayerID,
+				Name:     "styles.xml",
+				Format:   "xml",
+				Locale:   locale,
+				ParentID: rootLayer.ID,
+				Properties: map[string]string{
+					"subfilter.source": "odf",
+					"entry":            "styles.xml",
+				},
+			}
+			r.skelPartStart("styles.xml")
+			if r.skeletonStore != nil {
+				_ = r.skeletonStore.WriteRef("layer:styles.xml")
+			}
+			r.skelPartEnd("styles.xml")
+			r.emitSubfiltered(ctx, ch, stylesData, "styles.xml", rootLayer.ID, childLayer, &blockCounter)
+		} else {
+			r.skelPartStart("styles.xml")
+			r.parseODFContent(ctx, ch, stylesData, docType, &blockCounter, "styles.xml")
+			r.skelPartEnd("styles.xml")
+		}
 	}
 
 	// End root layer
@@ -502,6 +558,64 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	}
 
 	p.skelFlush()
+}
+
+// emitSubfiltered emits a child layer with content parsed by the XML sub-format reader.
+func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entryName, parentLayerID string,
+	childLayer *model.Layer, blockCounter *int) {
+
+	subReader, err := r.resolver.ResolveReader("xml")
+	if err != nil {
+		// Fall back to direct ODF parsing if XML reader is unavailable
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+			return
+		}
+		r.parseODFContent(ctx, ch, content, odfTypeUnknown, blockCounter, entryName)
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+
+	// Emit child layer start
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+		return
+	}
+
+	// Open sub-reader and emit its parts
+	subDoc := &model.RawDocument{
+		URI:          entryName,
+		SourceLocale: locale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := subReader.Open(ctx, subDoc); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("odf: subfilter open for %s: %w", entryName, err)}
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	// Read sub-reader parts, skipping the sub-reader's own root layer start/end
+	for pr := range subReader.Read(ctx) {
+		if pr.Error != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("odf: subfilter read for %s: %w", entryName, pr.Error)}
+			break
+		}
+		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
+			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
+				continue
+			}
+		}
+		r.emit(ctx, ch, pr.Part)
+	}
+	subReader.Close()
+
+	// Emit child layer end
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 
 func (r *Reader) skelPartStart(partPath string) {

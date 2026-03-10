@@ -19,11 +19,14 @@ import (
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
+	resolver      format.SubfilterResolver
 	tmpFile       string // path to temp file backing the ZIP
 	skeletonStore *format.SkeletonStore
+	layerSeq      int // counter for generating unique child layer IDs
 }
 
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new EPUB reader.
 func NewReader() *Reader {
@@ -38,6 +41,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSubfilterResolver sets the resolver for creating sub-format readers.
+func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	r.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming skeleton output.
@@ -195,6 +203,42 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			continue
 		}
 
+		content, err := r.readEntry(file)
+		if err != nil {
+			r.emitError(ch, fmt.Errorf("epub: reading %s: %w", itemPath, err))
+			return
+		}
+
+		// When a subfilter resolver is available, route XHTML through the HTML reader
+		if r.resolver != nil {
+			r.layerSeq++
+			childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+
+			childLayer := &model.Layer{
+				ID:       childLayerID,
+				Name:     itemPath,
+				Format:   "html",
+				Locale:   locale,
+				ParentID: rootLayer.ID,
+				MimeType: "application/xhtml+xml",
+				Properties: map[string]string{
+					"subfilter.source": "epub",
+					"entry":            itemPath,
+				},
+			}
+
+			// Emit skeleton part-boundary marker for subfiltered content
+			r.skelPartStart(itemPath)
+			if r.skeletonStore != nil {
+				_ = r.skeletonStore.WriteRef("layer:" + itemPath)
+			}
+			r.skelPartEnd(itemPath)
+
+			r.emitSubfiltered(ctx, ch, content, itemPath, rootLayer.ID, childLayer, &blockCounter)
+			continue
+		}
+
+		// Fallback: extract XHTML text directly
 		layerCounter++
 		childLayer := &model.Layer{
 			ID:       fmt.Sprintf("layer%d", layerCounter),
@@ -210,12 +254,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		// Emit skeleton part-boundary marker
 		r.skelPartStart(itemPath)
-
-		content, err := r.readEntry(file)
-		if err != nil {
-			r.emitError(ch, fmt.Errorf("epub: reading %s: %w", itemPath, err))
-			return
-		}
 
 		r.extractAndEmitXHTML(ctx, ch, content, itemPath, &blockCounter)
 
@@ -505,6 +543,64 @@ func (r *Reader) extractAndEmitXHTML(ctx context.Context, ch chan<- model.PartRe
 
 	// Flush remaining
 	flushBlock()
+}
+
+// emitSubfiltered emits a child layer with content parsed by the HTML sub-format reader.
+func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entryName, parentLayerID string,
+	childLayer *model.Layer, blockCounter *int) {
+
+	subReader, err := r.resolver.ResolveReader("html")
+	if err != nil {
+		// Fall back to direct XHTML extraction if HTML reader is unavailable
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+			return
+		}
+		r.extractAndEmitXHTML(ctx, ch, content, entryName, blockCounter)
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+
+	// Emit child layer start
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+		return
+	}
+
+	// Open sub-reader and emit its parts
+	subDoc := &model.RawDocument{
+		URI:          entryName,
+		SourceLocale: locale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := subReader.Open(ctx, subDoc); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("epub: subfilter open for %s: %w", entryName, err)}
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	// Read sub-reader parts, skipping the sub-reader's own root layer start/end
+	for pr := range subReader.Read(ctx) {
+		if pr.Error != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("epub: subfilter read for %s: %w", entryName, pr.Error)}
+			break
+		}
+		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
+			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
+				continue
+			}
+		}
+		r.emit(ctx, ch, pr.Part)
+	}
+	subReader.Close()
+
+	// Emit child layer end
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 
 func (r *Reader) skelPartStart(partPath string) {

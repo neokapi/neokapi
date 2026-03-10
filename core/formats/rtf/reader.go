@@ -28,6 +28,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new RTF reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "rtf",
@@ -94,30 +95,63 @@ const (
 	tokenUnicode                     // \uN
 )
 
-// skipDestinations are RTF destinations whose content is non-translatable.
-var skipDestinations = map[string]bool{
+// alwaysSkipDestinations are RTF destinations that are always non-translatable.
+var alwaysSkipDestinations = map[string]bool{
 	"fonttbl":    true,
 	"colortbl":   true,
 	"stylesheet": true,
 	"info":       true,
-	"header":     true,
-	"headerl":    true,
-	"headerr":    true,
-	"headerf":    true,
-	"footer":     true,
-	"footerl":    true,
-	"footerr":    true,
-	"footerf":    true,
 	"pict":       true,
 	"object":     true,
 	"fldinst":    true,
 	"xe":         true,
 	"tc":         true,
 	"rxe":        true,
-	"bkmkstart":  true,
-	"bkmkend":    true,
 	"field":      false, // field itself is not skipped; fldinst inside is
 	"fldrslt":    false,
+}
+
+// headerFooterDestinations are RTF destinations for headers/footers.
+var headerFooterDestinations = map[string]bool{
+	"header":  true,
+	"headerl": true,
+	"headerr": true,
+	"headerf": true,
+	"footer":  true,
+	"footerl": true,
+	"footerr": true,
+	"footerf": true,
+}
+
+// annotationDestinations are RTF destinations for comments/annotations.
+var annotationDestinations = map[string]bool{
+	"atnid":   true,
+	"atnauthor": true,
+	"annotation": true,
+}
+
+// bookmarkDestinations are RTF destinations for bookmarks.
+var bookmarkDestinations = map[string]bool{
+	"bkmkstart": true,
+	"bkmkend":   true,
+}
+
+// isSkipDestination returns whether the given destination should be skipped
+// based on the reader config.
+func (r *Reader) isSkipDestination(dest string) bool {
+	if skip, ok := alwaysSkipDestinations[dest]; ok {
+		return skip
+	}
+	if headerFooterDestinations[dest] {
+		return !r.cfg.ExtractHeadersFooters
+	}
+	if annotationDestinations[dest] {
+		return !r.cfg.ExtractAnnotations
+	}
+	if bookmarkDestinations[dest] {
+		return !r.cfg.ExtractBookmarks
+	}
+	return false
 }
 
 // textRef records the byte position of a text token and its block association.
@@ -190,6 +224,8 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 	type groupInfo struct {
 		skip           bool
 		destinationTag string
+		prevInBody     bool // saved inBody state to restore on group end
+		setInBody      bool // did this group set inBody?
 	}
 	var groupStack []groupInfo
 	depth := 0
@@ -267,6 +303,11 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		case tokenGroupEnd:
 			if depth > 0 {
 				depth--
+				gi := groupStack[len(groupStack)-1]
+				if gi.setInBody {
+					flushParagraph()
+					inBody = gi.prevInBody
+				}
 				groupStack = groupStack[:len(groupStack)-1]
 			}
 
@@ -276,9 +317,16 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				gi := &groupStack[len(groupStack)-1]
 				if gi.destinationTag == "" {
 					gi.destinationTag = tok.text
-					if skipDestinations[tok.text] {
+					if r.isSkipDestination(tok.text) {
 						gi.skip = true
 						continue
+					}
+					// For header/footer/annotation groups that are NOT skipped,
+					// set inBody so their text content is extracted.
+					if headerFooterDestinations[tok.text] || annotationDestinations[tok.text] {
+						gi.prevInBody = inBody
+						gi.setInBody = true
+						inBody = true
 					}
 				}
 			}
