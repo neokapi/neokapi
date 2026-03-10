@@ -7,10 +7,9 @@ import (
 
 // ProjectURLInfo contains the parts extracted from a compound project URL.
 type ProjectURLInfo struct {
-	ServerURL  string
-	Workspace  string
-	ProjectID  string
-	ClaimToken string
+	ServerURL string
+	Workspace string
+	ProjectID string
 }
 
 // ParseProjectURL parses a compound project URL into its parts.
@@ -18,7 +17,6 @@ type ProjectURLInfo struct {
 // Supported formats:
 //
 //	https://server.com/workspace/project-id   → workspace project
-//	https://server.com/claim/clm_xyz          → claim URL
 //	https://server.com/projects/project-id    → direct project (no workspace)
 //	""                                        → empty (no server)
 func ParseProjectURL(rawURL string) ProjectURLInfo {
@@ -38,11 +36,6 @@ func ParseProjectURL(rawURL string) ProjectURLInfo {
 	serverURL := u.Scheme + "://" + u.Host
 
 	switch {
-	case len(segments) == 2 && segments[0] == "claim":
-		return ProjectURLInfo{
-			ServerURL:  serverURL,
-			ClaimToken: segments[1],
-		}
 	case len(segments) == 2 && segments[0] == "projects":
 		return ProjectURLInfo{
 			ServerURL: serverURL,
@@ -67,15 +60,13 @@ func ParseProjectURL(rawURL string) ProjectURLInfo {
 }
 
 // FormatProjectURL constructs a compound project URL from parts.
-func FormatProjectURL(serverURL, workspace, projectID, claimToken string) string {
+func FormatProjectURL(serverURL, workspace, projectID string) string {
 	serverURL = strings.TrimRight(serverURL, "/")
 	if serverURL == "" {
 		return ""
 	}
 
 	switch {
-	case claimToken != "":
-		return serverURL + "/claim/" + claimToken
 	case workspace != "" && projectID != "":
 		return serverURL + "/" + workspace + "/" + projectID
 	case projectID != "":

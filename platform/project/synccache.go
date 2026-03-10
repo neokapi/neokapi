@@ -19,6 +19,11 @@ type SyncCache struct {
 	LastSync   time.Time             `json:"last_sync"`
 	Files      map[string]*FileCache `json:"files,omitempty"`
 
+	// ClaimToken stores the claim token for anonymous projects.
+	// Stored here (gitignored) rather than in config.yaml to avoid
+	// accidentally committing credentials to version control.
+	ClaimToken string `json:"claim_token,omitempty"`
+
 	// ServerMeta caches project metadata fetched from the server.
 	// Updated on each push/pull to keep target languages in sync.
 	ServerMeta *CachedProjectMeta `json:"server_meta,omitempty"`

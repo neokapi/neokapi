@@ -95,7 +95,7 @@ func TestSaveConfig(t *testing.T) {
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 		cfg := &Config{
-			URL: FormatProjectURL("https://test.example.com", "my-team", "test123", ""),
+			URL: FormatProjectURL("https://test.example.com", "my-team", "test123"),
 			Defaults: Defaults{
 				SourceLanguage:  "en-US",
 				TargetLanguages: []model.LocaleID{"fr-FR", "de-DE"},
@@ -191,7 +191,7 @@ func TestSaveConfig_RoundTrip(t *testing.T) {
 	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 	cfg := &Config{
-		URL: FormatProjectURL("https://test.example.com", "ws", "proj-42", ""),
+		URL: FormatProjectURL("https://test.example.com", "ws", "proj-42"),
 		Defaults: Defaults{
 			SourceLanguage:  "en",
 			TargetLanguages: []model.LocaleID{"fr", "de", "ja"},

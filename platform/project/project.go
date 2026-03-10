@@ -136,7 +136,6 @@ type Config struct {
 	// URL is a compound project URL that encodes the server, workspace, and project ID.
 	// Examples:
 	//   https://bowrain.example.com/my-team/abc123     (workspace project)
-	//   https://bowrain.example.com/claim/clm_xyz      (claim URL)
 	//   https://bowrain.example.com/projects/abc123     (direct project)
 	URL string `yaml:"url,omitempty"`
 
@@ -277,12 +276,6 @@ func (c *Config) ProjectID() string {
 func (c *Config) Workspace() string {
 	info := ParseProjectURL(c.URL)
 	return info.Workspace
-}
-
-// ClaimToken returns the claim token extracted from the compound URL.
-func (c *Config) ClaimToken() string {
-	info := ParseProjectURL(c.URL)
-	return info.ClaimToken
 }
 
 // HasServer returns true if a server URL is configured.

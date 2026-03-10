@@ -18,6 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// writeClaimToken writes a claim token to the sync cache file in the given bowrain dir.
+func writeClaimToken(t *testing.T, bowrainDir, token string) {
+	t.Helper()
+	cache := &SyncCache{
+		ClaimToken: token,
+		Files:      map[string]*FileCache{},
+	}
+	require.NoError(t, cache.Save(bowrainDir))
+}
+
 // setupTestProject creates a temporary bowrain project with a JSON source file and
 // a mock Bowrain server. Returns the project, format registry, and cleanup func.
 func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.FormatRegistry) {
@@ -41,7 +51,7 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 	))
 
 	cfg := &Config{
-		URL: FormatProjectURL(srv.URL, "", "proj-123", "test-token"),
+		URL: FormatProjectURL(srv.URL, "", "proj-123"),
 		Defaults: Defaults{
 			SourceLanguage: "en",
 		},
@@ -55,6 +65,9 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 		ConfigDir: bowrainDir,
 		Config:    cfg,
 	}
+
+	// Write claim token to sync cache (gitignored, not in config).
+	writeClaimToken(t, bowrainDir, "test-token")
 
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
@@ -144,7 +157,7 @@ func TestNewSourceConnector_RequiresURL(t *testing.T) {
 		Root:      t.TempDir(),
 		ConfigDir: filepath.Join(t.TempDir(), ".bowrain"),
 		Config: &Config{
-			URL: FormatProjectURL("", "", "p1", ""),
+			URL: FormatProjectURL("", "", "p1"),
 		},
 	}
 
@@ -573,7 +586,7 @@ func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "es", "ui.json"), []byte(`{"hola":"Hola"}`), 0644))
 
 	cfg := &Config{
-		URL: FormatProjectURL(srv.URL, "", "proj-multi", "tok"),
+		URL: FormatProjectURL(srv.URL, "", "proj-multi"),
 		Defaults: Defaults{
 			SourceLanguage: "en",
 		},
@@ -584,6 +597,7 @@ func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
 	}
 
 	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "tok")
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
 
@@ -621,7 +635,7 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "intro.json"), []byte(`{"title":"Welcome"}`), 0644))
 
 	cfg := &Config{
-		URL: FormatProjectURL(srv.URL, "", "proj-col", "tok"),
+		URL: FormatProjectURL(srv.URL, "", "proj-col"),
 		Defaults: Defaults{
 			SourceLanguage: "en",
 			Collection:     "default-col",
@@ -633,6 +647,7 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 	}
 
 	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "tok")
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
 
@@ -653,17 +668,16 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 }
 
 func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
-	// Mock a server that returns project metadata with target locales.
-	mux := http.NewServeMux()
+	// Mock a server that returns project metadata AND handles sync endpoints.
 	mock := &mockSyncHandler{
 		pullChanges: []apiclient.ChangeEntry{
 			{Seq: 1, BlockID: "tu1", ChangeType: "target_added", Locale: "fr"},
 		},
 	}
 
-	// The metadata endpoint reuses the project GET path.
-	mux.HandleFunc("/api/v1/projects/proj-auto", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && !contains(r.URL.Path, "/sync/") {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Metadata endpoint: GET on project prefix without /sync/
+		if r.Method == http.MethodGet && !contains(r.URL.Path, "/sync/") && contains(r.URL.Path, "/projects/") {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
 				ID:            "proj-auto",
@@ -673,14 +687,10 @@ func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
 			})
 			return
 		}
-		// Delegate sync endpoints.
-		mock.ServeHTTP(w, r)
-	})
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		mock.ServeHTTP(w, r)
 	})
 
-	srv := httptest.NewServer(mux)
+	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 
 	root := t.TempDir()
@@ -691,7 +701,7 @@ func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
 
 	// Config has NO target_languages — should fall back to server metadata.
 	cfg := &Config{
-		URL: FormatProjectURL(srv.URL, "", "proj-auto", ""),
+		URL: FormatProjectURL(srv.URL, "", "proj-auto"),
 		Defaults: Defaults{
 			SourceLanguage: "en",
 			// No TargetLanguages — force fallback to server.
@@ -702,6 +712,7 @@ func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
 	}
 
 	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	writeClaimToken(t, bowrainDir, "test-token")
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
 

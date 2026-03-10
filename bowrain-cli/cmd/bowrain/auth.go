@@ -147,7 +147,7 @@ var authClaimCmd = &cobra.Command{
 	Short: "Claim a project into your workspace",
 	Long: `Take ownership of a project by providing a claim token.
 
-If no token is given, it is read from .bowrain/config.yaml.
+If no token is given, it is read from .bowrain/.sync-cache.
 Requires authentication (run 'bowrain auth login' first).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		stored, err := loadAuth()
@@ -159,15 +159,16 @@ Requires authentication (run 'bowrain auth login' first).`,
 		if len(args) > 0 {
 			claimToken = args[0]
 		} else {
-			// Try to read from .bowrain/config.yaml.
+			// Try to read from .bowrain/.sync-cache.
 			proj, err := project.FindProject("")
 			if err != nil {
 				return fmt.Errorf("no claim token provided and no .bowrain/ project found")
 			}
-			if proj.Config.ClaimToken() == "" {
-				return fmt.Errorf("no claim token in .bowrain/config.yaml — provide token as argument")
+			cache := project.LoadSyncCache(proj.ConfigDir)
+			if cache.ClaimToken == "" {
+				return fmt.Errorf("no claim token in .bowrain/.sync-cache — provide token as argument")
 			}
-			claimToken = proj.Config.ClaimToken()
+			claimToken = cache.ClaimToken
 		}
 
 		// Call server to claim.
@@ -198,18 +199,21 @@ Requires authentication (run 'bowrain auth login' first).`,
 			return fmt.Errorf("decode claim response: %w", err)
 		}
 
-		// Update .bowrain/config.yaml: update URL from claim to workspace project.
+		// Update .bowrain/config.yaml: update URL to workspace project.
 		proj, err := project.FindProject("")
 		if err == nil && proj.Config.HasServer() {
 			proj.Config.URL = project.FormatProjectURL(
 				proj.Config.ServerURL(),
 				result.WorkspaceSlug,
 				result.ProjectID,
-				"",
 			)
 			if saveErr := project.SaveConfig(proj.ConfigDir, proj.Config); saveErr != nil {
 				fmt.Fprintf(os.Stderr, "Warning: could not update .bowrain/config.yaml: %v\n", saveErr)
 			}
+			// Clear claim token from sync cache — no longer needed after claim.
+			cache := project.LoadSyncCache(proj.ConfigDir)
+			cache.ClaimToken = ""
+			_ = cache.Save(proj.ConfigDir)
 		}
 
 		return output.Print(cmd, output.AuthClaimOutput{

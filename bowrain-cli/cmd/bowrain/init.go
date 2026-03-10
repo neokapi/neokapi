@@ -138,7 +138,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
 		}
-		cfg.URL = project.FormatProjectURL(serverURL, "", initProjectID, "")
+		cfg.URL = project.FormatProjectURL(serverURL, "", initProjectID)
 		fmt.Printf("Connecting to Bowrain Server: %s\n", serverURL)
 		fmt.Printf("Project ID: %s\n", initProjectID)
 		return finishInit(cwd, cfg)
@@ -403,11 +403,19 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, projectName, e
 		return nil, fmt.Errorf("create anonymous project: %w", err)
 	}
 
-	cfg.URL = project.FormatProjectURL(serverURL, "", projectID, claimToken)
+	cfg.URL = project.FormatProjectURL(serverURL, "", projectID)
 
 	out, err := finishInit(cwd, cfg)
 	if err != nil {
 		return nil, err
+	}
+
+	// Store claim token in sync cache (gitignored), not in config.yaml.
+	bowrainDir := filepath.Join(cwd, project.BowrainDir)
+	cache := project.LoadSyncCache(bowrainDir)
+	cache.ClaimToken = claimToken
+	if saveErr := cache.Save(bowrainDir); saveErr != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not save claim token to .sync-cache: %v\n", saveErr)
 	}
 
 	out.ClaimURL = strings.TrimRight(serverURL, "/") + "/claim/" + claimToken
@@ -443,7 +451,7 @@ func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.St
 		return nil, fmt.Errorf("create project: %w", err)
 	}
 
-	cfg.URL = project.FormatProjectURL(auth.ServerURL, workspaceSlug, projectID, "")
+	cfg.URL = project.FormatProjectURL(auth.ServerURL, workspaceSlug, projectID)
 
 	return finishInit(cwd, cfg)
 }
@@ -585,7 +593,6 @@ func finishInit(cwd string, cfg *project.Config) (*output.InitOutput, error) {
 		out.Server = cfg.ServerURL()
 		out.ProjectID = cfg.ProjectID()
 		out.Workspace = cfg.Workspace()
-		out.ClaimToken = cfg.ClaimToken()
 	}
 
 	return out, nil

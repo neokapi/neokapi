@@ -37,12 +37,11 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	serverURL := project.Config.ServerURL()
 	projectID := project.Config.ProjectID()
 	workspace := project.Config.Workspace()
-	claimToken := project.Config.ClaimToken()
 
 	if serverURL == "" {
 		return nil, fmt.Errorf("server URL not configured in .bowrain/config.yaml")
 	}
-	if projectID == "" && claimToken == "" {
+	if projectID == "" {
 		return nil, fmt.Errorf("server project_id not configured in .bowrain/config.yaml")
 	}
 
@@ -50,8 +49,8 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 
 	var client *apiclient.BowrainClient
 	switch {
-	case claimToken != "":
-		client = apiclient.NewClaimTokenClient(serverURL, projectID, claimToken)
+	case cache.ClaimToken != "":
+		client = apiclient.NewClaimTokenClient(serverURL, projectID, cache.ClaimToken)
 	case workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
