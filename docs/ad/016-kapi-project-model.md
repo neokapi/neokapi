@@ -34,37 +34,38 @@ my-app/
 
 The `.bowrain/` directory is created by `bowrain init` and contains:
 
-1. **`config.yaml`** — Project metadata, server connection, file mappings, hooks, and automations
+1. **`config.yaml`** — Project defaults, server connection (compound URL), content entries, hooks, and automations
 2. **`flows/`** — YAML definitions of file processing flows
-3. **`.sync-cache`** — JSON cache tracking last known server state (block hashes, sync cursor) — gitignored
+3. **`.sync-cache`** — JSON cache tracking last known server state (block hashes, sync cursor, server metadata) — gitignored
 4. **`.gitignore`** — Excludes `.sync-cache` from version control
 
 The project model types live in `platform/project/` — shared infrastructure with no CLI or bowrain module dependency.
 
 ### `config.yaml` Schema
 
-The config file uses flat YAML with a top-level `version` field. Because `config.yaml` is a well-known file at a well-known path (`.bowrain/config.yaml`), it does not need a k8s-style envelope — the `kind` is always implicit. The version is part of the spec, not a wrapper around it.
+The config file uses flat YAML with a top-level `version: v1` field. Because `config.yaml` is a well-known file at a well-known path (`.bowrain/config.yaml`), it does not need a k8s-style envelope — the `kind` is always implicit. The version is part of the spec, not a wrapper around it.
 
 ```yaml
 version: v1
-project:
-  name: My App
-  source_locale: en-US
-  target_locales:
+
+url: https://bowrain.example.com/my-team/abc123
+
+defaults:
+  source_language: en-US
+  target_languages:
     - fr-FR
     - de-DE
-server:
-  url: https://bowrain.example.com
-  project_id: abc123
-  workspace: default
-mappings:
-  - local: "src/**/*.json"
-    remote: "app/{path}"
+  collection: ui/strings
+
+content:
+  - path: "src/**/*.json"
     format: json
-    target_path: "locales/{locale}.json"
+    dest: "locales/{lang}/*.json"
+
 hooks:
   pre-push:
     - qa-check
+
 automations:
   - name: "qa-before-push"
     trigger: "pre-push"
@@ -74,19 +75,61 @@ automations:
           flow: "qa-check"
 ```
 
-Legacy formats (envelope with `apiVersion`/`kind`/`metadata`/`spec`, and bare YAML without any version) are still loaded transparently for backward compatibility.
+The `Config` struct defines: schema version (`version`), compound server URL (`url`), project defaults (`source_language`, `target_languages`, `collection`), content entries (`path`, `dest`, `format`, `base`, `collection`, `language`, `target_languages`), plugin list, registries, framework preset, format presets, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
 
-The `Config` struct defines: schema version (`version`), project identity (`name`, `source_locale`, `target_locales`), optional server connection (`url`, `project_id`, `workspace`, `claim_token`), plugin configuration and registries, framework preset, format presets, file mappings, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
+#### Compound URL
 
-### File Mappings
+The `url` field encodes the server, workspace, and project ID in a single URL:
 
-Mappings connect local files to remote project items using glob patterns, path templates (`{path}`, `{filename}`, `{basename}`), format IDs from the FormatRegistry, and optional target path templates with `{locale}` expansion.
+- `https://bowrain.example.com/my-team/abc123` — workspace project
+- `https://bowrain.example.com/claim/clm_xyz` — claim URL
+- `https://bowrain.example.com/projects/abc123` — direct project (no workspace)
+
+Accessor methods (`ServerURL()`, `ProjectID()`, `Workspace()`, `ClaimToken()`, `HasServer()`) parse the URL on demand.
+
+#### Multi-Source-Language Projects
+
+Content entries can override the project's default source language with the `language` field:
+
+```yaml
+defaults:
+  source_language: en
+
+content:
+  - path: src/en/**/*.json
+    format: json
+    # Uses default: en
+
+  - path: src/es/**/*.json
+    format: json
+    language: es    # This content is in Spanish
+```
+
+The `EffectiveLanguage()` method resolves per-entry language, falling back to the project default. All `\{lang\}` placeholder expansion uses this method.
+
+#### Dynamic Target Languages
+
+When `defaults.target_languages` is empty, the CLI fetches target locales from the server during sync. The resolution order is:
+
+1. CLI flags (`--locales fr,de`)
+2. `defaults.target_languages` in config
+3. Server-side target locales (cached in `.sync-cache`)
+
+Server metadata is fetched via `GET /projects/:id` and cached locally to avoid redundant API calls.
+
+#### Collections
+
+Collections organize content on the server. Resolved per content entry with fallback to `defaults.collection`. Sent with each block during push.
+
+### Content Entries
+
+Content entries connect local files to remote project items using glob patterns with `\{lang\}` placeholders, format IDs from the FormatRegistry, optional dest patterns for target file layout, base paths for prefix stripping, and per-entry language and collection overrides.
 
 ### Sync Cache (`.sync-cache`)
 
-A lightweight JSON cache of the last known server state, enabling incremental sync via a monotonic sync cursor and per-item block hash maps. Gitignored, deletable, and regenerable from the server.
+A lightweight JSON cache of the last known server state, enabling incremental sync via a monotonic sync cursor, per-item block hash maps, and cached server metadata (target locales). Gitignored, deletable, and regenerable from the server.
 
-See [Bowrain Sync Protocol](/docs/notes/kapi-sync-protocol) for the full config.yaml schema, sync-cache JSON format, and file mapping details.
+See [Bowrain Sync Protocol](/docs/notes/kapi-sync-protocol) for the full config.yaml schema, sync-cache JSON format, and content entry details.
 
 ### Flow Definitions
 
@@ -142,7 +185,7 @@ bowrain init --server https://bowrain.example.com --project my-app-l10n
    - **Email claim**: project details → email → anonymous project with email claim
    - **Anonymous**: project details → anonymous project (prints claim URL)
    - **Local only**: project details → local-only project
-4. Create `.bowrain/config.yaml` with project settings (including `server.workspace` if applicable)
+4. Create `.bowrain/config.yaml` with project settings (URL encodes server/workspace/project)
 5. Create `.bowrain/flows/` directory with example flows
 6. Create `.bowrain/.gitignore` to exclude `.sync-cache`
 
@@ -195,11 +238,11 @@ Commands automatically discover the `.bowrain/` directory by searching upward fr
 
 ### Content Hashing and Sync
 
-Bowrain CLI uses the same content-addressable hashing system as the ContentStore ([AD-003](./003-content-store.md)). Block IDs are scoped to items (files), enabling per-file incremental sync. Push and pull use cursor-based algorithms with batching at 1000 blocks per request. Pull supports multi-locale fetching.
+Bowrain CLI uses the same content-addressable hashing system as the ContentStore ([AD-003](./003-content-store.md)). Block IDs are scoped to items (files), enabling per-file incremental sync. Push and pull use cursor-based algorithms with batching at 1000 blocks per request. Pull supports multi-locale fetching with dynamic locale resolution from server metadata.
 
 ### Server API Integration
 
-When `server.url` is configured, Bowrain CLI uses workspace-scoped sync endpoints on the Bowrain Server REST API ([AD-013](./013-cli-and-server.md)). The server maintains an append-only change log with monotonic sequence numbers for O(changes) cursor-based queries. Sync routes accept JWT authentication or `ClaimToken` for anonymous projects.
+When `url` is configured, Bowrain CLI uses workspace-scoped sync endpoints on the Bowrain Server REST API ([AD-013](./013-cli-and-server.md)). The server maintains an append-only change log with monotonic sequence numbers for O(changes) cursor-based queries. Sync routes accept JWT authentication or `ClaimToken` for anonymous projects.
 
 See [Bowrain Sync Protocol](/docs/notes/kapi-sync-protocol) for push/pull algorithms, server API endpoints, and change log details.
 
@@ -235,17 +278,31 @@ Triggers include `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, a
 
 - **No project requirement** (standalone file commands): Leads to inconsistent state, no sync history, and manual path management. Requiring projects enforces clean workflows and enables powerful features (status, diff, incremental sync). Standalone file processing is Kapi's role.
 
+- **Separate server/workspace/project fields**: The compound URL (`url: https://server.com/workspace/project`) is more ergonomic than three separate fields. Users can copy-paste URLs from their browser. The URL is parsed on demand by accessor methods.
+
+- **Separate endpoint for fetching available languages**: Reusing `GET /projects/:id` for metadata avoids endpoint proliferation. The response already includes `target_locales`. Caching in `.sync-cache` avoids redundant API calls.
+
 ## Consequences
 
 - All Bowrain CLI operations require a `.bowrain/` project directory. This enforces clean project structure and enables stateful operations.
 
 - `bowrain init` is the entry point for new projects, analogous to `git init`.
 
-- `.bowrain/config.yaml` is the single source of truth for project configuration. Checked into git, enabling team collaboration. Uses flat YAML with a top-level `version` field for schema versioning.
+- `.bowrain/config.yaml` is the single source of truth for project configuration. Checked into git, enabling team collaboration. Uses flat YAML with `version: v1`.
 
-- `.bowrain/.sync-cache` tracks the last known server state locally (block hashes + sync cursor). Gitignored, regenerable from the server.
+- The compound `url` field encodes server, workspace, and project ID. Accessor methods parse on demand.
 
-- File mappings connect local paths to remote items, enabling bidirectional sync with Bowrain Server.
+- `defaults` section provides project-wide language and collection settings. Content entries can override these per-entry.
+
+- Content entries with `language` override enable multi-source-language projects.
+
+- Dynamic target languages: when `defaults.target_languages` is empty, the CLI fetches and caches server-side target locales.
+
+- Collections are sent with each block during push, resolved per content entry with fallback to `defaults.collection`.
+
+- `.bowrain/.sync-cache` tracks the last known server state locally (block hashes + sync cursor + cached server metadata). Gitignored, regenerable from the server.
+
+- Content entries connect local paths to remote items, enabling bidirectional sync with Bowrain Server.
 
 - Flows are defined in `.bowrain/flows/*.yaml` — project-specific processing chains that use the same tool system as the server pipeline but operate on files.
 

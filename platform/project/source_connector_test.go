@@ -557,6 +557,186 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 	}
 }
 
+func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
+	mock := &mockSyncHandler{}
+	srv := httptest.NewServer(mock)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	// Create files in two source languages.
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "en"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "es"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "en", "ui.json"), []byte(`{"hello":"Hello"}`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "es", "ui.json"), []byte(`{"hola":"Hola"}`), 0644))
+
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-multi", "tok"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+		},
+		Content: []ContentEntry{
+			{Path: "src/en/**/*.json", Format: "json"},
+			{Path: "src/es/**/*.json", Format: "json", Language: "es"},
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Push should pick up files from both content entries.
+	result, err := conn.Push(context.Background(), connector.PushOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.FilesScanned, "should scan files from both source languages")
+	assert.Equal(t, 2, result.BlocksPushed, "should push blocks from both files")
+
+	// Verify both item names are present.
+	itemNames := map[string]bool{}
+	for _, bi := range mock.pushBlocks {
+		itemNames[bi.ItemName] = true
+	}
+	assert.True(t, itemNames["src/en/ui.json"], "should include English file")
+	assert.True(t, itemNames["src/es/ui.json"], "should include Spanish file")
+}
+
+func TestSourceConnector_CollectionInPush(t *testing.T) {
+	mock := &mockSyncHandler{}
+	srv := httptest.NewServer(mock)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "locales"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "locales", "en.json"), []byte(`{"hello":"Hello"}`), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "docs"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "docs", "intro.json"), []byte(`{"title":"Welcome"}`), 0644))
+
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-col", "tok"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+			Collection:     "default-col",
+		},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json", Collection: "ui"},
+			{Path: "docs/*.json", Format: "json"}, // inherits default-col
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_, err = conn.Push(context.Background(), connector.PushOptions{})
+	require.NoError(t, err)
+
+	// Verify collections are set on pushed blocks.
+	collections := map[string]string{} // itemName → collection
+	for _, bi := range mock.pushBlocks {
+		collections[bi.ItemName] = bi.Collection
+	}
+	assert.Equal(t, "ui", collections["src/locales/en.json"], "ui file should have 'ui' collection")
+	assert.Equal(t, "default-col", collections["docs/intro.json"], "docs file should inherit default collection")
+}
+
+func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
+	// Mock a server that returns project metadata with target locales.
+	mux := http.NewServeMux()
+	mock := &mockSyncHandler{
+		pullChanges: []apiclient.ChangeEntry{
+			{Seq: 1, BlockID: "tu1", ChangeType: "target_added", Locale: "fr"},
+		},
+	}
+
+	// The metadata endpoint reuses the project GET path.
+	mux.HandleFunc("/api/v1/projects/proj-auto", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && !contains(r.URL.Path, "/sync/") {
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
+				ID:            "proj-auto",
+				Name:          "Test",
+				SourceLocale:  "en",
+				TargetLocales: []string{"fr", "de"},
+			})
+			return
+		}
+		// Delegate sync endpoints.
+		mock.ServeHTTP(w, r)
+	})
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		mock.ServeHTTP(w, r)
+	})
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	root := t.TempDir()
+	bowrainDir := filepath.Join(root, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "src", "locales"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(root, "src", "locales", "en.json"), []byte(`{"hello":"Hello"}`), 0644))
+
+	// Config has NO target_languages — should fall back to server metadata.
+	cfg := &Config{
+		URL: FormatProjectURL(srv.URL, "", "proj-auto", ""),
+		Defaults: Defaults{
+			SourceLanguage: "en",
+			// No TargetLanguages — force fallback to server.
+		},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json"},
+		},
+	}
+
+	proj := &Project{Root: root, ConfigDir: bowrainDir, Config: cfg}
+	formatReg := registry.NewFormatRegistry()
+	formats.RegisterAll(formatReg)
+
+	conn, err := NewSourceConnector(proj, formatReg)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// Pull should resolve target locales from server metadata.
+	result, err := conn.Pull(context.Background(), connector.PullOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, result.LocalesCount, "should use server's fr+de target locales")
+
+	// Verify metadata was cached.
+	require.NotNil(t, conn.cache.ServerMeta)
+	assert.Equal(t, []string{"fr", "de"}, conn.cache.ServerMeta.TargetLocales)
+}
+
+func TestContentEntry_EffectiveLanguage(t *testing.T) {
+	ce := ContentEntry{Path: "src/*.json"}
+	assert.Equal(t, "en", ce.EffectiveLanguage("en"))
+
+	ce.Language = "es"
+	assert.Equal(t, "es", ce.EffectiveLanguage("en"))
+}
+
+func TestContentEntry_EffectiveTargetLanguages(t *testing.T) {
+	defaults := []model.LocaleID{"fr", "de"}
+
+	ce := ContentEntry{Path: "src/*.json"}
+	assert.Equal(t, defaults, ce.EffectiveTargetLanguages(defaults))
+
+	ce.TargetLanguages = []model.LocaleID{"ja", "ko"}
+	assert.Equal(t, []model.LocaleID{"ja", "ko"}, ce.EffectiveTargetLanguages(defaults))
+}
+
 func TestSourceConnector_InterfaceCompliance(t *testing.T) {
 	// Compile-time check that BrainSourceConnector implements connector.SourceConnector.
 	var _ connector.SourceConnector = (*BrainSourceConnector)(nil)

@@ -195,8 +195,8 @@ type ContentEntry struct {
 	// Collection overrides the default collection for this content entry.
 	Collection string `yaml:"collection,omitempty"`
 
-	// Locale overrides the source language for this entry.
-	Locale string `yaml:"locale,omitempty"`
+	// Language overrides the source language for this entry.
+	Language string `yaml:"language,omitempty"`
 
 	// TargetLanguages overrides the default target languages for this entry.
 	// Use "$auto" to inherit from defaults or auto-detect from server.
@@ -204,6 +204,25 @@ type ContentEntry struct {
 
 	// Overrides are per-entry format config overrides.
 	Overrides map[string]any `yaml:"overrides,omitempty"`
+}
+
+// EffectiveLanguage returns the source language for this entry,
+// falling back to the project default if not overridden.
+func (ce ContentEntry) EffectiveLanguage(defaultLang model.LocaleID) string {
+	if ce.Language != "" {
+		return ce.Language
+	}
+	return string(defaultLang)
+}
+
+// EffectiveTargetLanguages returns the target languages for this entry.
+// If the entry has its own target_languages, those are used.
+// Otherwise falls back to the provided defaults.
+func (ce ContentEntry) EffectiveTargetLanguages(defaults []model.LocaleID) []model.LocaleID {
+	if len(ce.TargetLanguages) > 0 {
+		return ce.TargetLanguages
+	}
+	return defaults
 }
 
 // RegistryConfig represents a named plugin registry in project config.

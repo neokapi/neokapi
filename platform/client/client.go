@@ -168,11 +168,12 @@ type SyncPushRequest struct {
 
 // BlockInput represents a block in the API.
 type BlockInput struct {
-	ID       string `json:"id"`
-	Text     string `json:"text"`
-	Name     string `json:"name,omitempty"`
-	Type     string `json:"type,omitempty"`
-	ItemName string `json:"item_name,omitempty"`
+	ID         string `json:"id"`
+	Text       string `json:"text"`
+	Name       string `json:"name,omitempty"`
+	Type       string `json:"type,omitempty"`
+	ItemName   string `json:"item_name,omitempty"`
+	Collection string `json:"collection,omitempty"`
 }
 
 // SyncPushResponse is the response from a push.
@@ -357,6 +358,41 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]Block
 		return nil, fmt.Errorf("decode blocks response: %w", err)
 	}
 	return blocks, nil
+}
+
+// ProjectMetadata contains server-side project metadata fetched during sync.
+type ProjectMetadata struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	SourceLocale  string   `json:"source_locale"`
+	TargetLocales []string `json:"target_locales"`
+}
+
+// GetProjectMetadata fetches project metadata from the server.
+// This reuses the existing GET /projects/:id endpoint.
+func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadata, error) {
+	u := c.projectPrefix()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("get project metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("get project metadata failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var meta ProjectMetadata
+	if err := json.NewDecoder(resp.Body).Decode(&meta); err != nil {
+		return nil, fmt.Errorf("decode project metadata: %w", err)
+	}
+	return &meta, nil
 }
 
 // CreateAnonymousProject creates a new anonymous project on a Bowrain server.
