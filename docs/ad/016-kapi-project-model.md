@@ -50,6 +50,9 @@ version: v1
 
 url: https://bowrain.example.com/my-team/abc123
 
+# Default: auto-detect based on git branch, CI environment, or other heuristics
+# stream: $auto
+
 defaults:
   source_language: en-US
   target_languages:
@@ -75,7 +78,7 @@ automations:
           flow: "qa-check"
 ```
 
-The `Config` struct defines: schema version (`version`), compound server URL (`url`), project defaults (`source_language`, `target_languages`, `collection`), content entries (`path`, `dest`, `format`, `base`, `collection`, `language`, `target_languages`), plugin list, registries, framework preset, format presets, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
+The `Config` struct defines: schema version (`version`), compound server URL (`url`), stream name (`stream`), project defaults (`source_language`, `target_languages`, `collection`), content entries (`path`, `dest`, `format`, `base`, `collection`, `language`, `target_languages`), plugin list, registries, framework preset, format presets, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
 
 #### Compound URL
 

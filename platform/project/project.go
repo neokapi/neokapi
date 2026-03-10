@@ -139,6 +139,12 @@ type Config struct {
 	//   https://bowrain.example.com/projects/abc123     (direct project)
 	URL string `yaml:"url,omitempty"`
 
+	// Stream determines which content stream to sync with.
+	// Default: "$auto" — auto-detect from git branch / CI environment.
+	// Set to a specific name (e.g. "v2.0") to always use that stream.
+	// Empty is treated as "$auto".
+	Stream string `yaml:"stream,omitempty"`
+
 	// Defaults contains project-wide defaults for language and organization.
 	Defaults Defaults `yaml:"defaults"`
 

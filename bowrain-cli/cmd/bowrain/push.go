@@ -13,6 +13,7 @@ import (
 var (
 	pushForce  bool
 	pushDryRun bool
+	pushStream string
 )
 
 var pushCmd = &cobra.Command{
@@ -44,6 +45,11 @@ func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*Pu
 	conn, err := project.NewSourceConnector(proj, app.FormatReg)
 	if err != nil {
 		return nil, nil, err
+	}
+
+	// Apply --stream flag override (takes priority over config/auto-detect).
+	if pushStream != "" {
+		conn.SetStream(pushStream)
 	}
 
 	result, err := conn.Push(ctx, connector.PushOptions{
@@ -92,6 +98,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 		BlocksPushed: pr.BlocksPushed,
 		WordCount:    pr.WordCount,
 		FilesScanned: pr.FilesScanned,
+		Stream:       conn.Stream(),
 		DryRun:       pr.DryRun,
 		UpToDate:     pr.UpToDate,
 	}
@@ -113,5 +120,6 @@ func runPush(cmd *cobra.Command, args []string) error {
 func init() {
 	pushCmd.Flags().BoolVar(&pushForce, "force", false, "Re-upload everything, even unchanged blocks")
 	pushCmd.Flags().BoolVar(&pushDryRun, "dry-run", false, "Show what would be uploaded without sending")
+	pushCmd.Flags().StringVar(&pushStream, "stream", "", "Target stream (default: auto-detect from git/CI)")
 	rootCmd.AddCommand(pushCmd)
 }

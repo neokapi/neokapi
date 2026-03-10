@@ -17,6 +17,11 @@ version: v1
 #   https://bowrain.example.com/projects/abc123     (direct project, no workspace)
 url: https://bowrain.example.com/my-team/abc123
 
+# Stream determines which content stream to sync with.
+# Default: $auto (detect from git branch / CI environment)
+# Explicit: "main", "v2.0", "feature/new-ui"
+# stream: $auto
+
 # Project-wide defaults for language and organization.
 defaults:
   source_language: en-US
@@ -56,6 +61,7 @@ flows:
 **Field descriptions:**
 
 - **`url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `HasServer()`. Claim tokens for anonymous projects are stored in `.sync-cache` (gitignored), not in the URL.
+- **`stream`** -- Content stream name. Defaults to `$auto` (auto-detect from git branch or CI environment variables). Set to a specific name like `v2.0` to pin the stream. See [AD-024](/docs/ad/024-streams) for full stream design.
 - **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en-US`)
 - **`defaults.target_languages`** -- Array of BCP-47 tags for target languages. When empty, the CLI falls back to server-side target locales (cached in `.sync-cache`).
 - **`defaults.collection`** -- Default collection for organizing content on the server
@@ -169,13 +175,15 @@ Collections are sent with each block during push via the `collection` field in `
 ## Push Algorithm (Cursor-Based)
 
 ```
+0. Resolve stream: --stream flag > BOWRAIN_STREAM env > config stream > $auto > "main"
 1. Scan local files -> extract blocks -> compute hashes
    - Each content entry uses its effective language for {lang} expansion
    - Collections resolved per-entry (entry override > default)
 2. Diff block hashes against .sync-cache -> identify changed blocks
 3. Send changed blocks to server: POST /projects/:id/sync/push (batched)
    - Each block includes: id, text, name, type, item_name, collection
-4. Server appends to change log, returns new cursor
+   - X-Bowrain-Stream header sent for non-main streams
+4. Server appends to change log (scoped to stream), returns new cursor
 5. Fetch project metadata from server (best-effort) -> cache in .sync-cache
 6. Update .sync-cache with new hashes + cursor + server metadata
 ```
@@ -183,10 +191,12 @@ Collections are sent with each block during push via the `collection` field in `
 ## Pull Algorithm (Cursor-Based)
 
 ```
+0. Resolve stream: --stream flag > BOWRAIN_STREAM env > config stream > $auto > "main"
 1. Fetch project metadata from server -> cache target locales
 2. Resolve target locales: CLI flags > config > server cache
 3. Read sync_cursor from .sync-cache
 4. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr-FR
+   - X-Bowrain-Stream header sent for non-main streams
 5. Server returns only changes since cursor (O(changes), not O(total))
 6. For each changed item, fetch blocks and write translated files
 7. Update .sync-cache with new cursor + server metadata
@@ -208,6 +218,18 @@ GET  /api/v1/projects/:id                  # Project metadata (languages, name)
 POST /api/v1/projects/:id/sync/translate   # Create translation job for pushed content
 GET  /api/v1/projects/:id/changes          # Raw change log query
 ```
+
+**Stream API endpoints** ([AD-024](/docs/ad/024-streams)):
+```
+GET    /api/v1/projects/:id/streams                    # List streams
+POST   /api/v1/projects/:id/streams                    # Create stream
+GET    /api/v1/projects/:id/streams/:name              # Get stream info
+DELETE /api/v1/projects/:id/streams/:name              # Archive stream
+POST   /api/v1/projects/:id/streams/:name/merge        # Merge into parent
+GET    /api/v1/projects/:id/streams/:name/diff          # Diff against parent
+```
+
+Push and pull endpoints accept the `X-Bowrain-Stream` header to target a specific stream. When absent, operations target the `main` stream. The server auto-creates a stream on first push if it doesn't exist.
 
 Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/projects/:id/sync/...`.
 

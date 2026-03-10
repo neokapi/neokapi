@@ -25,7 +25,8 @@ type BrainSourceConnector struct {
 	client    *apiclient.BowrainClient
 	formatReg *registry.FormatRegistry
 	cache     *SyncCache
-	maxBatch  int // Max blocks per push request
+	stream    string // resolved stream name
+	maxBatch  int    // Max blocks per push request
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
@@ -83,11 +84,16 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		}
 	}
 
+	// Resolve the active stream and set it on the client.
+	stream := ResolveStream("", project.Config.Stream)
+	client.SetStream(stream)
+
 	return &BrainSourceConnector{
 		project:   project,
 		client:    client,
 		formatReg: formatReg,
 		cache:     cache,
+		stream:    stream,
 		maxBatch:  1000,
 	}, nil
 }
@@ -847,6 +853,19 @@ func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string)
 	}
 	hash, found := fc.Blocks[blockID]
 	return hash, found
+}
+
+// Stream returns the resolved stream name for this connector.
+func (c *BrainSourceConnector) Stream() string {
+	return c.stream
+}
+
+// SetStream overrides the resolved stream (e.g. from --stream flag).
+func (c *BrainSourceConnector) SetStream(stream string) {
+	c.stream = normalizeStreamName(stream)
+	if c.client != nil {
+		c.client.SetStream(c.stream)
+	}
 }
 
 // Client returns the underlying BowrainClient for direct API calls (e.g. PushStatus).

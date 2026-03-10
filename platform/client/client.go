@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// StreamHeader is the HTTP header used to communicate the active stream.
+const StreamHeader = "X-Bowrain-Stream"
+
 // BowrainClient is a REST client for the Bowrain server sync API.
 // It supports two auth modes:
 //   - ClaimToken: unclaimed project, flat routes /api/v1/projects/:id/sync/*
@@ -23,6 +26,7 @@ type BowrainClient struct {
 	workspace  string // workspace slug; empty for unclaimed (ClaimToken) projects
 	authToken  string // JWT bearer token for workspace projects
 	claimToken string // ClaimToken for unclaimed projects
+	stream     string // active stream name; empty or "main" means default
 	httpClient *http.Client
 
 	refreshToken   string                             // opaque refresh token for auto-refresh
@@ -72,12 +76,22 @@ func (c *BowrainClient) projectPrefix() string {
 	return fmt.Sprintf("%s/api/v1/projects/%s", c.baseURL, c.projectID)
 }
 
-// applyAuth adds authorization header if a token is set.
+// SetStream sets the active stream for all subsequent requests.
+// Empty or "main" means the default stream (no header sent).
+func (c *BowrainClient) SetStream(stream string) {
+	c.stream = stream
+}
+
+// applyAuth adds authorization and stream headers.
 func (c *BowrainClient) applyAuth(req *http.Request) {
 	if c.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	} else if c.claimToken != "" {
 		req.Header.Set("Authorization", "ClaimToken "+c.claimToken)
+	}
+	// Send stream header for non-default streams.
+	if c.stream != "" && c.stream != "main" {
+		req.Header.Set(StreamHeader, c.stream)
 	}
 }
 
