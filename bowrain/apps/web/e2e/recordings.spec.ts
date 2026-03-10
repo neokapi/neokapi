@@ -47,6 +47,13 @@ async function setTheme(page: Page, theme: "dark" | "light") {
   await page.waitForTimeout(100);
 }
 
+/** Switch to grid layout (default is now "visual"). */
+async function switchToGrid(page: Page) {
+  await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
+  await page.getByTestId("layout-grid").click();
+  await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
+}
+
 let token: string;
 let wsSlug: string;
 
@@ -149,7 +156,7 @@ test.describe("Web App Recordings", () => {
 
       // Open file in editor
       await humanClickNative(page, "open-file-about-us.html");
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 5000 });
+      await switchToGrid(page);
       await pause(page, 1500);
 
       // Click on the first block to select it
@@ -177,7 +184,7 @@ test.describe("Web App Recordings", () => {
       // Pseudo-translate remaining blocks via API
       await pseudoTranslateFile(token, wsSlug, p.id, "about-us.html", "fr");
       await page.reload();
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await pause(page, 2000);
 
       // Clean up
@@ -201,7 +208,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/release-notes.md`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
@@ -210,7 +217,7 @@ test.describe("Web App Recordings", () => {
       // Pseudo-translate via API so there's content
       await pseudoTranslateFile(token, wsSlug, p.id, "release-notes.md", "fr");
       await page.reload();
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await pause(page, 1000);
 
       // Switch to focus view
@@ -246,7 +253,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/app-strings.json`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
@@ -258,7 +265,7 @@ test.describe("Web App Recordings", () => {
       // Pseudo-translate via API
       await pseudoTranslateFile(token, wsSlug, p.id, "app-strings.json", "fr");
       await page.reload();
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await expect(page.getByTestId("progress-text")).toContainText("100%", { timeout: 10000 });
       await pause(page, 2000);
 
@@ -358,7 +365,7 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);

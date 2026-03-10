@@ -231,13 +231,10 @@ test.describe("Screenshots", () => {
       await setTheme(page, theme);
 
       // Pseudo-translate via backend
-      await page.evaluate(async () => {
-        const backend = (window as any).__wailsMockByName;
-        const projects = await backend.ListProjects();
-        if (projects.length > 0) {
-          await backend.PseudoTranslateItem(projects[0].id, "index.html", "fr");
-        }
-      });
+      const projects = await callBackend(page, "ListProjects");
+      if (projects.length > 0) {
+        await callBackend(page, "PseudoTranslateItem", projects[0].id, "index.html", "fr");
+      }
       // Navigate away and back to reload
       await clickTestId(page, "back-to-project");
       await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
@@ -330,13 +327,10 @@ test.describe("Screenshots", () => {
       await setTheme(page, theme);
 
       // Pseudo-translate via backend
-      await page.evaluate(async () => {
-        const backend = (window as any).__wailsMockByName;
-        const projects = await backend.ListProjects();
-        if (projects.length > 0) {
-          await backend.PseudoTranslateItem(projects[0].id, "index.html", "fr");
-        }
-      });
+      const projects = await callBackend(page, "ListProjects");
+      if (projects.length > 0) {
+        await callBackend(page, "PseudoTranslateItem", projects[0].id, "index.html", "fr");
+      }
       // Navigate away and back to reload
       await clickTestId(page, "back-to-project");
       await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
