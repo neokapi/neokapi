@@ -35,8 +35,3 @@ func (l *ServerKnownTermsLoader) LoadKnownTerms(_ context.Context, _ string, loc
 
 	return terms, nil
 }
-
-// newKnownTermsLoader creates a ServerKnownTermsLoader for the given workspace.
-func newKnownTermsLoader(ws *workspaceStores, wsSlug string) *ServerKnownTermsLoader {
-	return &ServerKnownTermsLoader{wsStores: ws, workspaceSlug: wsSlug}
-}

@@ -119,7 +119,10 @@ test.describe("Web App Screenshots", () => {
 
       // Navigate directly to the editor route
       await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
+      // Switch to grid layout for screenshots
+      await page.getByTestId("layout-grid").click();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "editor.png") });
@@ -127,7 +130,9 @@ test.describe("Web App Screenshots", () => {
       // Pseudo-translate all blocks via API and reload
       await pseudoTranslateFile(token, wsSlug, p.id, "about-us.html", "fr");
       await page.reload();
-      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 30000 });
+      await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
+      await page.getByTestId("layout-grid").click();
+      await expect(page.getByTestId("block-grid")).toBeVisible({ timeout: 10000 });
       await expect(page.getByTestId("progress-text")).toContainText("100%", { timeout: 10000 });
 
       await page.screenshot({ path: path.join(dir, "editor-translated.png") });

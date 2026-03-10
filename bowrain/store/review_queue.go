@@ -262,7 +262,7 @@ func (s *ReviewQueueStore) BatchDecide(ctx context.Context, itemIDs []string, re
 	if err != nil {
 		return 0, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	status := ReviewItemApproved
 	if req.Decision == "reject" {
@@ -313,7 +313,7 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Load existing item.
 	row := tx.QueryRowContext(ctx, s.q(
