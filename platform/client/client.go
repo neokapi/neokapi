@@ -13,7 +13,8 @@ import (
 	"time"
 )
 
-// StreamHeader is the HTTP header used to communicate the active stream.
+// StreamHeader is the HTTP header used to communicate the active stream (legacy).
+// New clients use URL path-based stream routing instead.
 const StreamHeader = "X-Bowrain-Stream"
 
 // BowrainClient is a REST client for the Bowrain server sync API.
@@ -76,22 +77,37 @@ func (c *BowrainClient) projectPrefix() string {
 	return fmt.Sprintf("%s/api/v1/projects/%s", c.baseURL, c.projectID)
 }
 
+// streamPrefix returns the URL prefix for stream-scoped endpoints.
+// All content operations use: .../projects/{pid}/streams/{stream}/...
+// When stream is empty or "main", it still uses the path explicitly.
+func (c *BowrainClient) streamPrefix() string {
+	stream := c.stream
+	if stream == "" {
+		stream = "main"
+	}
+	return c.projectPrefix() + "/streams/" + url.PathEscape(stream)
+}
+
 // SetStream sets the active stream for all subsequent requests.
-// Empty or "main" means the default stream (no header sent).
+// Empty or "main" means the default stream.
 func (c *BowrainClient) SetStream(stream string) {
 	c.stream = stream
 }
 
-// applyAuth adds authorization and stream headers.
+// Stream returns the current active stream name.
+func (c *BowrainClient) Stream() string {
+	if c.stream == "" {
+		return "main"
+	}
+	return c.stream
+}
+
+// applyAuth adds authorization headers.
 func (c *BowrainClient) applyAuth(req *http.Request) {
 	if c.authToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.authToken)
 	} else if c.claimToken != "" {
 		req.Header.Set("Authorization", "ClaimToken "+c.claimToken)
-	}
-	// Send stream header for non-default streams.
-	if c.stream != "" && c.stream != "main" {
-		req.Header.Set(StreamHeader, c.stream)
 	}
 }
 
@@ -254,7 +270,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 		return nil, fmt.Errorf("marshal push request: %w", err)
 	}
 
-	u := c.projectPrefix() + "/sync/push"
+	u := c.streamPrefix() + "/sync/push"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -281,7 +297,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 
 // Pull fetches changes from the server since the given cursor.
 func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string, limit int) (*SyncPullResponse, error) {
-	u, err := url.Parse(c.projectPrefix() + "/sync/pull")
+	u, err := url.Parse(c.streamPrefix() + "/sync/pull")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -321,7 +337,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 
 // PushStatus checks the status of auto-triggered translation jobs for a push.
 func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushStatusResponse, error) {
-	u, err := url.Parse(c.projectPrefix() + "/sync/status")
+	u, err := url.Parse(c.streamPrefix() + "/sync/status")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -355,7 +371,7 @@ func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushSta
 
 // GetBlocks fetches blocks for a specific item (source file) with their translations.
 func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]BlockContent, error) {
-	u, err := url.Parse(c.projectPrefix() + "/sync/blocks")
+	u, err := url.Parse(c.streamPrefix() + "/sync/blocks")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -708,4 +724,193 @@ func CreateWorkspace(serverURL, token, name, slug string) (*WorkspaceInfo, error
 	}
 
 	return &result, nil
+}
+
+// ---------------------------------------------------------------------------
+// Stream management
+// ---------------------------------------------------------------------------
+
+// StreamInfo represents a stream in the API.
+type StreamInfo struct {
+	Name        string   `json:"name"`
+	Parent      string   `json:"parent"`
+	BaseCursor  int64    `json:"base_cursor"`
+	Archived    bool     `json:"archived"`
+	Visibility  string   `json:"visibility"`
+	Description string   `json:"description"`
+	CreatedAt   string   `json:"created_at"`
+	CreatedBy   string   `json:"created_by"`
+	SharedWith  []string `json:"shared_with,omitempty"`
+}
+
+// CreateStreamRequest is the request body for creating a stream.
+type CreateStreamRequest struct {
+	Name        string `json:"name"`
+	Parent      string `json:"parent,omitempty"`
+	Visibility  string `json:"visibility,omitempty"`
+	Description string `json:"description,omitempty"`
+}
+
+// MergeStreamResponse is the response from merging a stream.
+type MergeStreamResponse struct {
+	MergedBlocks   int `json:"merged_blocks"`
+	AddedBlocks    int `json:"added_blocks"`
+	ModifiedBlocks int `json:"modified_blocks"`
+	RemovedBlocks  int `json:"removed_blocks"`
+}
+
+// BlockChangeInfo represents a single block change in a diff.
+type BlockChangeInfo struct {
+	BlockID    string `json:"block_id"`
+	ChangeType string `json:"change_type"`
+	OldHash    string `json:"old_hash,omitempty"`
+	NewHash    string `json:"new_hash,omitempty"`
+}
+
+// DiffStreamResponse is the response from diffing a stream.
+type DiffStreamResponse struct {
+	StreamName string            `json:"stream_name"`
+	ParentName string            `json:"parent_name"`
+	Changes    []BlockChangeInfo `json:"changes"`
+}
+
+// ListStreams returns all streams for the current project.
+func (c *BowrainClient) ListStreams(ctx context.Context, includeArchived bool) ([]StreamInfo, error) {
+	u := c.projectPrefix() + "/streams"
+	if includeArchived {
+		u += "?include_archived=true"
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("list streams: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("list streams (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var streams []StreamInfo
+	if err := json.NewDecoder(resp.Body).Decode(&streams); err != nil {
+		return nil, fmt.Errorf("decode streams: %w", err)
+	}
+	return streams, nil
+}
+
+// CreateStream creates a new stream.
+func (c *BowrainClient) CreateStream(ctx context.Context, csReq CreateStreamRequest) (*StreamInfo, error) {
+	body, err := json.Marshal(csReq)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	u := c.projectPrefix() + "/streams"
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("create stream: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("create stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var stream StreamInfo
+	if err := json.NewDecoder(resp.Body).Decode(&stream); err != nil {
+		return nil, fmt.Errorf("decode stream: %w", err)
+	}
+	return &stream, nil
+}
+
+// MergeStream merges a stream into its parent.
+func (c *BowrainClient) MergeStream(ctx context.Context, streamName string, dryRun bool) (*MergeStreamResponse, error) {
+	payload := map[string]bool{"dry_run": dryRun}
+	body, _ := json.Marshal(payload)
+
+	u := c.projectPrefix() + "/streams/" + url.PathEscape(streamName) + "/merge"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("merge stream: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("merge stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var mergeResult MergeStreamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&mergeResult); err != nil {
+		return nil, fmt.Errorf("decode merge result: %w", err)
+	}
+	return &mergeResult, nil
+}
+
+// DiffStream gets the diff between a stream and its parent.
+func (c *BowrainClient) DiffStream(ctx context.Context, streamName string) (*DiffStreamResponse, error) {
+	u := c.projectPrefix() + "/streams/" + url.PathEscape(streamName) + "/diff"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("diff stream: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("diff stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var diffResult DiffStreamResponse
+	if err := json.NewDecoder(resp.Body).Decode(&diffResult); err != nil {
+		return nil, fmt.Errorf("decode diff: %w", err)
+	}
+	return &diffResult, nil
+}
+
+// ArchiveStream archives a stream.
+func (c *BowrainClient) ArchiveStream(ctx context.Context, streamName string) error {
+	u := c.projectPrefix() + "/streams/" + url.PathEscape(streamName) + "/archive"
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return fmt.Errorf("archive stream: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("archive stream (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }

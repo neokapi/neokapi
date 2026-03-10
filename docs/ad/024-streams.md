@@ -21,14 +21,24 @@ A **stream** is a named branch of content within a project. Every project has a 
 
 ```go
 type Stream struct {
-    ProjectID  string    `json:"project_id"`
-    Name       string    `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
-    Parent     string    `json:"parent"`       // parent stream name; empty for "main"
-    BaseCursor int64     `json:"base_cursor"`  // cursor in parent at branch point
-    CreatedAt  time.Time `json:"created_at"`
-    CreatedBy  string    `json:"created_by"`
-    Archived   bool      `json:"archived"`
+    ProjectID   string           `json:"project_id"`
+    Name        string           `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
+    Parent      string           `json:"parent"`       // parent stream name; empty for "main"
+    BaseCursor  int64            `json:"base_cursor"`  // cursor in parent at branch point
+    Visibility  StreamVisibility `json:"visibility"`   // "public", "private", "shared"
+    Description string           `json:"description"`
+    SharedWith  []string         `json:"shared_with"`  // user IDs for "shared" visibility
+    CreatedAt   time.Time        `json:"created_at"`
+    CreatedBy   string           `json:"created_by"`
+    Archived    bool             `json:"archived"`
 }
+
+type StreamVisibility string
+const (
+    StreamPublic  StreamVisibility = "public"   // visible to all project members
+    StreamPrivate StreamVisibility = "private"  // visible only to the creator
+    StreamShared  StreamVisibility = "shared"   // visible to creator + explicit members
+)
 ```
 
 **Key properties:**
@@ -37,6 +47,8 @@ type Stream struct {
 - **Copy-on-write**: Creating a stream records only the parent name and base cursor. No blocks are copied. The stream inherits all content from its parent up to the base cursor.
 - **Independent change log**: Each stream has its own change log entries (scoped by `stream` column). Changes in one stream do not affect another.
 - **Translation inheritance**: When pulling translations for a stream, blocks that exist in the parent but have not been overridden in the stream inherit the parent's translations. This means creating a feature branch immediately has all existing translations available.
+- **Access control**: Streams have a visibility setting — `public` (all project members), `private` (creator only), or `shared` (creator + explicitly added members). This is enforced at the API layer via logical isolation. The `stream_members` table tracks membership for shared streams.
+- **TM/Terminology scoping**: Translation memory and terminology entries are scoped to streams. Lookups follow the full parent chain (stream → parent → grandparent → main → workspace), enabling isolated terminology experiments that inherit from the parent while overriding specific entries.
 - **Merging**: Merging a stream into its parent applies the stream's changes (new/modified/deleted blocks) to the parent. This is analogous to a git merge — only the delta is applied.
 
 ### Stream Resolution (CLI)

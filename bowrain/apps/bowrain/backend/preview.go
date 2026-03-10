@@ -19,7 +19,7 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 		return "", err
 	}
 
-	item, err := a.store.GetItem(ctx, projectID, itemName)
+	item, err := a.store.GetItem(ctx, projectID, "main", itemName)
 	if err != nil {
 		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
@@ -66,13 +66,13 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 func (a *App) RenderBlockHTML(projectID, itemName, blockID, targetLocale string) (string, error) {
 	ctx := context.Background()
 
-	item, err := a.store.GetItem(ctx, projectID, itemName)
+	item, err := a.store.GetItem(ctx, projectID, "main", itemName)
 	if err != nil {
 		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
 
 	// Always load the live block from the store for up-to-date targets.
-	sb, err := a.store.GetBlock(ctx, projectID, blockID)
+	sb, err := a.store.GetBlock(ctx, projectID, "main", blockID)
 	if err != nil {
 		return "", fmt.Errorf("block %q not found in item %q", blockID, itemName)
 	}

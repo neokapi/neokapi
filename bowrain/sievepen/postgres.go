@@ -56,10 +56,21 @@ var tmMigrationsPg = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_tm_ws_plain   ON tm_entries(workspace_id, source_plain, source_locale, target_locale);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add stream column",
+		SQL: `ALTER TABLE tm_entries ADD COLUMN stream TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_tm_ws_stream ON tm_entries(workspace_id, stream, source_locale, target_locale);`,
+	},
 }
 
-// Add inserts or updates a translation memory entry.
+// Add inserts or updates a translation memory entry with an empty stream.
 func (tm *PostgresTM) Add(entry fw.TMEntry) error {
+	return tm.AddWithStream(entry, "")
+}
+
+// AddWithStream inserts or updates a translation memory entry associated with a stream.
+func (tm *PostgresTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	if entry.ID == "" {
 		return fmt.Errorf("entry ID is required")
 	}
@@ -93,13 +104,14 @@ func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 	}
 
 	_, err = tm.db.Exec(`
-		INSERT INTO tm_entries (id, workspace_id, source_coded, target_coded,
+		INSERT INTO tm_entries (id, workspace_id, stream, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
 			entities, properties,
 			created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
+			stream = EXCLUDED.stream,
 			source_coded = EXCLUDED.source_coded,
 			target_coded = EXCLUDED.target_coded,
 			source_plain = EXCLUDED.source_plain,
@@ -110,7 +122,7 @@ func (tm *PostgresTM) Add(entry fw.TMEntry) error {
 			entities = EXCLUDED.entities,
 			properties = EXCLUDED.properties,
 			updated_at = EXCLUDED.updated_at
-	`, entry.ID, tm.workspaceID,
+	`, entry.ID, tm.workspaceID, stream,
 		string(sourceJSON), string(targetJSON),
 		fw.NormalizeText(entry.SourceText()),
 		fw.NormalizeText(entry.SourceStructural()),
@@ -373,6 +385,72 @@ func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
 		entities, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	entries, _ := scanTMEntries(rows)
+	return entries, total
+}
+
+// SearchEntriesForStream performs a case-insensitive substring search with stream
+// inheritance. The streamChain is an ordered list of ancestor streams to search.
+// Entries from earlier streams in the chain take priority.
+func (tm *PostgresTM) SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	where := "workspace_id = $1"
+	args := []any{tm.workspaceID}
+	argN := 2
+
+	// Stream filter.
+	placeholders := make([]string, len(streams))
+	for i, s := range streams {
+		placeholders[i] = fmt.Sprintf("$%d", argN)
+		args = append(args, s)
+		argN++
+	}
+	where += " AND stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	if query != "" {
+		where += fmt.Sprintf(" AND (LOWER(source_plain) LIKE $%d OR LOWER(target_coded) LIKE $%d)", argN, argN+1)
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern)
+		argN += 2
+	}
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND source_locale = $%d", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND target_locale = $%d", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+
+	// Build CASE expression for stream priority ordering.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
+		args = append(args, s)
+		argN++
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
 	if err != nil {

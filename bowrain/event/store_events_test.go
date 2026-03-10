@@ -77,9 +77,9 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 	require.NoError(t, es.CreateProject(ctx, p))
 
 	blocks := []*model.Block{model.NewBlock("b1", "Hello"), model.NewBlock("b2", "World")}
-	require.NoError(t, es.StoreBlocks(ctx, p.ID, blocks))
+	require.NoError(t, es.StoreBlocks(ctx, p.ID, "main", blocks))
 
-	require.NoError(t, es.DeleteBlock(ctx, p.ID, "b1"))
+	require.NoError(t, es.DeleteBlock(ctx, p.ID, "main", "b1"))
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -102,9 +102,9 @@ func TestEventEmittingStoreVersion(t *testing.T) {
 
 	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
 	require.NoError(t, es.CreateProject(ctx, p))
-	require.NoError(t, es.StoreBlocks(ctx, p.ID, []*model.Block{model.NewBlock("b1", "Hi")}))
+	require.NoError(t, es.StoreBlocks(ctx, p.ID, "main", []*model.Block{model.NewBlock("b1", "Hi")}))
 
-	_, err := es.CreateVersion(ctx, p.ID, "v1", "First")
+	_, err := es.CreateVersion(ctx, p.ID, "main", "v1", "First")
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)

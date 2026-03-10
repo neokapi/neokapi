@@ -159,6 +159,7 @@ func (g *EditorGRPCServer) GetBlocks(ctx context.Context, req *pb.GetBlocksReque
 
 	storedBlocks, err := g.srv.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: req.ProjectId,
+		Stream:    "main",
 		ItemName:  req.ItemName,
 	})
 	if err != nil {
@@ -177,7 +178,7 @@ func (g *EditorGRPCServer) UpdateBlockTarget(ctx context.Context, req *pb.Update
 		return nil, status.Error(codes.Unavailable, "content store not configured")
 	}
 
-	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, req.BlockId)
+	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, "main", req.BlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "block not found: %v", err)
 	}
@@ -202,7 +203,7 @@ func (g *EditorGRPCServer) UpdateBlockTarget(ctx context.Context, req *pb.Update
 	}
 	sb.Block.Properties["translation-origin"] = "human"
 
-	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, []*model.Block{sb.Block}); err != nil {
+	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, "main", []*model.Block{sb.Block}); err != nil {
 		return nil, status.Errorf(codes.Internal, "store block: %v", err)
 	}
 
@@ -217,7 +218,7 @@ func (g *EditorGRPCServer) ReviewBlock(ctx context.Context, req *pb.ReviewBlockR
 		return nil, status.Error(codes.Unavailable, "content store not configured")
 	}
 
-	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, req.BlockId)
+	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, "main", req.BlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "block not found: %v", err)
 	}
@@ -231,7 +232,7 @@ func (g *EditorGRPCServer) ReviewBlock(ctx context.Context, req *pb.ReviewBlockR
 		sb.Block.Properties["translation-status"] = "translated"
 	}
 
-	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, []*model.Block{sb.Block}); err != nil {
+	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, "main", []*model.Block{sb.Block}); err != nil {
 		return nil, status.Errorf(codes.Internal, "store block: %v", err)
 	}
 
@@ -641,7 +642,7 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 		ModifiedAt:    proj.UpdatedAt.Format(time.RFC3339),
 	}
 
-	items, err := g.srv.ContentStore.ListItems(ctx, proj.ID)
+	items, err := g.srv.ContentStore.ListItems(ctx, proj.ID, "main")
 	if err != nil {
 		return nil, err
 	}
@@ -649,6 +650,7 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 	for _, item := range items {
 		blocks, err := g.srv.ContentStore.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: proj.ID,
+			Stream:    "main",
 			ItemName:  item.Name,
 		})
 		if err != nil {

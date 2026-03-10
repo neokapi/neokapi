@@ -20,12 +20,20 @@ service EditorService {
   rpc ListEditorProjects(ListEditorProjectsRequest) returns (ListEditorProjectsResponse);
   rpc GetEditorProject(GetEditorProjectRequest) returns (EditorProjectResponse);
 
-  // --- Blocks ---
+  // --- Streams ---
+  rpc ListStreams(ListStreamsRequest) returns (ListStreamsResponse);
+  rpc CreateStream(CreateStreamRequest) returns (StreamInfoResponse);
+  rpc GetStreamInfo(GetStreamInfoRequest) returns (StreamInfoResponse);
+  rpc ArchiveStream(ArchiveStreamRequest) returns (google.protobuf.Empty);
+  rpc MergeStream(MergeStreamRequest) returns (MergeStreamResponse);
+  rpc DiffStream(DiffStreamRequest) returns (DiffStreamResponse);
+
+  // --- Blocks (stream-scoped) ---
   rpc GetBlocks(GetBlocksRequest) returns (GetBlocksResponse);
   rpc UpdateBlockTarget(UpdateBlockTargetRequest) returns (google.protobuf.Empty);
   rpc ReviewBlock(ReviewBlockRequest) returns (google.protobuf.Empty);
 
-  // --- Context lookups (per-block) ---
+  // --- Context lookups (per-block, stream-scoped) ---
   rpc LookupTMForBlock(TMLookupRequest) returns (TMLookupResponse);
   rpc LookupTermsForBlock(TermLookupRequest) returns (TermLookupResponse);
 
@@ -52,10 +60,10 @@ service EditorService {
   rpc DeleteProviderConfig(DeleteProviderConfigRequest) returns (google.protobuf.Empty);
   rpc TestProviderConfig(TestProviderConfigRPC) returns (google.protobuf.Empty);
 
-  // --- Presence ---
+  // --- Presence (stream-scoped) ---
   rpc UpdatePresence(UpdatePresenceRequest) returns (google.protobuf.Empty);
 
-  // --- Real-time collaboration ---
+  // --- Real-time collaboration (stream-scoped) ---
   rpc WatchProject(WatchProjectRequest) returns (stream ProjectEvent);
 }
 
@@ -99,6 +107,8 @@ message EditorProjectInfo {
   repeated EditorProjectItem items = 5;
   string created_at = 6;
   string modified_at = 7;
+  repeated StreamInfo streams = 8;        // available streams
+  string active_stream = 9;               // currently selected stream
 }
 
 message EditorProjectItem {
@@ -117,13 +127,96 @@ message ListEditorProjectsResponse {
 message GetEditorProjectRequest {
   string workspace_slug = 1;
   string project_id = 2;
+  string stream = 3;                      // stream to query (empty = "main")
 }
 
 message EditorProjectResponse {
   EditorProjectInfo project = 1;
 }
 
-// --- Block messages ---
+// --- Stream messages ---
+
+message StreamInfo {
+  string name = 1;
+  string parent = 2;
+  int64 base_cursor = 3;
+  bool archived = 4;
+  string visibility = 5;    // "public", "private", "shared"
+  string description = 6;
+  string created_at = 7;
+  string created_by = 8;
+  repeated string shared_with = 9;
+}
+
+message ListStreamsRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  bool include_archived = 3;
+}
+
+message ListStreamsResponse {
+  repeated StreamInfo streams = 1;
+}
+
+message CreateStreamRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  string name = 3;
+  string parent = 4;        // branch from this stream (default: "main")
+  string visibility = 5;    // "public", "private", "shared"
+  string description = 6;
+}
+
+message StreamInfoResponse {
+  StreamInfo stream = 1;
+}
+
+message GetStreamInfoRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  string stream = 3;
+}
+
+message ArchiveStreamRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  string stream = 3;
+}
+
+message MergeStreamRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  string stream = 3;
+  bool dry_run = 4;
+}
+
+message MergeStreamResponse {
+  int32 merged_blocks = 1;
+  int32 added_blocks = 2;
+  int32 modified_blocks = 3;
+  int32 removed_blocks = 4;
+}
+
+message DiffStreamRequest {
+  string workspace_slug = 1;
+  string project_id = 2;
+  string stream = 3;
+}
+
+message BlockChangeInfo {
+  string block_id = 1;
+  string change_type = 2;    // "added", "modified", "removed"
+  string old_hash = 3;
+  string new_hash = 4;
+}
+
+message DiffStreamResponse {
+  string stream_name = 1;
+  string parent_name = 2;
+  repeated BlockChangeInfo changes = 3;
+}
+
+// --- Block messages (stream-scoped) ---
 
 message SpanInfo {
   string span_type = 1;      // "opening", "closing", "placeholder"
@@ -154,6 +247,7 @@ message GetBlocksRequest {
   string workspace_slug = 1;
   string project_id = 2;
   string item_name = 3;
+  string stream = 4;                      // stream scope (empty = "main")
 }
 
 message GetBlocksResponse {
@@ -168,6 +262,7 @@ message UpdateBlockTargetRequest {
   string text = 5;          // plain text (no spans)
   string coded_text = 6;    // coded text with PUA markers (optional)
   repeated SpanInfo spans = 7;  // spans for coded text (optional)
+  string stream = 8;            // stream scope (empty = "main")
 }
 
 message ReviewBlockRequest {
@@ -177,15 +272,17 @@ message ReviewBlockRequest {
   string block_id = 4;
   string target_locale = 5;
   bool reviewed = 6;  // true = mark reviewed, false = unmark
+  string stream = 7;  // stream scope (empty = "main")
 }
 
-// --- TM lookup messages ---
+// --- TM lookup messages (stream-scoped) ---
 
 message TMLookupRequest {
   string workspace_slug = 1;
   string project_id = 2;
   string block_id = 3;
   string target_locale = 4;
+  string stream = 5;  // lookup uses full parent chain inheritance
 }
 
 message TMLookupMatch {
@@ -193,19 +290,21 @@ message TMLookupMatch {
   string target = 2;
   double score = 3;
   string match_type = 4;
+  string stream = 5;  // which stream this match came from
 }
 
 message TMLookupResponse {
   repeated TMLookupMatch matches = 1;
 }
 
-// --- Term lookup messages ---
+// --- Term lookup messages (stream-scoped) ---
 
 message TermLookupRequest {
   string workspace_slug = 1;
   string project_id = 2;
   string block_id = 3;
   string target_locale = 4;
+  string stream = 5;  // lookup uses full parent chain inheritance
 }
 
 message BlockTermMatch {
@@ -215,6 +314,7 @@ message BlockTermMatch {
   string status = 4;
   int32 start = 5;
   int32 end = 6;
+  string stream = 7;  // which stream this term came from
 }
 
 message TermLookupResponse {
@@ -230,6 +330,7 @@ message TMEntriesRequest {
   string target_locale = 4;
   int32 offset = 5;
   int32 limit = 6;
+  string stream = 7;  // filter by stream (empty = all)
 }
 
 message TMEntryInfo {
@@ -239,6 +340,7 @@ message TMEntryInfo {
   string source_locale = 4;
   string target_locale = 5;
   string updated_at = 6;
+  string stream = 7;  // which stream this entry belongs to
 }
 
 message TMEntriesResponse {
@@ -248,6 +350,7 @@ message TMEntriesResponse {
 
 message TMCountRequest {
   string workspace_slug = 1;
+  string stream = 2;
 }
 
 message TMCountResponse {
@@ -261,6 +364,7 @@ message AddTMEntryRequest {
   string source_locale = 4;
   string target_locale = 5;
   string project_id = 6;
+  string stream = 7;  // entry scoped to stream
 }
 
 message TMEntryResponse {
@@ -300,6 +404,7 @@ message ConceptInfo {
   map<string, string> properties = 5;
   string created_at = 6;
   string updated_at = 7;
+  string stream = 8;  // which stream this concept belongs to
 }
 
 message TermsRequest {
@@ -309,6 +414,7 @@ message TermsRequest {
   string target_locale = 4;
   int32 offset = 5;
   int32 limit = 6;
+  string stream = 7;  // filter by stream (empty = all)
 }
 
 message TermsResponse {
@@ -318,6 +424,7 @@ message TermsResponse {
 
 message TermCountRequest {
   string workspace_slug = 1;
+  string stream = 2;
 }
 
 message TermCountResponse {
@@ -330,6 +437,7 @@ message AddConceptRequest {
   string definition = 3;
   repeated TermInfo terms = 4;
   string project_id = 5;
+  string stream = 6;  // concept scoped to stream
 }
 
 message ConceptResponse {
@@ -343,6 +451,7 @@ message UpdateConceptRequest {
   string definition = 4;
   repeated TermInfo terms = 5;
   string project_id = 6;
+  string stream = 7;
 }
 
 message DeleteConceptRequest {
@@ -357,11 +466,13 @@ message ImportTermsCSVRequest {
   string target_locale = 4;
   string domain = 5;
   bool has_header = 6;
+  string stream = 7;
 }
 
 message ImportTermsJSONRequest {
   string workspace_slug = 1;
   string json_content = 2;
+  string stream = 3;
 }
 
 message ImportCountResponse {
@@ -371,6 +482,7 @@ message ImportCountResponse {
 message ExportTermsJSONRequest {
   string workspace_slug = 1;
   string name = 2;
+  string stream = 3;
 }
 
 message ExportTermsJSONResponse {
@@ -420,13 +532,14 @@ message TestProviderConfigRPC {
   string api_key = 7;
 }
 
-// --- Presence messages ---
+// --- Presence messages (stream-scoped) ---
 
 message UpdatePresenceRequest {
   string workspace_slug = 1;
   string project_id = 2;
   string item_name = 3;  // which item the user is viewing (empty = project level)
   string block_id = 4;   // which block the user is editing (empty = just viewing)
+  string stream = 5;     // which stream the user is in (empty = "main")
 }
 
 message PresenceInfo {
@@ -435,13 +548,15 @@ message PresenceInfo {
   string avatar_url = 3;
   string item_name = 4;
   string block_id = 5;
+  string stream = 6;     // which stream the user is in
 }
 
-// --- Streaming event messages ---
+// --- Streaming event messages (stream-scoped) ---
 
 message WatchProjectRequest {
   string workspace_slug = 1;
   string project_id = 2;
+  string stream = 3;     // watch events for this stream (empty = "main")
 }
 
 message ProjectEvent {
@@ -456,6 +571,7 @@ message BlockChangeEvent {
   string item_name = 2;
   string change_type = 3;  // "created", "updated", "deleted"
   string changed_by = 4;   // user name
+  string stream = 5;       // which stream this change is in
 }
 
 message PresenceChangeEvent {

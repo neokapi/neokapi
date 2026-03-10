@@ -8,7 +8,8 @@ import (
 )
 
 // GetBlockHistory returns history entries for a block in a specific locale.
-func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
+func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
+	stream = defaultStream(stream)
 	if limit <= 0 || limit > MaxHistoryEntries {
 		limit = MaxHistoryEntries
 	}
@@ -16,10 +17,10 @@ func (s *PostgresStore) GetBlockHistory(ctx context.Context, projectID, blockID 
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, change_type, text, coded_text, origin, author, created_at
 		 FROM block_history
-		 WHERE project_id = $1 AND block_id = $2 AND locale = $3
+		 WHERE project_id = $1 AND stream = $2 AND block_id = $3 AND locale = $4
 		 ORDER BY id DESC
-		 LIMIT $4`,
-		projectID, blockID, locale, limit)
+		 LIMIT $5`,
+		projectID, stream, blockID, locale, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query block history: %w", err)
 	}

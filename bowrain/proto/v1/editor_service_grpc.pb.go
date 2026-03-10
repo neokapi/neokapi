@@ -27,6 +27,12 @@ const (
 	EditorService_ListWorkspaces_FullMethodName       = "/gokapi.server.v1.EditorService/ListWorkspaces"
 	EditorService_ListEditorProjects_FullMethodName   = "/gokapi.server.v1.EditorService/ListEditorProjects"
 	EditorService_GetEditorProject_FullMethodName     = "/gokapi.server.v1.EditorService/GetEditorProject"
+	EditorService_ListStreams_FullMethodName          = "/gokapi.server.v1.EditorService/ListStreams"
+	EditorService_CreateStream_FullMethodName         = "/gokapi.server.v1.EditorService/CreateStream"
+	EditorService_GetStreamInfo_FullMethodName        = "/gokapi.server.v1.EditorService/GetStreamInfo"
+	EditorService_ArchiveStream_FullMethodName        = "/gokapi.server.v1.EditorService/ArchiveStream"
+	EditorService_MergeStream_FullMethodName          = "/gokapi.server.v1.EditorService/MergeStream"
+	EditorService_DiffStream_FullMethodName           = "/gokapi.server.v1.EditorService/DiffStream"
 	EditorService_GetBlocks_FullMethodName            = "/gokapi.server.v1.EditorService/GetBlocks"
 	EditorService_UpdateBlockTarget_FullMethodName    = "/gokapi.server.v1.EditorService/UpdateBlockTarget"
 	EditorService_ReviewBlock_FullMethodName          = "/gokapi.server.v1.EditorService/ReviewBlock"
@@ -66,11 +72,18 @@ type EditorServiceClient interface {
 	// --- Projects (workspace-scoped, read-only for desktop) ---
 	ListEditorProjects(ctx context.Context, in *ListEditorProjectsRequest, opts ...grpc.CallOption) (*ListEditorProjectsResponse, error)
 	GetEditorProject(ctx context.Context, in *GetEditorProjectRequest, opts ...grpc.CallOption) (*EditorProjectResponse, error)
-	// --- Blocks ---
+	// --- Streams ---
+	ListStreams(ctx context.Context, in *ListStreamsRequest, opts ...grpc.CallOption) (*ListStreamsResponse, error)
+	CreateStream(ctx context.Context, in *CreateStreamRequest, opts ...grpc.CallOption) (*StreamInfoResponse, error)
+	GetStreamInfo(ctx context.Context, in *GetStreamInfoRequest, opts ...grpc.CallOption) (*StreamInfoResponse, error)
+	ArchiveStream(ctx context.Context, in *ArchiveStreamRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	MergeStream(ctx context.Context, in *MergeStreamRequest, opts ...grpc.CallOption) (*MergeStreamResponse, error)
+	DiffStream(ctx context.Context, in *DiffStreamRequest, opts ...grpc.CallOption) (*DiffStreamResponse, error)
+	// --- Blocks (stream-scoped) ---
 	GetBlocks(ctx context.Context, in *GetBlocksRequest, opts ...grpc.CallOption) (*GetBlocksResponse, error)
 	UpdateBlockTarget(ctx context.Context, in *UpdateBlockTargetRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	ReviewBlock(ctx context.Context, in *ReviewBlockRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// --- Context lookups (per-block) ---
+	// --- Context lookups (per-block, stream-scoped) ---
 	LookupTMForBlock(ctx context.Context, in *TMLookupRequest, opts ...grpc.CallOption) (*TMLookupResponse, error)
 	LookupTermsForBlock(ctx context.Context, in *TermLookupRequest, opts ...grpc.CallOption) (*TermLookupResponse, error)
 	// --- TM CRUD ---
@@ -93,9 +106,9 @@ type EditorServiceClient interface {
 	SaveProviderConfig(ctx context.Context, in *SaveProviderConfigRPC, opts ...grpc.CallOption) (*ProviderConfigInfo, error)
 	DeleteProviderConfig(ctx context.Context, in *DeleteProviderConfigRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	TestProviderConfig(ctx context.Context, in *TestProviderConfigRPC, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// --- Presence ---
+	// --- Presence (stream-scoped) ---
 	UpdatePresence(ctx context.Context, in *UpdatePresenceRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	// --- Real-time collaboration ---
+	// --- Real-time collaboration (stream-scoped) ---
 	WatchProject(ctx context.Context, in *WatchProjectRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ProjectEvent], error)
 }
 
@@ -141,6 +154,66 @@ func (c *editorServiceClient) GetEditorProject(ctx context.Context, in *GetEdito
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(EditorProjectResponse)
 	err := c.cc.Invoke(ctx, EditorService_GetEditorProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) ListStreams(ctx context.Context, in *ListStreamsRequest, opts ...grpc.CallOption) (*ListStreamsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListStreamsResponse)
+	err := c.cc.Invoke(ctx, EditorService_ListStreams_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) CreateStream(ctx context.Context, in *CreateStreamRequest, opts ...grpc.CallOption) (*StreamInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StreamInfoResponse)
+	err := c.cc.Invoke(ctx, EditorService_CreateStream_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) GetStreamInfo(ctx context.Context, in *GetStreamInfoRequest, opts ...grpc.CallOption) (*StreamInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StreamInfoResponse)
+	err := c.cc.Invoke(ctx, EditorService_GetStreamInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) ArchiveStream(ctx context.Context, in *ArchiveStreamRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, EditorService_ArchiveStream_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) MergeStream(ctx context.Context, in *MergeStreamRequest, opts ...grpc.CallOption) (*MergeStreamResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MergeStreamResponse)
+	err := c.cc.Invoke(ctx, EditorService_MergeStream_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editorServiceClient) DiffStream(ctx context.Context, in *DiffStreamRequest, opts ...grpc.CallOption) (*DiffStreamResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DiffStreamResponse)
+	err := c.cc.Invoke(ctx, EditorService_DiffStream_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -409,11 +482,18 @@ type EditorServiceServer interface {
 	// --- Projects (workspace-scoped, read-only for desktop) ---
 	ListEditorProjects(context.Context, *ListEditorProjectsRequest) (*ListEditorProjectsResponse, error)
 	GetEditorProject(context.Context, *GetEditorProjectRequest) (*EditorProjectResponse, error)
-	// --- Blocks ---
+	// --- Streams ---
+	ListStreams(context.Context, *ListStreamsRequest) (*ListStreamsResponse, error)
+	CreateStream(context.Context, *CreateStreamRequest) (*StreamInfoResponse, error)
+	GetStreamInfo(context.Context, *GetStreamInfoRequest) (*StreamInfoResponse, error)
+	ArchiveStream(context.Context, *ArchiveStreamRequest) (*emptypb.Empty, error)
+	MergeStream(context.Context, *MergeStreamRequest) (*MergeStreamResponse, error)
+	DiffStream(context.Context, *DiffStreamRequest) (*DiffStreamResponse, error)
+	// --- Blocks (stream-scoped) ---
 	GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error)
 	UpdateBlockTarget(context.Context, *UpdateBlockTargetRequest) (*emptypb.Empty, error)
 	ReviewBlock(context.Context, *ReviewBlockRequest) (*emptypb.Empty, error)
-	// --- Context lookups (per-block) ---
+	// --- Context lookups (per-block, stream-scoped) ---
 	LookupTMForBlock(context.Context, *TMLookupRequest) (*TMLookupResponse, error)
 	LookupTermsForBlock(context.Context, *TermLookupRequest) (*TermLookupResponse, error)
 	// --- TM CRUD ---
@@ -436,9 +516,9 @@ type EditorServiceServer interface {
 	SaveProviderConfig(context.Context, *SaveProviderConfigRPC) (*ProviderConfigInfo, error)
 	DeleteProviderConfig(context.Context, *DeleteProviderConfigRequest) (*emptypb.Empty, error)
 	TestProviderConfig(context.Context, *TestProviderConfigRPC) (*emptypb.Empty, error)
-	// --- Presence ---
+	// --- Presence (stream-scoped) ---
 	UpdatePresence(context.Context, *UpdatePresenceRequest) (*emptypb.Empty, error)
-	// --- Real-time collaboration ---
+	// --- Real-time collaboration (stream-scoped) ---
 	WatchProject(*WatchProjectRequest, grpc.ServerStreamingServer[ProjectEvent]) error
 	mustEmbedUnimplementedEditorServiceServer()
 }
@@ -461,6 +541,24 @@ func (UnimplementedEditorServiceServer) ListEditorProjects(context.Context, *Lis
 }
 func (UnimplementedEditorServiceServer) GetEditorProject(context.Context, *GetEditorProjectRequest) (*EditorProjectResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetEditorProject not implemented")
+}
+func (UnimplementedEditorServiceServer) ListStreams(context.Context, *ListStreamsRequest) (*ListStreamsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListStreams not implemented")
+}
+func (UnimplementedEditorServiceServer) CreateStream(context.Context, *CreateStreamRequest) (*StreamInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateStream not implemented")
+}
+func (UnimplementedEditorServiceServer) GetStreamInfo(context.Context, *GetStreamInfoRequest) (*StreamInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetStreamInfo not implemented")
+}
+func (UnimplementedEditorServiceServer) ArchiveStream(context.Context, *ArchiveStreamRequest) (*emptypb.Empty, error) {
+	return nil, status.Error(codes.Unimplemented, "method ArchiveStream not implemented")
+}
+func (UnimplementedEditorServiceServer) MergeStream(context.Context, *MergeStreamRequest) (*MergeStreamResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MergeStream not implemented")
+}
+func (UnimplementedEditorServiceServer) DiffStream(context.Context, *DiffStreamRequest) (*DiffStreamResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DiffStream not implemented")
 }
 func (UnimplementedEditorServiceServer) GetBlocks(context.Context, *GetBlocksRequest) (*GetBlocksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetBlocks not implemented")
@@ -623,6 +721,114 @@ func _EditorService_GetEditorProject_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EditorServiceServer).GetEditorProject(ctx, req.(*GetEditorProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_ListStreams_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListStreamsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).ListStreams(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_ListStreams_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).ListStreams(ctx, req.(*ListStreamsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_CreateStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateStreamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).CreateStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_CreateStream_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).CreateStream(ctx, req.(*CreateStreamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_GetStreamInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetStreamInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).GetStreamInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_GetStreamInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).GetStreamInfo(ctx, req.(*GetStreamInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_ArchiveStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveStreamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).ArchiveStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_ArchiveStream_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).ArchiveStream(ctx, req.(*ArchiveStreamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_MergeStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MergeStreamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).MergeStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_MergeStream_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).MergeStream(ctx, req.(*MergeStreamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditorService_DiffStream_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DiffStreamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditorServiceServer).DiffStream(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditorService_DiffStream_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditorServiceServer).DiffStream(ctx, req.(*DiffStreamRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1074,6 +1280,30 @@ var EditorService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetEditorProject",
 			Handler:    _EditorService_GetEditorProject_Handler,
+		},
+		{
+			MethodName: "ListStreams",
+			Handler:    _EditorService_ListStreams_Handler,
+		},
+		{
+			MethodName: "CreateStream",
+			Handler:    _EditorService_CreateStream_Handler,
+		},
+		{
+			MethodName: "GetStreamInfo",
+			Handler:    _EditorService_GetStreamInfo_Handler,
+		},
+		{
+			MethodName: "ArchiveStream",
+			Handler:    _EditorService_ArchiveStream_Handler,
+		},
+		{
+			MethodName: "MergeStream",
+			Handler:    _EditorService_MergeStream_Handler,
+		},
+		{
+			MethodName: "DiffStream",
+			Handler:    _EditorService_DiffStream_Handler,
 		},
 		{
 			MethodName: "GetBlocks",

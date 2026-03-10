@@ -139,6 +139,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 	storedBlocks, err := deps.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: job.ProjectID,
+		Stream:    "main",
 		ItemName:  job.ItemName,
 	})
 	if err != nil {
@@ -225,7 +226,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	// Store translated blocks — they already have internal IDs from GetBlocks.
 	blocks := partsToBlocks(allOutParts)
 	if len(blocks) > 0 {
-		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, blocks); err != nil {
+		if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, "main", blocks); err != nil {
 			return fmt.Errorf("store blocks: %w", err)
 		}
 	}

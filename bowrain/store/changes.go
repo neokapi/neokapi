@@ -17,7 +17,8 @@ const MaxChangesPerRequest = 1000
 // If locales is non-empty, only source changes (locale IS NULL) and target
 // changes for the specified locales are returned. The returned ChangeSet
 // includes a NewCursor for pagination and HasMore to indicate additional results.
-func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
+func (s *SQLiteStore) GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*platstore.ChangeSet, error) {
+	stream = defaultStream(stream)
 	if limit <= 0 || limit > MaxChangesPerRequest {
 		limit = MaxChangesPerRequest
 	}
@@ -33,11 +34,11 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCur
 		inClause := strings.Join(placeholders, ", ")
 		query = `SELECT seq, block_id, change_type, COALESCE(locale, ''), COALESCE(content_hash, ''), logged_at
 				 FROM change_log
-				 WHERE project_id = ? AND seq > ?
+				 WHERE project_id = ? AND stream = ? AND seq > ?
 				   AND (locale IS NULL OR locale IN (` + inClause + `))
 				 ORDER BY seq ASC
 				 LIMIT ?`
-		args = []any{projectID, sinceCursor}
+		args = []any{projectID, stream, sinceCursor}
 		for _, loc := range locales {
 			args = append(args, loc)
 		}
@@ -46,10 +47,10 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCur
 		// All changes.
 		query = `SELECT seq, block_id, change_type, COALESCE(locale, ''), COALESCE(content_hash, ''), logged_at
 				 FROM change_log
-				 WHERE project_id = ? AND seq > ?
+				 WHERE project_id = ? AND stream = ? AND seq > ?
 				 ORDER BY seq ASC
 				 LIMIT ?`
-		args = []any{projectID, sinceCursor, limit + 1}
+		args = []any{projectID, stream, sinceCursor, limit + 1}
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -86,12 +87,13 @@ func (s *SQLiteStore) GetChanges(ctx context.Context, projectID string, sinceCur
 	return cs, nil
 }
 
-// LatestCursor returns the most recent change log sequence number for a project.
-func (s *SQLiteStore) LatestCursor(ctx context.Context, projectID string) (int64, error) {
+// LatestCursor returns the most recent change log sequence number for a project stream.
+func (s *SQLiteStore) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
+	stream = defaultStream(stream)
 	var cursor int64
 	err := s.db.QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(seq), 0) FROM change_log WHERE project_id = ?`,
-		projectID).Scan(&cursor)
+		`SELECT COALESCE(MAX(seq), 0) FROM change_log WHERE project_id = ? AND stream = ?`,
+		projectID, stream).Scan(&cursor)
 	if err != nil {
 		return 0, fmt.Errorf("query latest cursor: %w", err)
 	}
@@ -101,17 +103,18 @@ func (s *SQLiteStore) LatestCursor(ctx context.Context, projectID string) (int64
 // CompactChangeLog removes old change log entries, keeping only the latest
 // entry per (project_id, block_id, locale) combination older than retainDays.
 // Returns the number of entries deleted.
-func (s *SQLiteStore) CompactChangeLog(ctx context.Context, projectID string, retainDays int) (int64, error) {
+func (s *SQLiteStore) CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error) {
+	stream = defaultStream(stream)
 	cutoff := time.Now().AddDate(0, 0, -retainDays).Format(time.RFC3339)
 
 	result, err := s.db.ExecContext(ctx, `
 		DELETE FROM change_log
-		WHERE project_id = ? AND logged_at <= ?
+		WHERE project_id = ? AND stream = ? AND logged_at <= ?
 		  AND seq NOT IN (
 			SELECT MAX(seq) FROM change_log
-			WHERE project_id = ?
+			WHERE project_id = ? AND stream = ?
 			GROUP BY block_id, COALESCE(locale, '')
-		  )`, projectID, cutoff, projectID)
+		  )`, projectID, stream, cutoff, projectID, stream)
 	if err != nil {
 		return 0, fmt.Errorf("compact change log: %w", err)
 	}
@@ -121,7 +124,7 @@ func (s *SQLiteStore) CompactChangeLog(ctx context.Context, projectID string, re
 }
 
 // logChange inserts a single change log entry within a transaction.
-func logChange(ctx context.Context, tx *sql.Tx, projectID, blockID, changeType, locale, contentHash string) error {
+func logChange(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	var localeVal any
 	if locale == "" {
@@ -136,8 +139,8 @@ func logChange(ctx context.Context, tx *sql.Tx, projectID, blockID, changeType, 
 		hashVal = contentHash
 	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO change_log (project_id, block_id, change_type, locale, content_hash, logged_at)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
-		projectID, blockID, changeType, localeVal, hashVal, now)
+		`INSERT INTO change_log (project_id, stream, block_id, change_type, locale, content_hash, logged_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		projectID, stream, blockID, changeType, localeVal, hashVal, now)
 	return err
 }

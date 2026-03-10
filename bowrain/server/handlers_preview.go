@@ -28,7 +28,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	item, err := s.ContentStore.GetItem(ctx, pid, fname)
+	item, err := s.ContentStore.GetItem(ctx, pid, "main", fname)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("item %q not found in project", fname)})
 	}
@@ -82,7 +82,7 @@ func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
 	targetLocale := c.QueryParam("locale")
 	ctx := c.Request().Context()
 
-	sb, err := s.ContentStore.GetBlock(ctx, pid, bid)
+	sb, err := s.ContentStore.GetBlock(ctx, pid, "main", bid)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: fmt.Sprintf("block %q not found", bid)})
 	}
@@ -95,7 +95,7 @@ func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
 	}
 
 	// Try the block index for HTML-enriched source.
-	item, err := s.ContentStore.GetItem(ctx, pid, sb.ItemName)
+	item, err := s.ContentStore.GetItem(ctx, pid, "main", sb.ItemName)
 	if err == nil && item.BlockIndex != "" {
 		var blockIndex editor.BlockIndex
 		if err := json.Unmarshal([]byte(item.BlockIndex), &blockIndex); err == nil {
