@@ -12,6 +12,7 @@ import type {
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
   NotificationInfo, EntityInfo,
+  StreamInfo, StreamDiffResult, StreamMergeResult,
 } from "@gokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -64,6 +65,14 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteInvite(): Promise<void> { throw new Error("Not supported in desktop mode"); }
   async acceptInvite(): Promise<AcceptInviteResponse> { throw new Error("Not supported in desktop mode"); }
   async claimProject(): Promise<ClaimProjectResponse> { throw new Error("Not supported in desktop mode"); }
+
+  // --- Streams (desktop: single stream mode) ---
+  async listStreams(): Promise<StreamInfo[]> { return []; }
+  async createStream(): Promise<StreamInfo> { throw new Error("Streams not yet supported in desktop mode"); }
+  async getStream(): Promise<StreamInfo> { throw new Error("Streams not yet supported in desktop mode"); }
+  async deleteStream(): Promise<void> { throw new Error("Streams not yet supported in desktop mode"); }
+  async diffStream(): Promise<StreamDiffResult> { throw new Error("Streams not yet supported in desktop mode"); }
+  async mergeStream(): Promise<StreamMergeResult> { throw new Error("Streams not yet supported in desktop mode"); }
 
   // --- API Tokens (not applicable in desktop) ---
   async listApiTokens(): Promise<ApiToken[]> { return []; }

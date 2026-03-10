@@ -113,7 +113,7 @@ func (g *EditorGRPCServer) ListEditorProjects(ctx context.Context, req *pb.ListE
 		if p.WorkspaceID != req.WorkspaceSlug {
 			continue
 		}
-		info, err := g.buildEditorProjectInfo(ctx, p)
+		info, err := g.buildEditorProjectInfo(ctx, p, "main")
 		if err != nil {
 			continue
 		}
@@ -132,7 +132,11 @@ func (g *EditorGRPCServer) GetEditorProject(ctx context.Context, req *pb.GetEdit
 		return nil, status.Errorf(codes.NotFound, "project not found: %v", err)
 	}
 
-	info, err := g.buildEditorProjectInfo(ctx, proj)
+	reqStream := req.Stream
+	if reqStream == "" {
+		reqStream = "main"
+	}
+	info, err := g.buildEditorProjectInfo(ctx, proj, reqStream)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "build project info: %v", err)
 	}
@@ -157,9 +161,13 @@ func (g *EditorGRPCServer) GetBlocks(ctx context.Context, req *pb.GetBlocksReque
 		targetLocales[i] = string(l)
 	}
 
+	stream := req.Stream
+	if stream == "" {
+		stream = "main"
+	}
 	storedBlocks, err := g.srv.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: req.ProjectId,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  req.ItemName,
 	})
 	if err != nil {
@@ -178,7 +186,11 @@ func (g *EditorGRPCServer) UpdateBlockTarget(ctx context.Context, req *pb.Update
 		return nil, status.Error(codes.Unavailable, "content store not configured")
 	}
 
-	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, "main", req.BlockId)
+	updateStream := req.Stream
+	if updateStream == "" {
+		updateStream = "main"
+	}
+	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, updateStream, req.BlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "block not found: %v", err)
 	}
@@ -203,7 +215,7 @@ func (g *EditorGRPCServer) UpdateBlockTarget(ctx context.Context, req *pb.Update
 	}
 	sb.Block.Properties["translation-origin"] = "human"
 
-	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, "main", []*model.Block{sb.Block}); err != nil {
+	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, updateStream, []*model.Block{sb.Block}); err != nil {
 		return nil, status.Errorf(codes.Internal, "store block: %v", err)
 	}
 
@@ -218,7 +230,11 @@ func (g *EditorGRPCServer) ReviewBlock(ctx context.Context, req *pb.ReviewBlockR
 		return nil, status.Error(codes.Unavailable, "content store not configured")
 	}
 
-	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, "main", req.BlockId)
+	reviewStream := req.Stream
+	if reviewStream == "" {
+		reviewStream = "main"
+	}
+	sb, err := g.srv.ContentStore.GetBlock(ctx, req.ProjectId, reviewStream, req.BlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "block not found: %v", err)
 	}
@@ -232,7 +248,7 @@ func (g *EditorGRPCServer) ReviewBlock(ctx context.Context, req *pb.ReviewBlockR
 		sb.Block.Properties["translation-status"] = "translated"
 	}
 
-	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, "main", []*model.Block{sb.Block}); err != nil {
+	if err := g.srv.ContentStore.StoreBlocks(ctx, req.ProjectId, reviewStream, []*model.Block{sb.Block}); err != nil {
 		return nil, status.Errorf(codes.Internal, "store block: %v", err)
 	}
 
@@ -247,7 +263,11 @@ func (g *EditorGRPCServer) LookupTMForBlock(ctx context.Context, req *pb.TMLooku
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	matches, err := editorLookupTMForBlock(ctx, g.srv.ContentStore, g.srv.wsStores, req.WorkspaceSlug, req.ProjectId, req.BlockId, req.TargetLocale)
+	stream := req.Stream
+	if stream == "" {
+		stream = "main"
+	}
+	matches, err := editorLookupTMForBlock(ctx, g.srv.ContentStore, g.srv.wsStores, req.WorkspaceSlug, req.ProjectId, stream, req.BlockId, req.TargetLocale)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "TM lookup: %v", err)
 	}
@@ -271,7 +291,11 @@ func (g *EditorGRPCServer) LookupTermsForBlock(ctx context.Context, req *pb.Term
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	matches, err := editorLookupTermsForBlock(ctx, g.srv.ContentStore, g.srv.wsStores, req.WorkspaceSlug, req.ProjectId, req.BlockId, req.TargetLocale)
+	stream := req.Stream
+	if stream == "" {
+		stream = "main"
+	}
+	matches, err := editorLookupTermsForBlock(ctx, g.srv.ContentStore, g.srv.wsStores, req.WorkspaceSlug, req.ProjectId, stream, req.BlockId, req.TargetLocale)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "term lookup: %v", err)
 	}
@@ -628,7 +652,7 @@ func (g *EditorGRPCServer) WatchProject(req *pb.WatchProjectRequest, stream grpc
 
 // --- Conversion helpers ---
 
-func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *store.Project) (*pb.EditorProjectInfo, error) {
+func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *store.Project, stream string) (*pb.EditorProjectInfo, error) {
 	locales := make([]string, len(proj.TargetLocales))
 	for i, l := range proj.TargetLocales {
 		locales[i] = string(l)
@@ -638,11 +662,12 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 		Name:          proj.Name,
 		SourceLocale:  string(proj.SourceLocale),
 		TargetLocales: locales,
+		ActiveStream:  stream,
 		CreatedAt:     proj.CreatedAt.Format(time.RFC3339),
 		ModifiedAt:    proj.UpdatedAt.Format(time.RFC3339),
 	}
 
-	items, err := g.srv.ContentStore.ListItems(ctx, proj.ID, "main")
+	items, err := g.srv.ContentStore.ListItems(ctx, proj.ID, stream)
 	if err != nil {
 		return nil, err
 	}
@@ -650,7 +675,7 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 	for _, item := range items {
 		blocks, err := g.srv.ContentStore.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: proj.ID,
-			Stream:    "main",
+			Stream:    stream,
 			ItemName:  item.Name,
 		})
 		if err != nil {

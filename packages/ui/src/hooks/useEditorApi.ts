@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
+import { useStream } from "../context/StreamContext";
 import type {
   BlockInfo,
   UpdateBlockRequest,
@@ -20,70 +21,72 @@ export function useEditorApi() {
   const api = useApi();
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
+  const { activeStream } = useStream();
 
   const getFileBlocks = useCallback(
     async (projectId: string, fileName: string): Promise<BlockInfo[]> =>
-      api.getFileBlocks(ws, projectId, fileName),
-    [api, ws],
+      api.getFileBlocks(ws, projectId, fileName, activeStream),
+    [api, ws, activeStream],
   );
 
   const updateBlockTarget = useCallback(
-    async (req: UpdateBlockRequest): Promise<void> => api.updateBlockTarget(ws, req),
-    [api, ws],
+    async (req: UpdateBlockRequest): Promise<void> =>
+      api.updateBlockTarget(ws, { ...req, stream: req.stream || activeStream }),
+    [api, ws, activeStream],
   );
 
   const updateBlockTargetCoded = useCallback(
     async (req: UpdateBlockTargetCodedRequest): Promise<void> =>
-      api.updateBlockTargetCoded(ws, req),
-    [api, ws],
+      api.updateBlockTargetCoded(ws, { ...req, stream: req.stream || activeStream }),
+    [api, ws, activeStream],
   );
 
   const pseudoTranslateFile = useCallback(
     async (projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> =>
-      api.pseudoTranslateFile(ws, projectId, fileName, targetLocale),
-    [api, ws],
+      api.pseudoTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const aiTranslateFile = useCallback(
     async (req: AITranslateFileRequest): Promise<TranslationStats> =>
       api.aiTranslateFile(ws, req),
-    [api, ws],
+    [api, ws, activeStream],
   );
 
   const tmTranslateFile = useCallback(
     async (projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> =>
-      api.tmTranslateFile(ws, projectId, fileName, targetLocale),
-    [api, ws],
+      api.tmTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const getWordCount = useCallback(
     async (projectId: string, fileName: string): Promise<WordCountResult> =>
-      api.getWordCount(ws, projectId, fileName),
-    [api, ws],
+      api.getWordCount(ws, projectId, fileName, activeStream),
+    [api, ws, activeStream],
   );
 
   const exportTranslatedFile = useCallback(
     async (projectId: string, fileName: string, targetLocale: string): Promise<Blob> =>
-      api.exportTranslatedFile(ws, projectId, fileName, targetLocale),
-    [api, ws],
+      api.exportTranslatedFile(ws, projectId, fileName, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const lookupTMForBlock = useCallback(
     async (projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<TMMatchInfo[]> =>
-      api.lookupTMForBlock(ws, projectId, itemName, blockId, targetLocale),
-    [api, ws],
+      api.lookupTMForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const lookupTermsForBlock = useCallback(
     async (projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]> =>
-      api.lookupTermsForBlock(ws, projectId, itemName, blockId, targetLocale),
-    [api, ws],
+      api.lookupTermsForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const getBlockHistory = useCallback(
     async (projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]> =>
-      api.getBlockHistory(ws, projectId, blockId, locale, limit),
-    [api, ws],
+      api.getBlockHistory(ws, projectId, blockId, locale, limit, activeStream),
+    [api, ws, activeStream],
   );
 
   const addBlockNote = useCallback(
@@ -106,26 +109,26 @@ export function useEditorApi() {
 
   const runQACheck = useCallback(
     async (projectId: string, blockId: string, locale: string): Promise<QAIssue[]> =>
-      api.runQACheck(ws, projectId, blockId, locale),
-    [api, ws],
+      api.runQACheck(ws, projectId, blockId, locale, activeStream),
+    [api, ws, activeStream],
   );
 
   const runFileQACheck = useCallback(
     async (projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> =>
-      api.runFileQACheck(ws, projectId, fileName, locale),
-    [api, ws],
+      api.runFileQACheck(ws, projectId, fileName, locale, activeStream),
+    [api, ws, activeStream],
   );
 
   const renderDocumentPreview = useCallback(
     async (projectId: string, fileName: string, targetLocale: string): Promise<string> =>
-      api.renderDocumentPreview(ws, projectId, fileName, targetLocale),
-    [api, ws],
+      api.renderDocumentPreview(ws, projectId, fileName, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   const renderBlockHTML = useCallback(
     async (projectId: string, blockId: string, targetLocale: string): Promise<string> =>
-      api.renderBlockHTML(ws, projectId, blockId, targetLocale),
-    [api, ws],
+      api.renderBlockHTML(ws, projectId, blockId, targetLocale, activeStream),
+    [api, ws, activeStream],
   );
 
   return useMemo(() => ({

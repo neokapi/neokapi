@@ -44,6 +44,25 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 
 	projectID := c.Param("id")
 	ctx := c.Request().Context()
+	stream := c.Param("stream")
+	if stream == "" {
+		stream = "main"
+	}
+
+	// Auto-create non-main streams on first push.
+	if stream != "main" && s.ContentStore != nil {
+		if _, err := s.ContentStore.GetStream(ctx, projectID, stream); err != nil {
+			baseCursor, _ := s.ContentStore.LatestCursor(ctx, projectID, "main")
+			_ = s.ContentStore.CreateStream(ctx, &store.Stream{
+				ProjectID:  projectID,
+				Name:       stream,
+				Parent:     "main",
+				BaseCursor: baseCursor,
+				Visibility: store.StreamPublic,
+			})
+		}
+	}
+
 	pushID := id.New()
 	totalStored := 0
 	for itemName, blocks := range itemGroups {
@@ -57,10 +76,6 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 			}
 			// Ensure the item exists in the ContentStore so it appears in the editor UI.
 			if s.ContentStore != nil {
-				stream := c.Param("stream")
-				if stream == "" {
-					stream = "main"
-				}
 				_ = s.ContentStore.StoreItem(ctx, projectID, stream, &store.Item{
 					Name:     itemName,
 					Format:   detectFormatFromName(itemName),
@@ -181,9 +196,14 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 	projectID := c.Param("id")
 	itemName := c.QueryParam("item_name")
 
+	stream := c.Param("stream")
+	if stream == "" {
+		stream = "main"
+	}
+
 	query := store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	}
 

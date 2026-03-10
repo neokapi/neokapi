@@ -1,12 +1,15 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import type { ProjectInfo } from "../types/api";
+import type { ProjectInfo, StreamInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
+import { useStream } from "../context/StreamContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { GlassCard } from "./ui/card";
 import { OpenInDesktop } from "./OpenInDesktop";
+import { StreamSelector } from "./StreamSelector";
+import { StreamBadge } from "./StreamBadge";
 import {
   ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
   FileType, MessageSquare, FileSpreadsheet, Upload, X, Lock, Package,
@@ -37,6 +40,7 @@ export function ProjectView({
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const isMobile = useIsMobile();
+  const { activeStream, setActiveStream } = useStream();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -114,6 +118,13 @@ export function ProjectView({
               <Button variant="ghost" size="sm" onClick={onOpenTM} data-testid="open-tm-btn">
                 Translation Memory
               </Button>
+            )}
+            {project.streams && project.streams.length > 0 && (
+              <StreamSelector
+                streams={project.streams}
+                activeStream={project.streams.find((s) => s.name === activeStream) ?? null}
+                onStreamChange={(stream: StreamInfo) => setActiveStream(stream.name)}
+              />
             )}
           </div>
         </div>

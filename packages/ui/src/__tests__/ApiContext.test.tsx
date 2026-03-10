@@ -88,6 +88,12 @@ function createMockAdapter(): ApiAdapter {
     updateEntity: vi.fn(),
     deleteEntity: vi.fn(),
     promoteEntity: vi.fn(),
+    listStreams: vi.fn(),
+    createStream: vi.fn(),
+    getStream: vi.fn(),
+    deleteStream: vi.fn(),
+    diffStream: vi.fn(),
+    mergeStream: vi.fn(),
   } as ApiAdapter;
 }
 
