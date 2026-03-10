@@ -52,30 +52,114 @@ can override `Process` directly.
 
 ### Built-in Tool Inventory
 
-| Tool | Category | Description |
-|---|---|---|
-| `wordcount` | Validate | Count words per block (also exposed as `Block.WordCount()`) |
-| `charcount` | Validate | Count characters per block |
-| `pseudo-translate` | Transform | Generate pseudo-translations for i18n testing |
-| `search-replace` | Transform | Regex-based search and replace in content |
-| `segmentation` | Transform | Split blocks into sentence segments using SRX-like rules |
-| `qa-check` | Validate | Check translations (missing, whitespace, numbers) |
-| `tm-leverage` | Enrich | Pre-fill translations from Sievepen TM ([AD-009](./009-translation-memory.md)) |
-| `term-lookup` | Enrich | Scan source text for known terms from TermBase ([AD-010](./010-terminology.md)) |
-| `term-enforce` | Validate | Validate preferred term usage in target text ([AD-010](./010-terminology.md)) |
-| `entity-annotate` | Enrich | Annotate named entities (people, places, dates) ([AD-010](./010-terminology.md)) |
-| `redact` | Transform | Replace entity values with placeholders for privacy |
-| `unredact` | Transform | Restore original values after external processing |
+All built-in tools are registered via `RegisterAll()` in `core/tools/register.go`.
+
+**Transform tools** — modify content in-place:
+
+| Tool | Description |
+|---|---|
+| `pseudo-translate` | Generate pseudo-translations with accent marks and prefix/suffix wrapping |
+| `search-replace` | Regex-based search and replace in content |
+| `segmentation` | Split blocks into sentence segments using SRX-like rules |
+| `case-transform` | Transform the case of source and/or target text |
+| `create-target` | Create target segment containers for blocks |
+| `remove-target` | Remove target segments from blocks |
+| `inline-codes-remove` | Strip inline codes/spans from fragment content |
+| `properties-set` | Set or modify properties on blocks programmatically |
+| `whitespace-correct` | Normalize and fix whitespace issues in translations |
+| `span-classify` | Reclassify `code:markup` spans into semantic vocabulary types |
+| `tag-protect` | Identify and mark tags and placeholders for protection |
+| `xslt-transform` | Apply regex-based tag/text transformations to block text |
+
+**Enrich tools** — add metadata via annotations:
+
+| Tool | Description |
+|---|---|
+| `tm-leverage` | Pre-fill translations from Sievepen TM ([AD-009](./009-translation-memory.md)) |
+| `diff-leverage` | Compare blocks against previous version, preserve translations for unchanged text |
+| `term-lookup` | Scan source text for known terms from TermBase ([AD-010](./010-terminology.md)) |
+| `repetition-analysis` | Analyze source text repetitions across blocks in the pipeline |
+
+**Validate tools** — check quality without modifying:
+
+| Tool | Description |
+|---|---|
+| `word-count` | Count words per block |
+| `char-count` | Count characters per block |
+| `segment-count` | Count source and target segments in blocks |
+| `qa-check` | Rule-based quality checks (missing translations, whitespace, numbers, span constraints) |
+| `term-check` | Verify terminology usage in translations against a glossary |
+| `term-enforce` | Validate preferred term usage in target text ([AD-010](./010-terminology.md)) |
+| `inconsistency-check` | Check for translation inconsistencies across blocks |
+| `length-check` | Verify translation length constraints (characters, words, ratio) |
+| `chars-check` | Check for invalid or unexpected characters in translations |
+| `pattern-check` | Validate regex patterns in translations (placeholders, variables) |
+| `translation-comparison` | Compare translations across two target locales and report differences |
+| `xml-validation` | Validate XML well-formedness of block text |
+| `chars-listing` | List all unique characters used in content (for font subsetting) |
+| `scoping-report` | Classify blocks into scoping categories based on repetition and match status |
+
+**Convert tools** — transform representations:
+
+| Tool | Description |
+|---|---|
+| `encoding-convert` | Convert character encoding of text content |
+| `encoding-detect` | Detect encoding characteristics of block text |
+| `linebreak-convert` | Normalize line endings in source and/or target text |
+| `bom-convert` | Add or remove the Unicode BOM marker on document layers |
+| `fullwidth-convert` | Convert between half-width and full-width characters |
+| `uri-convert` | Encode or decode URI escape sequences in text |
+
+**Pipeline tools** — operate on the part stream:
+
+| Tool | Description |
+|---|---|
+| `layer-processor` | Apply format-specific tool chains to child layers ([AD-002](./002-content-model.md)) |
+| `external-command` | Execute an external command on block text |
+
+### AI and MT Tools
+
+AI and MT tools are instantiated on demand with a provider, not auto-registered.
+They use the same `Tool` interface and work identically in flows.
+
+**AI tools** (`core/ai/tools/`):
+
+| Tool | Description |
+|---|---|
+| `ai-translate` | Translate blocks using an LLM provider (batch + concurrent) |
+| `ai-qa` | Check translation quality using an LLM provider |
+| `ai-review` | Review translations with explanations using an LLM |
+| `ai-terminology` | Extract terminology from blocks using an LLM |
+| `ai-entity-extract` | Extract named entities and term candidates using AI + optional NER |
+
+**MT tools** (`core/mt/tools/`):
+
+| Tool | Description |
+|---|---|
+| `{provider}-translate` | Translate blocks using an MT provider (DeepL, Google, Microsoft, ModernMT, MyMemory) |
+
+**Terminology tools** (`core/termbase/`):
+
+| Tool | Description |
+|---|---|
+| `term-lookup` | Annotate blocks with matching terms from a TermBase ([AD-010](./010-terminology.md)) |
+| `term-enforce` | Verify correct terminology usage in translations ([AD-010](./010-terminology.md)) |
+
+**TM tools** (`core/sievepen/`):
+
+| Tool | Description |
+|---|---|
+| `tm-leverage` | Content-aware TM leverage with generalized, structural, and plain matching ([AD-009](./009-translation-memory.md)) |
 
 ### Annotation Flow Between Tools
 
 Tools communicate through annotations on Blocks. A typical pipeline:
 
 ```
-reader → entity-annotate → term-lookup → tm-leverage → ai-translate → term-enforce → qa-check → writer
+reader → ai-entity-extract → term-lookup → tm-leverage → ai-translate → term-enforce → qa-check → writer
 ```
 
-- `entity-annotate` adds `EntityAnnotation` with named entities
+- `ai-entity-extract` adds `EntityAnnotation` with named entities
 - `term-lookup` adds `TermAnnotation` with matched terminology
 - `tm-leverage` reads entity annotations for generalized matching, adds `AltTranslation`
 - `ai-translate` reads term and entity annotations for context-aware translation
@@ -90,9 +174,11 @@ through a shared data model rather than direct dependencies.
 
 Tools register into a `ToolRegistry` with a name and factory function,
 mirroring the format registry pattern ([AD-004](./004-processing-engine.md)).
-The CLI and flow executor look up tools by name. The `RegisterTools(reg)`
-function auto-registers all built-in utility tools with default configurations;
-users can customize tool settings via `gokapi.yaml`.
+The CLI and flow executor look up tools by name. `RegisterAll(reg)` in
+`core/tools/register.go` auto-registers all built-in tools with default
+configurations. AI, MT, and terminology tools are instantiated on demand
+with their respective providers and registered into the flow's tool set
+at configuration time.
 
 Plugin tools ([AD-007](./007-plugin-system.md)) use the same `Tool` interface
 via gRPC translation, so plugin-provided tools and built-in tools are
