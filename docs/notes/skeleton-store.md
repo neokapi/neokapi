@@ -213,7 +213,7 @@ The writer tries three modes in order:
 |------|------|
 | `core/format/skeleton.go` | SkeletonStore type, binary format, interfaces |
 | `core/format/skeleton_test.go` | Unit tests (roundtrip, empty skip, large data) |
-| `core/formats/html/tokenreader.go` | Single-pass tokenizer reader (~600 lines) |
+| `core/formats/html/tokenreader.go` | Single-pass tokenizer reader (~1100 lines) |
 | `core/formats/html/reader.go` | Dispatch: skeleton store → tokenizer, else → DOM |
 | `core/formats/html/writer.go` | Skeleton mode + re-parse fallback + block-only fallback |
 | `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute roundtrip tests |

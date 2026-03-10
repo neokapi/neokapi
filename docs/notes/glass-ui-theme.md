@@ -163,6 +163,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const isDark = theme === "dark" || (theme === "system" && prefersDark);
     document.documentElement.classList.toggle("dark", isDark);
     document.documentElement.setAttribute("data-theme", isDark ? "aurora" : "light");
+    document.documentElement.style.colorScheme = isDark ? "dark" : "light";
   }, [theme]);
   // ...
 }
@@ -173,7 +174,8 @@ Key behaviors:
 - Defaults to `"system"` when no stored preference exists
 - Sets `data-theme="aurora"` for dark mode, `data-theme="light"` for light mode
 - Toggles `dark` class for Tailwind dark-mode utilities
-- Cookie shared across subdomains for cross-app consistency
+- Sets `colorScheme` style for native browser controls (form inputs, scrollbars)
+- Cookie shared across subdomains for cross-app consistency (domain detection logic)
 - Legacy `"glass"` and `"aurora"` string values migrated to `"dark"`
 
 Theme selection UI lives in the Bowrain desktop app's Settings page (`SettingsPage.tsx`), which renders toggle buttons for Light, Dark, and System.
@@ -229,4 +231,4 @@ All four frontend projects consume the theme system identically:
 | Kapi Web | `kapi/apps/kapi-web/src/index.css` | `App.tsx` |
 | Keycloak Theme | `bowrain/apps/keycloak-theme/src/login/main.css` | `main.tsx` |
 
-The Keycloak theme is a special case: it imports `@gokapi/ui/styles/globals.css` but also re-declares all OKLCH tokens and semantic tokens in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. See [Keycloak Theming](keycloak-theming.md) for details.
+The Keycloak theme is a special case: it imports `@gokapi/ui/styles/globals.css` but also re-declares approximately 135 additional CSS custom properties (full OKLCH color palettes, glass surfaces, component variants, effects) in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. The shared `packages/ui` defines ~76 properties; the Keycloak theme adds ~59 more for the complete glass design system. See [Keycloak Theming](keycloak-theming.md) for details.

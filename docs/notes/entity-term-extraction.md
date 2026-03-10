@@ -18,39 +18,49 @@ The `AIEntityExtractTool` uses `ChatStructured()` with this JSON schema:
   "schema": {
     "type": "object",
     "properties": {
-      "entities": {
+      "blocks": {
         "type": "array",
         "items": {
           "type": "object",
           "properties": {
-            "text": { "type": "string" },
-            "type": { "type": "string", "enum": ["person", "organization", "product", "location", "date", "time", "currency", "measurement", "other"] },
-            "dnt": { "type": "boolean" },
-            "offset": { "type": "integer" },
-            "length": { "type": "integer" },
-            "confidence": { "type": "number" }
+            "block_id": { "type": "string" },
+            "entities": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string" },
+                  "type": { "type": "string", "enum": ["person", "organization", "product", "location", "date", "time", "currency", "measurement", "other"] },
+                  "dnt": { "type": "boolean" },
+                  "offset": { "type": "integer" },
+                  "length": { "type": "integer" },
+                  "confidence": { "type": "number" }
+                },
+                "required": ["text", "type", "dnt", "offset", "length", "confidence"]
+              }
+            },
+            "term_candidates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string" },
+                  "definition": { "type": "string" },
+                  "category": { "type": "string", "enum": ["brand", "technical", "ui", "legal", "marketing", "general"] },
+                  "translatability": { "type": "string", "enum": ["dnt", "consistent", "free"] },
+                  "confidence": { "type": "number" },
+                  "offset": { "type": "integer" },
+                  "length": { "type": "integer" }
+                },
+                "required": ["text", "definition", "category", "translatability", "confidence", "offset", "length"]
+              }
+            }
           },
-          "required": ["text", "type", "dnt", "offset", "length", "confidence"]
-        }
-      },
-      "term_candidates": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "text": { "type": "string" },
-            "definition": { "type": "string" },
-            "category": { "type": "string", "enum": ["brand", "technical", "ui", "legal", "marketing", "general"] },
-            "translatability": { "type": "string", "enum": ["dnt", "consistent", "free"] },
-            "confidence": { "type": "number" },
-            "offset": { "type": "integer" },
-            "length": { "type": "integer" }
-          },
-          "required": ["text", "definition", "category", "translatability", "confidence", "offset", "length"]
+          "required": ["block_id", "entities", "term_candidates"]
         }
       }
     },
-    "required": ["entities", "term_candidates"]
+    "required": ["blocks"]
   }
 }
 ```
@@ -60,7 +70,7 @@ The `AIEntityExtractTool` uses `ChatStructured()` with this JSON schema:
 ```
 You are a localization specialist analyzing source content for a translation project.
 
-Given the following text blocks, identify:
+Given text blocks, identify:
 
 1. Named entities: people, organizations, products, locations, dates, times, currencies,
    measurements. For each, indicate whether it should be marked do-not-translate (DNT).
@@ -72,7 +82,6 @@ Given the following text blocks, identify:
 2. Terminology candidates: domain-specific terms that should be translated consistently
    across the project. These are words/phrases that carry specific meaning in this context
    and would benefit from a termbase entry. Exclude common words.
-   - For each, propose a definition, category, and translatability level
    - "dnt" = never translate (brand names, acronyms that stay in source language)
    - "consistent" = translate, but the same way everywhere
    - "free" = translate naturally, no consistency requirement
@@ -86,10 +95,10 @@ entities and terms — quality over quantity.
 ```
 Analyze these {n} text blocks from a {source_locale} localization project:
 
-Block 1 (id: {block_id}):
+Block (id: {block_id}):
 "{block_text}"
 
-Block 2 (id: {block_id}):
+Block (id: {block_id}):
 "{block_text}"
 
 ...
@@ -118,15 +127,15 @@ Azure entity type mapping to `model.EntityType`:
 
 | Azure Type | model.EntityType |
 |-----------|-----------------|
-| Person | EntityPerson |
-| Organization, OrganizationMedical, OrganizationSports | EntityOrganization |
+| Person, PersonType | EntityPerson |
+| Organization, OrganizationMedical, OrganizationSports, OrganizationStockExchange | EntityOrganization |
 | Product, ComputingProduct | EntityProduct |
-| Address, City, State, CountryRegion, GPE, Location, ... | EntityLocation |
+| Address, Airport, City, Continent, CountryRegion, GPE, Geological, Location, State, Structural | EntityLocation |
 | Date, DateTime, DateRange, DateTimeRange | EntityDate |
 | Time, TimeRange | EntityTime |
 | Currency | EntityCurrency |
-| Age, Area, Dimension, Height, Length, Volume, Weight, ... | EntityMeasurement |
-| Email, URL, PhoneNumber, IpAddress, Event, Skill | EntityOther |
+| Age, Area, Dimension, Height, Length, Number, NumberRange, Ordinal, Percentage, Speed, Temperature, Volume, Weight | EntityMeasurement |
+| (all others) | EntityOther |
 
 Batch: up to 25 documents per request, 5120 characters each.
 
@@ -150,25 +159,26 @@ Uses the Java/Python plugin bridge ([AD-007](/docs/ad/007-plugin-system)). spaCy
 ```sql
 CREATE TABLE review_items (
     id            TEXT PRIMARY KEY,
-    project_id    TEXT NOT NULL REFERENCES projects(id),
+    project_id    TEXT NOT NULL,
     type          TEXT NOT NULL,  -- 'term_candidate', 'entity_review'
     status        TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'assigned', 'approved', 'rejected'
-    push_id       TEXT,           -- the push that triggered extraction
+    push_id       TEXT NOT NULL DEFAULT '',
     data          TEXT NOT NULL,  -- JSON: TermCandidateAnnotation or EntityAnnotation
-    occurrences   TEXT NOT NULL,  -- JSON: []Occurrence
-    assigned_to   TEXT,           -- user ID
-    decided_by    TEXT,
-    decided_at    TIMESTAMP,
-    comment       TEXT,
-    edits         TEXT,           -- JSON: user edits applied on approval
+    occurrences   TEXT NOT NULL DEFAULT '[]',
+    assigned_to   TEXT NOT NULL DEFAULT '',
+    decided_by    TEXT NOT NULL DEFAULT '',
+    decided_at    TEXT NOT NULL DEFAULT '',
+    comment       TEXT NOT NULL DEFAULT '',
+    edits         TEXT NOT NULL DEFAULT '{}',
     confidence    REAL NOT NULL DEFAULT 0,
-    locale        TEXT NOT NULL,
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    locale        TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_review_items_project_status ON review_items(project_id, status);
 CREATE INDEX idx_review_items_project_type ON review_items(project_id, type);
-CREATE INDEX idx_review_items_assigned ON review_items(assigned_to) WHERE assigned_to IS NOT NULL;
+CREATE INDEX idx_review_items_assigned ON review_items(project_id, assigned_to);
 CREATE INDEX idx_review_items_confidence ON review_items(project_id, confidence);
 
 -- Track rejected terms to avoid re-proposing
@@ -176,7 +186,7 @@ CREATE TABLE rejected_terms (
     project_id    TEXT NOT NULL,
     term_text     TEXT NOT NULL,
     locale        TEXT NOT NULL,
-    rejected_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    rejected_at   TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (project_id, term_text, locale)
 );
 
@@ -184,10 +194,10 @@ CREATE TABLE rejected_terms (
 CREATE TABLE dnt_entries (
     project_id    TEXT NOT NULL,
     text          TEXT NOT NULL,
-    entity_type   TEXT,          -- nullable: terms don't have entity type
+    entity_type   TEXT NOT NULL DEFAULT '',
     locale        TEXT NOT NULL,
-    source        TEXT NOT NULL,  -- 'auto', 'manual', 'llm', 'ner'
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    source        TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (project_id, text, locale)
 );
 ```
@@ -294,18 +304,17 @@ POST /api/v1/projects/:id/review-queue/sync
 CREATE TABLE notifications (
     id            TEXT PRIMARY KEY,
     user_id       TEXT NOT NULL,
-    project_id    TEXT NOT NULL REFERENCES projects(id),
-    type          TEXT NOT NULL,  -- 'queue_item_added', 'queue_item_assigned',
-                                  -- 'queue_item_decided', 'extraction_completed'
+    type          TEXT NOT NULL DEFAULT 'general',  -- 'review.assigned', 'review.completed',
+                                                    -- 'extraction.completed', 'general'
     title         TEXT NOT NULL,
-    body          TEXT,
-    data          TEXT,           -- JSON: type-specific payload (item_id, counts, etc.)
-    read          BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    body          TEXT NOT NULL DEFAULT '',
+    project_id    TEXT NOT NULL DEFAULT '',
+    link_url      TEXT NOT NULL DEFAULT '',  -- deep link target
+    read          INTEGER NOT NULL DEFAULT 0,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_notifications_user_unread ON notifications(user_id, read, created_at DESC);
-CREATE INDEX idx_notifications_project ON notifications(project_id, created_at DESC);
+CREATE INDEX idx_notifications_user ON notifications(user_id, read, created_at DESC);
 ```
 
 **Delivery layers (incremental):**
@@ -328,20 +337,21 @@ DELETE /api/v1/notifications/:id
 ### BlockInfoResponse Changes
 
 ```go
-// Add to existing BlockInfoResponse in bowrain/server/editor.go
+// In bowrain/server/editor.go
 type BlockInfoResponse struct {
     // ... existing fields ...
-    Entities []BlockEntityResponse `json:"entities,omitempty"`
+    Entities []EntityInfoResponse `json:"entities,omitempty"`
 }
 
-type BlockEntityResponse struct {
+type EntityInfoResponse struct {
+    Key    string `json:"key"`              // annotation key (e.g. "entity:0")
     Text   string `json:"text"`
-    Type   string `json:"type"`    // "person", "organization", "product", etc.
-    DNT    bool   `json:"dnt"`
-    Start  int    `json:"start"`   // character offset in source
+    Type   string `json:"type"`             // "person", "organization", "product", etc.
+    Start  int    `json:"start"`            // character offset in source
     End    int    `json:"end"`
-    Locale string `json:"locale"`
-    Source string `json:"source"`  // "llm", "ner", "manual"
+    DNT    bool   `json:"dnt"`
+    Source string `json:"source,omitempty"` // "llm", "ner", "manual"
+    Locale string `json:"locale,omitempty"`
 }
 ```
 

@@ -12,72 +12,116 @@ The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO). This
 
 ```sql
 CREATE TABLE projects (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    source_locale TEXT NOT NULL,
-    target_locales TEXT NOT NULL,    -- JSON array of BCP-47 tags
-    workspace_id TEXT NOT NULL DEFAULT '',  -- FK to workspaces (AD-015)
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    id             TEXT PRIMARY KEY,
+    name           TEXT NOT NULL,
+    source_locale  TEXT NOT NULL,
+    target_locales TEXT NOT NULL DEFAULT '',  -- JSON array of BCP-47 tags
+    properties     TEXT NOT NULL DEFAULT '{}',
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+CREATE TABLE items (
+    project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name         TEXT NOT NULL,
+    format       TEXT NOT NULL DEFAULT '',
+    item_type    TEXT NOT NULL DEFAULT 'file',
+    source_bytes BLOB,
+    block_index  TEXT NOT NULL DEFAULT '{}',
+    properties   TEXT NOT NULL DEFAULT '{}',
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (project_id, name)
+);
 
 CREATE TABLE blocks (
-    content_hash TEXT PRIMARY KEY,
-    context_hash TEXT NOT NULL,
-    source TEXT NOT NULL,            -- serialized Fragment JSON
-    targets TEXT,                    -- JSON map: locale -> Fragment
-    annotations TEXT,                -- JSON
-    properties TEXT,                 -- JSON
-    content_ref TEXT,                -- JSON ContentRef
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    id           TEXT NOT NULL,
+    project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    item_name    TEXT NOT NULL DEFAULT '',
+    source_id    TEXT NOT NULL DEFAULT '',
+    name         TEXT NOT NULL DEFAULT '',
+    type         TEXT NOT NULL DEFAULT '',
+    mime_type    TEXT NOT NULL DEFAULT '',
+    translatable INTEGER NOT NULL DEFAULT 1,
+    content_hash TEXT NOT NULL DEFAULT '',
+    context_hash TEXT NOT NULL DEFAULT '',
+    source_json  TEXT NOT NULL DEFAULT '[]',    -- serialized Fragment JSON
+    targets_json TEXT NOT NULL DEFAULT '{}',    -- JSON map: locale -> segments
+    properties   TEXT NOT NULL DEFAULT '{}',
+    annotations  TEXT NOT NULL DEFAULT '{}',
+    stored_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (project_id, id)
 );
+CREATE UNIQUE INDEX idx_blocks_source_id ON blocks(project_id, item_name, source_id)
+    WHERE source_id != '';
 
 CREATE TABLE versions (
-    id TEXT PRIMARY KEY,
-    project_id TEXT NOT NULL REFERENCES projects(id),
-    label TEXT,
-    message TEXT,
-    block_refs TEXT NOT NULL,        -- JSON array of content hashes
-    locales TEXT,                    -- JSON array of BCP-47 tags
-    created_at TEXT NOT NULL,
-    created_by TEXT
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    label       TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    block_count INTEGER NOT NULL DEFAULT 0,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE TABLE project_blocks (
-    project_id TEXT NOT NULL REFERENCES projects(id),
-    content_hash TEXT NOT NULL REFERENCES blocks(content_hash),
-    PRIMARY KEY (project_id, content_hash)
+CREATE TABLE version_blocks (
+    version_id   TEXT NOT NULL REFERENCES versions(id) ON DELETE CASCADE,
+    block_id     TEXT NOT NULL,
+    content_hash TEXT NOT NULL,
+    PRIMARY KEY (version_id, block_id)
 );
+
+CREATE TABLE change_log (
+    seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id   TEXT NOT NULL,
+    block_id     TEXT NOT NULL,
+    change_type  TEXT NOT NULL,  -- source_added, source_modified, source_removed,
+                                -- target_added, target_modified
+    locale       TEXT,
+    content_hash TEXT,
+    logged_at    TEXT NOT NULL
+);
+CREATE INDEX idx_changelog_project_seq ON change_log(project_id, seq);
+CREATE INDEX idx_changelog_project_locale ON change_log(project_id, locale, seq);
 ```
 
-The `project_blocks` join table associates blocks with projects. A single block can belong to multiple projects if the same content appears in different contexts. The `blocks` table is global -- content-addressed storage means identical blocks are never duplicated regardless of which project they belong to.
+Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The append-only `change_log` enables cursor-based incremental sync.
 
-SQLite provides zero-deployment overhead for local development and single-instance deployments. A future PostgreSQL backend can serve the multi-instance team server scenario where multiple server replicas share a central database.
+SQLite provides zero-deployment overhead for local development and single-instance deployments. A PostgreSQL backend serves the multi-instance team server scenario where multiple server replicas share a central database.
 
 ## REST API Routes
 
 The ContentStore is exposed via Bowrain Server's REST API ([AD-013](/docs/ad/013-cli-and-server)):
 
 ```
-# Project operations
-POST   /api/v1/workspaces/:ws/projects
-GET    /api/v1/workspaces/:ws/projects
-GET    /api/v1/workspaces/:ws/projects/:id
-PUT    /api/v1/workspaces/:ws/projects/:id
-DELETE /api/v1/workspaces/:ws/projects/:id
+# Project operations (JWT-protected)
+POST   /api/v1/projects
+GET    /api/v1/projects
+GET    /api/v1/projects/:id
+PUT    /api/v1/projects/:id
+DELETE /api/v1/projects/:id
 
 # Block operations
-GET    /api/v1/workspaces/:ws/projects/:id/blocks
-PUT    /api/v1/workspaces/:ws/projects/:id/blocks/:hash/translation
+POST   /api/v1/projects/:id/blocks
+GET    /api/v1/projects/:id/blocks
 
-# Sync operations (for Bowrain CLI pull/push)
-GET    /api/v1/workspaces/:ws/projects/:id/sync-state
-POST   /api/v1/workspaces/:ws/projects/:id/pull
-POST   /api/v1/workspaces/:ws/projects/:id/push
+# Version operations
+POST   /api/v1/projects/:id/versions
+GET    /api/v1/projects/:id/versions
 
+# Sync operations (JWT or ClaimToken)
+POST   /api/v1/projects/:id/sync/push
+GET    /api/v1/projects/:id/sync/pull
+GET    /api/v1/projects/:id/sync/blocks
+GET    /api/v1/projects/:id/sync/status
+GET    /api/v1/projects/:id/changes
+
+# Workspace-scoped sync routes (same handlers)
+POST   /api/v1/workspaces/:ws/projects/:id/sync/push
+GET    /api/v1/workspaces/:ws/projects/:id/sync/pull
+GET    /api/v1/workspaces/:ws/projects/:id/sync/blocks
+GET    /api/v1/workspaces/:ws/projects/:id/sync/status
 ```
 
 Bowrain CLI interacts with the store via API, not directly. The `bowrain pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
