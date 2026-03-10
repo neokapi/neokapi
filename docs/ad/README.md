@@ -63,3 +63,5 @@ are separated into [Implementation Notes](/docs/notes/index).
 | [018](018-four-module-architecture.md) | Four-Module Monorepo Architecture | framework/platform/kapi/bowrain module separation |
 | [020](020-collaborative-editor.md) | Collaborative Editor | EditorService gRPC, streaming presence, offline-first desktop |
 | [021](021-mcp-integration.md) | MCP Integration | MCP servers for kapi and bowrain, tool specifications, stdio transport |
+| [022](022-entity-term-extraction.md) | Entity & Term Extraction | Hybrid LLM+NER extraction, review queue, mobile companion app |
+| [023](023-identity-system.md) | Identity System | Short base62 IDs, dual block identity (internal + source) |

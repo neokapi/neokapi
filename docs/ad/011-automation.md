@@ -19,19 +19,28 @@ The key insight is that automation should be event-driven rather than scheduled 
 
 **Bowrain Server** provides full event-driven automation:
 - Event bus for system-wide events
-- YAML-based automation rules
+- Automation rules with visual editor UI and YAML backing
+- Built-in default rules for common patterns
 - Quality gates (blocking checks)
 - Continuous sync with connectors
 - Webhook notifications
+- GitHub Action for CI/CD integration
+
+**Bowrain CLI** provides local automation hooks:
+- Six trigger points: `pre-push`, `post-push`, `pre-pull`, `post-pull`,
+  `pre-flow`, `post-flow`
+- Four action types: `run_flow`, `wait_translate`, `pull`, `push`
+- Defined in `.bowrain/config.yaml` under `automations`
+- Execute local flows or coordinate with server
 
 **Kapi** provides simple flow hooks:
-- Pre-push hooks (run before `kapi push`)
-- Post-pull hooks (run after `kapi pull`)
-- Defined in `.kapi/config.yaml`
+- Pre-push hooks (run before sync)
+- Post-pull hooks (run after sync)
 - Execute local flows (e.g., QA check, term enforce)
 
 **Clear separation:**
 - **Server automation** = orchestrate complex multi-system workflows
+- **Bowrain CLI hooks** = coordinate local+server operations around sync
 - **Kapi hooks** = run local file processing before/after sync
 
 ### Event Types (Server-Side)
@@ -60,6 +69,8 @@ const (
     EventFlowCompleted       EventType = "flow.completed"       // processing flow finished
     EventQualityGateFailed   EventType = "quality.gate.failed"  // quality gate blocked an action
     EventTerminologyChanged  EventType = "terminology.changed"  // termbase updated
+    EventPushCompleted       EventType = "push.completed"       // content pushed via sync API
+    EventProjectUpdated      EventType = "project.updated"      // project config changed (e.g., new locales)
 )
 ```
 
@@ -115,6 +126,36 @@ automations:
 ```
 
 Each automation rule specifies an event trigger (`on`), optional conditions that filter which events match, and a sequence of actions to execute. Actions are primarily **server-side flow executions** (not Kapi flows), but can also include notifications and webhook calls.
+
+### Built-in Default Rules (Server-Side)
+
+Three automation rules are built in and enabled by default on all projects:
+
+| Rule | Trigger | Action |
+|------|---------|--------|
+| `auto-translate-on-push` | `push.completed` | Create translation jobs for each (item, locale) pair pushed |
+| `auto-extract-on-push` | `push.completed` | Run entity/term extraction on pushed content |
+| `auto-translate-new-locale` | `project.updated` | Translate all items when new target locales are added |
+
+Built-in rules use the platform AI provider (Azure OpenAI with Managed
+Identity) and link jobs to the originating `push_id` for traceability.
+Projects can opt out via `auto_translate: false` in project properties.
+
+### Automation Rule Persistence and Visual Editor (Server-Side)
+
+Automation rules are persisted in the database via `RuleStore` (SQLite
+or PostgreSQL) and managed through REST API endpoints:
+
+- `GET/POST /api/v1/workspaces/:ws/automations` -- list and create rules
+- `PUT/DELETE /api/v1/workspaces/:ws/automations/:id` -- update and delete
+- `POST /api/v1/workspaces/:ws/automations/:id/toggle` -- enable/disable
+- `GET /api/v1/workspaces/:ws/automations/events` -- available event types
+- `GET /api/v1/workspaces/:ws/automations/history` -- execution records
+
+The web UI provides a visual rule editor for creating and editing rules
+via form-based interaction (event selection, condition filtering, action
+configuration). Execution history tracks each rule invocation with
+status, errors, and timestamps for debugging.
 
 ### Quality Gates (Server-Side)
 
@@ -187,6 +228,43 @@ Continuous sync bridges the gap between event-driven automation (reactive) and t
 
 **This is server-side only.** Kapi does not run continuous sync — it syncs on demand via `kapi pull/push`.
 
+### Bowrain CLI Local Automation (Client-Side)
+
+Bowrain CLI provides local automation hooks in `.bowrain/config.yaml` that
+coordinate client-side actions around sync operations:
+
+```yaml
+# .bowrain/config.yaml
+automations:
+  - trigger: post-push
+    actions:
+      - type: wait_translate
+      - type: pull
+  - trigger: pre-push
+    actions:
+      - type: run_flow
+        flow: qa-check
+```
+
+**Six trigger types:** `pre-push`, `post-push`, `pre-pull`, `post-pull`,
+`pre-flow`, `post-flow`
+
+**Four action types:**
+- `run_flow` -- execute a local flow (e.g., QA check)
+- `wait_translate` -- poll server until translation jobs from the push
+  are complete
+- `pull` -- fetch translated content from server
+- `push` -- send content to server
+
+The `bowrain sync` command combines push + wait + pull into a single
+operation, orchestrating the full round-trip via local automation.
+
+**Differences from server automation:**
+- **No event bus** — hooks are trigger-based command chains
+- **Coordinates client+server** — can wait for server-side jobs, then pull
+- **Synchronous** — hooks block the parent operation until complete
+- **No conditions** — hooks always run (or can be skipped with `--no-hooks`)
+
 ### Kapi Flow Hooks (Client-Side)
 
 Kapi provides simple flow hooks in `.kapi/config.yaml` ([AD-016](./016-kapi-project-model.md)):
@@ -202,15 +280,25 @@ hooks:
 - `kapi push` → runs `pre-push` flows → sends blocks to server
 - `kapi pull` → fetches blocks from server → runs `post-pull` flows
 
-**Differences from server automation:**
-- **No event bus** — hooks are simple command chains
-- **Local file processing** — flows run on local files, not server-side
+**Differences from Bowrain CLI automation:**
+- **Local file processing only** — no `wait_translate` or server coordination
+- **Simpler model** — two trigger points, flow names only
 - **Synchronous** — hooks block the push/pull operation until complete
-- **No conditions** — hooks always run (or can be skipped with `--no-hooks`)
 
-Example use cases:
-- `pre-push`: Run QA checks, enforce terminology before sending to server
-- `post-pull`: Update local statistics, generate reports after fetching translations
+### GitHub Action for CI/CD (Client-Side)
+
+The `gokapi/bowrain-action` GitHub Action brings Bowrain sync into CI/CD
+pipelines:
+
+1. `gokapi/setup-bowrain@v1` installs the Bowrain CLI with platform
+   detection, checksum verification, and GitHub Actions caching
+2. `gokapi/bowrain-action@v1` runs `bowrain sync` (push → wait → pull),
+   commits translated files, and pushes to the repository
+
+This enables fully automated translation pipelines: a developer pushes
+source content changes, the GitHub Action syncs with Bowrain Server,
+waits for AI translation, pulls results, and commits them back — all
+without manual intervention.
 
 ### Loop Prevention (Server-Side)
 
@@ -267,8 +355,14 @@ Webhooks use HMAC-SHA256 signing so receivers can verify authenticity. Failed de
 
 - Continuous sync closes the loop between connectors and automation — pull changes, process automatically, push when ready.
 
-- **Clear separation**: Server = orchestration platform; Kapi = local file tool with basic hooks.
+- **Three-tier separation**: Server = orchestration platform with event bus and visual rule editor; Bowrain CLI = client-server coordination with `wait_translate` and `sync`; Kapi = local file tool with basic hooks.
+
+- Bowrain CLI users can define local automation that coordinates with the server (push → wait for AI → pull) without needing to configure server-side rules.
 
 - Kapi users can define simple pre/post sync hooks without needing to understand the server's automation system.
 
-- The automation model positions Bowrain Server as a **localization platform** that orchestrates complex workflows, while Kapi remains a focused **file processing tool**.
+- The GitHub Action closes the CI/CD loop, enabling fully automated translation pipelines triggered by source content changes.
+
+- Built-in default rules (auto-translate, auto-extract, auto-translate-new-locale) provide immediate value without configuration. Projects opt out rather than opt in.
+
+- The automation model positions Bowrain Server as a **localization platform** that orchestrates complex workflows, Bowrain CLI as a **sync companion** that coordinates client-server operations, and Kapi as a focused **file processing tool**.
