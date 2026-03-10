@@ -129,7 +129,13 @@ func (p *Project) FlowsDirPath() string {
 }
 
 // Config represents the .bowrain/config.yaml structure.
+// The version field is a top-level schema version (e.g. "v1") — not wrapped
+// in a k8s-style envelope because config.yaml is a well-known file at a
+// well-known path (.bowrain/config.yaml) and doesn't need kind discrimination.
 type Config struct {
+	// Version is the config schema version (e.g. "v1").
+	Version string `yaml:"version,omitempty"`
+
 	Project ProjectMeta `yaml:"project"`
 
 	// Server connection (optional)

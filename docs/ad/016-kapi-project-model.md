@@ -43,43 +43,40 @@ The project model types live in `platform/project/` — shared infrastructure wi
 
 ### `config.yaml` Schema
 
-The config file supports two formats: an **envelope format** (with `apiVersion` and `kind` fields, used by default) and **bare YAML** (backward compatible, transparently migrated on load).
+The config file uses flat YAML with a top-level `version` field. Because `config.yaml` is a well-known file at a well-known path (`.bowrain/config.yaml`), it does not need a k8s-style envelope — the `kind` is always implicit. The version is part of the spec, not a wrapper around it.
 
-**Envelope format:**
 ```yaml
-apiVersion: v1
-kind: ProjectConfig
-metadata:
-  name: my-app
-spec:
-  project:
-    name: My App
-    source_locale: en-US
-    target_locales:
-      - fr-FR
-      - de-DE
-  server:
-    url: https://bowrain.example.com
-    project_id: abc123
-    workspace: default
-  mappings:
-    - local: "src/**/*.json"
-      remote: "app/{path}"
-      format: json
-      target_path: "locales/{locale}.json"
-  hooks:
-    pre-push:
-      - qa-check
-  automations:
-    - name: "qa-before-push"
-      trigger: "pre-push"
-      actions:
-        - type: "run_flow"
-          config:
-            flow: "qa-check"
+version: v1
+project:
+  name: My App
+  source_locale: en-US
+  target_locales:
+    - fr-FR
+    - de-DE
+server:
+  url: https://bowrain.example.com
+  project_id: abc123
+  workspace: default
+mappings:
+  - local: "src/**/*.json"
+    remote: "app/{path}"
+    format: json
+    target_path: "locales/{locale}.json"
+hooks:
+  pre-push:
+    - qa-check
+automations:
+  - name: "qa-before-push"
+    trigger: "pre-push"
+    actions:
+      - type: "run_flow"
+        config:
+          flow: "qa-check"
 ```
 
-The `Config` struct defines: project identity (`name`, `source_locale`, `target_locales`), optional server connection (`url`, `project_id`, `workspace`, `claim_token`), plugin configuration and registries, framework preset, format presets, file mappings, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
+Legacy formats (envelope with `apiVersion`/`kind`/`metadata`/`spec`, and bare YAML without any version) are still loaded transparently for backward compatibility.
+
+The `Config` struct defines: schema version (`version`), project identity (`name`, `source_locale`, `target_locales`), optional server connection (`url`, `project_id`, `workspace`, `claim_token`), plugin configuration and registries, framework preset, format presets, file mappings, exclude patterns, hooks, per-flow configuration overrides, and automation rules.
 
 ### File Mappings
 
@@ -244,7 +241,7 @@ Triggers include `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, a
 
 - `bowrain init` is the entry point for new projects, analogous to `git init`.
 
-- `.bowrain/config.yaml` is the single source of truth for project configuration. Checked into git, enabling team collaboration. Supports envelope format with migrations.
+- `.bowrain/config.yaml` is the single source of truth for project configuration. Checked into git, enabling team collaboration. Uses flat YAML with a top-level `version` field for schema versioning.
 
 - `.bowrain/.sync-cache` tracks the last known server state locally (block hashes + sync cursor). Gitignored, regenerable from the server.
 
