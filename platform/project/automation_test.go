@@ -18,7 +18,7 @@ func TestAutomationConfigRoundTrip(t *testing.T) {
 	disabled := false
 
 	cfg := &Config{
-		Project: ProjectMeta{Name: "test", SourceLocale: "en"},
+		Defaults: Defaults{SourceLanguage: "en"},
 		Automations: []AutomationConfig{
 			{
 				Name:    "qa-before-push",

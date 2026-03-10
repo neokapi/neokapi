@@ -40,8 +40,8 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	out.Project.Server = proj.Config.Server.URL
-	out.Project.ProjectID = proj.Config.Server.ProjectID
+	out.Project.Server = proj.Config.ServerURL()
+	out.Project.ProjectID = proj.Config.ProjectID()
 	out.ItemCount = status.ItemCount
 	out.FileCount = status.FileCount
 	out.WordCount = status.WordCount

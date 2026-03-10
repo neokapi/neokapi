@@ -37,11 +37,11 @@ Requires a .bowrain/ project with a configured workspace.`,
 		if err != nil {
 			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
 		}
-		if proj.Config.Server == nil || proj.Config.Server.Workspace == "" {
+		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
 			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
 		}
 
-		resp, err := client.CreateToken(stored.ServerURL, stored.AccessToken, proj.Config.Server.Workspace, tokenName, tokenExpireDays)
+		resp, err := client.CreateToken(stored.ServerURL, stored.AccessToken, proj.Config.Workspace(), tokenName, tokenExpireDays)
 		if err != nil {
 			return err
 		}
@@ -69,11 +69,11 @@ var authTokenListCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
 		}
-		if proj.Config.Server == nil || proj.Config.Server.Workspace == "" {
+		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
 			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
 		}
 
-		tokens, err := client.ListTokens(stored.ServerURL, stored.AccessToken, proj.Config.Server.Workspace)
+		tokens, err := client.ListTokens(stored.ServerURL, stored.AccessToken, proj.Config.Workspace())
 		if err != nil {
 			return err
 		}
@@ -108,12 +108,12 @@ var authTokenDeleteCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("no .bowrain/ project found — run: bowrain init")
 		}
-		if proj.Config.Server == nil || proj.Config.Server.Workspace == "" {
+		if !proj.Config.HasServer() || proj.Config.Workspace() == "" {
 			return fmt.Errorf("no workspace configured in .bowrain/config.yaml")
 		}
 
 		tokenID := args[0]
-		if err := client.DeleteToken(stored.ServerURL, stored.AccessToken, proj.Config.Server.Workspace, tokenID); err != nil {
+		if err := client.DeleteToken(stored.ServerURL, stored.AccessToken, proj.Config.Workspace(), tokenID); err != nil {
 			return err
 		}
 

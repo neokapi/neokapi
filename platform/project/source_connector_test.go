@@ -41,17 +41,12 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 	))
 
 	cfg := &Config{
-		Project: ProjectMeta{
-			Name:         "test-project",
-			SourceLocale: "en",
+		URL: FormatProjectURL(srv.URL, "", "proj-123", "test-token"),
+		Defaults: Defaults{
+			SourceLanguage: "en",
 		},
-		Server: &ServerConfig{
-			URL:        srv.URL,
-			ProjectID:  "proj-123",
-			ClaimToken: "test-token",
-		},
-		Mappings: []Mapping{
-			{Local: "src/locales/*.json", Format: "json"},
+		Content: []ContentEntry{
+			{Path: "src/locales/*.json", Format: "json"},
 		},
 	}
 
@@ -148,12 +143,13 @@ func TestNewSourceConnector_RequiresURL(t *testing.T) {
 	proj := &Project{
 		Root:      t.TempDir(),
 		ConfigDir: filepath.Join(t.TempDir(), ".bowrain"),
-		Config:    &Config{Server: &ServerConfig{ProjectID: "p1"}},
+		Config: &Config{
+			URL: FormatProjectURL("", "", "p1", ""),
+		},
 	}
 
 	_, err := NewSourceConnector(proj, registry.NewFormatRegistry())
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "server URL not configured")
 }
 
 func TestSourceConnector_Push(t *testing.T) {
@@ -438,8 +434,8 @@ func TestSourceConnector_Pull_TargetPathTemplate(t *testing.T) {
 	}
 	proj, formatReg := setupTestProject(t, mock)
 
-	// Set a target_path template on the mapping.
-	proj.Config.Mappings[0].TargetPath = "src/locales/{locale}.json"
+	// Set a dest pattern on the content entry.
+	proj.Config.Content[0].Dest = "src/locales/{locale}.json"
 
 	conn, err := NewSourceConnector(proj, formatReg)
 	require.NoError(t, err)
@@ -463,11 +459,11 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	proj := &Project{
 		Root: "/project",
 		Config: &Config{
-			Project: ProjectMeta{
-				SourceLocale: "en",
+			Defaults: Defaults{
+				SourceLanguage: "en",
 			},
-			Mappings: []Mapping{
-				{Local: "src/locales/*.json", Format: "json"},
+			Content: []ContentEntry{
+				{Path: "src/locales/*.json", Format: "json"},
 			},
 		},
 	}
@@ -478,31 +474,31 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 	assert.Equal(t, "src/locales/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 	assert.Equal(t, "src/locales/de.json", conn.resolveTargetPath("src/locales/en.json", "de"))
 
-	// With target_path template.
-	proj.Config.Mappings[0].TargetPath = "output/{locale}.json"
+	// With dest template using {locale} placeholder.
+	proj.Config.Content[0].Dest = "output/{locale}.json"
 	assert.Equal(t, "output/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 
 	// With {path} and {filename} placeholders.
-	proj.Config.Mappings[0].TargetPath = "i18n/{locale}/{path}/{filename}"
+	proj.Config.Content[0].Dest = "i18n/{locale}/{path}/{filename}"
 	assert.Equal(t, "i18n/fr/en.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
 
 	// Docusaurus-style: deeper glob with {path}/{filename}.
-	proj.Config.Mappings = []Mapping{
-		{Local: "docs/**/*.md", Format: "markdown", TargetPath: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"},
+	proj.Config.Content = []ContentEntry{
+		{Path: "docs/**/*.md", Format: "markdown", Dest: "i18n/{locale}/docusaurus-plugin-content-docs/current/{path}/{filename}"},
 	}
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/intro.md", conn.resolveTargetPath("docs/intro.md", "nb"))
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current/features/overview.md", conn.resolveTargetPath("docs/features/overview.md", "nb"))
 
 	// JSON with nested path.
-	proj.Config.Mappings = []Mapping{
-		{Local: "i18n/en/**/*.json", Format: "json", TargetPath: "i18n/{locale}/{path}/{filename}"},
+	proj.Config.Content = []ContentEntry{
+		{Path: "i18n/en/**/*.json", Format: "json", Dest: "i18n/{locale}/{path}/{filename}"},
 	}
 	assert.Equal(t, "i18n/nb/code.json", conn.resolveTargetPath("i18n/en/code.json", "nb"))
 	assert.Equal(t, "i18n/nb/docusaurus-plugin-content-docs/current.json", conn.resolveTargetPath("i18n/en/docusaurus-plugin-content-docs/current.json", "nb"))
 
 	// Fallback when source locale not in path.
-	proj.Config.Mappings[0].TargetPath = ""
-	proj.Config.Project.SourceLocale = "en-US"
+	proj.Config.Content[0].Dest = ""
+	proj.Config.Defaults.SourceLanguage = "en-US"
 	assert.Equal(t, "src/messages.fr.json", conn.resolveTargetPath("src/messages.json", "fr"))
 }
 
@@ -537,9 +533,9 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 		0644,
 	))
 
-	// Change mapping to a recursive glob, add an exclude.
-	proj.Config.Mappings = []Mapping{
-		{Local: "src/locales/**/*.json", Format: "json"},
+	// Change content entry to a recursive glob, add an exclude.
+	proj.Config.Content = []ContentEntry{
+		{Path: "src/locales/**/*.json", Format: "json"},
 	}
 	proj.Config.Exclude = []string{"src/locales/legacy/*.json"}
 

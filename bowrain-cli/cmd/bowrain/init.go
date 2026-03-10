@@ -108,21 +108,22 @@ func parseTargetLocales(s string) []model.LocaleID {
 	return locales
 }
 
-func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
+// newConfigFromFlags creates a default config with source/target from CLI flags.
+func newConfigFromFlags(sourceLocale string) *project.Config {
 	cfg := project.DefaultConfig()
-
-	if initProjectName != "" {
-		cfg.Project.Name = initProjectName
-	} else {
-		cfg.Project.Name = filepath.Base(cwd)
-	}
-
-	if initSource != "" {
-		cfg.Project.SourceLocale = model.LocaleID(initSource)
+	if sourceLocale != "" {
+		cfg.Defaults.SourceLanguage = model.LocaleID(sourceLocale)
+	} else if initSource != "" {
+		cfg.Defaults.SourceLanguage = model.LocaleID(initSource)
 	}
 	if initTargets != "" {
-		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
+		cfg.Defaults.TargetLanguages = parseTargetLocales(initTargets)
 	}
+	return cfg
+}
+
+func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
+	cfg := newConfigFromFlags("")
 
 	// If --project is specified, use it directly (requires auth).
 	if initProjectID != "" {
@@ -137,10 +138,7 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
 		}
-		cfg.Server = &project.ServerConfig{
-			URL:       serverURL,
-			ProjectID: initProjectID,
-		}
+		cfg.URL = project.FormatProjectURL(serverURL, "", initProjectID, "")
 		fmt.Printf("Connecting to Bowrain Server: %s\n", serverURL)
 		fmt.Printf("Project ID: %s\n", initProjectID)
 		return finishInit(cwd, cfg)
@@ -152,7 +150,11 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 		if serverURL == "" {
 			return nil, fmt.Errorf("%s", serverURLHelp)
 		}
-		return runInitAnonymous(cwd, cfg, serverURL, initEmail)
+		projectName := initProjectName
+		if projectName == "" {
+			projectName = filepath.Base(cwd)
+		}
+		return runInitAnonymous(cwd, cfg, serverURL, projectName, initEmail)
 	}
 
 	// Default non-interactive: use auth if available, otherwise local only.
@@ -163,7 +165,11 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	}
 
 	// Authenticated: create project on server (defaults to personal workspace).
-	return runInitCreateAuthenticated(cwd, cfg, auth, "")
+	projectName := initProjectName
+	if projectName == "" {
+		projectName = filepath.Base(cwd)
+	}
+	return runInitCreateAuthenticated(cwd, cfg, auth, "", projectName)
 }
 
 func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, error) {
@@ -201,16 +207,8 @@ func runInitInteractive(cmd *cobra.Command, cwd string) (*output.InitOutput, err
 			projectName = dirName
 		}
 
-		cfg := project.DefaultConfig()
-		cfg.Project.Name = projectName
-		if sourceLocale != "" {
-			cfg.Project.SourceLocale = model.LocaleID(sourceLocale)
-		}
-		if initTargets != "" {
-			cfg.Project.TargetLocales = parseTargetLocales(initTargets)
-		}
-
-		return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug)
+		cfg := newConfigFromFlags(sourceLocale)
+		return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug, projectName)
 	}
 
 	// Not logged in — show menu.
@@ -283,16 +281,8 @@ func runInitSignIn(cmd *cobra.Command, cwd, serverURL string) (*output.InitOutpu
 		projectName = dirName
 	}
 
-	cfg := project.DefaultConfig()
-	cfg.Project.Name = projectName
-	if sourceLocale != "" {
-		cfg.Project.SourceLocale = model.LocaleID(sourceLocale)
-	}
-	if initTargets != "" {
-		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
-	}
-
-	return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug)
+	cfg := newConfigFromFlags(sourceLocale)
+	return runInitCreateAuthenticated(cwd, cfg, stored, wsSlug, projectName)
 }
 
 // runInitEmailClaim creates an anonymous project and sends the claim email.
@@ -328,16 +318,8 @@ func runInitEmailClaim(cwd, serverURL string) (*output.InitOutput, error) {
 		return nil, fmt.Errorf("email address is required")
 	}
 
-	cfg := project.DefaultConfig()
-	cfg.Project.Name = projectName
-	if sourceLocale != "" {
-		cfg.Project.SourceLocale = model.LocaleID(sourceLocale)
-	}
-	if initTargets != "" {
-		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
-	}
-
-	return runInitAnonymous(cwd, cfg, serverURL, email)
+	cfg := newConfigFromFlags(sourceLocale)
+	return runInitAnonymous(cwd, cfg, serverURL, projectName, email)
 }
 
 // runInitAnonymousInteractive creates an anonymous project (no email).
@@ -364,16 +346,8 @@ func runInitAnonymousInteractive(cwd, serverURL string) (*output.InitOutput, err
 		projectName = dirName
 	}
 
-	cfg := project.DefaultConfig()
-	cfg.Project.Name = projectName
-	if sourceLocale != "" {
-		cfg.Project.SourceLocale = model.LocaleID(sourceLocale)
-	}
-	if initTargets != "" {
-		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
-	}
-
-	return runInitAnonymous(cwd, cfg, serverURL, "")
+	cfg := newConfigFromFlags(sourceLocale)
+	return runInitAnonymous(cwd, cfg, serverURL, projectName, "")
 }
 
 func runInitLocal(cwd string) (*output.InitOutput, error) {
@@ -399,28 +373,20 @@ func runInitLocal(cwd string) (*output.InitOutput, error) {
 		projectName = dirName
 	}
 
-	cfg := project.DefaultConfig()
-	cfg.Project.Name = projectName
-	if sourceLocale != "" {
-		cfg.Project.SourceLocale = model.LocaleID(sourceLocale)
-	}
-	if initTargets != "" {
-		cfg.Project.TargetLocales = parseTargetLocales(initTargets)
-	}
-
+	_ = projectName // Project name is used only for server creation; local projects derive from directory.
+	cfg := newConfigFromFlags(sourceLocale)
 	return finishInit(cwd, cfg)
 }
 
 // runInitAnonymous creates an anonymous project on the server.
 // If email is non-empty, the server sends a claim email.
-func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) (*output.InitOutput, error) {
-	if cfg.Project.SourceLocale == "" {
-		cfg.Project.SourceLocale = "en"
+func runInitAnonymous(cwd string, cfg *project.Config, serverURL, projectName, email string) (*output.InitOutput, error) {
+	if cfg.Defaults.SourceLanguage == "" {
+		cfg.Defaults.SourceLanguage = "en"
 	}
 
-	// Convert LocaleIDs to strings for API call.
 	var targets []string
-	for _, t := range cfg.Project.TargetLocales {
+	for _, t := range cfg.Defaults.TargetLanguages {
 		targets = append(targets, string(t))
 	}
 
@@ -428,8 +394,8 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 
 	projectID, claimToken, err := client.CreateAnonymousProject(
 		serverURL,
-		cfg.Project.Name,
-		string(cfg.Project.SourceLocale),
+		projectName,
+		string(cfg.Defaults.SourceLanguage),
 		targets,
 		email,
 	)
@@ -437,11 +403,7 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 		return nil, fmt.Errorf("create anonymous project: %w", err)
 	}
 
-	cfg.Server = &project.ServerConfig{
-		URL:        serverURL,
-		ProjectID:  projectID,
-		ClaimToken: claimToken,
-	}
+	cfg.URL = project.FormatProjectURL(serverURL, "", projectID, claimToken)
 
 	out, err := finishInit(cwd, cfg)
 	if err != nil {
@@ -457,13 +419,13 @@ func runInitAnonymous(cwd string, cfg *project.Config, serverURL, email string) 
 }
 
 // runInitCreateAuthenticated creates a project on the server using existing auth.
-func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.StoredAuth, workspace string) (*output.InitOutput, error) {
-	if cfg.Project.SourceLocale == "" {
-		cfg.Project.SourceLocale = "en"
+func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.StoredAuth, workspace, projectName string) (*output.InitOutput, error) {
+	if cfg.Defaults.SourceLanguage == "" {
+		cfg.Defaults.SourceLanguage = "en"
 	}
 
 	var targets []string
-	for _, t := range cfg.Project.TargetLocales {
+	for _, t := range cfg.Defaults.TargetLanguages {
 		targets = append(targets, string(t))
 	}
 
@@ -472,8 +434,8 @@ func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.St
 	projectID, workspaceSlug, err := client.CreateAuthenticatedProject(
 		auth.ServerURL,
 		auth.AccessToken,
-		cfg.Project.Name,
-		string(cfg.Project.SourceLocale),
+		projectName,
+		string(cfg.Defaults.SourceLanguage),
 		targets,
 		workspace,
 	)
@@ -481,11 +443,7 @@ func runInitCreateAuthenticated(cwd string, cfg *project.Config, auth *config.St
 		return nil, fmt.Errorf("create project: %w", err)
 	}
 
-	cfg.Server = &project.ServerConfig{
-		URL:       auth.ServerURL,
-		ProjectID: projectID,
-		Workspace: workspaceSlug,
-	}
+	cfg.URL = project.FormatProjectURL(auth.ServerURL, workspaceSlug, projectID, "")
 
 	return finishInit(cwd, cfg)
 }
@@ -623,11 +581,11 @@ func finishInit(cwd string, cfg *project.Config) (*output.InitOutput, error) {
 		ConfigDir: filepath.Join(proj.ConfigDir, project.ConfigFile),
 	}
 
-	if cfg.Server != nil {
-		out.Server = cfg.Server.URL
-		out.ProjectID = cfg.Server.ProjectID
-		out.Workspace = cfg.Server.Workspace
-		out.ClaimToken = cfg.Server.ClaimToken
+	if cfg.HasServer() {
+		out.Server = cfg.ServerURL()
+		out.ProjectID = cfg.ProjectID()
+		out.Workspace = cfg.Workspace()
+		out.ClaimToken = cfg.ClaimToken()
 	}
 
 	return out, nil
@@ -672,13 +630,12 @@ func applyFrameworkPreset(cfg *project.Config, presetName string) error {
 
 	cfg.Preset = presetName
 
-	// Apply mappings.
+	// Apply mappings as content entries.
 	for _, m := range fp.Mappings {
-		cfg.Mappings = append(cfg.Mappings, project.Mapping{
-			Local:      m.Local,
-			Remote:     m.Remote,
-			Format:     m.Format,
-			TargetPath: m.TargetPath,
+		cfg.Content = append(cfg.Content, project.ContentEntry{
+			Path:   m.Local,
+			Dest:   m.TargetPath,
+			Format: m.Format,
 		})
 	}
 
