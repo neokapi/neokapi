@@ -47,6 +47,7 @@ const inlineTagsTXML = `<?xml version="1.0" encoding="utf-8"?>
 </body>
 </txml>`
 
+// okapi: TXMLFilterTest#testSimpleEntry — extracts source and target from TXML segments.
 func TestReadSimpleTXML(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
@@ -64,6 +65,7 @@ func TestReadSimpleTXML(t *testing.T) {
 	assert.Equal(t, "Au revoir", blocks[1].TargetText("fr-FR"))
 }
 
+// okapi: TXMLFilterTest#testSegType — segment type attribute is preserved as block property.
 func TestReadSegType(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
@@ -77,6 +79,7 @@ func TestReadSegType(t *testing.T) {
 	assert.Equal(t, "block", blocks[0].Properties["segtype"])
 }
 
+// okapi: TXMLFilterTest#testSourceOnly — segment with only source (no target) is extracted correctly.
 func TestReadSourceOnly(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
@@ -90,6 +93,7 @@ func TestReadSourceOnly(t *testing.T) {
 	assert.Equal(t, "Source only text", blocks[0].SourceText())
 }
 
+// okapi: TXMLFilterTest#testInlineTags — inline <ph> placeholders are processed within text content.
 func TestReadInlineTags(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
@@ -103,6 +107,7 @@ func TestReadInlineTags(t *testing.T) {
 	assert.Equal(t, "Text with placeholder inside", blocks[0].SourceText())
 }
 
+// okapi: TXMLFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps TXML content with locale info.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := context.Background()
 	reader := txml.NewReader()
@@ -122,6 +127,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "fr-FR", layer.Properties["target-locale"])
 }
 
+// okapi: TXMLFilterTest#testDefaultInfo — verifies TXML MIME type and file signature.
 func TestReaderSignature(t *testing.T) {
 	reader := txml.NewReader()
 	sig := reader.Signature()
@@ -158,6 +164,7 @@ func TestReadEmpty(t *testing.T) {
 	assert.Empty(t, blocks)
 }
 
+// okapi: TXMLFilterTest#testDoubleExtraction — roundtrip read/write preserves TXML content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 

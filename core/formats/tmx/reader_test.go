@@ -14,6 +14,17 @@ package tmx_test
 // okapi-unmapped: TmxFilterTest#testOpenInvalidUri — Java URI API; native uses io.Reader
 // okapi-unmapped: ParametersTest#testToString — Java parameter serialization
 // okapi-unmapped: ParametersTest#testFromString — Java parameter deserialization
+//
+// --- File-based extraction tests (require Okapi test resource files) ---
+//
+// okapi-deferred: TmxFilterTest (file-based extraction of sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; behavior covered by TestSpecialChars and TestMultipleTargets
+// okapi-deferred: TmxFilterTest (file-based extraction of Paragraph_TM.tmx) — requires okf_tmx/Paragraph_TM.tmx; paragraph TU behavior covered by TestSegTypePara
+// okapi-deferred: TmxFilterTest (file-based extraction of small_complete.tmx) — requires okf_tmx/small_complete.tmx; inline codes covered by TestBptEptPair, TestPhPlaceholder, TestItIsolatedBeginEnd, TestHiHighlight
+//
+// --- File-based roundtrip iteration tests ---
+//
+// okapi-deferred: RoundTripTmxIT#tmxFiles — iterates all okf_tmx/*.tmx files; native roundtrip covered by TestRoundTrip_SimpleFile, TestRoundTrip_MultipleUnits, and skeleton_test.go
+// okapi-deferred: TmxXliffCompareIT (sampleTMX2.tmx) — requires okf_tmx/sampleTMX2.tmx; inline code roundtrip covered by TestRoundTrip_InlineCodes
 
 import (
 	"bytes"
