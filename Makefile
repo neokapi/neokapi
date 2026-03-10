@@ -37,6 +37,7 @@ FRONTEND_DIR := bowrain/apps/bowrain/frontend
 KAPI_WEB_DIR := kapi/apps/kapi-web
 WEB_DIR      := bowrain/apps/web
 KC_THEME_DIR := bowrain/apps/keycloak-theme
+EMAILS_DIR   := bowrain/emails
 WEBSITE_DIR  := website
 NPM         := npm
 
@@ -49,6 +50,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
         test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-brain test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
+        email-deps email-build \
         keycloak-theme \
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
@@ -165,6 +167,14 @@ web-deps: ## Install SaaS web UI dependencies
 web-build: ui-build web-deps ## Build SaaS web UI for production
 	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
 	cd $(WEB_DIR) && $(NPM) run build
+
+# ── Email Templates (React Email → HTML) ───────────────────────────────────
+
+email-deps: ## Install React Email template dependencies
+	cd $(EMAILS_DIR) && $(NPM) install
+
+email-build: email-deps ## Pre-render React Email templates → bowrain/mailer/templates/
+	cd $(EMAILS_DIR) && $(NPM) run build
 
 # ── Keycloak Theme ─────────────────────────────────────────────────────────
 

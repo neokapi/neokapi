@@ -1,44 +1,57 @@
+// Package server — email.go
+//
+// EmailSenderI is kept as an alias to mailer.EmailSenderI so that test code
+// and other server-package callers can reference the interface without an
+// import cycle.
+//
+// Concrete sender implementations (SMTPSender, ResendSender) live in the
+// bowrain/mailer package. initMailer wires them to Server.Mailer during
+// startup.
 package server
 
 import (
-	"context"
-	"fmt"
-	"net"
-	"net/smtp"
-	"strings"
+	"log"
+
+	"github.com/gokapi/gokapi/bowrain/mailer"
 )
 
-// EmailSenderI sends email messages.
-type EmailSenderI interface {
-	Send(ctx context.Context, to, subject, htmlBody string) error
-}
+// EmailSenderI is an alias for mailer.EmailSenderI so tests and server-package
+// code can reference it through the server package without importing mailer
+// directly.
+type EmailSenderI = mailer.EmailSenderI
 
-// SMTPSender implements EmailSenderI using net/smtp.
-type SMTPSender struct {
-	Host string // host:port
-	From string // sender email address
-}
+// initMailer builds the email sender and mailer from the server config.
+// Priority: Resend API key > SMTP. If neither is configured, email features
+// are disabled (Server.Mailer stays nil).
+func (s *Server) initMailer(cfg ServerConfig) {
+	var sender mailer.EmailSenderI
 
-// Send sends an HTML email via SMTP.
-func (s *SMTPSender) Send(_ context.Context, to, subject, htmlBody string) error {
-	host, _, err := net.SplitHostPort(s.Host)
+	switch {
+	case cfg.ResendAPIKey != "" && cfg.SMTPFrom != "":
+		sender = mailer.NewResendSender(cfg.ResendAPIKey, cfg.SMTPFrom)
+		log.Printf("Email: using Resend sender (from: %s)", cfg.SMTPFrom)
+
+	case cfg.SMTPHost != "" && cfg.SMTPFrom != "":
+		smtpCfg := mailer.SMTPConfig{
+			Host:     cfg.SMTPHost,
+			From:     cfg.SMTPFrom,
+			Username: cfg.SMTPUsername,
+			Password: cfg.SMTPPassword,
+			UseTLS:   cfg.SMTPUseTLS,
+		}
+		sender = mailer.NewSMTPSender(smtpCfg)
+		log.Printf("Email: using SMTP sender (%s, from: %s)", cfg.SMTPHost, cfg.SMTPFrom)
+
+	default:
+		return // email not configured
+	}
+
+	s.EmailSender = sender
+
+	m, err := mailer.New(sender)
 	if err != nil {
-		return fmt.Errorf("invalid SMTP host %q: %w", s.Host, err)
+		log.Printf("WARNING: failed to initialize mailer: %v (email sending disabled)", err)
+		return
 	}
-
-	msg := strings.Join([]string{
-		"From: " + s.From,
-		"To: " + to,
-		"Subject: " + subject,
-		"MIME-Version: 1.0",
-		"Content-Type: text/html; charset=UTF-8",
-		"",
-		htmlBody,
-	}, "\r\n")
-
-	// For local dev (e.g., Mailpit), no auth is needed.
-	if err := smtp.SendMail(s.Host, nil, s.From, []string{to}, []byte(msg)); err != nil {
-		return fmt.Errorf("send email to %s via %s: %w", to, host, err)
-	}
-	return nil
+	s.Mailer = m
 }

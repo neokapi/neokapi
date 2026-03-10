@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/gokapi/gokapi/bowrain/mailer"
 	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 )
@@ -60,8 +60,8 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Send invite email asynchronously if email is provided and SMTP is configured.
-	if inv.Email != "" && s.EmailSender != nil {
+	// Send invite email asynchronously if email is provided and mailer is configured.
+	if inv.Email != "" && s.Mailer != nil {
 		baseURL := requestBaseURL(c)
 		wsSlug := c.Param("ws")
 		go s.sendInviteEmail(context.Background(), inv, baseURL, wsSlug)
@@ -70,29 +70,17 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 	return c.JSON(http.StatusCreated, inv)
 }
 
-// sendInviteEmail sends an HTML email with the invite link.
+// sendInviteEmail renders and sends a branded invite email.
 func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, baseURL, workspaceName string) {
-	joinURL := fmt.Sprintf("%s/join/%s", baseURL, inv.Code)
+	joinURL := baseURL + "/join/" + inv.Code
 
-	subject := fmt.Sprintf("You've been invited to join %s on Bowrain", workspaceName)
+	data := mailer.InviteData{
+		WorkspaceName: workspaceName,
+		Role:          string(inv.Role),
+		JoinURL:       joinURL,
+	}
 
-	body := fmt.Sprintf(`<!DOCTYPE html>
-<html>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
-<h2 style="margin-bottom: 8px;">You're Invited</h2>
-<p>You've been invited to join <strong>%s</strong> on Bowrain as <strong>%s</strong>.</p>
-<p style="margin: 24px 0;">
-  <a href="%s" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500;">
-    Accept Invitation
-  </a>
-</p>
-<p style="color: #6b7280; font-size: 13px;">
-  Or copy this link: <a href="%s">%s</a>
-</p>
-</body>
-</html>`, workspaceName, string(inv.Role), joinURL, joinURL, joinURL)
-
-	if err := s.EmailSender.Send(ctx, inv.Email, subject, body); err != nil {
+	if err := s.Mailer.SendInvite(ctx, inv.Email, data); err != nil {
 		log.Printf("failed to send invite email to %s: %v", inv.Email, err)
 	}
 }
