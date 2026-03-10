@@ -70,10 +70,23 @@ var tmMigrations = []storage.Migration{
 		Description: "add project_id column",
 		SQL:         `ALTER TABLE tm_entries ADD COLUMN project_id TEXT NOT NULL DEFAULT '';`,
 	},
+	{
+		Version:     4,
+		Description: "add stream column",
+		SQL: `ALTER TABLE tm_entries ADD COLUMN stream TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_tm_stream ON tm_entries(stream, source_locale, target_locale);`,
+	},
 }
 
-// Add inserts or updates a translation memory entry.
+// Add inserts or updates a translation memory entry with an empty stream.
 func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
+	return tm.AddWithStream(entry, "")
+}
+
+// AddWithStream inserts or updates a translation memory entry associated with a stream.
+// The stream parameter is a persistence concern (e.g., a git branch name) not stored
+// in the framework TMEntry type.
+func (tm *SQLiteTM) AddWithStream(entry fw.TMEntry, stream string) error {
 	if entry.ID == "" {
 		return fmt.Errorf("entry ID is required")
 	}
@@ -107,14 +120,15 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 	}
 
 	_, err = tm.db.Exec(`
-		INSERT INTO tm_entries (id, project_id, source_coded, target_coded,
+		INSERT INTO tm_entries (id, project_id, stream, source_coded, target_coded,
 			source_plain, source_struct, source_general,
 			source_locale, target_locale,
 			entities, properties,
 			created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
+			stream = excluded.stream,
 			source_coded = excluded.source_coded,
 			target_coded = excluded.target_coded,
 			source_plain = excluded.source_plain,
@@ -125,7 +139,7 @@ func (tm *SQLiteTM) Add(entry fw.TMEntry) error {
 			entities = excluded.entities,
 			properties = excluded.properties,
 			updated_at = excluded.updated_at
-	`, entry.ID, entry.ProjectID,
+	`, entry.ID, entry.ProjectID, stream,
 		string(sourceJSON), string(targetJSON),
 		fw.NormalizeText(entry.SourceText()),
 		fw.NormalizeText(entry.SourceStructural()),
@@ -472,6 +486,70 @@ func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offs
 	q := fmt.Sprintf(`SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
 		entities, properties, created_at, updated_at
 		FROM tm_entries WHERE %s ORDER BY updated_at DESC LIMIT ? OFFSET ?`, where)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	entries, _ := tm.scanEntries(rows)
+	return entries, total
+}
+
+// SearchEntriesForStream performs a case-insensitive substring search with stream
+// inheritance. The streamChain is an ordered list of streams to search (e.g.,
+// ["feature/rebrand", "main", ""]). Entries from earlier streams in the chain
+// take priority — if a source text appears in multiple streams, the entry from
+// the most specific stream is returned.
+func (tm *SQLiteTM) SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
+	// Build the stream filter: include the given stream plus its ancestor chain.
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	placeholders := make([]string, len(streams))
+	var args []any
+	for i, s := range streams {
+		placeholders[i] = "?"
+		args = append(args, s)
+	}
+
+	where := "stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	if query != "" {
+		where += " AND (LOWER(source_plain) LIKE ? OR LOWER(target_coded) LIKE ?)"
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern)
+	}
+	if sourceLocale != "" {
+		where += " AND source_locale = ?"
+		args = append(args, sourceLocale)
+	}
+	if targetLocale != "" {
+		where += " AND target_locale = ?"
+		args = append(args, targetLocale)
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total)
+
+	// Build a CASE expression that assigns priority based on stream chain order.
+	// Lower priority number = more specific stream = takes precedence.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN ? THEN %d", i))
+		args = append(args, s)
+	}
+	caseExpr.WriteString(" ELSE ")
+	caseExpr.WriteString(fmt.Sprintf("%d", len(streams)))
+	caseExpr.WriteString(" END")
+
+	q := fmt.Sprintf(`SELECT id, project_id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s ORDER BY %s, updated_at DESC LIMIT ? OFFSET ?`, where, caseExpr.String())
 	args = append(args, limit, offset)
 	rows, err := tm.db.Query(q, args...)
 	if err != nil {

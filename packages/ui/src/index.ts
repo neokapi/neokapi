@@ -57,6 +57,16 @@ export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
+export { StreamBadge } from "./components/StreamBadge";
+export type { StreamBadgeProps } from "./components/StreamBadge";
+export { StreamSelector } from "./components/StreamSelector";
+export type { StreamSelectorProps } from "./components/StreamSelector";
+export { StreamCreateDialog } from "./components/StreamCreateDialog";
+export type { StreamCreateDialogProps } from "./components/StreamCreateDialog";
+export { StreamDiffView } from "./components/StreamDiffView";
+export type { StreamDiffViewProps } from "./components/StreamDiffView";
+export { StreamMergeDialog } from "./components/StreamMergeDialog";
+export type { StreamMergeDialogProps } from "./components/StreamMergeDialog";
 
 // Editor components
 export { HighlightedSource } from "./components/editor/HighlightedSource";
@@ -136,6 +146,7 @@ export type {
   AutomationRule, AutomationCondition, AutomationAction, AutomationEvent,
   SaveAutomationRuleRequest, AutomationHistoryEntry,
   EntityInfo, NotificationInfo,
+  StreamInfo, StreamVisibility, BlockChangeInfo, StreamDiffResult, StreamMergeResult,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

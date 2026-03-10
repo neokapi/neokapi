@@ -65,24 +65,74 @@ func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error
 	return nil
 }
 
-func (s *EventEmittingStore) StoreItem(ctx context.Context, projectID string, item *store.Item) error {
-	return s.inner.StoreItem(ctx, projectID, item)
+// --- Stream management ---
+
+func (s *EventEmittingStore) CreateStream(ctx context.Context, st *store.Stream) error {
+	return s.inner.CreateStream(ctx, st)
 }
 
-func (s *EventEmittingStore) GetItem(ctx context.Context, projectID, itemName string) (*store.Item, error) {
-	return s.inner.GetItem(ctx, projectID, itemName)
+func (s *EventEmittingStore) GetStream(ctx context.Context, projectID, name string) (*store.Stream, error) {
+	return s.inner.GetStream(ctx, projectID, name)
 }
 
-func (s *EventEmittingStore) ListItems(ctx context.Context, projectID string) ([]*store.Item, error) {
-	return s.inner.ListItems(ctx, projectID)
+func (s *EventEmittingStore) ListStreams(ctx context.Context, projectID string, includeArchived bool) ([]*store.Stream, error) {
+	return s.inner.ListStreams(ctx, projectID, includeArchived)
 }
 
-func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, itemName string) error {
-	return s.inner.DeleteItem(ctx, projectID, itemName)
+func (s *EventEmittingStore) UpdateStream(ctx context.Context, st *store.Stream) error {
+	return s.inner.UpdateStream(ctx, st)
 }
 
-func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
-	if err := s.inner.StoreBlocks(ctx, projectID, blocks); err != nil {
+func (s *EventEmittingStore) DeleteStream(ctx context.Context, projectID, name string) error {
+	return s.inner.DeleteStream(ctx, projectID, name)
+}
+
+// --- Stream operations ---
+
+func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamName string, opts store.MergeOptions) (*store.MergeResult, error) {
+	return s.inner.MergeStream(ctx, projectID, streamName, opts)
+}
+
+func (s *EventEmittingStore) DiffStream(ctx context.Context, projectID, streamName string) (*store.StreamDiff, error) {
+	return s.inner.DiffStream(ctx, projectID, streamName)
+}
+
+// --- Stream membership ---
+
+func (s *EventEmittingStore) AddStreamMember(ctx context.Context, projectID, streamName, userID string) error {
+	return s.inner.AddStreamMember(ctx, projectID, streamName, userID)
+}
+
+func (s *EventEmittingStore) RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error {
+	return s.inner.RemoveStreamMember(ctx, projectID, streamName, userID)
+}
+
+func (s *EventEmittingStore) ListStreamMembers(ctx context.Context, projectID, streamName string) ([]string, error) {
+	return s.inner.ListStreamMembers(ctx, projectID, streamName)
+}
+
+// --- Items (stream-scoped) ---
+
+func (s *EventEmittingStore) StoreItem(ctx context.Context, projectID, stream string, item *store.Item) error {
+	return s.inner.StoreItem(ctx, projectID, stream, item)
+}
+
+func (s *EventEmittingStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*store.Item, error) {
+	return s.inner.GetItem(ctx, projectID, stream, itemName)
+}
+
+func (s *EventEmittingStore) ListItems(ctx context.Context, projectID, stream string) ([]*store.Item, error) {
+	return s.inner.ListItems(ctx, projectID, stream)
+}
+
+func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
+	return s.inner.DeleteItem(ctx, projectID, stream, itemName)
+}
+
+// --- Blocks (stream-scoped) ---
+
+func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
+	if err := s.inner.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
 		return err
 	}
 	for _, b := range blocks {
@@ -96,8 +146,8 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID string, 
 	return nil
 }
 
-func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
-	if err := s.inner.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
+func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+	if err := s.inner.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
 		return err
 	}
 	for _, b := range blocks {
@@ -111,16 +161,16 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 	return nil
 }
 
-func (s *EventEmittingStore) GetBlock(ctx context.Context, projectID, blockID string) (*store.StoredBlock, error) {
-	return s.inner.GetBlock(ctx, projectID, blockID)
+func (s *EventEmittingStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*store.StoredBlock, error) {
+	return s.inner.GetBlock(ctx, projectID, stream, blockID)
 }
 
 func (s *EventEmittingStore) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*store.StoredBlock, error) {
 	return s.inner.GetBlocks(ctx, query)
 }
 
-func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, blockID string) error {
-	if err := s.inner.DeleteBlock(ctx, projectID, blockID); err != nil {
+func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
+	if err := s.inner.DeleteBlock(ctx, projectID, stream, blockID); err != nil {
 		return err
 	}
 	s.bus.Publish(platev.Event{
@@ -132,8 +182,10 @@ func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, blockID
 	return nil
 }
 
-func (s *EventEmittingStore) CreateVersion(ctx context.Context, projectID, label, description string) (*store.Version, error) {
-	v, err := s.inner.CreateVersion(ctx, projectID, label, description)
+// --- Versions (stream-scoped) ---
+
+func (s *EventEmittingStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*store.Version, error) {
+	v, err := s.inner.CreateVersion(ctx, projectID, stream, label, description)
 	if err != nil {
 		return nil, err
 	}
@@ -150,40 +202,46 @@ func (s *EventEmittingStore) GetVersion(ctx context.Context, versionID string) (
 	return s.inner.GetVersion(ctx, versionID)
 }
 
-func (s *EventEmittingStore) ListVersions(ctx context.Context, projectID string) ([]*store.Version, error) {
-	return s.inner.ListVersions(ctx, projectID)
+func (s *EventEmittingStore) ListVersions(ctx context.Context, projectID, stream string) ([]*store.Version, error) {
+	return s.inner.ListVersions(ctx, projectID, stream)
 }
 
 func (s *EventEmittingStore) Diff(ctx context.Context, from, to string) (*store.VersionDiff, error) {
 	return s.inner.Diff(ctx, from, to)
 }
 
-func (s *EventEmittingStore) AddBlockNote(ctx context.Context, projectID, blockID string, note model.BlockNote) error {
-	return s.inner.AddBlockNote(ctx, projectID, blockID, note)
+// --- Block notes (stream-scoped) ---
+
+func (s *EventEmittingStore) AddBlockNote(ctx context.Context, projectID, stream, blockID string, note model.BlockNote) error {
+	return s.inner.AddBlockNote(ctx, projectID, stream, blockID, note)
 }
 
-func (s *EventEmittingStore) ListBlockNotes(ctx context.Context, projectID, blockID string) ([]model.BlockNote, error) {
-	return s.inner.ListBlockNotes(ctx, projectID, blockID)
+func (s *EventEmittingStore) ListBlockNotes(ctx context.Context, projectID, stream, blockID string) ([]model.BlockNote, error) {
+	return s.inner.ListBlockNotes(ctx, projectID, stream, blockID)
 }
 
-func (s *EventEmittingStore) DeleteBlockNote(ctx context.Context, projectID, noteID string) error {
-	return s.inner.DeleteBlockNote(ctx, projectID, noteID)
+func (s *EventEmittingStore) DeleteBlockNote(ctx context.Context, projectID, stream, noteID string) error {
+	return s.inner.DeleteBlockNote(ctx, projectID, stream, noteID)
 }
 
-func (s *EventEmittingStore) GetBlockHistory(ctx context.Context, projectID, blockID string, locale string, limit int) ([]store.BlockHistoryEntry, error) {
-	return s.inner.GetBlockHistory(ctx, projectID, blockID, locale, limit)
+// --- Block history (stream-scoped) ---
+
+func (s *EventEmittingStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]store.BlockHistoryEntry, error) {
+	return s.inner.GetBlockHistory(ctx, projectID, stream, blockID, locale, limit)
 }
 
-func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
-	return s.inner.GetChanges(ctx, projectID, sinceCursor, locales, limit)
+// --- Change log (stream-scoped) ---
+
+func (s *EventEmittingStore) GetChanges(ctx context.Context, projectID, stream string, sinceCursor int64, locales []string, limit int) (*store.ChangeSet, error) {
+	return s.inner.GetChanges(ctx, projectID, stream, sinceCursor, locales, limit)
 }
 
-func (s *EventEmittingStore) LatestCursor(ctx context.Context, projectID string) (int64, error) {
-	return s.inner.LatestCursor(ctx, projectID)
+func (s *EventEmittingStore) LatestCursor(ctx context.Context, projectID, stream string) (int64, error) {
+	return s.inner.LatestCursor(ctx, projectID, stream)
 }
 
-func (s *EventEmittingStore) CompactChangeLog(ctx context.Context, projectID string, retainDays int) (int64, error) {
-	return s.inner.CompactChangeLog(ctx, projectID, retainDays)
+func (s *EventEmittingStore) CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error) {
+	return s.inner.CompactChangeLog(ctx, projectID, stream, retainDays)
 }
 
 func (s *EventEmittingStore) Close() error {

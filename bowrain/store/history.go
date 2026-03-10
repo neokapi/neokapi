@@ -15,7 +15,8 @@ import (
 const MaxHistoryEntries = 100
 
 // GetBlockHistory returns history entries for a block in a specific locale.
-func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
+func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, stream, blockID string, locale string, limit int) ([]platstore.BlockHistoryEntry, error) {
+	stream = defaultStream(stream)
 	if limit <= 0 || limit > MaxHistoryEntries {
 		limit = MaxHistoryEntries
 	}
@@ -23,10 +24,10 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, blockID st
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, change_type, text, coded_text, origin, author, created_at
 		 FROM block_history
-		 WHERE project_id = ? AND block_id = ? AND locale = ?
+		 WHERE project_id = ? AND stream = ? AND block_id = ? AND locale = ?
 		 ORDER BY id DESC
 		 LIMIT ?`,
-		projectID, blockID, locale, limit)
+		projectID, stream, blockID, locale, limit)
 	if err != nil {
 		return nil, fmt.Errorf("query block history: %w", err)
 	}
@@ -57,17 +58,17 @@ func (s *SQLiteStore) GetBlockHistory(ctx context.Context, projectID, blockID st
 }
 
 // recordBlockHistory inserts a history entry within a transaction.
-func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, blockID, locale, changeType, text, codedText, origin, author string) error {
+func recordBlockHistory(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, locale, changeType, text, codedText, origin, author string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO block_history (project_id, block_id, locale, change_type, text, coded_text, origin, author, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		projectID, blockID, locale, changeType, text, codedText, origin, author, now)
+		`INSERT INTO block_history (project_id, stream, block_id, locale, change_type, text, coded_text, origin, author, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		projectID, stream, blockID, locale, changeType, text, codedText, origin, author, now)
 	return err
 }
 
 // recordTargetHistory checks for target changes and records history entries.
-func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
+func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID, stream string, blockID string, oldTargets map[model.LocaleID][]*model.Segment, newTargets map[model.LocaleID][]*model.Segment) error {
 	for locale, newSegs := range newTargets {
 		newText := segmentsText(newSegs)
 		newCoded := segmentsCodedText(newSegs)
@@ -84,7 +85,7 @@ func recordTargetHistory(ctx context.Context, tx *sql.Tx, projectID string, bloc
 			changeType = "target_added"
 		}
 
-		if err := recordBlockHistory(ctx, tx, projectID, blockID, string(locale), changeType, newText, newCoded, "", ""); err != nil {
+		if err := recordBlockHistory(ctx, tx, projectID, stream, blockID, string(locale), changeType, newText, newCoded, "", ""); err != nil {
 			return fmt.Errorf("record history for block %s locale %s: %w", blockID, locale, err)
 		}
 	}

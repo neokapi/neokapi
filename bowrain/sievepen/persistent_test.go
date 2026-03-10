@@ -271,12 +271,68 @@ func TestSQLiteTM_InterfaceCompliance(t *testing.T) {
 	tm, err := sqltm.NewSQLiteTM(":memory:")
 	require.NoError(t, err)
 
-	// Verify it satisfies the TranslationMemory and EntryProvider interfaces.
+	// Verify it satisfies the TranslationMemory, EntryProvider, and TMStore interfaces.
 	var _ sievepen.TranslationMemory = tm
 	var _ sievepen.EntryProvider = tm
+	var _ sqltm.TMStore = tm
 
 	err = tm.Close()
 	assert.NoError(t, err)
+}
+
+func TestSQLiteTM_AddWithStream(t *testing.T) {
+	tm, err := sqltm.NewSQLiteTM(":memory:")
+	require.NoError(t, err)
+	defer tm.Close()
+
+	// Add entries on different streams.
+	mainEntry := sievepen.TMEntry{
+		ID:           "main-1",
+		Source:       model.NewFragment("Hello world"),
+		Target:       model.NewFragment("Hallo Welt"),
+		SourceLocale: "en-US",
+		TargetLocale: "de-DE",
+	}
+	require.NoError(t, tm.AddWithStream(mainEntry, "main"))
+
+	featureEntry := sievepen.TMEntry{
+		ID:           "feat-1",
+		Source:       model.NewFragment("Hello world"),
+		Target:       model.NewFragment("Hallo Welt (Rebrand)"),
+		SourceLocale: "en-US",
+		TargetLocale: "de-DE",
+	}
+	require.NoError(t, tm.AddWithStream(featureEntry, "feature/rebrand"))
+
+	workspaceEntry := sievepen.TMEntry{
+		ID:           "ws-1",
+		Source:       model.NewFragment("Goodbye"),
+		Target:       model.NewFragment("Auf Wiedersehen"),
+		SourceLocale: "en-US",
+		TargetLocale: "de-DE",
+	}
+	require.NoError(t, tm.Add(workspaceEntry)) // default empty stream
+
+	// SearchEntriesForStream with stream chain inheritance.
+	entries, total := tm.SearchEntriesForStream("", "en-US", "de-DE",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 3, total)
+	assert.Len(t, entries, 3)
+	// Feature stream entries should come first (priority 0).
+	assert.Equal(t, "feat-1", entries[0].ID)
+
+	// Search only workspace stream.
+	entries, total = tm.SearchEntriesForStream("", "en-US", "de-DE", "", nil, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "ws-1", entries[0].ID)
+
+	// Search with text filter.
+	entries, total = tm.SearchEntriesForStream("goodbye", "en-US", "de-DE",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, entries, 1)
+	assert.Equal(t, "ws-1", entries[0].ID)
 }
 
 func TestSQLiteTM_BlockLookup(t *testing.T) {

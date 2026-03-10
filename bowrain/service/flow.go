@@ -48,7 +48,7 @@ func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*fl
 	if projectID != "" && s.store != nil {
 		for _, item := range items {
 			if len(item.OutputBlocks) > 0 {
-				if err := s.store.StoreBlocks(ctx, projectID, item.OutputBlocks); err != nil {
+				if err := s.store.StoreBlocks(ctx, projectID, "main", item.OutputBlocks); err != nil {
 					return fmt.Errorf("persist flow output blocks: %w", err)
 				}
 			}

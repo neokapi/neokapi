@@ -208,8 +208,8 @@ func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatu
 
 	// Check remote changes by querying the server.
 	pendingPull := 0
-	if c.cache.SyncCursor > 0 {
-		resp, err := c.client.Pull(ctx, c.cache.SyncCursor, nil, 1)
+	if c.cache.GetStreamCursor(c.stream) > 0 {
+		resp, err := c.client.Pull(ctx, c.cache.GetStreamCursor(c.stream), nil, 1)
 		if err == nil && len(resp.Changes) > 0 {
 			pendingPull = len(resp.Changes)
 			if resp.HasMore {
@@ -332,7 +332,7 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 			fc.Blocks[blockID] = hash
 		}
 	}
-	c.cache.SyncCursor = lastCursor
+	c.cache.SetStreamCursor(c.stream, lastCursor)
 	c.cache.LastSync = time.Now().UTC()
 	c.cache.ServerURL = c.project.Config.ServerURL()
 	c.cache.ProjectID = c.project.Config.ProjectID()
@@ -368,7 +368,7 @@ func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOpti
 		locales[i] = string(l)
 	}
 
-	cursor := c.cache.SyncCursor
+	cursor := c.cache.GetStreamCursor(c.stream)
 	if opts.Force {
 		cursor = 0
 	}
@@ -462,7 +462,7 @@ func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOpti
 	}
 
 	// Update cursor.
-	c.cache.SyncCursor = cursor
+	c.cache.SetStreamCursor(c.stream, cursor)
 	c.cache.LastSync = time.Now().UTC()
 	if err := c.cache.Save(c.project.ConfigDir); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)

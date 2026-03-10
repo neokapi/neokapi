@@ -152,5 +152,64 @@ func TestSQLiteTermBase_InterfaceCompliance(t *testing.T) {
 	require.NoError(t, err)
 
 	var _ termbase.TermBase = tb
+	var _ sqltb.TBStore = tb
 	assert.NoError(t, tb.Close())
+}
+
+func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
+	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	// Add concepts on different streams.
+	mainConcept := termbase.Concept{
+		ID:     "c-main",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "File", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Datei", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConceptWithStream(mainConcept, "main"))
+
+	featureConcept := termbase.Concept{
+		ID:     "c-feat",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Document", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Dokument", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConceptWithStream(featureConcept, "feature/rebrand"))
+
+	wsConcept := termbase.Concept{
+		ID:     "c-ws",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Speichern", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConcept(wsConcept)) // default empty stream
+
+	// SearchForStream with stream chain inheritance.
+	concepts, total := tb.SearchForStream("", "", "",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 3, total)
+	assert.Len(t, concepts, 3)
+	// Feature stream concepts should come first (priority 0).
+	assert.Equal(t, "c-feat", concepts[0].ID)
+
+	// Search only workspace stream.
+	concepts, total = tb.SearchForStream("", "", "", "", nil, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "c-ws", concepts[0].ID)
+
+	// Search with text filter.
+	concepts, total = tb.SearchForStream("save", "", "",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "c-ws", concepts[0].ID)
 }

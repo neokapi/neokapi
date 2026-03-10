@@ -62,10 +62,21 @@ var tbMigrationsPg = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_ws_text ON tb_terms(workspace_id, text_lower, locale);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add stream column to concepts",
+		SQL: `ALTER TABLE tb_concepts ADD COLUMN stream TEXT NOT NULL DEFAULT '';
+		CREATE INDEX IF NOT EXISTS idx_tb_concepts_ws_stream ON tb_concepts(workspace_id, stream);`,
+	},
 }
 
-// AddConcept inserts or updates a concept with all its terms.
+// AddConcept inserts or updates a concept with all its terms using an empty stream.
 func (tb *PostgresTermBase) AddConcept(concept fw.Concept) error {
+	return tb.AddConceptWithStream(concept, "")
+}
+
+// AddConceptWithStream inserts or updates a concept associated with a stream.
+func (tb *PostgresTermBase) AddConceptWithStream(concept fw.Concept, stream string) error {
 	if concept.ID == "" {
 		return fmt.Errorf("concept ID is required")
 	}
@@ -90,14 +101,15 @@ func (tb *PostgresTermBase) AddConcept(concept fw.Concept) error {
 	defer func() { _ = tx.Rollback() }()
 
 	_, err = tx.Exec(`
-		INSERT INTO tb_concepts (id, workspace_id, domain, definition, properties, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO tb_concepts (id, workspace_id, stream, domain, definition, properties, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (workspace_id, id) DO UPDATE SET
+			stream = EXCLUDED.stream,
 			domain = EXCLUDED.domain,
 			definition = EXCLUDED.definition,
 			properties = EXCLUDED.properties,
 			updated_at = EXCLUDED.updated_at
-	`, concept.ID, tb.workspaceID, concept.Domain, concept.Definition,
+	`, concept.ID, tb.workspaceID, stream, concept.Domain, concept.Definition,
 		nullableString(propsJSON),
 		concept.CreatedAt, concept.UpdatedAt)
 	if err != nil {
@@ -262,6 +274,86 @@ func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, off
 	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
 
 	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY c.updated_at DESC LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tb.db.Query(q, args...)
+	if err != nil {
+		return nil, total
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	var concepts []fw.Concept
+	for _, id := range ids {
+		if c, err := tb.scanConcept(id); err == nil {
+			concepts = append(concepts, c)
+		}
+	}
+	return concepts, total
+}
+
+// SearchForStream performs a case-insensitive text search with stream inheritance.
+// The streamChain is an ordered list of ancestor streams to search.
+// Concepts from earlier streams take priority.
+func (tb *PostgresTermBase) SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	where := "c.workspace_id = $1"
+	args := []any{tb.workspaceID}
+	argN := 2
+
+	// Stream filter.
+	placeholders := make([]string, len(streams))
+	for i, s := range streams {
+		placeholders[i] = fmt.Sprintf("$%d", argN)
+		args = append(args, s)
+		argN++
+	}
+	where += " AND c.stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	if query != "" {
+		where += fmt.Sprintf(` AND (LOWER(c.definition) LIKE $%d OR LOWER(c.domain) LIKE $%d
+			OR c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND text_lower LIKE $%d))`, argN, argN+1, argN+2)
+		pattern := "%" + strings.ToLower(query) + "%"
+		args = append(args, pattern, pattern, pattern)
+		argN += 3
+	}
+
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	_ = tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total)
+
+	// Build CASE expression for stream priority ordering.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE c.stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
+		args = append(args, s)
+		argN++
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
 	args = append(args, limit, offset)
 	rows, err := tb.db.Query(q, args...)
 	if err != nil {

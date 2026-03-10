@@ -117,6 +117,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 
 	storedBlocks, err := deps.ContentStore.GetBlocks(ctx, bstore.BlockQuery{
 		ProjectID: job.ProjectID,
+		Stream:    "main",
 		ItemName:  job.ItemName,
 	})
 	if err != nil {
@@ -200,7 +201,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 	if err == nil {
 		blocks := partsToBlocks(outParts)
 		if len(blocks) > 0 {
-			if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, job.ItemName, blocks); storeErr != nil {
+			if storeErr := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, "main", job.ItemName, blocks); storeErr != nil {
 				log.Printf("warning: store annotated blocks: %v", storeErr)
 			}
 		}

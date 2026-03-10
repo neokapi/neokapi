@@ -56,6 +56,7 @@ type StoredBlock struct {
 // BlockQuery filters blocks when listing or searching.
 type BlockQuery struct {
 	ProjectID     string
+	Stream        string          // Stream name (empty defaults to "main")
 	ItemName      string          // Filter by item name
 	IDs           []string        // Filter by block IDs
 	ContentHash   string          // Filter by content hash
@@ -104,17 +105,51 @@ type BlockChange struct {
 // Streams
 // ---------------------------------------------------------------------------
 
+// StreamVisibility controls who can see and access a stream.
+type StreamVisibility string
+
+const (
+	StreamPublic  StreamVisibility = "public"  // visible to all workspace members
+	StreamPrivate StreamVisibility = "private" // visible only to creator
+	StreamShared  StreamVisibility = "shared"  // visible to creator + explicit members
+)
+
 // Stream represents a named branch of content within a project.
 // Every project has an implicit "main" stream. Additional streams branch
 // from a parent stream at a specific cursor position (copy-on-write).
 type Stream struct {
-	ProjectID  string    `json:"project_id"`
-	Name       string    `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
-	Parent     string    `json:"parent"`       // parent stream name; empty for "main"
-	BaseCursor int64     `json:"base_cursor"`  // cursor in parent at branch point
-	Archived   bool      `json:"archived"`
-	CreatedAt  time.Time `json:"created_at"`
-	CreatedBy  string    `json:"created_by"`
+	ProjectID   string           `json:"project_id"`
+	Name        string           `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
+	Parent      string           `json:"parent"`       // parent stream name; empty for "main"
+	BaseCursor  int64            `json:"base_cursor"`  // cursor in parent at branch point
+	Archived    bool             `json:"archived"`
+	Visibility  StreamVisibility `json:"visibility"`   // "public", "private", "shared"
+	Description string           `json:"description"`  // human-readable purpose
+	SharedWith  []string         `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
+	CreatedAt   time.Time        `json:"created_at"`
+	CreatedBy   string           `json:"created_by"`
+}
+
+// MergeOptions controls stream merge behavior.
+type MergeOptions struct {
+	// DryRun when true returns the diff without applying changes.
+	DryRun bool
+}
+
+// MergeResult describes the outcome of a stream merge.
+type MergeResult struct {
+	MergedBlocks  int           `json:"merged_blocks"`
+	AddedBlocks   int           `json:"added_blocks"`
+	ModifiedBlocks int          `json:"modified_blocks"`
+	RemovedBlocks int           `json:"removed_blocks"`
+	Changes       []BlockChange `json:"changes,omitempty"`
+}
+
+// StreamDiff describes the differences between a stream and its parent.
+type StreamDiff struct {
+	StreamName string        `json:"stream_name"`
+	ParentName string        `json:"parent_name"`
+	Changes    []BlockChange `json:"changes"`
 }
 
 // ---------------------------------------------------------------------------

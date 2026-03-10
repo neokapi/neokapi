@@ -77,6 +77,45 @@ export interface ClaimProjectResponse {
   workspace_slug: string;
 }
 
+/** Stream visibility */
+export type StreamVisibility = "public" | "private" | "shared";
+
+/** Stream info */
+export interface StreamInfo {
+  name: string;
+  parent: string;
+  base_cursor: number;
+  archived: boolean;
+  visibility: StreamVisibility;
+  description: string;
+  created_at: string;
+  created_by: string;
+  shared_with?: string[];
+}
+
+/** Stream diff block change */
+export interface BlockChangeInfo {
+  block_id: string;
+  change_type: "added" | "modified" | "removed";
+  old_hash: string;
+  new_hash: string;
+}
+
+/** Stream diff result */
+export interface StreamDiffResult {
+  stream_name: string;
+  parent_name: string;
+  changes: BlockChangeInfo[];
+}
+
+/** Stream merge result */
+export interface StreamMergeResult {
+  merged_blocks: number;
+  added_blocks: number;
+  modified_blocks: number;
+  removed_blocks: number;
+}
+
 /** Project info */
 export interface ProjectInfo {
   id: string;
@@ -86,6 +125,8 @@ export interface ProjectInfo {
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];
+  streams?: StreamInfo[];
+  active_stream?: string;
   created_at: string;
   modified_at: string;
 }
@@ -180,6 +221,7 @@ export interface UpdateBlockRequest {
   block_id: string;
   target_locale: string;
   text: string;
+  stream?: string;
 }
 
 /** Update block target with coded text and spans */
@@ -190,6 +232,7 @@ export interface UpdateBlockTargetCodedRequest {
   target_locale: string;
   coded_text: string;
   spans: SpanInfo[];
+  stream?: string;
 }
 
 /** AI translate file request */
@@ -248,6 +291,7 @@ export interface TMEntryInfo {
   source_locale: string;
   target_locale: string;
   project_id?: string;
+  stream?: string;
   updated_at: string;
 }
 
@@ -274,6 +318,7 @@ export interface TMMatchInfo {
   score: number;
   match_type: string;
   project_id?: string;
+  stream?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -294,6 +339,7 @@ export interface TermInfo {
 export interface ConceptInfo {
   id: string;
   project_id?: string;
+  stream?: string;
   domain: string;
   definition: string;
   terms: TermInfo[];
@@ -334,6 +380,7 @@ export interface BlockTermMatch {
   start: number;
   end: number;
   project_id?: string;
+  stream?: string;
 }
 
 /** Term enforcement result */

@@ -254,7 +254,7 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 		return
 	}
 
-	items, err := s.ContentStore.ListItems(ctx, projectID)
+	items, err := s.ContentStore.ListItems(ctx, projectID, "main")
 	if err != nil {
 		log.Printf("auto-translate-new-locale: failed to list items for %s: %v", projectID, err)
 		return

@@ -103,7 +103,7 @@ func (a *App) FetchContent(connectorID, projectID string) ([]ContentItemInfo, er
 	if a.store != nil && projectID != "" {
 		for _, item := range items {
 			if len(item.Blocks) > 0 {
-				if err := a.store.StoreBlocks(ctx, projectID, item.Blocks); err != nil {
+				if err := a.store.StoreBlocks(ctx, projectID, "main", item.Blocks); err != nil {
 					return nil, fmt.Errorf("store blocks: %w", err)
 				}
 			}
@@ -133,7 +133,7 @@ func (a *App) PublishContent(connectorID, projectID string) error {
 	}
 
 	ctx := context.Background()
-	blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID})
+	blocks, err := a.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main"})
 	if err != nil {
 		return fmt.Errorf("get blocks: %w", err)
 	}
@@ -241,10 +241,10 @@ func (a *App) ListStoreProjects() ([]*store.Project, error) {
 
 // CreateStoreVersion creates a version snapshot in the content store.
 func (a *App) CreateStoreVersion(projectID, label, description string) (*store.Version, error) {
-	return a.store.CreateVersion(context.Background(), projectID, label, description)
+	return a.store.CreateVersion(context.Background(), projectID, "main", label, description)
 }
 
 // ListStoreVersions lists versions for a project.
 func (a *App) ListStoreVersions(projectID string) ([]*store.Version, error) {
-	return a.store.ListVersions(context.Background(), projectID)
+	return a.store.ListVersions(context.Background(), projectID, "main")
 }
