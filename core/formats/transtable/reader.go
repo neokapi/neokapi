@@ -2,8 +2,10 @@ package transtable
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -14,8 +16,13 @@ import (
 // Translation tables are tab-separated key-value pairs, one per line.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new translation table reader.
 func NewReader() *Reader {
@@ -30,6 +37,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -77,18 +89,36 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	scanner := bufio.NewScanner(r.Doc.Reader)
+	br := bufio.NewReader(r.Doc.Reader)
 	blockID := 0
 	dataID := 0
 	lineNum := 0
 
-	for scanner.Scan() {
+	for {
+		rawLine, err := br.ReadString('\n')
+		if rawLine == "" && err != nil {
+			if err != io.EOF {
+				ch <- model.PartResult{Error: fmt.Errorf("transtable: reading: %w", err)}
+			}
+			break
+		}
+
 		lineNum++
-		line := scanner.Text()
-		line = strings.TrimRight(line, "\r")
+
+		// Split into content and line ending
+		content := rawLine
+		lineEnding := ""
+		if strings.HasSuffix(content, "\r\n") {
+			content = content[:len(content)-2]
+			lineEnding = "\r\n"
+		} else if strings.HasSuffix(content, "\n") {
+			content = content[:len(content)-1]
+			lineEnding = "\n"
+		}
 
 		// Empty lines are Data
-		if strings.TrimSpace(line) == "" {
+		if strings.TrimSpace(content) == "" {
+			r.skelText(lineEnding)
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
@@ -97,27 +127,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
 			}
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 
 		// Comment lines (starting with #) are Data
-		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+		if strings.HasPrefix(strings.TrimSpace(content), "#") {
+			r.skelText(content)
+			r.skelText(lineEnding)
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
 				Name: fmt.Sprintf("comment.%d", lineNum),
 				Properties: map[string]string{
-					"comment": line,
+					"comment": content,
 				},
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
 				return
 			}
+			if err == io.EOF {
+				break
+			}
 			continue
 		}
 
 		// Tab-separated key-value pair
-		parts := strings.SplitN(line, "\t", 2)
+		parts := strings.SplitN(content, "\t", 2)
 		key := parts[0]
 		value := ""
 		if len(parts) == 2 {
@@ -125,6 +163,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		blockID++
+		// Skeleton: key+tab is text, value is the ref
+		r.skelText(key + "\t")
+		r.skelRef(key)
+		r.skelText(lineEnding)
+
 		block := model.NewBlock(key, value)
 		block.Name = key
 		block.Properties["key"] = key
@@ -132,14 +175,41 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
+
+		if err == io.EOF {
+			break
+		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("transtable: reading: %w", err)}
-		return
-	}
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

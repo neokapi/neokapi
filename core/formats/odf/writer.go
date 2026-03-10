@@ -16,10 +16,12 @@ import (
 // Writer implements DataFormatWriter for ODF files.
 type Writer struct {
 	format.BaseFormatWriter
+	skeletonStore   *format.SkeletonStore
 	originalContent []byte
 }
 
 var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new ODF writer.
 func NewWriter() *Writer {
@@ -28,6 +30,11 @@ func NewWriter() *Writer {
 			FormatName: "odf",
 		},
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming reconstruction.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
 }
 
 // SetOriginalContent sets the original document bytes for reconstruction.
@@ -61,7 +68,133 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	var buf bytes.Buffer
 	zw := zip.NewWriter(&buf)
 
-	// Process each entry
+	// If we have a skeleton store, use skeleton-based reconstruction
+	if w.skeletonStore != nil {
+		if err := w.skeletonStore.Flush(); err != nil {
+			return fmt.Errorf("odf: skeleton flush: %w", err)
+		}
+		if err := w.writeFromSkeleton(origZR, zw, blocks); err != nil {
+			return err
+		}
+		if err := zw.Close(); err != nil {
+			return err
+		}
+		_, err = w.Output.Write(buf.Bytes())
+		return err
+	}
+
+	// Fallback: reparse-based reconstruction
+	if err := w.writeFromReparse(origZR, zw, blocks); err != nil {
+		return err
+	}
+	if err := zw.Close(); err != nil {
+		return err
+	}
+	_, err = w.Output.Write(buf.Bytes())
+	return err
+}
+
+// writeFromSkeleton reconstructs translatable XML parts using the skeleton store.
+func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
+	blocks map[string]*model.Block) error {
+
+	// Read all skeleton entries, splitting by part-boundary markers
+	partContents := make(map[string][]byte)
+	var currentPart string
+	var currentBuf bytes.Buffer
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("odf: reading skeleton: %w", err)
+		}
+
+		switch entry.Type {
+		case format.SkeletonText:
+			if currentPart != "" {
+				currentBuf.Write(entry.Data)
+			}
+
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+
+			// Check for part-boundary markers
+			if strings.HasPrefix(refID, skelPartStartPrefix) {
+				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
+				currentBuf.Reset()
+				continue
+			}
+			if strings.HasPrefix(refID, skelPartEndPrefix) {
+				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
+				if currentBuf.Len() > 0 {
+					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
+				}
+				currentPart = ""
+				currentBuf.Reset()
+				continue
+			}
+
+			// Regular block ref — render translated text
+			if currentPart != "" {
+				if block, ok := blocks[refID]; ok {
+					currentBuf.WriteString(w.getBlockText(block))
+				}
+			}
+		}
+	}
+
+	// Write output ZIP: replace translatable parts with skeleton-reconstructed content
+	for _, f := range origZR.File {
+		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
+			fh := f.FileHeader
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(content); err != nil {
+				return err
+			}
+		} else if f.Name == "mimetype" {
+			// mimetype must be stored uncompressed (ODF spec requirement)
+			origData, err := readZipFile(f)
+			if err != nil {
+				return err
+			}
+			fh := f.FileHeader
+			fh.Method = zip.Store
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(origData); err != nil {
+				return err
+			}
+		} else {
+			// Copy unchanged
+			if err := zw.Copy(f); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// writeFromReparse copies the original ZIP, replacing translatable content
+// in content.xml and styles.xml using XML reparse (fallback without skeleton).
+func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
+	blocks map[string]*model.Block) error {
+
 	for _, f := range origZR.File {
 		if f.Name == "content.xml" || f.Name == "styles.xml" {
 			// Replace translatable content in XML files
@@ -113,12 +246,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		}
 	}
 
-	if err := zw.Close(); err != nil {
-		return err
-	}
-
-	_, err = w.Output.Write(buf.Bytes())
-	return err
+	return nil
 }
 
 // replaceContent replaces translatable text in an ODF XML document.

@@ -14,8 +14,12 @@ import (
 // Writer implements DataFormatWriter for Adobe InCopy ICML files.
 type Writer struct {
 	format.BaseFormatWriter
-	docContent string // original document content for skeleton-based reconstruction
+	skeletonStore *format.SkeletonStore
+	docContent    string // original document content for legacy reconstruction
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new ICML writer.
 func NewWriter() *Writer {
@@ -26,8 +30,17 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed ICML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeletonStore(ctx, parts)
+	}
+
 	var blocks []*model.Block
 	for {
 		select {
@@ -51,6 +64,61 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeWithSkeletonStore collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeletonStore(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("icml writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeletonStore(blocksByID)
+}
+
+// writeFromSkeletonStore reads skeleton entries and fills in block content.
+// This produces byte-exact output -- only translated text differs from the original.
+func (w *Writer) writeFromSkeletonStore(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("icml writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			if block, ok := blocks[refID]; ok {
+				text := w.blockText(block)
+				if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // writeOutput reconstructs the ICML document, replacing Content text
@@ -312,6 +380,13 @@ func (w *Writer) writeMinimalICML(blocks []*model.Block) error {
 
 	_, err := io.WriteString(w.Output, sb.String())
 	return err
+}
+
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.SourceText()
 }
 
 // xmlEscape escapes special XML characters.

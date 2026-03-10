@@ -2,8 +2,10 @@ package phpcontent
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -14,8 +16,13 @@ import (
 // Reader implements DataFormatReader for PHP content files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new PHP content reader.
 func NewReader() *Reader {
@@ -30,6 +37,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -85,6 +97,8 @@ type token struct {
 	quoteType byte   // '"' or '\'' or 'h' (heredoc) or 'n' (nowdoc)
 	arrayKey  string // for tokArrayIndex: the key
 	directive string // for skip/text directives
+	startPos  int    // start position in raw content
+	endPos    int    // end position in raw content
 }
 
 // inlineCode represents a matched inline code within a string.
@@ -124,12 +138,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	content := r.readAll()
 	tokens := r.tokenize(content)
-	r.emitParts(ctx, ch, tokens)
+	r.emitParts(ctx, ch, tokens, content)
+
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 func (r *Reader) readAll() string {
+	if r.skeletonStore != nil {
+		// Read raw bytes to preserve exact line endings for skeleton
+		data, err := io.ReadAll(r.Doc.Reader)
+		if err != nil {
+			return ""
+		}
+		return string(data)
+	}
 	scanner := bufio.NewScanner(r.Doc.Reader)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	var buf strings.Builder
@@ -150,18 +174,24 @@ func (r *Reader) tokenize(content string) []token {
 	i := 0
 	n := len(content)
 	var codeBuf strings.Builder
+	codeStart := 0
 
 	flushCode := func() {
 		if codeBuf.Len() > 0 {
-			tokens = append(tokens, token{typ: tokCode, value: codeBuf.String()})
+			tokens = append(tokens, token{typ: tokCode, value: codeBuf.String(), startPos: codeStart, endPos: i})
 			codeBuf.Reset()
 		}
+		codeStart = i
 	}
 
 	for i < n {
+		if codeBuf.Len() == 0 {
+			codeStart = i
+		}
 		// Check for comments
 		if i+1 < n && content[i] == '/' && content[i+1] == '/' {
 			flushCode()
+			start := i
 			end := strings.Index(content[i:], "\n")
 			var comment string
 			if end < 0 {
@@ -171,7 +201,7 @@ func (r *Reader) tokenize(content string) []token {
 				comment = content[i : i+end]
 				i = i + end
 			}
-			tok := token{typ: tokComment, value: comment}
+			tok := token{typ: tokComment, value: comment, startPos: start, endPos: i}
 			// Check for directives
 			tok.directive = r.extractDirective(comment)
 			tokens = append(tokens, tok)
@@ -179,6 +209,7 @@ func (r *Reader) tokenize(content string) []token {
 		}
 		if i+1 < n && content[i] == '/' && content[i+1] == '*' {
 			flushCode()
+			start := i
 			end := strings.Index(content[i+2:], "*/")
 			var comment string
 			if end < 0 {
@@ -188,13 +219,14 @@ func (r *Reader) tokenize(content string) []token {
 				comment = content[i : i+2+end+2]
 				i = i + 2 + end + 2
 			}
-			tok := token{typ: tokComment, value: comment}
+			tok := token{typ: tokComment, value: comment, startPos: start, endPos: i}
 			tok.directive = r.extractDirective(comment)
 			tokens = append(tokens, tok)
 			continue
 		}
 		if i+1 < n && content[i] == '#' && content[i+1] != '[' {
 			flushCode()
+			start := i
 			end := strings.Index(content[i:], "\n")
 			var comment string
 			if end < 0 {
@@ -204,7 +236,7 @@ func (r *Reader) tokenize(content string) []token {
 				comment = content[i : i+end]
 				i = i + end
 			}
-			tok := token{typ: tokComment, value: comment}
+			tok := token{typ: tokComment, value: comment, startPos: start, endPos: i}
 			tok.directive = r.extractDirective(comment)
 			tokens = append(tokens, tok)
 			continue
@@ -213,7 +245,10 @@ func (r *Reader) tokenize(content string) []token {
 		// Check for heredoc/nowdoc
 		if i+2 < n && content[i] == '<' && content[i+1] == '<' && content[i+2] == '<' {
 			flushCode()
+			start := i
 			tok, adv := r.parseHeredoc(content[i:])
+			tok.startPos = start
+			tok.endPos = start + adv
 			tokens = append(tokens, tok)
 			i += adv
 			continue
@@ -222,7 +257,10 @@ func (r *Reader) tokenize(content string) []token {
 		// Check for single-quoted strings
 		if content[i] == '\'' {
 			flushCode()
+			start := i
 			tok, adv := r.parseSingleQuoted(content[i:])
+			tok.startPos = start
+			tok.endPos = start + adv
 			tokens = append(tokens, tok)
 			i += adv
 			continue
@@ -231,7 +269,10 @@ func (r *Reader) tokenize(content string) []token {
 		// Check for double-quoted strings
 		if content[i] == '"' {
 			flushCode()
+			start := i
 			tok, adv := r.parseDoubleQuoted(content[i:])
+			tok.startPos = start
+			tok.endPos = start + adv
 			tokens = append(tokens, tok)
 			i += adv
 			continue
@@ -240,7 +281,7 @@ func (r *Reader) tokenize(content string) []token {
 		// Check for concatenation operator
 		if content[i] == '.' && (i+1 >= n || content[i+1] != '.' && content[i+1] != '=') {
 			flushCode()
-			tokens = append(tokens, token{typ: tokConcat, value: "."})
+			tokens = append(tokens, token{typ: tokConcat, value: ".", startPos: i, endPos: i + 1})
 			i++
 			continue
 		}
@@ -249,7 +290,7 @@ func (r *Reader) tokenize(content string) []token {
 		if content[i] == '[' {
 			if key, adv, ok := r.parseArrayIndex(content[i:]); ok {
 				flushCode()
-				tokens = append(tokens, token{typ: tokArrayIndex, arrayKey: key, value: content[i : i+adv]})
+				tokens = append(tokens, token{typ: tokArrayIndex, arrayKey: key, value: content[i : i+adv], startPos: i, endPos: i + adv})
 				i += adv
 				continue
 			}
@@ -472,7 +513,7 @@ func (r *Reader) extractDirective(comment string) string {
 }
 
 // emitParts processes the token stream and emits Parts.
-func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, tokens []token) {
+func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, tokens []token, content string) {
 	blockCounter := 0
 	dataCounter := 0
 	skipMode := false
@@ -491,6 +532,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				skipMode = false
 			} else if strings.Contains(lower, "_skip_") {
 				// Skip next string
+				r.skelText(content[tok.startPos:tok.endPos])
 				dataCounter++
 				if !r.emit(ctx, ch, &model.Part{
 					Type:     model.PartData,
@@ -499,8 +541,12 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 					return
 				}
 				i++
-				// Skip the next string token(s)
-				i = r.skipNextString(tokens, i)
+				// Skip the next string token(s) — write their raw content as skeleton text
+				nextI := r.skipNextString(tokens, i)
+				for k := i; k < nextI; k++ {
+					r.skelText(content[tokens[k].startPos:tokens[k].endPos])
+				}
+				i = nextI
 				continue
 			}
 			// _btext_ just continues normal extraction mode (no special handling needed)
@@ -508,6 +554,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 		// Handle comments as Data
 		if tok.typ == tokComment {
+			r.skelText(content[tok.startPos:tok.endPos])
 			dataCounter++
 			if !r.emit(ctx, ch, &model.Part{
 				Type:     model.PartData,
@@ -521,6 +568,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 		// Handle code as Data
 		if tok.typ == tokCode {
+			r.skelText(content[tok.startPos:tok.endPos])
 			dataCounter++
 			if !r.emit(ctx, ch, &model.Part{
 				Type:     model.PartData,
@@ -534,6 +582,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 		// Handle array index
 		if tok.typ == tokArrayIndex {
+			r.skelText(content[tok.startPos:tok.endPos])
 			lastArrayKey = tok.arrayKey
 			dataCounter++
 			if !r.emit(ctx, ch, &model.Part{
@@ -548,6 +597,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 		// Handle concatenation operator
 		if tok.typ == tokConcat {
+			r.skelText(content[tok.startPos:tok.endPos])
 			i++
 			continue
 		}
@@ -555,6 +605,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		// Handle string (possibly concatenated)
 		if tok.typ == tokString {
 			if skipMode {
+				r.skelText(content[tok.startPos:tok.endPos])
 				dataCounter++
 				if !r.emit(ctx, ch, &model.Part{
 					Type:     model.PartData,
@@ -597,6 +648,10 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 			// Skip empty or whitespace-only strings
 			if strings.TrimSpace(text) == "" {
+				// Write the raw content of all skipped tokens as skeleton text
+				for k := i; k < j; k++ {
+					r.skelText(content[tokens[k].startPos:tokens[k].endPos])
+				}
 				i = j
 				lastArrayKey = ""
 				continue
@@ -606,6 +661,37 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			blockID := fmt.Sprintf("tu%d", blockCounter)
 			if lastArrayKey != "" {
 				blockID = lastArrayKey
+			}
+
+			// For skeleton: write the entire raw expression (with quotes, concat)
+			// as: prefix text, ref, suffix text.
+			// For single string: quote + ref + quote
+			// For concatenated strings: first-quote + ref + last-quote (intermediate structure is lost in translation)
+			if r.skeletonStore != nil {
+				firstTok := parts[0]
+				lastTok := parts[len(parts)-1]
+				// Write any tokens between i and first string that are not the string itself
+				// (whitespace-only code tokens and concat operators before the first string part)
+				for k := i; k < j; k++ {
+					tkn := tokens[k]
+					if tkn.startPos == firstTok.startPos {
+						break
+					}
+					r.skelText(content[tkn.startPos:tkn.endPos])
+				}
+				// Write the opening quote/delimiter as skeleton text
+				r.skelTextStringPrefix(content, firstTok)
+				// Write the block reference
+				r.skelRef(blockID)
+				// Write the closing quote/delimiter as skeleton text
+				r.skelTextStringSuffix(content, lastTok)
+				// Write any tokens after the last string part
+				for k := i; k < j; k++ {
+					tkn := tokens[k]
+					if tkn.startPos > lastTok.startPos {
+						r.skelText(content[tkn.startPos:tkn.endPos])
+					}
+				}
 			}
 
 			block := &model.Block{
@@ -787,6 +873,76 @@ func isWhitespaceOnly(s string) bool {
 		}
 	}
 	return true
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
+}
+
+// skelTextStringPrefix writes the opening quote/delimiter of a string token as skeleton text.
+func (r *Reader) skelTextStringPrefix(content string, tok token) {
+	switch tok.quoteType {
+	case '\'':
+		r.skelText("'")
+	case '"':
+		r.skelText("\"")
+	case 'h', 'n':
+		// Heredoc/nowdoc: everything from <<< to the first newline after the label.
+		// The value starts after that newline.
+		raw := content[tok.startPos:tok.endPos]
+		idx := strings.Index(raw, "\n")
+		if idx >= 0 {
+			r.skelText(raw[:idx+1])
+		}
+	}
+}
+
+// skelTextStringSuffix writes the closing quote/delimiter of a string token as skeleton text.
+func (r *Reader) skelTextStringSuffix(content string, tok token) {
+	switch tok.quoteType {
+	case '\'':
+		r.skelText("'")
+	case '"':
+		r.skelText("\"")
+	case 'h', 'n':
+		// Heredoc/nowdoc: we need everything after the value content.
+		// The raw token is: <<<LABEL\n<value>\n<closing-label-line>
+		// The value has trailing newline stripped by the parser.
+		// Find where the prefix ends (first newline), then skip past the value.
+		raw := content[tok.startPos:tok.endPos]
+		prefixEnd := strings.Index(raw, "\n")
+		if prefixEnd < 0 {
+			return
+		}
+		// After the prefix, the value content starts.
+		valueLen := len(tok.value)
+		suffixStart := prefixEnd + 1 + valueLen
+		if suffixStart <= len(raw) {
+			r.skelText(raw[suffixStart:])
+		}
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

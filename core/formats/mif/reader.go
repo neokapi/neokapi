@@ -2,6 +2,7 @@ package mif
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -14,8 +15,13 @@ import (
 // Reader implements DataFormatReader for MIF (Maker Interchange Format) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new MIF reader.
 func NewReader() *Reader {
@@ -30,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -70,32 +81,40 @@ type mifStatement struct {
 	raw      string // Original raw text for non-translatable parts.
 }
 
+// stringRef records the byte position of a String value and its block association.
+type stringRef struct {
+	startOffset int // byte offset of the String value content start (after backtick)
+	endOffset   int // byte offset of the String value content end (before quote)
+	blockIdx    int // which block (0-based)
+	stringIdx   int // which string within the block (0-based)
+}
+
 // skipTags are top-level MIF tags whose content is non-translatable.
 var skipTags = map[string]bool{
-	"Units":           true,
-	"ColorCatalog":    true,
-	"ConditionCatalog": true,
-	"BoolCondCatalog": true,
-	"CombinedFontCatalog": true,
-	"FontCatalog":     true,
-	"RulingCatalog":   true,
-	"TblCatalog":      true,
-	"Views":           true,
-	"VariableFormats": true,
-	"XRefFormats":     true,
-	"Document":        true,
-	"BookComponent":   true,
-	"InitialAutoNums": true,
-	"Dictionary":      true,
-	"PgfCatalog":      true,
-	"ElementDefCatalog": true,
+	"Units":                true,
+	"ColorCatalog":         true,
+	"ConditionCatalog":     true,
+	"BoolCondCatalog":      true,
+	"CombinedFontCatalog":  true,
+	"FontCatalog":          true,
+	"RulingCatalog":        true,
+	"TblCatalog":           true,
+	"Views":                true,
+	"VariableFormats":      true,
+	"XRefFormats":          true,
+	"Document":             true,
+	"BookComponent":        true,
+	"InitialAutoNums":      true,
+	"Dictionary":           true,
+	"PgfCatalog":           true,
+	"ElementDefCatalog":    true,
 	"FmtChangeListCatalog": true,
 	"DefAttrValuesCatalog": true,
-	"AttrCondExprCatalog": true,
-	"MasterPage":      true,
-	"ReferencePage":   true,
-	"Page":            true,
-	"AFrames":         true,
+	"AttrCondExprCatalog":  true,
+	"MasterPage":           true,
+	"ReferencePage":        true,
+	"Page":                 true,
+	"AFrames":              true,
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -121,11 +140,141 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		r.emitErr(ctx, ch, fmt.Errorf("mif: read error: %w", err))
 		return
 	}
+	rawText := string(data)
 
-	stmts := parseMIF(string(data))
+	stmts := parseMIF(rawText)
 	r.emitStatements(ctx, ch, stmts)
 
+	// Build skeleton if needed
+	if r.skeletonStore != nil {
+		refs := findStringPositions(rawText, stmts)
+		if len(refs) > 0 {
+			skelPos := 0
+			for _, sr := range refs {
+				if sr.startOffset > skelPos {
+					r.skelText(rawText[skelPos:sr.startOffset])
+				}
+				refID := fmt.Sprintf("%d:%d", sr.blockIdx, sr.stringIdx)
+				r.skelRef(refID)
+				skelPos = sr.endOffset
+			}
+			if skelPos < len(rawText) {
+				r.skelText(rawText[skelPos:])
+			}
+			r.skelFlush()
+		}
+	}
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// findStringPositions scans raw MIF content for <String `...'> patterns and associates
+// them with block indices based on the parsed statement tree.
+func findStringPositions(rawText string, stmts []*mifStatement) []stringRef {
+	// First, figure out which paragraphs are translatable and in which order
+	// (matching the same logic as emitStatements/processContainer).
+	var translatableParas []*mifStatement
+	for _, stmt := range stmts {
+		if skipTags[stmt.tag] || stmt.tag == "MIFFile" {
+			continue
+		}
+		if stmt.tag == "TextFlow" || stmt.tag == "Tbls" || stmt.tag == "Notes" {
+			collectTranslatableParas(stmt, &translatableParas)
+		}
+	}
+
+	// For each translatable para, find its String children and count them
+	type paraStringInfo struct {
+		blockIdx int
+		strings  []string // the string values in order
+	}
+	var paraInfos []paraStringInfo
+	blockIdx := 0
+	for _, para := range translatableParas {
+		text := extractParaText(para)
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+		var strs []string
+		for _, child := range para.children {
+			if child.tag == "ParaLine" {
+				for _, lc := range child.children {
+					if lc.tag == "String" {
+						strs = append(strs, lc.value)
+					}
+				}
+			}
+		}
+		paraInfos = append(paraInfos, paraStringInfo{blockIdx: blockIdx, strings: strs})
+		blockIdx++
+	}
+
+	// Now scan the raw text for <String `...'> patterns and match them to the para infos
+	var refs []stringRef
+	paraIdx := 0
+	stringInParaIdx := 0
+	searchFrom := 0
+
+	for paraIdx < len(paraInfos) {
+		pi := paraInfos[paraIdx]
+		if stringInParaIdx >= len(pi.strings) {
+			paraIdx++
+			stringInParaIdx = 0
+			continue
+		}
+
+		expectedVal := pi.strings[stringInParaIdx]
+		// Find the next <String `expectedVal'> in rawText starting from searchFrom
+		pattern := "<String `" + escapeMIFForSearch(expectedVal) + "'>"
+		idx := strings.Index(rawText[searchFrom:], pattern)
+		if idx < 0 {
+			// Try without exact match (shouldn't happen with well-formed MIF)
+			stringInParaIdx++
+			continue
+		}
+
+		absIdx := searchFrom + idx
+		// The value starts after "<String `" (9 bytes for "<String `")
+		valStart := absIdx + len("<String `")
+		valEnd := valStart + len(escapeMIFForSearch(expectedVal))
+
+		refs = append(refs, stringRef{
+			startOffset: valStart,
+			endOffset:   valEnd,
+			blockIdx:    pi.blockIdx,
+			stringIdx:   stringInParaIdx,
+		})
+
+		searchFrom = valEnd
+		stringInParaIdx++
+	}
+
+	return refs
+}
+
+// escapeMIFForSearch converts a parsed string value back to its MIF-escaped form for searching.
+func escapeMIFForSearch(s string) string {
+	// The value was unquoted by unquoteMIF, so the raw form in the file is the original.
+	// Since parseMIF uses unquoteMIF which just strips backtick/quote delimiters,
+	// the value already has MIF escapes resolved... but actually unquoteMIF only strips
+	// the delimiters, it doesn't unescape. So the value should match raw content.
+	return s
+}
+
+// collectTranslatableParas collects Para statements that contain translatable text.
+func collectTranslatableParas(stmt *mifStatement, result *[]*mifStatement) {
+	for _, child := range stmt.children {
+		if child.tag == "Para" {
+			text := extractParaText(child)
+			if strings.TrimSpace(text) != "" {
+				*result = append(*result, child)
+			}
+		} else if child.tag == "TextFlow" || child.tag == "Notes" || child.tag == "Tbls" ||
+			child.tag == "Cell" || child.tag == "CellContent" || child.tag == "Row" ||
+			child.tag == "TblBody" || child.tag == "Tbl" {
+			collectTranslatableParas(child, result)
+		}
+	}
 }
 
 func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult, stmts []*mifStatement) {
@@ -295,8 +444,6 @@ func parseMIF(content string) []*mifStatement {
 
 			// Check if this is a single-line statement (ends with >).
 			if strings.HasSuffix(trimmed, ">") && !strings.HasSuffix(trimmed, " >") {
-				// Single-line statement like <MIFFile 2015> with no space before >.
-				// Actually, need to check more carefully.
 				inner := trimmed[1 : len(trimmed)-1] // remove < and >
 				parts := strings.SplitN(inner, " ", 2)
 				stmt.tag = parts[0]
@@ -365,6 +512,32 @@ func unquoteMIF(s string) string {
 		return s[1 : len(s)-1]
 	}
 	return s
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

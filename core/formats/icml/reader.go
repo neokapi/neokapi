@@ -1,6 +1,7 @@
 package icml
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -14,8 +15,12 @@ import (
 // Reader implements DataFormatReader for Adobe InCopy ICML files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new ICML reader.
 func NewReader() *Reader {
@@ -31,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -66,7 +76,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Read the full document for skeleton-based writer reconstruction.
+	// Read the full document.
 	data, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		r.emitError(ch, fmt.Errorf("icml: reading document: %w", err))
@@ -85,22 +95,163 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Emit the raw document as Data for roundtrip reconstruction.
-	docData := &model.Data{
-		ID:   "d1",
-		Name: "icml-document",
-		Properties: map[string]string{
-			"content": string(data),
-		},
+	if r.skeletonStore != nil {
+		// Skeleton mode: track byte ranges and write skeleton entries.
+		r.parseAndEmitSkeleton(ctx, ch, data)
+	} else {
+		// Legacy mode: emit raw document as Data for roundtrip reconstruction.
+		docData := &model.Data{
+			ID:   "d1",
+			Name: "icml-document",
+			Properties: map[string]string{
+				"content": string(data),
+			},
+		}
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: docData}) {
+			return
+		}
+		r.parseAndEmit(ctx, ch, data)
 	}
-	if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: docData}) {
-		return
-	}
-
-	// Parse and extract translatable content.
-	r.parseAndEmit(ctx, ch, data)
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// icmlContentRange records a byte range in the source for a Content element's text.
+type icmlContentRange struct {
+	blockID string
+	start   int // byte offset inclusive
+	end     int // byte offset exclusive
+}
+
+// parseAndEmitSkeleton walks the ICML XML, emits per-Content Blocks, and writes skeleton entries.
+// Unlike parseAndEmit which aggregates Content texts per ParagraphStyleRange,
+// skeleton mode emits one block per Content element for 1:1 skeleton ref mapping.
+func (r *Reader) parseAndEmitSkeleton(ctx context.Context, ch chan<- model.PartResult, data []byte) {
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	blockCounter := 0
+
+	inStory := false
+	inContent := false
+	nonTranslatableDepth := 0
+	inTable := false
+	noteDepth := 0
+	paragraphStyle := ""
+
+	var ranges []icmlContentRange
+
+	for {
+		offset := decoder.InputOffset()
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+
+		switch el := tok.(type) {
+		case xml.StartElement:
+			name := el.Name.Local
+
+			if nonTranslatableElements[name] {
+				nonTranslatableDepth++
+				continue
+			}
+			if nonTranslatableDepth > 0 {
+				continue
+			}
+			if noteDepth > 0 {
+				noteDepth++
+				continue
+			}
+
+			switch name {
+			case "Story":
+				inStory = true
+			case "ParagraphStyleRange":
+				if inStory {
+					paragraphStyle = attrValue(el, "AppliedParagraphStyle")
+				}
+			case "Table":
+				inTable = true
+			case "Note":
+				noteDepth = 1
+			case "Content":
+				if inStory && nonTranslatableDepth == 0 && noteDepth == 0 {
+					inContent = true
+				}
+			}
+
+		case xml.EndElement:
+			name := el.Name.Local
+
+			if nonTranslatableElements[name] {
+				nonTranslatableDepth--
+				continue
+			}
+			if nonTranslatableDepth > 0 {
+				continue
+			}
+			if noteDepth > 0 {
+				noteDepth--
+				continue
+			}
+
+			switch name {
+			case "Story":
+				inStory = false
+			case "Table":
+				inTable = false
+			case "Content":
+				inContent = false
+			}
+
+		case xml.CharData:
+			if nonTranslatableDepth > 0 || noteDepth > 0 {
+				continue
+			}
+			text := string(el)
+			if inContent && strings.TrimSpace(text) != "" {
+				endOffset := int(decoder.InputOffset())
+				blockCounter++
+				blockID := fmt.Sprintf("tu%d", blockCounter)
+				block := model.NewBlock(blockID, text)
+				if inTable {
+					block.Name = fmt.Sprintf("cell.%d", blockCounter)
+					block.Properties["table"] = "true"
+				} else {
+					block.Name = fmt.Sprintf("para.%d", blockCounter)
+				}
+				if paragraphStyle != "" {
+					block.Properties["paragraphStyle"] = paragraphStyle
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+
+				ranges = append(ranges, icmlContentRange{
+					blockID: blockID,
+					start:   int(offset),
+					end:     endOffset,
+				})
+			}
+			_ = offset
+		}
+	}
+
+	r.writeSkeletonEntries(data, ranges)
+}
+
+// writeSkeletonEntries writes skeleton text and ref entries from the collected ranges.
+func (r *Reader) writeSkeletonEntries(content []byte, ranges []icmlContentRange) {
+	pos := 0
+	for _, ref := range ranges {
+		if ref.start > pos {
+			_ = r.skeletonStore.WriteText(content[pos:ref.start])
+		}
+		_ = r.skeletonStore.WriteRef(ref.blockID)
+		pos = ref.end
+	}
+	if pos < len(content) {
+		_ = r.skeletonStore.WriteText(content[pos:])
+	}
 }
 
 // nonTranslatableElements lists ICML elements whose content is not translatable.

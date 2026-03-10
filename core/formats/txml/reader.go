@@ -1,6 +1,7 @@
 package txml
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -14,8 +15,13 @@ import (
 // Reader implements DataFormatReader for Trados XML (TXML) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new TXML reader.
 func NewReader() *Reader {
@@ -30,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -63,12 +74,21 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
+// elemPosition records the byte position of a <source> or <target> content region.
+type elemPosition struct {
+	startOffset int    // byte offset after start tag
+	endOffset   int    // byte offset before end tag
+	segIdx      int    // which segment (0-based)
+	elemType    string // "source" or "target"
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("txml: reading: %w", err)}
 		return
 	}
+	rawText := string(content)
 
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -77,7 +97,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// Parse root <txml> attributes for locale info
 	var sourceLocale, targetLocale string
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
 	// Find the <txml> root element to get locale info
@@ -113,11 +133,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	// Re-parse from start for segments
-	decoder = xml.NewDecoder(strings.NewReader(string(content)))
+	decoder = xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
 	blockCounter := 0
 	inBody := false
+	var elemPositions []elemPosition
 
 	for {
 		tok, err := decoder.Token()
@@ -140,7 +161,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 				blockCounter++
 				segType := attrVal(t.Attr, "segtype")
-				block := r.parseSegment(decoder, locale, model.LocaleID(targetLocale), blockCounter, segType)
+				block := r.parseSegment(decoder, locale, model.LocaleID(targetLocale), blockCounter, segType, &elemPositions)
 				if block != nil {
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
@@ -154,13 +175,31 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
+	// Build skeleton from collected positions
+	if r.skeletonStore != nil && len(elemPositions) > 0 {
+		skelPos := 0
+		for _, ep := range elemPositions {
+			if ep.startOffset > skelPos {
+				r.skelText(rawText[skelPos:ep.startOffset])
+			}
+			refID := fmt.Sprintf("%d:%s", ep.segIdx, ep.elemType)
+			r.skelRef(refID)
+			skelPos = ep.endOffset
+		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
+	}
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // parseSegment parses a <segment> element.
-func (r *Reader) parseSegment(decoder *xml.Decoder, sourceLang, targetLang model.LocaleID, counter int, segType string) *model.Block {
+func (r *Reader) parseSegment(decoder *xml.Decoder, sourceLang, targetLang model.LocaleID, counter int, segType string, positions *[]elemPosition) *model.Block {
 	var sourceText string
 	var targetText string
+	segIdx := counter - 1 // 0-based
 
 	depth := 1
 	for depth > 0 {
@@ -174,11 +213,43 @@ func (r *Reader) parseSegment(decoder *xml.Decoder, sourceLang, targetLang model
 			depth++
 			switch t.Name.Local {
 			case "source":
+				startOff := decoder.InputOffset()
 				sourceText = readElementContent(decoder)
 				depth-- // readElementContent consumed end element
+
+				if r.skeletonStore != nil {
+					endOff := decoder.InputOffset()
+					endTag := "</source>"
+					endPos := int(endOff) - len(endTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					*positions = append(*positions, elemPosition{
+						startOffset: int(startOff),
+						endOffset:   endPos,
+						segIdx:      segIdx,
+						elemType:    "source",
+					})
+				}
 			case "target":
+				startOff := decoder.InputOffset()
 				targetText = readElementContent(decoder)
 				depth--
+
+				if r.skeletonStore != nil {
+					endOff := decoder.InputOffset()
+					endTag := "</target>"
+					endPos := int(endOff) - len(endTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					*positions = append(*positions, elemPosition{
+						startOffset: int(startOff),
+						endOffset:   endPos,
+						segIdx:      segIdx,
+						elemType:    "target",
+					})
+				}
 			}
 		case xml.EndElement:
 			depth--
@@ -232,6 +303,32 @@ func attrVal(attrs []xml.Attr, name string) string {
 		}
 	}
 	return ""
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

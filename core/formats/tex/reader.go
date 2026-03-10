@@ -1,6 +1,7 @@
 package tex
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -94,8 +95,13 @@ var headerTextCommands = map[string]bool{
 // Reader implements DataFormatReader for TeX/LaTeX files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new TeX/LaTeX reader.
 func NewReader() *Reader {
@@ -110,6 +116,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -172,6 +183,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
 	}
 	p.parse(ctx, ch, r)
 
+	r.skelFlush()
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 	return nil
 }
@@ -183,6 +196,7 @@ type parser struct {
 	blockCounter int
 	dataCounter  int
 	inHeader     bool // true when between \documentclass and \begin{document}
+	lastSkelPos  int  // tracks position for skeleton output
 }
 
 func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reader) {
@@ -193,17 +207,30 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 
 	var textBuf strings.Builder
 	var rawBuf strings.Builder // raw TeX for Data reconstruction
+	textStartPos := -1        // source position where text accumulation started
 
 	flushText := func() {
 		text := strings.TrimSpace(textBuf.String())
 		if text != "" {
 			p.blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", p.blockCounter), text)
+			blockID := fmt.Sprintf("tu%d", p.blockCounter)
+			block := model.NewBlock(blockID, text)
 			block.Name = fmt.Sprintf("para%d", p.blockCounter)
+			// For skeleton: the ref covers from lastSkelPos to p.pos.
+			// Store raw source in properties so the writer can reconstruct.
+			if r.skeletonStore != nil {
+				block.Properties["tex.rawSource"] = p.source[p.lastSkelPos:p.pos]
+				r.skelRef(blockID)
+				p.lastSkelPos = p.pos
+			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+		} else if r.skeletonStore != nil && textStartPos >= 0 {
+			// Text was all whitespace — include in skeleton text tracking
+			// (will be picked up by next ref or end-of-parse)
 		}
 		textBuf.Reset()
 		rawBuf.Reset()
+		textStartPos = -1
 	}
 
 	flushData := func(content string) {
@@ -313,12 +340,23 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				if p.inHeader {
 					if headerTextCommands[cmd] {
 						flushText()
+						cmdStartPos := p.pos
 						p.pos = cmdEnd
 						arg := p.readBraceArgText()
 						p.blockCounter++
-						block := model.NewBlock(fmt.Sprintf("tu%d", p.blockCounter), arg)
+						blockID := fmt.Sprintf("tu%d", p.blockCounter)
+						block := model.NewBlock(blockID, arg)
 						block.Name = cmd
 						block.Type = cmd
+						if r.skeletonStore != nil {
+							// Include any whitespace/data before this command in skeleton text
+							if cmdStartPos > p.lastSkelPos {
+								r.skelText(p.source[p.lastSkelPos:cmdStartPos])
+							}
+							block.Properties["tex.rawSource"] = p.source[cmdStartPos:p.pos]
+							r.skelRef(blockID)
+							p.lastSkelPos = p.pos
+						}
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 						continue
 					}
@@ -331,6 +369,7 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				// Paragraph-text commands
 				if paragraphTextCommands[cmd] {
 					flushText()
+					cmdStartPos := p.pos
 					p.pos = cmdEnd
 					// Skip optional argument [...]
 					p.skipOptionalArg()
@@ -341,9 +380,18 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 						continue
 					}
 					p.blockCounter++
-					block := model.NewBlock(fmt.Sprintf("tu%d", p.blockCounter), arg)
+					blockID := fmt.Sprintf("tu%d", p.blockCounter)
+					block := model.NewBlock(blockID, arg)
 					block.Name = cmd
 					block.Type = cmd
+					if r.skeletonStore != nil {
+						if cmdStartPos > p.lastSkelPos {
+							r.skelText(p.source[p.lastSkelPos:cmdStartPos])
+						}
+						block.Properties["tex.rawSource"] = p.source[cmdStartPos:p.pos]
+						r.skelRef(blockID)
+						p.lastSkelPos = p.pos
+					}
 					r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 					continue
 				}
@@ -358,6 +406,9 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 
 				// Inline-text commands — argument text is part of current paragraph
 				if inlineTextCommands[cmd] {
+					if textStartPos < 0 {
+						textStartPos = p.pos
+					}
 					p.pos = cmdEnd
 					arg := p.readBraceArgContent(&textBuf, cmd)
 					_ = arg
@@ -365,6 +416,9 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				}
 
 				// Unknown command — include in text flow
+				if textStartPos < 0 {
+					textStartPos = p.pos
+				}
 				p.pos = cmdEnd
 				// If it has a brace argument, include that too
 				if p.pos < len(p.source) && p.source[p.pos] == '{' {
@@ -386,14 +440,23 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				next := p.source[p.pos+1]
 				switch next {
 				case '\\': // line break \\
+					if textStartPos < 0 {
+						textStartPos = p.pos
+					}
 					textBuf.WriteString(`\\`)
 					p.pos += 2
 					continue
 				case '&', '%', '$', '#', '_', '{', '}': // escaped special chars
+					if textStartPos < 0 {
+						textStartPos = p.pos
+					}
 					textBuf.WriteByte(next)
 					p.pos += 2
 					continue
 				case '~': // non-breaking space
+					if textStartPos < 0 {
+						textStartPos = p.pos
+					}
 					textBuf.WriteString(`\~`)
 					p.pos += 2
 					continue
@@ -401,6 +464,9 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 			}
 
 			// Unrecognized backslash sequence
+			if textStartPos < 0 {
+				textStartPos = p.pos
+			}
 			textBuf.WriteByte('\\')
 			p.pos++
 			continue
@@ -418,18 +484,29 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 
 		// Tilde — non-breaking space (in TeX, ~ is a non-breaking space)
 		if ch0 == '~' {
+			if textStartPos < 0 {
+				textStartPos = p.pos
+			}
 			textBuf.WriteByte(' ')
 			p.pos++
 			continue
 		}
 
 		// Regular character
+		if textStartPos < 0 {
+			textStartPos = p.pos
+		}
 		_, size := utf8.DecodeRuneInString(p.source[p.pos:])
 		textBuf.WriteString(p.source[p.pos : p.pos+size])
 		p.pos += size
 	}
 
 	flushText()
+
+	// Write any remaining source as skeleton text
+	if r.skeletonStore != nil && p.lastSkelPos < len(p.source) {
+		r.skelText(p.source[p.lastSkelPos:])
+	}
 }
 
 // peekCommand returns the command name starting at p.pos (which should be \).
@@ -741,6 +818,32 @@ func (p *parser) skipOptionalArg() {
 
 func isAlpha(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

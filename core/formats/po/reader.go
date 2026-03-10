@@ -2,6 +2,7 @@ package po
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -13,8 +14,13 @@ import (
 // Reader implements DataFormatReader for PO (gettext) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new PO reader.
 func NewReader() *Reader {
@@ -29,6 +35,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -94,6 +105,19 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch, targetLocale)
+	} else {
+		r.readContentNormal(ctx, ch, targetLocale)
+	}
+
+	r.skelFlush()
+
+	// Emit layer end
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResult, targetLocale model.LocaleID) {
 	entries := r.parseEntries()
 
 	blockID := 0
@@ -226,9 +250,394 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 		}
 	}
+}
 
-	// Emit layer end
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+// readContentSkeleton does a single-pass parse of the PO file, simultaneously
+// building structured entries, emitting parts, and writing skeleton data.
+// Non-translatable lines (comments, msgctxt, msgid, blank lines) become
+// skeleton text. Each msgstr field becomes a skeleton ref whose ID is the
+// block ID. The writer re-serializes the msgstr value when it encounters
+// the ref.
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, targetLocale model.LocaleID) {
+	scanner := bufio.NewScanner(r.Doc.Reader)
+
+	type fieldType int
+	const (
+		fieldNone fieldType = iota
+		fieldMsgctxt
+		fieldMsgid
+		fieldMsgidPlural
+		fieldMsgstr
+		fieldMsgstrPlural
+	)
+
+	// Collect entries first (with raw line tracking), then emit parts.
+	// We need the full entry to know the block ID before we can write refs.
+	//
+	// Strategy: collect all raw lines grouped by entry. For each entry,
+	// record which lines are msgstr lines. Then emit parts and skeleton
+	// in a second pass over the collected data.
+
+	type rawEntry struct {
+		entry *poEntry
+		lines []string // raw lines (without \n)
+		// For each line, whether it belongs to a msgstr field.
+		isMsgstr []bool
+		// Which msgstr field (for plurals): -1 = regular msgstr, N = msgstr[N]
+		msgstrIndex []int
+		// Blank lines that precede this entry (separator from previous entry)
+		leadingBlanks []string
+	}
+
+	var entries []*rawEntry
+	var current *rawEntry
+	currentField := fieldNone
+	currentPluralIndex := 0
+	var pendingBlanks []string
+
+	newEntry := func() *rawEntry {
+		re := &rawEntry{
+			entry:         &poEntry{msgstrPlurals: make(map[int]string)},
+			leadingBlanks: pendingBlanks,
+		}
+		pendingBlanks = nil
+		return re
+	}
+
+	addLine := func(line string, isMsgstr bool, msgstrIdx int) {
+		if current == nil {
+			current = newEntry()
+		}
+		current.lines = append(current.lines, line)
+		current.isMsgstr = append(current.isMsgstr, isMsgstr)
+		current.msgstrIndex = append(current.msgstrIndex, msgstrIdx)
+	}
+
+	finishEntry := func() {
+		if current != nil {
+			entries = append(entries, current)
+			current = nil
+			currentField = fieldNone
+		}
+	}
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.TrimSpace(line) == "" {
+			finishEntry()
+			pendingBlanks = append(pendingBlanks, line)
+			continue
+		}
+
+		// Comment lines
+		if strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "#~") {
+			if current == nil {
+				current = newEntry()
+			}
+			addLine(line, false, -1)
+
+			e := current.entry
+			if strings.HasPrefix(line, "#:") {
+				e.references = append(e.references, strings.TrimSpace(line[2:]))
+			} else if strings.HasPrefix(line, "#.") {
+				e.extractedComments = append(e.extractedComments, strings.TrimSpace(line[2:]))
+			} else if strings.HasPrefix(line, "#,") {
+				e.flags = append(e.flags, strings.TrimSpace(line[2:]))
+			} else if strings.HasPrefix(line, "#|") {
+				e.prevMsgid = strings.TrimSpace(line[2:])
+			} else if strings.HasPrefix(line, "# ") || line == "#" {
+				e.translatorComments = append(e.translatorComments, strings.TrimPrefix(line, "# "))
+			}
+			continue
+		}
+
+		if strings.HasPrefix(line, "msgctxt ") {
+			if current == nil {
+				current = newEntry()
+			}
+			current.entry.msgctxt = unquotePO(line[8:])
+			currentField = fieldMsgctxt
+			addLine(line, false, -1)
+			continue
+		}
+
+		if strings.HasPrefix(line, "msgid_plural ") {
+			if current == nil {
+				current = newEntry()
+			}
+			current.entry.msgidPlural = unquotePO(line[13:])
+			current.entry.isPlural = true
+			currentField = fieldMsgidPlural
+			addLine(line, false, -1)
+			continue
+		}
+
+		if strings.HasPrefix(line, "msgid ") {
+			if current == nil {
+				current = newEntry()
+			}
+			current.entry.msgid = unquotePO(line[6:])
+			currentField = fieldMsgid
+			addLine(line, false, -1)
+			continue
+		}
+
+		if strings.HasPrefix(line, "msgstr[") {
+			if current == nil {
+				current = newEntry()
+			}
+			closeBracket := strings.Index(line, "]")
+			if closeBracket > 7 {
+				n := 0
+				_, _ = fmt.Sscanf(line[7:closeBracket], "%d", &n)
+				val := unquotePO(strings.TrimSpace(line[closeBracket+1:]))
+				current.entry.msgstrPlurals[n] = val
+				currentPluralIndex = n
+				currentField = fieldMsgstrPlural
+				addLine(line, true, n)
+			}
+			continue
+		}
+
+		if strings.HasPrefix(line, "msgstr ") {
+			if current == nil {
+				current = newEntry()
+			}
+			current.entry.msgstr = unquotePO(line[7:])
+			currentField = fieldMsgstr
+			addLine(line, true, -1)
+			continue
+		}
+
+		// Continuation line
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "\"") && current != nil {
+			val := unquotePO(trimmed)
+			switch currentField {
+			case fieldMsgctxt:
+				current.entry.msgctxt += val
+				addLine(line, false, -1)
+			case fieldMsgid:
+				current.entry.msgid += val
+				addLine(line, false, -1)
+			case fieldMsgidPlural:
+				current.entry.msgidPlural += val
+				addLine(line, false, -1)
+			case fieldMsgstr:
+				current.entry.msgstr += val
+				addLine(line, true, -1)
+			case fieldMsgstrPlural:
+				current.entry.msgstrPlurals[currentPluralIndex] += val
+				addLine(line, true, currentPluralIndex)
+			}
+		}
+	}
+	finishEntry()
+
+	// Second pass: emit parts and skeleton data.
+	blockID := 0
+	dataID := 0
+
+	for _, re := range entries {
+		entry := re.entry
+
+		// Write leading blank lines as skeleton text
+		for _, blank := range re.leadingBlanks {
+			r.skelText(blank + "\n")
+		}
+
+		// Determine block ID for this entry (needed for ref IDs).
+		// Header entries don't get a block ID.
+		entryBlockID := 0
+		if entry.msgid != "" {
+			blockID++
+			entryBlockID = blockID
+		}
+
+		// Write skeleton and emit parts.
+		// For header entries, everything is skeleton text.
+		if entry.msgid == "" {
+			// Header: all lines as skeleton text
+			for _, line := range re.lines {
+				r.skelText(line + "\n")
+			}
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: "header",
+				Properties: map[string]string{
+					"content": entry.msgstr,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+			continue
+		}
+
+		// For regular/plural entries: non-msgstr lines are skeleton text,
+		// msgstr lines are skeleton refs.
+		//
+		// We group consecutive msgstr lines into a single ref.
+		// For regular entries: ref ID = "tu{N}"
+		// For plural entries: ref ID = "tu{N}-singular" (msgstr[0]) or "tu{N}-plural" (msgstr[1])
+		//
+		// Also collect raw msgstr lines per field so the writer can
+		// reproduce the exact formatting for byte-exact roundtrip.
+		inRef := false
+		lastMsgstrIdx := -2
+		rawMsgstrLines := make(map[int][]string) // msgstrIndex -> raw lines
+
+		for i, line := range re.lines {
+			if re.isMsgstr[i] {
+				msIdx := re.msgstrIndex[i]
+				rawMsgstrLines[msIdx] = append(rawMsgstrLines[msIdx], line)
+				if !inRef || msIdx != lastMsgstrIdx {
+					var refID string
+					if entry.isPlural {
+						if msIdx == 0 {
+							refID = fmt.Sprintf("tu%d-singular", entryBlockID)
+						} else {
+							refID = fmt.Sprintf("tu%d-plural", entryBlockID)
+						}
+					} else {
+						refID = fmt.Sprintf("tu%d", entryBlockID)
+					}
+					r.skelRef(refID)
+					inRef = true
+					lastMsgstrIdx = msIdx
+				}
+			} else {
+				inRef = false
+				r.skelText(line + "\n")
+			}
+		}
+
+		// Build raw msgstr field text for each field.
+		// For regular entries: rawMsgstrLines[-1] has the lines.
+		// For plural entries: rawMsgstrLines[0] and rawMsgstrLines[1].
+		buildRawMsgstr := func(idx int) string {
+			lines := rawMsgstrLines[idx]
+			if len(lines) == 0 {
+				return ""
+			}
+			var sb strings.Builder
+			for i, l := range lines {
+				if i > 0 {
+					sb.WriteByte('\n')
+				}
+				sb.WriteString(l)
+			}
+			sb.WriteByte('\n')
+			return sb.String()
+		}
+
+		// Emit Data parts for metadata
+		if len(entry.translatorComments) > 0 {
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: "comment",
+				Properties: map[string]string{
+					"comment": strings.Join(entry.translatorComments, "\n"),
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		}
+		if len(entry.references) > 0 {
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: "reference",
+				Properties: map[string]string{
+					"reference": strings.Join(entry.references, "\n"),
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		}
+		if len(entry.flags) > 0 {
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: "flags",
+				Properties: map[string]string{
+					"flags": strings.Join(entry.flags, ", "),
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		}
+
+		// Emit block parts
+		if entry.isPlural {
+			groupID := fmt.Sprintf("g%d", entryBlockID)
+			gs := &model.GroupStart{ID: groupID, Name: entry.msgid, Type: "plural"}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
+				return
+			}
+
+			singularBlock := model.NewBlock(fmt.Sprintf("tu%d-singular", entryBlockID), entry.msgid)
+			singularBlock.Name = entry.msgid
+			if entry.msgctxt != "" {
+				singularBlock.Properties["context"] = entry.msgctxt
+			}
+			singularBlock.Properties["plural-form"] = "singular"
+			singularBlock.Properties["raw-msgstr"] = buildRawMsgstr(0)
+			if entry.msgstrPlurals != nil {
+				if val, ok := entry.msgstrPlurals[0]; ok && val != "" && !targetLocale.IsEmpty() {
+					singularBlock.SetTargetText(targetLocale, val)
+				}
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: singularBlock}) {
+				return
+			}
+
+			pluralBlock := model.NewBlock(fmt.Sprintf("tu%d-plural", entryBlockID), entry.msgidPlural)
+			pluralBlock.Name = entry.msgidPlural
+			if entry.msgctxt != "" {
+				pluralBlock.Properties["context"] = entry.msgctxt
+			}
+			pluralBlock.Properties["plural-form"] = "plural"
+			pluralBlock.Properties["raw-msgstr"] = buildRawMsgstr(1)
+			if entry.msgstrPlurals != nil {
+				if val, ok := entry.msgstrPlurals[1]; ok && val != "" && !targetLocale.IsEmpty() {
+					pluralBlock.SetTargetText(targetLocale, val)
+				}
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: pluralBlock}) {
+				return
+			}
+
+			ge := &model.GroupEnd{ID: groupID}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: ge}) {
+				return
+			}
+		} else {
+			block := model.NewBlock(fmt.Sprintf("tu%d", entryBlockID), entry.msgid)
+			block.Name = entry.msgid
+			if entry.msgctxt != "" {
+				block.Properties["context"] = entry.msgctxt
+			}
+			block.Properties["raw-msgstr"] = buildRawMsgstr(-1)
+			if entry.msgstr != "" && !targetLocale.IsEmpty() {
+				block.SetTargetText(targetLocale, entry.msgstr)
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		}
+	}
+
+	// Write any trailing blank lines
+	for _, blank := range pendingBlanks {
+		r.skelText(blank + "\n")
+	}
 }
 
 // parseEntries reads the entire PO file and returns parsed entries.
@@ -398,6 +807,32 @@ func unquotePO(s string) string {
 		}
 	}
 	return buf.String()
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

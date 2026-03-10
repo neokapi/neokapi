@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/formats/epub"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -312,4 +314,139 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 func TestConfigValidate(t *testing.T) {
 	cfg := &epub.Config{}
 	assert.NoError(t, cfg.Validate())
+}
+
+func TestSkeletonRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	data := makeEPUB(t)
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := epub.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	err = reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts1 := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks1 := collectBlockTexts(parts1)
+
+	// Write with skeleton store
+	var buf bytes.Buffer
+	writer := epub.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts1)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	require.True(t, buf.Len() > 0, "output should not be empty")
+
+	// Re-read and compare
+	reader2 := epub.NewReader()
+	err = reader2.Open(ctx, rawDocFromBytes(buf.Bytes(), model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader2.Close()
+
+	parts2 := testutil.CollectParts(t, reader2.Read(ctx))
+	blocks2 := collectBlockTexts(parts2)
+
+	assert.Equal(t, len(blocks1), len(blocks2), "block count should match")
+	for i := range blocks1 {
+		assert.Equal(t, blocks1[i], blocks2[i], "block[%d] text mismatch", i)
+	}
+}
+
+func TestSkeletonRoundTripWithTranslation(t *testing.T) {
+	ctx := context.Background()
+	data := makeEPUB(t)
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := epub.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	err = reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translations on all blocks
+	frFR := model.LocaleID("fr-FR")
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b, ok := p.Resource.(*model.Block); ok {
+				b.SetTargetText(frFR, "FR: "+b.SourceText())
+			}
+		}
+	}
+
+	// Write with skeleton + locale
+	var buf bytes.Buffer
+	writer := epub.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	writer.SetLocale(frFR)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	require.True(t, buf.Len() > 0, "output should not be empty")
+
+	// Re-read and verify translations appear
+	reader2 := epub.NewReader()
+	err = reader2.Open(ctx, rawDocFromBytes(buf.Bytes(), model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader2.Close()
+
+	parts2 := testutil.CollectParts(t, reader2.Read(ctx))
+	blocks2 := collectBlockTexts(parts2)
+
+	for _, text := range blocks2 {
+		assert.True(t, strings.HasPrefix(text, "FR: "),
+			"translated text should start with 'FR: ', got: %q", text)
+	}
+}
+
+func TestSkeletonStoreEmitterInterface(t *testing.T) {
+	reader := epub.NewReader()
+	var _ format.SkeletonStoreEmitter = reader
+}
+
+func TestSkeletonStoreConsumerInterface(t *testing.T) {
+	writer := epub.NewWriter()
+	var _ format.SkeletonStoreConsumer = writer
+}
+
+func TestOriginalContentSetterInterface(t *testing.T) {
+	writer := epub.NewWriter()
+	var _ format.OriginalContentSetter = writer
+}
+
+// collectBlockTexts extracts source texts from block parts.
+func collectBlockTexts(parts []*model.Part) []string {
+	var texts []string
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b, ok := p.Resource.(*model.Block); ok {
+				texts = append(texts, b.SourceText())
+			}
+		}
+	}
+	return texts
 }

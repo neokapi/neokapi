@@ -2,10 +2,11 @@ package archive
 
 import (
 	"archive/zip"
-	"bytes"
+	"bufio"
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -15,8 +16,15 @@ import (
 // Writer implements DataFormatWriter for ZIP archive files.
 type Writer struct {
 	format.BaseFormatWriter
-	originalContent []byte
+	originalZip   string   // path to the original ZIP file (temp file from reader)
+	ownsTmpFile   bool     // true if we created a temp file via SetOriginalContent
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Writer implements SkeletonStoreConsumer, SourcePathSetter, and OriginalContentSetter.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+var _ format.SourcePathSetter = (*Writer)(nil)
+var _ format.OriginalContentSetter = (*Writer)(nil)
 
 // NewWriter creates a new archive writer.
 func NewWriter() *Writer {
@@ -27,13 +35,46 @@ func NewWriter() *Writer {
 	}
 }
 
-// SetOriginalContent provides the original archive bytes for roundtrip fidelity.
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
+// SetOriginalZip provides the path to the original ZIP file for roundtrip fidelity.
+// The writer reads binary entries from this file during write.
+func (w *Writer) SetOriginalZip(path string) {
+	w.originalZip = path
+}
+
+// SetSourcePath implements format.SourcePathSetter.
+// It sets the path to the original ZIP file, avoiding loading it into memory.
+func (w *Writer) SetSourcePath(path string) {
+	w.originalZip = path
+}
+
+// SetOriginalContent implements format.OriginalContentSetter.
+// It writes the content to a temp file and uses that for roundtrip fidelity.
 func (w *Writer) SetOriginalContent(content []byte) {
-	w.originalContent = content
+	f, err := os.CreateTemp("", "gokapi-archive-writer-*")
+	if err != nil {
+		return
+	}
+	if _, err := f.Write(content); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		return
+	}
+	f.Close()
+	w.originalZip = f.Name()
+	w.ownsTmpFile = true
 }
 
 // Write consumes Parts from a channel and writes a reconstructed ZIP archive.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeleton(ctx, parts)
+	}
+
 	// Collect all parts to build the output
 	var allParts []*model.Part
 	for {
@@ -47,6 +88,188 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			allParts = append(allParts, part)
 		}
 	}
+}
+
+// writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("archive writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeleton(blocksByID)
+}
+
+// writeFromSkeleton reads skeleton entries and reconstructs the ZIP.
+// Skeleton entries encode entry markers (<<ENTRY:name>> for text, <<BINARY:name>> for binary)
+// interleaved with block refs. The writer uses the original ZIP for binary entries.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	// Open original ZIP for binary entry copying
+	var origZip *zip.ReadCloser
+	if w.originalZip != "" {
+		var err error
+		origZip, err = zip.OpenReader(w.originalZip)
+		if err != nil {
+			return fmt.Errorf("archive writer: open original zip: %w", err)
+		}
+		defer origZip.Close()
+	}
+
+	// Build map of original entries for binary copy
+	origEntries := make(map[string]*zip.File)
+	if origZip != nil {
+		for _, f := range origZip.File {
+			origEntries[f.Name] = f
+		}
+	}
+
+	zw := zip.NewWriter(w.Output)
+	defer zw.Close()
+
+	// Parse skeleton into a structured representation:
+	// Read all skeleton entries, split by entry markers
+	type entryData struct {
+		name     string
+		isBinary bool
+		// For text entries: interleaved text/ref data
+		segments []format.SkeletonEntry
+	}
+
+	var entries []entryData
+	var current *entryData
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("archive writer: read skeleton: %w", err)
+		}
+
+		if entry.Type == format.SkeletonText {
+			text := string(entry.Data)
+			// Check for entry markers
+			lines := strings.Split(text, "\n")
+			var pendingText strings.Builder
+			for i, line := range lines {
+				if strings.HasPrefix(line, "<<ENTRY:") && strings.HasSuffix(line, ">>") {
+					// Flush pending text to current entry
+					if current != nil && pendingText.Len() > 0 {
+						current.segments = append(current.segments, format.SkeletonEntry{
+							Type: format.SkeletonText,
+							Data: []byte(pendingText.String()),
+						})
+						pendingText.Reset()
+					}
+					// Save current entry if any
+					if current != nil {
+						entries = append(entries, *current)
+					}
+					name := line[len("<<ENTRY:") : len(line)-len(">>")]
+					current = &entryData{name: name}
+				} else if strings.HasPrefix(line, "<<BINARY:") && strings.HasSuffix(line, ">>") {
+					// Flush pending text to current entry
+					if current != nil && pendingText.Len() > 0 {
+						current.segments = append(current.segments, format.SkeletonEntry{
+							Type: format.SkeletonText,
+							Data: []byte(pendingText.String()),
+						})
+						pendingText.Reset()
+					}
+					if current != nil {
+						entries = append(entries, *current)
+					}
+					name := line[len("<<BINARY:") : len(line)-len(">>")]
+					current = &entryData{name: name, isBinary: true}
+				} else {
+					if pendingText.Len() > 0 || i > 0 {
+						pendingText.WriteString("\n")
+					}
+					pendingText.WriteString(line)
+				}
+			}
+			if current != nil && pendingText.Len() > 0 {
+				current.segments = append(current.segments, format.SkeletonEntry{
+					Type: format.SkeletonText,
+					Data: []byte(pendingText.String()),
+				})
+			}
+		} else if entry.Type == format.SkeletonRef {
+			if current != nil {
+				current.segments = append(current.segments, entry)
+			}
+		}
+	}
+	if current != nil {
+		entries = append(entries, *current)
+	}
+
+	// Write ZIP entries
+	for _, e := range entries {
+		if e.isBinary {
+			// Copy from original ZIP
+			if origFile, ok := origEntries[e.name]; ok {
+				header := origFile.FileHeader
+				writer, err := zw.CreateHeader(&header)
+				if err != nil {
+					return err
+				}
+				rc, err := origFile.Open()
+				if err != nil {
+					return err
+				}
+				if _, err := io.Copy(writer, rc); err != nil {
+					rc.Close()
+					return err
+				}
+				rc.Close()
+			}
+		} else {
+			// Reconstruct text entry from skeleton segments
+			writer, err := zw.Create(e.name)
+			if err != nil {
+				return err
+			}
+			bw := bufio.NewWriter(writer)
+			for _, seg := range e.segments {
+				switch seg.Type {
+				case format.SkeletonText:
+					if _, err := bw.Write(seg.Data); err != nil {
+						return err
+					}
+				case format.SkeletonRef:
+					refID := string(seg.Data)
+					if block, ok := blocks[refID]; ok {
+						text := w.blockText(block)
+						if _, err := bw.WriteString(text); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			if err := bw.Flush(); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func (w *Writer) writeArchive(parts []*model.Part) error {
@@ -65,15 +288,12 @@ func (w *Writer) writeArchive(parts []*model.Part) error {
 			continue
 		}
 
-		text := block.SourceText()
-		if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
-			text = block.TargetText(w.Locale)
-		}
+		text := w.blockText(block)
 		entryBlocks[entry] = append(entryBlocks[entry], text)
 	}
 
-	// If we have original content, do a roundtrip preserving all entries
-	if w.originalContent != nil {
+	// If we have original ZIP, do a roundtrip preserving all entries
+	if w.originalZip != "" {
 		return w.writeRoundtrip(entryBlocks)
 	}
 
@@ -82,15 +302,16 @@ func (w *Writer) writeArchive(parts []*model.Part) error {
 }
 
 func (w *Writer) writeRoundtrip(entryBlocks map[string][]string) error {
-	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	origZip, err := zip.OpenReader(w.originalZip)
 	if err != nil {
 		return fmt.Errorf("archive writer: reading original: %w", err)
 	}
+	defer origZip.Close()
 
 	zw := zip.NewWriter(w.Output)
 	defer zw.Close()
 
-	for _, file := range zr.File {
+	for _, file := range origZip.File {
 		if file.FileInfo().IsDir() {
 			_, err := zw.Create(file.Name)
 			if err != nil {
@@ -168,4 +389,21 @@ func (w *Writer) writeFromParts(parts []*model.Part, entryBlocks map[string][]st
 	}
 
 	return nil
+}
+
+// Close flushes output and cleans up any temp files.
+func (w *Writer) Close() error {
+	if w.ownsTmpFile && w.originalZip != "" {
+		os.Remove(w.originalZip)
+		w.originalZip = ""
+		w.ownsTmpFile = false
+	}
+	return w.BaseFormatWriter.Close()
+}
+
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.SourceText()
 }

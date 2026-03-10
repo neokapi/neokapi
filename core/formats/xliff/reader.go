@@ -1,6 +1,7 @@
 package xliff
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -15,8 +16,13 @@ import (
 // Reader implements DataFormatReader for XLIFF 1.2 files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new XLIFF 1.2 reader.
 func NewReader() *Reader {
@@ -31,6 +37,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -72,22 +83,33 @@ type fileInfo struct {
 	datatype   string
 }
 
+// elemPos tracks the byte position of a source or target element's inner content.
+type elemPos struct {
+	startOffset int    // byte offset after opening tag
+	endOffset   int    // byte offset before closing tag
+	blockIdx    int    // 0-based block index
+	elemType    string // "source" or "target"
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff: reading: %w", err)}
 		return
 	}
+	rawText := string(content)
 
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
 	var currentFile *fileInfo
 	var inBody bool
 	var groupStack []string // stack of group IDs
+	var blockCount int
 	// preserveWSStack tracks xml:space inheritance. When we see xml:space="preserve"
 	// on any ancestor, we push true. Default is false.
 	var preserveWSStack []bool
+	var elemPositions []elemPos
 
 	// inheritPreserveWS returns true if any ancestor has xml:space="preserve"
 	inheritPreserveWS := func() bool {
@@ -189,9 +211,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if !inBody || currentFile == nil {
 					continue
 				}
-				tu := r.parseTransUnit(decoder, t, currentFile)
+				tu, tuPositions := r.parseTransUnit(decoder, t, currentFile, blockCount)
 				if tu == nil {
 					continue
+				}
+				if r.skeletonStore != nil {
+					elemPositions = append(elemPositions, tuPositions...)
 				}
 
 				// Check xml:space on this trans-unit
@@ -217,6 +242,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return
 				}
+				blockCount++
 			}
 
 		case xml.EndElement:
@@ -248,6 +274,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{}})
 			}
 		}
+	}
+
+	// Build skeleton from collected element positions
+	if r.skeletonStore != nil && len(elemPositions) > 0 {
+		skelPos := 0
+		for _, ep := range elemPositions {
+			if ep.startOffset > skelPos {
+				r.skelText(rawText[skelPos:ep.startOffset])
+			}
+			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
+			r.skelRef(refID)
+			skelPos = ep.endOffset
+		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
 	}
 }
 
@@ -301,7 +344,8 @@ type parsedAltTrans struct {
 }
 
 // parseTransUnit parses a <trans-unit> element and all its children.
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo) *parsedTransUnit {
+// It returns the parsed trans-unit and skeleton element positions (if skeleton tracking is active).
+func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi *fileInfo, blockIdx int) (*parsedTransUnit, []elemPos) {
 	tu := &parsedTransUnit{
 		translatable: true,
 	}
@@ -326,11 +370,13 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		}
 	}
 
+	var positions []elemPos
+
 	depth := 1
 	for depth > 0 {
 		tok, err := decoder.Token()
 		if err != nil {
-			return nil
+			return nil, nil
 		}
 
 		switch t := tok.(type) {
@@ -338,11 +384,41 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 			depth++
 			switch t.Name.Local {
 			case "source":
+				startOff := decoder.InputOffset()
 				tu.source = readInnerXML(decoder)
 				depth-- // readInnerXML consumed the end element
+				if r.skeletonStore != nil {
+					endOff := decoder.InputOffset()
+					closeTag := "</source>"
+					endPos := int(endOff) - len(closeTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					positions = append(positions, elemPos{
+						startOffset: int(startOff),
+						endOffset:   endPos,
+						blockIdx:    blockIdx,
+						elemType:    "source",
+					})
+				}
 			case "target":
+				startOff := decoder.InputOffset()
 				tu.target = readInnerXML(decoder)
 				depth--
+				if r.skeletonStore != nil {
+					endOff := decoder.InputOffset()
+					closeTag := "</target>"
+					endPos := int(endOff) - len(closeTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					positions = append(positions, elemPos{
+						startOffset: int(startOff),
+						endOffset:   endPos,
+						blockIdx:    blockIdx,
+						elemType:    "target",
+					})
+				}
 			case "seg-source":
 				tu.segSource = parseSegSource(decoder)
 				depth--
@@ -362,7 +438,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, start xml.StartElement, fi
 		}
 	}
 
-	return tu
+	return tu, positions
 }
 
 // readInnerXML reads all content until the matching end element, returning inner XML as a string.
@@ -1057,6 +1133,32 @@ func parseMrkSegmentsFromString(targetXML string) []segment {
 		}
 	}
 	return segs
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

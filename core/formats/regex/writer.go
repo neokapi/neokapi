@@ -3,6 +3,7 @@ package regex
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -14,8 +15,12 @@ import (
 // regions with translated text (or source text if no translation exists).
 type Writer struct {
 	format.BaseFormatWriter
-	cfg *Config
+	skeletonStore *format.SkeletonStore
+	cfg           *Config
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new Regex writer.
 func NewWriter() *Writer {
@@ -38,8 +43,17 @@ func (w *Writer) SetConfig(cfg format.DataFormatConfig) error {
 	return fmt.Errorf("regex writer: invalid config type %T", cfg)
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed output.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeleton(ctx, parts)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -156,4 +170,73 @@ func escapeDoubleChar(s string, escChar string) string {
 		escChar = "\""
 	}
 	return strings.ReplaceAll(s, escChar, escChar+escChar)
+}
+
+// writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("regex writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeleton(blocksByID)
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("regex writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			if block, ok := blocks[refID]; ok {
+				// Reconstruct the match with translated text
+				text := block.SourceText()
+				if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+					text = block.TargetText(w.Locale)
+				}
+				text = w.escape(text)
+
+				fullMatch := block.Properties["regex.fullMatch"]
+				if fullMatch != "" {
+					escapedOriginal := w.escape(block.SourceText())
+					output := strings.Replace(fullMatch, escapedOriginal, text, 1)
+					if _, err := io.WriteString(w.Output, output); err != nil {
+						return err
+					}
+				} else {
+					if _, err := io.WriteString(w.Output, text); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
 }

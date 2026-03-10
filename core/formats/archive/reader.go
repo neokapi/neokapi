@@ -2,10 +2,12 @@ package archive
 
 import (
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -16,9 +18,14 @@ import (
 // Reader implements DataFormatReader for ZIP archive files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg     *Config
-	content []byte
+	cfg           *Config
+	tmpFile       *os.File
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new archive reader.
 func NewReader() *Reader {
@@ -33,6 +40,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -51,12 +63,17 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 	r.Doc = doc
 
-	// Read all content into memory since zip.NewReader needs a ReaderAt.
-	data, err := io.ReadAll(doc.Reader)
+	// Write content to a temp file instead of holding the entire ZIP in memory.
+	tmpFile, err := os.CreateTemp("", "gokapi-archive-*")
 	if err != nil {
-		return fmt.Errorf("archive: reading document: %w", err)
+		return fmt.Errorf("archive: creating temp file: %w", err)
 	}
-	r.content = data
+	if _, err := io.Copy(tmpFile, doc.Reader); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpFile.Name())
+		return fmt.Errorf("archive: writing temp file: %w", err)
+	}
+	r.tmpFile = tmpFile
 	return nil
 }
 
@@ -89,7 +106,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	zipReader, err := zip.NewReader(bytes.NewReader(r.content), int64(len(r.content)))
+	// Open ZIP from temp file
+	fileInfo, err := r.tmpFile.Stat()
+	if err != nil {
+		r.emitError(ch, fmt.Errorf("archive: stat temp file: %w", err))
+		return
+	}
+	if _, err := r.tmpFile.Seek(0, io.SeekStart); err != nil {
+		r.emitError(ch, fmt.Errorf("archive: seek temp file: %w", err))
+		return
+	}
+	zipReader, err := zip.NewReader(r.tmpFile, fileInfo.Size())
 	if err != nil {
 		r.emitError(ch, fmt.Errorf("archive: opening zip: %w", err))
 		return
@@ -123,34 +150,50 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				return
 			}
 
-			content, err := r.readEntry(file)
+			// Write skeleton marker for entry start
+			r.skelText("<<ENTRY:" + file.Name + ">>\n")
+
+			// Stream lines from the ZIP entry
+			rc, err := file.Open()
 			if err != nil {
-				r.emitError(ch, fmt.Errorf("archive: reading entry %s: %w", file.Name, err))
+				r.emitError(ch, fmt.Errorf("archive: opening entry %s: %w", file.Name, err))
 				return
 			}
 
-			// Emit each non-empty line as a block
-			lines := strings.Split(string(content), "\n")
-			for _, line := range lines {
+			scanner := bufio.NewScanner(rc)
+			for scanner.Scan() {
+				line := scanner.Text()
 				trimmed := strings.TrimSpace(line)
 				if trimmed == "" {
+					r.skelText(line + "\n")
 					continue
 				}
 				blockCounter++
-				block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), trimmed)
+				blockIDStr := fmt.Sprintf("tu%d", blockCounter)
+				r.skelRef(blockIDStr)
+				r.skelText("\n")
+				block := model.NewBlock(blockIDStr, trimmed)
 				block.Name = file.Name
 				block.Properties["entry"] = file.Name
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					rc.Close()
 					return
 				}
 			}
+			if err := scanner.Err(); err != nil {
+				rc.Close()
+				r.emitError(ch, fmt.Errorf("archive: reading entry %s: %w", file.Name, err))
+				return
+			}
+			rc.Close()
 
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer}) {
 				return
 			}
 		} else {
-			// Binary file: emit as Data
+			// Binary file: emit as Data, skeleton marker for binary entry
 			dataCounter++
+			r.skelText("<<BINARY:" + file.Name + ">>\n")
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataCounter),
 				Name: file.Name,
@@ -165,16 +208,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
-}
+	r.skelFlush()
 
-func (r *Reader) readEntry(file *zip.File) ([]byte, error) {
-	rc, err := file.Open()
-	if err != nil {
-		return nil, err
-	}
-	defer rc.Close()
-	return io.ReadAll(rc)
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
 }
 
 func (r *Reader) isTextFile(name string, patterns []string) bool {
@@ -185,6 +221,32 @@ func (r *Reader) isTextFile(name string, patterns []string) bool {
 		}
 	}
 	return false
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
@@ -202,7 +264,12 @@ func (r *Reader) emitError(ch chan<- model.PartResult, err error) {
 
 // Close releases resources.
 func (r *Reader) Close() error {
-	r.content = nil
+	if r.tmpFile != nil {
+		name := r.tmpFile.Name()
+		r.tmpFile.Close()
+		os.Remove(name)
+		r.tmpFile = nil
+	}
 	if r.Doc != nil && r.Doc.Reader != nil {
 		return r.Doc.Reader.Close()
 	}

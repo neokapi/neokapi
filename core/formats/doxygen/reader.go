@@ -2,8 +2,10 @@ package doxygen
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -13,8 +15,13 @@ import (
 // Reader implements DataFormatReader for Doxygen/Javadoc comments in source code.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Doxygen reader.
 func NewReader() *Reader {
@@ -29,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -102,6 +114,34 @@ var inlineCommands = map[string]bool{
 	"e": true, "a": true, "b": true, "c": true, "p": true, "em": true,
 }
 
+// rawLine holds a line's content and its original line ending.
+type rawLine struct {
+	content    string
+	lineEnding string
+}
+
+// splitRawLines splits raw bytes into lines preserving line endings.
+func splitRawLines(data []byte) []rawLine {
+	remaining := string(data)
+	var lines []rawLine
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, rawLine{content: remaining})
+			break
+		}
+		lineContent := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(lineContent, "\r") {
+			lineContent = lineContent[:len(lineContent)-1]
+			ending = "\r\n"
+		}
+		lines = append(lines, rawLine{content: lineContent, lineEnding: ending})
+		remaining = remaining[idx+1:]
+	}
+	return lines
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -120,10 +160,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	scanner := bufio.NewScanner(r.Doc.Reader)
 	var lines []string
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+	var rLines []rawLine
+
+	if r.skeletonStore != nil {
+		// Read all bytes to preserve line endings for skeleton
+		data, err := io.ReadAll(r.Doc.Reader)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("doxygen: reading: %w", err)}
+			return
+		}
+		rLines = splitRawLines(data)
+		for _, rl := range rLines {
+			lines = append(lines, rl.content)
+		}
+	} else {
+		scanner := bufio.NewScanner(r.Doc.Reader)
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
 	}
 
 	blockCounter := 0
@@ -137,10 +192,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// Check for block comment start: /** or /*!
 		if strings.HasPrefix(trimmed, "/**") || strings.HasPrefix(trimmed, "/*!") {
 			cb := r.parseBlockComment(lines, i)
-			// Emit all raw lines as a single data part, then emit text blocks
+			n := len(cb.rawLines)
+			r.skelCommentGroup(cb, rLines, i, n, &blockCounter)
 			dataCounter++
 			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
-			i += len(cb.rawLines)
+			i += n
 			continue
 		}
 
@@ -149,6 +205,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// Check for trailing comment: code ///< text
 			if r.isTrailingComment(line) {
 				cb := r.parseTrailingLineComment(line)
+				r.skelTrailingCommentGroup(cb, rLines, i, &blockCounter)
 				dataCounter++
 				r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
 				i++
@@ -157,9 +214,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			// Collect consecutive line comments
 			cb := r.parseLineComments(lines, i)
+			n := len(cb.rawLines)
+			r.skelCommentGroup(cb, rLines, i, n, &blockCounter)
 			dataCounter++
 			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
-			i += len(cb.rawLines)
+			i += n
 			continue
 		}
 
@@ -169,6 +228,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			before := strings.TrimSpace(line[:idx])
 			if before != "" {
 				cb := r.parseTrailingLineComment(line)
+				r.skelTrailingCommentGroup(cb, rLines, i, &blockCounter)
 				dataCounter++
 				r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
 				i++
@@ -179,6 +239,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		// Check for trailing block comment: code /*!< text */
 		if r.isTrailingBlockComment(trimmed) {
 			cb := r.parseTrailingBlockComment(line)
+			r.skelTrailingCommentGroup(cb, rLines, i, &blockCounter)
 			dataCounter++
 			r.emitCommentBlock(ctx, ch, cb, &blockCounter, &dataCounter)
 			i++
@@ -186,6 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		// Non-comment line → emit as Data
+		r.skelLinesText(rLines, i, 1)
 		dataCounter++
 		data := &model.Data{
 			ID:         fmt.Sprintf("d%d", dataCounter),
@@ -198,7 +260,73 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		i++
 	}
 
+	r.skelFlush()
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// skelCommentGroup writes skeleton entries for a comment group.
+// Translatable groups get a ref (for the first block); non-translatable get text.
+func (r *Reader) skelCommentGroup(cb *commentBlock, rLines []rawLine, lineStart, lineCount int, blockCounter *int) {
+	if r.skeletonStore == nil {
+		return
+	}
+
+	translatableLines := r.extractTranslatable(cb.textLines)
+	if len(translatableLines) == 0 {
+		// Non-translatable: write all lines as skeleton text
+		r.skelLinesText(rLines, lineStart, lineCount)
+		return
+	}
+
+	// Translatable: write a ref for the first block, plus trailing line ending
+	nextBlockID := fmt.Sprintf("tu%d", *blockCounter+1)
+	r.skelRef(nextBlockID)
+	// Write the line ending of the last raw line
+	lastIdx := lineStart + lineCount - 1
+	if lastIdx < len(rLines) {
+		r.skelText(rLines[lastIdx].lineEnding)
+	}
+}
+
+// skelTrailingCommentGroup writes skeleton entries for a trailing comment line.
+// The prefix goes as skeleton text, the comment part as a ref.
+func (r *Reader) skelTrailingCommentGroup(cb *commentBlock, rLines []rawLine, lineStart int, blockCounter *int) {
+	if r.skeletonStore == nil {
+		return
+	}
+
+	translatableLines := r.extractTranslatable(cb.textLines)
+	if len(translatableLines) == 0 {
+		// Non-translatable: write whole line as skeleton text
+		r.skelLinesText(rLines, lineStart, 1)
+		return
+	}
+
+	// Prefix as skeleton text, ref for block, trailing line ending
+	nextBlockID := fmt.Sprintf("tu%d", *blockCounter+1)
+	// The prefix is part of the raw line content; write prefix + comment marker
+	// For trailing ///<: "code ///< text" — prefix is "code ", marker is "///< "
+	// For trailing /*!<: "code /*!< text */" — prefix is "code ", marker includes "/*!< " and " */"
+	// The ref will produce just the reconstructed comment part (including prefix/markers)
+	// via writeTrailing/writeTrailingQt, so we just need the code prefix
+	if cb.prefix != "" {
+		r.skelText(cb.prefix)
+	}
+	r.skelRef(nextBlockID)
+	if lineStart < len(rLines) {
+		r.skelText(rLines[lineStart].lineEnding)
+	}
+}
+
+// skelLinesText writes raw lines (content + line ending) to the skeleton buffer.
+func (r *Reader) skelLinesText(rLines []rawLine, start, count int) {
+	if r.skeletonStore == nil {
+		return
+	}
+	for j := 0; j < count; j++ {
+		r.skelText(rLines[start+j].content + rLines[start+j].lineEnding)
+	}
 }
 
 // isTrailingComment checks if a line has code followed by ///< comment.
@@ -594,6 +722,32 @@ func (r *Reader) processInlineCommands(line string) string {
 		}
 	}
 	return result
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
