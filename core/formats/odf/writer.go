@@ -16,12 +16,14 @@ import (
 // Writer implements DataFormatWriter for ODF files.
 type Writer struct {
 	format.BaseFormatWriter
+	resolver        format.SubfilterResolver
 	skeletonStore   *format.SkeletonStore
 	originalContent []byte
 }
 
 var _ format.OriginalContentSetter = (*Writer)(nil)
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new ODF writer.
 func NewWriter() *Writer {
@@ -30,6 +32,11 @@ func NewWriter() *Writer {
 			FormatName: "odf",
 		},
 	}
+}
+
+// SetSubfilterResolver sets the resolver for creating sub-format writers.
+func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	w.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming reconstruction.
@@ -46,10 +53,20 @@ func (w *Writer) SetOriginalContent(content []byte) {
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	// Collect all blocks keyed by ID
 	blocks := make(map[string]*model.Block)
+	childLayerValues := make(map[string]string)
 	for part := range parts {
-		if part.Type == model.PartBlock {
+		switch part.Type {
+		case model.PartBlock:
 			if b, ok := part.Resource.(*model.Block); ok {
 				blocks[b.ID] = b
+			}
+		case model.PartLayerStart:
+			if layer, ok := part.Resource.(*model.Layer); ok && isSubfilteredLayer(layer) {
+				val, err := w.writeChildLayer(ctx, layer, parts)
+				if err != nil {
+					return fmt.Errorf("odf: writing child layer %s: %w", layer.Name, err)
+				}
+				childLayerValues[layer.Name] = val
 			}
 		}
 	}
@@ -73,7 +90,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("odf: skeleton flush: %w", err)
 		}
-		if err := w.writeFromSkeleton(origZR, zw, blocks); err != nil {
+		if err := w.writeFromSkeleton(origZR, zw, blocks, childLayerValues); err != nil {
 			return err
 		}
 		if err := zw.Close(); err != nil {
@@ -84,7 +101,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	}
 
 	// Fallback: reparse-based reconstruction
-	if err := w.writeFromReparse(origZR, zw, blocks); err != nil {
+	if err := w.writeFromReparse(origZR, zw, blocks, childLayerValues); err != nil {
 		return err
 	}
 	if err := zw.Close(); err != nil {
@@ -96,7 +113,7 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 
 // writeFromSkeleton reconstructs translatable XML parts using the skeleton store.
 func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
-	blocks map[string]*model.Block) error {
+	blocks map[string]*model.Block, childLayerValues map[string]string) error {
 
 	// Read all skeleton entries, splitting by part-boundary markers
 	partContents := make(map[string][]byte)
@@ -137,9 +154,14 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 				continue
 			}
 
-			// Regular block ref — render translated text
+			// Regular block ref or layer ref — render translated text
 			if currentPart != "" {
-				if block, ok := blocks[refID]; ok {
+				if strings.HasPrefix(refID, "layer:") {
+					layerPath := refID[6:]
+					if val, ok := childLayerValues[layerPath]; ok {
+						currentBuf.WriteString(val)
+					}
+				} else if block, ok := blocks[refID]; ok {
 					currentBuf.WriteString(w.getBlockText(block))
 				}
 			}
@@ -193,10 +215,24 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer,
 // writeFromReparse copies the original ZIP, replacing translatable content
 // in content.xml and styles.xml using XML reparse (fallback without skeleton).
 func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer,
-	blocks map[string]*model.Block) error {
+	blocks map[string]*model.Block, childLayerValues map[string]string) error {
 
 	for _, f := range origZR.File {
-		if f.Name == "content.xml" || f.Name == "styles.xml" {
+		if val, ok := childLayerValues[f.Name]; ok {
+			// Write subfiltered content reconstructed through sub-format writer
+			fh := f.FileHeader
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write([]byte(val)); err != nil {
+				return err
+			}
+		} else if f.Name == "content.xml" || f.Name == "styles.xml" {
 			// Replace translatable content in XML files
 			origData, err := readZipFile(f)
 			if err != nil {
@@ -383,6 +419,81 @@ func (w *Writer) replaceContent(data []byte, blocks map[string]*model.Block) ([]
 	}
 
 	return output.Bytes(), nil
+}
+
+// isSubfilteredLayer returns true if the layer was created by the subfilter mechanism.
+func isSubfilteredLayer(layer *model.Layer) bool {
+	if layer.Properties == nil {
+		return false
+	}
+	_, ok := layer.Properties["subfilter.source"]
+	return ok
+}
+
+// writeChildLayer collects parts until the matching PartLayerEnd and writes them
+// through the appropriate sub-format writer.
+func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
+	var childParts []*model.Part
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
+			}
+			if part.Type == model.PartLayerEnd {
+				if endLayer, ok := part.Resource.(*model.Layer); ok && endLayer.ID == layer.ID {
+					goto collected
+				}
+			}
+			childParts = append(childParts, part)
+		}
+	}
+
+collected:
+	if w.resolver == nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	subWriter, err := w.resolver.ResolveWriter(layer.Format)
+	if err != nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	var buf bytes.Buffer
+	if err := subWriter.SetOutputWriter(&buf); err != nil {
+		return "", err
+	}
+	subWriter.SetLocale(w.Locale)
+
+	childCh := make(chan *model.Part, len(childParts))
+	for _, p := range childParts {
+		childCh <- p
+	}
+	close(childCh)
+
+	if err := subWriter.Write(ctx, childCh); err != nil {
+		return "", err
+	}
+	if err := subWriter.Close(); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// fallbackChildText concatenates block source/target texts when no sub-writer is available.
+func (w *Writer) fallbackChildText(parts []*model.Part) string {
+	var sb strings.Builder
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if block, ok := p.Resource.(*model.Block); ok {
+				sb.WriteString(w.getBlockText(block))
+			}
+		}
+	}
+	return sb.String()
 }
 
 // getBlockText returns the target text for a block, falling back to source.

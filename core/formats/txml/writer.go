@@ -14,6 +14,7 @@ import (
 // Writer implements DataFormatWriter for Trados XML (TXML) files.
 type Writer struct {
 	format.BaseFormatWriter
+	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	sourceLocale  string
 	targetLocale  string
@@ -25,12 +26,18 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TXML writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "txml",
 		},
+		cfg: cfg,
 	}
 }
+
+// Config returns the writer configuration for external modification.
+func (w *Writer) Config() *Config { return w.cfg }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
 func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
@@ -218,6 +225,10 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 	if targetText != "" {
 		if _, err := fmt.Fprintf(w.Output, "<target>%s</target>\n", xmlEscape(targetText)); err != nil {
+			return err
+		}
+	} else if w.cfg.AllowEmptyOutputTarget {
+		if _, err := io.WriteString(w.Output, "<target/>\n"); err != nil {
 			return err
 		}
 	}

@@ -15,6 +15,7 @@ import (
 // Writer implements DataFormatWriter for Trados TagEditor TTX files.
 type Writer struct {
 	format.BaseFormatWriter
+	cfg           *Config
 	skeletonStore *format.SkeletonStore
 	blocks        []*model.Block
 }
@@ -24,12 +25,18 @@ var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TTX writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "ttx",
 		},
+		cfg: cfg,
 	}
 }
+
+// Config returns the writer configuration for external modification.
+func (w *Writer) Config() *Config { return w.cfg }
 
 // SetSkeletonStore sets the skeleton store for byte-exact output.
 func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
@@ -185,15 +192,17 @@ func (w *Writer) writeBlock(part *model.Part) error {
 		matchPercent = "0"
 	}
 
-	if _, err := fmt.Fprintf(w.Output, `<Tu MatchPercent="%s">`+"\n", xmlEscape(matchPercent)); err != nil {
+	escape := func(s string) string { return xmlEscapeWith(s, w.cfg.EscapeGT) }
+
+	if _, err := fmt.Fprintf(w.Output, `<Tu MatchPercent="%s">`+"\n", escape(matchPercent)); err != nil {
 		return err
 	}
-	if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", xmlEscape(sourceLang), xmlEscape(sourceText)); err != nil {
+	if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", escape(sourceLang), escape(sourceText)); err != nil {
 		return err
 	}
 
 	if targetText != "" && targetLang != "" {
-		if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", xmlEscape(targetLang), xmlEscape(targetText)); err != nil {
+		if _, err := fmt.Fprintf(w.Output, `<Tuv Lang="%s"><Seg>%s</Seg></Tuv>`+"\n", escape(targetLang), escape(targetText)); err != nil {
 			return err
 		}
 	}
@@ -205,8 +214,8 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	return nil
 }
 
-// xmlEscape escapes XML special characters.
-func xmlEscape(s string) string {
+// xmlEscapeWith escapes XML special characters, optionally escaping >.
+func xmlEscapeWith(s string, escapeGT bool) string {
 	var buf []byte
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
@@ -215,7 +224,11 @@ func xmlEscape(s string) string {
 		case '<':
 			buf = append(buf, []byte("&lt;")...)
 		case '>':
-			buf = append(buf, []byte("&gt;")...)
+			if escapeGT {
+				buf = append(buf, []byte("&gt;")...)
+			} else {
+				buf = append(buf, '>')
+			}
 		case '"':
 			buf = append(buf, []byte("&quot;")...)
 		default:
@@ -223,4 +236,9 @@ func xmlEscape(s string) string {
 		}
 	}
 	return string(buf)
+}
+
+// xmlEscape escapes XML special characters (always escapes >).
+func xmlEscape(s string) string {
+	return xmlEscapeWith(s, true)
 }

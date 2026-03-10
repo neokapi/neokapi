@@ -19,13 +19,16 @@ import (
 type Reader struct {
 	format.BaseFormatReader
 	cfg           *Config
+	resolver      format.SubfilterResolver
 	tmpFile       *os.File
 	skeletonStore *format.SkeletonStore
 	skelBuf       bytes.Buffer
+	layerSeq      int // counter for generating unique child layer IDs
 }
 
-// Ensure Reader implements SkeletonStoreEmitter.
+// Ensure Reader implements SkeletonStoreEmitter and SubfilterAware.
 var _ format.SkeletonStoreEmitter = (*Reader)(nil)
+var _ format.SubfilterAware = (*Reader)(nil)
 
 // NewReader creates a new archive reader.
 func NewReader() *Reader {
@@ -40,6 +43,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSubfilterResolver sets the resolver for creating sub-format readers.
+func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	r.resolver = resolver
 }
 
 // SetSkeletonStore sets the skeleton store for streaming skeleton output.
@@ -137,7 +145,45 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		if r.isTextFile(file.Name, patterns) {
-			// Text file: emit as child layer with blocks
+			// Check if this file should be routed through a sub-format reader
+			if mapping := r.matchSubfilter(file.Name); mapping != nil && r.resolver != nil {
+				r.layerSeq++
+				childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+
+				childLayer := &model.Layer{
+					ID:       childLayerID,
+					Name:     file.Name,
+					Format:   mapping.Format,
+					Locale:   locale,
+					ParentID: rootLayer.ID,
+					Properties: map[string]string{
+						"subfilter.source": "archive",
+						"entry":            file.Name,
+					},
+				}
+
+				rc, err := file.Open()
+				if err != nil {
+					r.emitError(ch, fmt.Errorf("archive: opening entry %s: %w", file.Name, err))
+					return
+				}
+				content, err := io.ReadAll(rc)
+				rc.Close()
+				if err != nil {
+					r.emitError(ch, fmt.Errorf("archive: reading entry %s: %w", file.Name, err))
+					return
+				}
+
+				// Write skeleton marker for subfiltered entry
+				r.skelText("<<SUBFILTER:" + file.Name + ">>\n")
+				r.skelRef("layer:" + file.Name)
+				r.skelText("\n")
+
+				r.emitSubfiltered(ctx, ch, content, file.Name, rootLayer.ID, mapping, childLayer, &blockCounter)
+				continue
+			}
+
+			// Text file: emit as child layer with blocks (fallback line-by-line)
 			layerCounter++
 			childLayer := &model.Layer{
 				ID:       fmt.Sprintf("layer%d", layerCounter),
@@ -247,6 +293,117 @@ func (r *Reader) skelFlush() {
 		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
 		r.skelBuf.Reset()
 	}
+}
+
+// matchSubfilter checks if the given file name matches any configured subfilter mapping.
+// Falls back to default mappings when no explicit mappings are configured.
+func (r *Reader) matchSubfilter(fileName string) *format.SubfilterMapping {
+	mappings := r.cfg.SubfilterMappings
+	if len(mappings) == 0 {
+		mappings = DefaultSubfilterMappings()
+	}
+	base := filepath.Base(fileName)
+	for i := range mappings {
+		sf := &mappings[i]
+		if matched, _ := filepath.Match(sf.Pattern, base); matched {
+			return sf
+		}
+	}
+	return nil
+}
+
+// emitSubfiltered emits a child layer with content parsed by the subfilter format reader.
+func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entryName, parentLayerID string, mapping *format.SubfilterMapping,
+	childLayer *model.Layer, blockCounter *int) {
+
+	subReader, err := r.resolver.ResolveReader(mapping.Format)
+	if err != nil {
+		// Fall back to line-by-line extraction if sub-reader unavailable
+		r.emitLineByLine(ctx, ch, content, entryName, parentLayerID, blockCounter)
+		return
+	}
+
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+
+	// Emit child layer start
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+		return
+	}
+
+	// Open sub-reader and emit its parts
+	subDoc := &model.RawDocument{
+		URI:          entryName,
+		SourceLocale: locale,
+		Encoding:     "UTF-8",
+		Reader:       io.NopCloser(bytes.NewReader(content)),
+	}
+	if err := subReader.Open(ctx, subDoc); err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("archive: subfilter open for %s: %w", entryName, err)}
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+		return
+	}
+
+	// Read sub-reader parts, skipping the sub-reader's own root layer start/end
+	for pr := range subReader.Read(ctx) {
+		if pr.Error != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("archive: subfilter read for %s: %w", entryName, pr.Error)}
+			break
+		}
+		if pr.Part.Type == model.PartLayerStart || pr.Part.Type == model.PartLayerEnd {
+			if layer, ok := pr.Part.Resource.(*model.Layer); ok && layer.IsRoot() {
+				continue
+			}
+		}
+		r.emit(ctx, ch, pr.Part)
+	}
+	subReader.Close()
+
+	// Emit child layer end
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
+}
+
+// emitLineByLine is the fallback when subfilter fails — emits content as plain blocks.
+func (r *Reader) emitLineByLine(ctx context.Context, ch chan<- model.PartResult,
+	content []byte, entryName, parentLayerID string, blockCounter *int) {
+
+	locale := r.Doc.SourceLocale
+	if locale.IsEmpty() {
+		locale = model.LocaleEnglish
+	}
+
+	childLayer := &model.Layer{
+		ID:       fmt.Sprintf("fallback-%s", entryName),
+		Name:     entryName,
+		Format:   "archive",
+		Locale:   locale,
+		ParentID: parentLayerID,
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: childLayer}) {
+		return
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		*blockCounter++
+		blockIDStr := fmt.Sprintf("tu%d", *blockCounter)
+		block := model.NewBlock(blockIDStr, trimmed)
+		block.Name = entryName
+		block.Properties["entry"] = entryName
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return
+		}
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: childLayer})
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

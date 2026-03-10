@@ -26,6 +26,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new TTX reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "ttx",
@@ -107,13 +108,39 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	// Determine effective segment mode
+	mode := r.cfg.SegmentMode
+	includeUnsegmented := false
+	if mode == SegmentModeAll {
+		includeUnsegmented = true
+	} else if mode == SegmentModeAuto {
+		// Auto-detect: scan for Tu elements first
+		preDecoder := xml.NewDecoder(strings.NewReader(rawText))
+		preDecoder.Strict = false
+		hasTu := false
+		for {
+			ptok, perr := preDecoder.Token()
+			if perr != nil {
+				break
+			}
+			if start, ok := ptok.(xml.StartElement); ok && start.Name.Local == "Tu" {
+				hasTu = true
+				break
+			}
+		}
+		// If no Tu elements found, extract all text
+		includeUnsegmented = !hasTu
+	}
+
 	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
 	blockCounter := 0
 	tuCount := 0
+	inRaw := false
 
 	var segPositions []segPosition
+	var unsegmentedText strings.Builder
 
 	for {
 		tok, err := decoder.Token()
@@ -127,7 +154,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 		switch t := tok.(type) {
 		case xml.StartElement:
-			if t.Name.Local == "Tu" {
+			switch t.Name.Local {
+			case "Raw":
+				inRaw = true
+			case "Tu":
+				// Flush any unsegmented text before a Tu
+				if includeUnsegmented && inRaw {
+					text := strings.TrimSpace(unsegmentedText.String())
+					if text != "" {
+						blockCounter++
+						block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
+						block.Name = fmt.Sprintf("tu%d", blockCounter)
+						block.Properties["unsegmented"] = "true"
+						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+							return
+						}
+					}
+					unsegmentedText.Reset()
+				}
+
 				blockCounter++
 				matchPercent := attrVal(t.Attr, "MatchPercent")
 				var segs []segPosition
@@ -139,6 +184,28 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 						return
 					}
 				}
+			}
+		case xml.EndElement:
+			if t.Name.Local == "Raw" {
+				// Flush trailing unsegmented text
+				if includeUnsegmented {
+					text := strings.TrimSpace(unsegmentedText.String())
+					if text != "" {
+						blockCounter++
+						block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
+						block.Name = fmt.Sprintf("tu%d", blockCounter)
+						block.Properties["unsegmented"] = "true"
+						if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+							return
+						}
+					}
+					unsegmentedText.Reset()
+				}
+				inRaw = false
+			}
+		case xml.CharData:
+			if includeUnsegmented && inRaw {
+				unsegmentedText.Write(t)
 			}
 		}
 	}
