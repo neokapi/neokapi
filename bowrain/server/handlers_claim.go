@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/gokapi/gokapi/core/model"
@@ -63,7 +66,11 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 		}
 	}
 
-	// TODO: if req.Email != "", send claim email via EmailService once available.
+	// Send claim email if email is provided and SMTP is configured.
+	if req.Email != "" && s.EmailSender != nil {
+		baseURL := requestBaseURL(c)
+		go s.sendClaimEmail(context.Background(), req.Email, projectID, claimToken, baseURL)
+	}
 
 	return c.JSON(http.StatusCreated, AnonymousProjectResponse{
 		ProjectID:  projectID,
@@ -125,4 +132,31 @@ func (s *Server) HandleClaimProject(c echo.Context) error {
 		ProjectID:     projectID,
 		WorkspaceSlug: wsSlug,
 	})
+}
+
+// sendClaimEmail sends an HTML email with the claim token so the user can claim their project.
+func (s *Server) sendClaimEmail(ctx context.Context, email, projectID, claimToken, baseURL string) {
+	claimURL := fmt.Sprintf("%s/claim?token=%s", baseURL, claimToken)
+
+	subject := "Your Bowrain Project Claim Token"
+	body := fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+<h2 style="margin-bottom: 8px;">Your Project is Ready</h2>
+<p>Your project <strong>%s</strong> has been created on Bowrain.</p>
+<p>To claim this project and link it to your account, click the button below:</p>
+<p style="margin: 24px 0;">
+  <a href="%s" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500;">
+    Claim Project
+  </a>
+</p>
+<p style="color: #6b7280; font-size: 13px;">
+  Or copy this link: <a href="%s">%s</a>
+</p>
+</body>
+</html>`, projectID, claimURL, claimURL, claimURL)
+
+	if err := s.EmailSender.Send(ctx, email, subject, body); err != nil {
+		log.Printf("failed to send claim email to %s: %v", email, err)
+	}
 }

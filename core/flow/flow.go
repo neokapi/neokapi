@@ -22,4 +22,8 @@ type FlowItem struct {
 	OutputPath     string
 	OutputEncoding string
 	TargetLocale   model.LocaleID
+
+	// OutputBlocks holds processed blocks after flow execution, enabling
+	// store-backed persistence when a projectID is provided.
+	OutputBlocks []*model.Block
 }

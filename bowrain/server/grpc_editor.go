@@ -344,9 +344,9 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 		Target:       &model.Fragment{CodedText: req.Target},
 		SourceLocale: model.LocaleID(req.SourceLocale),
 		TargetLocale: model.LocaleID(req.TargetLocale),
-		// TODO: set ProjectID from req.ProjectId once proto is updated
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ProjectID:    req.ProjectId,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 	}
 	if err := tm.Add(entry); err != nil {
 		return nil, status.Errorf(codes.Internal, "add TM entry: %v", err)
@@ -444,8 +444,8 @@ func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptReq
 	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
 
 	concept := termbase.Concept{
-		ID: id.New(),
-		// TODO: set ProjectID from req.ProjectId once proto is updated
+		ID:         id.New(),
+		ProjectID:  req.ProjectId,
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      protoToTerms(req.Terms),
@@ -474,7 +474,7 @@ func (g *EditorGRPCServer) UpdateConcept(ctx context.Context, req *pb.UpdateConc
 	existing.Domain = req.Domain
 	existing.Definition = req.Definition
 	existing.Terms = protoToTerms(req.Terms)
-	// TODO: set existing.ProjectID from req.ProjectId once proto is updated
+	existing.ProjectID = req.ProjectId
 	existing.UpdatedAt = time.Now()
 
 	if err := tb.AddConcept(existing); err != nil {

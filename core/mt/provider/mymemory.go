@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -34,17 +35,18 @@ func (c *MyMemoryConfig) baseURL() string {
 
 // MyMemoryProvider implements MTProvider using the MyMemory free translation API.
 type MyMemoryProvider struct {
-	cfg MyMemoryConfig
+	cfg    MyMemoryConfig
+	client *http.Client
 }
 
 // NewMyMemoryProvider creates a new MyMemory MT provider.
 func NewMyMemoryProvider(cfg MyMemoryConfig) *MyMemoryProvider {
-	return &MyMemoryProvider{cfg: cfg}
+	return &MyMemoryProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
 func (p *MyMemoryProvider) Name() string { return "mymemory" }
 
-func (p *MyMemoryProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+func (p *MyMemoryProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	if req.SourceLocale.IsEmpty() {
 		return nil, fmt.Errorf("mymemory: SourceLocale is required")
 	}
@@ -62,7 +64,12 @@ func (p *MyMemoryProvider) Translate(_ context.Context, req TranslateRequest) (*
 	}
 
 	apiURL := fmt.Sprintf("%s/get?%s", p.cfg.baseURL(), params.Encode())
-	resp, err := http.Get(apiURL)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}

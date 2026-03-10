@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/gokapi/gokapi/core/httputil"
 )
 
 // AnthropicProvider implements LLMProvider for Anthropic Claude API.
@@ -29,7 +31,7 @@ func NewAnthropicProvider(cfg Config) *AnthropicProvider {
 	}
 	return &AnthropicProvider{
 		config: cfg,
-		client: &http.Client{},
+		client: httputil.NewResilientClient(),
 	}
 }
 

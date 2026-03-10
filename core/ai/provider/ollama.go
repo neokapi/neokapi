@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/gokapi/gokapi/core/httputil"
 )
 
 // OllamaProvider implements LLMProvider for local Ollama models.
@@ -25,7 +27,7 @@ func NewOllamaProvider(cfg Config) *OllamaProvider {
 	}
 	return &OllamaProvider{
 		config: cfg,
-		client: &http.Client{},
+		client: httputil.NewResilientClient(),
 	}
 }
 

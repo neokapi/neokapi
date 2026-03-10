@@ -3,6 +3,7 @@ package termbase
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -320,7 +321,10 @@ func (tb *SQLiteTermBase) Search(query, sourceLocale, targetLocale string, offse
 // Count returns the total number of concepts.
 func (tb *SQLiteTermBase) Count() int {
 	var count int
-	_ = tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts").Scan(&count)
+	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts").Scan(&count); err != nil {
+		log.Printf("WARNING: termbase count query failed: %v", err)
+		return 0
+	}
 	return count
 }
 

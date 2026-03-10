@@ -1,6 +1,7 @@
 package event
 
 import (
+	"log"
 	"sync"
 	"time"
 
@@ -50,7 +51,7 @@ func (b *ChannelEventBus) Publish(ev platev.Event) {
 			select {
 			case s.ch <- ev:
 			default:
-				// Drop event if subscriber is too slow.
+				log.Printf("WARNING: event bus dropping event %s (type=%s) for subscriber %s: channel full", ev.ID, ev.Type, s.sub.ID)
 			}
 		}
 	}

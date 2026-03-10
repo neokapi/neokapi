@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -38,12 +39,13 @@ func (c *ModernMTConfig) baseURL() string {
 
 // ModernMTProvider implements MTProvider using the ModernMT API.
 type ModernMTProvider struct {
-	cfg ModernMTConfig
+	cfg    ModernMTConfig
+	client *http.Client
 }
 
 // NewModernMTProvider creates a new ModernMT provider.
 func NewModernMTProvider(cfg ModernMTConfig) *ModernMTProvider {
-	return &ModernMTProvider{cfg: cfg}
+	return &ModernMTProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
 func (p *ModernMTProvider) Name() string { return "modernmt" }
@@ -73,7 +75,7 @@ func (p *ModernMTProvider) Translate(_ context.Context, req TranslateRequest) (*
 	httpReq.Header.Set("MMT-ApiKey", p.cfg.APIKey)
 	httpReq.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}

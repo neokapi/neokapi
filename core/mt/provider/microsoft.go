@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -38,12 +39,13 @@ func (c *MicrosoftConfig) baseURL() string {
 
 // MicrosoftProvider implements MTProvider using the Azure Cognitive Services Translator API.
 type MicrosoftProvider struct {
-	cfg MicrosoftConfig
+	cfg    MicrosoftConfig
+	client *http.Client
 }
 
 // NewMicrosoftProvider creates a new Microsoft Translator MT provider.
 func NewMicrosoftProvider(cfg MicrosoftConfig) *MicrosoftProvider {
-	return &MicrosoftProvider{cfg: cfg}
+	return &MicrosoftProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
 func (p *MicrosoftProvider) Name() string { return "microsoft" }
@@ -70,7 +72,7 @@ func (p *MicrosoftProvider) Translate(_ context.Context, req TranslateRequest) (
 		httpReq.Header.Set("Ocp-Apim-Subscription-Region", p.cfg.Region)
 	}
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}
