@@ -51,7 +51,7 @@ Google, LDAP, SAML, etc.) while presenting a single OIDC interface to gokapi.
 
 - **Server mode**: `bowrain-server` starts with OIDC configuration (issuer URL,
   client ID, client secret). The web UI redirects to the OIDC provider for login.
-- **Standalone mode**: `kapi serve` runs without authentication on localhost.
+- **Standalone mode**: `bowrain serve` runs without authentication on localhost.
   Auth behavior is determined by the `JWTSecret` config: when set, the server
   allows both authenticated and unauthenticated access; when empty, all
   endpoints require JWT authentication.
@@ -82,7 +82,7 @@ Refresh tokens use server-side hashing with single-use rotation:
 
 The CLI authenticates using RFC 8628 (Device Authorization Grant):
 
-1. `kapi auth login --server <url>` calls the device auth endpoint
+1. `bowrain auth login --server <url>` calls the device auth endpoint
 2. Server returns a user code and verification URL
 3. User opens the URL in a browser and enters the code
 4. CLI polls the token endpoint until the user authorizes
@@ -148,7 +148,7 @@ to associate projects with workspaces.
 
 ### Server Modes
 
-| Feature | `bowrain-server` | `kapi serve` |
+| Feature | `bowrain-server` | `bowrain serve` |
 |---------|-----------------|--------------|
 | Binding | 0.0.0.0 (configurable) | 127.0.0.1 |
 | Auth | OIDC + JWT | None (standalone) |
@@ -165,7 +165,7 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 - `bowrain/server/` — REST/gRPC server, auth middleware, workspace handlers,
   gRPC auth interceptors
 - `bowrain/service/auth.go` — `AuthService` business logic
-- `kapi/cmd/kapi/auth.go` — `kapi auth login|logout|status`
+- `bowrain-cli/cmd/bowrain/auth.go` — `bowrain auth login|logout|status`
 
 ## Consequences
 

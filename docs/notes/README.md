@@ -19,7 +19,7 @@ and other reference material.
 | [Terminology Data Model](terminology-data-model.md) | [AD-010](/docs/ad/010-terminology) | Go structs, TermBase interface |
 | [Bowrain UI Components](bowrain-ui-components.md) | [AD-012](/docs/ad/012-bowrain) | Editor modes, component library |
 | [CLI Commands Reference](cli-commands-reference.md) | [AD-013](/docs/ad/013-cli-and-server) | Command tree, REST routes, gRPC |
-| [Kapi Sync Protocol](kapi-sync-protocol.md) | [AD-016](/docs/ad/016-kapi-project-model) | Config schema, sync algorithms |
+| [Bowrain Sync Protocol](kapi-sync-protocol.md) | [AD-016](/docs/ad/016-kapi-project-model) | Config schema, sync algorithms |
 | [Glass UI Theme](glass-ui-theme.md) | -- | shadcn-glass-ui, OKLCH tokens, 3 themes |
 | [Keycloak Theming](keycloak-theming.md) | -- | Keycloakify v11, custom login pages |
 | [NPM Workspaces](npm-workspaces.md) | -- | Workspace config, build order, lock files |
