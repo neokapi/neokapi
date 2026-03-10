@@ -132,6 +132,8 @@ type ProjectInfoResponse struct {
 	SourceLocale  string                `json:"source_locale"`
 	TargetLocales []string              `json:"target_locales"`
 	Items         []ProjectItemResponse `json:"items"`
+	Streams       []store.Stream        `json:"streams,omitempty"`
+	ActiveStream  string                `json:"active_stream,omitempty"`
 	CreatedAt     string                `json:"created_at"`
 	ModifiedAt    string                `json:"modified_at"`
 }
@@ -400,6 +402,19 @@ func (r SaveProviderConfigRequest) toCredentials() credentials.ProviderConfig {
 	}
 }
 
+// streamParam extracts the active stream from the request.
+// It checks the URL path param first (stream-scoped routes), then falls back
+// to a query param, then defaults to "main".
+func streamParam(c echo.Context) string {
+	if s := c.Param("stream"); s != "" {
+		return s
+	}
+	if s := c.QueryParam("stream"); s != "" {
+		return s
+	}
+	return "main"
+}
+
 // ---------------------------------------------------------------------------
 // ContentStore-backed editor operations
 // ---------------------------------------------------------------------------
@@ -436,7 +451,7 @@ func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, s
 }
 
 // editorAddFiles parses uploaded files, stores items and blocks in ContentStore.
-func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID string, files map[string][]byte) (*ProjectInfoResponse, error) {
+func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream string, files map[string][]byte) (*ProjectInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("get project: %w", err)
@@ -488,7 +503,7 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 			BlockIndex:  string(blockIndexJSON),
 			Properties:  map[string]string{},
 		}
-		if err := cs.StoreItem(ctx, projectID, "main", item); err != nil {
+		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
@@ -503,34 +518,34 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 			}
 		}
 		if len(blocks) > 0 {
-			if err := cs.StoreBlocksForItem(ctx, projectID, "main", itemName, blocks); err != nil {
+			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
 				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
 			}
 		}
 	}
 
-	return editorBuildProjectInfo(ctx, cs, proj)
+	return editorBuildProjectInfo(ctx, cs, proj, stream)
 }
 
 // editorRemoveFile removes an item and its blocks from ContentStore.
-func editorRemoveFile(ctx context.Context, cs store.ContentStore, projectID, fileName string) (*ProjectInfoResponse, error) {
+func editorRemoveFile(ctx context.Context, cs store.ContentStore, projectID, stream, fileName string) (*ProjectInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := cs.DeleteItem(ctx, projectID, "main", fileName); err != nil {
+	if err := cs.DeleteItem(ctx, projectID, stream, fileName); err != nil {
 		return nil, err
 	}
 
-	return editorBuildProjectInfo(ctx, cs, proj)
+	return editorBuildProjectInfo(ctx, cs, proj, stream)
 }
 
 // editorGetBlocks returns blocks for a specific item, formatted for the API.
-func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, itemName string, targetLocales []string) ([]BlockInfoResponse, error) {
+func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string) ([]BlockInfoResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -546,20 +561,20 @@ func editorGetBlocks(ctx context.Context, cs store.ContentStore, projectID, item
 }
 
 // editorUpdateBlockTarget loads a block, updates its target, and stores it back.
-func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, projectID, blockID string, req UpdateBlockTargetRequest) error {
-	sb, err := cs.GetBlock(ctx, projectID, "main", blockID)
+func editorUpdateBlockTarget(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetRequest) error {
+	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return err
 	}
 
 	sb.Block.SetTargetText(model.LocaleID(req.TargetLocale), req.Text)
 
-	return cs.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
 
 // editorUpdateBlockTargetCoded loads a block, updates its target with coded text, and stores it back.
-func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, projectID, blockID string, req UpdateBlockTargetCodedRequest) error {
-	sb, err := cs.GetBlock(ctx, projectID, "main", blockID)
+func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, projectID, stream, blockID string, req UpdateBlockTargetCodedRequest) error {
+	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return err
 	}
@@ -572,14 +587,14 @@ func editorUpdateBlockTargetCoded(ctx context.Context, cs store.ContentStore, pr
 	}
 	sb.Block.SetTargetFragment(model.LocaleID(req.TargetLocale), frag)
 
-	return cs.StoreBlocks(ctx, projectID, "main", []*model.Block{sb.Block})
+	return cs.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block})
 }
 
 // editorPseudoTranslate pseudo-translates all blocks for an item.
-func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -621,7 +636,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 	// Store updated blocks back — they already have internal IDs from GetBlocks.
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, "main", blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -630,7 +645,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 }
 
 // editorAITranslate translates blocks using an AI provider.
-func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, itemName string, req TranslateRequest, credStore *credentials.Store) (*TranslationStatsResponse, error) {
+func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, req TranslateRequest, credStore *credentials.Store) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -638,7 +653,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, it
 
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -671,7 +686,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, it
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, "main", blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -680,7 +695,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, it
 }
 
 // editorTMTranslate leverages translation memory to translate blocks.
-func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, itemName, targetLocale string) (*TranslationStatsResponse, error) {
+func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, itemName, targetLocale string) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -688,7 +703,7 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -716,7 +731,7 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 
 	blocks := partsToBlocks(outParts)
 	if len(blocks) > 0 {
-		if err := cs.StoreBlocks(ctx, projectID, "main", blocks); err != nil {
+		if err := cs.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
 			return nil, fmt.Errorf("store blocks: %w", err)
 		}
 	}
@@ -725,10 +740,10 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 }
 
 // editorGetWordCount computes word/char counts from stored blocks.
-func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, itemName string, targetLocales []string) (*WordCountResponse, error) {
+func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, targetLocales []string) (*WordCountResponse, error) {
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -761,13 +776,13 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, i
 }
 
 // editorExportTranslatedFile exports a translated file using source bytes + updated blocks.
-func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, itemName, targetLocale, dataDir string) (string, error) {
+func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, itemName, targetLocale, dataDir string) (string, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return "", err
 	}
 
-	item, err := cs.GetItem(ctx, projectID, "main", itemName)
+	item, err := cs.GetItem(ctx, projectID, stream, itemName)
 	if err != nil {
 		return "", fmt.Errorf("get item: %w", err)
 	}
@@ -807,7 +822,7 @@ func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, form
 	// Load updated blocks from ContentStore and inject targets into parts.
 	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
-		Stream:    "main",
+		Stream:    stream,
 		ItemName:  itemName,
 	})
 	if err != nil {
@@ -877,7 +892,7 @@ func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, form
 }
 
 // editorLookupTMForBlock looks up TM matches for a specific block.
-func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, blockID, targetLocale string) ([]TMMatchInfoResponse, error) {
+func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]TMMatchInfoResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -891,7 +906,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 		return nil, nil
 	}
 
-	sb, err := cs.GetBlock(ctx, projectID, "main", blockID)
+	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -918,7 +933,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 }
 
 // editorLookupTermsForBlock looks up term matches for a block.
-func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, blockID, targetLocale string) ([]BlockTermMatchResponse, error) {
+func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsStores *workspaceStores, ws, projectID, stream, blockID, targetLocale string) ([]BlockTermMatchResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -929,7 +944,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, nil
 	}
 
-	sb, err := cs.GetBlock(ctx, projectID, "main", blockID)
+	sb, err := cs.GetBlock(ctx, projectID, stream, blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -994,10 +1009,10 @@ func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
 }
 
 // editorBuildProjectInfo builds a full ProjectInfoResponse from store data.
-func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project) (*ProjectInfoResponse, error) {
+func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*ProjectInfoResponse, error) {
 	info := projectToInfoResponse(proj)
 
-	items, err := cs.ListItems(ctx, proj.ID, "main")
+	items, err := cs.ListItems(ctx, proj.ID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
@@ -1005,6 +1020,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 	for _, item := range items {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: proj.ID,
+			Stream:    stream,
 			ItemName:  item.Name,
 		})
 		if err != nil {
@@ -1027,6 +1043,16 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 			WordCount:  wordCount,
 		})
 	}
+
+	streams, _ := cs.ListStreams(ctx, proj.ID, false)
+	if streams != nil {
+		deref := make([]store.Stream, len(streams))
+		for i, st := range streams {
+			deref[i] = *st
+		}
+		info.Streams = deref
+	}
+	info.ActiveStream = stream
 
 	return info, nil
 }

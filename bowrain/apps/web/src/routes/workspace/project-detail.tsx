@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { ProjectView, useApi } from "@gokapi/ui";
+import { ProjectView, useApi, useStream } from "@gokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
@@ -12,6 +12,7 @@ export function ProjectDetailRoute() {
   const queryClient = useQueryClient();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
+  const { activeStream } = useStream();
 
   const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
 
@@ -21,18 +22,18 @@ export function ProjectDetailRoute() {
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
-      await adapter.uploadFiles(ws, project.id, files);
+      await adapter.uploadFiles(ws, project.id, files, activeStream);
       queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
-    [ws, adapter, project.id, queryClient],
+    [ws, adapter, project.id, queryClient, activeStream],
   );
 
   const handleRemoveFile = useCallback(
     async (fileName: string) => {
-      await adapter.removeFile(ws, project.id, fileName);
+      await adapter.removeFile(ws, project.id, fileName, activeStream);
       queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
-    [ws, adapter, project.id, queryClient],
+    [ws, adapter, project.id, queryClient, activeStream],
   );
 
   return (

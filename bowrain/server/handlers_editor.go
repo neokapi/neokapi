@@ -56,7 +56,7 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj)
+	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParam(c))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -84,7 +84,7 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 		if p.WorkspaceID == wsID {
 			info := projectToInfoResponse(p)
 			// Populate items so the dashboard can show file counts.
-			items, err := s.ContentStore.ListItems(ctx, p.ID, "main")
+			items, err := s.ContentStore.ListItems(ctx, p.ID, streamParam(c))
 			if err == nil {
 				for _, item := range items {
 					info.Items = append(info.Items, ProjectItemResponse{
@@ -149,7 +149,7 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "no files uploaded"})
 	}
 
-	info, err := editorAddFiles(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, files)
+	info, err := editorAddFiles(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, streamParam(c), files)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -166,7 +166,7 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 	pid := c.Param("pid")
 	fname := fileParam(c)
 
-	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, fname)
+	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -195,7 +195,7 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 		targetLocales[i] = string(l)
 	}
 
-	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, fname, targetLocales)
+	blocks, err := editorGetBlocks(ctx, s.ContentStore, pid, streamParam(c), fname, targetLocales)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -217,7 +217,7 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, bid, req); err != nil {
+	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
@@ -238,7 +238,7 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if err := editorUpdateBlockTargetCoded(c.Request().Context(), s.ContentStore, pid, bid, req); err != nil {
+	if err := editorUpdateBlockTargetCoded(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
@@ -261,7 +261,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, fname, req.TargetLocale)
+	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -283,7 +283,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, fname, req, s.CredentialStore)
+	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req, s.CredentialStore)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -308,7 +308,7 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	stats, err := editorTMTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, fname, req.TargetLocale)
+	stats, err := editorTMTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -336,7 +336,7 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 		targetLocales[i] = string(l)
 	}
 
-	result, err := editorGetWordCount(ctx, s.ContentStore, pid, fname, targetLocales)
+	result, err := editorGetWordCount(ctx, s.ContentStore, pid, streamParam(c), fname, targetLocales)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -360,7 +360,7 @@ func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	outputPath, err := editorExportTranslatedFile(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, fname, req.TargetLocale, s.Config.DataDir)
+	outputPath, err := editorExportTranslatedFile(c.Request().Context(), s.ContentStore, s.FormatRegistry, pid, streamParam(c), fname, req.TargetLocale, s.Config.DataDir)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -380,7 +380,7 @@ func (s *Server) HandleLookupTMForBlock(c echo.Context) error {
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("target_locale")
 
-	matches, err := editorLookupTMForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, bid, targetLocale)
+	matches, err := editorLookupTMForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), bid, targetLocale)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -402,7 +402,7 @@ func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("target_locale")
 
-	matches, err := editorLookupTermsForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, bid, targetLocale)
+	matches, err := editorLookupTermsForBlock(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), bid, targetLocale)
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -865,7 +865,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 		limit = 20
 	}
 
-	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, "main", bid, locale, limit)
+	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, streamParam(c), bid, locale, limit)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

@@ -116,6 +116,14 @@ export interface StreamMergeResult {
   removed_blocks: number;
 }
 
+/** Create stream request */
+export interface CreateStreamRequest {
+  name: string;
+  parent?: string;
+  visibility?: StreamVisibility;
+  description?: string;
+}
+
 /** Project info */
 export interface ProjectInfo {
   id: string;

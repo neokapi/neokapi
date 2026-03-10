@@ -363,5 +363,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
     deleteEntity: noop,
     promoteEntity: noop,
+    listStreams: async () => [],
+    createStream: async () => { throw new Error("Not implemented"); },
+    getStream: async () => { throw new Error("Not implemented"); },
+    deleteStream: noop,
+    diffStream: async () => ({ stream_name: "", parent_name: "", changes: [] }),
+    mergeStream: async () => ({ merged_blocks: 0, added_blocks: 0, modified_blocks: 0, removed_blocks: 0 }),
   };
 }

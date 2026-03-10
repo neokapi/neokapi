@@ -12,6 +12,7 @@ import type {
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
   NotificationInfo, EntityInfo,
+  StreamInfo, StreamDiffResult, StreamMergeResult, CreateStreamRequest,
 } from "../types/api";
 
 /**
@@ -164,6 +165,13 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.text();
   }
 
+  /** Appends ?stream=X to a path (or &stream=X if query params exist). */
+  private withStream(path: string, stream?: string): string {
+    if (!stream || stream === "main") return path;
+    const sep = path.includes("?") ? "&" : "?";
+    return `${path}${sep}stream=${encodeURIComponent(stream)}`;
+  }
+
   // ── Config ──────────────────────────────────────────────────────────────
 
   async getConfig(): Promise<ConfigResponse> {
@@ -283,6 +291,44 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
+  // ── Streams ─────────────────────────────────────────────────────────────
+
+  private streamEp(ws: string, projectId: string) {
+    return `/api/v1/workspaces/${ws}/projects/${encodeURIComponent(projectId)}/streams`;
+  }
+
+  async listStreams(workspaceSlug: string, projectId: string): Promise<StreamInfo[]> {
+    return this.fetchJSON(this.streamEp(workspaceSlug, projectId));
+  }
+
+  async createStream(workspaceSlug: string, projectId: string, req: CreateStreamRequest): Promise<StreamInfo> {
+    return this.fetchJSON(this.streamEp(workspaceSlug, projectId), {
+      method: "POST",
+      body: JSON.stringify(req),
+    });
+  }
+
+  async getStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo> {
+    return this.fetchJSON(`${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`);
+  }
+
+  async deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
+    await this.fetchJSON(`${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async diffStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamDiffResult> {
+    return this.fetchJSON(`${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/diff`);
+  }
+
+  async mergeStream(workspaceSlug: string, projectId: string, streamName: string, dryRun?: boolean): Promise<StreamMergeResult> {
+    const params = dryRun ? "?dry_run=true" : "";
+    return this.fetchJSON(`${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/merge${params}`, {
+      method: "POST",
+    });
+  }
+
   // ── Projects ─────────────────────────────────────────────────────────────
 
   private ep(ws: string) {
@@ -305,8 +351,8 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async getProject(workspaceSlug: string, projectId: string): Promise<ProjectInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`);
+  async getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo> {
+    return this.fetchJSON(this.withStream(`${this.ep(workspaceSlug)}/${projectId}`, stream));
   }
 
   async deleteProject(workspaceSlug: string, projectId: string): Promise<void> {
@@ -315,12 +361,13 @@ export class RestApiAdapter implements ApiAdapter {
     });
   }
 
-  async uploadFiles(workspaceSlug: string, projectId: string, files: File[]): Promise<ProjectInfo> {
+  async uploadFiles(workspaceSlug: string, projectId: string, files: File[], stream?: string): Promise<ProjectInfo> {
     const formData = new FormData();
     for (const file of files) {
       formData.append("files", file);
     }
-    const resp = await fetch(`${this.baseUrl}${this.ep(workspaceSlug)}/${projectId}/files`, {
+    const url = this.withStream(`${this.ep(workspaceSlug)}/${projectId}/files`, stream);
+    const resp = await fetch(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
       credentials: "same-origin",
@@ -333,18 +380,18 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.json();
   }
 
-  async removeFile(workspaceSlug: string, projectId: string, fileName: string): Promise<ProjectInfo> {
+  async removeFile(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<ProjectInfo> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file/${encodeURIComponent(fileName)}`, stream),
       { method: "DELETE" },
     );
   }
 
   // ── Editor ───────────────────────────────────────────────────────────────
 
-  async getFileBlocks(workspaceSlug: string, projectId: string, fileName: string): Promise<BlockInfo[]> {
+  async getFileBlocks(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<BlockInfo[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file-blocks/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-blocks/${encodeURIComponent(fileName)}`, stream),
     );
   }
 
@@ -362,9 +409,9 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> {
+  async pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
@@ -376,45 +423,45 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
-  async tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> {
+  async tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${encodeURIComponent(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
 
-  async getWordCount(workspaceSlug: string, projectId: string, fileName: string): Promise<WordCountResult> {
+  async getWordCount(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<WordCountResult> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${encodeURIComponent(fileName)}`, stream),
     );
   }
 
-  async exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<Blob> {
+  async exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<Blob> {
     return this.fetchBlob(
-      `${this.ep(workspaceSlug)}/${projectId}/file-export/${encodeURIComponent(fileName)}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-export/${encodeURIComponent(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
 
-  async lookupTMForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<TMMatchInfo[]> {
+  async lookupTMForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string, stream?: string): Promise<TMMatchInfo[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/tm-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/tm-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`, stream),
     );
   }
 
-  async lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]> {
+  async lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string, stream?: string): Promise<BlockTermMatch[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/term-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/term-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`, stream),
     );
   }
 
   // ── Block History ────────────────────────────────────────────────────────
 
-  async getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]> {
+  async getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number, stream?: string): Promise<BlockHistoryEntry[]> {
     const params = new URLSearchParams({ locale });
     if (limit) params.set("limit", String(limit));
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/history?${params}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/history?${params}`, stream),
     );
   }
 
@@ -444,31 +491,31 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── QA ─────────────────────────────────────────────────────────────────
 
-  async runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string): Promise<QAIssue[]> {
+  async runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string, stream?: string): Promise<QAIssue[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/qa-check?locale=${locale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/qa-check?locale=${locale}`, stream),
       { method: "POST" },
     );
   }
 
-  async runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string): Promise<FileQAResult[]> {
+  async runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string, stream?: string): Promise<FileQAResult[]> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${encodeURIComponent(fileName)}?locale=${locale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${encodeURIComponent(fileName)}?locale=${locale}`, stream),
       { method: "POST" },
     );
   }
 
   // ── Preview ────────────────────────────────────────────────────────────
 
-  async renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<string> {
+  async renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<string> {
     return this.fetchText(
-      `${this.ep(workspaceSlug)}/${projectId}/file-preview/${encodeURIComponent(fileName)}?locale=${targetLocale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-preview/${encodeURIComponent(fileName)}?locale=${targetLocale}`, stream),
     );
   }
 
-  async renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string): Promise<string> {
+  async renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string, stream?: string): Promise<string> {
     return this.fetchText(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/html?locale=${targetLocale}`,
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/html?locale=${targetLocale}`, stream),
     );
   }
 

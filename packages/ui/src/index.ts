@@ -105,6 +105,7 @@ export { ApiProvider, useApi } from "./context/ApiContext";
 export { ThemeProvider, useTheme } from "./context/ThemeContext";
 export type { Theme } from "./context/ThemeContext";
 export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
+export { StreamProvider, useStream } from "./context/StreamContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";
@@ -146,7 +147,7 @@ export type {
   AutomationRule, AutomationCondition, AutomationAction, AutomationEvent,
   SaveAutomationRuleRequest, AutomationHistoryEntry,
   EntityInfo, NotificationInfo,
-  StreamInfo, StreamVisibility, BlockChangeInfo, StreamDiffResult, StreamMergeResult,
+  StreamInfo, StreamVisibility, BlockChangeInfo, StreamDiffResult, StreamMergeResult, CreateStreamRequest,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

@@ -5,6 +5,7 @@ import {
   TopBar,
   AuthProvider,
   WorkspaceProvider,
+  StreamProvider,
   CreateWorkspaceDialog,
   AnimatedBackgroundGlass,
   cn,
@@ -174,7 +175,9 @@ export function WorkspaceLayout() {
           headerSlot={<TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />}
           contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
         >
-          <Outlet />
+          <StreamProvider>
+            <Outlet />
+          </StreamProvider>
         </AppShell>
 
         <CreateWorkspaceDialog

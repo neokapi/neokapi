@@ -11,6 +11,7 @@ import type {
   QAIssue, FileQAResult,
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
   NotificationInfo, EntityInfo,
+  StreamInfo, StreamDiffResult, StreamMergeResult, CreateStreamRequest,
 } from "../types/api";
 
 /**
@@ -51,6 +52,14 @@ export interface ApiAdapter {
   // Claim
   claimProject(claimToken: string): Promise<ClaimProjectResponse>;
 
+  // Streams
+  listStreams(workspaceSlug: string, projectId: string): Promise<StreamInfo[]>;
+  createStream(workspaceSlug: string, projectId: string, req: CreateStreamRequest): Promise<StreamInfo>;
+  getStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+  deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
+  diffStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamDiffResult>;
+  mergeStream(workspaceSlug: string, projectId: string, streamName: string, dryRun?: boolean): Promise<StreamMergeResult>;
+
   // Projects (workspace-scoped)
   listProjects(workspaceSlug: string): Promise<ProjectInfo[]>;
   createProject(
@@ -59,22 +68,22 @@ export interface ApiAdapter {
     sourceLocale: string,
     targetLocales: string[],
   ): Promise<ProjectInfo>;
-  getProject(workspaceSlug: string, projectId: string): Promise<ProjectInfo>;
+  getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo>;
   deleteProject(workspaceSlug: string, projectId: string): Promise<void>;
-  uploadFiles(workspaceSlug: string, projectId: string, files: File[]): Promise<ProjectInfo>;
-  removeFile(workspaceSlug: string, projectId: string, fileName: string): Promise<ProjectInfo>;
+  uploadFiles(workspaceSlug: string, projectId: string, files: File[], stream?: string): Promise<ProjectInfo>;
+  removeFile(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<ProjectInfo>;
 
   // Editor
-  getFileBlocks(workspaceSlug: string, projectId: string, fileName: string): Promise<BlockInfo[]>;
+  getFileBlocks(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<BlockInfo[]>;
   updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void>;
   updateBlockTargetCoded(workspaceSlug: string, req: UpdateBlockTargetCodedRequest): Promise<void>;
-  pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
+  pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats>;
   aiTranslateFile(workspaceSlug: string, req: AITranslateFileRequest): Promise<TranslationStats>;
-  tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats>;
-  getWordCount(workspaceSlug: string, projectId: string, fileName: string): Promise<WordCountResult>;
-  exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<Blob>;
-  lookupTMForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<TMMatchInfo[]>;
-  lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]>;
+  tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats>;
+  getWordCount(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<WordCountResult>;
+  exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<Blob>;
+  lookupTMForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string, stream?: string): Promise<TMMatchInfo[]>;
+  lookupTermsForBlock(workspaceSlug: string, projectId: string, itemName: string, blockId: string, targetLocale: string, stream?: string): Promise<BlockTermMatch[]>;
 
   // Block notes
   addBlockNote(workspaceSlug: string, projectId: string, blockId: string, text: string): Promise<BlockNote>;
@@ -82,15 +91,15 @@ export interface ApiAdapter {
   deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void>;
 
   // Block history
-  getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]>;
+  getBlockHistory(workspaceSlug: string, projectId: string, blockId: string, locale: string, limit?: number, stream?: string): Promise<BlockHistoryEntry[]>;
 
   // QA
-  runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string): Promise<QAIssue[]>;
-  runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string): Promise<FileQAResult[]>;
+  runQACheck(workspaceSlug: string, projectId: string, blockId: string, locale: string, stream?: string): Promise<QAIssue[]>;
+  runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string, stream?: string): Promise<FileQAResult[]>;
 
   // Preview
-  renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string): Promise<string>;
-  renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string): Promise<string>;
+  renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<string>;
+  renderBlockHTML(workspaceSlug: string, projectId: string, blockId: string, targetLocale: string, stream?: string): Promise<string>;
 
   // Translation Memory
   getTMEntries(workspaceSlug: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number): Promise<TMSearchResult>;
