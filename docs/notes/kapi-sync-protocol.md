@@ -14,7 +14,6 @@ version: v1
 # Compound URL encoding server, workspace, and project ID.
 # Formats:
 #   https://bowrain.example.com/my-team/abc123     (workspace project)
-#   https://bowrain.example.com/claim/clm_xyz      (claim URL)
 #   https://bowrain.example.com/projects/abc123     (direct project, no workspace)
 url: https://bowrain.example.com/my-team/abc123
 
@@ -56,7 +55,7 @@ flows:
 
 **Field descriptions:**
 
-- **`url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `ClaimToken()`, `HasServer()`.
+- **`url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `HasServer()`. Claim tokens for anonymous projects are stored in `.sync-cache` (gitignored), not in the URL.
 - **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en-US`)
 - **`defaults.target_languages`** -- Array of BCP-47 tags for target languages. When empty, the CLI falls back to server-side target locales (cached in `.sync-cache`).
 - **`defaults.collection`** -- Default collection for organizing content on the server
@@ -136,6 +135,7 @@ Collections are sent with each block during push via the `collection` field in `
   "project_id": "abc123",
   "sync_cursor": 4821,
   "last_sync": "2026-02-15T10:30:00Z",
+  "claim_token": "clm_abc123",
   "files": {
     "src/locales/en-US.json": {
       "mtime": "2026-02-15T10:25:00Z",
@@ -156,6 +156,7 @@ Collections are sent with each block during push via the `collection` field in `
 **Key fields:**
 - **`sync_cursor`** -- Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
 - **`last_sync`** -- Timestamp of the last successful push or pull.
+- **`claim_token`** -- Claim token for anonymous projects. Stored here (gitignored) rather than in `config.yaml` to avoid accidentally committing credentials to version control. Cleared after `bowrain auth claim` transfers ownership.
 - **`files`** -- Per-file entries keyed by relative path. Each entry tracks the file's mtime, size, and a map of block ID → content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
 - **`server_meta`** -- Cached project metadata from the server, including target locales. Updated on each push/pull. Used to resolve dynamic target languages when `defaults.target_languages` is empty.
 

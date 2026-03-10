@@ -82,10 +82,11 @@ The `Config` struct defines: schema version (`version`), compound server URL (`u
 The `url` field encodes the server, workspace, and project ID in a single URL:
 
 - `https://bowrain.example.com/my-team/abc123` — workspace project
-- `https://bowrain.example.com/claim/clm_xyz` — claim URL
 - `https://bowrain.example.com/projects/abc123` — direct project (no workspace)
 
-Accessor methods (`ServerURL()`, `ProjectID()`, `Workspace()`, `ClaimToken()`, `HasServer()`) parse the URL on demand.
+Accessor methods (`ServerURL()`, `ProjectID()`, `Workspace()`, `HasServer()`) parse the URL on demand.
+
+Claim tokens for anonymous projects are stored in `.sync-cache` (gitignored), not in `config.yaml`, to avoid accidentally committing credentials to version control. The `bowrain auth claim` command reads the token from `.sync-cache` or accepts it as a CLI argument.
 
 #### Multi-Source-Language Projects
 

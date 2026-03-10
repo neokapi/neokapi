@@ -94,7 +94,7 @@ func TestFindProject(t *testing.T) {
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 		cfg := &Config{
-			URL: FormatProjectURL("https://test.example.com", "ws", "test123", ""),
+			URL: FormatProjectURL("https://test.example.com", "ws", "test123"),
 			Defaults: Defaults{
 				SourceLanguage: "en-US",
 			},

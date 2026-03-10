@@ -52,7 +52,7 @@ func TestHandleProjectConfigWithServer(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &project.Config{
-		URL: project.FormatProjectURL("https://bowrain.example.com", "", "proj-123", ""),
+		URL: project.FormatProjectURL("https://bowrain.example.com", "", "proj-123"),
 		Defaults: project.Defaults{
 			SourceLanguage: "en",
 		},
