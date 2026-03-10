@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -111,6 +112,7 @@ func (c *WordPressConnector) Publish(ctx context.Context, items []*platconn.Cont
 	for _, item := range items {
 		wpID := item.Metadata["wp_id"]
 		if wpID == "" {
+			log.Printf("WARNING: wordpress: skipping item %q with no wp_id", item.Name)
 			continue
 		}
 
@@ -123,6 +125,8 @@ func (c *WordPressConnector) Publish(ctx context.Context, items []*platconn.Cont
 				payload["content"] = b.SourceText()
 			case "excerpt":
 				payload["excerpt"] = b.SourceText()
+			default:
+				log.Printf("WARNING: wordpress: skipping block %q with unsupported type %q for post %s", b.ID, b.Type, wpID)
 			}
 		}
 

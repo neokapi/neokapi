@@ -351,7 +351,7 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, itemName strin
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
-		annsJSON, err := json.Marshal(b.Annotations)
+		annsJSON, err := serializeAnnotations(b.Annotations)
 		if err != nil {
 			return fmt.Errorf("marshal annotations for block %s: %w", internalID, err)
 		}
@@ -740,12 +740,97 @@ func scanStoredBlock(row scanner) (*platstore.StoredBlock, error) {
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
-	// Annotations use an interface type; skip deserialization for now.
-	sb.Block.Annotations = make(map[string]model.Annotation)
+	sb.Block.Annotations = deserializeAnnotations(annsJSON)
 
 	return &sb, nil
 }
 
 func scanStoredBlockRow(rows *sql.Rows) (*platstore.StoredBlock, error) {
 	return scanStoredBlock(rows)
+}
+
+// annotationWrapper wraps an Annotation with a type discriminator for JSON storage.
+type annotationWrapper struct {
+	Type string      `json:"type"`
+	Data interface{} `json:"data"`
+}
+
+// serializeAnnotations converts a map of typed Annotations into a JSON byte slice
+// with type discriminators for lossless round-trip deserialization.
+func serializeAnnotations(anns map[string]model.Annotation) ([]byte, error) {
+	if len(anns) == 0 {
+		return []byte("{}"), nil
+	}
+	wrapped := make(map[string]annotationWrapper, len(anns))
+	for key, ann := range anns {
+		wrapped[key] = annotationWrapper{
+			Type: ann.AnnotationType(),
+			Data: ann,
+		}
+	}
+	return json.Marshal(wrapped)
+}
+
+// deserializeAnnotations converts a JSON string into a map of typed Annotations.
+// The JSON format uses a type-discriminated wrapper: {"key": {"type": "...", "data": {...}}}.
+func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
+	result := make(map[string]model.Annotation)
+	if jsonStr == "" || jsonStr == "{}" || jsonStr == "null" {
+		return result
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
+		return result
+	}
+
+	for key, data := range raw {
+		// Try to extract the type discriminator.
+		var wrapper struct {
+			Type string          `json:"type"`
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(data, &wrapper); err != nil {
+			// Fall back: try direct deserialization as GenericAnnotation.
+			var ga model.GenericAnnotation
+			if err := json.Unmarshal(data, &ga); err == nil {
+				result[key] = &ga
+			}
+			continue
+		}
+
+		// Use the inner data if present, otherwise use the raw data itself.
+		payload := wrapper.Data
+		if payload == nil {
+			payload = data
+		}
+
+		switch wrapper.Type {
+		case "alt-translation":
+			var ann model.AltTranslation
+			if err := json.Unmarshal(payload, &ann); err == nil {
+				result[key] = &ann
+			}
+		case "note":
+			var ann model.NoteAnnotation
+			if err := json.Unmarshal(payload, &ann); err == nil {
+				result[key] = &ann
+			}
+		case "entity":
+			var ann model.EntityAnnotation
+			if err := json.Unmarshal(payload, &ann); err == nil {
+				result[key] = &ann
+			}
+		default:
+			var ga model.GenericAnnotation
+			if err := json.Unmarshal(payload, &ga); err == nil {
+				if ga.Type_ == "" {
+					ga.Type_ = wrapper.Type
+				}
+				result[key] = &ga
+			}
+		}
+	}
+
+	return result
 }

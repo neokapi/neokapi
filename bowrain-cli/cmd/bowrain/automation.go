@@ -56,9 +56,42 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 			timeout = d
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "  Waiting for translations (timeout: %s)...\n", timeout)
-		// Reuse sync.go wait logic when a push ID is available.
-		// For now, this is a placeholder that logs intent.
-		return nil
+
+		pushID := action.Config["push_id"]
+		if pushID == "" {
+			fmt.Fprintln(cmd.OutOrStdout(), "  No push_id available; skipping wait.")
+			return nil
+		}
+
+		// Build a client from the project to check push status.
+		conn, err := project.NewSourceConnector(proj, app.FormatReg)
+		if err != nil {
+			return fmt.Errorf("connect to server: %w", err)
+		}
+		defer conn.Close()
+		client := conn.Client()
+
+		// Poll translation status with exponential backoff.
+		interval := 2 * time.Second
+		deadline := time.Now().Add(timeout)
+		for time.Now().Before(deadline) {
+			status, err := client.PushStatus(cmd.Context(), pushID)
+			if err != nil {
+				return fmt.Errorf("check push status: %w", err)
+			}
+			if status.Completed == status.Total && status.Total > 0 {
+				fmt.Fprintln(cmd.OutOrStdout(), "  Translations completed.")
+				return nil
+			}
+			if status.Failed > 0 {
+				return fmt.Errorf("translation job failed (%d/%d failed)", status.Failed, status.Total)
+			}
+			time.Sleep(interval)
+			if interval < 30*time.Second {
+				interval = interval * 2
+			}
+		}
+		return fmt.Errorf("timed out waiting for translations after %s", timeout)
 
 	case "pull":
 		fmt.Fprintln(cmd.OutOrStdout(), "  Pulling translations...")

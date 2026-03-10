@@ -97,6 +97,11 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
 
+	// Verify the calling user has admin or owner role.
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
+	}
+
 	var req WorkspaceRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -122,6 +127,12 @@ func (s *Server) HandleDeleteWorkspace(c echo.Context) error {
 	if s.AuthStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
+
+	// Verify the calling user has owner role.
+	if err := s.requireRole(c, platauth.RoleOwner); err != nil {
+		return err
+	}
+
 	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})

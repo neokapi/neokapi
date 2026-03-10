@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/gokapi/gokapi/core/httputil"
 )
 
 const defaultAzureAPIVersion = "2024-10-21"
@@ -42,7 +44,7 @@ func NewAzureOpenAIProvider(cfg Config) *AzureOpenAIProvider {
 		config:     cfg,
 		deployment: cfg.Model,
 		apiVersion: defaultAzureAPIVersion,
-		client:     &http.Client{},
+		client:     httputil.NewResilientClient(),
 	}
 }
 
@@ -58,7 +60,7 @@ func NewAzureOpenAITokenProvider(endpoint, deployment string, tp TokenProvider) 
 		},
 		deployment:    deployment,
 		apiVersion:    defaultAzureAPIVersion,
-		client:        &http.Client{},
+		client:        httputil.NewResilientClient(),
 		tokenProvider: tp,
 	}
 }
