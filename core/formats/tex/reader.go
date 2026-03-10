@@ -224,9 +224,6 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 				p.lastSkelPos = p.pos
 			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
-		} else if r.skeletonStore != nil && textStartPos >= 0 {
-			// Text was all whitespace — include in skeleton text tracking
-			// (will be picked up by next ref or end-of-parse)
 		}
 		textBuf.Reset()
 		rawBuf.Reset()

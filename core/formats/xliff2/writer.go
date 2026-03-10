@@ -95,8 +95,8 @@ func (w *Writer) writeFromSkeleton() error {
 				return err
 			}
 		case format.SkeletonRef:
-			// Ref ID is "blockIdx:elemType"
 			refID := string(entry.Data)
+			// Ref ID is "blockIdx:elemType"
 			parts := strings.SplitN(refID, ":", 2)
 			if len(parts) != 2 {
 				continue

@@ -127,8 +127,8 @@ func (w *Writer) writeFromSkeleton() error {
 				return err
 			}
 		case format.SkeletonRef:
-			// Ref ID is "segIdx:elemType" where segIdx is 0-based
 			refID := string(entry.Data)
+			// Ref ID is "segIdx:elemType" where segIdx is 0-based
 			parts := strings.SplitN(refID, ":", 2)
 			if len(parts) != 2 {
 				continue

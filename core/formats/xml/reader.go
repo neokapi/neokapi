@@ -616,10 +616,10 @@ func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelConten
 	// Merge content and attr ranges into a unified sorted list.
 	var refs []skelRefEntry
 	for _, cr := range contentRanges {
-		refs = append(refs, skelRefEntry{cr.blockID, cr.start, cr.end})
+		refs = append(refs, skelRefEntry(cr))
 	}
 	for _, ar := range attrRanges {
-		refs = append(refs, skelRefEntry{ar.blockID, ar.start, ar.end})
+		refs = append(refs, skelRefEntry(ar))
 	}
 	// Sort by start offset.
 	for i := range refs {

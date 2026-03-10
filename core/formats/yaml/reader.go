@@ -43,13 +43,6 @@ func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
 	r.skeletonStore = store
 }
 
-// skelText appends text to the skeleton buffer if active.
-func (r *Reader) skelText(s string) {
-	if r.skeletonStore != nil {
-		r.skelBuf.WriteString(s)
-	}
-}
-
 // skelBytes appends raw bytes to the skeleton buffer if active.
 func (r *Reader) skelBytes(b []byte) {
 	if r.skeletonStore != nil {

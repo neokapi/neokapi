@@ -239,7 +239,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				r.skelText(l.lineEnding)
 				st = stateSequence
 			} else {
-				textLines = append(textLines, textLine{content: l.content, lineEnding: l.lineEnding})
+				textLines = append(textLines, textLine(l))
 			}
 		}
 	}

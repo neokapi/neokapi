@@ -329,17 +329,6 @@ func (r *Reader) parseTuvWithSkeleton(decoder *xml.Decoder, tuIdx, tuvIdx int, s
 	return segText
 }
 
-// parseTransUnit parses a <Tu> element with its <Tuv> children.
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleID, counter int, matchPercent string) *model.Block {
-	var segs []segPosition
-	return r.parseTransUnitWithSkeleton(decoder, sourceLocale, counter, matchPercent, 0, &segs)
-}
-
-// parseTuv parses a <Tuv> element, extracting text from its <Seg> child.
-func (r *Reader) parseTuv(decoder *xml.Decoder) string {
-	return r.parseTuvWithSkeleton(decoder, 0, 0, &[]segPosition{})
-}
-
 // readSegContent reads the text content of a <Seg> element, handling inline tags.
 func readSegContent(decoder *xml.Decoder) string {
 	var buf strings.Builder

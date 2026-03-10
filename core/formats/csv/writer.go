@@ -124,8 +124,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 				return err
 			}
 		case format.SkeletonRef:
-			refID := string(entry.Data)
-			if block, ok := blocks[refID]; ok {
+			if block, ok := blocks[string(entry.Data)]; ok {
 				text := w.blockText(block)
 				// Re-escape double quotes for cells that were originally quoted.
 				if block.Properties["quoted"] == "true" {
