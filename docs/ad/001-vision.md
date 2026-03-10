@@ -162,15 +162,15 @@ bowrain-cli/               ── Bowrain CLI Module ──
   cmd/bowrain/      project commands + shared CLI base
 
 bowrain/                   ── Bowrain Module (platform) ──
-  auth/             OIDC, AuthStore, SQLite auth
+  auth/             OIDC, AuthStore, SQLite + PostgreSQL auth
   connector/        concrete connector implementations (file, git, etc.)
-  store/            SQLite ContentStore implementation
+  store/            SQLite + PostgreSQL ContentStore implementations
   server/           HTTP/gRPC server handlers
   service/          auth, project, connector, flow services
   event/            event bus implementation + automation
   credentials/      keyring-backed credentials
-  sievepen/         SQLite TM implementation
-  termbase/         SQLite TermBase implementation
+  sievepen/         SQLite + PostgreSQL TM implementation
+  termbase/         SQLite + PostgreSQL TermBase implementation
   cmd/bowrain-server/  Echo v4 REST API server + gRPC services
   apps/bowrain/     Wails v3 desktop app (Go + React/TypeScript)
   apps/web/         SaaS web UI

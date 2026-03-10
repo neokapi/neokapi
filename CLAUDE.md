@@ -13,7 +13,7 @@ The repository is a **multi-module monorepo** with six Go modules:
 - **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
 - **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no SQLite, Wails, Echo, OIDC, keyring).
 - **Bowrain CLI** (`github.com/gokapi/gokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
-- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite storage. Depends on framework + platform. No CLI dependency.
+- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
 
 Both **kapi** and **bowrain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., bowrain adds project flow support via a `RegistryResolver` hook).
 
@@ -148,16 +148,16 @@ gokapi/
 │   ── Bowrain Module ────────────────────
 ├── bowrain/
 │   ├── go.mod             # module github.com/gokapi/gokapi/bowrain (framework + platform)
-│   ├── auth/              # OIDC, AuthStore, SQLite auth (server-specific)
+│   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)
-│   ├── store/             # SQLite ContentStore implementation
-│   ├── storage/           # SQLite migration utilities
+│   ├── store/             # SQLite + PostgreSQL ContentStore implementations
+│   ├── storage/           # SQLite + PostgreSQL migration utilities
 │   ├── server/            # HTTP/gRPC server handlers
 │   ├── service/           # Auth, project, connector, flow services
 │   ├── event/             # Event bus implementation + automation
 │   ├── credentials/       # Keyring-backed credentials
-│   ├── sievepen/          # SQLite TM implementation
-│   ├── termbase/          # SQLite TermBase implementation
+│   ├── sievepen/          # SQLite + PostgreSQL TM implementation
+│   ├── termbase/          # SQLite + PostgreSQL TermBase implementation
 │   ├── proto/v1/          # gRPC protobuf definitions
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
 │   └── apps/
