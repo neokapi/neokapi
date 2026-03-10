@@ -73,7 +73,7 @@ project routes.
 ### Refresh Token Security
 
 Refresh tokens use server-side hashing with single-use rotation:
-- Refresh tokens are hashed (SHA-256) before storage in SQLite
+- Refresh tokens are hashed (SHA-256) before storage
 - Each refresh grants a new token pair (single-use rotation prevents reuse attacks)
 - 30-day expiry window
 - Client auto-refresh: 401 responses trigger automatic token refresh
@@ -112,8 +112,9 @@ visual experience across all authentication flows.
 
 ### Database Schema
 
-Auth data lives in the same SQLite database as the content store (or a
-separate database). Three new tables:
+Auth data lives in the same database as the content store (SQLite or
+PostgreSQL, selected by `DATABASE_URL` — see [AD-003](./003-content-store.md)).
+Three tables:
 
 ```sql
 CREATE TABLE users (
@@ -161,7 +162,7 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 ### Package Structure
 
 - `platform/auth/` — Auth types, JWT handling, PKCE support, device flow client
-- `bowrain/auth/` — `AuthStore` interface, SQLite implementation, OIDC helpers
+- `bowrain/auth/` — `AuthStore` interface, SQLite and PostgreSQL implementations, OIDC helpers
 - `bowrain/server/` — REST/gRPC server, auth middleware, workspace handlers,
   gRPC auth interceptors
 - `bowrain/service/auth.go` — `AuthService` business logic

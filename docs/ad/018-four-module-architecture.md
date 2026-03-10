@@ -38,7 +38,7 @@ framework (core/)
 | Platform | `github.com/gokapi/gokapi/platform` | Shared platform types: project model, auth, connector interfaces, REST client |
 | Kapi | `github.com/gokapi/gokapi/kapi` | Standalone CLI tool for local file processing |
 | Bowrain CLI | `github.com/gokapi/gokapi/bowrain-cli` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
-| Bowrain | `github.com/gokapi/gokapi/bowrain` | REST server, desktop app, SQLite storage, OIDC, connectors |
+| Bowrain | `github.com/gokapi/gokapi/bowrain` | REST server, desktop app, SQLite/PostgreSQL storage, OIDC, connectors |
 
 ### Directory Layout
 

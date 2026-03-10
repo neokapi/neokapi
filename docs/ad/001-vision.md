@@ -37,12 +37,6 @@ Two CLIs demonstrate this separation:
   Bowrain Server. Manages `.bowrain/` project directories, syncs with the
   server via push/pull, runs flows within a project context.
 
-The architecture draws inspiration from
-[Speckle](https://speckle.systems/) — the open data platform for AEC — where
-bidirectional connectors pull data from native tools into a versioned object
-graph, and collaboration, automation, and diffing emerge naturally from the
-data model.
-
 ### Architectural Principles
 
 1. **Connector-first** — Connectors to live systems (CMS, design tools, code
@@ -168,15 +162,15 @@ bowrain-cli/               ── Bowrain CLI Module ──
   cmd/bowrain/      project commands + shared CLI base
 
 bowrain/                   ── Bowrain Module (platform) ──
-  auth/             OIDC, AuthStore, SQLite auth
+  auth/             OIDC, AuthStore, SQLite + PostgreSQL auth
   connector/        concrete connector implementations (file, git, etc.)
-  store/            SQLite ContentStore implementation
+  store/            SQLite + PostgreSQL ContentStore implementations
   server/           HTTP/gRPC server handlers
   service/          auth, project, connector, flow services
   event/            event bus implementation + automation
   credentials/      keyring-backed credentials
-  sievepen/         SQLite TM implementation
-  termbase/         SQLite TermBase implementation
+  sievepen/         SQLite + PostgreSQL TM implementation
+  termbase/         SQLite + PostgreSQL TermBase implementation
   cmd/bowrain-server/  Echo v4 REST API server + gRPC services
   apps/bowrain/     Wails v3 desktop app (Go + React/TypeScript)
   apps/web/         SaaS web UI
