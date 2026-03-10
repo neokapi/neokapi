@@ -9,39 +9,45 @@ This note provides implementation details for [AD-016](/docs/ad/016-kapi-project
 ## `config.yaml` Full Schema
 
 ```yaml
-# Project identity and locales
-project:
-  name: my-app
-  source_locale: en-US
-  target_locales: [fr-FR, de-DE, ja-JP]
+version: v1
 
-# Optional: Bowrain Server connection
-server:
-  url: https://bowrain.example.com
-  project_id: abc123
-  workspace: my-team
-  # Auth token comes from: kapi auth login --server URL
+# Compound URL encoding server, workspace, and project ID.
+# Formats:
+#   https://bowrain.example.com/my-team/abc123     (workspace project)
+#   https://bowrain.example.com/claim/clm_xyz      (claim URL)
+#   https://bowrain.example.com/projects/abc123     (direct project, no workspace)
+url: https://bowrain.example.com/my-team/abc123
 
-# File mappings: local paths <-> remote items
-mappings:
-  - local: src/locales/**/*.json
-    remote: ui/strings/{path}
+# Project-wide defaults for language and organization.
+defaults:
+  source_language: en-US
+  target_languages: [fr-FR, de-DE, ja-JP]
+  collection: ui/strings
+
+# Content entries: which files to track.
+content:
+  - path: src/locales/**/*.json
     format: json
 
-  - local: content/docs/**/*.md
-    remote: docs/{path}
+  - path: content/docs/**/*.md
     format: markdown
+    dest: i18n/{lang}/docs/{path}/{filename}
 
-  - local: public/pages/**/*.html
-    remote: pages/{filename}
-    format: html
+  - path: src/es/**/*.json
+    format: json
+    language: es              # Override source language for this entry
+    collection: spanish-ui    # Override collection for this entry
 
-# Hooks: flows that run automatically
+# Plugins: flat list of plugin dependencies.
+plugins:
+  - okapi@1.0.0
+
+# Hooks: flows that run automatically at lifecycle points.
 hooks:
   pre-push: [qa-check, term-enforce]
   post-pull: [update-stats]
 
-# Flow-specific settings
+# Flow-specific settings.
 flows:
   pseudo:
     target_locale: qps
@@ -50,43 +56,77 @@ flows:
 
 **Field descriptions:**
 
-- **`project.name`** -- Human-readable project name
-- **`project.source_locale`** -- BCP-47 tag for source locale (e.g., `en-US`)
-- **`project.target_locales`** -- Array of BCP-47 tags for target locales
-- **`server.url`** -- (Optional) Bowrain Server URL for pull/push
-- **`server.project_id`** -- (Optional) Remote project ID
-- **`server.workspace`** -- (Optional) Workspace slug for workspace-scoped API routes
-- **`mappings`** -- Array of local-to-remote path mappings (see below)
+- **`url`** -- Compound URL encoding server, workspace, and project ID. Parsed on demand via `ParseProjectURL()`. Accessor methods: `ServerURL()`, `ProjectID()`, `Workspace()`, `ClaimToken()`, `HasServer()`.
+- **`defaults.source_language`** -- BCP-47 tag for the project's default source language (e.g., `en-US`)
+- **`defaults.target_languages`** -- Array of BCP-47 tags for target languages. When empty, the CLI falls back to server-side target locales (cached in `.sync-cache`).
+- **`defaults.collection`** -- Default collection for organizing content on the server
+- **`content`** -- Array of content entries defining which files to track (see below)
+- **`plugins`** -- Flat list of plugin dependencies (e.g., `["okapi@1.0.0"]`)
 - **`hooks`** -- Flow names to run on events (`pre-push`, `post-pull`)
 - **`flows`** -- Per-flow configuration overrides
 
-## File Mappings
+## Content Entries
 
-Mappings define the relationship between local files and remote project items:
+Content entries define which files to track and how they map to the server:
 
 ```yaml
-mappings:
-  - local: src/locales/**/*.json
-    remote: ui/strings/{path}
+content:
+  - path: src/locales/{lang}/*.json
     format: json
+    dest: src/locales/{lang}/*.json
+    base: src/locales/
+    collection: ui
+    language: en
+    target_languages: [fr, de]
 ```
 
 **Fields:**
-- **`local`** -- Glob pattern for local files (relative to project root)
-- **`remote`** -- Remote item path template (can use `\{path\}`, `\{filename\}`, `\{basename\}`)
-- **`format`** -- Format ID (from FormatRegistry: `json`, `html`, `markdown`, etc.)
+- **`path`** -- Glob pattern for source files (relative to project root). May contain `\{lang\}` placeholder expanded with the source language.
+- **`dest`** -- (Optional) Output path pattern for translated files. May contain `\{lang\}` for target locale, or `\{locale\}`, `\{path\}`, `\{filename\}` for legacy-style templates.
+- **`format`** -- Format ID (from FormatRegistry: `json`, `html`, `markdown`, etc.). Use `$auto` or omit for auto-detection by file extension.
+- **`base`** -- (Optional) Path prefix to strip when reporting files to the server (e.g., `src/locales/` so the server sees `en/messages.json` instead of `src/locales/en/messages.json`).
+- **`collection`** -- (Optional) Override the default collection for this content entry. Sent with each block during push.
+- **`language`** -- (Optional) Override the project's default source language for this entry. Enables projects with multiple source languages.
+- **`target_languages`** -- (Optional) Override the default target languages for this entry.
 
-**Path templates:**
-- `\{path\}` -- Full path relative to glob root
-- `\{filename\}` -- Filename with extension
-- `\{basename\}` -- Filename without extension
+### Per-Entry Language Override
 
-Example resolution:
+Projects with content in multiple source languages use the `language` field:
+
+```yaml
+defaults:
+  source_language: en
+
+content:
+  - path: src/en/**/*.json
+    format: json
+    # Uses defaults.source_language (en)
+
+  - path: src/es/**/*.json
+    format: json
+    language: es    # This content is in Spanish, not English
 ```
-local: src/locales/auth/login.json
-remote template: ui/strings/{path}
--> remote: ui/strings/auth/login
-```
+
+The `EffectiveLanguage()` method on `ContentEntry` resolves the per-entry language, falling back to the project default. All code paths that expand `\{lang\}` placeholders use this method.
+
+### Dynamic Target Languages
+
+When `defaults.target_languages` is empty, the CLI automatically fetches target locales from the server during pull. The resolution order is:
+
+1. CLI flags (`--locales fr,de`)
+2. `defaults.target_languages` in config
+3. Server-side target locales (cached in `.sync-cache` as `server_meta`)
+
+Server metadata is fetched via `GET /api/v1/projects/:id` and cached locally so subsequent operations don't require a network round-trip.
+
+### Collections
+
+Collections organize content on the server. They are resolved per content entry:
+
+1. `content[].collection` (per-entry override)
+2. `defaults.collection` (project-wide default)
+
+Collections are sent with each block during push via the `collection` field in `BlockInput`.
 
 ## Sync Cache (`.sync-cache`) JSON Format
 
@@ -104,15 +144,11 @@ remote template: ui/strings/{path}
         "greeting": "a1b2c3d4...",
         "farewell": "e5f6a7b8..."
       }
-    },
-    "src/locales/fr-FR.json": {
-      "mtime": "2026-02-15T10:28:00Z",
-      "size": 4200,
-      "blocks": {
-        "greeting": "c9d0e1f2...",
-        "farewell": "g3h4i5j6..."
-      }
     }
+  },
+  "server_meta": {
+    "target_locales": ["fr-FR", "de-DE", "ja-JP"],
+    "fetched_at": "2026-02-15T10:30:00Z"
   }
 }
 ```
@@ -121,36 +157,45 @@ remote template: ui/strings/{path}
 - **`sync_cursor`** -- Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
 - **`last_sync`** -- Timestamp of the last successful push or pull.
 - **`files`** -- Per-file entries keyed by relative path. Each entry tracks the file's mtime, size, and a map of block ID → content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
+- **`server_meta`** -- Cached project metadata from the server, including target locales. Updated on each push/pull. Used to resolve dynamic target languages when `defaults.target_languages` is empty.
 
 **Design principles:**
 - **Cache, not state**: The sync cache can be deleted and regenerated. Deleting it forces a full re-scan on the next push (expensive but correct). The server is the source of truth.
 - **Block-level granularity**: Tracks individual block hashes, not file-level hashes. When one string changes in a 100-string file, only that block is pushed.
 - **Gitignored**: Contains local-only data. Each developer's cache tracks their own sync position.
+- **Server metadata caching**: Target locales and other project metadata are cached locally to avoid redundant API calls. The cache is refreshed on each sync operation.
 
 ## Push Algorithm (Cursor-Based)
 
 ```
 1. Scan local files -> extract blocks -> compute hashes
+   - Each content entry uses its effective language for {lang} expansion
+   - Collections resolved per-entry (entry override > default)
 2. Diff block hashes against .sync-cache -> identify changed blocks
 3. Send changed blocks to server: POST /projects/:id/sync/push (batched)
+   - Each block includes: id, text, name, type, item_name, collection
 4. Server appends to change log, returns new cursor
-5. Update .sync-cache with new hashes + cursor
+5. Fetch project metadata from server (best-effort) -> cache in .sync-cache
+6. Update .sync-cache with new hashes + cursor + server metadata
 ```
 
 ## Pull Algorithm (Cursor-Based)
 
 ```
-1. Read sync_cursor from .sync-cache
-2. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr-FR
-3. Server returns only changes since cursor (O(changes), not O(total))
-4. Update .sync-cache with new cursor
+1. Fetch project metadata from server -> cache target locales
+2. Resolve target locales: CLI flags > config > server cache
+3. Read sync_cursor from .sync-cache
+4. Query server: GET /projects/:id/sync/pull?cursor=X&locales=fr-FR
+5. Server returns only changes since cursor (O(changes), not O(total))
+6. For each changed item, fetch blocks and write translated files
+7. Update .sync-cache with new cursor + server metadata
 ```
 
 The append-only change log with sync cursors follows the industry-standard pattern used by Contentful (sync tokens), CouchDB (sequence IDs), and Firebase (timestamp-based feeds).
 
 ## Server API Endpoints
 
-When `server.url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
+When `url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
 
 **Sync API endpoints:**
 ```
@@ -158,6 +203,7 @@ POST /api/v1/projects/:id/sync/push       # Push source blocks to server
 GET  /api/v1/projects/:id/sync/pull        # Pull changes since cursor
 GET  /api/v1/projects/:id/sync/blocks      # Get blocks for an item
 GET  /api/v1/projects/:id/sync/status      # Push status (translation job tracking)
+GET  /api/v1/projects/:id                  # Project metadata (languages, name)
 POST /api/v1/projects/:id/sync/translate   # Create translation job for pushed content
 GET  /api/v1/projects/:id/changes          # Raw change log query
 ```
@@ -169,21 +215,28 @@ Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/proje
 1. Read local files via FormatRegistry -> extract blocks
 2. Compute block hashes (BlockIdentity SHA-256)
 3. Compare with .sync-cache -> identify changed blocks
-4. Run pre-push hooks (if configured)
-5. POST /api/v1/projects/:id/sync/push
-   -> Request body: { blocks: [{id, text, name, type, item_name}] }
+4. Resolve collections per content entry
+5. Run pre-push hooks (if configured)
+6. POST /api/v1/projects/:id/sync/push
+   -> Request body: { blocks: [{id, text, name, type, item_name, collection}] }
    -> Response: { stored: N, new_cursor: X, push_id: "..." }
    -> Batched at 1000 blocks per request (MaxBlocksPerRequest)
-6. Update .sync-cache with new hashes + cursor
+7. GET /api/v1/projects/:id -> cache server metadata (target_locales)
+8. Update .sync-cache with new hashes + cursor + server metadata
 ```
 
 **Pull workflow:**
 ```
-1. Read sync_cursor from .sync-cache
-2. GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR,de-DE
+1. GET /api/v1/projects/:id -> cache server metadata (target_locales)
+2. Resolve target locales: CLI flags > config > server cache
+3. Read sync_cursor from .sync-cache
+4. GET /api/v1/projects/:id/sync/pull?cursor=X&locales=fr-FR,de-DE
    -> Response: { changes: [...], new_cursor: Y, has_more: bool }
    -> Paginated: follow has_more until all changes consumed
-3. Update .sync-cache with new cursor
+5. For each item with changes:
+   -> GET /api/v1/projects/:id/sync/blocks?item_name=...
+   -> Write translated file for each target locale
+6. Update .sync-cache with new cursor + server metadata
 ```
 
 **Server-side change log:**

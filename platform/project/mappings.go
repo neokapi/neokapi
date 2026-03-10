@@ -19,8 +19,9 @@ func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format
 
 	// Try each content entry in order
 	for _, c := range p.Config.Content {
-		// Resolve the glob pattern (expand {lang} with source language).
-		pattern := resolvePathPattern(c.Path, string(p.Config.SourceLocale()))
+		// Resolve the glob pattern (expand {lang} with the entry's effective language).
+		lang := c.EffectiveLanguage(p.Config.SourceLocale())
+		pattern := resolvePathPattern(c.Path, lang)
 
 		// Check if local path matches the glob pattern
 		matched, err := doublestar.Match(pattern, relPath)
@@ -31,7 +32,7 @@ func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format
 		if matched {
 			// Use the base to strip prefix, or fall back to the path itself.
 			if c.Base != "" {
-				base := resolvePathPattern(c.Base, string(p.Config.SourceLocale()))
+				base := resolvePathPattern(c.Base, lang)
 				relFromBase := strings.TrimPrefix(relPath, base)
 				relFromBase = strings.TrimPrefix(relFromBase, "/")
 				return relFromBase, resolveFormat(c.Format), nil
@@ -47,7 +48,8 @@ func (p *Project) ResolveRemotePath(localPath string) (remotePath string, format
 // Returns the local path and format, or an error if no content entry matches.
 func (p *Project) ResolveLocalPath(remotePath string) (localPath string, format string, err error) {
 	for _, c := range p.Config.Content {
-		pattern := resolvePathPattern(c.Path, string(p.Config.SourceLocale()))
+		lang := c.EffectiveLanguage(p.Config.SourceLocale())
+		pattern := resolvePathPattern(c.Path, lang)
 		if strings.Contains(pattern, remotePath) {
 			local := p.ResolvePath(pattern)
 			return local, resolveFormat(c.Format), nil

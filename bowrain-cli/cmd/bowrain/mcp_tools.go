@@ -280,9 +280,9 @@ func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.Ca
 func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
 	var out MCPLsOutput
 
-	srcLang := string(proj.Config.SourceLocale())
 	for _, ce := range proj.Config.Content {
-		pattern := project.ResolvePathPattern(ce.Path, srcLang)
+		lang := ce.EffectiveLanguage(proj.Config.SourceLocale())
+		pattern := project.ResolvePathPattern(ce.Path, lang)
 		relPaths, err := project.ExpandGlob(proj.Root, pattern, proj.Config.Exclude...)
 		if err != nil {
 			continue
