@@ -27,3 +27,5 @@ and other reference material.
 | [MCP Tools Reference](mcp-tools-reference.md) | [AD-021](/docs/ad/021-mcp-integration) | Tool specs, input/output schemas, testing |
 | [Skeleton Store](skeleton-store.md) | [AD-005](/docs/ad/005-connector-system) | SkeletonStore binary format, streaming HTML reader/writer |
 | [Implementing Formats](implementing-formats.md) | [AD-005](/docs/ad/005-connector-system) | Step-by-step guide for new format readers/writers |
+| [Entity & Term Extraction](entity-term-extraction.md) | [AD-022](/docs/ad/022-entity-term-extraction) | NER interface, extraction flow, review queue schema |
+| [Translation Job Queue](translation-job-queue.md) | [AD-008](/docs/ad/008-ai-integration) | Job model, worker algorithm, quota schema, queue backends |

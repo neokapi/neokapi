@@ -86,13 +86,99 @@ content. Content-addressable hashing (see [AD-002](./002-content-model.md))
 means unchanged blocks are skipped on re-extraction, and incremental
 processing flows only touch blocks whose source content has changed.
 
-### Collectors
+### Parallel Block Processing
+
+The default pipeline processes Parts sequentially within each tool. For
+IO-bound tools (AI translation, MT calls), this underutilizes available
+throughput. `ParallelBlockTool` wraps any tool to fan out Block processing
+across N goroutines while preserving strict Part ordering.
+
+```
+Input Channel → Dispatcher → [Worker 1] → Reassembly (min-heap) → Output Channel
+                            → [Worker 2] →
+                            → [Worker N] →
+```
+
+The dispatcher assigns monotonic sequence numbers to all incoming Parts.
+Block Parts are dispatched to a semaphore-bounded worker pool; non-Block
+Parts (Data, Media, Layer) pass through the inner tool sequentially.
+A min-heap reassembly buffer collects results and emits them in strict
+sequence order, so downstream tools see the same Part ordering regardless
+of which worker finished first.
+
+Auto-parallel is applied by the CLI for IO-bound flows:
+
+| Flow | Default Parallel Blocks |
+|------|------------------------|
+| `ai-translate`, `ai-translate-qa` | 5 |
+| All other flows | 1 (sequential) |
+
+Users override with `--parallel-blocks N` or disable with
+`--parallel-blocks 1`.
+
+### Batch Executor
+
+`BatchExecutor` processes multiple pre-read files through a tool chain with
+configurable file-level concurrency:
+
+```go
+type BatchConfig struct {
+    FileConcurrency int         // max files processed in parallel (default: 1)
+    ChannelSize     int         // per-pipeline channel buffer size (default: 64)
+    SharedResources []io.Closer // resources shared across files (closed at end)
+    FailFast        bool        // cancel remaining on first error (default: true)
+}
+```
+
+Each file gets fresh tool instances from ToolFactory functions, preventing
+state leakage between concurrent documents. Results are returned in input
+file order regardless of completion order. Collectors are called with mutex
+protection for thread-safe aggregation across files.
+
+### Concurrency Layering
+
+Four independent concurrency layers compose without interference:
+
+| Layer | Scope | Control | Order |
+|-------|-------|---------|-------|
+| ParallelBlockTool | Blocks within one tool | N goroutines per tool | Strict Part order |
+| BatchExecutor | Multiple files | FileConcurrency semaphore | File order preserved |
+| FlowExecutor | Multiple documents | MaxConcurrency semaphore | Document order preserved |
+| TappingTool | Observation | Inline (no extra goroutine) | Sequential |
+
+### Collectors and Streaming Collectors
 
 Collectors aggregate results across documents (word counts, QA reports,
 terminology lists). They implement a `Collect(ctx, item, parts)` method
 called after each document completes and a `Result()` method for the final
 aggregate. Collectors must be thread-safe since multiple documents may
 complete concurrently.
+
+`StreamingCollector` extends `Collector` with an `Observe(part)` method
+for inline observation without additional pipeline stages. `TappingTool`
+wraps a tool and its streaming collector: output Parts are intercepted
+and passed to `Observe()` synchronously before forwarding downstream.
+This enables real-time metrics (e.g., streaming word counts) without
+buffering the entire result set.
+
+### Flow Tracing and Visualization
+
+`TraceRecorder` captures timestamped events during flow execution for
+debugging and visualization. `TracingTool` wraps each tool in the chain
+and records enter/exit events with Part snapshots.
+
+The `--trace path/to/trace.json` CLI flag enables tracing. The output is a
+`FlowTrace` JSON file containing:
+
+- **Nodes** -- the tool chain with concurrency metadata
+- **Events** -- timestamped enter/exit/pool-acquire events per Part
+- **Part snapshots** -- Part state before and after each node
+- **Duration** -- total flow execution time in microseconds
+
+A browser-based visualization renders the trace as an animated flow diagram
+with particles moving through nodes, channel fill indicators, and worker
+lane separation for parallel tools. The playback engine supports
+variable-speed replay and seeking.
 
 ### Flow Definitions
 
@@ -151,6 +237,13 @@ of flow configurations.
 - **DAG-based execution** (Airflow-style): over-engineered for typical
   3-5 tool chains. The linear pipeline with optional collectors covers
   all current use cases.
+- **Per-Part goroutines**: Spawning a goroutine per Part is wasteful for
+  small, fast operations. The semaphore-bounded worker pool in
+  ParallelBlockTool provides the same throughput with bounded resource use.
+- **Separate tracing service**: Adding an external tracing backend (Jaeger,
+  Zipkin) is too heavy for a CLI tool. In-process recording with JSON
+  export and a static browser viewer is simpler and requires no
+  infrastructure.
 
 ## Consequences
 
@@ -174,3 +267,14 @@ of flow configurations.
   configurations
 - Connectors ([AD-005](./005-connector-system.md)) integrate naturally: extract
   once to the store, process with multiple flows, merge back when ready
+- ParallelBlockTool provides intra-tool parallelism for IO-bound tools
+  without requiring tool authors to manage concurrency
+- BatchExecutor provides file-level parallelism with isolated tool
+  instances, preventing state leakage between concurrent documents
+- StreamingCollector enables real-time observation of pipeline output
+  without modifying the Part stream or adding buffering stages
+- Flow tracing enables post-hoc debugging and visualization of pipeline
+  execution, helping users understand tool behavior and identify bottlenecks
+- The four concurrency layers (parallel blocks, batch files, flow documents,
+  streaming observation) compose independently -- each can be enabled or
+  disabled without affecting the others
