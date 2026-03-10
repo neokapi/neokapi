@@ -21,7 +21,7 @@ With no arguments, shows the path to the config file.
 With one argument (key), prints the current value.
 With two arguments (key value), sets the value.
 
-Use --global to read/write the global config file (~/.config/kapi/kapi.yaml).
+Use --global to read/write the global config file (~/.config/bowrain/bowrain.yaml).
 Without --global, reads/writes the project config file (.bowrain/config.yaml).
 
 Examples:
@@ -44,7 +44,7 @@ func runConfig(cmd *cobra.Command, args []string) error {
 func runConfigGlobal(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return output.Print(cmd, output.ConfigOutput{
-			Path:   config.GlobalConfigFilePath(),
+			Path:   config.GlobalConfigFilePath("bowrain"),
 			Action: "path",
 		})
 	}
@@ -52,7 +52,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 	key := args[0]
 
 	if len(args) == 1 {
-		cfg := config.NewAppConfig()
+		cfg := config.NewBowrainAppConfig()
 		_ = cfg.Load()
 		val := cfg.GetString(key)
 		if val == "" {
@@ -66,11 +66,11 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 	}
 
 	value := args[1]
-	if err := config.SetGlobalConfig(key, value); err != nil {
+	if err := config.SetGlobalConfig(key, value, "bowrain"); err != nil {
 		return fmt.Errorf("set config: %w", err)
 	}
 	return output.Print(cmd, output.ConfigOutput{
-		Path:   config.GlobalConfigFilePath(),
+		Path:   config.GlobalConfigFilePath("bowrain"),
 		Key:    key,
 		Value:  value,
 		Action: "set",
@@ -119,6 +119,6 @@ func runConfigProject(cmd *cobra.Command, args []string) error {
 }
 
 func init() {
-	configCmd.Flags().BoolVar(&configGlobal, "global", false, "Use global config file (~/.config/kapi/kapi.yaml)")
+	configCmd.Flags().BoolVar(&configGlobal, "global", false, "Use global config file (~/.config/bowrain/bowrain.yaml)")
 	rootCmd.AddCommand(configCmd)
 }

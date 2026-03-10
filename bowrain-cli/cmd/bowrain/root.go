@@ -24,7 +24,7 @@ var rootCmd = &cobra.Command{
 Initialize a .bowrain/ project in your repository, then push/pull translations,
 run quality checks, and manage terminology.`,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		app.Config = cliconfig.NewAppConfig()
+		app.Config = cliconfig.NewBowrainAppConfig()
 		app.RegistryResolver = func() []cliconfig.RegistryEntry {
 			if proj, err := project.FindProject(""); err == nil && len(proj.Config.Registries) > 0 {
 				entries := make([]cliconfig.RegistryEntry, len(proj.Config.Registries))
