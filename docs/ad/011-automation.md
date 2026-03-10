@@ -265,25 +265,27 @@ operation, orchestrating the full round-trip via local automation.
 - **Synchronous** — hooks block the parent operation until complete
 - **No conditions** — hooks always run (or can be skipped with `--no-hooks`)
 
-### Kapi Flow Hooks (Client-Side)
+### Bowrain CLI Flow Hooks (Client-Side)
 
-Kapi provides simple flow hooks in `.kapi/config.yaml` ([AD-016](./016-kapi-project-model.md)):
+Bowrain CLI supports flow hooks in `.bowrain/config.yaml`:
 
 ```yaml
-# .kapi/config.yaml
+# .bowrain/config.yaml
 hooks:
   pre-push: [qa-check, term-enforce]
   post-pull: [update-stats]
 ```
 
 **Hook execution:**
-- `kapi push` → runs `pre-push` flows → sends blocks to server
-- `kapi pull` → fetches blocks from server → runs `post-pull` flows
+- `bowrain push` → runs `pre-push` flows → sends blocks to server
+- `bowrain pull` → fetches blocks from server → runs `post-pull` flows
 
-**Differences from Bowrain CLI automation:**
+**Differences from Bowrain CLI automation rules:**
 - **Local file processing only** — no `wait_translate` or server coordination
 - **Simpler model** — two trigger points, flow names only
 - **Synchronous** — hooks block the push/pull operation until complete
+
+Note: Kapi is a standalone file-processing tool with no project model or push/pull commands, so it does not provide hooks.
 
 ### GitHub Action for CI/CD (Client-Side)
 
