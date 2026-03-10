@@ -71,6 +71,18 @@ func main() {
 	if envSMTPFrom := os.Getenv("BOWRAIN_SMTP_FROM"); envSMTPFrom != "" {
 		cfg.SMTPFrom = envSMTPFrom
 	}
+	if envSMTPUser := os.Getenv("BOWRAIN_SMTP_USERNAME"); envSMTPUser != "" {
+		cfg.SMTPUsername = envSMTPUser
+	}
+	if envSMTPPass := os.Getenv("BOWRAIN_SMTP_PASSWORD"); envSMTPPass != "" {
+		cfg.SMTPPassword = envSMTPPass
+	}
+	if envSMTPTLS := os.Getenv("BOWRAIN_SMTP_USE_TLS"); envSMTPTLS == "true" || envSMTPTLS == "1" {
+		cfg.SMTPUseTLS = true
+	}
+	if envResend := os.Getenv("BOWRAIN_RESEND_API_KEY"); envResend != "" {
+		cfg.ResendAPIKey = envResend
+	}
 	if envSB := os.Getenv("BOWRAIN_SERVICE_BUS_CONNECTION"); envSB != "" {
 		cfg.ServiceBusConnection = envSB
 	}
