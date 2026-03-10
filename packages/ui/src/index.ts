@@ -117,6 +117,7 @@ export { useFormats } from "./hooks/useFormats";
 export { useTools } from "./hooks/useTools";
 export { useNotificationApi } from "./hooks/useNotificationApi";
 export { useNotifications } from "./hooks/useNotifications";
+export { useIsMobile } from "./hooks/useIsMobile";
 
 // Types
 export type {

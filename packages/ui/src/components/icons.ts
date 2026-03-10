@@ -46,4 +46,5 @@ export {
   Bell,
   Code,
   KeyRound,
+  Menu,
 } from "lucide-react";
