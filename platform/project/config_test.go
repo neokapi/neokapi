@@ -16,7 +16,8 @@ func TestLoadConfig(t *testing.T) {
 		bowrainDir := filepath.Join(tmpDir, ".bowrain")
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
-		configYAML := `project:
+		configYAML := `version: v1
+project:
   name: Test Project
   source_locale: en-US
   target_locales:
@@ -45,6 +46,7 @@ hooks:
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
+		assert.Equal(t, "v1", cfg.Version)
 		assert.Equal(t, "Test Project", cfg.Project.Name)
 		assert.Equal(t, "en-US", string(cfg.Project.SourceLocale))
 		assert.Len(t, cfg.Project.TargetLocales, 2)
@@ -65,6 +67,24 @@ hooks:
 		assert.Equal(t, "qa-check", cfg.Hooks["pre-push"][0])
 		assert.Len(t, cfg.Hooks["post-pull"], 1)
 		assert.Equal(t, "segmentation", cfg.Hooks["post-pull"][0])
+	})
+
+	t.Run("load bare config without version", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		bowrainDir := filepath.Join(tmpDir, ".bowrain")
+		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+		configYAML := `project:
+  name: Legacy Project
+  source_locale: en-US
+`
+		configPath := filepath.Join(bowrainDir, "config.yaml")
+		require.NoError(t, os.WriteFile(configPath, []byte(configYAML), 0644))
+
+		cfg, err := LoadConfig(bowrainDir)
+		require.NoError(t, err)
+		assert.Equal(t, "Legacy Project", cfg.Project.Name)
+		assert.Equal(t, "", cfg.Version) // no version in bare YAML
 	})
 
 	t.Run("config file not found", func(t *testing.T) {
@@ -161,8 +181,8 @@ func TestSaveConfig(t *testing.T) {
 	})
 }
 
-func TestLoadConfig_Enveloped(t *testing.T) {
-	t.Run("load enveloped config", func(t *testing.T) {
+func TestLoadConfig_LegacyEnvelope(t *testing.T) {
+	t.Run("load legacy enveloped config", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		bowrainDir := filepath.Join(tmpDir, ".bowrain")
 		require.NoError(t, os.MkdirAll(bowrainDir, 0755))
@@ -193,6 +213,7 @@ spec:
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 
+		assert.Equal(t, "v1", cfg.Version)
 		assert.Equal(t, "My App", cfg.Project.Name)
 		assert.Equal(t, "en-US", string(cfg.Project.SourceLocale))
 		assert.Len(t, cfg.Project.TargetLocales, 2)
@@ -223,7 +244,7 @@ spec: {}
 	})
 }
 
-func TestSaveConfig_WritesEnvelope(t *testing.T) {
+func TestSaveConfig_WritesFlatYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	bowrainDir := filepath.Join(tmpDir, ".bowrain")
 	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
@@ -239,21 +260,24 @@ func TestSaveConfig_WritesEnvelope(t *testing.T) {
 	err := SaveConfig(bowrainDir, cfg)
 	require.NoError(t, err)
 
-	// Read raw file and verify envelope structure
+	// Read raw file and verify flat format
 	configPath := filepath.Join(bowrainDir, "config.yaml")
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
 	content := string(data)
-	assert.Contains(t, content, "apiVersion:")
-	assert.Contains(t, content, "apiVersion: v1")
-	assert.Contains(t, content, "kind:")
-	assert.Contains(t, content, "ProjectConfig")
-	assert.Contains(t, content, "spec:")
+	assert.Contains(t, content, "version: v1")
+	assert.Contains(t, content, "project:")
+	// Must NOT contain envelope fields
+	assert.NotContains(t, content, "apiVersion:")
+	assert.NotContains(t, content, "kind:")
+	assert.NotContains(t, content, "metadata:")
+	assert.NotContains(t, content, "spec:")
 
 	// Verify it can be reloaded
 	reloaded, err := LoadConfig(bowrainDir)
 	require.NoError(t, err)
+	assert.Equal(t, "v1", reloaded.Version)
 	assert.Equal(t, "Test Project", reloaded.Project.Name)
 	assert.Equal(t, model.LocaleID("en-US"), reloaded.Project.SourceLocale)
 	assert.Len(t, reloaded.Project.TargetLocales, 1)
@@ -288,6 +312,7 @@ func TestSaveConfig_RoundTrip(t *testing.T) {
 	reloaded, err := LoadConfig(bowrainDir)
 	require.NoError(t, err)
 
+	assert.Equal(t, "v1", reloaded.Version)
 	assert.Equal(t, cfg.Project.Name, reloaded.Project.Name)
 	assert.Equal(t, cfg.Project.SourceLocale, reloaded.Project.SourceLocale)
 	assert.Equal(t, cfg.Project.TargetLocales, reloaded.Project.TargetLocales)
