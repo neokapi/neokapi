@@ -315,6 +315,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 
 		// Sync routes: accept either JWT or ClaimToken.
+		// Register both legacy (flat) and stream-scoped routes.
 		if s.AuthStore != nil {
 			syncGroup := v1.Group("/projects/:id/sync")
 			syncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
@@ -323,6 +324,15 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 			syncGroup.GET("/status", s.HandleSyncPushStatus)
+
+			// Stream-scoped sync routes: /projects/:id/streams/:stream/sync/*
+			streamSyncGroup := v1.Group("/projects/:id/streams/:stream/sync")
+			streamSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+			streamSyncGroup.POST("/push", s.HandleSyncPush)
+			streamSyncGroup.GET("/pull", s.HandleSyncPull)
+			streamSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
+			streamSyncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
+			streamSyncGroup.GET("/status", s.HandleSyncPushStatus)
 		}
 
 		// Workspace endpoints (require auth + workspace membership)
@@ -384,11 +394,17 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects", s.HandleListWorkspaceProjects)
 	g.POST("/projects", s.HandleCreateWorkspaceProject)
 
-	// Sync routes (workspace-scoped, used by kapi CLI with workspace config)
+	// Sync routes (workspace-scoped, used by bowrain CLI with workspace config)
 	g.POST("/projects/:id/sync/push", s.HandleSyncPush)
 	g.GET("/projects/:id/sync/pull", s.HandleSyncPull)
 	g.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
 	g.GET("/projects/:id/sync/status", s.HandleSyncPushStatus)
+
+	// Stream-scoped sync routes (workspace-scoped)
+	g.POST("/projects/:id/streams/:stream/sync/push", s.HandleSyncPush)
+	g.GET("/projects/:id/streams/:stream/sync/pull", s.HandleSyncPull)
+	g.GET("/projects/:id/streams/:stream/sync/blocks", s.HandleSyncGetBlocks)
+	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)
 
 	// Editor project routes
 	g.POST("/editor/projects", s.HandleCreateEditorProject)
