@@ -25,37 +25,42 @@ type BrainSourceConnector struct {
 	client    *apiclient.BowrainClient
 	formatReg *registry.FormatRegistry
 	cache     *SyncCache
-	maxBatch  int // Max blocks per push request
+	stream    string // resolved stream name
+	maxBatch  int    // Max blocks per push request
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
 func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BrainSourceConnector, error) {
-	if project.Config.Server == nil {
+	if !project.Config.HasServer() {
 		return nil, fmt.Errorf("no server configuration in .bowrain/config.yaml")
 	}
-	if project.Config.Server.URL == "" {
+
+	serverURL := project.Config.ServerURL()
+	projectID := project.Config.ProjectID()
+	workspace := project.Config.Workspace()
+
+	if serverURL == "" {
 		return nil, fmt.Errorf("server URL not configured in .bowrain/config.yaml")
 	}
-	if project.Config.Server.ProjectID == "" {
+	if projectID == "" {
 		return nil, fmt.Errorf("server project_id not configured in .bowrain/config.yaml")
 	}
 
 	cache := LoadSyncCache(project.ConfigDir)
 
 	var client *apiclient.BowrainClient
-	srv := project.Config.Server
 	switch {
-	case srv.ClaimToken != "":
-		client = apiclient.NewClaimTokenClient(srv.URL, srv.ProjectID, srv.ClaimToken)
-	case srv.Workspace != "":
+	case cache.ClaimToken != "":
+		client = apiclient.NewClaimTokenClient(serverURL, projectID, cache.ClaimToken)
+	case workspace != "":
 		authInfo, err := config.LoadAuth()
 		if err != nil {
 			return nil, fmt.Errorf("workspace sync requires authentication: run 'bowrain auth login'")
 		}
-		if authInfo.ServerURL != "" && authInfo.ServerURL != srv.URL {
-			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, srv.URL)
+		if authInfo.ServerURL != "" && authInfo.ServerURL != serverURL {
+			return nil, fmt.Errorf("auth token is for %s but project points to %s", authInfo.ServerURL, serverURL)
 		}
-		client = apiclient.NewWorkspaceBowrainClient(srv.URL, srv.Workspace, srv.ProjectID, authInfo.AccessToken)
+		client = apiclient.NewWorkspaceBowrainClient(serverURL, workspace, projectID, authInfo.AccessToken)
 		if authInfo.RefreshToken != "" {
 			client.SetRefreshToken(authInfo.RefreshToken, func(newAccess, newRefresh string) {
 				authInfo.AccessToken = newAccess
@@ -72,18 +77,23 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 		}
 		// Detect claim tokens (clm_ prefix) and route them correctly.
 		if strings.HasPrefix(authInfo.AccessToken, "clm_") {
-			client = apiclient.NewClaimTokenClient(srv.URL, srv.ProjectID, authInfo.AccessToken)
+			client = apiclient.NewClaimTokenClient(serverURL, projectID, authInfo.AccessToken)
 		} else {
 			// Use flat project routes with bearer auth (works for API tokens and JWTs).
-			client = apiclient.NewProjectBearerClient(srv.URL, srv.ProjectID, authInfo.AccessToken)
+			client = apiclient.NewProjectBearerClient(serverURL, projectID, authInfo.AccessToken)
 		}
 	}
+
+	// Resolve the active stream and set it on the client.
+	stream := ResolveStream("", project.Config.Stream)
+	client.SetStream(stream)
 
 	return &BrainSourceConnector{
 		project:   project,
 		client:    client,
 		formatReg: formatReg,
 		cache:     cache,
+		stream:    stream,
 		maxBatch:  1000,
 	}, nil
 }
@@ -271,6 +281,9 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 		return &connector.PushResult{FilesScanned: len(hashMap)}, nil
 	}
 
+	// Build a map of item → collection for efficient lookup.
+	itemCollections := c.resolveItemCollections()
+
 	// Push in batches of maxBatch.
 	chunkCount := 0
 	totalStored := 0
@@ -284,11 +297,12 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 		inputs := make([]apiclient.BlockInput, len(batch))
 		for j, ib := range batch {
 			inputs[j] = apiclient.BlockInput{
-				ID:       ib.block.ID,
-				Text:     ib.block.SourceText(),
-				Name:     ib.block.Name,
-				Type:     ib.block.Type,
-				ItemName: ib.itemName,
+				ID:         ib.block.ID,
+				Text:       ib.block.SourceText(),
+				Name:       ib.block.Name,
+				Type:       ib.block.Type,
+				ItemName:   ib.itemName,
+				Collection: itemCollections[ib.itemName],
 			}
 		}
 
@@ -304,6 +318,9 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 		chunkCount++
 	}
 
+	// Fetch and cache server metadata (best-effort).
+	c.fetchAndCacheMetadata(ctx)
+
 	// Update cache with per-file hashes.
 	for itemName, fileHashes := range hashMap {
 		fc, ok := c.cache.Files[itemName]
@@ -317,8 +334,8 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 	}
 	c.cache.SyncCursor = lastCursor
 	c.cache.LastSync = time.Now().UTC()
-	c.cache.ServerURL = c.project.Config.Server.URL
-	c.cache.ProjectID = c.project.Config.Server.ProjectID
+	c.cache.ServerURL = c.project.Config.ServerURL()
+	c.cache.ProjectID = c.project.Config.ProjectID()
 
 	if err := c.cache.Save(c.project.ConfigDir); err != nil {
 		return nil, fmt.Errorf("save sync cache: %w", err)
@@ -335,10 +352,16 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 
 // Pull retrieves translated content from Bowrain.
 func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
-	// Default to project's target locales when none specified.
+	// Refresh server metadata so we have up-to-date target locales.
+	c.fetchAndCacheMetadata(ctx)
+
+	// Resolve target locales: CLI args > config > server cache.
 	pullLocales := opts.Locales
 	if len(pullLocales) == 0 {
-		pullLocales = c.project.Config.Project.TargetLocales
+		pullLocales = c.project.Config.TargetLocales()
+	}
+	if len(pullLocales) == 0 {
+		pullLocales = c.ServerTargetLocales()
 	}
 	locales := make([]string, len(pullLocales))
 	for i, l := range pullLocales {
@@ -459,10 +482,12 @@ func (c *BrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []stri
 	hashMap := map[string]map[string]string{}
 	blockMap := map[string][]*model.Block{}
 
-	// If no specific paths, use mappings to discover files.
+	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
-		for _, m := range c.project.Config.Mappings {
-			relPaths, err := ExpandGlob(c.project.Root, m.Local, c.project.Config.Exclude...)
+		for _, ce := range c.project.Config.Content {
+			lang := ce.EffectiveLanguage(c.project.Config.SourceLocale())
+			pattern := resolvePathPattern(ce.Path, lang)
+			relPaths, err := ExpandGlob(c.project.Root, pattern, c.project.Config.Exclude...)
 			if err != nil {
 				continue
 			}
@@ -516,11 +541,14 @@ func (c *BrainSourceConnector) detectFormat(absPath string) string {
 		relPath = filepath.Base(absPath)
 	}
 
-	// Check mappings first.
-	for _, m := range c.project.Config.Mappings {
-		matched, err := doublestar.Match(m.Local, relPath)
-		if err == nil && matched && m.Format != "" {
-			return m.Format
+	// Check content entries first.
+	for _, ce := range c.project.Config.Content {
+		lang := ce.EffectiveLanguage(c.project.Config.SourceLocale())
+		pattern := resolvePathPattern(ce.Path, lang)
+		format := resolveFormat(ce.Format)
+		matched, err := doublestar.Match(pattern, relPath)
+		if err == nil && matched && format != "" {
+			return format
 		}
 	}
 
@@ -576,40 +604,62 @@ func (c *BrainSourceConnector) readBlocks(ctx context.Context, filePath, formatN
 }
 
 // resolveTargetPath determines the output path for a translated file.
-// It checks mappings for an explicit target_path template, falls back to
-// replacing the source locale in the path, or appends the locale as a suffix.
+// It checks content entries for a dest pattern (which may contain {lang} or
+// {locale}/{path}/{filename} placeholders), falls back to replacing the source
+// locale in the path, or appends the locale as a suffix.
 func (c *BrainSourceConnector) resolveTargetPath(itemName, locale string) string {
 	relPath := itemName
+	srcLang := string(c.project.Config.SourceLocale())
 
-	// Check if any mapping has a target_path template.
-	for _, m := range c.project.Config.Mappings {
-		matched, err := doublestar.Match(m.Local, relPath)
-		if err == nil && matched && m.TargetPath != "" {
-			result := m.TargetPath
-			result = strings.ReplaceAll(result, "{locale}", locale)
+	// Check if any content entry has a dest pattern.
+	for _, ce := range c.project.Config.Content {
+		entryLang := ce.EffectiveLanguage(c.project.Config.SourceLocale())
+		pattern := resolvePathPattern(ce.Path, entryLang)
+		matched, err := doublestar.Match(pattern, relPath)
+		if err != nil || !matched {
+			continue
+		}
 
-			// Extract {path} and {filename} relative to the glob's fixed prefix.
-			prefix := globFixedPrefix(m.Local)
+		dest := ce.Dest
+		if dest == "" {
+			break // No dest — fall through to default behavior.
+		}
+
+		// If dest contains {lang}, expand it with the target locale.
+		if strings.Contains(dest, "{lang}") {
+			// Derive the relative portion by comparing against the source pattern.
+			// e.g. path: src/{lang}/**/*.json, relPath: src/en/foo/bar.json
+			// We need to reconstruct: src/{locale}/foo/bar.json
+			srcPattern := resolvePathPattern(ce.Path, srcLang)
+			prefix := globFixedPrefix(srcPattern)
 			relative := strings.TrimPrefix(relPath, prefix)
-			dir := filepath.Dir(relative)
-			if dir == "." {
-				dir = ""
-			}
-			file := filepath.Base(relative)
-			result = strings.ReplaceAll(result, "{filename}", file)
-			result = strings.ReplaceAll(result, "{path}", dir)
-			// Clean up double slashes from empty {path}.
-			for strings.Contains(result, "//") {
-				result = strings.ReplaceAll(result, "//", "/")
-			}
+			destPrefix := resolvePathPattern(globFixedPrefix(ce.Dest), locale)
+			result := destPrefix + relative
 			return result
 		}
+
+		// Legacy-style dest with {locale}/{path}/{filename} placeholders.
+		result := dest
+		result = strings.ReplaceAll(result, "{locale}", locale)
+
+		prefix := globFixedPrefix(pattern)
+		relative := strings.TrimPrefix(relPath, prefix)
+		dir := filepath.Dir(relative)
+		if dir == "." {
+			dir = ""
+		}
+		file := filepath.Base(relative)
+		result = strings.ReplaceAll(result, "{filename}", file)
+		result = strings.ReplaceAll(result, "{path}", dir)
+		for strings.Contains(result, "//") {
+			result = strings.ReplaceAll(result, "//", "/")
+		}
+		return result
 	}
 
 	// Default: replace the source locale in the path with the target locale.
-	srcLocale := string(c.project.Config.Project.SourceLocale)
-	if srcLocale != "" && strings.Contains(relPath, srcLocale) {
-		return strings.Replace(relPath, srcLocale, locale, 1)
+	if srcLang != "" && strings.Contains(relPath, srcLang) {
+		return strings.Replace(relPath, srcLang, locale, 1)
 	}
 
 	// If we cannot determine the target path, put it next to the source with a locale suffix.
@@ -717,6 +767,67 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 	return writer.Close()
 }
 
+// resolveItemCollections builds a map of item path → collection by matching
+// each tracked file against content entries. Falls back to Defaults.Collection.
+func (c *BrainSourceConnector) resolveItemCollections() map[string]string {
+	result := map[string]string{}
+	defaultCollection := c.project.Config.Defaults.Collection
+
+	for _, ce := range c.project.Config.Content {
+		lang := ce.EffectiveLanguage(c.project.Config.SourceLocale())
+		pattern := resolvePathPattern(ce.Path, lang)
+
+		relPaths, err := ExpandGlob(c.project.Root, pattern, c.project.Config.Exclude...)
+		if err != nil {
+			continue
+		}
+
+		collection := ce.Collection
+		if collection == "" {
+			collection = defaultCollection
+		}
+		if collection == "" {
+			continue
+		}
+
+		for _, rp := range relPaths {
+			result[rp] = collection
+		}
+	}
+	return result
+}
+
+// fetchAndCacheMetadata fetches project metadata from the server and caches it.
+// Errors are non-fatal — metadata is best-effort.
+func (c *BrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
+	if c.client == nil {
+		return
+	}
+
+	meta, err := c.client.GetProjectMetadata(ctx)
+	if err != nil {
+		return
+	}
+
+	c.cache.ServerMeta = &CachedProjectMeta{
+		TargetLocales: meta.TargetLocales,
+		FetchedAt:     time.Now().UTC(),
+	}
+}
+
+// ServerTargetLocales returns target locales from the server cache.
+// Returns nil if no cached metadata is available.
+func (c *BrainSourceConnector) ServerTargetLocales() []model.LocaleID {
+	if c.cache.ServerMeta == nil || len(c.cache.ServerMeta.TargetLocales) == 0 {
+		return nil
+	}
+	locales := make([]model.LocaleID, len(c.cache.ServerMeta.TargetLocales))
+	for i, l := range c.cache.ServerMeta.TargetLocales {
+		locales[i] = model.LocaleID(l)
+	}
+	return locales
+}
+
 // globFixedPrefix returns the fixed directory prefix of a glob pattern,
 // i.e. everything before the first glob metacharacter (*, ?, [, {).
 func globFixedPrefix(pattern string) string {
@@ -742,6 +853,19 @@ func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string)
 	}
 	hash, found := fc.Blocks[blockID]
 	return hash, found
+}
+
+// Stream returns the resolved stream name for this connector.
+func (c *BrainSourceConnector) Stream() string {
+	return c.stream
+}
+
+// SetStream overrides the resolved stream (e.g. from --stream flag).
+func (c *BrainSourceConnector) SetStream(stream string) {
+	c.stream = normalizeStreamName(stream)
+	if c.client != nil {
+		c.client.SetStream(c.stream)
+	}
 }
 
 // Client returns the underlying BowrainClient for direct API calls (e.g. PushStatus).

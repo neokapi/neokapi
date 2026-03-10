@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/cli"
 	clioutput "github.com/gokapi/gokapi/cli/output"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/platform/connector"
 	"github.com/gokapi/gokapi/platform/project"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -129,14 +129,13 @@ type MCPLsOutput struct {
 }
 
 type MCPConfigOutput struct {
-	Root          string   `json:"root"`
-	ConfigPath    string   `json:"config_path"`
-	ProjectName   string   `json:"project_name"`
-	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales,omitempty"`
-	ServerURL     string   `json:"server_url,omitempty"`
-	ProjectID     string   `json:"project_id,omitempty"`
-	MappingCount  int      `json:"mapping_count"`
+	Root             string   `json:"root"`
+	ConfigPath       string   `json:"config_path"`
+	SourceLanguage   string   `json:"source_language"`
+	TargetLanguages  []string `json:"target_languages,omitempty"`
+	ServerURL        string   `json:"server_url,omitempty"`
+	ProjectID        string   `json:"project_id,omitempty"`
+	ContentCount     int      `json:"content_count"`
 }
 
 type MCPFlowEntry struct {
@@ -178,8 +177,8 @@ func handleProjectStatus(ctx context.Context, a *cli.App) (*mcp.CallToolResult, 
 		return nil, MCPStatusOutput{}, err
 	}
 
-	out.Project.Server = proj.Config.Server.URL
-	out.Project.ProjectID = proj.Config.Server.ProjectID
+	out.Project.Server = proj.Config.ServerURL()
+	out.Project.ProjectID = proj.Config.ProjectID()
 	out.ItemCount = status.ItemCount
 	out.FileCount = status.FileCount
 	out.WordCount = status.WordCount
@@ -281,8 +280,10 @@ func handleProjectLs(ctx context.Context, a *cli.App, input MCPLsInput) (*mcp.Ca
 func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*mcp.CallToolResult, MCPLsOutput, error) {
 	var out MCPLsOutput
 
-	for _, m := range proj.Config.Mappings {
-		relPaths, err := project.ExpandGlob(proj.Root, m.Local, proj.Config.Exclude...)
+	for _, ce := range proj.Config.Content {
+		lang := ce.EffectiveLanguage(proj.Config.SourceLocale())
+		pattern := project.ResolvePathPattern(ce.Path, lang)
+		relPaths, err := project.ExpandGlob(proj.Root, pattern, proj.Config.Exclude...)
 		if err != nil {
 			continue
 		}
@@ -291,7 +292,7 @@ func handleProjectLsFast(a *cli.App, proj *project.Project, input MCPLsInput) (*
 				continue
 			}
 
-			formatName := m.Format
+			formatName := project.ResolveFormat(ce.Format)
 			if formatName == "" {
 				ext := filepath.Ext(rp)
 				if ext != "" {
@@ -353,20 +354,19 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 	}
 
 	out := MCPConfigOutput{
-		Root:         proj.Root,
-		ConfigPath:   filepath.Join(proj.ConfigDir, "config.yaml"),
-		ProjectName:  proj.Config.Project.Name,
-		SourceLocale: string(proj.Config.Project.SourceLocale),
-		MappingCount: len(proj.Config.Mappings),
+		Root:           proj.Root,
+		ConfigPath:     filepath.Join(proj.ConfigDir, "config.yaml"),
+		SourceLanguage: string(proj.Config.Defaults.SourceLanguage),
+		ContentCount:   len(proj.Config.Content),
 	}
 
-	for _, l := range proj.Config.Project.TargetLocales {
-		out.TargetLocales = append(out.TargetLocales, string(l))
+	for _, l := range proj.Config.Defaults.TargetLanguages {
+		out.TargetLanguages = append(out.TargetLanguages, string(l))
 	}
 
-	if proj.Config.Server != nil {
-		out.ServerURL = proj.Config.Server.URL
-		out.ProjectID = proj.Config.Server.ProjectID
+	if proj.Config.HasServer() {
+		out.ServerURL = proj.Config.ServerURL()
+		out.ProjectID = proj.Config.ProjectID()
 	}
 
 	return nil, out, nil

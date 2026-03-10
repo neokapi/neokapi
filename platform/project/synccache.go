@@ -18,6 +18,21 @@ type SyncCache struct {
 	SyncCursor int64                 `json:"sync_cursor"`
 	LastSync   time.Time             `json:"last_sync"`
 	Files      map[string]*FileCache `json:"files,omitempty"`
+
+	// ClaimToken stores the claim token for anonymous projects.
+	// Stored here (gitignored) rather than in config.yaml to avoid
+	// accidentally committing credentials to version control.
+	ClaimToken string `json:"claim_token,omitempty"`
+
+	// ServerMeta caches project metadata fetched from the server.
+	// Updated on each push/pull to keep target languages in sync.
+	ServerMeta *CachedProjectMeta `json:"server_meta,omitempty"`
+}
+
+// CachedProjectMeta caches server-side project metadata locally.
+type CachedProjectMeta struct {
+	TargetLocales []string  `json:"target_locales,omitempty"`
+	FetchedAt     time.Time `json:"fetched_at"`
 }
 
 // FileCache tracks the last known hashes for blocks in a file.

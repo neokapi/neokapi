@@ -15,24 +15,21 @@ func TestResolveRemotePath(t *testing.T) {
 	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
 
 	cfg := &Config{
-		Project: ProjectMeta{
-			Name:         "Test",
-			SourceLocale: "en",
+		Defaults: Defaults{
+			SourceLanguage: "en",
 		},
-		Mappings: []Mapping{
+		Content: []ContentEntry{
 			{
-				Local:  "src/locales/**/*.json",
-				Remote: "ui/strings/{path}",
+				Path:   "src/locales/**/*.json",
 				Format: "json",
+				Base:   "src/locales/",
 			},
 			{
-				Local:  "content/*.md",
-				Remote: "docs/{filename}",
+				Path:   "content/*.md",
 				Format: "markdown",
 			},
 			{
-				Local:  "data/*.yaml",
-				Remote: "config/{basename}",
+				Path:   "data/*.yaml",
 				Format: "yaml",
 			},
 		},
@@ -43,44 +40,43 @@ func TestResolveRemotePath(t *testing.T) {
 	project, err := FindProject(tmpDir)
 	require.NoError(t, err)
 
-	t.Run("resolve with {path} template", func(t *testing.T) {
-		// Create a test file to resolve
+	t.Run("resolve with base prefix stripping", func(t *testing.T) {
 		localFile := filepath.Join(tmpDir, "src/locales/en/messages.json")
 		require.NoError(t, os.MkdirAll(filepath.Dir(localFile), 0755))
 		require.NoError(t, os.WriteFile(localFile, []byte("{}"), 0644))
 
 		remote, format, err := project.ResolveRemotePath("src/locales/en/messages.json")
 		require.NoError(t, err)
-		assert.Equal(t, "ui/strings/src/locales/en/messages", remote)
+		assert.Equal(t, "en/messages.json", remote)
 		assert.Equal(t, "json", format)
 	})
 
-	t.Run("resolve with {filename} template", func(t *testing.T) {
+	t.Run("resolve without base (full path)", func(t *testing.T) {
 		localFile := filepath.Join(tmpDir, "content/faq.md")
 		require.NoError(t, os.MkdirAll(filepath.Dir(localFile), 0755))
 		require.NoError(t, os.WriteFile(localFile, []byte("# FAQ"), 0644))
 
 		remote, format, err := project.ResolveRemotePath("content/faq.md")
 		require.NoError(t, err)
-		assert.Equal(t, "docs/faq.md", remote)
+		assert.Equal(t, "content/faq.md", remote)
 		assert.Equal(t, "markdown", format)
 	})
 
-	t.Run("resolve with {basename} template", func(t *testing.T) {
+	t.Run("resolve yaml entry", func(t *testing.T) {
 		localFile := filepath.Join(tmpDir, "data/settings.yaml")
 		require.NoError(t, os.MkdirAll(filepath.Dir(localFile), 0755))
 		require.NoError(t, os.WriteFile(localFile, []byte("key: value"), 0644))
 
 		remote, format, err := project.ResolveRemotePath("data/settings.yaml")
 		require.NoError(t, err)
-		assert.Equal(t, "config/settings", remote)
+		assert.Equal(t, "data/settings.yaml", remote)
 		assert.Equal(t, "yaml", format)
 	})
 
-	t.Run("no matching mapping", func(t *testing.T) {
+	t.Run("no matching content entry", func(t *testing.T) {
 		_, _, err := project.ResolveRemotePath("unmapped/file.txt")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "no mapping found")
+		assert.Contains(t, err.Error(), "no content entry found")
 	})
 }
 

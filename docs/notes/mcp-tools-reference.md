@@ -193,12 +193,11 @@ Read project configuration from `.bowrain/config.yaml`.
 {
   "root": "/path/to/project",
   "config_path": "/path/to/project/.bowrain/config.yaml",
-  "project_name": "my-app",
-  "source_locale": "en",
-  "target_locales": ["fr", "de", "ja"],
+  "source_language": "en",
+  "target_languages": ["fr", "de", "ja"],
   "server_url": "https://bowrain.example.com",
   "project_id": "proj-123",
-  "mapping_count": 2
+  "content_count": 2
 }
 ```
 
