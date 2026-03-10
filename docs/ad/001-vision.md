@@ -37,12 +37,6 @@ Two CLIs demonstrate this separation:
   Bowrain Server. Manages `.bowrain/` project directories, syncs with the
   server via push/pull, runs flows within a project context.
 
-The architecture draws inspiration from
-[Speckle](https://speckle.systems/) — the open data platform for AEC — where
-bidirectional connectors pull data from native tools into a versioned object
-graph, and collaboration, automation, and diffing emerge naturally from the
-data model.
-
 ### Architectural Principles
 
 1. **Connector-first** — Connectors to live systems (CMS, design tools, code
