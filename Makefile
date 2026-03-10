@@ -46,15 +46,15 @@ GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env
 PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
-.PHONY: all build build-bowrain-cli build-brain build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-brain test-bowrain lint fmt vet proto clean install cover tools help \
+.PHONY: all build build-bowrain-cli build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
+        test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         email-deps email-build \
         keycloak-theme \
         docker-server docker-web docker-keycloak docker-all docker-push-server docker-push-web docker-push-keycloak docker-push certs \
         storybook storybook-dev storybook-build \
-        screenshots recordings kapi-recordings bowrain-cli-recordings brain-recordings cli-recordings docs-assets fetch-docs-assets \
+        screenshots recordings kapi-recordings bowrain-cli-recordings cli-recordings docs-assets fetch-docs-assets \
         videos-deps videos-setup videos-studio videos-render \
         docs-deps docs-dev docs-build docs-serve \
         test-bridge-json test-native-json generate-test-comparison generate-test-stubs
@@ -101,9 +101,6 @@ build-bowrain: frontend-build ## Build the Bowrain desktop app
 build-bowrain-cli: ## Build Bowrain CLI
 	@mkdir -p $(BIN_DIR)
 	cd bowrain-cli && $(GOBUILD) $(LDFLAGS) -o ../$(BIN_DIR)/bowrain ./cmd/bowrain
-	@ln -sf bowrain $(BIN_DIR)/brain
-
-build-brain: build-bowrain-cli ## Alias for build-bowrain-cli (backward compat)
 
 build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
 	@mkdir -p $(BIN_DIR)
@@ -116,8 +113,6 @@ install: ## Install kapi CLI to GOPATH/bin
 
 install-bowrain-cli: ## Install Bowrain CLI to GOPATH/bin
 	cd bowrain-cli && $(GO) install $(LDFLAGS) ./cmd/bowrain
-
-install-brain: install-bowrain-cli ## Alias for install-bowrain-cli (backward compat)
 
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
@@ -264,8 +259,6 @@ kapi-recordings: build ## Generate kapi CLI demo videos (VHS)
 bowrain-cli-recordings: build build-bowrain-cli ## Generate Bowrain CLI demo videos (VHS)
 	./bowrain/e2e/tapes/generate.sh
 
-brain-recordings: bowrain-cli-recordings ## Alias for bowrain-cli-recordings (backward compat)
-
 cli-recordings: kapi-recordings bowrain-cli-recordings ## Generate all CLI demo videos
 
 docs-assets: screenshots recordings cli-recordings ## Generate all documentation assets
@@ -353,8 +346,6 @@ test-kapi: ## Run kapi CLI tests only
 
 test-bowrain-cli: ## Run Bowrain CLI tests only
 	cd bowrain-cli && $(GOTEST) ./... -count=1
-
-test-brain: test-bowrain-cli ## Alias for test-bowrain-cli (backward compat)
 
 test-bowrain: ## Run bowrain tests only
 	cd bowrain && $(GOTEST) ./... -count=1

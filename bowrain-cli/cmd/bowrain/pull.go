@@ -38,7 +38,7 @@ type PullResult struct {
 
 // doPull executes the core pull logic and returns structured results.
 // If conn is provided, it is used; otherwise a new connector is created.
-func doPull(ctx context.Context, conn *project.BrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
+func doPull(ctx context.Context, conn *project.BowrainSourceConnector, locales []string, force, dryRun bool) (*PullResult, error) {
 	if conn == nil {
 		proj, err := project.FindProject("")
 		if err != nil {
