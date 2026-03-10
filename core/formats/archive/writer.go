@@ -309,8 +309,7 @@ func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerVal
 						return err
 					}
 				case format.SkeletonRef:
-					refID := string(seg.Data)
-					if block, ok := blocks[refID]; ok {
+					if block, ok := blocks[string(seg.Data)]; ok {
 						text := w.blockText(block)
 						if _, err := bw.WriteString(text); err != nil {
 							return err

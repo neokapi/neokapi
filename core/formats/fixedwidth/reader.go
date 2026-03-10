@@ -174,7 +174,6 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				if runePos < len(runes) {
 					r.skelText(string(runes[runePos:gapEnd]))
 				}
-				runePos = gapEnd
 			}
 
 			value := r.extractColumn(runes, col)

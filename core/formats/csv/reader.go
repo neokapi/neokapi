@@ -561,7 +561,6 @@ type rawCell struct {
 	raw    string // full raw text of the cell
 	prefix string // quote character(s) before value (e.g., `"`)
 	suffix string // quote character(s) after value (e.g., `"`)
-	value  string // parsed value (with escaped quotes resolved)
 }
 
 // splitRawCells splits a raw CSV line into cells preserving exact formatting.

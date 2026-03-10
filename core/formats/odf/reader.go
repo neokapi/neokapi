@@ -372,25 +372,6 @@ func (p *odfParser) skelWriteEndElement(t xml.EndElement) {
 	p.skelBuf.WriteString(buf.String())
 }
 
-func (p *odfParser) skelWriteSelfClosing(t xml.StartElement) {
-	if p.skeletonStore == nil {
-		return
-	}
-	odfRegisterNamespaces(t.Attr)
-	var buf strings.Builder
-	buf.WriteString("<")
-	odfWriteElementName(&buf, t.Name)
-	for _, a := range t.Attr {
-		buf.WriteString(" ")
-		odfWriteAttrName(&buf, a.Name)
-		buf.WriteString(`="`)
-		buf.WriteString(odfXMLEscapeAttr(a.Value))
-		buf.WriteString(`"`)
-	}
-	buf.WriteString("/>")
-	p.skelBuf.WriteString(buf.String())
-}
-
 // parseODFContent parses an ODF XML file (content.xml or styles.xml) and emits blocks.
 func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult,
 	data []byte, docType odfDocType, blockCounter *int, partPath string) {
