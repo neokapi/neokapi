@@ -36,7 +36,7 @@ type PushResult struct {
 }
 
 // doPush executes the core push logic and returns structured results.
-func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*PushResult, *project.BrainSourceConnector, error) {
+func doPush(ctx context.Context, opts connector.PushOptions, args []string) (*PushResult, *project.BowrainSourceConnector, error) {
 	proj, err := project.FindProject("")
 	if err != nil {
 		return nil, nil, err

@@ -18,9 +18,9 @@ import (
 	"github.com/gokapi/gokapi/platform/connector"
 )
 
-// BrainSourceConnector implements connector.SourceConnector for local bowrain-cli projects.
+// BowrainSourceConnector implements connector.SourceConnector for local bowrain-cli projects.
 // It communicates with a Bowrain server via REST API.
-type BrainSourceConnector struct {
+type BowrainSourceConnector struct {
 	project   *Project
 	client    *apiclient.BowrainClient
 	formatReg *registry.FormatRegistry
@@ -30,7 +30,7 @@ type BrainSourceConnector struct {
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
-func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BrainSourceConnector, error) {
+func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*BowrainSourceConnector, error) {
 	if !project.Config.HasServer() {
 		return nil, fmt.Errorf("no server configuration in .bowrain/config.yaml")
 	}
@@ -88,7 +88,7 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	stream := ResolveStream("", project.Config.Stream)
 	client.SetStream(stream)
 
-	return &BrainSourceConnector{
+	return &BowrainSourceConnector{
 		project:   project,
 		client:    client,
 		formatReg: formatReg,
@@ -98,11 +98,11 @@ func NewSourceConnector(project *Project, formatReg *registry.FormatRegistry) (*
 	}, nil
 }
 
-// NewLocalConnector creates a BrainSourceConnector for local-only operations
+// NewLocalConnector creates a BowrainSourceConnector for local-only operations
 // (listing files, scanning blocks) without requiring a server connection.
-func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *BrainSourceConnector {
+func NewLocalConnector(project *Project, formatReg *registry.FormatRegistry) *BowrainSourceConnector {
 	cache := LoadSyncCache(project.ConfigDir)
-	return &BrainSourceConnector{
+	return &BowrainSourceConnector{
 		project:   project,
 		formatReg: formatReg,
 		cache:     cache,
@@ -121,7 +121,7 @@ type FileInfo struct {
 // ListFiles scans all tracked files and returns per-file stats.
 // It uses scanLocalBlocks for block extraction and compares against the
 // sync cache for dirty detection. Results are sorted by path.
-func (c *BrainSourceConnector) ListFiles(ctx context.Context, paths []string) ([]FileInfo, error) {
+func (c *BowrainSourceConnector) ListFiles(ctx context.Context, paths []string) ([]FileInfo, error) {
 	_, blockMap, err := c.scanLocalBlocks(ctx, paths)
 	if err != nil {
 		return nil, err
@@ -162,22 +162,22 @@ func (c *BrainSourceConnector) ListFiles(ctx context.Context, paths []string) ([
 }
 
 // ID returns the connector identifier.
-func (c *BrainSourceConnector) ID() string {
-	return "brain-source"
+func (c *BowrainSourceConnector) ID() string {
+	return "bowrain-source"
 }
 
 // Name returns a human-readable name.
-func (c *BrainSourceConnector) Name() string {
-	return "Brain Local Source"
+func (c *BowrainSourceConnector) Name() string {
+	return "Bowrain Local Source"
 }
 
 // Category returns the connector category.
-func (c *BrainSourceConnector) Category() connector.Category {
+func (c *BowrainSourceConnector) Category() connector.Category {
 	return connector.CategoryFile
 }
 
 // Status reports the sync state.
-func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
+func (c *BowrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatus, error) {
 	// Count local changes by scanning files and comparing to cache.
 	hashMap, blockMap, err := c.scanLocalBlocks(ctx, nil)
 	if err != nil {
@@ -230,17 +230,17 @@ func (c *BrainSourceConnector) Status(ctx context.Context) (*connector.SyncStatu
 }
 
 // Configure is a no-op for the Bowrain CLI source connector (configured via .bowrain/config.yaml).
-func (c *BrainSourceConnector) Configure(config map[string]string) error {
+func (c *BowrainSourceConnector) Configure(config map[string]string) error {
 	return nil
 }
 
 // Close saves the sync cache.
-func (c *BrainSourceConnector) Close() error {
+func (c *BowrainSourceConnector) Close() error {
 	return c.cache.Save(c.project.ConfigDir)
 }
 
 // Push sends source content from local files to Bowrain.
-func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
+func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
 	// Scan local files and extract blocks grouped by item.
 	hashMap, blockMap, err := c.scanLocalBlocks(ctx, opts.Paths)
 	if err != nil {
@@ -351,7 +351,7 @@ func (c *BrainSourceConnector) Push(ctx context.Context, opts connector.PushOpti
 }
 
 // Pull retrieves translated content from Bowrain.
-func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
+func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOptions) (*connector.PullResult, error) {
 	// Refresh server metadata so we have up-to-date target locales.
 	c.fetchAndCacheMetadata(ctx)
 
@@ -478,7 +478,7 @@ func (c *BrainSourceConnector) Pull(ctx context.Context, opts connector.PullOpti
 // scanLocalBlocks walks local source files, reads them with format readers,
 // and extracts blocks grouped by item (file path relative to project root).
 // Returns itemName→(blockID→hash) and itemName→blocks.
-func (c *BrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
+func (c *BowrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
 	hashMap := map[string]map[string]string{}
 	blockMap := map[string][]*model.Block{}
 
@@ -535,7 +535,7 @@ func (c *BrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []stri
 }
 
 // detectFormat determines the format for a file using mappings or the registry.
-func (c *BrainSourceConnector) detectFormat(absPath string) string {
+func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 	relPath, err := c.project.RelativePath(absPath)
 	if err != nil {
 		relPath = filepath.Base(absPath)
@@ -565,7 +565,7 @@ func (c *BrainSourceConnector) detectFormat(absPath string) string {
 }
 
 // readBlocks reads a file and extracts blocks using the format reader.
-func (c *BrainSourceConnector) readBlocks(ctx context.Context, filePath, formatName string) ([]*model.Block, error) {
+func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, formatName string) ([]*model.Block, error) {
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
 		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
@@ -607,7 +607,7 @@ func (c *BrainSourceConnector) readBlocks(ctx context.Context, filePath, formatN
 // It checks content entries for a dest pattern (which may contain {lang} or
 // {locale}/{path}/{filename} placeholders), falls back to replacing the source
 // locale in the path, or appends the locale as a suffix.
-func (c *BrainSourceConnector) resolveTargetPath(itemName, locale string) string {
+func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) string {
 	relPath := itemName
 	srcLang := string(c.project.Config.SourceLocale())
 
@@ -670,7 +670,7 @@ func (c *BrainSourceConnector) resolveTargetPath(itemName, locale string) string
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,
 // and writes the translated output file using the appropriate format writer.
-func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
+func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
 	// Read source.
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
@@ -769,7 +769,7 @@ func (c *BrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePa
 
 // resolveItemCollections builds a map of item path → collection by matching
 // each tracked file against content entries. Falls back to Defaults.Collection.
-func (c *BrainSourceConnector) resolveItemCollections() map[string]string {
+func (c *BowrainSourceConnector) resolveItemCollections() map[string]string {
 	result := map[string]string{}
 	defaultCollection := c.project.Config.Defaults.Collection
 
@@ -799,7 +799,7 @@ func (c *BrainSourceConnector) resolveItemCollections() map[string]string {
 
 // fetchAndCacheMetadata fetches project metadata from the server and caches it.
 // Errors are non-fatal — metadata is best-effort.
-func (c *BrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
+func (c *BowrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
 	if c.client == nil {
 		return
 	}
@@ -817,7 +817,7 @@ func (c *BrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
 
 // ServerTargetLocales returns target locales from the server cache.
 // Returns nil if no cached metadata is available.
-func (c *BrainSourceConnector) ServerTargetLocales() []model.LocaleID {
+func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
 	if c.cache.ServerMeta == nil || len(c.cache.ServerMeta.TargetLocales) == 0 {
 		return nil
 	}
@@ -846,7 +846,7 @@ func globFixedPrefix(pattern string) string {
 }
 
 // lookupCachedHashForItem finds a block's cached hash for a specific item.
-func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
+func (c *BowrainSourceConnector) lookupCachedHashForItem(itemName, blockID string) (string, bool) {
 	fc, ok := c.cache.Files[itemName]
 	if !ok {
 		return "", false
@@ -856,12 +856,12 @@ func (c *BrainSourceConnector) lookupCachedHashForItem(itemName, blockID string)
 }
 
 // Stream returns the resolved stream name for this connector.
-func (c *BrainSourceConnector) Stream() string {
+func (c *BowrainSourceConnector) Stream() string {
 	return c.stream
 }
 
 // SetStream overrides the resolved stream (e.g. from --stream flag).
-func (c *BrainSourceConnector) SetStream(stream string) {
+func (c *BowrainSourceConnector) SetStream(stream string) {
 	c.stream = normalizeStreamName(stream)
 	if c.client != nil {
 		c.client.SetStream(c.stream)
@@ -869,9 +869,9 @@ func (c *BrainSourceConnector) SetStream(stream string) {
 }
 
 // Client returns the underlying BowrainClient for direct API calls (e.g. PushStatus).
-func (c *BrainSourceConnector) Client() *apiclient.BowrainClient {
+func (c *BowrainSourceConnector) Client() *apiclient.BowrainClient {
 	return c.client
 }
 
-// Ensure BrainSourceConnector implements SourceConnector at compile time.
-var _ connector.SourceConnector = (*BrainSourceConnector)(nil)
+// Ensure BowrainSourceConnector implements SourceConnector at compile time.
+var _ connector.SourceConnector = (*BowrainSourceConnector)(nil)

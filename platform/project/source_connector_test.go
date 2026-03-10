@@ -260,7 +260,7 @@ func TestSourceConnector_Status(t *testing.T) {
 	// Before any sync: all local blocks should be pending push.
 	status, err := conn.Status(ctx)
 	require.NoError(t, err)
-	assert.Equal(t, "brain-source", status.ConnectorID)
+	assert.Equal(t, "bowrain-source", status.ConnectorID)
 	assert.Equal(t, 2, status.ItemCount)
 	assert.Equal(t, 2, status.PendingPush)
 
@@ -481,7 +481,7 @@ func TestSourceConnector_ResolveTargetPath(t *testing.T) {
 		},
 	}
 
-	conn := &BrainSourceConnector{project: proj}
+	conn := &BowrainSourceConnector{project: proj}
 
 	// Default behavior: replace source locale in path.
 	assert.Equal(t, "src/locales/fr.json", conn.resolveTargetPath("src/locales/en.json", "fr"))
@@ -749,6 +749,6 @@ func TestContentEntry_EffectiveTargetLanguages(t *testing.T) {
 }
 
 func TestSourceConnector_InterfaceCompliance(t *testing.T) {
-	// Compile-time check that BrainSourceConnector implements connector.SourceConnector.
-	var _ connector.SourceConnector = (*BrainSourceConnector)(nil)
+	// Compile-time check that BowrainSourceConnector implements connector.SourceConnector.
+	var _ connector.SourceConnector = (*BowrainSourceConnector)(nil)
 }

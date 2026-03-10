@@ -135,7 +135,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func syncPull(cmd *cobra.Command, conn *project.BrainSourceConnector) error {
+func syncPull(cmd *cobra.Command, conn *project.BowrainSourceConnector) error {
 	fmt.Fprintln(cmd.OutOrStdout(), "\nPulling translations...")
 	pullResult, err := doPull(cmd.Context(), conn, syncLocales, false, false)
 	if err != nil {

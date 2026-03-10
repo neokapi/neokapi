@@ -99,11 +99,8 @@ brews:
     license: "Apache-2.0"
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
     custom_require: "lib/private_download_strategy"
-    extra_install: |
-      bin.install_symlink bin/"bowrain" => "brain"
     test: |
       system "#{bin}/bowrain", "version"
-      system "#{bin}/brain", "version"
 
 checksum:
   name_template: "checksums.txt"
