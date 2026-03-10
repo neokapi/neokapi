@@ -63,7 +63,26 @@ func TestResolveStream_FlagOverridesEnv(t *testing.T) {
 	assert.Equal(t, "hotfix", ResolveStream("hotfix", ""))
 }
 
+// clearCIEnv unsets all CI detection env vars so tests start from a clean state.
+// This is critical because CI runners (e.g. GitHub Actions) set their own env vars
+// which would interfere with tests for other CI systems.
+func clearCIEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"GITHUB_ACTIONS", "GITHUB_EVENT_NAME", "GITHUB_REF_NAME", "GITHUB_HEAD_REF",
+		"GITLAB_CI", "CI_COMMIT_BRANCH", "CI_MERGE_REQUEST_SOURCE_BRANCH_NAME",
+		"CIRCLECI", "CIRCLE_BRANCH",
+		"TF_BUILD", "BUILD_SOURCEBRANCHNAME", "SYSTEM_PULLREQUEST_SOURCEBRANCH",
+		"JENKINS_URL", "BRANCH_NAME", "CHANGE_BRANCH", "GIT_BRANCH",
+		"TRAVIS", "TRAVIS_BRANCH", "TRAVIS_PULL_REQUEST_BRANCH",
+		"BUILDKITE", "BUILDKITE_BRANCH",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
 func TestDetectStreamFromCI_GitHub(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GITHUB_ACTIONS", "true")
 	t.Setenv("GITHUB_EVENT_NAME", "push")
 	t.Setenv("GITHUB_REF_NAME", "feature/foo")
@@ -71,6 +90,7 @@ func TestDetectStreamFromCI_GitHub(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_GitHubPR(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GITHUB_ACTIONS", "true")
 	t.Setenv("GITHUB_EVENT_NAME", "pull_request")
 	t.Setenv("GITHUB_HEAD_REF", "feature/bar")
@@ -79,12 +99,14 @@ func TestDetectStreamFromCI_GitHubPR(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_GitLab(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_COMMIT_BRANCH", "develop")
 	assert.Equal(t, "develop", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_GitLabMR(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("GITLAB_CI", "true")
 	t.Setenv("CI_MERGE_REQUEST_SOURCE_BRANCH_NAME", "feature/mr")
 	t.Setenv("CI_COMMIT_BRANCH", "develop")
@@ -92,18 +114,21 @@ func TestDetectStreamFromCI_GitLabMR(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_CircleCI(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("CIRCLECI", "true")
 	t.Setenv("CIRCLE_BRANCH", "release/2.0")
 	assert.Equal(t, "release/2.0", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_AzureDevOps(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("TF_BUILD", "True")
 	t.Setenv("BUILD_SOURCEBRANCHNAME", "main")
 	assert.Equal(t, "main", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_AzureDevOpsPR(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("TF_BUILD", "True")
 	t.Setenv("SYSTEM_PULLREQUEST_SOURCEBRANCH", "feature/pr")
 	t.Setenv("BUILD_SOURCEBRANCHNAME", "main")
@@ -111,12 +136,14 @@ func TestDetectStreamFromCI_AzureDevOpsPR(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_Jenkins(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("JENKINS_URL", "http://jenkins.example.com")
 	t.Setenv("BRANCH_NAME", "develop")
 	assert.Equal(t, "develop", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_JenkinsPR(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("JENKINS_URL", "http://jenkins.example.com")
 	t.Setenv("CHANGE_BRANCH", "feature/pr-branch")
 	t.Setenv("BRANCH_NAME", "PR-42")
@@ -124,12 +151,14 @@ func TestDetectStreamFromCI_JenkinsPR(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_Travis(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("TRAVIS", "true")
 	t.Setenv("TRAVIS_BRANCH", "main")
 	assert.Equal(t, "main", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_TravisPR(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("TRAVIS", "true")
 	t.Setenv("TRAVIS_PULL_REQUEST_BRANCH", "feature/travis-pr")
 	t.Setenv("TRAVIS_BRANCH", "main")
@@ -137,12 +166,14 @@ func TestDetectStreamFromCI_TravisPR(t *testing.T) {
 }
 
 func TestDetectStreamFromCI_Buildkite(t *testing.T) {
+	clearCIEnv(t)
 	t.Setenv("BUILDKITE", "true")
 	t.Setenv("BUILDKITE_BRANCH", "feature/bk")
 	assert.Equal(t, "feature/bk", detectStreamFromCI())
 }
 
 func TestDetectStreamFromCI_NotCI(t *testing.T) {
+	clearCIEnv(t)
 	// No CI env vars set — should return empty.
 	assert.Equal(t, "", detectStreamFromCI())
 }
