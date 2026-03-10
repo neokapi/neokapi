@@ -182,12 +182,15 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
         if err == io.EOF { break }
         switch entry.Type {
         case format.SkeletonText:
-            w.Output.Write(entry.Data)
+            if _, err := w.Output.Write(entry.Data); err != nil {
+                return err
+            }
         case format.SkeletonRef:
-            blockID := string(entry.Data)
-            if block, ok := blocks[blockID]; ok {
+            if block, ok := blocks[string(entry.Data)]; ok {
                 text := w.getBlockText(block)
-                io.WriteString(w.Output, text)
+                if _, err := io.WriteString(w.Output, text); err != nil {
+                    return err
+                }
             }
         }
     }
@@ -213,7 +216,7 @@ The writer tries three modes in order:
 |------|------|
 | `core/format/skeleton.go` | SkeletonStore type, binary format, interfaces |
 | `core/format/skeleton_test.go` | Unit tests (roundtrip, empty skip, large data) |
-| `core/formats/html/tokenreader.go` | Single-pass tokenizer reader (~600 lines) |
+| `core/formats/html/tokenreader.go` | Single-pass tokenizer reader (~1100 lines) |
 | `core/formats/html/reader.go` | Dispatch: skeleton store → tokenizer, else → DOM |
 | `core/formats/html/writer.go` | Skeleton mode + re-parse fallback + block-only fallback |
 | `core/formats/html/roundtrip_test.go` | Byte-exact, translation, and attribute roundtrip tests |

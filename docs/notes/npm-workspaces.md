@@ -40,10 +40,17 @@ All four projects share React 19, Tailwind CSS v4, and TypeScript 5.8+. The thre
 Rather than publishing `@gokapi/ui` as an npm package or using workspace protocol references, each app project resolves it through a Vite alias:
 
 ```ts
-// vite.config.ts (each app)
+// vite.config.ts — bowrain/apps/web and kapi/apps/kapi-web (3 levels up)
 resolve: {
   alias: {
     "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
+  },
+},
+
+// vite.config.ts — bowrain/apps/bowrain/frontend (4 levels up)
+resolve: {
+  alias: {
+    "@gokapi/ui": path.resolve(__dirname, "../../../../packages/ui/src"),
   },
 },
 ```
@@ -61,15 +68,15 @@ However, for production builds, `packages/ui` must have its TypeScript declarati
 The build dependency graph is:
 
 ```
-packages/ui (npm install)
+packages/ui (npm install) [ui-deps]
     |
-    +---> packages/ui (npx tsc)  [for type declarations]
-    |         |
-    |         +---> bowrain/apps/web (npm run build)
-    |         |
-    |         +---> kapi/apps/kapi-web (npm run build)
-    |
-    +---> bowrain/apps/bowrain/frontend (npm run build)
+    +---> packages/ui (npx tsc) [ui-build]
+              |
+              +---> bowrain/apps/web (version.json + npm run build) [web-build]
+              |
+              +---> kapi/apps/kapi-web (version.json + npm run build) [kapi-web-build]
+              |
+              +---> bowrain/apps/bowrain/frontend (npm run build) [frontend-build]
 ```
 
 The critical constraint: **`packages/ui` dependencies must be installed before any app project can build**, because the Vite alias resolves to source files that import from `packages/ui/node_modules` (e.g., `shadcn-glass-ui`, `@radix-ui/react-slot`).
@@ -83,34 +90,40 @@ The Makefile encodes these dependencies explicitly:
 ui-deps:                         ## Install shared UI package dependencies
 	cd packages/ui && npm install
 
+ui-build: ui-deps                ## Compile shared UI TypeScript declarations
+	cd packages/ui && npx tsc
+
 # SaaS web UI (bowrain-server)
 web-deps:                        ## Install SaaS web UI dependencies
 	cd $(WEB_DIR) && npm install
 
-web-build: ui-deps web-deps      ## Build SaaS web UI for production
-	cd packages/ui && npx tsc
+web-build: ui-build web-deps     ## Build SaaS web UI for production
+	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' \
+	    "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
 	cd $(WEB_DIR) && npm run build
 
 # Kapi web UI (kapi serve)
 kapi-web-deps:                   ## Install kapi web UI dependencies
 	cd $(KAPI_WEB_DIR) && npm install
 
-kapi-web-build: ui-deps kapi-web-deps  ## Build kapi web UI for production
-	cd packages/ui && npx tsc
+kapi-web-build: ui-build kapi-web-deps  ## Build kapi web UI for production
+	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"kapi-web"}\n' \
+	    "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(KAPI_WEB_DIR)/public/version.json
 	cd $(KAPI_WEB_DIR) && npm run build
 
 # Bowrain desktop frontend
 frontend-deps:                   ## Install frontend dependencies
 	cd $(FRONTEND_DIR) && npm install
 
-frontend-build: ui-deps frontend-deps  ## Build frontend for production
+frontend-build: ui-build frontend-deps  ## Build frontend for production
 	cd $(FRONTEND_DIR) && npm run build
 ```
 
 Key observations:
-- Every app build target depends on `ui-deps` (which runs `npm install` in `packages/ui`)
-- `web-build` and `kapi-web-build` run `cd packages/ui && npx tsc` before the app build to generate type declarations
-- `frontend-build` (Bowrain desktop) does not run `npx tsc` on packages/ui separately because the Wails build handles TypeScript through its own pipeline
+- A dedicated `ui-build` target compiles `packages/ui` TypeScript declarations via `npx tsc`
+- All three app build targets depend on `ui-build` (which itself depends on `ui-deps`)
+- `web-build` and `kapi-web-build` generate a `version.json` in their `public/` directory before building (containing version, commit hash, and build date)
+- `frontend-build` (Bowrain desktop) does not generate `version.json` because Wails provides version info through its own mechanism
 
 Server binaries that embed frontend assets chain through these targets:
 

@@ -124,22 +124,23 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
     ch := make(chan model.PartResult, 64)
     go func() {
         defer close(ch)
-        err := r.readContent(ctx, ch)
-        if err != nil {
-            ch <- model.PartResult{Error: err}
-        }
+        r.readContent(ctx, ch)
     }()
     return ch
 }
 
-func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) error {
+func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
     // 1. Emit PartLayerStart
-    ch <- model.PartResult{Part: model.NewPartLayerStart(&model.Layer{
+    layer := &model.Layer{
         ID:     "doc",
         Name:   filepath.Base(r.Doc.URI),
         Format: "<name>",
         Locale: r.Doc.SourceLocale,
-    })}
+    }
+    ch <- model.PartResult{Part: &model.Part{
+        Type:     model.PartLayerStart,
+        Resource: layer,
+    }}
 
     // 2. Parse input, emit blocks and data
     //    (see Skeleton Store Integration below)
@@ -148,13 +149,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) er
     r.skelFlush()
     if r.skeletonStore != nil {
         if err := r.skeletonStore.Flush(); err != nil {
-            return err
+            ch <- model.PartResult{Error: fmt.Errorf("<name>: flush skeleton: %w", err)}
+            return
         }
     }
 
     // 4. Emit PartLayerEnd
-    ch <- model.PartResult{Part: model.NewPartLayerEnd("doc")}
-    return nil
+    ch <- model.PartResult{Part: &model.Part{
+        Type:     model.PartLayerEnd,
+        Resource: layer,
+    }}
 }
 ```
 

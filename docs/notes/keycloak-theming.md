@@ -142,27 +142,38 @@ Keycloakify's CSS processing can strip or reorder `@layer` blocks, which causes 
 @source "../../../../../node_modules/shadcn-glass-ui/dist";
 
 :root {
-  /* OKLCH primitives */
+  /* OKLCH primitives (~80 tokens: white opacity variants, black, color ramps) */
   --oklch-white-8: oklch(100% 0 0 / 0.08);
-  --oklch-purple-500: oklch(66.6% .159 303);
-  /* ... ~80 token declarations ... */
+  --oklch-copper-500: oklch(62% .16 48);
+  --oklch-copper-600: oklch(54% .16 46);
+  --oklch-bronze-500: oklch(58% .14 35);
+  /* ... */
 
-  /* Semantic tokens */
-  --semantic-primary: var(--oklch-purple-500);
+  /* Semantic tokens (~45 tokens) */
+  --semantic-primary: var(--oklch-copper-500);
+  --semantic-secondary: var(--oklch-bronze-500);
   --semantic-surface: var(--oklch-white-8);
   /* ... */
 
-  /* Component tokens (card, input, button) */
+  /* Component tokens (~35 tokens: card, input, button, text) */
   --card-bg: var(--semantic-surface-muted);
   --btn-primary-bg: linear-gradient(135deg, ...);
   /* ... */
 
-  /* Background gradient + orb tokens */
-  --bg-from: var(--oklch-slate-900);
-  --orb-1: var(--oklch-purple-500-30);
+  /* Glass-specific tokens (~20 tokens: blur, glow, shadow, duration, radius) */
   /* ... */
+
+  /* Background gradient + orb tokens (5 orbs) */
+  --bg-from: var(--oklch-slate-900);
+  --orb-1: var(--oklch-blue-500-20);     /* hue 255° */
+  --orb-2: var(--oklch-copper-600-20);   /* hue 46° */
+  --orb-3: var(--oklch-cyan-500-20);     /* hue 195° */
+  --orb-4: var(--oklch-copper-600-15);   /* hue 46° */
+  --orb-5: transparent;                   /* center, dark theme only */
 }
 ```
+
+The file defines approximately 207 CSS custom properties in total.
 
 The `@source` directive ensures Tailwind scans the `shadcn-glass-ui` dist directory for runtime class names like `pl-10` and `left-2.5` that components reference.
 

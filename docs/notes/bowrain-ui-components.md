@@ -8,9 +8,10 @@ This note provides implementation details for [AD-012](/docs/ad/012-bowrain).
 
 ## Translation Editor
 
-Four layout modes:
+Five layout modes:
 
-- **Grid** (default) -- Table view with source and target columns for all blocks. Efficient for scanning and bulk editing
+- **Visual** (default) -- Visual editor with rich formatting and inline editing
+- **Grid** -- Table view with source and target columns for all blocks. Efficient for scanning and bulk editing
 - **Focus** -- Single-block deep editing with full-width source/target panels and block navigation (prev/next). Term highlights and TM matches are shown inline
 - **Split Horizontal / Vertical** -- Side-by-side or stacked editing with a live document preview pane
 
@@ -62,7 +63,7 @@ In local/desktop mode, a "Personal" workspace is created automatically. When con
 
 Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse across Bowrain (desktop) and the web app. The library includes:
 
-- **Layout**: `WorkspaceRail`, `MainSidebar`, `AccountMenu`, `WorkspaceIcon`
+- **Layout**: `WorkspaceRail`, `AppSidebar`, `AccountMenu`, `WorkspaceIcon`
 - **Context**: `AuthContext`, `WorkspaceContext` with React hooks
 - **API Adapter**: `ApiAdapter` interface with platform-specific implementations -- `RestApiAdapter` for the web app, Wails bindings for desktop
 
@@ -73,8 +74,8 @@ Bowrain imports from `@gokapi/ui` and provides a Wails-specific API adapter that
 When the gRPC connection drops, the app transitions to `offline` state and continues working against the local cache:
 
 - **Local cache** -- On project open, blocks are fetched from the server and stored locally. Reads always serve from the local ContentStore (fast). Writes go to the server first; on success, the local cache updates
-- **Offline queue** -- On write failure (network error), mutations are queued in a SQLite-backed `OfflineQueue` at `<UserConfigDir>/bowrain-desktop/offline-queue.db`. Operations tracked: `update_block_target`, `review_block`, `add_tm_entry`, `delete_tm_entry`, `add_concept`, `delete_concept`
-- **Reconnection** -- A background goroutine (`reconnectLoop`) pings the server with exponential backoff (2s -> 30s cap, 10% jitter). On successful reconnect, pending changes replay in FIFO order, and the `WatchProject` stream resumes
+- **Offline queue** -- On write failure (network error), mutations are queued in a SQLite-backed `OfflineQueue` at `<UserConfigDir>/bowrain-desktop/offline-queue.db`. Operations tracked: `update_block_target`, `update_block_target_coded`, `review_block`, `add_tm_entry`, `update_tm_entry`, `delete_tm_entry`, `add_concept`, `update_concept`, `delete_concept`
+- **Reconnection** -- A background goroutine (`reconnectLoop`) pings the server with exponential backoff (2s -> 60s cap). On successful reconnect, pending changes replay in FIFO batches of 10, and the `WatchProject` stream resumes
 - **Frontend indicators** -- The header shows "Offline" with a count of pending changes (e.g., "3 pending"). When reconnected, the count clears and the status returns to "Connected"
 
 The offline queue persists across app restarts -- changes are never lost even if the app is closed while offline. Failed replays increment an attempt counter and record the error for debugging.

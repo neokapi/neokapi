@@ -38,7 +38,7 @@ type SourceConnector interface {
 }
 ```
 
-The primary implementation is `KapiSourceConnector` -- the file connector that syncs `.kapi/` projects with Bowrain Server via REST API.
+The primary implementation is `BrainSourceConnector` -- the file connector that syncs `.bowrain/` projects with Bowrain Server via REST API.
 
 ## ConnectorBase (Shared)
 
@@ -58,32 +58,31 @@ type ConnectorBase interface {
 ## Connector Categories
 
 ```go
-type ConnectorCategory string
+type Category string
 
 const (
-    CategoryCMS       ConnectorCategory = "cms"
-    CategoryDesign    ConnectorCategory = "design"
-    CategoryCode      ConnectorCategory = "code"
-    CategoryMarketing ConnectorCategory = "marketing"
-    CategoryFile      ConnectorCategory = "file"  // Kapi's category
-    CategoryTMS       ConnectorCategory = "tms"   // External TMS integrations
+    CategoryFile      Category = "file"
+    CategoryCode      Category = "code"
+    CategoryCMS       Category = "cms"
+    CategoryDesign    Category = "design"
+    CategoryMarketing Category = "marketing"
+    CategoryTMS       Category = "tms"
 )
 ```
 
-## PullOptions and PushOptions
+## PushOptions and PullOptions
 
 ```go
-type PullOptions struct {
-    Items   []string          // content item IDs to pull (empty = all)
-    Locales []model.LocaleID  // source locales to pull
-    Config  map[string]any    // connector-specific configuration
+type PushOptions struct {
+    Paths  []string // Specific file paths to push (empty = all)
+    Force  bool     // Push all blocks, ignoring sync cache
+    DryRun bool     // Report what would be pushed without sending
 }
 
-type PushOptions struct {
-    Items   []string          // content item IDs to push (empty = all)
-    Locales []model.LocaleID  // target locales to push
-    Message string            // commit message / changelog
-    Config  map[string]any
+type PullOptions struct {
+    Locales []model.LocaleID // Target locales to pull (empty = all)
+    Force   bool             // Overwrite local changes
+    DryRun  bool             // Report what would be pulled without writing
 }
 ```
 
@@ -91,16 +90,18 @@ type PushOptions struct {
 
 ```go
 type SyncStatus struct {
-    ConnectorID   string
-    LastSynced    time.Time
-    ItemsChanged  int       // items modified since last pull
-    ItemsNew      int       // new items in source system
-    ItemsDeleted  int       // items removed from source system
-    PendingPush   int       // translated items awaiting push
+    ConnectorID string
+    LastSync    time.Time
+    ItemCount   int
+    FileCount   int // total local files scanned
+    WordCount   int // total source words across all local blocks
+    PendingPull int // Items changed externally since last pull
+    PendingPush int // Items changed locally since last push
+    Errors      []string
 }
 ```
 
-`Sync()` provides a lightweight status check without performing a full pull. Bowrain uses this to show sync indicators in the connector management panel.
+`Status()` provides a lightweight status check without performing a full pull. Bowrain uses this to show sync indicators in the connector management panel.
 
 ## ContentItem
 
@@ -108,33 +109,40 @@ Server-side connectors expose browsable content:
 
 ```go
 type ContentItem struct {
-    ID           string
-    ExternalID   string            // ID in the source system
-    Name         string
-    Path         string            // hierarchical path in source system
-    ContentType  string            // "page", "entry", "text-layer", "file"
-    Locale       model.LocaleID
-    LastModified time.Time
-    Metadata     map[string]string // connector-specific metadata
+    ID          string
+    Name        string
+    Path        string
+    Format      string
+    Locale      model.LocaleID
+    Blocks      []*model.Block
+    Metadata    map[string]string
+    LastChanged time.Time
 }
 ```
 
 `List()` returns available content items from the connected system. For a CMS connector, these are pages and entries. For a design connector, artboards and text layers. Bowrain displays content items as a browsable tree, allowing selective pull.
 
-## ConnectorRegistry
+## Registry
 
-Server-side connectors register into a `ConnectorRegistry`:
+Server-side connectors register into a `Registry`:
 
 ```go
-type ConnectorRegistry struct {
-    connectors map[string]ConnectorFactory
+type Factory func(config map[string]string) (IntegrationConnector, error)
+
+type ConnectorInfo struct {
+    Name     string
+    Category Category
 }
 
-type ConnectorFactory func(config map[string]any) (Connector, error)
+type Registry struct {
+    mu        sync.RWMutex
+    factories map[string]Factory
+    infos     map[string]ConnectorInfo
+}
 
-func (r *ConnectorRegistry) Register(id string, category ConnectorCategory, factory ConnectorFactory)
-func (r *ConnectorRegistry) NewConnector(id string, config map[string]any) (Connector, error)
-func (r *ConnectorRegistry) List() []ConnectorInfo
+func (r *Registry) Register(name string, category Category, factory Factory)
+func (r *Registry) NewConnector(name string, config map[string]string) (IntegrationConnector, error)
+func (r *Registry) List() []ConnectorInfo
 ```
 
-Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([AD-007](/docs/ad/007-plugin-system)). Kapi does not interact with the ConnectorRegistry -- it is a file-based tool that syncs with the server via API.
+Built-in connectors register via `init()`. Plugin connectors register at runtime via gRPC discovery ([AD-007](/docs/ad/007-plugin-system)). The bowrain CLI does not interact with the Registry -- it is a file-based tool that syncs with the server via API.

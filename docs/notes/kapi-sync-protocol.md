@@ -97,12 +97,20 @@ remote template: ui/strings/{path}
   "sync_cursor": 4821,
   "last_sync": "2026-02-15T10:30:00Z",
   "files": {
-    "_blocks": {
-      "mtime": "0001-01-01T00:00:00Z",
-      "size": 0,
+    "src/locales/en-US.json": {
+      "mtime": "2026-02-15T10:25:00Z",
+      "size": 4096,
       "blocks": {
         "greeting": "a1b2c3d4...",
         "farewell": "e5f6a7b8..."
+      }
+    },
+    "src/locales/fr-FR.json": {
+      "mtime": "2026-02-15T10:28:00Z",
+      "size": 4200,
+      "blocks": {
+        "greeting": "c9d0e1f2...",
+        "farewell": "g3h4i5j6..."
       }
     }
   }
@@ -112,7 +120,7 @@ remote template: ui/strings/{path}
 **Key fields:**
 - **`sync_cursor`** -- Monotonic sequence number from the server's change log. Used by `pull` to request only changes since the last sync (`WHERE seq > cursor`). This follows the Contentful sync token / CouchDB sequence ID pattern.
 - **`last_sync`** -- Timestamp of the last successful push or pull.
-- **`files._blocks`** -- Map of block ID -> content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
+- **`files`** -- Per-file entries keyed by relative path. Each entry tracks the file's mtime, size, and a map of block ID → content hash (SHA-256). Used by `push` to diff local blocks against the last known server state and send only changed blocks.
 
 **Design principles:**
 - **Cache, not state**: The sync cache can be deleted and regenerated. Deleting it forces a full re-scan on the next push (expensive but correct). The server is the source of truth.
@@ -142,14 +150,19 @@ The append-only change log with sync cursors follows the industry-standard patte
 
 ## Server API Endpoints
 
-When `server.url` is configured, Kapi uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
+When `server.url` is configured, Bowrain CLI uses the Bowrain Server REST API ([AD-013](/docs/ad/013-cli-and-server)):
 
 **Sync API endpoints:**
 ```
-POST /api/v1/projects/:id/sync/push   # Push source blocks to server
-GET  /api/v1/projects/:id/sync/pull   # Pull changes since cursor
-GET  /api/v1/projects/:id/changes     # Raw change log query
+POST /api/v1/projects/:id/sync/push       # Push source blocks to server
+GET  /api/v1/projects/:id/sync/pull        # Pull changes since cursor
+GET  /api/v1/projects/:id/sync/blocks      # Get blocks for an item
+GET  /api/v1/projects/:id/sync/status      # Push status (translation job tracking)
+POST /api/v1/projects/:id/sync/translate   # Create translation job for pushed content
+GET  /api/v1/projects/:id/changes          # Raw change log query
 ```
+
+Workspace-scoped equivalents are also available at `/api/v1/workspaces/:ws/projects/:id/sync/...`.
 
 **Push workflow:**
 ```
@@ -158,8 +171,8 @@ GET  /api/v1/projects/:id/changes     # Raw change log query
 3. Compare with .sync-cache -> identify changed blocks
 4. Run pre-push hooks (if configured)
 5. POST /api/v1/projects/:id/sync/push
-   -> Request body: { blocks: [{id, text, name, type}] }
-   -> Response: { stored: N, new_cursor: X }
+   -> Request body: { blocks: [{id, text, name, type, item_name}] }
+   -> Response: { stored: N, new_cursor: X, push_id: "..." }
    -> Batched at 1000 blocks per request (MaxBlocksPerRequest)
 6. Update .sync-cache with new hashes + cursor
 ```

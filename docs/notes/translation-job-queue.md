@@ -10,6 +10,15 @@ described in [AD-008](/docs/ad/008-ai-integration).
 ## Job Model
 
 ```go
+type JobStatus string
+
+const (
+    StatusQueued     JobStatus = "queued"
+    StatusProcessing JobStatus = "processing"
+    StatusCompleted  JobStatus = "completed"
+    StatusFailed     JobStatus = "failed"
+)
+
 type TranslationJob struct {
     ID               string
     WorkspaceSlug    string
@@ -18,14 +27,14 @@ type TranslationJob struct {
     TargetLocale     string
     ProviderConfigID string        // empty or "platform" = managed identity
     Model            string        // deployment name (e.g., "gpt-4o-mini")
-    BatchSize        int           // blocks per LLM call (default 20)
-    Concurrency      int           // parallel batch calls (default 5)
-    Status           string        // queued | processing | completed | failed
-    Progress         float64       // 0.0 - 1.0
+    PushID           string        // links to originating push event
+    Status           JobStatus     // queued | processing | completed | failed
+    Progress         int           // 0 - 100
     TotalBlocks      int
     DoneBlocks       int
-    TokensUsed       int64
-    PushID           string        // links to originating push event
+    BatchSize        int           // blocks per LLM call (default 20)
+    Concurrency      int           // parallel batch calls (default 5)
+    TokensUsed       int
     Error            string
     CreatedAt        time.Time
     UpdatedAt        time.Time
@@ -38,7 +47,7 @@ Identity.
 
 ## Queue Implementations
 
-Three implementations of the `JobQueue` interface:
+Three implementations of the `Queue` interface:
 
 | Implementation | Backend | Use Case |
 |----------------|---------|----------|
@@ -49,9 +58,9 @@ Three implementations of the `JobQueue` interface:
 Interface:
 
 ```go
-type JobQueue interface {
-    Enqueue(jobID string) error
-    Dequeue() (jobID string, ack func(), nack func(), err error)
+type Queue interface {
+    Enqueue(ctx context.Context, jobID string) error
+    Dequeue(ctx context.Context) (jobID string, ack func(), nack func(), err error)
     Close() error
 }
 ```
@@ -105,20 +114,23 @@ with explicit API keys. Rate limits vary by provider.
 
 ```sql
 CREATE TABLE ai_usage (
-    id              SERIAL PRIMARY KEY,
+    id              BIGSERIAL PRIMARY KEY,
     workspace_slug  TEXT NOT NULL,
     project_id      TEXT NOT NULL,
-    job_id          TEXT NOT NULL,
+    job_id          TEXT NOT NULL DEFAULT '',
     model           TEXT NOT NULL,
-    prompt_tokens   BIGINT NOT NULL DEFAULT 0,
-    output_tokens   BIGINT NOT NULL DEFAULT 0,
-    total_tokens    BIGINT NOT NULL DEFAULT 0,
+    prompt_tokens   INTEGER NOT NULL DEFAULT 0,
+    output_tokens   INTEGER NOT NULL DEFAULT 0,
+    total_tokens    INTEGER NOT NULL DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE INDEX idx_ai_usage_workspace_period
+    ON ai_usage(workspace_slug, created_at);
 
 CREATE TABLE ai_quotas (
     workspace_slug  TEXT PRIMARY KEY,
-    monthly_limit   BIGINT NOT NULL DEFAULT 10000000  -- 10M tokens
+    monthly_limit   BIGINT NOT NULL DEFAULT 10000000,  -- 10M tokens
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
