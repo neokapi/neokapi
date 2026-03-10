@@ -57,7 +57,11 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 			}
 			// Ensure the item exists in the ContentStore so it appears in the editor UI.
 			if s.ContentStore != nil {
-				_ = s.ContentStore.StoreItem(ctx, projectID, "main", &store.Item{
+				stream := c.Param("stream")
+				if stream == "" {
+					stream = "main"
+				}
+				_ = s.ContentStore.StoreItem(ctx, projectID, stream, &store.Item{
 					Name:     itemName,
 					Format:   detectFormatFromName(itemName),
 					ItemType: "file",
