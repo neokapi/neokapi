@@ -64,19 +64,6 @@ func init() {
 	rootCmd.AddCommand(streamCmd)
 }
 
-func newStreamClient() (*client.BowrainClient, error) {
-	proj, err := project.FindProject("")
-	if err != nil {
-		return nil, fmt.Errorf("find project: %w (run 'bowrain init' to create a project)", err)
-	}
-	conn, err := project.NewSourceConnector(proj, app.FormatReg)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
-	return conn.Client(), nil
-}
-
 func runStreamList(cmd *cobra.Command, args []string) error {
 	proj, err := project.FindProject("")
 	if err != nil {
