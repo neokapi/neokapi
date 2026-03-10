@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 	platconn "github.com/gokapi/gokapi/platform/connector"
 )
@@ -53,7 +54,7 @@ func NewHubSpotConnector(config map[string]string) (*HubSpotConnector, error) {
 		id:       id,
 		connName: config["name"],
 		apiKey:   apiKey,
-		client:   &http.Client{Timeout: 30 * time.Second},
+		client:   httputil.NewResilientClient(),
 		config:   config,
 	}, nil
 }

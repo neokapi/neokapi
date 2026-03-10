@@ -3,6 +3,7 @@ package sievepen
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -433,7 +434,10 @@ func (tm *SQLiteTM) Delete(id string) error {
 // Count returns the total number of entries.
 func (tm *SQLiteTM) Count() int {
 	var count int
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count)
+	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries").Scan(&count); err != nil {
+		log.Printf("WARNING: TM count query failed: %v", err)
+		return 0
+	}
 	return count
 }
 

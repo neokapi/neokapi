@@ -185,14 +185,30 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "workspace not found"})
 			}
 
-			_, err = authStore.GetMembership(ctx, w.ID, userID)
+			m, err := authStore.GetMembership(ctx, w.ID, userID)
 			if err != nil {
 				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "not a member of this workspace"})
 			}
 
-			// Store workspace ID on context for downstream handlers.
+			// Store workspace ID and user role on context for downstream handlers.
 			c.Set("workspace_id", w.ID)
+			c.Set("workspace_role", m.Role)
 			return next(c)
 		}
 	}
+}
+
+// requireRole verifies that the authenticated user has one of the allowed roles
+// in the current workspace. Returns an echo error response on failure, nil on success.
+func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
+	role, ok := c.Get("workspace_role").(platauth.Role)
+	if !ok {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "workspace role not available"})
+	}
+	for _, r := range allowed {
+		if role == r {
+			return nil
+		}
+	}
+	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient permissions"})
 }

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -329,7 +330,10 @@ func (tm *PostgresTM) Delete(id string) error {
 // Count returns the total number of entries for this workspace.
 func (tm *PostgresTM) Count() int {
 	var count int
-	_ = tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count)
+	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE workspace_id = $1", tm.workspaceID).Scan(&count); err != nil {
+		log.Printf("WARNING: TM count query failed (workspace %s): %v", tm.workspaceID, err)
+		return 0
+	}
 	return count
 }
 

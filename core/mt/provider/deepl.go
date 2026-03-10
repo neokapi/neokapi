@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -48,12 +49,13 @@ func (c *DeepLConfig) baseURL() string {
 
 // DeepLProvider implements MTProvider using the DeepL API.
 type DeepLProvider struct {
-	cfg DeepLConfig
+	cfg    DeepLConfig
+	client *http.Client
 }
 
 // NewDeepLProvider creates a new DeepL MT provider.
 func NewDeepLProvider(cfg DeepLConfig) *DeepLProvider {
-	return &DeepLProvider{cfg: cfg}
+	return &DeepLProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
 func (p *DeepLProvider) Name() string { return "deepl" }
@@ -77,7 +79,7 @@ func (p *DeepLProvider) Translate(_ context.Context, req TranslateRequest) (*Tra
 	httpReq.Header.Set("Authorization", "DeepL-Auth-Key "+p.cfg.APIKey)
 	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}

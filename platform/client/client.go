@@ -90,10 +90,21 @@ func (c *BowrainClient) SetRefreshToken(token string, onRefresh func(newAccess, 
 }
 
 // doRequest executes an HTTP request and automatically retries once with a
-// refreshed access token when the server returns 401 Unauthorized. Auto-retry
-// is only attempted for requests without a body (GET, HEAD, DELETE) because
-// the body of POST/PUT requests is consumed on the first attempt.
+// refreshed access token when the server returns 401 Unauthorized.
+// For requests with a body (POST/PUT), the body is buffered so it can be
+// replayed on retry after a token refresh.
 func (c *BowrainClient) doRequest(req *http.Request) (*http.Response, error) {
+	// Buffer the request body so we can replay it after a token refresh.
+	var bodyBytes []byte
+	if req.Body != nil && req.Body != http.NoBody {
+		var err error
+		bodyBytes, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("buffer request body: %w", err)
+		}
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	}
+
 	c.applyAuth(req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -101,16 +112,19 @@ func (c *BowrainClient) doRequest(req *http.Request) (*http.Response, error) {
 	}
 
 	// Auto-refresh on 401 if we have a refresh token.
-	canRetry := req.Body == nil || req.Body == http.NoBody
-	if resp.StatusCode == http.StatusUnauthorized && c.refreshToken != "" && c.authToken != "" && canRetry {
+	if resp.StatusCode == http.StatusUnauthorized && c.refreshToken != "" && c.authToken != "" {
 		resp.Body.Close()
 
 		if refreshErr := c.doRefresh(req.Context()); refreshErr != nil {
 			return nil, fmt.Errorf("token refresh failed: %w", refreshErr)
 		}
 
-		// Retry the original request with the new token.
-		retryReq, err := http.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), nil)
+		// Retry the original request with the new token and replayed body.
+		var body io.Reader
+		if bodyBytes != nil {
+			body = bytes.NewReader(bodyBytes)
+		}
+		retryReq, err := http.NewRequestWithContext(req.Context(), req.Method, req.URL.String(), body)
 		if err != nil {
 			return nil, err
 		}
@@ -486,6 +500,126 @@ func ListWorkspaces(serverURL, token string) ([]WorkspaceInfo, error) {
 	}
 
 	return result, nil
+}
+
+// ProjectInfo contains project metadata returned by GetProject.
+type ProjectInfo struct {
+	ID            string   `json:"id"`
+	Name          string   `json:"name"`
+	SourceLocale  string   `json:"source_locale"`
+	TargetLocales []string `json:"target_locales"`
+	WorkspaceID   string   `json:"workspace_id"`
+}
+
+// GetProject retrieves a project by ID.
+func GetProject(serverURL, token, projectID string) (*ProjectInfo, error) {
+	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("get project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("get project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result ProjectInfo
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	return &result, nil
+}
+
+// DeleteProject deletes a project by ID.
+func DeleteProject(serverURL, token, projectID string) error {
+	u := fmt.Sprintf("%s/api/v1/projects/%s", strings.TrimRight(serverURL, "/"), projectID)
+	req, err := http.NewRequest(http.MethodDelete, u, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
+// ClaimProjectResponse is returned after claiming an anonymous project.
+type ClaimProjectResponse struct {
+	ProjectID     string `json:"project_id"`
+	WorkspaceSlug string `json:"workspace_slug"`
+}
+
+// ClaimProject moves an anonymous project into the user's workspace.
+func ClaimProject(serverURL, token, claimToken string) (*ClaimProjectResponse, error) {
+	payload := map[string]string{"claim_token": claimToken}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	u := strings.TrimRight(serverURL, "/") + "/api/v1/projects/claim"
+	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("claim project: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("claim project failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result ClaimProjectResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	return &result, nil
+}
+
+// JoinWorkspace accepts a workspace invite code and joins the workspace.
+func JoinWorkspace(serverURL, token, inviteCode string) error {
+	u := fmt.Sprintf("%s/api/v1/join/%s", strings.TrimRight(serverURL, "/"), inviteCode)
+	req, err := http.NewRequest(http.MethodPost, u, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("join workspace: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("join workspace failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+	return nil
 }
 
 // CreateWorkspace creates a new team workspace on the server and returns it.

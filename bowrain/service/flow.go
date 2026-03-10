@@ -26,7 +26,15 @@ func NewFlowService(s store.ContentStore, formatReg *registry.FormatRegistry, to
 }
 
 // ExecuteFlow runs a flow definition with optional store-backed persistence.
+// When projectID is non-empty and a content store is configured, output blocks
+// are persisted to the store after successful execution.
 func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*flow.FlowItem, projectID string) error {
+	if f == nil {
+		return fmt.Errorf("flow definition is required")
+	}
+	if len(items) == 0 {
+		return fmt.Errorf("at least one flow item is required")
+	}
 	opts := []flow.ExecutorOption{
 		flow.WithFailFast(true),
 	}
@@ -34,6 +42,17 @@ func (s *FlowService) ExecuteFlow(ctx context.Context, f *flow.Flow, items []*fl
 	executor := flow.NewFlowExecutor(opts...)
 	if err := executor.Execute(ctx, f, items); err != nil {
 		return fmt.Errorf("execute flow: %w", err)
+	}
+
+	// Persist output blocks to the content store if project-scoped.
+	if projectID != "" && s.store != nil {
+		for _, item := range items {
+			if len(item.OutputBlocks) > 0 {
+				if err := s.store.StoreBlocks(ctx, projectID, item.OutputBlocks); err != nil {
+					return fmt.Errorf("persist flow output blocks: %w", err)
+				}
+			}
+		}
 	}
 
 	return nil

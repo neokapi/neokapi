@@ -3,6 +3,7 @@ package termbase
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -289,7 +290,10 @@ func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, off
 // Count returns the total number of concepts for this workspace.
 func (tb *PostgresTermBase) Count() int {
 	var count int
-	_ = tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count)
+	if err := tb.db.QueryRow("SELECT COUNT(*) FROM tb_concepts WHERE workspace_id = $1", tb.workspaceID).Scan(&count); err != nil {
+		log.Printf("WARNING: termbase count query failed (workspace %s): %v", tb.workspaceID, err)
+		return 0
+	}
 	return count
 }
 

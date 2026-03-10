@@ -148,16 +148,28 @@ func (c *GitConnector) Publish(ctx context.Context, items []*platconn.ContentIte
 		message = "Update translations"
 	}
 
-	cmds := [][]string{
-		{"git", "-C", c.localPath, "add", "-A"},
-		{"git", "-C", c.localPath, "commit", "-m", message},
-		{"git", "-C", c.localPath, "push", "origin", c.branch},
+	// Stage all changes.
+	addCmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "add", "-A")
+	if out, err := addCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git add: %s: %w", string(out), err)
 	}
-	for _, args := range cmds {
-		cmd := exec.CommandContext(ctx, args[0], args[1:]...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("%s: %s: %w", args[1], string(out), err)
+
+	// Commit.
+	commitCmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "commit", "-m", message)
+	if out, err := commitCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git commit: %s: %w", string(out), err)
+	}
+
+	// Push — if this fails, roll back the commit to avoid leaving the repo
+	// in a dirty state with unpushed changes.
+	pushCmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "push", "origin", c.branch)
+	if out, err := pushCmd.CombinedOutput(); err != nil {
+		// Attempt to undo the commit while keeping the working tree intact.
+		resetCmd := exec.CommandContext(ctx, "git", "-C", c.localPath, "reset", "--soft", "HEAD~1")
+		if resetOut, resetErr := resetCmd.CombinedOutput(); resetErr != nil {
+			return fmt.Errorf("git push: %s: %w (rollback also failed: %s: %v)", string(out), err, string(resetOut), resetErr)
 		}
+		return fmt.Errorf("git push (rolled back commit): %s: %w", string(out), err)
 	}
 	return nil
 }

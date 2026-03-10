@@ -325,7 +325,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 		if err != nil {
 			return fmt.Errorf("marshal properties for block %s: %w", internalID, err)
 		}
-		annsJSON, err := json.Marshal(b.Annotations)
+		annsJSON, err := serializeAnnotations(b.Annotations)
 		if err != nil {
 			return fmt.Errorf("marshal annotations for block %s: %w", internalID, err)
 		}
@@ -653,7 +653,7 @@ func scanStoredBlockPg(row scanner) (*platstore.StoredBlock, error) {
 	if err := json.Unmarshal([]byte(propsJSON), &sb.Block.Properties); err != nil {
 		sb.Block.Properties = make(map[string]string)
 	}
-	sb.Block.Annotations = make(map[string]model.Annotation)
+	sb.Block.Annotations = deserializeAnnotations(annsJSON)
 
 	return &sb, nil
 }

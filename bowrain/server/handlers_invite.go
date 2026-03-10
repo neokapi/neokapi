@@ -26,6 +26,11 @@ func (s *Server) HandleCreateInvite(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
 	}
 
+	// Verify the calling user has admin or owner role.
+	if err := s.requireRole(c, platauth.RoleAdmin, platauth.RoleOwner); err != nil {
+		return err
+	}
+
 	var req InviteRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})

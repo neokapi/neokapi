@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/gokapi/gokapi/core/httputil"
 )
 
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.
@@ -29,7 +31,7 @@ func NewOpenAIProvider(cfg Config) *OpenAIProvider {
 	}
 	return &OpenAIProvider{
 		config: cfg,
-		client: &http.Client{},
+		client: httputil.NewResilientClient(),
 	}
 }
 
