@@ -182,12 +182,15 @@ func (w *Writer) writeFromSkeleton(store *format.SkeletonStore, blocks map[strin
         if err == io.EOF { break }
         switch entry.Type {
         case format.SkeletonText:
-            w.Output.Write(entry.Data)
+            if _, err := w.Output.Write(entry.Data); err != nil {
+                return err
+            }
         case format.SkeletonRef:
-            blockID := string(entry.Data)
-            if block, ok := blocks[blockID]; ok {
+            if block, ok := blocks[string(entry.Data)]; ok {
                 text := w.getBlockText(block)
-                io.WriteString(w.Output, text)
+                if _, err := io.WriteString(w.Output, text); err != nil {
+                    return err
+                }
             }
         }
     }
