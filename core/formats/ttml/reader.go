@@ -1,6 +1,7 @@
 package ttml
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -14,8 +15,12 @@ import (
 // Reader implements DataFormatReader for TTML subtitle files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new TTML reader.
 func NewReader() *Reader {
@@ -31,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -97,6 +107,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch, data)
+	} else {
+		r.readContentSimple(ctx, ch, data)
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, data []byte) {
 	// Emit the raw document as Data for roundtrip reconstruction
 	docData := &model.Data{
 		ID:   "d1",
@@ -117,6 +137,150 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		captions = r.mergeCaptions(captions)
 	}
 
+	r.emitCaptionBlocks(ctx, ch, captions)
+}
+
+// readContentSkeleton reads the TTML with skeleton tracking, preserving exact bytes.
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, data []byte) {
+	// Also emit the raw document as Data (needed for non-skeleton writer fallback)
+	docData := &model.Data{
+		ID:   "d1",
+		Name: "ttml-document",
+		Properties: map[string]string{
+			"content": string(data),
+		},
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: docData}) {
+		return
+	}
+
+	// Find the byte ranges of <p> element text content in the original document.
+	// Everything outside those ranges is skeleton text; content inside is a ref.
+	textRanges := r.findPTextRanges(data)
+
+	// Parse captions for block metadata
+	captions := r.parseCaptions(data)
+	if r.cfg.MergeAdjacentCaptions {
+		captions = r.mergeCaptions(captions)
+	}
+
+	// Filter to non-empty captions to match block emission
+	var nonEmptyCaptions []*ttmlCaption
+	for _, cap := range captions {
+		if cap.rawContent != "" {
+			nonEmptyCaptions = append(nonEmptyCaptions, cap)
+		}
+	}
+
+	// Write skeleton entries based on text ranges
+	blockCounter := 0
+	pos := 0
+	for i, tr := range textRanges {
+		// Write skeleton text for bytes before this range
+		if tr.start > pos {
+			_ = r.skeletonStore.WriteText(data[pos:tr.start])
+		}
+
+		// Write skeleton ref for this <p> text content
+		if i < len(nonEmptyCaptions) {
+			blockCounter++
+			blockIDStr := fmt.Sprintf("tu%d", blockCounter)
+			_ = r.skeletonStore.WriteRef(blockIDStr)
+		}
+
+		pos = tr.end
+	}
+	// Write remaining bytes after the last range
+	if pos < len(data) {
+		_ = r.skeletonStore.WriteText(data[pos:])
+	}
+
+	r.emitCaptionBlocks(ctx, ch, nonEmptyCaptions)
+}
+
+// textRange represents a byte range in the original document.
+type textRange struct {
+	start int // inclusive
+	end   int // exclusive
+}
+
+// findPTextRanges finds the byte ranges of text content within <p> elements.
+// It returns ranges for non-empty <p> elements only.
+func (r *Reader) findPTextRanges(data []byte) []textRange {
+	// We need to find the exact byte offsets of the text content between
+	// <p ...> and </p> tags. The XML decoder gives us offsets at token boundaries.
+	decoder := xml.NewDecoder(strings.NewReader(string(data)))
+	var ranges []textRange
+
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+
+		if start, ok := tok.(xml.StartElement); ok && start.Name.Local == "p" {
+			// The text content starts right after the ">" of the opening tag.
+			contentStart := int(decoder.InputOffset())
+
+			// Read through until we find the matching </p>
+			depth := 1
+			hasContent := false
+			var textParts []string
+			for {
+				tok2, err2 := decoder.Token()
+				if err2 != nil {
+					break
+				}
+				switch t := tok2.(type) {
+				case xml.StartElement:
+					depth++
+				case xml.EndElement:
+					depth--
+					if depth == 0 {
+						// contentEnd is the offset just before "</p>"
+						endOffset := int(decoder.InputOffset())
+						// The decoder's InputOffset after reading </p> points to after it.
+						// We need the offset of the start of "</p>".
+						// Find "</p>" backwards from endOffset in the data.
+						closeTag := findCloseTag(data, contentStart, endOffset, "p")
+						if closeTag >= 0 {
+							text := strings.Join(textParts, "")
+							if strings.TrimSpace(text) != "" {
+								hasContent = true
+							}
+							if hasContent {
+								ranges = append(ranges, textRange{start: contentStart, end: closeTag})
+							}
+						}
+						goto nextP
+					}
+				case xml.CharData:
+					textParts = append(textParts, string(t))
+				}
+			}
+		nextP:
+		}
+	}
+
+	return ranges
+}
+
+// findCloseTag finds the byte offset of the closing tag "</tagName>" in data
+// between start and end offsets.
+func findCloseTag(data []byte, start, end int, tagName string) int {
+	if end > len(data) {
+		end = len(data)
+	}
+	closeTag := []byte("</" + tagName + ">")
+	segment := data[start:end]
+	idx := bytes.LastIndex(segment, closeTag)
+	if idx < 0 {
+		return -1
+	}
+	return start + idx
+}
+
+func (r *Reader) emitCaptionBlocks(ctx context.Context, ch chan<- model.PartResult, captions []*ttmlCaption) {
 	blockCounter := 0
 	for _, cap := range captions {
 		if cap.rawContent == "" {
@@ -151,8 +315,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // parseCaptions extracts <p> elements from the TTML document using encoding/xml.

@@ -2,8 +2,10 @@ package vtt
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -13,8 +15,13 @@ import (
 // Reader implements DataFormatReader for WebVTT subtitle files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new VTT reader.
 func NewReader() *Reader {
@@ -29,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -84,6 +96,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch)
+	} else {
+		r.readContentSimple(ctx, ch)
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult) {
 	cues, header := r.parseCues()
 
 	dataCounter := 0
@@ -132,8 +156,171 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 	}
+}
 
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+// readContentSkeleton reads the VTT with skeleton tracking, preserving exact bytes.
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+	// Read the full content to preserve exact bytes
+	data, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("vtt: reading: %w", err)}
+		return
+	}
+
+	lines := splitRawLines(data)
+	lineIdx := 0
+	dataCounter := 0
+	blockCounter := 0
+	cueIndex := 0
+
+	// Read the WEBVTT header line
+	header := ""
+	if lineIdx < len(lines) {
+		header = lines[lineIdx].content
+		r.skelText(lines[lineIdx].raw)
+		lineIdx++
+	}
+
+	// Emit WEBVTT header as Data
+	dataCounter++
+	headerData := &model.Data{
+		ID:   fmt.Sprintf("d%d", dataCounter),
+		Name: "vtt-header",
+		Properties: map[string]string{
+			"content": header,
+		},
+	}
+	if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: headerData}) {
+		return
+	}
+
+	// Skip blank lines after header
+	for lineIdx < len(lines) && strings.TrimSpace(lines[lineIdx].content) == "" {
+		r.skelText(lines[lineIdx].raw)
+		lineIdx++
+	}
+
+	// Parse cues
+	for lineIdx < len(lines) {
+		// Skip blank lines between cues
+		if strings.TrimSpace(lines[lineIdx].content) == "" {
+			r.skelText(lines[lineIdx].raw)
+			lineIdx++
+			continue
+		}
+
+		cueIndex++
+		cue := &vttCue{}
+
+		// Determine if this line is a timecode or a cue identifier
+		if isTimecode(lines[lineIdx].content) {
+			cue.timecode = lines[lineIdx].content
+			r.skelText(lines[lineIdx].raw)
+			lineIdx++
+		} else {
+			// It's a cue identifier
+			cue.identifier = lines[lineIdx].content
+			r.skelText(lines[lineIdx].raw)
+			lineIdx++
+
+			// Next line should be the timecode
+			if lineIdx < len(lines) {
+				cue.timecode = lines[lineIdx].content
+				r.skelText(lines[lineIdx].raw)
+				lineIdx++
+			}
+
+			// Emit cue identifier as Data
+			dataCounter++
+			idData := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: fmt.Sprintf("cue-id.%d", cueIndex),
+				Properties: map[string]string{
+					"identifier": cue.identifier,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: idData}) {
+				return
+			}
+		}
+
+		// Read text lines until blank line or EOF
+		var textLines []string
+		textStartIdx := lineIdx
+		for lineIdx < len(lines) && strings.TrimSpace(lines[lineIdx].content) != "" {
+			textLines = append(textLines, lines[lineIdx].content)
+			lineIdx++
+		}
+
+		// Join text lines using the original line endings between them
+		// so that CRLF intermediate separators are preserved in the block text.
+		var textBuilder strings.Builder
+		for i, tl := range textLines {
+			textBuilder.WriteString(tl)
+			if i < len(textLines)-1 {
+				// Use the actual line ending from this line as separator
+				ending := lines[textStartIdx+i].lineEnding
+				if ending == "" {
+					ending = "\n"
+				}
+				textBuilder.WriteString(ending)
+			}
+		}
+		cue.text = textBuilder.String()
+
+		// Write skeleton ref for the block
+		blockCounter++
+		blockIDStr := fmt.Sprintf("tu%d", blockCounter)
+		r.skelRef(blockIDStr)
+
+		// Only the last text line's ending is skeleton text
+		lastTextIdx := textStartIdx + len(textLines) - 1
+		if lastTextIdx >= textStartIdx {
+			r.skelText(lines[lastTextIdx].lineEnding)
+		}
+
+		// Emit cue text as Block
+		block := model.NewBlock(blockIDStr, cue.text)
+		block.Name = fmt.Sprintf("subtitle.%d", cueIndex)
+		block.Properties["timecode"] = cue.timecode
+		if cue.identifier != "" {
+			block.Properties["cue-id"] = cue.identifier
+		}
+		block.Properties["index"] = fmt.Sprintf("%d", cueIndex)
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+			return
+		}
+	}
+}
+
+// rawLine holds a line with its original line ending preserved.
+type rawLine struct {
+	content    string // line content without line ending
+	lineEnding string // "\n", "\r\n", or ""
+	raw        string // content + lineEnding (full original bytes)
+}
+
+// splitRawLines splits data into lines preserving exact line endings.
+func splitRawLines(data []byte) []rawLine {
+	var lines []rawLine
+	remaining := string(data)
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, rawLine{content: remaining, raw: remaining})
+			break
+		}
+		content := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(content, "\r") {
+			content = content[:len(content)-1]
+			ending = "\r\n"
+		}
+		raw := remaining[:idx+1]
+		lines = append(lines, rawLine{content: content, lineEnding: ending, raw: raw})
+		remaining = remaining[idx+1:]
+	}
+	return lines
 }
 
 func (r *Reader) parseCues() ([]*vttCue, string) {
@@ -207,6 +394,32 @@ func (r *Reader) parseCue(scanner *bufio.Scanner, firstLine string) *vttCue {
 // isTimecode returns true if the line looks like a VTT timecode line.
 func isTimecode(line string) bool {
 	return strings.Contains(line, "-->")
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

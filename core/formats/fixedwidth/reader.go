@@ -2,8 +2,10 @@ package fixedwidth
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -13,8 +15,13 @@ import (
 // Reader implements DataFormatReader for fixed-width column files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new fixed-width reader.
 func NewReader() *Reader {
@@ -29,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -75,6 +87,157 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch)
+	} else {
+		r.readContentNormal(ctx, ch)
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// fwRawLine holds a parsed line with its original line ending preserved.
+type fwRawLine struct {
+	content    string // line content without line ending
+	lineEnding string // "\n", "\r\n", or "" for last line
+}
+
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+	raw, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("fixedwidth: reading: %w", err)}
+		return
+	}
+
+	// Split into raw lines preserving exact line endings
+	var lines []fwRawLine
+	remaining := string(raw)
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, fwRawLine{content: remaining})
+			break
+		}
+		lineContent := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(lineContent, "\r") {
+			lineContent = lineContent[:len(lineContent)-1]
+			ending = "\r\n"
+		}
+		lines = append(lines, fwRawLine{content: lineContent, lineEnding: ending})
+		remaining = remaining[idx+1:]
+	}
+
+	if len(lines) == 0 {
+		return
+	}
+
+	startRow := 0
+	dataCounter := 0
+	blockCounter := 0
+
+	// Handle header row
+	if r.cfg.HasHeader && len(lines) > 0 {
+		r.skelText(lines[0].content + lines[0].lineEnding)
+		dataCounter++
+		data := &model.Data{
+			ID:   fmt.Sprintf("d%d", dataCounter),
+			Name: "header-row",
+			Properties: map[string]string{
+				"content": lines[0].content,
+			},
+		}
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+			return
+		}
+		startRow = 1
+	}
+
+	for rowIdx := startRow; rowIdx < len(lines); rowIdx++ {
+		rl := lines[rowIdx]
+		line := rl.content
+		runes := []rune(line)
+		rowNum := rowIdx - startRow + 1
+
+		// Track how far we've written in this line for skeleton
+		runePos := 0
+
+		for _, col := range r.cfg.Columns {
+			// Write any gap between previous position and this column as skeleton text
+			if col.Start > runePos {
+				gapEnd := col.Start
+				if gapEnd > len(runes) {
+					gapEnd = len(runes)
+				}
+				if runePos < len(runes) {
+					r.skelText(string(runes[runePos:gapEnd]))
+				}
+			}
+
+			value := r.extractColumn(runes, col)
+			rawValue := value // preserve raw value before trim for skeleton
+			if r.cfg.TrimValues {
+				value = strings.TrimSpace(value)
+			}
+
+			colEnd := col.Start + col.Width
+			if colEnd > len(runes) {
+				colEnd = len(runes)
+			}
+
+			if !col.Translatable {
+				r.skelText(rawValue)
+				runePos = colEnd
+				dataCounter++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataCounter),
+					Name: fmt.Sprintf("%s.row%d", col.Name, rowNum),
+					Properties: map[string]string{
+						"content": value,
+						"column":  col.Name,
+						"row":     fmt.Sprintf("%d", rowNum),
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
+			}
+
+			if value == "" {
+				r.skelText(rawValue)
+				runePos = colEnd
+				continue
+			}
+
+			blockCounter++
+			blockID := fmt.Sprintf("tu%d", blockCounter)
+			r.skelRef(blockID)
+			runePos = colEnd
+
+			block := model.NewBlock(blockID, value)
+			block.Name = fmt.Sprintf("%s.row%d", col.Name, rowNum)
+			block.Properties["column"] = col.Name
+			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
+			block.Properties["start"] = fmt.Sprintf("%d", col.Start)
+			block.Properties["width"] = fmt.Sprintf("%d", col.Width)
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		}
+
+		// Write any remaining content after the last column
+		if runePos < len(runes) {
+			r.skelText(string(runes[runePos:]))
+		}
+		// Write the line ending
+		r.skelText(rl.lineEnding)
+	}
+}
+
+func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResult) {
 	scanner := bufio.NewScanner(r.Doc.Reader)
 	var lines []string
 	for scanner.Scan() {
@@ -82,7 +245,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	if len(lines) == 0 {
-		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 		return
 	}
 
@@ -151,8 +313,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 		}
 	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // extractColumn extracts a column value from a line of runes.
@@ -165,6 +325,32 @@ func (r *Reader) extractColumn(runes []rune, col ColumnDef) string {
 		end = len(runes)
 	}
 	return string(runes[col.Start:end])
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

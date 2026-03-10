@@ -2,8 +2,10 @@ package vignette
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -15,8 +17,13 @@ import (
 // Text outside code chunks is translatable (Blocks).
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new R Vignette reader.
 func NewReader() *Reader {
@@ -31,6 +38,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -87,6 +99,283 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch)
+	} else {
+		r.readContentNormal(ctx, ch)
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// rawLine holds a parsed line with its original line ending preserved.
+type rawLine struct {
+	content    string // line content without line ending
+	lineEnding string // "\n", "\r\n", or "" for last line
+}
+
+// splitRawLines splits text into lines preserving exact line endings.
+func splitRawLines(text string) []rawLine {
+	var lines []rawLine
+	remaining := text
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, rawLine{content: remaining})
+			break
+		}
+		lineContent := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(lineContent, "\r") {
+			lineContent = lineContent[:len(lineContent)-1]
+			ending = "\r\n"
+		}
+		lines = append(lines, rawLine{content: lineContent, lineEnding: ending})
+		remaining = remaining[idx+1:]
+	}
+	return lines
+}
+
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+	raw, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("vignette: reading: %w", err)}
+		return
+	}
+
+	lines := splitRawLines(string(raw))
+	blockID := 0
+	dataID := 0
+	state := stateText
+	lineNum := 0
+	yamlStartSeen := false
+
+	type textEntry struct {
+		content    string
+		lineEnding string
+	}
+	var textEntries []textEntry
+
+	flushText := func() bool {
+		if len(textEntries) == 0 {
+			return true
+		}
+		// Build the joined text content using original line endings between lines.
+		// The last entry's line ending is NOT part of the text content - it's
+		// skeleton text that follows the block.
+		var joined strings.Builder
+		for i, e := range textEntries {
+			if i > 0 {
+				// Use the line ending from the previous entry as the separator
+				joined.WriteString(textEntries[i-1].lineEnding)
+			}
+			joined.WriteString(e.content)
+		}
+		text := joined.String()
+
+		if strings.TrimSpace(text) == "" {
+			// Whitespace: write all as skeleton text
+			for _, e := range textEntries {
+				r.skelText(e.content + e.lineEnding)
+			}
+			textEntries = nil
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: "whitespace",
+			}
+			return r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
+		}
+
+		blockID++
+		blockIDStr := fmt.Sprintf("tu%d", blockID)
+
+		// Skeleton: ref for the text content, with the trailing line ending as text
+		r.skelRef(blockIDStr)
+		lastEnding := textEntries[len(textEntries)-1].lineEnding
+		r.skelText(lastEnding)
+
+		textEntries = nil
+
+		block := model.NewBlock(blockIDStr, text)
+		block.Name = fmt.Sprintf("text%d", blockID)
+		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+	}
+
+	for _, rl := range lines {
+		lineNum++
+		line := rl.content
+
+		switch state {
+		case stateText:
+			if lineNum == 1 && strings.TrimSpace(line) == "---" {
+				if !flushText() {
+					return
+				}
+				state = stateYAML
+				yamlStartSeen = true
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "yaml-start",
+					Properties: map[string]string{
+						"type": "yaml-frontmatter",
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
+			}
+
+			if isRmdCodeStart(line) {
+				if !flushText() {
+					return
+				}
+				state = stateRmdCode
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "code-chunk-start",
+					Properties: map[string]string{
+						"type": "rmd-code",
+						"line": line,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
+			}
+
+			if isRnwCodeStart(line) {
+				if !flushText() {
+					return
+				}
+				state = stateRnwCode
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "code-chunk-start",
+					Properties: map[string]string{
+						"type": "rnw-code",
+						"line": line,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
+			}
+
+			textEntries = append(textEntries, textEntry{content: line, lineEnding: rl.lineEnding})
+
+		case stateYAML:
+			if strings.TrimSpace(line) == "---" && yamlStartSeen {
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "yaml-end",
+					Properties: map[string]string{
+						"type": "yaml-frontmatter",
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				state = stateText
+				continue
+			}
+			r.skelText(line + rl.lineEnding)
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: fmt.Sprintf("yaml-line.%d", lineNum),
+				Properties: map[string]string{
+					"type": "yaml-content",
+					"line": line,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+
+		case stateRmdCode:
+			if strings.TrimSpace(line) == "```" {
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "code-chunk-end",
+					Properties: map[string]string{
+						"type": "rmd-code",
+						"line": line,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				state = stateText
+				continue
+			}
+			r.skelText(line + rl.lineEnding)
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: fmt.Sprintf("code.%d", lineNum),
+				Properties: map[string]string{
+					"type": "code",
+					"line": line,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+
+		case stateRnwCode:
+			if strings.TrimSpace(line) == "@" {
+				r.skelText(line + rl.lineEnding)
+				dataID++
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataID),
+					Name: "code-chunk-end",
+					Properties: map[string]string{
+						"type": "rnw-code",
+						"line": line,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				state = stateText
+				continue
+			}
+			r.skelText(line + rl.lineEnding)
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: fmt.Sprintf("code.%d", lineNum),
+				Properties: map[string]string{
+					"type": "code",
+					"line": line,
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		}
+	}
+
+	flushText()
+}
+
+func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResult) {
 	scanner := bufio.NewScanner(r.Doc.Reader)
 	blockID := 0
 	dataID := 0
@@ -293,8 +582,6 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("vignette: reading: %w", err)}
 		return
 	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // isRmdCodeStart checks if a line starts an R Markdown code chunk.
@@ -309,6 +596,32 @@ func isRmdCodeStart(line string) bool {
 func isRnwCodeStart(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	return strings.HasPrefix(trimmed, "<<") && strings.HasSuffix(trimmed, ">>=")
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

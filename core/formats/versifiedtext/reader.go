@@ -2,8 +2,10 @@ package versifiedtext
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -20,8 +22,13 @@ var versePattern = regexp.MustCompile(`^(?:\\v\s*(\d+)\s+|(\d+)[.\s]\s*)(.*)$`)
 // Blank lines separate stanzas and are emitted as Data parts.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new versified text reader.
 func NewReader() *Reader {
@@ -36,6 +43,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -82,6 +94,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch)
+	} else {
+		r.readContentSimple(ctx, ch)
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult) {
 	scanner := bufio.NewScanner(r.Doc.Reader)
 	blockID := 0
 	dataID := 0
@@ -132,10 +156,114 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	if err := scanner.Err(); err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("versifiedtext: reading: %w", err)}
-		return
 	}
+}
 
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+	br := bufio.NewReader(r.Doc.Reader)
+	blockID := 0
+	dataID := 0
+
+	for {
+		rawLine, err := br.ReadString('\n')
+		if rawLine == "" && err != nil {
+			if err != io.EOF {
+				ch <- model.PartResult{Error: fmt.Errorf("versifiedtext: reading: %w", err)}
+			}
+			break
+		}
+
+		// Split into content and line ending.
+		content := rawLine
+		lineEnding := ""
+		if strings.HasSuffix(content, "\r\n") {
+			content = content[:len(content)-2]
+			lineEnding = "\r\n"
+		} else if strings.HasSuffix(content, "\n") {
+			content = content[:len(content)-1]
+			lineEnding = "\n"
+		}
+
+		// Blank lines are stanza separators (Data)
+		if strings.TrimSpace(content) == "" {
+			r.skelText(lineEnding)
+			dataID++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataID),
+				Name: fmt.Sprintf("stanza-break.%d", dataID),
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		} else {
+			// Try to match verse marker
+			matches := versePattern.FindStringSubmatch(content)
+			if matches != nil {
+				verseNum := matches[1]
+				if verseNum == "" {
+					verseNum = matches[2]
+				}
+				text := matches[3]
+				// The prefix (verse marker) is skeleton text
+				prefix := content[:len(content)-len(text)]
+				r.skelText(prefix)
+
+				blockID++
+				blockIDStr := fmt.Sprintf("tu%d", blockID)
+				r.skelRef(blockIDStr)
+				r.skelText(lineEnding)
+
+				block := model.NewBlock(blockIDStr, text)
+				block.Name = fmt.Sprintf("verse.%s", verseNum)
+				block.Properties["verse"] = verseNum
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			} else {
+				// Non-verse line: entire content is translatable
+				blockID++
+				blockIDStr := fmt.Sprintf("tu%d", blockID)
+				r.skelRef(blockIDStr)
+				r.skelText(lineEnding)
+
+				block := model.NewBlock(blockIDStr, content)
+				block.Name = fmt.Sprintf("line%d", blockID)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+		}
+
+		if err == io.EOF {
+			break
+		}
+	}
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

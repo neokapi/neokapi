@@ -16,8 +16,14 @@ import (
 // Writer implements DataFormatWriter for EPUB e-book files.
 type Writer struct {
 	format.BaseFormatWriter
+	resolver        format.SubfilterResolver
+	skeletonStore   *format.SkeletonStore
 	originalContent []byte
 }
+
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
+var _ format.OriginalContentSetter = (*Writer)(nil)
+var _ format.SubfilterAware = (*Writer)(nil)
 
 // NewWriter creates a new EPUB writer.
 func NewWriter() *Writer {
@@ -28,6 +34,16 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSubfilterResolver sets the resolver for creating sub-format writers.
+func (w *Writer) SetSubfilterResolver(resolver format.SubfilterResolver) {
+	w.resolver = resolver
+}
+
+// SetSkeletonStore sets the skeleton store for streaming reconstruction.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // SetOriginalContent provides the original EPUB bytes for roundtrip fidelity.
 func (w *Writer) SetOriginalContent(content []byte) {
 	w.originalContent = content
@@ -35,6 +51,9 @@ func (w *Writer) SetOriginalContent(content []byte) {
 
 // Write consumes Parts from a channel and writes a reconstructed EPUB.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	// Collect all blocks keyed by ID
+	blocks := make(map[string]*model.Block)
+	childLayerValues := make(map[string]string)
 	var allParts []*model.Part
 	for {
 		select {
@@ -42,14 +61,222 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
-				return w.writeEPUB(allParts)
+				if w.skeletonStore != nil {
+					return w.writeFromSkeleton(blocks, childLayerValues)
+				}
+				return w.writeEPUB(allParts, childLayerValues)
+			}
+			if part.Type == model.PartBlock {
+				if b, ok := part.Resource.(*model.Block); ok {
+					blocks[b.ID] = b
+				}
+			}
+			if part.Type == model.PartLayerStart {
+				if layer, ok := part.Resource.(*model.Layer); ok && isSubfilteredLayer(layer) {
+					val, err := w.writeChildLayer(ctx, layer, parts)
+					if err != nil {
+						return fmt.Errorf("epub: writing child layer %s: %w", layer.Name, err)
+					}
+					childLayerValues[layer.Name] = val
+					continue
+				}
 			}
 			allParts = append(allParts, part)
 		}
 	}
 }
 
-func (w *Writer) writeEPUB(parts []*model.Part) error {
+// isSubfilteredLayer returns true if the layer was created by the subfilter mechanism.
+func isSubfilteredLayer(layer *model.Layer) bool {
+	if layer.Properties == nil {
+		return false
+	}
+	_, ok := layer.Properties["subfilter.source"]
+	return ok
+}
+
+// writeChildLayer collects parts until the matching PartLayerEnd and writes them
+// through the appropriate sub-format writer.
+func (w *Writer) writeChildLayer(ctx context.Context, layer *model.Layer, parts <-chan *model.Part) (string, error) {
+	var childParts []*model.Part
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				return "", fmt.Errorf("unexpected end of parts stream in child layer %s", layer.ID)
+			}
+			if part.Type == model.PartLayerEnd {
+				if endLayer, ok := part.Resource.(*model.Layer); ok && endLayer.ID == layer.ID {
+					goto collected
+				}
+			}
+			childParts = append(childParts, part)
+		}
+	}
+
+collected:
+	if w.resolver == nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	subWriter, err := w.resolver.ResolveWriter(layer.Format)
+	if err != nil {
+		return w.fallbackChildText(childParts), nil
+	}
+
+	var buf bytes.Buffer
+	if err := subWriter.SetOutputWriter(&buf); err != nil {
+		return "", err
+	}
+	subWriter.SetLocale(w.Locale)
+
+	childCh := make(chan *model.Part, len(childParts))
+	for _, p := range childParts {
+		childCh <- p
+	}
+	close(childCh)
+
+	if err := subWriter.Write(ctx, childCh); err != nil {
+		return "", err
+	}
+	if err := subWriter.Close(); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// fallbackChildText concatenates block source/target texts when no sub-writer is available.
+func (w *Writer) fallbackChildText(parts []*model.Part) string {
+	var sb strings.Builder
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if block, ok := p.Resource.(*model.Block); ok {
+				text := block.SourceText()
+				if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+					text = block.TargetText(w.Locale)
+				}
+				sb.WriteString(text)
+			}
+		}
+	}
+	return sb.String()
+}
+
+// writeFromSkeleton reconstructs translatable XHTML parts using the skeleton store.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block, childLayerValues map[string]string) error {
+	if w.originalContent == nil {
+		return fmt.Errorf("epub writer: original content required for reconstruction")
+	}
+
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("epub writer: skeleton flush: %w", err)
+	}
+
+	// Read all skeleton entries, splitting by part-boundary markers
+	partContents := make(map[string][]byte)
+	var currentPart string
+	var currentBuf bytes.Buffer
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("epub writer: reading skeleton: %w", err)
+		}
+
+		switch entry.Type {
+		case format.SkeletonText:
+			if currentPart != "" {
+				currentBuf.Write(entry.Data)
+			}
+
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+
+			// Check for part-boundary markers
+			if strings.HasPrefix(refID, skelPartStartPrefix) {
+				currentPart = strings.TrimPrefix(refID, skelPartStartPrefix)
+				currentBuf.Reset()
+				continue
+			}
+			if strings.HasPrefix(refID, skelPartEndPrefix) {
+				partPath := strings.TrimPrefix(refID, skelPartEndPrefix)
+				if currentBuf.Len() > 0 {
+					partContents[partPath] = append([]byte{}, currentBuf.Bytes()...)
+				}
+				currentPart = ""
+				currentBuf.Reset()
+				continue
+			}
+
+			// Regular block ref or layer ref — render translated text
+			if currentPart != "" {
+				if strings.HasPrefix(refID, "layer:") {
+					layerPath := refID[6:]
+					if val, ok := childLayerValues[layerPath]; ok {
+						currentBuf.WriteString(val)
+					}
+				} else if block, ok := blocks[refID]; ok {
+					currentBuf.WriteString(w.renderBlockText(block))
+				}
+			}
+		}
+	}
+
+	// Open original ZIP for copying structure
+	zr, err := zip.NewReader(bytes.NewReader(w.originalContent), int64(len(w.originalContent)))
+	if err != nil {
+		return fmt.Errorf("epub writer: reading original: %w", err)
+	}
+
+	zw := zip.NewWriter(w.Output)
+	defer zw.Close()
+
+	for _, file := range zr.File {
+		if content, ok := partContents[file.Name]; ok && len(content) > 0 {
+			// Replace with skeleton-reconstructed content
+			fh := file.FileHeader
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(content); err != nil {
+				return err
+			}
+		} else {
+			// Copy unchanged — use raw copy to preserve CRC/data descriptors
+			if err := zw.Copy(file); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// renderBlockText returns the translated (or source) text for a block.
+func (w *Writer) renderBlockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		segs := block.Targets[w.Locale]
+		if len(segs) > 0 && segs[0].Content != nil {
+			return xmlEscape(segs[0].Content.Text())
+		}
+	}
+	if len(block.Source) > 0 && block.Source[0].Content != nil {
+		return xmlEscape(block.Source[0].Content.Text())
+	}
+	return ""
+}
+
+func (w *Writer) writeEPUB(parts []*model.Part, childLayerValues map[string]string) error {
 	if w.originalContent == nil {
 		return fmt.Errorf("epub writer: original content required for roundtrip")
 	}
@@ -95,7 +322,12 @@ func (w *Writer) writeEPUB(parts []*model.Part) error {
 			return err
 		}
 
-		if blocks, ok := entryBlocks[file.Name]; ok && len(blocks) > 0 {
+		if val, ok := childLayerValues[file.Name]; ok {
+			// Write subfiltered content reconstructed through sub-format writer
+			if _, err := io.WriteString(writer, val); err != nil {
+				return err
+			}
+		} else if blocks, ok := entryBlocks[file.Name]; ok && len(blocks) > 0 {
 			// Read original content
 			rc, err := file.Open()
 			if err != nil {

@@ -16,13 +16,15 @@ import (
 // Reader implements DataFormatReader for XML files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg      *Config
-	resolver format.SubfilterResolver
-	layerSeq int
+	cfg           *Config
+	resolver      format.SubfilterResolver
+	skeletonStore *format.SkeletonStore
+	layerSeq      int
 }
 
-// Ensure Reader implements SubfilterAware.
+// Ensure Reader implements SubfilterAware and SkeletonStoreEmitter.
 var _ format.SubfilterAware = (*Reader)(nil)
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new XML reader.
 func NewReader() *Reader {
@@ -42,6 +44,11 @@ func NewReader() *Reader {
 // SetSubfilterResolver sets the resolver for creating sub-format readers.
 func (r *Reader) SetSubfilterResolver(resolver format.SubfilterResolver) {
 	r.resolver = resolver
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // SetConfig applies a new configuration.
@@ -86,14 +93,15 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 // elementFrame tracks the state for each nested element during parsing.
 type elementFrame struct {
-	name       string
-	attrs      map[string]string
-	isInline   bool
-	isExcluded bool
-	preserveWS bool
-	frag       *model.Fragment
-	spanID     int
-	hasContent bool // true if inline element had any child content
+	name             string
+	attrs            map[string]string
+	isInline         bool
+	isExcluded       bool
+	preserveWS       bool
+	frag             *model.Fragment
+	spanID           int
+	hasContent       bool // true if inline element had any child content
+	contentByteStart int  // byte offset where element content begins (after '>'), for skeleton
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -119,6 +127,51 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("xml: reading: %w", err)}
 		return
 	}
+
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch, content, layer)
+	} else {
+		r.readContentSimple(ctx, ch, content, layer)
+	}
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// skelContentRange records a byte range in the source that corresponds to a block's text content.
+type skelContentRange struct {
+	blockID string
+	start   int // byte offset inclusive
+	end     int // byte offset exclusive
+}
+
+// skelAttrRange records a byte range for a translatable attribute value.
+type skelAttrRange struct {
+	blockID string
+	start   int // byte offset of attribute value (inside quotes)
+	end     int // byte offset after attribute value
+}
+
+func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer) {
+	r.readContentCore(ctx, ch, content, layer, nil, nil)
+}
+
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer) {
+	// For skeleton mode, we do the normal parse but also track byte positions.
+	// After parsing, we write skeleton entries using the collected ranges.
+	// The key: only leaf block elements get skeleton refs. Parent containers
+	// that don't produce blocks (or produce blocks with only spans/no text)
+	// have their content preserved as skeleton text.
+
+	var contentRanges []skelContentRange
+	var attrRanges []skelAttrRange
+	r.readContentCore(ctx, ch, content, layer, &contentRanges, &attrRanges)
+
+	// Write skeleton entries from the collected ranges.
+	r.writeSkeletonEntries(content, contentRanges, attrRanges)
+}
+
+func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult, content []byte, layer *model.Layer,
+	contentRanges *[]skelContentRange, attrRanges *[]skelAttrRange) {
 
 	decoder := xml.NewDecoder(strings.NewReader(string(content)))
 	blockCounter := 0
@@ -177,13 +230,17 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	// flushBlock emits the accumulated text as a block or data part.
 	// The frame has already been popped from stack, so we pass the path separately.
-	flushBlock := func(frame *elementFrame, path string) {
+	// endTagOffset is the byte offset of the end tag (for skeleton tracking).
+	flushBlock := func(frame *elementFrame, path string, endTagOffset int) {
 		if frame == nil || frame.frag == nil {
 			return
 		}
 
 		var finalFrag *model.Fragment
-		if frame.preserveWS {
+		if frame.preserveWS || contentRanges != nil {
+			// In skeleton mode, preserve whitespace as-is for byte-exact roundtrip.
+			// The skeleton ref covers the raw bytes, and XML-escaping the decoded
+			// text will reproduce the original encoding.
 			finalFrag = frame.frag
 		} else {
 			finalFrag = collapseFragmentWhitespace(frame.frag)
@@ -213,8 +270,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		blockCounter++
+		blockID := fmt.Sprintf("tu%d", blockCounter)
 		block := &model.Block{
-			ID:           fmt.Sprintf("tu%d", blockCounter),
+			ID:           blockID,
 			Translatable: true,
 			Source: []*model.Segment{{
 				ID:      "s1",
@@ -246,10 +304,25 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+		// Track content range for skeleton
+		if contentRanges != nil && frame.contentByteStart > 0 && endTagOffset > 0 {
+			// Find the start of the end tag by searching backwards from endTagOffset
+			closeStart := findCloseTagStart(content, frame.contentByteStart, endTagOffset, frame.name)
+			if closeStart >= 0 {
+				*contentRanges = append(*contentRanges, skelContentRange{
+					blockID: blockID,
+					start:   frame.contentByteStart,
+					end:     closeStart,
+				})
+			}
+		}
+
 		frame.frag = nil
 	}
 
 	for {
+		tokOffset := int(decoder.InputOffset())
 		tok, err := decoder.Token()
 		if err == io.EOF {
 			break
@@ -310,12 +383,16 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// Check if inline+excluded (content suppressed but element still inline)
 			inlineExcluded := isInline && r.isInlineExcluded(t.Name.Local, attrs)
 
+			// Content starts right after the '>' of the start tag
+			contentStart := int(decoder.InputOffset())
+
 			frame := &elementFrame{
-				name:       t.Name.Local,
-				attrs:      attrs,
-				isInline:   isInline,
-				isExcluded: isExcluded || inlineExcluded,
-				preserveWS: preserveWS,
+				name:             t.Name.Local,
+				attrs:            attrs,
+				isInline:         isInline,
+				isExcluded:       isExcluded || inlineExcluded,
+				preserveWS:       preserveWS,
+				contentByteStart: contentStart,
 			}
 
 			if isInline {
@@ -356,11 +433,24 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 				if r.cfg.isTranslatableAttribute(t.Name.Local, attrName, attrs) {
 					blockCounter++
-					block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), attr.Value)
+					blockID := fmt.Sprintf("tu%d", blockCounter)
+					block := model.NewBlock(blockID, attr.Value)
 					block.Name = elemPath() + "@" + attrName
 					block.Type = "attribute"
 					block.IsReferent = true
 					r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+					// Track attribute range for skeleton
+					if attrRanges != nil {
+						attrStart, attrEnd := findAttrValueByteRange(content, tokOffset, contentStart, attrName, attr.Value)
+						if attrStart >= 0 {
+							*attrRanges = append(*attrRanges, skelAttrRange{
+								blockID: blockID,
+								start:   attrStart,
+								end:     attrEnd,
+							})
+						}
+					}
 				}
 			}
 
@@ -375,6 +465,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			// Compute the path before popping
 			path := elemPath()
 			stack = stack[:len(stack)-1]
+
+			// endTagOffset is the byte offset after the end tag
+			endTagOffset := int(decoder.InputOffset())
 
 			if frame.isInline {
 				parent := findTextFrame()
@@ -406,7 +499,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			} else {
 				// Flush accumulated text as a block
 				if !frame.isExcluded {
-					flushBlock(frame, path)
+					flushBlock(frame, path, endTagOffset)
 				}
 			}
 
@@ -514,8 +607,158 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			}
 		}
 	}
+}
 
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+// writeSkeletonEntries writes skeleton text and ref entries from the collected ranges.
+// It sorts all ranges by start offset, removes overlapping parent ranges, and
+// interleaves skeleton text with refs.
+func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelContentRange, attrRanges []skelAttrRange) {
+	// Merge content and attr ranges into a unified sorted list.
+	var refs []skelRefEntry
+	for _, cr := range contentRanges {
+		refs = append(refs, skelRefEntry(cr))
+	}
+	for _, ar := range attrRanges {
+		refs = append(refs, skelRefEntry(ar))
+	}
+	// Sort by start offset.
+	for i := range refs {
+		for j := i + 1; j < len(refs); j++ {
+			if refs[j].start < refs[i].start {
+				refs[i], refs[j] = refs[j], refs[i]
+			}
+		}
+	}
+
+	// Remove parent ranges that contain child ranges (overlapping nesting).
+	// A parent range [pStart, pEnd) that fully contains a child range [cStart, cEnd)
+	// should be removed — the child range's ref handles the translatable content,
+	// and the structural bytes between/around it are skeleton text.
+	refs = removeOverlappingParents(refs)
+
+	pos := 0
+	for _, ref := range refs {
+		if ref.start > pos {
+			_ = r.skeletonStore.WriteText(content[pos:ref.start])
+		}
+		_ = r.skeletonStore.WriteRef(ref.blockID)
+		pos = ref.end
+	}
+	if pos < len(content) {
+		_ = r.skeletonStore.WriteText(content[pos:])
+	}
+}
+
+// skelRefEntry is a unified skeleton reference used in writeSkeletonEntries.
+type skelRefEntry struct {
+	blockID string
+	start   int
+	end     int
+}
+
+// removeOverlappingParents filters out ranges that fully contain other ranges.
+func removeOverlappingParents(refs []skelRefEntry) []skelRefEntry {
+	if len(refs) <= 1 {
+		return refs
+	}
+	// Mark ranges that contain other ranges for removal.
+	remove := make([]bool, len(refs))
+	for i := range refs {
+		for j := range refs {
+			if i == j {
+				continue
+			}
+			// ref[i] contains ref[j] if i.start <= j.start && j.end <= i.end
+			if refs[i].start <= refs[j].start && refs[j].end <= refs[i].end {
+				remove[i] = true
+				break
+			}
+		}
+	}
+	var result []skelRefEntry
+	for i, ref := range refs {
+		if !remove[i] {
+			result = append(result, ref)
+		}
+	}
+	return result
+}
+
+// findCloseTagStart finds the byte offset where the closing tag starts (the '<' of '</tag>')
+// by searching backwards from endOffset. endOffset is after the '>' of the end tag.
+func findCloseTagStart(data []byte, searchStart, endOffset int, tagName string) int {
+	if endOffset > len(data) {
+		endOffset = len(data)
+	}
+	closeTag := []byte("</" + tagName)
+	segment := data[searchStart:endOffset]
+	idx := bytes.LastIndex(segment, closeTag)
+	if idx < 0 {
+		return -1
+	}
+	return searchStart + idx
+}
+
+// findAttrValueByteRange finds the byte range of an attribute value within a start tag.
+// It searches for attrName="value" pattern in the raw bytes between tagStart and tagEnd.
+// Returns (start, end) offsets in the content, where start is the first byte of the value
+// and end is after the last byte of the value (inside the quotes).
+func findAttrValueByteRange(content []byte, tagStart, tagEnd int, attrName, attrValue string) (int, int) {
+	if tagEnd > len(content) {
+		tagEnd = len(content)
+	}
+	segment := content[tagStart:tagEnd]
+
+	// Search for the attribute name followed by = and quoted value.
+	attrBytes := []byte(attrName)
+	idx := 0
+	for {
+		pos := bytes.Index(segment[idx:], attrBytes)
+		if pos < 0 {
+			return -1, -1
+		}
+		pos += idx
+
+		// Skip past the attribute name.
+		afterName := pos + len(attrBytes)
+		if afterName >= len(segment) {
+			return -1, -1
+		}
+
+		// Skip whitespace.
+		for afterName < len(segment) && (segment[afterName] == ' ' || segment[afterName] == '\t' || segment[afterName] == '\n' || segment[afterName] == '\r') {
+			afterName++
+		}
+		if afterName >= len(segment) || segment[afterName] != '=' {
+			idx = pos + 1
+			continue
+		}
+		afterName++ // skip '='
+
+		// Skip whitespace after '='.
+		for afterName < len(segment) && (segment[afterName] == ' ' || segment[afterName] == '\t' || segment[afterName] == '\n' || segment[afterName] == '\r') {
+			afterName++
+		}
+		if afterName >= len(segment) {
+			return -1, -1
+		}
+
+		quote := segment[afterName]
+		if quote != '"' && quote != '\'' {
+			idx = pos + 1
+			continue
+		}
+		valueStart := afterName + 1
+
+		// Find closing quote.
+		valueEnd := bytes.IndexByte(segment[valueStart:], quote)
+		if valueEnd < 0 {
+			return -1, -1
+		}
+		valueEnd += valueStart
+
+		return tagStart + valueStart, tagStart + valueEnd
+	}
 }
 
 // isInlineExcluded checks if an inline element is also excluded.

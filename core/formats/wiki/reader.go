@@ -2,8 +2,10 @@ package wiki
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -33,8 +35,13 @@ var mediaWikiImageRe = regexp.MustCompile(`\[\[(?:File|Image):([^]|]+)((?:\|[^]|
 // Reader implements DataFormatReader for Wiki files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new wiki reader.
 func NewReader() *Reader {
@@ -50,6 +57,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -79,24 +91,73 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
-// parseState holds mutable state during parsing.
-type parseState struct {
-	blockID   int
-	dataID    int
-	paraLines []string
+// rawLine holds a line's content and its original line ending.
+type rawLine struct {
+	content    string
+	lineEnding string
 }
 
-func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- model.PartResult) bool {
+// splitRawLines splits raw bytes into lines preserving line endings.
+func splitRawLines(data []byte) []rawLine {
+	remaining := string(data)
+	var lines []rawLine
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, rawLine{content: remaining})
+			break
+		}
+		lineContent := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(lineContent, "\r") {
+			lineContent = lineContent[:len(lineContent)-1]
+			ending = "\r\n"
+		}
+		lines = append(lines, rawLine{content: lineContent, lineEnding: ending})
+		remaining = remaining[idx+1:]
+	}
+	return lines
+}
+
+// parseState holds mutable state during parsing.
+type parseState struct {
+	blockID       int
+	dataID        int
+	paraLines     []string
+	paraLineIdxes []int // indices into rLines for skeleton tracking
+}
+
+func (ps *parseState) flushParagraph(ctx context.Context, r *Reader, ch chan<- model.PartResult, rLines []rawLine) bool {
 	if len(ps.paraLines) == 0 {
 		return true
 	}
 	text := strings.Join(ps.paraLines, "\n")
+	paraIdxes := ps.paraLineIdxes
 	ps.paraLines = nil
+	ps.paraLineIdxes = nil
 	if strings.TrimSpace(text) == "" {
 		return true
 	}
 	ps.blockID++
-	block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), text)
+	blockID := fmt.Sprintf("tu%d", ps.blockID)
+
+	// Skeleton: ref for the paragraph block, but include inter-line endings
+	if r.skeletonStore != nil && len(rLines) > 0 {
+		// Write the inter-line endings from raw lines. The block text has \n
+		// between lines; the skeleton ref covers the paragraph text.
+		// We need to emit: for each paragraph line except the last, add the raw line ending.
+		// But since block text already joins with \n, we just emit a single ref
+		// and the last line's ending as skeleton text.
+		r.skelRef(blockID)
+		if len(paraIdxes) > 0 {
+			lastIdx := paraIdxes[len(paraIdxes)-1]
+			if lastIdx < len(rLines) {
+				r.skelText(rLines[lastIdx].lineEnding)
+			}
+		}
+	}
+
+	block := model.NewBlock(blockID, text)
 	return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 }
 
@@ -125,17 +186,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	scanner := bufio.NewScanner(r.Doc.Reader)
-	ps := &parseState{}
+	var rLines []rawLine
 
-	if r.cfg.Variant == VariantDokuWiki {
-		r.readDokuWiki(ctx, ch, scanner, ps)
+	if r.skeletonStore != nil {
+		data, err := io.ReadAll(r.Doc.Reader)
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("wiki: reading: %w", err)}
+			return
+		}
+		rLines = splitRawLines(data)
+		ps := &parseState{}
+		if r.cfg.Variant == VariantDokuWiki {
+			r.readDokuWikiLines(ctx, ch, rLines, ps)
+		} else {
+			r.readMediaWikiLines(ctx, ch, rLines, ps)
+		}
+		r.skelFlush()
 	} else {
-		r.readMediaWiki(ctx, ch, scanner, ps)
-	}
-
-	if err := scanner.Err(); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("wiki: reading: %w", err)}
+		scanner := bufio.NewScanner(r.Doc.Reader)
+		ps := &parseState{}
+		if r.cfg.Variant == VariantDokuWiki {
+			r.readDokuWiki(ctx, ch, scanner, ps)
+		} else {
+			r.readMediaWiki(ctx, ch, scanner, ps)
+		}
+		if err := scanner.Err(); err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("wiki: reading: %w", err)}
+		}
 	}
 
 	// Emit layer end
@@ -152,7 +229,7 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Check for header
 		if m := mediaWikiHeaderRe.FindStringSubmatch(line); m != nil {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			ps.blockID++
@@ -166,7 +243,7 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Table start
 		if mediaWikiTableStartRe.MatchString(line) {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			inTable = true
@@ -233,7 +310,7 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Image/file links with captions
 		if mediaWikiImageRe.MatchString(line) {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			r.extractImageCaptions(ctx, ch, line, ps)
@@ -242,7 +319,7 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Blank line separates paragraphs
 		if strings.TrimSpace(line) == "" {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			if !ps.emitData(ctx, r, ch) {
@@ -256,7 +333,137 @@ func (r *Reader) readMediaWiki(ctx context.Context, ch chan<- model.PartResult,
 	}
 
 	// Flush remaining paragraph
-	ps.flushParagraph(ctx, r, ch)
+	ps.flushParagraph(ctx, r, ch, nil)
+}
+
+func (r *Reader) readMediaWikiLines(ctx context.Context, ch chan<- model.PartResult,
+	rLines []rawLine, ps *parseState) {
+
+	inTable := false
+
+	for i, rl := range rLines {
+		line := rl.content
+
+		// Check for header
+		if m := mediaWikiHeaderRe.FindStringSubmatch(line); m != nil {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			ps.blockID++
+			blockID := fmt.Sprintf("tu%d", ps.blockID)
+			r.skelRef(blockID)
+			r.skelText(rl.lineEnding)
+			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
+			block.Name = "header"
+			block.Properties["raw"] = line
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+
+		// Table start
+		if mediaWikiTableStartRe.MatchString(line) {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			inTable = true
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// Table end
+		if mediaWikiTableEndRe.MatchString(line) {
+			inTable = false
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// Table row separator
+		if inTable && mediaWikiTableRowRe.MatchString(line) {
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// Table header cells
+		if inTable && mediaWikiTableHeaderRe.MatchString(line) {
+			// Store entire line as skeleton text (table reconstruction is complex)
+			r.skelText(rl.content + rl.lineEnding)
+			m := mediaWikiTableHeaderRe.FindStringSubmatch(line)
+			cells := splitTableCells(m[1], "!!")
+			for _, cell := range cells {
+				cell = strings.TrimSpace(cell)
+				if cell == "" {
+					continue
+				}
+				ps.blockID++
+				block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), cell)
+				block.Name = "table-header"
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+			continue
+		}
+
+		// Table data cells
+		if inTable && mediaWikiTableCellRe.MatchString(line) {
+			r.skelText(rl.content + rl.lineEnding)
+			m := mediaWikiTableCellRe.FindStringSubmatch(line)
+			cells := splitTableCells(m[1], "||")
+			for _, cell := range cells {
+				cell = strings.TrimSpace(cell)
+				if cell == "" {
+					continue
+				}
+				ps.blockID++
+				block := model.NewBlock(fmt.Sprintf("tu%d", ps.blockID), cell)
+				block.Name = "table-cell"
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+			continue
+		}
+
+		// Image/file links with captions
+		if mediaWikiImageRe.MatchString(line) {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			r.extractImageCaptions(ctx, ch, line, ps)
+			continue
+		}
+
+		// Blank line separates paragraphs
+		if strings.TrimSpace(line) == "" {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// Regular text line -- accumulate into paragraph
+		ps.paraLines = append(ps.paraLines, line)
+		ps.paraLineIdxes = append(ps.paraLineIdxes, i)
+	}
+
+	// Flush remaining paragraph
+	ps.flushParagraph(ctx, r, ch, rLines)
 }
 
 func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
@@ -267,7 +474,7 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Check for header
 		if m := dokuWikiHeaderRe.FindStringSubmatch(line); m != nil {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			ps.blockID++
@@ -281,7 +488,7 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// DokuWiki table row
 		if dokuWikiTableRe.MatchString(line) {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			r.extractDokuWikiTableCells(ctx, ch, line, ps)
@@ -290,7 +497,7 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 
 		// Blank line separates paragraphs
 		if strings.TrimSpace(line) == "" {
-			if !ps.flushParagraph(ctx, r, ch) {
+			if !ps.flushParagraph(ctx, r, ch, nil) {
 				return
 			}
 			if !ps.emitData(ctx, r, ch) {
@@ -304,7 +511,62 @@ func (r *Reader) readDokuWiki(ctx context.Context, ch chan<- model.PartResult,
 	}
 
 	// Flush remaining paragraph
-	ps.flushParagraph(ctx, r, ch)
+	ps.flushParagraph(ctx, r, ch, nil)
+}
+
+func (r *Reader) readDokuWikiLines(ctx context.Context, ch chan<- model.PartResult,
+	rLines []rawLine, ps *parseState) {
+
+	for i, rl := range rLines {
+		line := rl.content
+
+		// Check for header
+		if m := dokuWikiHeaderRe.FindStringSubmatch(line); m != nil {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			ps.blockID++
+			blockID := fmt.Sprintf("tu%d", ps.blockID)
+			r.skelRef(blockID)
+			r.skelText(rl.lineEnding)
+			block := model.NewBlock(blockID, strings.TrimSpace(m[2]))
+			block.Name = "header"
+			block.Properties["raw"] = line
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+			continue
+		}
+
+		// DokuWiki table row
+		if dokuWikiTableRe.MatchString(line) {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			r.extractDokuWikiTableCells(ctx, ch, line, ps)
+			continue
+		}
+
+		// Blank line separates paragraphs
+		if strings.TrimSpace(line) == "" {
+			if !ps.flushParagraph(ctx, r, ch, rLines) {
+				return
+			}
+			r.skelText(rl.content + rl.lineEnding)
+			if !ps.emitData(ctx, r, ch) {
+				return
+			}
+			continue
+		}
+
+		// Regular text -- accumulate into paragraph
+		ps.paraLines = append(ps.paraLines, line)
+		ps.paraLineIdxes = append(ps.paraLineIdxes, i)
+	}
+
+	// Flush remaining paragraph
+	ps.flushParagraph(ctx, r, ch, rLines)
 }
 
 func (r *Reader) extractImageCaptions(ctx context.Context, ch chan<- model.PartResult,
@@ -413,6 +675,32 @@ func (r *Reader) extractDokuWikiTableCells(ctx context.Context, ch chan<- model.
 
 func splitTableCells(content, separator string) []string {
 	return strings.Split(content, separator)
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

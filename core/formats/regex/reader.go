@@ -1,6 +1,7 @@
 package regex
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -16,8 +17,13 @@ import (
 // from arbitrary text formats (Mac .strings, INI, StringInfo, etc.).
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Regex reader with default configuration.
 func NewReader() *Reader {
@@ -33,6 +39,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -97,8 +108,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	if len(r.cfg.Rules) == 0 {
 		// No rules: emit entire content as Data
 		if content != "" {
+			r.skelText(content)
 			r.emitData(ctx, ch, 1, content)
 		}
+		r.skelFlush()
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 		return
 	}
@@ -115,6 +128,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	r.extractWithRules(ctx, ch, content, compiled)
+
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -162,6 +177,7 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 	for _, m := range matches {
 		// Emit non-matching content before this match as Data
 		if m.start > pos {
+			r.skelText(content[pos:m.start])
 			dataCounter++
 			if !r.emitData(ctx, ch, dataCounter, content[pos:m.start]) {
 				return
@@ -180,6 +196,9 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 		// Generate block ID
 		blockCounter++
 		blockID := fmt.Sprintf("tu%d", blockCounter)
+
+		// For skeleton: the entire match region is represented as a ref
+		r.skelRef(blockID)
 
 		block := model.NewBlock(blockID, sourceText)
 
@@ -212,6 +231,7 @@ func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResul
 
 	// Emit trailing non-matching content as Data
 	if pos < len(content) {
+		r.skelText(content[pos:])
 		dataCounter++
 		r.emitData(ctx, ch, dataCounter, content[pos:])
 	}
@@ -282,6 +302,32 @@ func (r *Reader) emitData(ctx context.Context, ch chan<- model.PartResult, count
 		Properties: map[string]string{"content": content},
 	}
 	return r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: d})
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

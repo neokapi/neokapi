@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: ExtractionTest#testSimpleText — extracts simple text strings from MIF paragraphs.
 func TestReadSimpleMIF(t *testing.T) {
 	ctx := context.Background()
 	reader := mif.NewReader()
@@ -66,6 +67,7 @@ func TestReadMIFWithPgfTag(t *testing.T) {
 	assert.Equal(t, "Heading", blocks[0].Properties["pgf_tag"])
 }
 
+// okapi: ExtractionTest#testNoTextEntry — non-translatable catalog entries are skipped.
 func TestReadMIFSkipsNonTranslatable(t *testing.T) {
 	ctx := context.Background()
 	reader := mif.NewReader()
@@ -98,6 +100,7 @@ func TestReadMIFSkipsNonTranslatable(t *testing.T) {
 	assert.Equal(t, "Translatable text.", blocks[0].SourceText())
 }
 
+// okapi: ExtractionTest#testParagraphLinesProcessing — multiple ParaLine elements merge into one block.
 func TestReadMIFMultipleParaLines(t *testing.T) {
 	ctx := context.Background()
 	reader := mif.NewReader()
@@ -123,6 +126,7 @@ func TestReadMIFMultipleParaLines(t *testing.T) {
 	assert.Equal(t, "First part second part.", blocks[0].SourceText())
 }
 
+// okapi: ExtractionTest#testTabs — verifies tab characters are preserved in extracted text.
 func TestReadMIFSpecialCharacters(t *testing.T) {
 	ctx := context.Background()
 	reader := mif.NewReader()
@@ -149,6 +153,7 @@ func TestReadMIFSpecialCharacters(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "after tab.")
 }
 
+// okapi: ExtractionTest#testStartDocument — verifies LayerStart/LayerEnd structure wraps MIF content.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := context.Background()
 	reader := mif.NewReader()
@@ -176,6 +181,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "mif", layer.Format)
 }
 
+// okapi: ExtractionTest#testDefaultInfo — verifies MIF MIME type and file signature.
 func TestReaderSignature(t *testing.T) {
 	reader := mif.NewReader()
 	sig := reader.Signature()
@@ -243,6 +249,7 @@ func TestReadMIFVersionData(t *testing.T) {
 	assert.True(t, hasVersionData, "MIFFile version should be emitted as Data")
 }
 
+// okapi: RoundTripTest#roundTripsWithDifferentParameters — roundtrip read/write preserves MIF content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 

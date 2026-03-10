@@ -1,6 +1,7 @@
 package xliff2
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
-// XLIFF 2.0 XML structures
+// XLIFF 2.0 XML structures (used for DOM-based parsing without skeleton)
 
 type xliff2Doc struct {
 	XMLName xml.Name     `xml:"xliff"`
@@ -61,8 +62,13 @@ type xliff2Content struct {
 // Reader implements DataFormatReader for XLIFF 2.0 files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new XLIFF 2.0 reader.
 func NewReader() *Reader {
@@ -77,6 +83,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -110,6 +121,14 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
+// elemPos tracks the byte position of a source or target element's inner content.
+type elemPos struct {
+	startOffset int    // byte offset after opening tag
+	endOffset   int    // byte offset before closing tag
+	blockIdx    int    // 0-based block index
+	elemType    string // "source" or "target"
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
@@ -117,6 +136,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
+	if r.skeletonStore != nil {
+		r.readContentStreaming(ctx, ch, content)
+		return
+	}
+
+	// DOM-based parsing (no skeleton)
 	var doc xliff2Doc
 	if err := xml.Unmarshal(content, &doc); err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("xliff2: parsing: %w", err)}
@@ -149,6 +174,368 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+	}
+}
+
+// readContentStreaming uses streaming XML parsing for skeleton byte-offset tracking.
+func (r *Reader) readContentStreaming(ctx context.Context, ch chan<- model.PartResult, content []byte) {
+	rawText := string(content)
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
+	decoder.Strict = false
+
+	var (
+		srcLang       string
+		trgLang       string
+		fileID        string
+		inFile        bool
+		inUnit        bool
+		inSegment     bool
+		inSource      bool
+		inTarget      bool
+		inNotes       bool
+		inNote        bool
+		unitID        string
+		unitName      string
+		unitTranslate string
+		segID         string
+		blockCount    int
+		elemPositions []elemPos
+		elemStartOff  int64
+
+		// Accumulators
+		sourceInnerXML strings.Builder
+		targetInnerXML strings.Builder
+		noteBuilder    strings.Builder
+		sourceDepth    int
+		targetDepth    int
+
+		// Current unit data
+		sourceSegs []*model.Segment
+		targets    map[model.LocaleID][]*model.Segment
+		notes      []string
+		states     []string
+	)
+
+	for {
+		tok, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("xliff2: parsing: %w", err)}
+			return
+		}
+
+		switch t := tok.(type) {
+		case xml.StartElement:
+			switch t.Name.Local {
+			case "xliff":
+				for _, a := range t.Attr {
+					switch a.Name.Local {
+					case "srcLang":
+						srcLang = a.Value
+					case "trgLang":
+						trgLang = a.Value
+					}
+				}
+
+			case "file":
+				inFile = true
+				fileID = ""
+				for _, a := range t.Attr {
+					if a.Name.Local == "id" {
+						fileID = a.Value
+					}
+				}
+				layer := &model.Layer{
+					ID:             fmt.Sprintf("file-%s", fileID),
+					Name:           fileID,
+					Format:         "xliff2",
+					Locale:         model.LocaleID(srcLang),
+					IsMultilingual: true,
+					Properties: map[string]string{
+						"target-language": trgLang,
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: layer}) {
+					return
+				}
+
+			case "group":
+				groupID := ""
+				groupName := ""
+				for _, a := range t.Attr {
+					switch a.Name.Local {
+					case "id":
+						groupID = a.Value
+					case "name":
+						groupName = a.Value
+					}
+				}
+				gs := &model.GroupStart{ID: groupID, Name: groupName}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartGroupStart, Resource: gs}) {
+					return
+				}
+
+			case "unit":
+				inUnit = true
+				unitID = ""
+				unitName = ""
+				unitTranslate = ""
+				sourceSegs = nil
+				targets = make(map[model.LocaleID][]*model.Segment)
+				notes = nil
+				states = nil
+				for _, a := range t.Attr {
+					switch a.Name.Local {
+					case "id":
+						unitID = a.Value
+					case "name":
+						unitName = a.Value
+					case "translate":
+						unitTranslate = a.Value
+					}
+				}
+
+			case "notes":
+				if inUnit {
+					inNotes = true
+				}
+
+			case "note":
+				if inNotes {
+					inNote = true
+					noteBuilder.Reset()
+				}
+
+			case "segment":
+				if inUnit {
+					inSegment = true
+					segID = ""
+					segState := ""
+					for _, a := range t.Attr {
+						switch a.Name.Local {
+						case "id":
+							segID = a.Value
+						case "state":
+							segState = a.Value
+						}
+					}
+					if segState != "" {
+						states = append(states, segState)
+					}
+				}
+
+			case "source":
+				if inSegment {
+					inSource = true
+					sourceDepth = 0
+					sourceInnerXML.Reset()
+					elemStartOff = decoder.InputOffset()
+				}
+
+			case "target":
+				if inSegment {
+					inTarget = true
+					targetDepth = 0
+					targetInnerXML.Reset()
+					elemStartOff = decoder.InputOffset()
+				}
+
+			default:
+				// Track nested elements inside source/target for inner XML reconstruction
+				if inSource {
+					sourceDepth++
+					sourceInnerXML.WriteString("<")
+					sourceInnerXML.WriteString(t.Name.Local)
+					for _, a := range t.Attr {
+						sourceInnerXML.WriteString(" ")
+						if a.Name.Space != "" {
+							sourceInnerXML.WriteString(a.Name.Space)
+							sourceInnerXML.WriteString(":")
+						}
+						sourceInnerXML.WriteString(a.Name.Local)
+						sourceInnerXML.WriteString(`="`)
+						sourceInnerXML.WriteString(xmlEscapeAttr(a.Value))
+						sourceInnerXML.WriteString(`"`)
+					}
+					sourceInnerXML.WriteString(">")
+				} else if inTarget {
+					targetDepth++
+					targetInnerXML.WriteString("<")
+					targetInnerXML.WriteString(t.Name.Local)
+					for _, a := range t.Attr {
+						targetInnerXML.WriteString(" ")
+						if a.Name.Space != "" {
+							targetInnerXML.WriteString(a.Name.Space)
+							targetInnerXML.WriteString(":")
+						}
+						targetInnerXML.WriteString(a.Name.Local)
+						targetInnerXML.WriteString(`="`)
+						targetInnerXML.WriteString(xmlEscapeAttr(a.Value))
+						targetInnerXML.WriteString(`"`)
+					}
+					targetInnerXML.WriteString(">")
+				}
+			}
+
+		case xml.EndElement:
+			switch t.Name.Local {
+			case "file":
+				if inFile {
+					layer := &model.Layer{
+						ID:   fmt.Sprintf("file-%s", fileID),
+						Name: fileID,
+					}
+					r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+					inFile = false
+				}
+
+			case "group":
+				r.emit(ctx, ch, &model.Part{Type: model.PartGroupEnd, Resource: &model.GroupEnd{}})
+
+			case "unit":
+				if inUnit {
+					translatable := true
+					if strings.EqualFold(unitTranslate, "no") {
+						translatable = false
+					}
+
+					block := &model.Block{
+						ID:           unitID,
+						Name:         unitName,
+						Translatable: translatable,
+						Source:       sourceSegs,
+						Targets:      targets,
+						Properties:   make(map[string]string),
+						Annotations:  make(map[string]model.Annotation),
+					}
+
+					for _, st := range states {
+						if st != "" {
+							block.Properties["state"] = st
+						}
+					}
+					for i, note := range notes {
+						block.Properties[fmt.Sprintf("note-%d", i)] = note
+					}
+
+					r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+					blockCount++
+					inUnit = false
+				}
+
+			case "notes":
+				inNotes = false
+
+			case "note":
+				if inNote {
+					notes = append(notes, noteBuilder.String())
+					inNote = false
+				}
+
+			case "segment":
+				inSegment = false
+
+			case "source":
+				if inSource {
+					endOff := decoder.InputOffset()
+					closeTag := "</source>"
+					endPos := int(endOff) - len(closeTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					elemPositions = append(elemPositions, elemPos{
+						startOffset: int(elemStartOff),
+						endOffset:   endPos,
+						blockIdx:    blockCount,
+						elemType:    "source",
+					})
+
+					sid := segID
+					if sid == "" {
+						sid = fmt.Sprintf("s%d", len(sourceSegs)+1)
+					}
+					sourceText := strings.TrimSpace(sourceInnerXML.String())
+					sourceSegs = append(sourceSegs, &model.Segment{
+						ID:      sid,
+						Content: model.NewFragment(sourceText),
+					})
+					inSource = false
+				}
+
+			case "target":
+				if inTarget {
+					endOff := decoder.InputOffset()
+					closeTag := "</target>"
+					endPos := int(endOff) - len(closeTag)
+					if endPos < 0 {
+						endPos = 0
+					}
+					elemPositions = append(elemPositions, elemPos{
+						startOffset: int(elemStartOff),
+						endOffset:   endPos,
+						blockIdx:    blockCount,
+						elemType:    "target",
+					})
+
+					targetText := strings.TrimSpace(targetInnerXML.String())
+					tl := model.LocaleID(trgLang)
+					if targetText != "" && !tl.IsEmpty() {
+						sid := segID
+						if sid == "" {
+							sid = fmt.Sprintf("s%d", len(sourceSegs))
+						}
+						targets[tl] = append(targets[tl], &model.Segment{
+							ID:      sid,
+							Content: model.NewFragment(targetText),
+						})
+					}
+					inTarget = false
+				}
+
+			default:
+				// Track nested end elements inside source/target
+				if inSource && sourceDepth > 0 {
+					sourceDepth--
+					sourceInnerXML.WriteString("</")
+					sourceInnerXML.WriteString(t.Name.Local)
+					sourceInnerXML.WriteString(">")
+				} else if inTarget && targetDepth > 0 {
+					targetDepth--
+					targetInnerXML.WriteString("</")
+					targetInnerXML.WriteString(t.Name.Local)
+					targetInnerXML.WriteString(">")
+				}
+			}
+
+		case xml.CharData:
+			text := string(t)
+			if inNote {
+				noteBuilder.WriteString(text)
+			} else if inSource {
+				sourceInnerXML.WriteString(text)
+			} else if inTarget {
+				targetInnerXML.WriteString(text)
+			}
+		}
+	}
+
+	// Build skeleton from collected element positions
+	if len(elemPositions) > 0 {
+		skelPos := 0
+		for _, ep := range elemPositions {
+			if ep.startOffset > skelPos {
+				r.skelText(rawText[skelPos:ep.startOffset])
+			}
+			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
+			r.skelRef(refID)
+			skelPos = ep.endOffset
+		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
 	}
 }
 
@@ -226,6 +613,49 @@ func (r *Reader) emitUnit(ctx context.Context, ch chan<- model.PartResult, unit 
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+}
+
+// xmlEscapeText escapes XML special characters in text content.
+func xmlEscapeText(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+// xmlEscapeAttr escapes XML special characters in attribute values.
+func xmlEscapeAttr(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, `"`, "&quot;")
+	return s
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
