@@ -8,13 +8,12 @@ This note documents the `compose.yaml` configuration at the repository root, whi
 
 ## Architecture
 
-The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in front of containerized services (Keycloak, Mailpit) and host-running services (bowrain-server, Vite dev server). This gives local development a production-like HTTPS experience. The gRPC service uses TLS natively (not terminated by Traefik) with the same mkcert certificates, and Traefik provides TCP passthrough on port 1443.
+The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in front of containerized services (Keycloak, Mailpit, NATS) and host-running services (bowrain-server, Vite dev server). This gives local development a production-like HTTPS experience. gRPC and REST are multiplexed on the same port (8080) via h2c (HTTP/2 cleartext) — Traefik routes both through the same backend.
 
 ```
                      ┌──────────────────┐
                      │     Traefik      │
                      │  :80 → :443      │
-                     │  :1443 (gRPC PT) │
                      └──────┬───────────┘
            ┌────────────────┼────────────────┐
            │                │                │
@@ -23,20 +22,25 @@ The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in 
   │ auth.bowrain.   │ │ mail.    │ │    internal      │
   │    mymac        │ │ bowrain. │ │                  │
   │ (OIDC provider) │ │  mymac   │ │ bowrain-server   │
-  │ container:8080  │ │ :8025    │ │ HTTP  host:8080  │
-  └─────────────────┘ └──────────┘ │ gRPC  host:9080  │
-                                   │ Vite  host:5173  │
+  │ container:8080  │ │ :8025    │ │ REST+gRPC :8080  │
+  └─────────────────┘ └──────────┘ │ Vite     :5173   │
                                    └──────────────────┘
+        ┌──────────┐
+        │   NATS   │
+        │ JetStream│
+        │ :4222    │
+        └──────────┘
 ```
 
 | Service | URL | Routes to |
 |---|---|---|
 | Web app (dev) | `https://bowrain.mymac` | host:5173 (Vite HMR) |
-| API | `https://bowrain.mymac/api/*` | host:8080 (bowrain-server) |
-| gRPC | `bowrain.mymac:1443` | host:9080 (TCP passthrough, native TLS) |
+| API | `https://bowrain.mymac/api/*` | host:8080 (bowrain-server, h2c) |
+| gRPC | `https://bowrain.mymac/gokapi.*` | host:8080 (bowrain-server, h2c) |
 | Keycloak | `https://auth.bowrain.mymac` | keycloak container:8080 |
 | Mailpit | `https://mail.bowrain.mymac` | mailpit container:8025 |
 | Traefik dashboard | `https://traefik.bowrain.mymac` | traefik:8080 |
+| NATS | `nats://localhost:4222` | nats container:4222 |
 
 The bowrain-server and Vite dev server run **natively on the host** for fast iteration — no Docker image rebuild needed for Go or TypeScript changes. Traefik reaches them via `host.docker.internal`.
 
@@ -83,6 +87,15 @@ services:
     ports:
       - "8025:8025"
       - "1025:1025"
+
+  nats:
+    image: nats:2-alpine
+    command: ["--jetstream", "--store_dir", "/data"]
+    volumes:
+      - nats-data:/data
+    ports:
+      - "4222:4222"
+      - "8222:8222"
 ```
 
 ### compose.override.yaml (local dev)
@@ -101,7 +114,6 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "1443:1443"  # gRPC TLS passthrough → bowrain-server:9080
 
   keycloak:
     environment:
@@ -124,9 +136,9 @@ services:
 ### Traefik
 
 - **Image**: `traefik:v3`
-- **Static config**: `docker/traefik/traefik.yml` — entrypoints (80→443 redirect, 1443 gRPC passthrough), Docker + file providers, dashboard
-- **Dynamic config**: `docker/traefik/dynamic.yml` — HTTP routers for `bowrain.mymac` (API at priority 100, Vite at 90), TCP router for gRPC passthrough to host:9080, TLS cert paths, dashboard router
-- **TLS certificates**: `docker/traefik/certs/` — mkcert-generated wildcard cert (`*.bowrain.mymac`), gitignored. Used by Traefik for HTTP TLS termination and by bowrain-server for native gRPC TLS
+- **Static config**: `docker/traefik/traefik.yml` — entrypoints (80→443 redirect), Docker + file providers, dashboard
+- **Dynamic config**: `docker/traefik/dynamic.yml` — HTTP routers for `bowrain.mymac` (API at priority 100 via h2c to host:8080, gRPC for `gokapi.*` paths via h2c, Vite at priority 90 to host:5173), TLS cert paths, dashboard router
+- **TLS certificates**: `docker/traefik/certs/` — mkcert-generated wildcard cert (`*.bowrain.mymac`), gitignored. Used by Traefik for TLS termination
 - **Docker labels**: Used for containerized services (Keycloak, Mailpit)
 - **File provider**: Used for host-running services (bowrain-server, Vite) via `host.docker.internal`
 
@@ -169,13 +181,10 @@ dev-server: build-server
 	BOWRAIN_SMTP_HOST=localhost:1025 \
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_STORE=bowrain-dev.db \
-	BOWRAIN_GRPC_PORT=9080 \
-	BOWRAIN_GRPC_TLS_CERT=$(CERT_DIR)/wildcard.pem \
-	BOWRAIN_GRPC_TLS_KEY=$(CERT_DIR)/wildcard-key.pem \
 	bin/bowrain-server
 ```
 
-The `BOWRAIN_GRPC_TLS_CERT` and `BOWRAIN_GRPC_TLS_KEY` variables point to the same mkcert wildcard certificate used by Traefik. The gRPC server loads these directly and handles TLS natively (Traefik uses TCP passthrough, not TLS termination, for gRPC). When these variables are omitted (e.g., in CI), the gRPC server runs without TLS and logs a warning.
+gRPC and REST are multiplexed on the same port (8080) via h2c. The server detects `Content-Type: application/grpc` in HTTP/2 requests and routes them to the gRPC handler. Traefik terminates TLS and forwards cleartext HTTP/2 to the server.
 
 The `build-server` prerequisite chains through `web-build`, which in turn depends on `ui-deps` and `web-deps`, so a single `make dev-server` command handles the entire build pipeline from shared UI to server binary.
 
@@ -222,7 +231,7 @@ CI scripts (e.g. `e2e/setup.sh`, GitHub Actions workflows) use `http://localhost
 
 | File | Purpose | Used by |
 |---|---|---|
-| `compose.yaml` | Base: Keycloak + Mailpit with direct ports, no Traefik | CI (`-f compose.yaml`) |
+| `compose.yaml` | Base: Keycloak + Mailpit + NATS with direct ports, no Traefik | CI (`-f compose.yaml`) |
 | `compose.override.yaml` | Adds Traefik, `KC_HOSTNAME`, TLS labels | Local dev (auto-loaded) |
 
 ## Supporting E2E Testing
@@ -240,12 +249,11 @@ cd bowrain/apps/web && npm run e2e:screenshots
 cd bowrain/apps/web && npm run e2e:recordings
 ```
 
-Recordings are captured per-theme (glass, light, aurora) and copied to the website static directory:
+Recordings are captured per-theme (dark, light) and copied to the website static directory:
 
 ```bash
-THEME=glass  bash bowrain/apps/web/scripts/copy-recordings.sh
+THEME=dark   bash bowrain/apps/web/scripts/copy-recordings.sh
 THEME=light  bash bowrain/apps/web/scripts/copy-recordings.sh
-THEME=aurora bash bowrain/apps/web/scripts/copy-recordings.sh
 ```
 
 ### Bowrain Desktop Screenshots and Recordings

@@ -27,7 +27,7 @@ Lookup tries matching strategies in order of reuse potential:
 5. structural fuzzy -- Levenshtein on structural keys
 6. plain fuzzy -- Levenshtein on plain keys
 
-The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold (default 75%) provides fuzzy matching.
+The first match at or above the score threshold wins. A generalized exact match (different entity values, identical structure) is preferred over a plain fuzzy match (similar text, unknown structure). Levenshtein edit distance with a configurable threshold (default 70%) provides fuzzy matching.
 
 ## Entity Adaptation
 
@@ -36,8 +36,9 @@ When a generalized match is found, the match result carries adaptation informati
 ```go
 type TMMatch struct {
     Entry             TMEntry
-    Score             float64
+    Score             float64 // 0.0-1.0 (1.0 = exact match)
     MatchType         MatchType
+    ProjectID         string // provenance: project ID of the matched entry
     EntityAdaptations []EntityAdaptation
 }
 ```
@@ -61,4 +62,4 @@ The import/export layer maps between Fragment Spans and TMX inline elements:
 | `SpanOpening` | `<bpt>` |
 | `SpanClosing` | `<ept>` |
 
-Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.
+Entity metadata is carried as `<prop>` elements on the TMX `<tu>`. Note that inline element mapping (`<ph>`, `<bpt>`, `<ept>`) is handled by the full TMX format reader (`core/formats/tmx/`), not by the sievepen TM import/export layer. The TM module's TMX import (`core/sievepen/tmx_import.go`) handles plain text and entity properties only. When importing legacy TMX files that contain only plain text (no inline codes), entries are stored with plain Fragments and no entity mappings. They participate in plain matching only.
