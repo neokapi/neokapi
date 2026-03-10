@@ -73,12 +73,12 @@ DELETE /api/v1/workspaces/:ws/projects/:id
 GET    /api/v1/workspaces/:ws/projects/:id/blocks
 PUT    /api/v1/workspaces/:ws/projects/:id/blocks/:hash/translation
 
-# Sync operations (for Kapi pull/push)
+# Sync operations (for Bowrain CLI pull/push)
 GET    /api/v1/workspaces/:ws/projects/:id/sync-state
 POST   /api/v1/workspaces/:ws/projects/:id/pull
 POST   /api/v1/workspaces/:ws/projects/:id/push
 
 ```
 
-Kapi interacts with the store via API, not directly. The `kapi pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
+Bowrain CLI interacts with the store via API, not directly. The `bowrain pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
 

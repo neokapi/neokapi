@@ -11,7 +11,7 @@ The Bowrain Server needs a persistence layer that tracks translation projects, c
 
 The ContentStore is the **server-side persistence layer** that makes Bowrain a platform rather than just a pipeline. It manages projects, content-addressed blocks, and version history for the multi-user, multi-workspace server environment.
 
-**This is distinct from Kapi's project model** ([AD-016](./016-kapi-project-model.md)). Kapi operates on local files with `.kapi/` project directories. The ContentStore is the backend database for Bowrain Server.
+**This is distinct from the Bowrain CLI project model** ([AD-016](./016-kapi-project-model.md)). Bowrain CLI operates on local files with `.bowrain/` project directories. The ContentStore is the backend database for Bowrain Server.
 
 Versioned, content-addressable storage is a well-established pattern in other domains (git for source code, package registries for artifacts). The same pattern applies to localization content — blocks are the objects, projects are the streams, and versions are the commits.
 
@@ -58,7 +58,7 @@ Blocks are stored by their content hash, derived from `BlockIdentity` as defined
 
 - **Deduplication**: "Click OK" appearing 50 times across documents is stored once. Translation effort and TM lookups happen once per unique block.
 - **Diffing**: Compare versions by diffing hash sets. No need to re-parse documents to determine what changed.
-- **Incremental sync**: Only transfer blocks whose hashes differ between client and server. Kapi `pull/push` skips unchanged content entirely ([AD-016](./016-kapi-project-model.md)).
+- **Incremental sync**: Only transfer blocks whose hashes differ between client and server. `bowrain pull/push` skips unchanged content entirely ([AD-016](./016-kapi-project-model.md)).
 
 ```go
 type StoredBlock struct {
@@ -149,11 +149,11 @@ Source System (CMS, Design Tool, Code Repo)
 - Flows process store content through tools
 - Connectors push translations back to source systems
 
-**For Kapi:**
-- Kapi is the **file connector** for Bowrain Server
-- `kapi push` reads local files → sends blocks to ContentStore (via API)
-- `kapi pull` fetches blocks from ContentStore (via API) → writes local files
-- Kapi does not access the ContentStore directly — it is a REST API client
+**For Bowrain CLI:**
+- Bowrain CLI is the **file connector** for Bowrain Server
+- `bowrain push` reads local files → sends blocks to ContentStore (via API)
+- `bowrain pull` fetches blocks from ContentStore (via API) → writes local files
+- Bowrain CLI does not access the ContentStore directly — it is a REST API client
 
 ## Alternatives Considered
 
@@ -163,15 +163,15 @@ Source System (CMS, Design Tool, Code Repo)
 
 - **XLIFF as container**: XLIFF is an interchange format for translatable content, not a project container. It has no support for bundling previews, original source files, or project-level metadata alongside translation data.
 
-- **Directory-based projects** (no database): Harder to query and version. The ContentStore provides SQL queryability, atomic transactions, and content-addressed deduplication. File-based projects are Kapi's domain ([AD-016](./016-kapi-project-model.md)), not the server's.
+- **Directory-based projects** (no database): Harder to query and version. The ContentStore provides SQL queryability, atomic transactions, and content-addressed deduplication. File-based projects are the Bowrain CLI's domain ([AD-016](./016-kapi-project-model.md)), not the server's.
 
-- **Shared store between Kapi and server**: Kapi operates on local files, not a local ContentStore. Introducing a local database for Kapi would add unnecessary complexity. The `.kapi/.sync-cache` file provides lightweight sync tracking (block hashes + cursor) without requiring SQLite.
+- **Shared store between CLI and server**: Bowrain CLI operates on local files, not a local ContentStore. Introducing a local database would add unnecessary complexity. The `.bowrain/.sync-cache` file provides lightweight sync tracking (block hashes + cursor) without requiring SQLite.
 
 ## Consequences
 
 - ContentStore is **Bowrain Server only** — it powers the multi-user, multi-workspace platform backend.
 
-- **Kapi does not use ContentStore directly.** Kapi operates on local files with `.kapi/` project directories ([AD-016](./016-kapi-project-model.md)) and syncs with the server via REST API.
+- **Bowrain CLI does not use ContentStore directly.** It operates on local files with `.bowrain/` project directories ([AD-016](./016-kapi-project-model.md)) and syncs with the server via REST API.
 
 - Content-addressed storage eliminates duplicate work on repeated content. Blocks that appear across documents or projects are stored and processed once.
 
@@ -187,4 +187,4 @@ Source System (CMS, Design Tool, Code Repo)
 
 - The ContentStore interface abstracts the storage layer — SQLite and PostgreSQL are both production-ready, and additional backends require only a new implementation.
 
-- Kapi and Bowrain Server share the same block hashing algorithm (`BlockIdentity`), enabling efficient sync without re-parsing or re-processing unchanged content.
+- Bowrain CLI and Bowrain Server share the same block hashing algorithm (`BlockIdentity`), enabling efficient sync without re-parsing or re-processing unchanged content.

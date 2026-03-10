@@ -1,8 +1,8 @@
 ---
 sidebar_position: 8
-title: "Kapi Sync Protocol"
+title: "Bowrain Sync Protocol"
 ---
-# Kapi Sync Protocol
+# Bowrain Sync Protocol
 
 This note provides implementation details for [AD-016](/docs/ad/016-kapi-project-model).
 

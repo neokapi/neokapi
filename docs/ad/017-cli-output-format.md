@@ -7,7 +7,7 @@ title: "AD-017: CLI Output Format Flags"
 
 ## Context
 
-The Kapi CLI outputs information in various formats across different commands. Currently, output formatting is inconsistent:
+Both Kapi and Bowrain CLIs output information in various formats across different commands. The shared CLI base (`cli/output/`) provides consistent output formatting:
 
 - Some commands (`flow run`, tool commands) support `--json` flags
 - Most commands default to human-readable text with no format option
@@ -24,11 +24,11 @@ All Kapi commands that produce output will support consistent format flags:
 
 ```bash
 # Flag variants (all equivalent)
-kapi status --json                    # Short form for JSON
-kapi status --text                    # Short form for text (default)
-kapi status --output-format=json      # Explicit long form
-kapi status --output-format=text      # Explicit long form
-kapi status -o json                   # Short flag form
+bowrain status --json                    # Short form for JSON
+bowrain status --text                    # Short form for text (default)
+bowrain status --output-format=json      # Explicit long form
+bowrain status --output-format=text      # Explicit long form
+bowrain status -o json                   # Short flag form
 ```
 
 **Supported formats:**
@@ -151,7 +151,7 @@ Each command defines its JSON output structure. The structure should be:
 Example JSON outputs:
 
 ```json
-// kapi status --json
+// bowrain status --json
 {
   "project": {
     "path": "/path/to/project",

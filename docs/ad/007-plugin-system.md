@@ -169,7 +169,7 @@ sources supply format presets:
   for format `okf_html`.
 - **Plugin presets**: Defined in `presets.yaml` within plugin version directories.
   Plugins can ship presets for any format they provide.
-- **Local presets**: Defined in `.kapi/config.yaml` under `format_presets:`.
+- **Local presets**: Defined in `.bowrain/config.yaml` under `format_presets:`.
   Users create project-specific configurations.
 
 #### Framework Presets
@@ -178,8 +178,8 @@ A **framework preset** is a project setup template providing mappings, format
 configs, exclude patterns, and flow defaults. Built-in templates (Next.js,
 react-intl, Angular) ship with kapi; plugins can add more.
 
-Framework presets are applied via `kapi init --preset nextjs` and set the `preset:`
-field in `config.yaml` for documentation.
+Framework presets are applied via `bowrain init --preset nextjs` and set the `preset:`
+field in `.bowrain/config.yaml` for documentation.
 
 #### Configuration Layering
 
