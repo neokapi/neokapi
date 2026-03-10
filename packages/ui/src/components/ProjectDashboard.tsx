@@ -73,7 +73,7 @@ export function ProjectDashboard({
         )}
 
         {projects.length > 0 && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(min(300px,100%),1fr))] gap-4">
             {projects.map((p) => (
               <GlassCard
                 key={p.id}

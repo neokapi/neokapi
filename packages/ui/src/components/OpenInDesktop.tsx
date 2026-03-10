@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useIsMobile } from "../hooks/useIsMobile";
 import { Button } from "./ui/button";
 import { X, Monitor } from "./icons";
 
@@ -23,6 +24,7 @@ function buildDeepLink(projectId: string, serverURL: string, workspaceSlug: stri
 }
 
 export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDesktopProps) {
+  const isMobile = useIsMobile();
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem(DISMISSED_KEY) === "true";
@@ -73,7 +75,7 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
     setShowFallback(false);
   }, [projectId]);
 
-  if (dismissed) return null;
+  if (dismissed || isMobile) return null;
 
   const osLabel = os !== "unknown" ? ` for ${os}` : "";
 
