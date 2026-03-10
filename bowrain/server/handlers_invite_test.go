@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/gokapi/gokapi/bowrain/mailer"
 	platauth "github.com/gokapi/gokapi/platform/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,10 @@ func (m *mockEmailSender) getSent() []sentEmail {
 
 func TestSendInviteEmail(t *testing.T) {
 	mock := &mockEmailSender{}
-	s := &Server{EmailSender: mock}
+	m, err := mailer.New(mock)
+	require.NoError(t, err)
+
+	s := &Server{Mailer: m}
 
 	inv := &platauth.Invite{
 		Code:  "abc123def456",
