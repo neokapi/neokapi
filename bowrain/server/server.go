@@ -75,6 +75,10 @@ type Server struct {
 	// AutomationRuleStore persists automation rules. Nil when not configured.
 	AutomationRuleStore *event.RuleStore
 
+	// SessionStore holds ephemeral auth states (device codes, OIDC states).
+	// Backed by Redis when configured, otherwise in-memory.
+	SessionStore SessionStateStore
+
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
 
@@ -107,6 +111,20 @@ func NewServer(cfg ServerConfig) *Server {
 		wsStores:       newWorkspaceStores(cfg.DataDir),
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
+	}
+
+	// Initialize session state store (Redis or in-memory).
+	if cfg.RedisURL != "" {
+		rs, err := NewRedisSessionStore(cfg.RedisURL, cfg.RedisPassword)
+		if err != nil {
+			log.Printf("WARNING: failed to connect to Redis for session store: %v (falling back to in-memory)", err)
+			s.SessionStore = NewMemorySessionStore()
+		} else {
+			s.SessionStore = rs
+			log.Printf("Using Redis session store at %s", cfg.RedisURL)
+		}
+	} else {
+		s.SessionStore = NewMemorySessionStore()
 	}
 
 	// Initialize credential store.

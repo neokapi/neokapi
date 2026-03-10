@@ -233,6 +233,7 @@ dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
 	BOWRAIN_SMTP_HOST=localhost:1025 \
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_STORE=bowrain-dev.db \
+	BOWRAIN_REDIS_URL=redis://localhost:6379 \
 	bin/bowrain-server
 
 dev-web: ## Run web UI dev server with HMR (proxy → localhost:8080)

@@ -6,12 +6,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -23,65 +23,36 @@ import (
 
 // deviceCodeEntry stores the state of a pending device authorization.
 type deviceCodeEntry struct {
-	UserCode   string
-	ExpiresAt  time.Time
-	Interval   int
-	ClientID   string
-	Authorized bool // set to true when user approves via callback
-	UserEmail  string
-	UserName   string
-	OIDCSub    string // OIDC subject identifier (Keycloak UUID)
+	UserCode   string `json:"user_code"`
+	Interval   int    `json:"interval"`
+	ClientID   string `json:"client_id"`
+	Authorized bool   `json:"authorized"` // set to true when user approves via callback
+	UserEmail  string `json:"user_email"`
+	UserName   string `json:"user_name"`
+	OIDCSub    string `json:"oidc_sub"` // OIDC subject identifier (Keycloak UUID)
 }
-
-// deviceCodeStore is an in-memory store for pending device codes.
-// In production this would be backed by Redis or the database.
-var deviceCodes = struct {
-	sync.Mutex
-	entries map[string]*deviceCodeEntry
-}{entries: make(map[string]*deviceCodeEntry)}
 
 // webAuthEntry stores the state of a pending web OIDC authorization.
 type webAuthEntry struct {
-	CodeVerifier string
-	Nonce        string
-	ExpiresAt    time.Time
+	CodeVerifier string `json:"code_verifier"`
+	Nonce        string `json:"nonce"`
 }
-
-// webAuthStates is an in-memory store for pending web auth states.
-var webAuthStates = struct {
-	sync.Mutex
-	entries map[string]*webAuthEntry
-}{entries: make(map[string]*webAuthEntry)}
 
 // desktopAuthEntry stores the state of a pending desktop PKCE authorization.
 type desktopAuthEntry struct {
-	RedirectURI   string    // desktop's localhost callback URL
-	CodeChallenge string    // PKCE code_challenge from the desktop
-	CodeVerifier  string    // server-side PKCE verifier for OIDC exchange
-	Nonce         string    // OIDC nonce for ID token replay protection
-	ExpiresAt     time.Time // expiry for this entry
+	RedirectURI   string `json:"redirect_uri"`  // desktop's localhost callback URL
+	CodeChallenge string `json:"code_challenge"` // PKCE code_challenge from the desktop
+	CodeVerifier  string `json:"code_verifier"`  // server-side PKCE verifier for OIDC exchange
+	Nonce         string `json:"nonce"`          // OIDC nonce for ID token replay protection
 }
-
-// desktopAuthStates is an in-memory store for pending desktop auth states.
-var desktopAuthStates = struct {
-	sync.Mutex
-	entries map[string]*desktopAuthEntry
-}{entries: make(map[string]*desktopAuthEntry)}
 
 // deviceVerifyEntry maps an OIDC state to a pending device code during
 // the device verification flow (user authenticates via OIDC to authorize the device).
 type deviceVerifyEntry struct {
-	DeviceCode   string
-	CodeVerifier string // server-side PKCE verifier for OIDC exchange
-	Nonce        string // OIDC nonce for ID token replay protection
-	ExpiresAt    time.Time
+	DeviceCode   string `json:"device_code"`
+	CodeVerifier string `json:"code_verifier"` // server-side PKCE verifier for OIDC exchange
+	Nonce        string `json:"nonce"`         // OIDC nonce for ID token replay protection
 }
-
-// deviceVerifyStates is an in-memory store for pending device verification OIDC states.
-var deviceVerifyStates = struct {
-	sync.Mutex
-	entries map[string]*deviceVerifyEntry
-}{entries: make(map[string]*deviceVerifyEntry)}
 
 func randomHex(n int) string {
 	b := make([]byte, n)
@@ -117,53 +88,8 @@ func newOIDCAuthParams() (*oidcAuthParams, error) {
 	}, nil
 }
 
-func init() {
-	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			cleanupExpiredAuthStates()
-		}
-	}()
-}
-
-// cleanupExpiredAuthStates removes expired entries from all in-memory auth
-// state stores. Called periodically by the background goroutine.
-func cleanupExpiredAuthStates() {
-	now := time.Now()
-
-	deviceCodes.Lock()
-	for k, v := range deviceCodes.entries {
-		if now.After(v.ExpiresAt) {
-			delete(deviceCodes.entries, k)
-		}
-	}
-	deviceCodes.Unlock()
-
-	webAuthStates.Lock()
-	for k, v := range webAuthStates.entries {
-		if now.After(v.ExpiresAt) {
-			delete(webAuthStates.entries, k)
-		}
-	}
-	webAuthStates.Unlock()
-
-	desktopAuthStates.Lock()
-	for k, v := range desktopAuthStates.entries {
-		if now.After(v.ExpiresAt) {
-			delete(desktopAuthStates.entries, k)
-		}
-	}
-	desktopAuthStates.Unlock()
-
-	deviceVerifyStates.Lock()
-	for k, v := range deviceVerifyStates.entries {
-		if now.After(v.ExpiresAt) {
-			delete(deviceVerifyStates.entries, k)
-		}
-	}
-	deviceVerifyStates.Unlock()
-}
+// authStateTTL is the TTL for ephemeral auth states (device codes, OIDC states).
+const authStateTTL = 10 * time.Minute
 
 // HandleDeviceAuthStart starts the device authorization flow (RFC 8628).
 // The client receives a device_code and user_code. The user opens the
@@ -174,17 +100,23 @@ func (s *Server) HandleDeviceAuthStart(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "client_id required"})
 	}
 
+	ctx := c.Request().Context()
 	deviceCode := randomHex(16)
 	userCode := randomUserCode()
 
-	deviceCodes.Lock()
-	deviceCodes.entries[deviceCode] = &deviceCodeEntry{
-		UserCode:  userCode,
-		ExpiresAt: time.Now().Add(10 * time.Minute),
-		Interval:  5,
-		ClientID:  clientID,
+	entry := &deviceCodeEntry{
+		UserCode: userCode,
+		Interval: 5,
+		ClientID: clientID,
 	}
-	deviceCodes.Unlock()
+	if err := sessionSet(ctx, s.SessionStore, prefixDeviceCode, deviceCode, entry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store device code: " + err.Error()})
+	}
+
+	// Store secondary index: userCode → deviceCode for lookup during verification.
+	if err := s.SessionStore.Set(ctx, prefixUserCode+userCode, []byte(deviceCode), authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store user code index: " + err.Error()})
+	}
 
 	baseURL := requestBaseURL(c)
 
@@ -209,19 +141,13 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "device_code required"})
 	}
 
-	deviceCodes.Lock()
-	entry, ok := deviceCodes.entries[deviceCode]
-	deviceCodes.Unlock()
-
-	if !ok {
+	ctx := c.Request().Context()
+	entry, err := sessionGet[deviceCodeEntry](ctx, s.SessionStore, prefixDeviceCode, deviceCode)
+	if errors.Is(err, ErrSessionNotFound) {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid_grant"})
 	}
-
-	if time.Now().After(entry.ExpiresAt) {
-		deviceCodes.Lock()
-		delete(deviceCodes.entries, deviceCode)
-		deviceCodes.Unlock()
-		return c.JSON(http.StatusBadRequest, map[string]string{"error": "expired_token"})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "lookup device code: " + err.Error()})
 	}
 
 	if !entry.Authorized {
@@ -229,7 +155,6 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	}
 
 	// User authorized — create or retrieve user and generate token.
-	ctx := c.Request().Context()
 	user, err := s.Services.Auth.GetOrCreateUser(ctx, entry.UserEmail, entry.UserName, "", entry.OIDCSub)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
@@ -248,10 +173,9 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	rtHash := sha256.Sum256([]byte(refreshToken))
 	_, _ = s.AuthStore.StoreRefreshToken(ctx, user.ID, hex.EncodeToString(rtHash[:]), time.Now().Add(30*24*time.Hour))
 
-	// Clean up the device code.
-	deviceCodes.Lock()
-	delete(deviceCodes.entries, deviceCode)
-	deviceCodes.Unlock()
+	// Clean up the device code and its user code index.
+	_ = sessionDelete(ctx, s.SessionStore, prefixDeviceCode, deviceCode)
+	_ = s.SessionStore.Delete(ctx, prefixUserCode+entry.UserCode)
 
 	return c.JSON(http.StatusOK, platformAuth.TokenResponse{
 		AccessToken:  token,
@@ -334,13 +258,14 @@ func (s *Server) HandleAuthLogin(c echo.Context) error {
 	}
 
 	// Store state → web auth entry for validation in the callback.
-	webAuthStates.Lock()
-	webAuthStates.entries[ap.State] = &webAuthEntry{
+	ctx := c.Request().Context()
+	webEntry := &webAuthEntry{
 		CodeVerifier: ap.CodeVerifier,
 		Nonce:        ap.Nonce,
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
 	}
-	webAuthStates.Unlock()
+	if err := sessionSet(ctx, s.SessionStore, prefixWebAuth, ap.State, webEntry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store auth state: " + err.Error()})
+	}
 
 	params := url.Values{
 		"client_id":             {s.Config.OIDCClientID},
@@ -440,15 +365,16 @@ func (s *Server) HandleDesktopLogin(c echo.Context) error {
 	}
 
 	// Store the state mapping.
-	desktopAuthStates.Lock()
-	desktopAuthStates.entries[ap.State] = &desktopAuthEntry{
+	ctx := c.Request().Context()
+	desktopEntry := &desktopAuthEntry{
 		RedirectURI:   redirectURI,
 		CodeChallenge: codeChallenge,
 		CodeVerifier:  ap.CodeVerifier,
 		Nonce:         ap.Nonce,
-		ExpiresAt:     time.Now().Add(10 * time.Minute),
 	}
-	desktopAuthStates.Unlock()
+	if err := sessionSet(ctx, s.SessionStore, prefixDesktopAuth, ap.State, desktopEntry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store auth state: " + err.Error()})
+	}
 
 	params := url.Values{
 		"client_id":             {s.Config.OIDCClientID},
@@ -489,19 +415,14 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	}
 
 	// Look up and consume the pending state.
-	desktopAuthStates.Lock()
-	entry, ok := desktopAuthStates.entries[state]
-	if ok {
-		delete(desktopAuthStates.entries, state)
-	}
-	desktopAuthStates.Unlock()
-
-	if !ok || time.Now().After(entry.ExpiresAt) {
+	ctx := c.Request().Context()
+	entry, err := sessionGet[desktopAuthEntry](ctx, s.SessionStore, prefixDesktopAuth, state)
+	if err != nil {
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
 <h1>Invalid or Expired Session</h1><p>Please try signing in again from the desktop app.</p></body></html>`)
 	}
+	_ = sessionDelete(ctx, s.SessionStore, prefixDesktopAuth, state)
 
-	ctx := c.Request().Context()
 	serverCallbackURI := requestBaseURL(c) + "/api/v1/auth/desktop/callback"
 
 	// Exchange the authorization code with the OIDC provider.
@@ -590,18 +511,20 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 // programmatic clients (E2E tests, CLI helpers) to complete the device flow
 // without driving a full browser-based OIDC login.
 func (s *Server) handleDeviceVerification(c echo.Context, userCode string) error {
-	// Find the matching device code entry.
-	deviceCodes.Lock()
-	var matchedCode string
-	for code, entry := range deviceCodes.entries {
-		if entry.UserCode == userCode && !entry.Authorized {
-			matchedCode = code
-			break
-		}
+	// Find the matching device code via the secondary userCode → deviceCode index.
+	ctx := c.Request().Context()
+	deviceCodeBytes, err := s.SessionStore.Get(ctx, prefixUserCode+userCode)
+	if errors.Is(err, ErrSessionNotFound) {
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
-	deviceCodes.Unlock()
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "lookup user code: " + err.Error()})
+	}
+	matchedCode := string(deviceCodeBytes)
 
-	if matchedCode == "" {
+	// Verify the device code entry exists and is not already authorized.
+	entry, err := sessionGet[deviceCodeEntry](ctx, s.SessionStore, prefixDeviceCode, matchedCode)
+	if err != nil || entry.Authorized {
 		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
 
@@ -645,14 +568,15 @@ func (s *Server) handleDeviceVerificationOIDC(c echo.Context, deviceCode string)
 	}
 
 	// Store the state → device_code mapping.
-	deviceVerifyStates.Lock()
-	deviceVerifyStates.entries[ap.State] = &deviceVerifyEntry{
+	ctx := c.Request().Context()
+	verifyEntry := &deviceVerifyEntry{
 		DeviceCode:   deviceCode,
 		CodeVerifier: ap.CodeVerifier,
 		Nonce:        ap.Nonce,
-		ExpiresAt:    time.Now().Add(10 * time.Minute),
 	}
-	deviceVerifyStates.Unlock()
+	if err := sessionSet(ctx, s.SessionStore, prefixDeviceVerify, ap.State, verifyEntry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "store verify state: " + err.Error()})
+	}
 
 	params := url.Values{
 		"client_id":             {s.Config.OIDCClientID},
@@ -687,13 +611,20 @@ func (s *Server) handleDeviceVerificationDirect(c echo.Context, deviceCode strin
 		name = "Bowrain User"
 	}
 
-	deviceCodes.Lock()
-	if entry, ok := deviceCodes.entries[deviceCode]; ok {
-		entry.Authorized = true
-		entry.UserEmail = email
-		entry.UserName = name
+	ctx := c.Request().Context()
+	entry, err := sessionGet[deviceCodeEntry](ctx, s.SessionStore, prefixDeviceCode, deviceCode)
+	if err != nil {
+		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Invalid or expired code. Please check and try again."))
 	}
-	deviceCodes.Unlock()
+
+	entry.Authorized = true
+	entry.UserEmail = email
+	entry.UserName = name
+
+	// Re-store the updated entry (preserves remaining TTL in Redis).
+	if err := sessionSet(ctx, s.SessionStore, prefixDeviceCode, deviceCode, entry, authStateTTL); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "update device code: " + err.Error()})
+	}
 
 	return c.Redirect(http.StatusFound, "/device/authorized")
 }
@@ -721,18 +652,13 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	}
 
 	// Look up and consume the pending state → device_code mapping.
-	deviceVerifyStates.Lock()
-	entry, ok := deviceVerifyStates.entries[state]
-	if ok {
-		delete(deviceVerifyStates.entries, state)
-	}
-	deviceVerifyStates.Unlock()
-
-	if !ok || time.Now().After(entry.ExpiresAt) {
+	ctx := c.Request().Context()
+	verifyEntry, err := sessionGet[deviceVerifyEntry](ctx, s.SessionStore, prefixDeviceVerify, state)
+	if err != nil {
 		return c.Redirect(http.StatusFound, "/device/verify?error="+url.QueryEscape("Session expired. Please try again."))
 	}
+	_ = sessionDelete(ctx, s.SessionStore, prefixDeviceVerify, state)
 
-	ctx := c.Request().Context()
 	callbackURI := requestBaseURL(c) + "/api/v1/auth/device/callback"
 
 	// Exchange the authorization code with the OIDC provider.
@@ -747,7 +673,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "OIDC discovery failed: " + err.Error()})
 	}
 
-	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(entry.CodeVerifier))
+	oauth2Token, err := oauth2Cfg.Exchange(ctx, code, oauth2.VerifierOption(verifyEntry.CodeVerifier))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "code exchange: " + err.Error()})
 	}
@@ -769,7 +695,7 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	}
 
 	// Verify nonce to prevent ID token replay.
-	if idToken.Nonce != entry.Nonce {
+	if idToken.Nonce != verifyEntry.Nonce {
 		return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "nonce mismatch"})
 	}
 
@@ -782,14 +708,14 @@ func (s *Server) HandleDeviceAuthCallback(c echo.Context) error {
 	}
 
 	// Mark the device as authorized with the real OIDC identity.
-	deviceCodes.Lock()
-	if dce, exists := deviceCodes.entries[entry.DeviceCode]; exists {
-		dce.Authorized = true
-		dce.UserEmail = claims.Email
-		dce.UserName = claims.Name
-		dce.OIDCSub = idToken.Subject
+	dcEntry, err := sessionGet[deviceCodeEntry](ctx, s.SessionStore, prefixDeviceCode, verifyEntry.DeviceCode)
+	if err == nil {
+		dcEntry.Authorized = true
+		dcEntry.UserEmail = claims.Email
+		dcEntry.UserName = claims.Name
+		dcEntry.OIDCSub = idToken.Subject
+		_ = sessionSet(ctx, s.SessionStore, prefixDeviceCode, verifyEntry.DeviceCode, dcEntry, authStateTTL)
 	}
-	deviceCodes.Unlock()
 
 	return c.Redirect(http.StatusFound, "/device/authorized")
 }
@@ -858,17 +784,12 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	}
 
 	// Look up and consume the pending web auth state.
-	webAuthStates.Lock()
-	webEntry, ok := webAuthStates.entries[state]
-	if ok {
-		delete(webAuthStates.entries, state)
-	}
-	webAuthStates.Unlock()
-
-	if !ok || time.Now().After(webEntry.ExpiresAt) {
+	webEntry, err := sessionGet[webAuthEntry](ctx, s.SessionStore, prefixWebAuth, state)
+	if err != nil {
 		return c.HTML(http.StatusBadRequest, `<!DOCTYPE html><html><body style="font-family:system-ui;text-align:center;padding:60px">
 <h1>Invalid or Expired Session</h1><p>Please try signing in again.</p></body></html>`)
 	}
+	_ = sessionDelete(ctx, s.SessionStore, prefixWebAuth, state)
 
 	redirectURL := requestBaseURL(c) + "/api/v1/auth/callback"
 
