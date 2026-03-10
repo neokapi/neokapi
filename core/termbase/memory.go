@@ -12,20 +12,41 @@ import (
 	"github.com/gokapi/gokapi/core/sievepen"
 )
 
+// DefaultMaxConcepts is the default maximum number of concepts in an InMemoryTermBase.
+// A value of 0 means unlimited.
+const DefaultMaxConcepts = 0
+
 // InMemoryTermBase is a thread-safe, in-memory implementation of TermBase
 // with normalized and fuzzy term matching.
 type InMemoryTermBase struct {
-	mu       sync.RWMutex
-	concepts []Concept
-	byID     map[string]int // concept ID → index
+	mu          sync.RWMutex
+	concepts    []Concept
+	byID        map[string]int // concept ID → index
+	maxConcepts int            // 0 = unlimited
+}
+
+// InMemoryTermBaseOption configures an InMemoryTermBase instance.
+type InMemoryTermBaseOption func(*InMemoryTermBase)
+
+// WithMaxConcepts sets the maximum number of concepts. When the limit is reached,
+// the oldest concept is evicted to make room. A value of 0 means unlimited.
+func WithMaxConcepts(max int) InMemoryTermBaseOption {
+	return func(tb *InMemoryTermBase) {
+		tb.maxConcepts = max
+	}
 }
 
 // NewInMemoryTermBase creates a new empty in-memory termbase.
-func NewInMemoryTermBase() *InMemoryTermBase {
-	return &InMemoryTermBase{
-		concepts: make([]Concept, 0),
-		byID:     make(map[string]int),
+func NewInMemoryTermBase(opts ...InMemoryTermBaseOption) *InMemoryTermBase {
+	tb := &InMemoryTermBase{
+		concepts:    make([]Concept, 0),
+		byID:        make(map[string]int),
+		maxConcepts: DefaultMaxConcepts,
 	}
+	for _, opt := range opts {
+		opt(tb)
+	}
+	return tb
 }
 
 // AddConcept inserts or updates a concept.
@@ -51,9 +72,35 @@ func (tb *InMemoryTermBase) AddConcept(concept Concept) error {
 		return nil
 	}
 
+	// Evict the oldest concept if we've reached the size limit.
+	if tb.maxConcepts > 0 && len(tb.concepts) >= tb.maxConcepts {
+		tb.evictOldest()
+	}
+
 	tb.byID[concept.ID] = len(tb.concepts)
 	tb.concepts = append(tb.concepts, concept)
 	return nil
+}
+
+// evictOldest removes the first (oldest) concept. Caller must hold tb.mu.
+func (tb *InMemoryTermBase) evictOldest() {
+	if len(tb.concepts) == 0 {
+		return
+	}
+	oldest := tb.concepts[0]
+	delete(tb.byID, oldest.ID)
+
+	// Shift concepts and update index map.
+	copy(tb.concepts, tb.concepts[1:])
+	tb.concepts = tb.concepts[:len(tb.concepts)-1]
+	for id, idx := range tb.byID {
+		tb.byID[id] = idx - 1
+	}
+}
+
+// MaxConcepts returns the configured maximum concept count (0 = unlimited).
+func (tb *InMemoryTermBase) MaxConcepts() int {
+	return tb.maxConcepts
 }
 
 // GetConcept retrieves a concept by ID.

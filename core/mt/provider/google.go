@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/gokapi/gokapi/core/httputil"
 	"github.com/gokapi/gokapi/core/model"
 )
 
@@ -38,17 +39,18 @@ func (c *GoogleConfig) baseURL() string {
 
 // GoogleProvider implements MTProvider using the Google Cloud Translation API v2.
 type GoogleProvider struct {
-	cfg GoogleConfig
+	cfg    GoogleConfig
+	client *http.Client
 }
 
 // NewGoogleProvider creates a new Google Translate MT provider.
 func NewGoogleProvider(cfg GoogleConfig) *GoogleProvider {
-	return &GoogleProvider{cfg: cfg}
+	return &GoogleProvider{cfg: cfg, client: httputil.NewResilientClient()}
 }
 
 func (p *GoogleProvider) Name() string { return "google" }
 
-func (p *GoogleProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+func (p *GoogleProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	reqBody := googleTranslateRequest{
 		Q:      req.Source,
 		Target: string(req.TargetLocale),
@@ -64,7 +66,13 @@ func (p *GoogleProvider) Translate(_ context.Context, req TranslateRequest) (*Tr
 	}
 
 	apiURL := fmt.Sprintf("%s/language/translate/v2?key=%s", p.cfg.baseURL(), p.cfg.APIKey)
-	resp, err := http.Post(apiURL, "application/json", bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("http request: %w", err)
 	}

@@ -9,20 +9,41 @@ import (
 	"github.com/gokapi/gokapi/core/model"
 )
 
+// DefaultMaxEntries is the default maximum number of entries in an InMemoryTM.
+// A value of 0 means unlimited.
+const DefaultMaxEntries = 0
+
 // InMemoryTM is a thread-safe, in-memory implementation of TranslationMemory
 // with content-aware tiered matching (generalized → structural → plain).
 type InMemoryTM struct {
-	mu      sync.RWMutex
-	entries []TMEntry
-	byID    map[string]int // maps entry ID to index in entries slice
+	mu         sync.RWMutex
+	entries    []TMEntry
+	byID       map[string]int // maps entry ID to index in entries slice
+	maxEntries int            // 0 = unlimited
+}
+
+// InMemoryTMOption configures an InMemoryTM instance.
+type InMemoryTMOption func(*InMemoryTM)
+
+// WithMaxEntries sets the maximum number of entries. When the limit is reached,
+// the oldest entry is evicted to make room. A value of 0 means unlimited.
+func WithMaxEntries(max int) InMemoryTMOption {
+	return func(tm *InMemoryTM) {
+		tm.maxEntries = max
+	}
 }
 
 // NewInMemoryTM creates a new empty in-memory translation memory.
-func NewInMemoryTM() *InMemoryTM {
-	return &InMemoryTM{
-		entries: make([]TMEntry, 0),
-		byID:    make(map[string]int),
+func NewInMemoryTM(opts ...InMemoryTMOption) *InMemoryTM {
+	tm := &InMemoryTM{
+		entries:    make([]TMEntry, 0),
+		byID:       make(map[string]int),
+		maxEntries: DefaultMaxEntries,
 	}
+	for _, opt := range opts {
+		opt(tm)
+	}
+	return tm
 }
 
 // Add inserts or updates an entry in the translation memory.
@@ -43,9 +64,35 @@ func (tm *InMemoryTM) Add(entry TMEntry) error {
 		return nil
 	}
 
+	// Evict the oldest entry if we've reached the size limit.
+	if tm.maxEntries > 0 && len(tm.entries) >= tm.maxEntries {
+		tm.evictOldest()
+	}
+
 	tm.byID[entry.ID] = len(tm.entries)
 	tm.entries = append(tm.entries, entry)
 	return nil
+}
+
+// evictOldest removes the first (oldest) entry. Caller must hold tm.mu.
+func (tm *InMemoryTM) evictOldest() {
+	if len(tm.entries) == 0 {
+		return
+	}
+	oldest := tm.entries[0]
+	delete(tm.byID, oldest.ID)
+
+	// Shift entries and update index map.
+	copy(tm.entries, tm.entries[1:])
+	tm.entries = tm.entries[:len(tm.entries)-1]
+	for id, idx := range tm.byID {
+		tm.byID[id] = idx - 1
+	}
+}
+
+// MaxEntries returns the configured maximum entry count (0 = unlimited).
+func (tm *InMemoryTM) MaxEntries() int {
+	return tm.maxEntries
 }
 
 // Lookup searches for matches using tiered matching. The source Block's

@@ -32,6 +32,9 @@ func (s *ConnectorService) ListConnectorTypes() []connector.ConnectorInfo {
 
 // AddConnector creates and registers an active connector instance.
 func (s *ConnectorService) AddConnector(name string, config map[string]string) (connector.IntegrationConnector, error) {
+	if name == "" {
+		return nil, fmt.Errorf("connector name is required")
+	}
 	c, err := s.connectorReg.NewConnector(name, config)
 	if err != nil {
 		return nil, fmt.Errorf("create connector %s: %w", name, err)
@@ -70,6 +73,9 @@ func (s *ConnectorService) ListActive() []connector.IntegrationConnector {
 
 // Fetch retrieves content from a connector and stores it in the project.
 func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
+	if projectID == "" {
+		return nil, fmt.Errorf("project ID is required")
+	}
 	c, ok := s.active[connectorID]
 	if !ok {
 		return nil, fmt.Errorf("connector %s not found", connectorID)
@@ -80,12 +86,15 @@ func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID str
 		return nil, fmt.Errorf("fetch from %s: %w", connectorID, err)
 	}
 
-	// Store fetched blocks in the content store.
+	// Collect all blocks and store them in a single call so the underlying
+	// transaction is atomic — either all blocks are persisted or none are.
+	var allBlocks []*model.Block
 	for _, item := range items {
-		if len(item.Blocks) > 0 {
-			if err := s.store.StoreBlocks(ctx, projectID, item.Blocks); err != nil {
-				return nil, fmt.Errorf("store blocks from %s: %w", item.Path, err)
-			}
+		allBlocks = append(allBlocks, item.Blocks...)
+	}
+	if len(allBlocks) > 0 {
+		if err := s.store.StoreBlocks(ctx, projectID, allBlocks); err != nil {
+			return nil, fmt.Errorf("store fetched blocks: %w", err)
 		}
 	}
 
@@ -94,6 +103,9 @@ func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID str
 
 // Publish sends content from the store to a connector.
 func (s *ConnectorService) Publish(ctx context.Context, connectorID, projectID string, opts connector.PublishOptions) error {
+	if projectID == "" {
+		return fmt.Errorf("project ID is required")
+	}
 	c, ok := s.active[connectorID]
 	if !ok {
 		return fmt.Errorf("connector %s not found", connectorID)

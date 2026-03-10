@@ -1848,6 +1848,7 @@ type AddTMEntryRequest struct {
 	Target        string                 `protobuf:"bytes,3,opt,name=target,proto3" json:"target,omitempty"`
 	SourceLocale  string                 `protobuf:"bytes,4,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,5,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,6,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1913,6 +1914,13 @@ func (x *AddTMEntryRequest) GetSourceLocale() string {
 func (x *AddTMEntryRequest) GetTargetLocale() string {
 	if x != nil {
 		return x.TargetLocale
+	}
+	return ""
+}
+
+func (x *AddTMEntryRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
 	}
 	return ""
 }
@@ -2503,6 +2511,7 @@ type AddConceptRequest struct {
 	Domain        string                 `protobuf:"bytes,2,opt,name=domain,proto3" json:"domain,omitempty"`
 	Definition    string                 `protobuf:"bytes,3,opt,name=definition,proto3" json:"definition,omitempty"`
 	Terms         []*TermInfo            `protobuf:"bytes,4,rep,name=terms,proto3" json:"terms,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,5,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2565,6 +2574,13 @@ func (x *AddConceptRequest) GetTerms() []*TermInfo {
 	return nil
 }
 
+func (x *AddConceptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
 type ConceptResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Concept       *ConceptInfo           `protobuf:"bytes,1,opt,name=concept,proto3" json:"concept,omitempty"`
@@ -2616,6 +2632,7 @@ type UpdateConceptRequest struct {
 	Domain        string                 `protobuf:"bytes,3,opt,name=domain,proto3" json:"domain,omitempty"`
 	Definition    string                 `protobuf:"bytes,4,opt,name=definition,proto3" json:"definition,omitempty"`
 	Terms         []*TermInfo            `protobuf:"bytes,5,rep,name=terms,proto3" json:"terms,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,6,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2683,6 +2700,13 @@ func (x *UpdateConceptRequest) GetTerms() []*TermInfo {
 		return x.Terms
 	}
 	return nil
+}
+
+func (x *UpdateConceptRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
 }
 
 type DeleteConceptRequest struct {
@@ -3976,13 +4000,15 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x0eTMCountRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"'\n" +
 	"\x0fTMCountResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xb4\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xd3\x01\n" +
 	"\x11AddTMEntryRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
 	"\x06target\x18\x03 \x01(\tR\x06target\x12#\n" +
 	"\rsource_locale\x18\x04 \x01(\tR\fsourceLocale\x12#\n" +
-	"\rtarget_locale\x18\x05 \x01(\tR\ftargetLocale\"F\n" +
+	"\rtarget_locale\x18\x05 \x01(\tR\ftargetLocale\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x06 \x01(\tR\tprojectId\"F\n" +
 	"\x0fTMEntryResponse\x123\n" +
 	"\x05entry\x18\x01 \x01(\v2\x1d.gokapi.server.v1.TMEntryInfoR\x05entry\"\xd2\x01\n" +
 	"\x14UpdateTMEntryRequest\x12%\n" +
@@ -4033,16 +4059,18 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x10TermCountRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\")\n" +
 	"\x11TermCountResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xa4\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xc3\x01\n" +
 	"\x11AddConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1e\n" +
 	"\n" +
 	"definition\x18\x03 \x01(\tR\n" +
 	"definition\x120\n" +
-	"\x05terms\x18\x04 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\"J\n" +
+	"\x05terms\x18\x04 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x05 \x01(\tR\tprojectId\"J\n" +
 	"\x0fConceptResponse\x127\n" +
-	"\aconcept\x18\x01 \x01(\v2\x1d.gokapi.server.v1.ConceptInfoR\aconcept\"\xc6\x01\n" +
+	"\aconcept\x18\x01 \x01(\v2\x1d.gokapi.server.v1.ConceptInfoR\aconcept\"\xe5\x01\n" +
 	"\x14UpdateConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -4051,7 +4079,9 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"definition\x18\x04 \x01(\tR\n" +
 	"definition\x120\n" +
-	"\x05terms\x18\x05 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\"\\\n" +
+	"\x05terms\x18\x05 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x06 \x01(\tR\tprojectId\"\\\n" +
 	"\x14DeleteConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +

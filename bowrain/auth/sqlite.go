@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
@@ -613,12 +614,16 @@ func (s *SQLiteAuthStore) ValidateRefreshTokenByHash(ctx context.Context, tokenH
 	expiresAt, _ := time.Parse(time.RFC3339, expiresStr)
 	if time.Now().After(expiresAt) {
 		// Expired — delete and reject.
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id)
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id); err != nil {
+			log.Printf("WARNING: failed to delete expired refresh token %s: %v", id, err)
+		}
 		return "", fmt.Errorf("refresh token expired")
 	}
 
 	// Single-use: delete after successful validation (token rotation).
-	_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = ?`, id); err != nil {
+		log.Printf("WARNING: failed to delete consumed refresh token %s: %v", id, err)
+	}
 	return userID, nil
 }
 

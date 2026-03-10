@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/gokapi/gokapi/bowrain/storage"
@@ -412,12 +413,16 @@ func (s *PostgresAuthStore) ValidateRefreshTokenByHash(ctx context.Context, toke
 	}
 
 	if time.Now().After(expiresAt) {
-		_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id)
+		if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id); err != nil {
+			log.Printf("WARNING: failed to delete expired refresh token %s: %v", id, err)
+		}
 		return "", fmt.Errorf("refresh token expired")
 	}
 
 	// Single-use: delete after successful validation (token rotation).
-	_, _ = s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id)
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM refresh_tokens WHERE id = $1`, id); err != nil {
+		log.Printf("WARNING: failed to delete consumed refresh token %s: %v", id, err)
+	}
 	return userID, nil
 }
 
