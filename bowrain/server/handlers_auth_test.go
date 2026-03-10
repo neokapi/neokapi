@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -35,13 +36,6 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	var resp platauth.DeviceAuthResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.Equal(t, "https://bowrain.mymac/device/verify", resp.VerificationURI)
-
-	// Clean up.
-	deviceCodes.Lock()
-	for dc := range deviceCodes.entries {
-		delete(deviceCodes.entries, dc)
-	}
-	deviceCodes.Unlock()
 }
 
 func TestHandleDeviceVerificationFormValues(t *testing.T) {
@@ -61,19 +55,10 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	// Parse user_code from response.
-	body := rec.Body.String()
-	require.Contains(t, body, "user_code")
-
-	// Extract user_code and device_code.
-	var userCode, deviceCode string
-	deviceCodes.Lock()
-	for dc, entry := range deviceCodes.entries {
-		deviceCode = dc
-		userCode = entry.UserCode
-		break
-	}
-	deviceCodes.Unlock()
+	var startResp platauth.DeviceAuthResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &startResp))
+	userCode := startResp.UserCode
+	deviceCode := startResp.DeviceCode
 	require.NotEmpty(t, userCode)
 	require.NotEmpty(t, deviceCode)
 
@@ -92,12 +77,9 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	assert.Equal(t, "/device/authorized", rec2.Header().Get("Location"))
 
 	// Verify the entry was authorized with the correct email/name.
-	deviceCodes.Lock()
-	entry, ok := deviceCodes.entries[deviceCode]
-	deviceCodes.Unlock()
-
-	if ok {
-		// Entry might have been consumed by poll, but if still there, check fields.
+	ctx := context.Background()
+	entry, err := sessionGet[deviceCodeEntry](ctx, srv.SessionStore, prefixDeviceCode, deviceCode)
+	if err == nil {
 		assert.True(t, entry.Authorized)
 		assert.Equal(t, "test@example.com", entry.UserEmail)
 		assert.Equal(t, "Test User", entry.UserName)
@@ -111,12 +93,11 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
 
-	// Manually create a device code entry.
-	deviceCodes.Lock()
-	deviceCodes.entries["test-device-default"] = &deviceCodeEntry{
-		UserCode: "aaaa-bbbb",
-	}
-	deviceCodes.Unlock()
+	// Manually create a device code entry and user code index.
+	ctx := context.Background()
+	entry := &deviceCodeEntry{UserCode: "aaaa-bbbb"}
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, "test-device-default", entry, authStateTTL))
+	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"aaaa-bbbb", []byte("test-device-default"), authStateTTL))
 
 	e := echo.New()
 	e.POST("/verify", func(c echo.Context) error {
@@ -130,18 +111,10 @@ func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	assert.Equal(t, http.StatusFound, rec.Code)
 	assert.Equal(t, "/device/authorized", rec.Header().Get("Location"))
 
-	deviceCodes.Lock()
-	entry := deviceCodes.entries["test-device-default"]
-	deviceCodes.Unlock()
-
-	require.NotNil(t, entry)
-	assert.Equal(t, "user@bowrain.local", entry.UserEmail)
-	assert.Equal(t, "Bowrain User", entry.UserName)
-
-	// Clean up.
-	deviceCodes.Lock()
-	delete(deviceCodes.entries, "test-device-default")
-	deviceCodes.Unlock()
+	updated, err := sessionGet[deviceCodeEntry](ctx, srv.SessionStore, prefixDeviceCode, "test-device-default")
+	require.NoError(t, err)
+	assert.Equal(t, "user@bowrain.local", updated.UserEmail)
+	assert.Equal(t, "Bowrain User", updated.UserName)
 }
 
 func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
@@ -180,19 +153,14 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
 
-	// Create a pending device code entry.
-	deviceCodes.Lock()
-	deviceCodes.entries["test-oidc-device"] = &deviceCodeEntry{
-		UserCode:  "cccc-dddd",
-		ExpiresAt: time.Now().Add(10 * time.Minute),
-		ClientID:  "kapi-cli",
+	// Create a pending device code entry with user code index.
+	ctx := context.Background()
+	entry := &deviceCodeEntry{
+		UserCode: "cccc-dddd",
+		ClientID: "kapi-cli",
 	}
-	deviceCodes.Unlock()
-	defer func() {
-		deviceCodes.Lock()
-		delete(deviceCodes.entries, "test-oidc-device")
-		deviceCodes.Unlock()
-	}()
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, "test-oidc-device", entry, authStateTTL))
+	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"cccc-dddd", []byte("test-oidc-device"), authStateTTL))
 
 	e := echo.New()
 	e.POST("/verify", func(c echo.Context) error {
@@ -222,18 +190,11 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	assert.Equal(t, "S256", parsed.Query().Get("code_challenge_method"))
 	assert.NotEmpty(t, parsed.Query().Get("nonce"), "nonce must be set")
 
-	deviceVerifyStates.Lock()
-	entry, ok := deviceVerifyStates.entries[state]
-	deviceVerifyStates.Unlock()
-	require.True(t, ok, "state should be stored in deviceVerifyStates")
-	assert.Equal(t, "test-oidc-device", entry.DeviceCode)
-	assert.NotEmpty(t, entry.CodeVerifier, "entry should have CodeVerifier")
-	assert.NotEmpty(t, entry.Nonce, "entry should have Nonce")
-
-	// Clean up state.
-	deviceVerifyStates.Lock()
-	delete(deviceVerifyStates.entries, state)
-	deviceVerifyStates.Unlock()
+	verifyEntry, err := sessionGet[deviceVerifyEntry](ctx, srv.SessionStore, prefixDeviceVerify, state)
+	require.NoError(t, err, "state should be stored in session store")
+	assert.Equal(t, "test-oidc-device", verifyEntry.DeviceCode)
+	assert.NotEmpty(t, verifyEntry.CodeVerifier, "entry should have CodeVerifier")
+	assert.NotEmpty(t, verifyEntry.Nonce, "entry should have Nonce")
 }
 
 func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
@@ -270,52 +231,17 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 	assert.Contains(t, rec.Header().Get("Location"), "/device/verify?error=")
 }
 
-func TestHandleDeviceAuthCallbackExpiredState(t *testing.T) {
-	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
-	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
-	e := srv.GetEcho()
-
-	// Insert an expired state entry.
-	deviceVerifyStates.Lock()
-	deviceVerifyStates.entries["expired-device-state"] = &deviceVerifyEntry{
-		DeviceCode: "some-device",
-		ExpiresAt:  time.Now().Add(-time.Hour),
-	}
-	deviceVerifyStates.Unlock()
-
-	params := url.Values{
-		"code":  {"some-code"},
-		"state": {"expired-device-state"},
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/device/callback?"+params.Encode(), nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusFound, rec.Code)
-	assert.Contains(t, rec.Header().Get("Location"), "/device/verify?error=")
-
-	// State should have been consumed.
-	deviceVerifyStates.Lock()
-	_, exists := deviceVerifyStates.entries["expired-device-state"]
-	deviceVerifyStates.Unlock()
-	assert.False(t, exists)
-}
-
 func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	// Verify state entries are consumed after use (even on OIDC exchange failure).
-	state := "test-device-cleanup"
-	deviceVerifyStates.Lock()
-	deviceVerifyStates.entries[state] = &deviceVerifyEntry{
-		DeviceCode: "dev-code-123",
-		ExpiresAt:  time.Now().Add(10 * time.Minute),
-	}
-	deviceVerifyStates.Unlock()
-
 	cfg := DefaultServerConfig()
 	cfg.StorePath = t.TempDir() + "/test.db"
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+
+	ctx := context.Background()
+	state := "test-device-cleanup"
+	verifyEntry := &deviceVerifyEntry{DeviceCode: "dev-code-123"}
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceVerify, state, verifyEntry, authStateTTL))
 
 	e := echo.New()
 	e.GET("/callback", func(c echo.Context) error {
@@ -332,10 +258,8 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	// State should have been consumed regardless of OIDC exchange outcome.
-	deviceVerifyStates.Lock()
-	_, exists := deviceVerifyStates.entries[state]
-	deviceVerifyStates.Unlock()
-	assert.False(t, exists, "state entry should be consumed after callback")
+	_, err := sessionGet[deviceVerifyEntry](ctx, srv.SessionStore, prefixDeviceVerify, state)
+	assert.ErrorIs(t, err, ErrSessionNotFound, "state entry should be consumed after callback")
 }
 
 // --- Desktop auth (PKCE) tests ---
@@ -456,54 +380,20 @@ func TestHandleDesktopCallbackInvalidState(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
 }
 
-func TestHandleDesktopCallbackExpiredState(t *testing.T) {
-	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
-	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
-	e := srv.GetEcho()
-
-	// Insert an expired state entry.
-	desktopAuthStates.Lock()
-	desktopAuthStates.entries["expired-state"] = &desktopAuthEntry{
-		RedirectURI:   "http://127.0.0.1:12345/callback",
-		CodeChallenge: "test",
-		ExpiresAt:     time.Now().Add(-time.Hour),
-	}
-	desktopAuthStates.Unlock()
-
-	params := url.Values{
-		"code":  {"some-code"},
-		"state": {"expired-state"},
-	}
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/desktop/callback?"+params.Encode(), nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
-
-	// State should have been consumed.
-	desktopAuthStates.Lock()
-	_, exists := desktopAuthStates.entries["expired-state"]
-	desktopAuthStates.Unlock()
-	assert.False(t, exists)
-}
-
 func TestDesktopAuthStatesCleanup(t *testing.T) {
 	// Verify that state entries are cleaned up after use.
-	state := "test-cleanup-state"
-	desktopAuthStates.Lock()
-	desktopAuthStates.entries[state] = &desktopAuthEntry{
-		RedirectURI:   "http://127.0.0.1:54321/callback",
-		CodeChallenge: "challenge",
-		ExpiresAt:     time.Now().Add(10 * time.Minute),
-	}
-	desktopAuthStates.Unlock()
-
 	cfg := DefaultServerConfig()
 	cfg.StorePath = t.TempDir() + "/test.db"
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+
+	ctx := context.Background()
+	state := "test-cleanup-state"
+	desktopEntry := &desktopAuthEntry{
+		RedirectURI:   "http://127.0.0.1:54321/callback",
+		CodeChallenge: "challenge",
+	}
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDesktopAuth, state, desktopEntry, authStateTTL))
 
 	e := echo.New()
 	e.GET("/callback", func(c echo.Context) error {
@@ -520,10 +410,8 @@ func TestDesktopAuthStatesCleanup(t *testing.T) {
 	e.ServeHTTP(rec, req)
 
 	// State should have been consumed regardless of OIDC exchange outcome.
-	desktopAuthStates.Lock()
-	_, exists := desktopAuthStates.entries[state]
-	desktopAuthStates.Unlock()
-	assert.False(t, exists, "state entry should be consumed after callback")
+	_, err := sessionGet[desktopAuthEntry](ctx, srv.SessionStore, prefixDesktopAuth, state)
+	assert.ErrorIs(t, err, ErrSessionNotFound, "state entry should be consumed after callback")
 }
 
 // --- Web flow state validation tests ---
@@ -577,14 +465,12 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 	state := parsed.Query().Get("state")
 	require.NotEmpty(t, state, "redirect URL should have a state parameter")
 
-	// Verify state is stored in webAuthStates.
-	webAuthStates.Lock()
-	entry, ok := webAuthStates.entries[state]
-	webAuthStates.Unlock()
-	require.True(t, ok, "state should be stored in webAuthStates")
+	// Verify state is stored in session store.
+	ctx := context.Background()
+	entry, err := sessionGet[webAuthEntry](ctx, srv.SessionStore, prefixWebAuth, state)
+	require.NoError(t, err, "state should be stored in session store")
 	assert.NotEmpty(t, entry.CodeVerifier)
 	assert.NotEmpty(t, entry.Nonce)
-	assert.False(t, entry.ExpiresAt.IsZero())
 
 	// Step 2: Calling handleOIDCCodeExchange with the state should consume it
 	// (will fail at OIDC exchange, but state should still be consumed).
@@ -593,10 +479,8 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 	e.ServeHTTP(rec2, req2)
 
 	// State should have been consumed.
-	webAuthStates.Lock()
-	_, exists := webAuthStates.entries[state]
-	webAuthStates.Unlock()
-	assert.False(t, exists, "state entry should be consumed after callback")
+	_, err = sessionGet[webAuthEntry](ctx, srv.SessionStore, prefixWebAuth, state)
+	assert.ErrorIs(t, err, ErrSessionNotFound, "state entry should be consumed after callback")
 }
 
 func TestWebFlowCallbackWithoutState(t *testing.T) {
@@ -614,37 +498,6 @@ func TestWebFlowCallbackWithoutState(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
-}
-
-func TestWebFlowCallbackExpiredState(t *testing.T) {
-	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
-	cfg.JWTSecret = "test-secret"
-	cfg.OIDCIssuerURL = "http://localhost:8180"
-	cfg.OIDCClientID = "test-client"
-	srv := NewServer(cfg)
-	e := srv.GetEcho()
-
-	// Insert an expired state entry.
-	webAuthStates.Lock()
-	webAuthStates.entries["expired-web-state"] = &webAuthEntry{
-		CodeVerifier: "verifier",
-		Nonce:        "nonce",
-		ExpiresAt:    time.Now().Add(-time.Hour),
-	}
-	webAuthStates.Unlock()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/callback?code=fake-code&state=expired-web-state", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid or Expired")
-
-	// State should have been consumed.
-	webAuthStates.Lock()
-	_, exists := webAuthStates.entries["expired-web-state"]
-	webAuthStates.Unlock()
-	assert.False(t, exists)
 }
 
 // --- PKCE + Nonce in OIDC redirects ---
@@ -702,13 +555,6 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 		e.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusFound, rec.Code)
 		assertPKCEAndNonce(t, rec.Header().Get("Location"))
-
-		// Clean up the web auth state.
-		parsed, _ := url.Parse(rec.Header().Get("Location"))
-		state := parsed.Query().Get("state")
-		webAuthStates.Lock()
-		delete(webAuthStates.entries, state)
-		webAuthStates.Unlock()
 	})
 
 	t.Run("desktop flow", func(t *testing.T) {
@@ -722,29 +568,17 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 		e.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusFound, rec.Code)
 		assertPKCEAndNonce(t, rec.Header().Get("Location"))
-
-		// Clean up.
-		parsed, _ := url.Parse(rec.Header().Get("Location"))
-		state := parsed.Query().Get("state")
-		desktopAuthStates.Lock()
-		delete(desktopAuthStates.entries, state)
-		desktopAuthStates.Unlock()
 	})
 
 	t.Run("device flow", func(t *testing.T) {
-		// Set up a pending device code.
-		deviceCodes.Lock()
-		deviceCodes.entries["pkce-test-device"] = &deviceCodeEntry{
-			UserCode:  "eeee-ffff",
-			ExpiresAt: time.Now().Add(10 * time.Minute),
-			ClientID:  "kapi-cli",
+		// Set up a pending device code via session store.
+		ctx := context.Background()
+		entry := &deviceCodeEntry{
+			UserCode: "eeee-ffff",
+			ClientID: "kapi-cli",
 		}
-		deviceCodes.Unlock()
-		defer func() {
-			deviceCodes.Lock()
-			delete(deviceCodes.entries, "pkce-test-device")
-			deviceCodes.Unlock()
-		}()
+		require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, "pkce-test-device", entry, authStateTTL))
+		require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"eeee-ffff", []byte("pkce-test-device"), authStateTTL))
 
 		ep := echo.New()
 		ep.POST("/verify", func(c echo.Context) error {
@@ -756,13 +590,6 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 		ep.ServeHTTP(rec, req)
 		require.Equal(t, http.StatusFound, rec.Code)
 		assertPKCEAndNonce(t, rec.Header().Get("Location"))
-
-		// Clean up.
-		parsed, _ := url.Parse(rec.Header().Get("Location"))
-		state := parsed.Query().Get("state")
-		deviceVerifyStates.Lock()
-		delete(deviceVerifyStates.entries, state)
-		deviceVerifyStates.Unlock()
 	})
 }
 
@@ -810,17 +637,11 @@ func TestDesktopEntryHasPKCEAndNonce(t *testing.T) {
 	require.NotEmpty(t, state)
 
 	// Verify the stored entry has PKCE and nonce.
-	desktopAuthStates.Lock()
-	entry, ok := desktopAuthStates.entries[state]
-	desktopAuthStates.Unlock()
-	require.True(t, ok)
+	ctx := context.Background()
+	entry, err := sessionGet[desktopAuthEntry](ctx, srv.SessionStore, prefixDesktopAuth, state)
+	require.NoError(t, err)
 	assert.NotEmpty(t, entry.CodeVerifier, "desktop entry must have CodeVerifier")
 	assert.NotEmpty(t, entry.Nonce, "desktop entry must have Nonce")
-
-	// Clean up.
-	desktopAuthStates.Lock()
-	delete(desktopAuthStates.entries, state)
-	desktopAuthStates.Unlock()
 }
 
 func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
@@ -849,19 +670,14 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
 
-	// Create a pending device code.
-	deviceCodes.Lock()
-	deviceCodes.entries["pkce-nonce-test-device"] = &deviceCodeEntry{
-		UserCode:  "gggg-hhhh",
-		ExpiresAt: time.Now().Add(10 * time.Minute),
-		ClientID:  "kapi-cli",
+	// Create a pending device code via session store.
+	ctx := context.Background()
+	entry := &deviceCodeEntry{
+		UserCode: "gggg-hhhh",
+		ClientID: "kapi-cli",
 	}
-	deviceCodes.Unlock()
-	defer func() {
-		deviceCodes.Lock()
-		delete(deviceCodes.entries, "pkce-nonce-test-device")
-		deviceCodes.Unlock()
-	}()
+	require.NoError(t, sessionSet(ctx, srv.SessionStore, prefixDeviceCode, "pkce-nonce-test-device", entry, authStateTTL))
+	require.NoError(t, srv.SessionStore.Set(ctx, prefixUserCode+"gggg-hhhh", []byte("pkce-nonce-test-device"), authStateTTL))
 
 	e := echo.New()
 	e.POST("/verify", func(c echo.Context) error {
@@ -879,88 +695,32 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	require.NotEmpty(t, state)
 
 	// Verify the stored entry has PKCE and nonce.
-	deviceVerifyStates.Lock()
-	entry, ok := deviceVerifyStates.entries[state]
-	deviceVerifyStates.Unlock()
-	require.True(t, ok)
-	assert.NotEmpty(t, entry.CodeVerifier, "device verify entry must have CodeVerifier")
-	assert.NotEmpty(t, entry.Nonce, "device verify entry must have Nonce")
-
-	// Clean up.
-	deviceVerifyStates.Lock()
-	delete(deviceVerifyStates.entries, state)
-	deviceVerifyStates.Unlock()
+	verifyEntry, err := sessionGet[deviceVerifyEntry](ctx, srv.SessionStore, prefixDeviceVerify, state)
+	require.NoError(t, err)
+	assert.NotEmpty(t, verifyEntry.CodeVerifier, "device verify entry must have CodeVerifier")
+	assert.NotEmpty(t, verifyEntry.Nonce, "device verify entry must have Nonce")
 }
 
-func TestCleanupExpiredAuthStates(t *testing.T) {
-	now := time.Now()
+func TestMemorySessionStoreExpiry(t *testing.T) {
+	store := NewMemorySessionStore()
+	defer store.Close()
 
-	// Insert expired entries in all 4 stores.
-	deviceCodes.Lock()
-	deviceCodes.entries["expired-dc"] = &deviceCodeEntry{ExpiresAt: now.Add(-time.Hour)}
-	deviceCodes.entries["valid-dc"] = &deviceCodeEntry{ExpiresAt: now.Add(time.Hour)}
-	deviceCodes.Unlock()
+	ctx := context.Background()
 
-	webAuthStates.Lock()
-	webAuthStates.entries["expired-web"] = &webAuthEntry{ExpiresAt: now.Add(-time.Hour)}
-	webAuthStates.entries["valid-web"] = &webAuthEntry{ExpiresAt: now.Add(time.Hour)}
-	webAuthStates.Unlock()
+	// Set a value with very short TTL.
+	require.NoError(t, store.Set(ctx, "test-key", []byte("value"), 1*time.Millisecond))
 
-	desktopAuthStates.Lock()
-	desktopAuthStates.entries["expired-desktop"] = &desktopAuthEntry{ExpiresAt: now.Add(-time.Hour)}
-	desktopAuthStates.entries["valid-desktop"] = &desktopAuthEntry{ExpiresAt: now.Add(time.Hour)}
-	desktopAuthStates.Unlock()
+	// Should be available immediately.
+	val, err := store.Get(ctx, "test-key")
+	require.NoError(t, err)
+	assert.Equal(t, []byte("value"), val)
 
-	deviceVerifyStates.Lock()
-	deviceVerifyStates.entries["expired-device"] = &deviceVerifyEntry{ExpiresAt: now.Add(-time.Hour)}
-	deviceVerifyStates.entries["valid-device"] = &deviceVerifyEntry{ExpiresAt: now.Add(time.Hour)}
-	deviceVerifyStates.Unlock()
+	// Wait for expiry.
+	time.Sleep(5 * time.Millisecond)
 
-	// Trigger cleanup.
-	cleanupExpiredAuthStates()
-
-	// Verify expired entries are removed and valid entries remain.
-	deviceCodes.Lock()
-	_, expiredDC := deviceCodes.entries["expired-dc"]
-	_, validDC := deviceCodes.entries["valid-dc"]
-	deviceCodes.Unlock()
-	assert.False(t, expiredDC, "expired device code should be removed")
-	assert.True(t, validDC, "valid device code should remain")
-
-	webAuthStates.Lock()
-	_, expiredWeb := webAuthStates.entries["expired-web"]
-	_, validWeb := webAuthStates.entries["valid-web"]
-	webAuthStates.Unlock()
-	assert.False(t, expiredWeb, "expired web state should be removed")
-	assert.True(t, validWeb, "valid web state should remain")
-
-	desktopAuthStates.Lock()
-	_, expiredDesktop := desktopAuthStates.entries["expired-desktop"]
-	_, validDesktop := desktopAuthStates.entries["valid-desktop"]
-	desktopAuthStates.Unlock()
-	assert.False(t, expiredDesktop, "expired desktop state should be removed")
-	assert.True(t, validDesktop, "valid desktop state should remain")
-
-	deviceVerifyStates.Lock()
-	_, expiredDV := deviceVerifyStates.entries["expired-device"]
-	_, validDV := deviceVerifyStates.entries["valid-device"]
-	deviceVerifyStates.Unlock()
-	assert.False(t, expiredDV, "expired device verify state should be removed")
-	assert.True(t, validDV, "valid device verify state should remain")
-
-	// Clean up valid entries.
-	deviceCodes.Lock()
-	delete(deviceCodes.entries, "valid-dc")
-	deviceCodes.Unlock()
-	webAuthStates.Lock()
-	delete(webAuthStates.entries, "valid-web")
-	webAuthStates.Unlock()
-	desktopAuthStates.Lock()
-	delete(desktopAuthStates.entries, "valid-desktop")
-	desktopAuthStates.Unlock()
-	deviceVerifyStates.Lock()
-	delete(deviceVerifyStates.entries, "valid-device")
-	deviceVerifyStates.Unlock()
+	// Should be expired.
+	_, err = store.Get(ctx, "test-key")
+	assert.ErrorIs(t, err, ErrSessionNotFound)
 }
 
 // --- Cookie auth tests ---

@@ -80,6 +80,9 @@ func main() {
 	if envRedis := os.Getenv("BOWRAIN_REDIS_URL"); envRedis != "" {
 		cfg.RedisURL = envRedis
 	}
+	if envRedisPassword := os.Getenv("BOWRAIN_REDIS_PASSWORD"); envRedisPassword != "" {
+		cfg.RedisPassword = envRedisPassword
+	}
 	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
 		cfg.WebUIDir = envWebUI
 	}

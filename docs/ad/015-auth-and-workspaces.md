@@ -147,6 +147,28 @@ CREATE TABLE workspace_members (
 The existing `projects` table gains a `workspace_id` column (migration 4)
 to associate projects with workspaces.
 
+### Ephemeral Auth State: SessionStateStore
+
+During OIDC handshakes (device flow, web login, desktop PKCE), the server stores
+short-lived state entries (device codes, PKCE verifiers, OIDC nonces). These
+entries have a 10-minute TTL and are write-once/read-once.
+
+A `SessionStateStore` interface abstracts this storage:
+
+| Backend | When used | Configuration |
+|---------|-----------|--------------|
+| In-memory | Default; single instance | No config needed |
+| Redis | Multi-instance / horizontal scaling | Set `BOWRAIN_REDIS_URL` |
+
+When `BOWRAIN_REDIS_URL` is set, the server uses Redis with `SETEX` for
+automatic key expiry. When absent, it falls back to an in-memory store with
+lazy expiry and periodic background cleanup. The Redis backend also accepts
+`BOWRAIN_REDIS_PASSWORD` for environments where the password is managed
+separately from the URL (e.g. Azure Key Vault references).
+
+Durable auth data (refresh tokens, API tokens) remains in the database
+(SQLite/PostgreSQL). Only ephemeral handshake states go through Redis.
+
 ### Server Modes
 
 | Feature | `bowrain-server` | `bowrain serve` |
