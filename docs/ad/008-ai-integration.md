@@ -47,10 +47,10 @@ Six AI tools are implemented as standard Tools (see [AD-006](./006-tool-system.m
 | `ai-qa` | `ai/tools/qualitycheck.go` | Check translations for fluency, accuracy, terminology |
 | `ai-terminology` | `ai/tools/terminology.go` | Extract terminology candidates from source Blocks |
 | `ai-review` | `ai/tools/review.go` | Review translations with explanations |
-| `entity-annotate` | planned | Annotate named entities (people, places, dates, products) |
+| `ai-entity-extract` | `ai/tools/entity_extract.go` | Extract named entities and term candidates using LLM + optional NER |
 | `brand-voice-check` | planned | Validate content against brand voice rules (see [AD-010](./010-terminology.md)) |
 
-The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `entity-annotate` tool will produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. See [AD-010](./010-terminology.md) for the full terminology and brand management design.
+The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `ai-entity-extract` tool uses a hybrid approach (LLM via `ChatStructured` + optional NER provider) to produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. It also extracts `TermCandidateAnnotation` entries from the same LLM call, combining entity detection and terminology extraction in a single pass. See [AD-022](./022-entity-term-extraction.md) for the extraction design and [AD-010](./010-terminology.md) for the full terminology and brand management design.
 
 Because AI tools are standard Tools, they compose naturally in flows:
 
@@ -63,7 +63,7 @@ Reader -> TM Leverage -> Term Lookup -> AI Translate -> Term Enforce -> AI QA ->
 AI tools receive terminology context when available. The prompt system includes:
 
 - **Term annotations**: When `term-lookup` has run before AI translation, the matched terms and their preferred translations are included in the prompt, guiding the LLM toward consistent terminology.
-- **Entity annotations**: When `entity-annotate` has run, the identified entities (with DNT flags, locale formatting hints) are included in the prompt context.
+- **Entity annotations**: When `ai-entity-extract` has run, the identified entities (with DNT flags, locale formatting hints) are included in the prompt context.
 - **Glossary constraints**: A dedicated glossary section in the prompt template lists preferred/forbidden terms applicable to the current Block's context (domain, product, market).
 
 This composability means terminology enforcement is not just a validation step -- it actively guides AI translation quality from the start.

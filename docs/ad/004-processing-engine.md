@@ -7,17 +7,11 @@ title: "AD-004: Processing Engine"
 
 ## Context
 
-Okapi uses a synchronous pull-based iterator pattern (`IFilter.hasNext()` /
-`next()`) where each pipeline step pulls the next event from the previous step.
-This is simple but inherently single-threaded: only one step runs at a time,
-and backpressure is implicit in the call stack. Processing multiple documents
-requires external orchestration.
-
-Go's goroutines and channels offer a natural alternative: each processing
-stage runs concurrently in its own goroutine, connected by typed channels.
-We needed both intra-document concurrency (tools running in parallel within
-one document) and inter-document concurrency (multiple documents processed
-simultaneously).
+gokapi's processing engine uses Go's goroutines and channels to run each
+pipeline stage concurrently in its own goroutine, connected by typed channels.
+The engine provides both intra-document concurrency (tools running in parallel
+within one document) and inter-document concurrency (multiple documents
+processed simultaneously).
 
 The processing engine now operates on content from the Content Store
 ([AD-003](./003-content-store.md)), not just raw files. Flows read versioned
@@ -227,8 +221,8 @@ of flow configurations.
 
 ## Alternatives Considered
 
-- **Synchronous iterator** (Okapi style): simpler but no concurrency within
-  a single document's pipeline; poor utilization on multi-core machines.
+- **Synchronous iterator**: simpler but no concurrency within a single
+  document's pipeline; poor utilization on multi-core machines.
 - **Actor model**: more complex; channels achieve the same fan-in/fan-out
   with less abstraction overhead.
 - **Store-less pipeline**: simpler but loses incremental processing and
