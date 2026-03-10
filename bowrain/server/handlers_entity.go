@@ -67,7 +67,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 	key := fmt.Sprintf("entity:%d", idx)
 	block.Annotations[key] = ann
 
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, itemName, []*model.Block{block}); err != nil {
+	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -123,7 +123,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 	}
 
 	block.Annotations[entityKey] = entity
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, itemName, []*model.Block{block}); err != nil {
+	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -152,7 +152,7 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 	}
 
 	delete(block.Annotations, entityKey)
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, itemName, []*model.Block{block}); err != nil {
+	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -207,7 +207,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 	tcKey := fmt.Sprintf("term-candidate:%d", tcIdx)
 	block.Annotations[tcKey] = candidate
 
-	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, itemName, []*model.Block{block}); err != nil {
+	if err := s.ContentStore.StoreBlocksForItem(ctx, projectID, "main", itemName, []*model.Block{block}); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
@@ -218,6 +218,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 func getBlock(ctx context.Context, cs store.ContentStore, projectID, itemName, blockID string) (*model.Block, error) {
 	blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: projectID,
+		Stream:    "main",
 		ItemName:  itemName,
 	})
 	if err != nil {

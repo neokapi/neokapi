@@ -346,6 +346,8 @@ type EditorProjectInfo struct {
 	Items         []*EditorProjectItem   `protobuf:"bytes,5,rep,name=items,proto3" json:"items,omitempty"`
 	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	ModifiedAt    string                 `protobuf:"bytes,7,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	Streams       []*StreamInfo          `protobuf:"bytes,8,rep,name=streams,proto3" json:"streams,omitempty"`                               // available streams
+	ActiveStream  string                 `protobuf:"bytes,9,opt,name=active_stream,json=activeStream,proto3" json:"active_stream,omitempty"` // currently selected stream
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -425,6 +427,20 @@ func (x *EditorProjectInfo) GetCreatedAt() string {
 func (x *EditorProjectInfo) GetModifiedAt() string {
 	if x != nil {
 		return x.ModifiedAt
+	}
+	return ""
+}
+
+func (x *EditorProjectInfo) GetStreams() []*StreamInfo {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+func (x *EditorProjectInfo) GetActiveStream() string {
+	if x != nil {
+		return x.ActiveStream
 	}
 	return ""
 }
@@ -561,6 +577,7 @@ type GetEditorProjectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"` // stream to query (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -609,6 +626,13 @@ func (x *GetEditorProjectRequest) GetProjectId() string {
 	return ""
 }
 
+func (x *GetEditorProjectRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type EditorProjectResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Project       *EditorProjectInfo     `protobuf:"bytes,1,opt,name=project,proto3" json:"project,omitempty"`
@@ -653,6 +677,790 @@ func (x *EditorProjectResponse) GetProject() *EditorProjectInfo {
 	return nil
 }
 
+type StreamInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Parent        string                 `protobuf:"bytes,2,opt,name=parent,proto3" json:"parent,omitempty"`
+	BaseCursor    int64                  `protobuf:"varint,3,opt,name=base_cursor,json=baseCursor,proto3" json:"base_cursor,omitempty"`
+	Archived      bool                   `protobuf:"varint,4,opt,name=archived,proto3" json:"archived,omitempty"`
+	Visibility    string                 `protobuf:"bytes,5,opt,name=visibility,proto3" json:"visibility,omitempty"` // "public", "private", "shared"
+	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	CreatedAt     string                 `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedBy     string                 `protobuf:"bytes,8,opt,name=created_by,json=createdBy,proto3" json:"created_by,omitempty"`
+	SharedWith    []string               `protobuf:"bytes,9,rep,name=shared_with,json=sharedWith,proto3" json:"shared_with,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamInfo) Reset() {
+	*x = StreamInfo{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamInfo) ProtoMessage() {}
+
+func (x *StreamInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamInfo.ProtoReflect.Descriptor instead.
+func (*StreamInfo) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *StreamInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetParent() string {
+	if x != nil {
+		return x.Parent
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetBaseCursor() int64 {
+	if x != nil {
+		return x.BaseCursor
+	}
+	return 0
+}
+
+func (x *StreamInfo) GetArchived() bool {
+	if x != nil {
+		return x.Archived
+	}
+	return false
+}
+
+func (x *StreamInfo) GetVisibility() string {
+	if x != nil {
+		return x.Visibility
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetCreatedBy() string {
+	if x != nil {
+		return x.CreatedBy
+	}
+	return ""
+}
+
+func (x *StreamInfo) GetSharedWith() []string {
+	if x != nil {
+		return x.SharedWith
+	}
+	return nil
+}
+
+type ListStreamsRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug   string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId       string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	IncludeArchived bool                   `protobuf:"varint,3,opt,name=include_archived,json=includeArchived,proto3" json:"include_archived,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ListStreamsRequest) Reset() {
+	*x = ListStreamsRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStreamsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStreamsRequest) ProtoMessage() {}
+
+func (x *ListStreamsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStreamsRequest.ProtoReflect.Descriptor instead.
+func (*ListStreamsRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListStreamsRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *ListStreamsRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ListStreamsRequest) GetIncludeArchived() bool {
+	if x != nil {
+		return x.IncludeArchived
+	}
+	return false
+}
+
+type ListStreamsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Streams       []*StreamInfo          `protobuf:"bytes,1,rep,name=streams,proto3" json:"streams,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStreamsResponse) Reset() {
+	*x = ListStreamsResponse{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStreamsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStreamsResponse) ProtoMessage() {}
+
+func (x *ListStreamsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStreamsResponse.ProtoReflect.Descriptor instead.
+func (*ListStreamsResponse) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListStreamsResponse) GetStreams() []*StreamInfo {
+	if x != nil {
+		return x.Streams
+	}
+	return nil
+}
+
+type CreateStreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Parent        string                 `protobuf:"bytes,4,opt,name=parent,proto3" json:"parent,omitempty"`         // branch from this stream (default: "main")
+	Visibility    string                 `protobuf:"bytes,5,opt,name=visibility,proto3" json:"visibility,omitempty"` // "public", "private", "shared"
+	Description   string                 `protobuf:"bytes,6,opt,name=description,proto3" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateStreamRequest) Reset() {
+	*x = CreateStreamRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateStreamRequest) ProtoMessage() {}
+
+func (x *CreateStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateStreamRequest.ProtoReflect.Descriptor instead.
+func (*CreateStreamRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateStreamRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *CreateStreamRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *CreateStreamRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateStreamRequest) GetParent() string {
+	if x != nil {
+		return x.Parent
+	}
+	return ""
+}
+
+func (x *CreateStreamRequest) GetVisibility() string {
+	if x != nil {
+		return x.Visibility
+	}
+	return ""
+}
+
+func (x *CreateStreamRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+type StreamInfoResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Stream        *StreamInfo            `protobuf:"bytes,1,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StreamInfoResponse) Reset() {
+	*x = StreamInfoResponse{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamInfoResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamInfoResponse) ProtoMessage() {}
+
+func (x *StreamInfoResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StreamInfoResponse.ProtoReflect.Descriptor instead.
+func (*StreamInfoResponse) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *StreamInfoResponse) GetStream() *StreamInfo {
+	if x != nil {
+		return x.Stream
+	}
+	return nil
+}
+
+type GetStreamInfoRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStreamInfoRequest) Reset() {
+	*x = GetStreamInfoRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStreamInfoRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStreamInfoRequest) ProtoMessage() {}
+
+func (x *GetStreamInfoRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStreamInfoRequest.ProtoReflect.Descriptor instead.
+func (*GetStreamInfoRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetStreamInfoRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *GetStreamInfoRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *GetStreamInfoRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+type ArchiveStreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArchiveStreamRequest) Reset() {
+	*x = ArchiveStreamRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArchiveStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArchiveStreamRequest) ProtoMessage() {}
+
+func (x *ArchiveStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArchiveStreamRequest.ProtoReflect.Descriptor instead.
+func (*ArchiveStreamRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *ArchiveStreamRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *ArchiveStreamRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *ArchiveStreamRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+type MergeStreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
+	DryRun        bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MergeStreamRequest) Reset() {
+	*x = MergeStreamRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeStreamRequest) ProtoMessage() {}
+
+func (x *MergeStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeStreamRequest.ProtoReflect.Descriptor instead.
+func (*MergeStreamRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *MergeStreamRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *MergeStreamRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *MergeStreamRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+func (x *MergeStreamRequest) GetDryRun() bool {
+	if x != nil {
+		return x.DryRun
+	}
+	return false
+}
+
+type MergeStreamResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	MergedBlocks   int32                  `protobuf:"varint,1,opt,name=merged_blocks,json=mergedBlocks,proto3" json:"merged_blocks,omitempty"`
+	AddedBlocks    int32                  `protobuf:"varint,2,opt,name=added_blocks,json=addedBlocks,proto3" json:"added_blocks,omitempty"`
+	ModifiedBlocks int32                  `protobuf:"varint,3,opt,name=modified_blocks,json=modifiedBlocks,proto3" json:"modified_blocks,omitempty"`
+	RemovedBlocks  int32                  `protobuf:"varint,4,opt,name=removed_blocks,json=removedBlocks,proto3" json:"removed_blocks,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *MergeStreamResponse) Reset() {
+	*x = MergeStreamResponse{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MergeStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MergeStreamResponse) ProtoMessage() {}
+
+func (x *MergeStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MergeStreamResponse.ProtoReflect.Descriptor instead.
+func (*MergeStreamResponse) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *MergeStreamResponse) GetMergedBlocks() int32 {
+	if x != nil {
+		return x.MergedBlocks
+	}
+	return 0
+}
+
+func (x *MergeStreamResponse) GetAddedBlocks() int32 {
+	if x != nil {
+		return x.AddedBlocks
+	}
+	return 0
+}
+
+func (x *MergeStreamResponse) GetModifiedBlocks() int32 {
+	if x != nil {
+		return x.ModifiedBlocks
+	}
+	return 0
+}
+
+func (x *MergeStreamResponse) GetRemovedBlocks() int32 {
+	if x != nil {
+		return x.RemovedBlocks
+	}
+	return 0
+}
+
+type DiffStreamRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiffStreamRequest) Reset() {
+	*x = DiffStreamRequest{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiffStreamRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffStreamRequest) ProtoMessage() {}
+
+func (x *DiffStreamRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffStreamRequest.ProtoReflect.Descriptor instead.
+func (*DiffStreamRequest) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DiffStreamRequest) GetWorkspaceSlug() string {
+	if x != nil {
+		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *DiffStreamRequest) GetProjectId() string {
+	if x != nil {
+		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *DiffStreamRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
+type BlockChangeInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BlockId       string                 `protobuf:"bytes,1,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	ChangeType    string                 `protobuf:"bytes,2,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"` // "added", "modified", "removed"
+	OldHash       string                 `protobuf:"bytes,3,opt,name=old_hash,json=oldHash,proto3" json:"old_hash,omitempty"`
+	NewHash       string                 `protobuf:"bytes,4,opt,name=new_hash,json=newHash,proto3" json:"new_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BlockChangeInfo) Reset() {
+	*x = BlockChangeInfo{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BlockChangeInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BlockChangeInfo) ProtoMessage() {}
+
+func (x *BlockChangeInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BlockChangeInfo.ProtoReflect.Descriptor instead.
+func (*BlockChangeInfo) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *BlockChangeInfo) GetBlockId() string {
+	if x != nil {
+		return x.BlockId
+	}
+	return ""
+}
+
+func (x *BlockChangeInfo) GetChangeType() string {
+	if x != nil {
+		return x.ChangeType
+	}
+	return ""
+}
+
+func (x *BlockChangeInfo) GetOldHash() string {
+	if x != nil {
+		return x.OldHash
+	}
+	return ""
+}
+
+func (x *BlockChangeInfo) GetNewHash() string {
+	if x != nil {
+		return x.NewHash
+	}
+	return ""
+}
+
+type DiffStreamResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StreamName    string                 `protobuf:"bytes,1,opt,name=stream_name,json=streamName,proto3" json:"stream_name,omitempty"`
+	ParentName    string                 `protobuf:"bytes,2,opt,name=parent_name,json=parentName,proto3" json:"parent_name,omitempty"`
+	Changes       []*BlockChangeInfo     `protobuf:"bytes,3,rep,name=changes,proto3" json:"changes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiffStreamResponse) Reset() {
+	*x = DiffStreamResponse{}
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiffStreamResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiffStreamResponse) ProtoMessage() {}
+
+func (x *DiffStreamResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiffStreamResponse.ProtoReflect.Descriptor instead.
+func (*DiffStreamResponse) Descriptor() ([]byte, []int) {
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DiffStreamResponse) GetStreamName() string {
+	if x != nil {
+		return x.StreamName
+	}
+	return ""
+}
+
+func (x *DiffStreamResponse) GetParentName() string {
+	if x != nil {
+		return x.ParentName
+	}
+	return ""
+}
+
+func (x *DiffStreamResponse) GetChanges() []*BlockChangeInfo {
+	if x != nil {
+		return x.Changes
+	}
+	return nil
+}
+
 type SpanInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SpanType      string                 `protobuf:"bytes,1,opt,name=span_type,json=spanType,proto3" json:"span_type,omitempty"` // "opening", "closing", "placeholder"
@@ -671,7 +1479,7 @@ type SpanInfo struct {
 
 func (x *SpanInfo) Reset() {
 	*x = SpanInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[11]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -683,7 +1491,7 @@ func (x *SpanInfo) String() string {
 func (*SpanInfo) ProtoMessage() {}
 
 func (x *SpanInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[11]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -696,7 +1504,7 @@ func (x *SpanInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpanInfo.ProtoReflect.Descriptor instead.
 func (*SpanInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{11}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *SpanInfo) GetSpanType() string {
@@ -786,7 +1594,7 @@ type BlockInfo struct {
 
 func (x *BlockInfo) Reset() {
 	*x = BlockInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[12]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -798,7 +1606,7 @@ func (x *BlockInfo) String() string {
 func (*BlockInfo) ProtoMessage() {}
 
 func (x *BlockInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[12]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -811,7 +1619,7 @@ func (x *BlockInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockInfo.ProtoReflect.Descriptor instead.
 func (*BlockInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{12}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *BlockInfo) GetId() string {
@@ -882,13 +1690,14 @@ type GetBlocksRequest struct {
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	ItemName      string                 `protobuf:"bytes,3,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"`
+	Stream        string                 `protobuf:"bytes,4,opt,name=stream,proto3" json:"stream,omitempty"` // stream scope (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBlocksRequest) Reset() {
 	*x = GetBlocksRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[13]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -900,7 +1709,7 @@ func (x *GetBlocksRequest) String() string {
 func (*GetBlocksRequest) ProtoMessage() {}
 
 func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[13]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -913,7 +1722,7 @@ func (x *GetBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksRequest.ProtoReflect.Descriptor instead.
 func (*GetBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{13}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GetBlocksRequest) GetWorkspaceSlug() string {
@@ -937,6 +1746,13 @@ func (x *GetBlocksRequest) GetItemName() string {
 	return ""
 }
 
+func (x *GetBlocksRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type GetBlocksResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Blocks        []*BlockInfo           `protobuf:"bytes,1,rep,name=blocks,proto3" json:"blocks,omitempty"`
@@ -946,7 +1762,7 @@ type GetBlocksResponse struct {
 
 func (x *GetBlocksResponse) Reset() {
 	*x = GetBlocksResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[14]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -958,7 +1774,7 @@ func (x *GetBlocksResponse) String() string {
 func (*GetBlocksResponse) ProtoMessage() {}
 
 func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[14]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -971,7 +1787,7 @@ func (x *GetBlocksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBlocksResponse.ProtoReflect.Descriptor instead.
 func (*GetBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{14}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GetBlocksResponse) GetBlocks() []*BlockInfo {
@@ -990,13 +1806,14 @@ type UpdateBlockTargetRequest struct {
 	Text          string                 `protobuf:"bytes,5,opt,name=text,proto3" json:"text,omitempty"`                            // plain text (no spans)
 	CodedText     string                 `protobuf:"bytes,6,opt,name=coded_text,json=codedText,proto3" json:"coded_text,omitempty"` // coded text with PUA markers (optional)
 	Spans         []*SpanInfo            `protobuf:"bytes,7,rep,name=spans,proto3" json:"spans,omitempty"`                          // spans for coded text (optional)
+	Stream        string                 `protobuf:"bytes,8,opt,name=stream,proto3" json:"stream,omitempty"`                        // stream scope (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateBlockTargetRequest) Reset() {
 	*x = UpdateBlockTargetRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[15]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1008,7 +1825,7 @@ func (x *UpdateBlockTargetRequest) String() string {
 func (*UpdateBlockTargetRequest) ProtoMessage() {}
 
 func (x *UpdateBlockTargetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[15]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1021,7 +1838,7 @@ func (x *UpdateBlockTargetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBlockTargetRequest.ProtoReflect.Descriptor instead.
 func (*UpdateBlockTargetRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{15}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *UpdateBlockTargetRequest) GetWorkspaceSlug() string {
@@ -1073,6 +1890,13 @@ func (x *UpdateBlockTargetRequest) GetSpans() []*SpanInfo {
 	return nil
 }
 
+func (x *UpdateBlockTargetRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type ReviewBlockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
@@ -1081,13 +1905,14 @@ type ReviewBlockRequest struct {
 	BlockId       string                 `protobuf:"bytes,4,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,5,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	Reviewed      bool                   `protobuf:"varint,6,opt,name=reviewed,proto3" json:"reviewed,omitempty"` // true = mark reviewed, false = unmark
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"`      // stream scope (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReviewBlockRequest) Reset() {
 	*x = ReviewBlockRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[16]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1924,7 @@ func (x *ReviewBlockRequest) String() string {
 func (*ReviewBlockRequest) ProtoMessage() {}
 
 func (x *ReviewBlockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[16]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1937,7 @@ func (x *ReviewBlockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReviewBlockRequest.ProtoReflect.Descriptor instead.
 func (*ReviewBlockRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{16}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ReviewBlockRequest) GetWorkspaceSlug() string {
@@ -1157,19 +1982,27 @@ func (x *ReviewBlockRequest) GetReviewed() bool {
 	return false
 }
 
+func (x *ReviewBlockRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMLookupRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	BlockId       string                 `protobuf:"bytes,3,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	Stream        string                 `protobuf:"bytes,5,opt,name=stream,proto3" json:"stream,omitempty"` // lookup uses full parent chain inheritance
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TMLookupRequest) Reset() {
 	*x = TMLookupRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[17]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1181,7 +2014,7 @@ func (x *TMLookupRequest) String() string {
 func (*TMLookupRequest) ProtoMessage() {}
 
 func (x *TMLookupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[17]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1194,7 +2027,7 @@ func (x *TMLookupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMLookupRequest.ProtoReflect.Descriptor instead.
 func (*TMLookupRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{17}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *TMLookupRequest) GetWorkspaceSlug() string {
@@ -1225,19 +2058,27 @@ func (x *TMLookupRequest) GetTargetLocale() string {
 	return ""
 }
 
+func (x *TMLookupRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMLookupMatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
 	Target        string                 `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
 	Score         float64                `protobuf:"fixed64,3,opt,name=score,proto3" json:"score,omitempty"`
 	MatchType     string                 `protobuf:"bytes,4,opt,name=match_type,json=matchType,proto3" json:"match_type,omitempty"`
+	Stream        string                 `protobuf:"bytes,5,opt,name=stream,proto3" json:"stream,omitempty"` // which stream this match came from
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TMLookupMatch) Reset() {
 	*x = TMLookupMatch{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[18]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1249,7 +2090,7 @@ func (x *TMLookupMatch) String() string {
 func (*TMLookupMatch) ProtoMessage() {}
 
 func (x *TMLookupMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[18]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1262,7 +2103,7 @@ func (x *TMLookupMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMLookupMatch.ProtoReflect.Descriptor instead.
 func (*TMLookupMatch) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{18}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *TMLookupMatch) GetSource() string {
@@ -1293,6 +2134,13 @@ func (x *TMLookupMatch) GetMatchType() string {
 	return ""
 }
 
+func (x *TMLookupMatch) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMLookupResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Matches       []*TMLookupMatch       `protobuf:"bytes,1,rep,name=matches,proto3" json:"matches,omitempty"`
@@ -1302,7 +2150,7 @@ type TMLookupResponse struct {
 
 func (x *TMLookupResponse) Reset() {
 	*x = TMLookupResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[19]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1314,7 +2162,7 @@ func (x *TMLookupResponse) String() string {
 func (*TMLookupResponse) ProtoMessage() {}
 
 func (x *TMLookupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[19]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1327,7 +2175,7 @@ func (x *TMLookupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMLookupResponse.ProtoReflect.Descriptor instead.
 func (*TMLookupResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{19}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *TMLookupResponse) GetMatches() []*TMLookupMatch {
@@ -1343,13 +2191,14 @@ type TermLookupRequest struct {
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	BlockId       string                 `protobuf:"bytes,3,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	Stream        string                 `protobuf:"bytes,5,opt,name=stream,proto3" json:"stream,omitempty"` // lookup uses full parent chain inheritance
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TermLookupRequest) Reset() {
 	*x = TermLookupRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[20]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +2210,7 @@ func (x *TermLookupRequest) String() string {
 func (*TermLookupRequest) ProtoMessage() {}
 
 func (x *TermLookupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[20]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +2223,7 @@ func (x *TermLookupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermLookupRequest.ProtoReflect.Descriptor instead.
 func (*TermLookupRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{20}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *TermLookupRequest) GetWorkspaceSlug() string {
@@ -1405,6 +2254,13 @@ func (x *TermLookupRequest) GetTargetLocale() string {
 	return ""
 }
 
+func (x *TermLookupRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type BlockTermMatch struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SourceTerm    string                 `protobuf:"bytes,1,opt,name=source_term,json=sourceTerm,proto3" json:"source_term,omitempty"`
@@ -1413,13 +2269,14 @@ type BlockTermMatch struct {
 	Status        string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
 	Start         int32                  `protobuf:"varint,5,opt,name=start,proto3" json:"start,omitempty"`
 	End           int32                  `protobuf:"varint,6,opt,name=end,proto3" json:"end,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"` // which stream this term came from
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BlockTermMatch) Reset() {
 	*x = BlockTermMatch{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[21]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1431,7 +2288,7 @@ func (x *BlockTermMatch) String() string {
 func (*BlockTermMatch) ProtoMessage() {}
 
 func (x *BlockTermMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[21]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1444,7 +2301,7 @@ func (x *BlockTermMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockTermMatch.ProtoReflect.Descriptor instead.
 func (*BlockTermMatch) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{21}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *BlockTermMatch) GetSourceTerm() string {
@@ -1489,6 +2346,13 @@ func (x *BlockTermMatch) GetEnd() int32 {
 	return 0
 }
 
+func (x *BlockTermMatch) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TermLookupResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Matches       []*BlockTermMatch      `protobuf:"bytes,1,rep,name=matches,proto3" json:"matches,omitempty"`
@@ -1498,7 +2362,7 @@ type TermLookupResponse struct {
 
 func (x *TermLookupResponse) Reset() {
 	*x = TermLookupResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[22]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1510,7 +2374,7 @@ func (x *TermLookupResponse) String() string {
 func (*TermLookupResponse) ProtoMessage() {}
 
 func (x *TermLookupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[22]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1523,7 +2387,7 @@ func (x *TermLookupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermLookupResponse.ProtoReflect.Descriptor instead.
 func (*TermLookupResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{22}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *TermLookupResponse) GetMatches() []*BlockTermMatch {
@@ -1541,13 +2405,14 @@ type TMEntriesRequest struct {
 	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	Offset        int32                  `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
 	Limit         int32                  `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"` // filter by stream (empty = all)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TMEntriesRequest) Reset() {
 	*x = TMEntriesRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[23]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1559,7 +2424,7 @@ func (x *TMEntriesRequest) String() string {
 func (*TMEntriesRequest) ProtoMessage() {}
 
 func (x *TMEntriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[23]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1572,7 +2437,7 @@ func (x *TMEntriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMEntriesRequest.ProtoReflect.Descriptor instead.
 func (*TMEntriesRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{23}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *TMEntriesRequest) GetWorkspaceSlug() string {
@@ -1617,6 +2482,13 @@ func (x *TMEntriesRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *TMEntriesRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMEntryInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1625,13 +2497,14 @@ type TMEntryInfo struct {
 	SourceLocale  string                 `protobuf:"bytes,4,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,5,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"` // which stream this entry belongs to
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TMEntryInfo) Reset() {
 	*x = TMEntryInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[24]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1643,7 +2516,7 @@ func (x *TMEntryInfo) String() string {
 func (*TMEntryInfo) ProtoMessage() {}
 
 func (x *TMEntryInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[24]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1656,7 +2529,7 @@ func (x *TMEntryInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMEntryInfo.ProtoReflect.Descriptor instead.
 func (*TMEntryInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{24}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *TMEntryInfo) GetId() string {
@@ -1701,6 +2574,13 @@ func (x *TMEntryInfo) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *TMEntryInfo) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMEntriesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entries       []*TMEntryInfo         `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
@@ -1711,7 +2591,7 @@ type TMEntriesResponse struct {
 
 func (x *TMEntriesResponse) Reset() {
 	*x = TMEntriesResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[25]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1723,7 +2603,7 @@ func (x *TMEntriesResponse) String() string {
 func (*TMEntriesResponse) ProtoMessage() {}
 
 func (x *TMEntriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[25]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1736,7 +2616,7 @@ func (x *TMEntriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMEntriesResponse.ProtoReflect.Descriptor instead.
 func (*TMEntriesResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{25}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *TMEntriesResponse) GetEntries() []*TMEntryInfo {
@@ -1756,13 +2636,14 @@ func (x *TMEntriesResponse) GetTotalCount() int32 {
 type TMCountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	Stream        string                 `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TMCountRequest) Reset() {
 	*x = TMCountRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[26]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1774,7 +2655,7 @@ func (x *TMCountRequest) String() string {
 func (*TMCountRequest) ProtoMessage() {}
 
 func (x *TMCountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[26]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1787,12 +2668,19 @@ func (x *TMCountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMCountRequest.ProtoReflect.Descriptor instead.
 func (*TMCountRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{26}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *TMCountRequest) GetWorkspaceSlug() string {
 	if x != nil {
 		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *TMCountRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
 	}
 	return ""
 }
@@ -1806,7 +2694,7 @@ type TMCountResponse struct {
 
 func (x *TMCountResponse) Reset() {
 	*x = TMCountResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[27]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1818,7 +2706,7 @@ func (x *TMCountResponse) String() string {
 func (*TMCountResponse) ProtoMessage() {}
 
 func (x *TMCountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[27]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1831,7 +2719,7 @@ func (x *TMCountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMCountResponse.ProtoReflect.Descriptor instead.
 func (*TMCountResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{27}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *TMCountResponse) GetCount() int32 {
@@ -1849,13 +2737,14 @@ type AddTMEntryRequest struct {
 	SourceLocale  string                 `protobuf:"bytes,4,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
 	TargetLocale  string                 `protobuf:"bytes,5,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,6,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"` // entry scoped to stream
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddTMEntryRequest) Reset() {
 	*x = AddTMEntryRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[28]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1867,7 +2756,7 @@ func (x *AddTMEntryRequest) String() string {
 func (*AddTMEntryRequest) ProtoMessage() {}
 
 func (x *AddTMEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[28]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1880,7 +2769,7 @@ func (x *AddTMEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTMEntryRequest.ProtoReflect.Descriptor instead.
 func (*AddTMEntryRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{28}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *AddTMEntryRequest) GetWorkspaceSlug() string {
@@ -1925,6 +2814,13 @@ func (x *AddTMEntryRequest) GetProjectId() string {
 	return ""
 }
 
+func (x *AddTMEntryRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TMEntryResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Entry         *TMEntryInfo           `protobuf:"bytes,1,opt,name=entry,proto3" json:"entry,omitempty"`
@@ -1934,7 +2830,7 @@ type TMEntryResponse struct {
 
 func (x *TMEntryResponse) Reset() {
 	*x = TMEntryResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[29]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1946,7 +2842,7 @@ func (x *TMEntryResponse) String() string {
 func (*TMEntryResponse) ProtoMessage() {}
 
 func (x *TMEntryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[29]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1959,7 +2855,7 @@ func (x *TMEntryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TMEntryResponse.ProtoReflect.Descriptor instead.
 func (*TMEntryResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{29}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TMEntryResponse) GetEntry() *TMEntryInfo {
@@ -1983,7 +2879,7 @@ type UpdateTMEntryRequest struct {
 
 func (x *UpdateTMEntryRequest) Reset() {
 	*x = UpdateTMEntryRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[30]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1995,7 +2891,7 @@ func (x *UpdateTMEntryRequest) String() string {
 func (*UpdateTMEntryRequest) ProtoMessage() {}
 
 func (x *UpdateTMEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[30]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2008,7 +2904,7 @@ func (x *UpdateTMEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTMEntryRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTMEntryRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{30}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *UpdateTMEntryRequest) GetWorkspaceSlug() string {
@@ -2063,7 +2959,7 @@ type DeleteTMEntryRequest struct {
 
 func (x *DeleteTMEntryRequest) Reset() {
 	*x = DeleteTMEntryRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[31]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2075,7 +2971,7 @@ func (x *DeleteTMEntryRequest) String() string {
 func (*DeleteTMEntryRequest) ProtoMessage() {}
 
 func (x *DeleteTMEntryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[31]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2088,7 +2984,7 @@ func (x *DeleteTMEntryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTMEntryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTMEntryRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{31}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *DeleteTMEntryRequest) GetWorkspaceSlug() string {
@@ -2119,7 +3015,7 @@ type TermInfo struct {
 
 func (x *TermInfo) Reset() {
 	*x = TermInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[32]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2131,7 +3027,7 @@ func (x *TermInfo) String() string {
 func (*TermInfo) ProtoMessage() {}
 
 func (x *TermInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[32]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2144,7 +3040,7 @@ func (x *TermInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermInfo.ProtoReflect.Descriptor instead.
 func (*TermInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{32}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *TermInfo) GetText() string {
@@ -2198,13 +3094,14 @@ type ConceptInfo struct {
 	Properties    map[string]string      `protobuf:"bytes,5,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	CreatedAt     string                 `protobuf:"bytes,6,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	UpdatedAt     string                 `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	Stream        string                 `protobuf:"bytes,8,opt,name=stream,proto3" json:"stream,omitempty"` // which stream this concept belongs to
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ConceptInfo) Reset() {
 	*x = ConceptInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[33]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2216,7 +3113,7 @@ func (x *ConceptInfo) String() string {
 func (*ConceptInfo) ProtoMessage() {}
 
 func (x *ConceptInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[33]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2229,7 +3126,7 @@ func (x *ConceptInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConceptInfo.ProtoReflect.Descriptor instead.
 func (*ConceptInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{33}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ConceptInfo) GetId() string {
@@ -2281,6 +3178,13 @@ func (x *ConceptInfo) GetUpdatedAt() string {
 	return ""
 }
 
+func (x *ConceptInfo) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TermsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
@@ -2289,13 +3193,14 @@ type TermsRequest struct {
 	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	Offset        int32                  `protobuf:"varint,5,opt,name=offset,proto3" json:"offset,omitempty"`
 	Limit         int32                  `protobuf:"varint,6,opt,name=limit,proto3" json:"limit,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"` // filter by stream (empty = all)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TermsRequest) Reset() {
 	*x = TermsRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[34]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +3212,7 @@ func (x *TermsRequest) String() string {
 func (*TermsRequest) ProtoMessage() {}
 
 func (x *TermsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[34]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2320,7 +3225,7 @@ func (x *TermsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermsRequest.ProtoReflect.Descriptor instead.
 func (*TermsRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{34}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *TermsRequest) GetWorkspaceSlug() string {
@@ -2365,6 +3270,13 @@ func (x *TermsRequest) GetLimit() int32 {
 	return 0
 }
 
+func (x *TermsRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type TermsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Concepts      []*ConceptInfo         `protobuf:"bytes,1,rep,name=concepts,proto3" json:"concepts,omitempty"`
@@ -2375,7 +3287,7 @@ type TermsResponse struct {
 
 func (x *TermsResponse) Reset() {
 	*x = TermsResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[35]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2387,7 +3299,7 @@ func (x *TermsResponse) String() string {
 func (*TermsResponse) ProtoMessage() {}
 
 func (x *TermsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[35]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2400,7 +3312,7 @@ func (x *TermsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermsResponse.ProtoReflect.Descriptor instead.
 func (*TermsResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{35}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *TermsResponse) GetConcepts() []*ConceptInfo {
@@ -2420,13 +3332,14 @@ func (x *TermsResponse) GetTotalCount() int32 {
 type TermCountRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
+	Stream        string                 `protobuf:"bytes,2,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TermCountRequest) Reset() {
 	*x = TermCountRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[36]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2438,7 +3351,7 @@ func (x *TermCountRequest) String() string {
 func (*TermCountRequest) ProtoMessage() {}
 
 func (x *TermCountRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[36]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2451,12 +3364,19 @@ func (x *TermCountRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermCountRequest.ProtoReflect.Descriptor instead.
 func (*TermCountRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{36}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *TermCountRequest) GetWorkspaceSlug() string {
 	if x != nil {
 		return x.WorkspaceSlug
+	}
+	return ""
+}
+
+func (x *TermCountRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
 	}
 	return ""
 }
@@ -2470,7 +3390,7 @@ type TermCountResponse struct {
 
 func (x *TermCountResponse) Reset() {
 	*x = TermCountResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[37]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2482,7 +3402,7 @@ func (x *TermCountResponse) String() string {
 func (*TermCountResponse) ProtoMessage() {}
 
 func (x *TermCountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[37]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2495,7 +3415,7 @@ func (x *TermCountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TermCountResponse.ProtoReflect.Descriptor instead.
 func (*TermCountResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{37}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *TermCountResponse) GetCount() int32 {
@@ -2512,13 +3432,14 @@ type AddConceptRequest struct {
 	Definition    string                 `protobuf:"bytes,3,opt,name=definition,proto3" json:"definition,omitempty"`
 	Terms         []*TermInfo            `protobuf:"bytes,4,rep,name=terms,proto3" json:"terms,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,5,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,6,opt,name=stream,proto3" json:"stream,omitempty"` // concept scoped to stream
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddConceptRequest) Reset() {
 	*x = AddConceptRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[38]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2530,7 +3451,7 @@ func (x *AddConceptRequest) String() string {
 func (*AddConceptRequest) ProtoMessage() {}
 
 func (x *AddConceptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[38]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2543,7 +3464,7 @@ func (x *AddConceptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddConceptRequest.ProtoReflect.Descriptor instead.
 func (*AddConceptRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{38}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *AddConceptRequest) GetWorkspaceSlug() string {
@@ -2581,6 +3502,13 @@ func (x *AddConceptRequest) GetProjectId() string {
 	return ""
 }
 
+func (x *AddConceptRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type ConceptResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Concept       *ConceptInfo           `protobuf:"bytes,1,opt,name=concept,proto3" json:"concept,omitempty"`
@@ -2590,7 +3518,7 @@ type ConceptResponse struct {
 
 func (x *ConceptResponse) Reset() {
 	*x = ConceptResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[39]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2602,7 +3530,7 @@ func (x *ConceptResponse) String() string {
 func (*ConceptResponse) ProtoMessage() {}
 
 func (x *ConceptResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[39]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2615,7 +3543,7 @@ func (x *ConceptResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConceptResponse.ProtoReflect.Descriptor instead.
 func (*ConceptResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{39}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ConceptResponse) GetConcept() *ConceptInfo {
@@ -2633,13 +3561,14 @@ type UpdateConceptRequest struct {
 	Definition    string                 `protobuf:"bytes,4,opt,name=definition,proto3" json:"definition,omitempty"`
 	Terms         []*TermInfo            `protobuf:"bytes,5,rep,name=terms,proto3" json:"terms,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,6,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateConceptRequest) Reset() {
 	*x = UpdateConceptRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[40]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2651,7 +3580,7 @@ func (x *UpdateConceptRequest) String() string {
 func (*UpdateConceptRequest) ProtoMessage() {}
 
 func (x *UpdateConceptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[40]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2664,7 +3593,7 @@ func (x *UpdateConceptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateConceptRequest.ProtoReflect.Descriptor instead.
 func (*UpdateConceptRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{40}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *UpdateConceptRequest) GetWorkspaceSlug() string {
@@ -2709,6 +3638,13 @@ func (x *UpdateConceptRequest) GetProjectId() string {
 	return ""
 }
 
+func (x *UpdateConceptRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type DeleteConceptRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
@@ -2719,7 +3655,7 @@ type DeleteConceptRequest struct {
 
 func (x *DeleteConceptRequest) Reset() {
 	*x = DeleteConceptRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[41]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2731,7 +3667,7 @@ func (x *DeleteConceptRequest) String() string {
 func (*DeleteConceptRequest) ProtoMessage() {}
 
 func (x *DeleteConceptRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[41]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2744,7 +3680,7 @@ func (x *DeleteConceptRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteConceptRequest.ProtoReflect.Descriptor instead.
 func (*DeleteConceptRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{41}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *DeleteConceptRequest) GetWorkspaceSlug() string {
@@ -2769,13 +3705,14 @@ type ImportTermsCSVRequest struct {
 	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
 	Domain        string                 `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
 	HasHeader     bool                   `protobuf:"varint,6,opt,name=has_header,json=hasHeader,proto3" json:"has_header,omitempty"`
+	Stream        string                 `protobuf:"bytes,7,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImportTermsCSVRequest) Reset() {
 	*x = ImportTermsCSVRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[42]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2787,7 +3724,7 @@ func (x *ImportTermsCSVRequest) String() string {
 func (*ImportTermsCSVRequest) ProtoMessage() {}
 
 func (x *ImportTermsCSVRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[42]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2800,7 +3737,7 @@ func (x *ImportTermsCSVRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTermsCSVRequest.ProtoReflect.Descriptor instead.
 func (*ImportTermsCSVRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{42}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ImportTermsCSVRequest) GetWorkspaceSlug() string {
@@ -2845,17 +3782,25 @@ func (x *ImportTermsCSVRequest) GetHasHeader() bool {
 	return false
 }
 
+func (x *ImportTermsCSVRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type ImportTermsJSONRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	JsonContent   string                 `protobuf:"bytes,2,opt,name=json_content,json=jsonContent,proto3" json:"json_content,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ImportTermsJSONRequest) Reset() {
 	*x = ImportTermsJSONRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[43]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2867,7 +3812,7 @@ func (x *ImportTermsJSONRequest) String() string {
 func (*ImportTermsJSONRequest) ProtoMessage() {}
 
 func (x *ImportTermsJSONRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[43]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2880,7 +3825,7 @@ func (x *ImportTermsJSONRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportTermsJSONRequest.ProtoReflect.Descriptor instead.
 func (*ImportTermsJSONRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{43}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ImportTermsJSONRequest) GetWorkspaceSlug() string {
@@ -2897,6 +3842,13 @@ func (x *ImportTermsJSONRequest) GetJsonContent() string {
 	return ""
 }
 
+func (x *ImportTermsJSONRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type ImportCountResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Imported      int32                  `protobuf:"varint,1,opt,name=imported,proto3" json:"imported,omitempty"`
@@ -2906,7 +3858,7 @@ type ImportCountResponse struct {
 
 func (x *ImportCountResponse) Reset() {
 	*x = ImportCountResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[44]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2918,7 +3870,7 @@ func (x *ImportCountResponse) String() string {
 func (*ImportCountResponse) ProtoMessage() {}
 
 func (x *ImportCountResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[44]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2931,7 +3883,7 @@ func (x *ImportCountResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ImportCountResponse.ProtoReflect.Descriptor instead.
 func (*ImportCountResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{44}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ImportCountResponse) GetImported() int32 {
@@ -2945,13 +3897,14 @@ type ExportTermsJSONRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExportTermsJSONRequest) Reset() {
 	*x = ExportTermsJSONRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[45]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2963,7 +3916,7 @@ func (x *ExportTermsJSONRequest) String() string {
 func (*ExportTermsJSONRequest) ProtoMessage() {}
 
 func (x *ExportTermsJSONRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[45]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2976,7 +3929,7 @@ func (x *ExportTermsJSONRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportTermsJSONRequest.ProtoReflect.Descriptor instead.
 func (*ExportTermsJSONRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{45}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ExportTermsJSONRequest) GetWorkspaceSlug() string {
@@ -2993,6 +3946,13 @@ func (x *ExportTermsJSONRequest) GetName() string {
 	return ""
 }
 
+func (x *ExportTermsJSONRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type ExportTermsJSONResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	JsonContent   string                 `protobuf:"bytes,1,opt,name=json_content,json=jsonContent,proto3" json:"json_content,omitempty"`
@@ -3002,7 +3962,7 @@ type ExportTermsJSONResponse struct {
 
 func (x *ExportTermsJSONResponse) Reset() {
 	*x = ExportTermsJSONResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[46]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3014,7 +3974,7 @@ func (x *ExportTermsJSONResponse) String() string {
 func (*ExportTermsJSONResponse) ProtoMessage() {}
 
 func (x *ExportTermsJSONResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[46]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3027,7 +3987,7 @@ func (x *ExportTermsJSONResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExportTermsJSONResponse.ProtoReflect.Descriptor instead.
 func (*ExportTermsJSONResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{46}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ExportTermsJSONResponse) GetJsonContent() string {
@@ -3050,7 +4010,7 @@ type ProviderConfigInfo struct {
 
 func (x *ProviderConfigInfo) Reset() {
 	*x = ProviderConfigInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[47]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3062,7 +4022,7 @@ func (x *ProviderConfigInfo) String() string {
 func (*ProviderConfigInfo) ProtoMessage() {}
 
 func (x *ProviderConfigInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[47]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3075,7 +4035,7 @@ func (x *ProviderConfigInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderConfigInfo.ProtoReflect.Descriptor instead.
 func (*ProviderConfigInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{47}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ProviderConfigInfo) GetId() string {
@@ -3122,7 +4082,7 @@ type ListProviderConfigsRequest struct {
 
 func (x *ListProviderConfigsRequest) Reset() {
 	*x = ListProviderConfigsRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[48]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3134,7 +4094,7 @@ func (x *ListProviderConfigsRequest) String() string {
 func (*ListProviderConfigsRequest) ProtoMessage() {}
 
 func (x *ListProviderConfigsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[48]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3147,7 +4107,7 @@ func (x *ListProviderConfigsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProviderConfigsRequest.ProtoReflect.Descriptor instead.
 func (*ListProviderConfigsRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{48}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListProviderConfigsRequest) GetWorkspaceSlug() string {
@@ -3166,7 +4126,7 @@ type ListProviderConfigsResponse struct {
 
 func (x *ListProviderConfigsResponse) Reset() {
 	*x = ListProviderConfigsResponse{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[49]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3178,7 +4138,7 @@ func (x *ListProviderConfigsResponse) String() string {
 func (*ListProviderConfigsResponse) ProtoMessage() {}
 
 func (x *ListProviderConfigsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[49]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3191,7 +4151,7 @@ func (x *ListProviderConfigsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProviderConfigsResponse.ProtoReflect.Descriptor instead.
 func (*ListProviderConfigsResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{49}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ListProviderConfigsResponse) GetConfigs() []*ProviderConfigInfo {
@@ -3216,7 +4176,7 @@ type SaveProviderConfigRPC struct {
 
 func (x *SaveProviderConfigRPC) Reset() {
 	*x = SaveProviderConfigRPC{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[50]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3228,7 +4188,7 @@ func (x *SaveProviderConfigRPC) String() string {
 func (*SaveProviderConfigRPC) ProtoMessage() {}
 
 func (x *SaveProviderConfigRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[50]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3241,7 +4201,7 @@ func (x *SaveProviderConfigRPC) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveProviderConfigRPC.ProtoReflect.Descriptor instead.
 func (*SaveProviderConfigRPC) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{50}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *SaveProviderConfigRPC) GetWorkspaceSlug() string {
@@ -3303,7 +4263,7 @@ type DeleteProviderConfigRequest struct {
 
 func (x *DeleteProviderConfigRequest) Reset() {
 	*x = DeleteProviderConfigRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[51]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3315,7 +4275,7 @@ func (x *DeleteProviderConfigRequest) String() string {
 func (*DeleteProviderConfigRequest) ProtoMessage() {}
 
 func (x *DeleteProviderConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[51]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3328,7 +4288,7 @@ func (x *DeleteProviderConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteProviderConfigRequest.ProtoReflect.Descriptor instead.
 func (*DeleteProviderConfigRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{51}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *DeleteProviderConfigRequest) GetWorkspaceSlug() string {
@@ -3360,7 +4320,7 @@ type TestProviderConfigRPC struct {
 
 func (x *TestProviderConfigRPC) Reset() {
 	*x = TestProviderConfigRPC{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[52]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3372,7 +4332,7 @@ func (x *TestProviderConfigRPC) String() string {
 func (*TestProviderConfigRPC) ProtoMessage() {}
 
 func (x *TestProviderConfigRPC) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[52]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3385,7 +4345,7 @@ func (x *TestProviderConfigRPC) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TestProviderConfigRPC.ProtoReflect.Descriptor instead.
 func (*TestProviderConfigRPC) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{52}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *TestProviderConfigRPC) GetWorkspaceSlug() string {
@@ -3443,13 +4403,14 @@ type UpdatePresenceRequest struct {
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
 	ItemName      string                 `protobuf:"bytes,3,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"` // which item the user is viewing (empty = project level)
 	BlockId       string                 `protobuf:"bytes,4,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`    // which block the user is editing (empty = just viewing)
+	Stream        string                 `protobuf:"bytes,5,opt,name=stream,proto3" json:"stream,omitempty"`                     // which stream the user is in (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdatePresenceRequest) Reset() {
 	*x = UpdatePresenceRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[53]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3461,7 +4422,7 @@ func (x *UpdatePresenceRequest) String() string {
 func (*UpdatePresenceRequest) ProtoMessage() {}
 
 func (x *UpdatePresenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[53]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3474,7 +4435,7 @@ func (x *UpdatePresenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdatePresenceRequest.ProtoReflect.Descriptor instead.
 func (*UpdatePresenceRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{53}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *UpdatePresenceRequest) GetWorkspaceSlug() string {
@@ -3505,6 +4466,13 @@ func (x *UpdatePresenceRequest) GetBlockId() string {
 	return ""
 }
 
+func (x *UpdatePresenceRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type PresenceInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -3512,13 +4480,14 @@ type PresenceInfo struct {
 	AvatarUrl     string                 `protobuf:"bytes,3,opt,name=avatar_url,json=avatarUrl,proto3" json:"avatar_url,omitempty"`
 	ItemName      string                 `protobuf:"bytes,4,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"`
 	BlockId       string                 `protobuf:"bytes,5,opt,name=block_id,json=blockId,proto3" json:"block_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,6,opt,name=stream,proto3" json:"stream,omitempty"` // which stream the user is in
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PresenceInfo) Reset() {
 	*x = PresenceInfo{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[54]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3530,7 +4499,7 @@ func (x *PresenceInfo) String() string {
 func (*PresenceInfo) ProtoMessage() {}
 
 func (x *PresenceInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[54]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3543,7 +4512,7 @@ func (x *PresenceInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceInfo.ProtoReflect.Descriptor instead.
 func (*PresenceInfo) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{54}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *PresenceInfo) GetUserId() string {
@@ -3581,17 +4550,25 @@ func (x *PresenceInfo) GetBlockId() string {
 	return ""
 }
 
+func (x *PresenceInfo) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type WatchProjectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	WorkspaceSlug string                 `protobuf:"bytes,1,opt,name=workspace_slug,json=workspaceSlug,proto3" json:"workspace_slug,omitempty"`
 	ProjectId     string                 `protobuf:"bytes,2,opt,name=project_id,json=projectId,proto3" json:"project_id,omitempty"`
+	Stream        string                 `protobuf:"bytes,3,opt,name=stream,proto3" json:"stream,omitempty"` // watch events for this stream (empty = "main")
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *WatchProjectRequest) Reset() {
 	*x = WatchProjectRequest{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[55]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3603,7 +4580,7 @@ func (x *WatchProjectRequest) String() string {
 func (*WatchProjectRequest) ProtoMessage() {}
 
 func (x *WatchProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[55]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3616,7 +4593,7 @@ func (x *WatchProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WatchProjectRequest.ProtoReflect.Descriptor instead.
 func (*WatchProjectRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{55}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *WatchProjectRequest) GetWorkspaceSlug() string {
@@ -3629,6 +4606,13 @@ func (x *WatchProjectRequest) GetWorkspaceSlug() string {
 func (x *WatchProjectRequest) GetProjectId() string {
 	if x != nil {
 		return x.ProjectId
+	}
+	return ""
+}
+
+func (x *WatchProjectRequest) GetStream() string {
+	if x != nil {
+		return x.Stream
 	}
 	return ""
 }
@@ -3646,7 +4630,7 @@ type ProjectEvent struct {
 
 func (x *ProjectEvent) Reset() {
 	*x = ProjectEvent{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[56]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3658,7 +4642,7 @@ func (x *ProjectEvent) String() string {
 func (*ProjectEvent) ProtoMessage() {}
 
 func (x *ProjectEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[56]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3671,7 +4655,7 @@ func (x *ProjectEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectEvent.ProtoReflect.Descriptor instead.
 func (*ProjectEvent) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{56}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *ProjectEvent) GetEvent() isProjectEvent_Event {
@@ -3721,13 +4705,14 @@ type BlockChangeEvent struct {
 	ItemName      string                 `protobuf:"bytes,2,opt,name=item_name,json=itemName,proto3" json:"item_name,omitempty"`
 	ChangeType    string                 `protobuf:"bytes,3,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"` // "created", "updated", "deleted"
 	ChangedBy     string                 `protobuf:"bytes,4,opt,name=changed_by,json=changedBy,proto3" json:"changed_by,omitempty"`    // user name
+	Stream        string                 `protobuf:"bytes,5,opt,name=stream,proto3" json:"stream,omitempty"`                           // which stream this change is in
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BlockChangeEvent) Reset() {
 	*x = BlockChangeEvent{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[57]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3739,7 +4724,7 @@ func (x *BlockChangeEvent) String() string {
 func (*BlockChangeEvent) ProtoMessage() {}
 
 func (x *BlockChangeEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[57]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3752,7 +4737,7 @@ func (x *BlockChangeEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockChangeEvent.ProtoReflect.Descriptor instead.
 func (*BlockChangeEvent) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{57}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *BlockChangeEvent) GetBlockId() string {
@@ -3783,6 +4768,13 @@ func (x *BlockChangeEvent) GetChangedBy() string {
 	return ""
 }
 
+func (x *BlockChangeEvent) GetStream() string {
+	if x != nil {
+		return x.Stream
+	}
+	return ""
+}
+
 type PresenceChangeEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ChangeType    string                 `protobuf:"bytes,1,opt,name=change_type,json=changeType,proto3" json:"change_type,omitempty"` // "joined", "moved", "left"
@@ -3793,7 +4785,7 @@ type PresenceChangeEvent struct {
 
 func (x *PresenceChangeEvent) Reset() {
 	*x = PresenceChangeEvent{}
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[58]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3805,7 +4797,7 @@ func (x *PresenceChangeEvent) String() string {
 func (*PresenceChangeEvent) ProtoMessage() {}
 
 func (x *PresenceChangeEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[58]
+	mi := &file_bowrain_proto_v1_editor_service_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3818,7 +4810,7 @@ func (x *PresenceChangeEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PresenceChangeEvent.ProtoReflect.Descriptor instead.
 func (*PresenceChangeEvent) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{58}
+	return file_bowrain_proto_v1_editor_service_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *PresenceChangeEvent) GetChangeType() string {
@@ -3860,7 +4852,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"workspaces\x18\x01 \x03(\v2\x1f.gokapi.server.v1.WorkspaceInfoR\n" +
 	"workspaces\"B\n" +
 	"\x19ListEditorProjectsRequest\x12%\n" +
-	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"\xfe\x01\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"\xdb\x02\n" +
 	"\x11EditorProjectInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -3870,7 +4862,9 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1f\n" +
 	"\vmodified_at\x18\a \x01(\tR\n" +
-	"modifiedAt\"\xa7\x01\n" +
+	"modifiedAt\x126\n" +
+	"\astreams\x18\b \x03(\v2\x1c.gokapi.server.v1.StreamInfoR\astreams\x12#\n" +
+	"\ractive_stream\x18\t \x01(\tR\factiveStream\"\xa7\x01\n" +
 	"\x11EditorProjectItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x12\n" +
@@ -3881,13 +4875,88 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"word_count\x18\x06 \x01(\x05R\twordCount\"]\n" +
 	"\x1aListEditorProjectsResponse\x12?\n" +
-	"\bprojects\x18\x01 \x03(\v2#.gokapi.server.v1.EditorProjectInfoR\bprojects\"_\n" +
+	"\bprojects\x18\x01 \x03(\v2#.gokapi.server.v1.EditorProjectInfoR\bprojects\"w\n" +
 	"\x17GetEditorProjectRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"V\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"V\n" +
 	"\x15EditorProjectResponse\x12=\n" +
-	"\aproject\x18\x01 \x01(\v2#.gokapi.server.v1.EditorProjectInfoR\aproject\"\x99\x02\n" +
+	"\aproject\x18\x01 \x01(\v2#.gokapi.server.v1.EditorProjectInfoR\aproject\"\x96\x02\n" +
+	"\n" +
+	"StreamInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06parent\x18\x02 \x01(\tR\x06parent\x12\x1f\n" +
+	"\vbase_cursor\x18\x03 \x01(\x03R\n" +
+	"baseCursor\x12\x1a\n" +
+	"\barchived\x18\x04 \x01(\bR\barchived\x12\x1e\n" +
+	"\n" +
+	"visibility\x18\x05 \x01(\tR\n" +
+	"visibility\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\a \x01(\tR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"created_by\x18\b \x01(\tR\tcreatedBy\x12\x1f\n" +
+	"\vshared_with\x18\t \x03(\tR\n" +
+	"sharedWith\"\x85\x01\n" +
+	"\x12ListStreamsRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12)\n" +
+	"\x10include_archived\x18\x03 \x01(\bR\x0fincludeArchived\"M\n" +
+	"\x13ListStreamsResponse\x126\n" +
+	"\astreams\x18\x01 \x03(\v2\x1c.gokapi.server.v1.StreamInfoR\astreams\"\xc9\x01\n" +
+	"\x13CreateStreamRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x16\n" +
+	"\x06parent\x18\x04 \x01(\tR\x06parent\x12\x1e\n" +
+	"\n" +
+	"visibility\x18\x05 \x01(\tR\n" +
+	"visibility\x12 \n" +
+	"\vdescription\x18\x06 \x01(\tR\vdescription\"J\n" +
+	"\x12StreamInfoResponse\x124\n" +
+	"\x06stream\x18\x01 \x01(\v2\x1c.gokapi.server.v1.StreamInfoR\x06stream\"t\n" +
+	"\x14GetStreamInfoRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"t\n" +
+	"\x14ArchiveStreamRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"\x8b\x01\n" +
+	"\x12MergeStreamRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\x12\x17\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"\xad\x01\n" +
+	"\x13MergeStreamResponse\x12#\n" +
+	"\rmerged_blocks\x18\x01 \x01(\x05R\fmergedBlocks\x12!\n" +
+	"\fadded_blocks\x18\x02 \x01(\x05R\vaddedBlocks\x12'\n" +
+	"\x0fmodified_blocks\x18\x03 \x01(\x05R\x0emodifiedBlocks\x12%\n" +
+	"\x0eremoved_blocks\x18\x04 \x01(\x05R\rremovedBlocks\"q\n" +
+	"\x11DiffStreamRequest\x12%\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
+	"\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"\x83\x01\n" +
+	"\x0fBlockChangeInfo\x12\x19\n" +
+	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x1f\n" +
+	"\vchange_type\x18\x02 \x01(\tR\n" +
+	"changeType\x12\x19\n" +
+	"\bold_hash\x18\x03 \x01(\tR\aoldHash\x12\x19\n" +
+	"\bnew_hash\x18\x04 \x01(\tR\anewHash\"\x93\x01\n" +
+	"\x12DiffStreamResponse\x12\x1f\n" +
+	"\vstream_name\x18\x01 \x01(\tR\n" +
+	"streamName\x12\x1f\n" +
+	"\vparent_name\x18\x02 \x01(\tR\n" +
+	"parentName\x12;\n" +
+	"\achanges\x18\x03 \x03(\v2!.gokapi.server.v1.BlockChangeInfoR\achanges\"\x99\x02\n" +
 	"\bSpanInfo\x12\x1b\n" +
 	"\tspan_type\x18\x01 \x01(\tR\bspanType\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -3922,14 +4991,15 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"u\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8d\x01\n" +
 	"\x10GetBlocksRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1b\n" +
-	"\titem_name\x18\x03 \x01(\tR\bitemName\"H\n" +
+	"\titem_name\x18\x03 \x01(\tR\bitemName\x12\x16\n" +
+	"\x06stream\x18\x04 \x01(\tR\x06stream\"H\n" +
 	"\x11GetBlocksResponse\x123\n" +
-	"\x06blocks\x18\x01 \x03(\v2\x1b.gokapi.server.v1.BlockInfoR\x06blocks\"\x85\x02\n" +
+	"\x06blocks\x18\x01 \x03(\v2\x1b.gokapi.server.v1.BlockInfoR\x06blocks\"\x9d\x02\n" +
 	"\x18UpdateBlockTargetRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -3939,7 +5009,8 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
 	"coded_text\x18\x06 \x01(\tR\tcodedText\x120\n" +
-	"\x05spans\x18\a \x03(\v2\x1a.gokapi.server.v1.SpanInfoR\x05spans\"\xd3\x01\n" +
+	"\x05spans\x18\a \x03(\v2\x1a.gokapi.server.v1.SpanInfoR\x05spans\x12\x16\n" +
+	"\x06stream\x18\b \x01(\tR\x06stream\"\xeb\x01\n" +
 	"\x12ReviewBlockRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -3947,27 +5018,31 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\titem_name\x18\x03 \x01(\tR\bitemName\x12\x19\n" +
 	"\bblock_id\x18\x04 \x01(\tR\ablockId\x12#\n" +
 	"\rtarget_locale\x18\x05 \x01(\tR\ftargetLocale\x12\x1a\n" +
-	"\breviewed\x18\x06 \x01(\bR\breviewed\"\x97\x01\n" +
+	"\breviewed\x18\x06 \x01(\bR\breviewed\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"\xaf\x01\n" +
 	"\x0fTMLookupRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x19\n" +
 	"\bblock_id\x18\x03 \x01(\tR\ablockId\x12#\n" +
-	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\"t\n" +
+	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x16\n" +
+	"\x06stream\x18\x05 \x01(\tR\x06stream\"\x8c\x01\n" +
 	"\rTMLookupMatch\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x16\n" +
 	"\x06target\x18\x02 \x01(\tR\x06target\x12\x14\n" +
 	"\x05score\x18\x03 \x01(\x01R\x05score\x12\x1d\n" +
 	"\n" +
-	"match_type\x18\x04 \x01(\tR\tmatchType\"M\n" +
+	"match_type\x18\x04 \x01(\tR\tmatchType\x12\x16\n" +
+	"\x06stream\x18\x05 \x01(\tR\x06stream\"M\n" +
 	"\x10TMLookupResponse\x129\n" +
-	"\amatches\x18\x01 \x03(\v2\x1f.gokapi.server.v1.TMLookupMatchR\amatches\"\x99\x01\n" +
+	"\amatches\x18\x01 \x03(\v2\x1f.gokapi.server.v1.TMLookupMatchR\amatches\"\xb1\x01\n" +
 	"\x11TermLookupRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x19\n" +
 	"\bblock_id\x18\x03 \x01(\tR\ablockId\x12#\n" +
-	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\"\xac\x01\n" +
+	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x16\n" +
+	"\x06stream\x18\x05 \x01(\tR\x06stream\"\xc4\x01\n" +
 	"\x0eBlockTermMatch\x12\x1f\n" +
 	"\vsource_term\x18\x01 \x01(\tR\n" +
 	"sourceTerm\x12!\n" +
@@ -3975,16 +5050,18 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x06domain\x18\x03 \x01(\tR\x06domain\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x14\n" +
 	"\x05start\x18\x05 \x01(\x05R\x05start\x12\x10\n" +
-	"\x03end\x18\x06 \x01(\x05R\x03end\"P\n" +
+	"\x03end\x18\x06 \x01(\x05R\x03end\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"P\n" +
 	"\x12TermLookupResponse\x12:\n" +
-	"\amatches\x18\x01 \x03(\v2 .gokapi.server.v1.BlockTermMatchR\amatches\"\xc7\x01\n" +
+	"\amatches\x18\x01 \x03(\v2 .gokapi.server.v1.BlockTermMatchR\amatches\"\xdf\x01\n" +
 	"\x10TMEntriesRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x16\n" +
 	"\x06offset\x18\x05 \x01(\x05R\x06offset\x12\x14\n" +
-	"\x05limit\x18\x06 \x01(\x05R\x05limit\"\xb6\x01\n" +
+	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"\xce\x01\n" +
 	"\vTMEntryInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
@@ -3992,15 +5069,17 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\rsource_locale\x18\x04 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x05 \x01(\tR\ftargetLocale\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x06 \x01(\tR\tupdatedAt\"m\n" +
+	"updated_at\x18\x06 \x01(\tR\tupdatedAt\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"m\n" +
 	"\x11TMEntriesResponse\x127\n" +
 	"\aentries\x18\x01 \x03(\v2\x1d.gokapi.server.v1.TMEntryInfoR\aentries\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\"7\n" +
+	"totalCount\"O\n" +
 	"\x0eTMCountRequest\x12%\n" +
-	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"'\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
+	"\x06stream\x18\x02 \x01(\tR\x06stream\"'\n" +
 	"\x0fTMCountResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xd3\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xeb\x01\n" +
 	"\x11AddTMEntryRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x16\n" +
@@ -4008,7 +5087,8 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\rsource_locale\x18\x04 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x05 \x01(\tR\ftargetLocale\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x06 \x01(\tR\tprojectId\"F\n" +
+	"project_id\x18\x06 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"F\n" +
 	"\x0fTMEntryResponse\x123\n" +
 	"\x05entry\x18\x01 \x01(\v2\x1d.gokapi.server.v1.TMEntryInfoR\x05entry\"\xd2\x01\n" +
 	"\x14UpdateTMEntryRequest\x12%\n" +
@@ -4027,7 +5107,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\tR\x06status\x12$\n" +
 	"\x0epart_of_speech\x18\x04 \x01(\tR\fpartOfSpeech\x12\x16\n" +
 	"\x06gender\x18\x05 \x01(\tR\x06gender\x12\x12\n" +
-	"\x04note\x18\x06 \x01(\tR\x04note\"\xd3\x02\n" +
+	"\x04note\x18\x06 \x01(\tR\x04note\"\xeb\x02\n" +
 	"\vConceptInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1e\n" +
@@ -4041,25 +5121,28 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\x1a=\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\x12\x16\n" +
+	"\x06stream\x18\b \x01(\tR\x06stream\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc3\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdb\x01\n" +
 	"\fTermsRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x16\n" +
 	"\x06offset\x18\x05 \x01(\x05R\x06offset\x12\x14\n" +
-	"\x05limit\x18\x06 \x01(\x05R\x05limit\"k\n" +
+	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"k\n" +
 	"\rTermsResponse\x129\n" +
 	"\bconcepts\x18\x01 \x03(\v2\x1d.gokapi.server.v1.ConceptInfoR\bconcepts\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x05R\n" +
-	"totalCount\"9\n" +
+	"totalCount\"Q\n" +
 	"\x10TermCountRequest\x12%\n" +
-	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\")\n" +
+	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
+	"\x06stream\x18\x02 \x01(\tR\x06stream\")\n" +
 	"\x11TermCountResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xc3\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xdb\x01\n" +
 	"\x11AddConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x16\n" +
 	"\x06domain\x18\x02 \x01(\tR\x06domain\x12\x1e\n" +
@@ -4068,9 +5151,10 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"definition\x120\n" +
 	"\x05terms\x18\x04 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x05 \x01(\tR\tprojectId\"J\n" +
+	"project_id\x18\x05 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x06 \x01(\tR\x06stream\"J\n" +
 	"\x0fConceptResponse\x127\n" +
-	"\aconcept\x18\x01 \x01(\v2\x1d.gokapi.server.v1.ConceptInfoR\aconcept\"\xe5\x01\n" +
+	"\aconcept\x18\x01 \x01(\v2\x1d.gokapi.server.v1.ConceptInfoR\aconcept\"\xfd\x01\n" +
 	"\x14UpdateConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -4081,11 +5165,12 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"definition\x120\n" +
 	"\x05terms\x18\x05 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x06 \x01(\tR\tprojectId\"\\\n" +
+	"project_id\x18\x06 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"\\\n" +
 	"\x14DeleteConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
-	"concept_id\x18\x02 \x01(\tR\tconceptId\"\xe0\x01\n" +
+	"concept_id\x18\x02 \x01(\tR\tconceptId\"\xf8\x01\n" +
 	"\x15ImportTermsCSVRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1f\n" +
 	"\vcsv_content\x18\x02 \x01(\tR\n" +
@@ -4094,15 +5179,18 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x16\n" +
 	"\x06domain\x18\x05 \x01(\tR\x06domain\x12\x1d\n" +
 	"\n" +
-	"has_header\x18\x06 \x01(\bR\thasHeader\"b\n" +
+	"has_header\x18\x06 \x01(\bR\thasHeader\x12\x16\n" +
+	"\x06stream\x18\a \x01(\tR\x06stream\"z\n" +
 	"\x16ImportTermsJSONRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12!\n" +
-	"\fjson_content\x18\x02 \x01(\tR\vjsonContent\"1\n" +
+	"\fjson_content\x18\x02 \x01(\tR\vjsonContent\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"1\n" +
 	"\x13ImportCountResponse\x12\x1a\n" +
-	"\bimported\x18\x01 \x01(\x05R\bimported\"S\n" +
+	"\bimported\x18\x01 \x01(\x05R\bimported\"k\n" +
 	"\x16ExportTermsJSONRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"<\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"<\n" +
 	"\x17ExportTermsJSONResponse\x12!\n" +
 	"\fjson_content\x18\x01 \x01(\tR\vjsonContent\"\x8e\x01\n" +
 	"\x12ProviderConfigInfo\x12\x0e\n" +
@@ -4133,44 +5221,55 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\rprovider_type\x18\x04 \x01(\tR\fproviderType\x12\x14\n" +
 	"\x05model\x18\x05 \x01(\tR\x05model\x12\x19\n" +
 	"\bbase_url\x18\x06 \x01(\tR\abaseUrl\x12\x17\n" +
-	"\aapi_key\x18\a \x01(\tR\x06apiKey\"\x95\x01\n" +
+	"\aapi_key\x18\a \x01(\tR\x06apiKey\"\xad\x01\n" +
 	"\x15UpdatePresenceRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1b\n" +
 	"\titem_name\x18\x03 \x01(\tR\bitemName\x12\x19\n" +
-	"\bblock_id\x18\x04 \x01(\tR\ablockId\"\x9b\x01\n" +
+	"\bblock_id\x18\x04 \x01(\tR\ablockId\x12\x16\n" +
+	"\x06stream\x18\x05 \x01(\tR\x06stream\"\xb3\x01\n" +
 	"\fPresenceInfo\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1b\n" +
 	"\tuser_name\x18\x02 \x01(\tR\buserName\x12\x1d\n" +
 	"\n" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\x12\x1b\n" +
 	"\titem_name\x18\x04 \x01(\tR\bitemName\x12\x19\n" +
-	"\bblock_id\x18\x05 \x01(\tR\ablockId\"[\n" +
+	"\bblock_id\x18\x05 \x01(\tR\ablockId\x12\x16\n" +
+	"\x06stream\x18\x06 \x01(\tR\x06stream\"s\n" +
 	"\x13WatchProjectRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x02 \x01(\tR\tprojectId\"\xb2\x01\n" +
+	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
+	"\x06stream\x18\x03 \x01(\tR\x06stream\"\xb2\x01\n" +
 	"\fProjectEvent\x12G\n" +
 	"\fblock_change\x18\x01 \x01(\v2\".gokapi.server.v1.BlockChangeEventH\x00R\vblockChange\x12P\n" +
 	"\x0fpresence_change\x18\x02 \x01(\v2%.gokapi.server.v1.PresenceChangeEventH\x00R\x0epresenceChangeB\a\n" +
-	"\x05event\"\x8a\x01\n" +
+	"\x05event\"\xa2\x01\n" +
 	"\x10BlockChangeEvent\x12\x19\n" +
 	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x1b\n" +
 	"\titem_name\x18\x02 \x01(\tR\bitemName\x12\x1f\n" +
 	"\vchange_type\x18\x03 \x01(\tR\n" +
 	"changeType\x12\x1d\n" +
 	"\n" +
-	"changed_by\x18\x04 \x01(\tR\tchangedBy\"j\n" +
+	"changed_by\x18\x04 \x01(\tR\tchangedBy\x12\x16\n" +
+	"\x06stream\x18\x05 \x01(\tR\x06stream\"j\n" +
 	"\x13PresenceChangeEvent\x12\x1f\n" +
 	"\vchange_type\x18\x01 \x01(\tR\n" +
 	"changeType\x122\n" +
-	"\x04user\x18\x02 \x01(\v2\x1e.gokapi.server.v1.PresenceInfoR\x04user2\x8c\x14\n" +
+	"\x04user\x18\x02 \x01(\v2\x1e.gokapi.server.v1.PresenceInfoR\x04user2\xaa\x18\n" +
 	"\rEditorService\x12Y\n" +
 	"\x0eGetCurrentUser\x12'.gokapi.server.v1.GetCurrentUserRequest\x1a\x1e.gokapi.server.v1.UserResponse\x12c\n" +
 	"\x0eListWorkspaces\x12'.gokapi.server.v1.ListWorkspacesRequest\x1a(.gokapi.server.v1.ListWorkspacesResponse\x12o\n" +
 	"\x12ListEditorProjects\x12+.gokapi.server.v1.ListEditorProjectsRequest\x1a,.gokapi.server.v1.ListEditorProjectsResponse\x12f\n" +
-	"\x10GetEditorProject\x12).gokapi.server.v1.GetEditorProjectRequest\x1a'.gokapi.server.v1.EditorProjectResponse\x12T\n" +
+	"\x10GetEditorProject\x12).gokapi.server.v1.GetEditorProjectRequest\x1a'.gokapi.server.v1.EditorProjectResponse\x12Z\n" +
+	"\vListStreams\x12$.gokapi.server.v1.ListStreamsRequest\x1a%.gokapi.server.v1.ListStreamsResponse\x12[\n" +
+	"\fCreateStream\x12%.gokapi.server.v1.CreateStreamRequest\x1a$.gokapi.server.v1.StreamInfoResponse\x12]\n" +
+	"\rGetStreamInfo\x12&.gokapi.server.v1.GetStreamInfoRequest\x1a$.gokapi.server.v1.StreamInfoResponse\x12O\n" +
+	"\rArchiveStream\x12&.gokapi.server.v1.ArchiveStreamRequest\x1a\x16.google.protobuf.Empty\x12Z\n" +
+	"\vMergeStream\x12$.gokapi.server.v1.MergeStreamRequest\x1a%.gokapi.server.v1.MergeStreamResponse\x12W\n" +
+	"\n" +
+	"DiffStream\x12#.gokapi.server.v1.DiffStreamRequest\x1a$.gokapi.server.v1.DiffStreamResponse\x12T\n" +
 	"\tGetBlocks\x12\".gokapi.server.v1.GetBlocksRequest\x1a#.gokapi.server.v1.GetBlocksResponse\x12W\n" +
 	"\x11UpdateBlockTarget\x12*.gokapi.server.v1.UpdateBlockTargetRequest\x1a\x16.google.protobuf.Empty\x12K\n" +
 	"\vReviewBlock\x12$.gokapi.server.v1.ReviewBlockRequest\x1a\x16.google.protobuf.Empty\x12Y\n" +
@@ -4211,7 +5310,7 @@ func file_bowrain_proto_v1_editor_service_proto_rawDescGZIP() []byte {
 	return file_bowrain_proto_v1_editor_service_proto_rawDescData
 }
 
-var file_bowrain_proto_v1_editor_service_proto_msgTypes = make([]protoimpl.MessageInfo, 63)
+var file_bowrain_proto_v1_editor_service_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
 var file_bowrain_proto_v1_editor_service_proto_goTypes = []any{
 	(*GetCurrentUserRequest)(nil),       // 0: gokapi.server.v1.GetCurrentUserRequest
 	(*UserResponse)(nil),                // 1: gokapi.server.v1.UserResponse
@@ -4224,146 +5323,174 @@ var file_bowrain_proto_v1_editor_service_proto_goTypes = []any{
 	(*ListEditorProjectsResponse)(nil),  // 8: gokapi.server.v1.ListEditorProjectsResponse
 	(*GetEditorProjectRequest)(nil),     // 9: gokapi.server.v1.GetEditorProjectRequest
 	(*EditorProjectResponse)(nil),       // 10: gokapi.server.v1.EditorProjectResponse
-	(*SpanInfo)(nil),                    // 11: gokapi.server.v1.SpanInfo
-	(*BlockInfo)(nil),                   // 12: gokapi.server.v1.BlockInfo
-	(*GetBlocksRequest)(nil),            // 13: gokapi.server.v1.GetBlocksRequest
-	(*GetBlocksResponse)(nil),           // 14: gokapi.server.v1.GetBlocksResponse
-	(*UpdateBlockTargetRequest)(nil),    // 15: gokapi.server.v1.UpdateBlockTargetRequest
-	(*ReviewBlockRequest)(nil),          // 16: gokapi.server.v1.ReviewBlockRequest
-	(*TMLookupRequest)(nil),             // 17: gokapi.server.v1.TMLookupRequest
-	(*TMLookupMatch)(nil),               // 18: gokapi.server.v1.TMLookupMatch
-	(*TMLookupResponse)(nil),            // 19: gokapi.server.v1.TMLookupResponse
-	(*TermLookupRequest)(nil),           // 20: gokapi.server.v1.TermLookupRequest
-	(*BlockTermMatch)(nil),              // 21: gokapi.server.v1.BlockTermMatch
-	(*TermLookupResponse)(nil),          // 22: gokapi.server.v1.TermLookupResponse
-	(*TMEntriesRequest)(nil),            // 23: gokapi.server.v1.TMEntriesRequest
-	(*TMEntryInfo)(nil),                 // 24: gokapi.server.v1.TMEntryInfo
-	(*TMEntriesResponse)(nil),           // 25: gokapi.server.v1.TMEntriesResponse
-	(*TMCountRequest)(nil),              // 26: gokapi.server.v1.TMCountRequest
-	(*TMCountResponse)(nil),             // 27: gokapi.server.v1.TMCountResponse
-	(*AddTMEntryRequest)(nil),           // 28: gokapi.server.v1.AddTMEntryRequest
-	(*TMEntryResponse)(nil),             // 29: gokapi.server.v1.TMEntryResponse
-	(*UpdateTMEntryRequest)(nil),        // 30: gokapi.server.v1.UpdateTMEntryRequest
-	(*DeleteTMEntryRequest)(nil),        // 31: gokapi.server.v1.DeleteTMEntryRequest
-	(*TermInfo)(nil),                    // 32: gokapi.server.v1.TermInfo
-	(*ConceptInfo)(nil),                 // 33: gokapi.server.v1.ConceptInfo
-	(*TermsRequest)(nil),                // 34: gokapi.server.v1.TermsRequest
-	(*TermsResponse)(nil),               // 35: gokapi.server.v1.TermsResponse
-	(*TermCountRequest)(nil),            // 36: gokapi.server.v1.TermCountRequest
-	(*TermCountResponse)(nil),           // 37: gokapi.server.v1.TermCountResponse
-	(*AddConceptRequest)(nil),           // 38: gokapi.server.v1.AddConceptRequest
-	(*ConceptResponse)(nil),             // 39: gokapi.server.v1.ConceptResponse
-	(*UpdateConceptRequest)(nil),        // 40: gokapi.server.v1.UpdateConceptRequest
-	(*DeleteConceptRequest)(nil),        // 41: gokapi.server.v1.DeleteConceptRequest
-	(*ImportTermsCSVRequest)(nil),       // 42: gokapi.server.v1.ImportTermsCSVRequest
-	(*ImportTermsJSONRequest)(nil),      // 43: gokapi.server.v1.ImportTermsJSONRequest
-	(*ImportCountResponse)(nil),         // 44: gokapi.server.v1.ImportCountResponse
-	(*ExportTermsJSONRequest)(nil),      // 45: gokapi.server.v1.ExportTermsJSONRequest
-	(*ExportTermsJSONResponse)(nil),     // 46: gokapi.server.v1.ExportTermsJSONResponse
-	(*ProviderConfigInfo)(nil),          // 47: gokapi.server.v1.ProviderConfigInfo
-	(*ListProviderConfigsRequest)(nil),  // 48: gokapi.server.v1.ListProviderConfigsRequest
-	(*ListProviderConfigsResponse)(nil), // 49: gokapi.server.v1.ListProviderConfigsResponse
-	(*SaveProviderConfigRPC)(nil),       // 50: gokapi.server.v1.SaveProviderConfigRPC
-	(*DeleteProviderConfigRequest)(nil), // 51: gokapi.server.v1.DeleteProviderConfigRequest
-	(*TestProviderConfigRPC)(nil),       // 52: gokapi.server.v1.TestProviderConfigRPC
-	(*UpdatePresenceRequest)(nil),       // 53: gokapi.server.v1.UpdatePresenceRequest
-	(*PresenceInfo)(nil),                // 54: gokapi.server.v1.PresenceInfo
-	(*WatchProjectRequest)(nil),         // 55: gokapi.server.v1.WatchProjectRequest
-	(*ProjectEvent)(nil),                // 56: gokapi.server.v1.ProjectEvent
-	(*BlockChangeEvent)(nil),            // 57: gokapi.server.v1.BlockChangeEvent
-	(*PresenceChangeEvent)(nil),         // 58: gokapi.server.v1.PresenceChangeEvent
-	nil,                                 // 59: gokapi.server.v1.BlockInfo.TargetsEntry
-	nil,                                 // 60: gokapi.server.v1.BlockInfo.TargetsCodedEntry
-	nil,                                 // 61: gokapi.server.v1.BlockInfo.PropertiesEntry
-	nil,                                 // 62: gokapi.server.v1.ConceptInfo.PropertiesEntry
-	(*emptypb.Empty)(nil),               // 63: google.protobuf.Empty
+	(*StreamInfo)(nil),                  // 11: gokapi.server.v1.StreamInfo
+	(*ListStreamsRequest)(nil),          // 12: gokapi.server.v1.ListStreamsRequest
+	(*ListStreamsResponse)(nil),         // 13: gokapi.server.v1.ListStreamsResponse
+	(*CreateStreamRequest)(nil),         // 14: gokapi.server.v1.CreateStreamRequest
+	(*StreamInfoResponse)(nil),          // 15: gokapi.server.v1.StreamInfoResponse
+	(*GetStreamInfoRequest)(nil),        // 16: gokapi.server.v1.GetStreamInfoRequest
+	(*ArchiveStreamRequest)(nil),        // 17: gokapi.server.v1.ArchiveStreamRequest
+	(*MergeStreamRequest)(nil),          // 18: gokapi.server.v1.MergeStreamRequest
+	(*MergeStreamResponse)(nil),         // 19: gokapi.server.v1.MergeStreamResponse
+	(*DiffStreamRequest)(nil),           // 20: gokapi.server.v1.DiffStreamRequest
+	(*BlockChangeInfo)(nil),             // 21: gokapi.server.v1.BlockChangeInfo
+	(*DiffStreamResponse)(nil),          // 22: gokapi.server.v1.DiffStreamResponse
+	(*SpanInfo)(nil),                    // 23: gokapi.server.v1.SpanInfo
+	(*BlockInfo)(nil),                   // 24: gokapi.server.v1.BlockInfo
+	(*GetBlocksRequest)(nil),            // 25: gokapi.server.v1.GetBlocksRequest
+	(*GetBlocksResponse)(nil),           // 26: gokapi.server.v1.GetBlocksResponse
+	(*UpdateBlockTargetRequest)(nil),    // 27: gokapi.server.v1.UpdateBlockTargetRequest
+	(*ReviewBlockRequest)(nil),          // 28: gokapi.server.v1.ReviewBlockRequest
+	(*TMLookupRequest)(nil),             // 29: gokapi.server.v1.TMLookupRequest
+	(*TMLookupMatch)(nil),               // 30: gokapi.server.v1.TMLookupMatch
+	(*TMLookupResponse)(nil),            // 31: gokapi.server.v1.TMLookupResponse
+	(*TermLookupRequest)(nil),           // 32: gokapi.server.v1.TermLookupRequest
+	(*BlockTermMatch)(nil),              // 33: gokapi.server.v1.BlockTermMatch
+	(*TermLookupResponse)(nil),          // 34: gokapi.server.v1.TermLookupResponse
+	(*TMEntriesRequest)(nil),            // 35: gokapi.server.v1.TMEntriesRequest
+	(*TMEntryInfo)(nil),                 // 36: gokapi.server.v1.TMEntryInfo
+	(*TMEntriesResponse)(nil),           // 37: gokapi.server.v1.TMEntriesResponse
+	(*TMCountRequest)(nil),              // 38: gokapi.server.v1.TMCountRequest
+	(*TMCountResponse)(nil),             // 39: gokapi.server.v1.TMCountResponse
+	(*AddTMEntryRequest)(nil),           // 40: gokapi.server.v1.AddTMEntryRequest
+	(*TMEntryResponse)(nil),             // 41: gokapi.server.v1.TMEntryResponse
+	(*UpdateTMEntryRequest)(nil),        // 42: gokapi.server.v1.UpdateTMEntryRequest
+	(*DeleteTMEntryRequest)(nil),        // 43: gokapi.server.v1.DeleteTMEntryRequest
+	(*TermInfo)(nil),                    // 44: gokapi.server.v1.TermInfo
+	(*ConceptInfo)(nil),                 // 45: gokapi.server.v1.ConceptInfo
+	(*TermsRequest)(nil),                // 46: gokapi.server.v1.TermsRequest
+	(*TermsResponse)(nil),               // 47: gokapi.server.v1.TermsResponse
+	(*TermCountRequest)(nil),            // 48: gokapi.server.v1.TermCountRequest
+	(*TermCountResponse)(nil),           // 49: gokapi.server.v1.TermCountResponse
+	(*AddConceptRequest)(nil),           // 50: gokapi.server.v1.AddConceptRequest
+	(*ConceptResponse)(nil),             // 51: gokapi.server.v1.ConceptResponse
+	(*UpdateConceptRequest)(nil),        // 52: gokapi.server.v1.UpdateConceptRequest
+	(*DeleteConceptRequest)(nil),        // 53: gokapi.server.v1.DeleteConceptRequest
+	(*ImportTermsCSVRequest)(nil),       // 54: gokapi.server.v1.ImportTermsCSVRequest
+	(*ImportTermsJSONRequest)(nil),      // 55: gokapi.server.v1.ImportTermsJSONRequest
+	(*ImportCountResponse)(nil),         // 56: gokapi.server.v1.ImportCountResponse
+	(*ExportTermsJSONRequest)(nil),      // 57: gokapi.server.v1.ExportTermsJSONRequest
+	(*ExportTermsJSONResponse)(nil),     // 58: gokapi.server.v1.ExportTermsJSONResponse
+	(*ProviderConfigInfo)(nil),          // 59: gokapi.server.v1.ProviderConfigInfo
+	(*ListProviderConfigsRequest)(nil),  // 60: gokapi.server.v1.ListProviderConfigsRequest
+	(*ListProviderConfigsResponse)(nil), // 61: gokapi.server.v1.ListProviderConfigsResponse
+	(*SaveProviderConfigRPC)(nil),       // 62: gokapi.server.v1.SaveProviderConfigRPC
+	(*DeleteProviderConfigRequest)(nil), // 63: gokapi.server.v1.DeleteProviderConfigRequest
+	(*TestProviderConfigRPC)(nil),       // 64: gokapi.server.v1.TestProviderConfigRPC
+	(*UpdatePresenceRequest)(nil),       // 65: gokapi.server.v1.UpdatePresenceRequest
+	(*PresenceInfo)(nil),                // 66: gokapi.server.v1.PresenceInfo
+	(*WatchProjectRequest)(nil),         // 67: gokapi.server.v1.WatchProjectRequest
+	(*ProjectEvent)(nil),                // 68: gokapi.server.v1.ProjectEvent
+	(*BlockChangeEvent)(nil),            // 69: gokapi.server.v1.BlockChangeEvent
+	(*PresenceChangeEvent)(nil),         // 70: gokapi.server.v1.PresenceChangeEvent
+	nil,                                 // 71: gokapi.server.v1.BlockInfo.TargetsEntry
+	nil,                                 // 72: gokapi.server.v1.BlockInfo.TargetsCodedEntry
+	nil,                                 // 73: gokapi.server.v1.BlockInfo.PropertiesEntry
+	nil,                                 // 74: gokapi.server.v1.ConceptInfo.PropertiesEntry
+	(*emptypb.Empty)(nil),               // 75: google.protobuf.Empty
 }
 var file_bowrain_proto_v1_editor_service_proto_depIdxs = []int32{
 	3,  // 0: gokapi.server.v1.ListWorkspacesResponse.workspaces:type_name -> gokapi.server.v1.WorkspaceInfo
 	7,  // 1: gokapi.server.v1.EditorProjectInfo.items:type_name -> gokapi.server.v1.EditorProjectItem
-	6,  // 2: gokapi.server.v1.ListEditorProjectsResponse.projects:type_name -> gokapi.server.v1.EditorProjectInfo
-	6,  // 3: gokapi.server.v1.EditorProjectResponse.project:type_name -> gokapi.server.v1.EditorProjectInfo
-	11, // 4: gokapi.server.v1.BlockInfo.source_spans:type_name -> gokapi.server.v1.SpanInfo
-	59, // 5: gokapi.server.v1.BlockInfo.targets:type_name -> gokapi.server.v1.BlockInfo.TargetsEntry
-	60, // 6: gokapi.server.v1.BlockInfo.targets_coded:type_name -> gokapi.server.v1.BlockInfo.TargetsCodedEntry
-	61, // 7: gokapi.server.v1.BlockInfo.properties:type_name -> gokapi.server.v1.BlockInfo.PropertiesEntry
-	12, // 8: gokapi.server.v1.GetBlocksResponse.blocks:type_name -> gokapi.server.v1.BlockInfo
-	11, // 9: gokapi.server.v1.UpdateBlockTargetRequest.spans:type_name -> gokapi.server.v1.SpanInfo
-	18, // 10: gokapi.server.v1.TMLookupResponse.matches:type_name -> gokapi.server.v1.TMLookupMatch
-	21, // 11: gokapi.server.v1.TermLookupResponse.matches:type_name -> gokapi.server.v1.BlockTermMatch
-	24, // 12: gokapi.server.v1.TMEntriesResponse.entries:type_name -> gokapi.server.v1.TMEntryInfo
-	24, // 13: gokapi.server.v1.TMEntryResponse.entry:type_name -> gokapi.server.v1.TMEntryInfo
-	32, // 14: gokapi.server.v1.ConceptInfo.terms:type_name -> gokapi.server.v1.TermInfo
-	62, // 15: gokapi.server.v1.ConceptInfo.properties:type_name -> gokapi.server.v1.ConceptInfo.PropertiesEntry
-	33, // 16: gokapi.server.v1.TermsResponse.concepts:type_name -> gokapi.server.v1.ConceptInfo
-	32, // 17: gokapi.server.v1.AddConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
-	33, // 18: gokapi.server.v1.ConceptResponse.concept:type_name -> gokapi.server.v1.ConceptInfo
-	32, // 19: gokapi.server.v1.UpdateConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
-	47, // 20: gokapi.server.v1.ListProviderConfigsResponse.configs:type_name -> gokapi.server.v1.ProviderConfigInfo
-	57, // 21: gokapi.server.v1.ProjectEvent.block_change:type_name -> gokapi.server.v1.BlockChangeEvent
-	58, // 22: gokapi.server.v1.ProjectEvent.presence_change:type_name -> gokapi.server.v1.PresenceChangeEvent
-	54, // 23: gokapi.server.v1.PresenceChangeEvent.user:type_name -> gokapi.server.v1.PresenceInfo
-	0,  // 24: gokapi.server.v1.EditorService.GetCurrentUser:input_type -> gokapi.server.v1.GetCurrentUserRequest
-	2,  // 25: gokapi.server.v1.EditorService.ListWorkspaces:input_type -> gokapi.server.v1.ListWorkspacesRequest
-	5,  // 26: gokapi.server.v1.EditorService.ListEditorProjects:input_type -> gokapi.server.v1.ListEditorProjectsRequest
-	9,  // 27: gokapi.server.v1.EditorService.GetEditorProject:input_type -> gokapi.server.v1.GetEditorProjectRequest
-	13, // 28: gokapi.server.v1.EditorService.GetBlocks:input_type -> gokapi.server.v1.GetBlocksRequest
-	15, // 29: gokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> gokapi.server.v1.UpdateBlockTargetRequest
-	16, // 30: gokapi.server.v1.EditorService.ReviewBlock:input_type -> gokapi.server.v1.ReviewBlockRequest
-	17, // 31: gokapi.server.v1.EditorService.LookupTMForBlock:input_type -> gokapi.server.v1.TMLookupRequest
-	20, // 32: gokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> gokapi.server.v1.TermLookupRequest
-	23, // 33: gokapi.server.v1.EditorService.GetTMEntries:input_type -> gokapi.server.v1.TMEntriesRequest
-	26, // 34: gokapi.server.v1.EditorService.GetTMCount:input_type -> gokapi.server.v1.TMCountRequest
-	28, // 35: gokapi.server.v1.EditorService.AddTMEntry:input_type -> gokapi.server.v1.AddTMEntryRequest
-	30, // 36: gokapi.server.v1.EditorService.UpdateTMEntry:input_type -> gokapi.server.v1.UpdateTMEntryRequest
-	31, // 37: gokapi.server.v1.EditorService.DeleteTMEntry:input_type -> gokapi.server.v1.DeleteTMEntryRequest
-	34, // 38: gokapi.server.v1.EditorService.GetTerms:input_type -> gokapi.server.v1.TermsRequest
-	36, // 39: gokapi.server.v1.EditorService.GetTermCount:input_type -> gokapi.server.v1.TermCountRequest
-	38, // 40: gokapi.server.v1.EditorService.AddConcept:input_type -> gokapi.server.v1.AddConceptRequest
-	40, // 41: gokapi.server.v1.EditorService.UpdateConcept:input_type -> gokapi.server.v1.UpdateConceptRequest
-	41, // 42: gokapi.server.v1.EditorService.DeleteConcept:input_type -> gokapi.server.v1.DeleteConceptRequest
-	42, // 43: gokapi.server.v1.EditorService.ImportTermsCSV:input_type -> gokapi.server.v1.ImportTermsCSVRequest
-	43, // 44: gokapi.server.v1.EditorService.ImportTermsJSON:input_type -> gokapi.server.v1.ImportTermsJSONRequest
-	45, // 45: gokapi.server.v1.EditorService.ExportTermsJSON:input_type -> gokapi.server.v1.ExportTermsJSONRequest
-	48, // 46: gokapi.server.v1.EditorService.ListProviderConfigs:input_type -> gokapi.server.v1.ListProviderConfigsRequest
-	50, // 47: gokapi.server.v1.EditorService.SaveProviderConfig:input_type -> gokapi.server.v1.SaveProviderConfigRPC
-	51, // 48: gokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> gokapi.server.v1.DeleteProviderConfigRequest
-	52, // 49: gokapi.server.v1.EditorService.TestProviderConfig:input_type -> gokapi.server.v1.TestProviderConfigRPC
-	53, // 50: gokapi.server.v1.EditorService.UpdatePresence:input_type -> gokapi.server.v1.UpdatePresenceRequest
-	55, // 51: gokapi.server.v1.EditorService.WatchProject:input_type -> gokapi.server.v1.WatchProjectRequest
-	1,  // 52: gokapi.server.v1.EditorService.GetCurrentUser:output_type -> gokapi.server.v1.UserResponse
-	4,  // 53: gokapi.server.v1.EditorService.ListWorkspaces:output_type -> gokapi.server.v1.ListWorkspacesResponse
-	8,  // 54: gokapi.server.v1.EditorService.ListEditorProjects:output_type -> gokapi.server.v1.ListEditorProjectsResponse
-	10, // 55: gokapi.server.v1.EditorService.GetEditorProject:output_type -> gokapi.server.v1.EditorProjectResponse
-	14, // 56: gokapi.server.v1.EditorService.GetBlocks:output_type -> gokapi.server.v1.GetBlocksResponse
-	63, // 57: gokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
-	63, // 58: gokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
-	19, // 59: gokapi.server.v1.EditorService.LookupTMForBlock:output_type -> gokapi.server.v1.TMLookupResponse
-	22, // 60: gokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> gokapi.server.v1.TermLookupResponse
-	25, // 61: gokapi.server.v1.EditorService.GetTMEntries:output_type -> gokapi.server.v1.TMEntriesResponse
-	27, // 62: gokapi.server.v1.EditorService.GetTMCount:output_type -> gokapi.server.v1.TMCountResponse
-	29, // 63: gokapi.server.v1.EditorService.AddTMEntry:output_type -> gokapi.server.v1.TMEntryResponse
-	63, // 64: gokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
-	63, // 65: gokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
-	35, // 66: gokapi.server.v1.EditorService.GetTerms:output_type -> gokapi.server.v1.TermsResponse
-	37, // 67: gokapi.server.v1.EditorService.GetTermCount:output_type -> gokapi.server.v1.TermCountResponse
-	39, // 68: gokapi.server.v1.EditorService.AddConcept:output_type -> gokapi.server.v1.ConceptResponse
-	63, // 69: gokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
-	63, // 70: gokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
-	44, // 71: gokapi.server.v1.EditorService.ImportTermsCSV:output_type -> gokapi.server.v1.ImportCountResponse
-	44, // 72: gokapi.server.v1.EditorService.ImportTermsJSON:output_type -> gokapi.server.v1.ImportCountResponse
-	46, // 73: gokapi.server.v1.EditorService.ExportTermsJSON:output_type -> gokapi.server.v1.ExportTermsJSONResponse
-	49, // 74: gokapi.server.v1.EditorService.ListProviderConfigs:output_type -> gokapi.server.v1.ListProviderConfigsResponse
-	47, // 75: gokapi.server.v1.EditorService.SaveProviderConfig:output_type -> gokapi.server.v1.ProviderConfigInfo
-	63, // 76: gokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
-	63, // 77: gokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
-	63, // 78: gokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
-	56, // 79: gokapi.server.v1.EditorService.WatchProject:output_type -> gokapi.server.v1.ProjectEvent
-	52, // [52:80] is the sub-list for method output_type
-	24, // [24:52] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	11, // 2: gokapi.server.v1.EditorProjectInfo.streams:type_name -> gokapi.server.v1.StreamInfo
+	6,  // 3: gokapi.server.v1.ListEditorProjectsResponse.projects:type_name -> gokapi.server.v1.EditorProjectInfo
+	6,  // 4: gokapi.server.v1.EditorProjectResponse.project:type_name -> gokapi.server.v1.EditorProjectInfo
+	11, // 5: gokapi.server.v1.ListStreamsResponse.streams:type_name -> gokapi.server.v1.StreamInfo
+	11, // 6: gokapi.server.v1.StreamInfoResponse.stream:type_name -> gokapi.server.v1.StreamInfo
+	21, // 7: gokapi.server.v1.DiffStreamResponse.changes:type_name -> gokapi.server.v1.BlockChangeInfo
+	23, // 8: gokapi.server.v1.BlockInfo.source_spans:type_name -> gokapi.server.v1.SpanInfo
+	71, // 9: gokapi.server.v1.BlockInfo.targets:type_name -> gokapi.server.v1.BlockInfo.TargetsEntry
+	72, // 10: gokapi.server.v1.BlockInfo.targets_coded:type_name -> gokapi.server.v1.BlockInfo.TargetsCodedEntry
+	73, // 11: gokapi.server.v1.BlockInfo.properties:type_name -> gokapi.server.v1.BlockInfo.PropertiesEntry
+	24, // 12: gokapi.server.v1.GetBlocksResponse.blocks:type_name -> gokapi.server.v1.BlockInfo
+	23, // 13: gokapi.server.v1.UpdateBlockTargetRequest.spans:type_name -> gokapi.server.v1.SpanInfo
+	30, // 14: gokapi.server.v1.TMLookupResponse.matches:type_name -> gokapi.server.v1.TMLookupMatch
+	33, // 15: gokapi.server.v1.TermLookupResponse.matches:type_name -> gokapi.server.v1.BlockTermMatch
+	36, // 16: gokapi.server.v1.TMEntriesResponse.entries:type_name -> gokapi.server.v1.TMEntryInfo
+	36, // 17: gokapi.server.v1.TMEntryResponse.entry:type_name -> gokapi.server.v1.TMEntryInfo
+	44, // 18: gokapi.server.v1.ConceptInfo.terms:type_name -> gokapi.server.v1.TermInfo
+	74, // 19: gokapi.server.v1.ConceptInfo.properties:type_name -> gokapi.server.v1.ConceptInfo.PropertiesEntry
+	45, // 20: gokapi.server.v1.TermsResponse.concepts:type_name -> gokapi.server.v1.ConceptInfo
+	44, // 21: gokapi.server.v1.AddConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
+	45, // 22: gokapi.server.v1.ConceptResponse.concept:type_name -> gokapi.server.v1.ConceptInfo
+	44, // 23: gokapi.server.v1.UpdateConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
+	59, // 24: gokapi.server.v1.ListProviderConfigsResponse.configs:type_name -> gokapi.server.v1.ProviderConfigInfo
+	69, // 25: gokapi.server.v1.ProjectEvent.block_change:type_name -> gokapi.server.v1.BlockChangeEvent
+	70, // 26: gokapi.server.v1.ProjectEvent.presence_change:type_name -> gokapi.server.v1.PresenceChangeEvent
+	66, // 27: gokapi.server.v1.PresenceChangeEvent.user:type_name -> gokapi.server.v1.PresenceInfo
+	0,  // 28: gokapi.server.v1.EditorService.GetCurrentUser:input_type -> gokapi.server.v1.GetCurrentUserRequest
+	2,  // 29: gokapi.server.v1.EditorService.ListWorkspaces:input_type -> gokapi.server.v1.ListWorkspacesRequest
+	5,  // 30: gokapi.server.v1.EditorService.ListEditorProjects:input_type -> gokapi.server.v1.ListEditorProjectsRequest
+	9,  // 31: gokapi.server.v1.EditorService.GetEditorProject:input_type -> gokapi.server.v1.GetEditorProjectRequest
+	12, // 32: gokapi.server.v1.EditorService.ListStreams:input_type -> gokapi.server.v1.ListStreamsRequest
+	14, // 33: gokapi.server.v1.EditorService.CreateStream:input_type -> gokapi.server.v1.CreateStreamRequest
+	16, // 34: gokapi.server.v1.EditorService.GetStreamInfo:input_type -> gokapi.server.v1.GetStreamInfoRequest
+	17, // 35: gokapi.server.v1.EditorService.ArchiveStream:input_type -> gokapi.server.v1.ArchiveStreamRequest
+	18, // 36: gokapi.server.v1.EditorService.MergeStream:input_type -> gokapi.server.v1.MergeStreamRequest
+	20, // 37: gokapi.server.v1.EditorService.DiffStream:input_type -> gokapi.server.v1.DiffStreamRequest
+	25, // 38: gokapi.server.v1.EditorService.GetBlocks:input_type -> gokapi.server.v1.GetBlocksRequest
+	27, // 39: gokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> gokapi.server.v1.UpdateBlockTargetRequest
+	28, // 40: gokapi.server.v1.EditorService.ReviewBlock:input_type -> gokapi.server.v1.ReviewBlockRequest
+	29, // 41: gokapi.server.v1.EditorService.LookupTMForBlock:input_type -> gokapi.server.v1.TMLookupRequest
+	32, // 42: gokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> gokapi.server.v1.TermLookupRequest
+	35, // 43: gokapi.server.v1.EditorService.GetTMEntries:input_type -> gokapi.server.v1.TMEntriesRequest
+	38, // 44: gokapi.server.v1.EditorService.GetTMCount:input_type -> gokapi.server.v1.TMCountRequest
+	40, // 45: gokapi.server.v1.EditorService.AddTMEntry:input_type -> gokapi.server.v1.AddTMEntryRequest
+	42, // 46: gokapi.server.v1.EditorService.UpdateTMEntry:input_type -> gokapi.server.v1.UpdateTMEntryRequest
+	43, // 47: gokapi.server.v1.EditorService.DeleteTMEntry:input_type -> gokapi.server.v1.DeleteTMEntryRequest
+	46, // 48: gokapi.server.v1.EditorService.GetTerms:input_type -> gokapi.server.v1.TermsRequest
+	48, // 49: gokapi.server.v1.EditorService.GetTermCount:input_type -> gokapi.server.v1.TermCountRequest
+	50, // 50: gokapi.server.v1.EditorService.AddConcept:input_type -> gokapi.server.v1.AddConceptRequest
+	52, // 51: gokapi.server.v1.EditorService.UpdateConcept:input_type -> gokapi.server.v1.UpdateConceptRequest
+	53, // 52: gokapi.server.v1.EditorService.DeleteConcept:input_type -> gokapi.server.v1.DeleteConceptRequest
+	54, // 53: gokapi.server.v1.EditorService.ImportTermsCSV:input_type -> gokapi.server.v1.ImportTermsCSVRequest
+	55, // 54: gokapi.server.v1.EditorService.ImportTermsJSON:input_type -> gokapi.server.v1.ImportTermsJSONRequest
+	57, // 55: gokapi.server.v1.EditorService.ExportTermsJSON:input_type -> gokapi.server.v1.ExportTermsJSONRequest
+	60, // 56: gokapi.server.v1.EditorService.ListProviderConfigs:input_type -> gokapi.server.v1.ListProviderConfigsRequest
+	62, // 57: gokapi.server.v1.EditorService.SaveProviderConfig:input_type -> gokapi.server.v1.SaveProviderConfigRPC
+	63, // 58: gokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> gokapi.server.v1.DeleteProviderConfigRequest
+	64, // 59: gokapi.server.v1.EditorService.TestProviderConfig:input_type -> gokapi.server.v1.TestProviderConfigRPC
+	65, // 60: gokapi.server.v1.EditorService.UpdatePresence:input_type -> gokapi.server.v1.UpdatePresenceRequest
+	67, // 61: gokapi.server.v1.EditorService.WatchProject:input_type -> gokapi.server.v1.WatchProjectRequest
+	1,  // 62: gokapi.server.v1.EditorService.GetCurrentUser:output_type -> gokapi.server.v1.UserResponse
+	4,  // 63: gokapi.server.v1.EditorService.ListWorkspaces:output_type -> gokapi.server.v1.ListWorkspacesResponse
+	8,  // 64: gokapi.server.v1.EditorService.ListEditorProjects:output_type -> gokapi.server.v1.ListEditorProjectsResponse
+	10, // 65: gokapi.server.v1.EditorService.GetEditorProject:output_type -> gokapi.server.v1.EditorProjectResponse
+	13, // 66: gokapi.server.v1.EditorService.ListStreams:output_type -> gokapi.server.v1.ListStreamsResponse
+	15, // 67: gokapi.server.v1.EditorService.CreateStream:output_type -> gokapi.server.v1.StreamInfoResponse
+	15, // 68: gokapi.server.v1.EditorService.GetStreamInfo:output_type -> gokapi.server.v1.StreamInfoResponse
+	75, // 69: gokapi.server.v1.EditorService.ArchiveStream:output_type -> google.protobuf.Empty
+	19, // 70: gokapi.server.v1.EditorService.MergeStream:output_type -> gokapi.server.v1.MergeStreamResponse
+	22, // 71: gokapi.server.v1.EditorService.DiffStream:output_type -> gokapi.server.v1.DiffStreamResponse
+	26, // 72: gokapi.server.v1.EditorService.GetBlocks:output_type -> gokapi.server.v1.GetBlocksResponse
+	75, // 73: gokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
+	75, // 74: gokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
+	31, // 75: gokapi.server.v1.EditorService.LookupTMForBlock:output_type -> gokapi.server.v1.TMLookupResponse
+	34, // 76: gokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> gokapi.server.v1.TermLookupResponse
+	37, // 77: gokapi.server.v1.EditorService.GetTMEntries:output_type -> gokapi.server.v1.TMEntriesResponse
+	39, // 78: gokapi.server.v1.EditorService.GetTMCount:output_type -> gokapi.server.v1.TMCountResponse
+	41, // 79: gokapi.server.v1.EditorService.AddTMEntry:output_type -> gokapi.server.v1.TMEntryResponse
+	75, // 80: gokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
+	75, // 81: gokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
+	47, // 82: gokapi.server.v1.EditorService.GetTerms:output_type -> gokapi.server.v1.TermsResponse
+	49, // 83: gokapi.server.v1.EditorService.GetTermCount:output_type -> gokapi.server.v1.TermCountResponse
+	51, // 84: gokapi.server.v1.EditorService.AddConcept:output_type -> gokapi.server.v1.ConceptResponse
+	75, // 85: gokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
+	75, // 86: gokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
+	56, // 87: gokapi.server.v1.EditorService.ImportTermsCSV:output_type -> gokapi.server.v1.ImportCountResponse
+	56, // 88: gokapi.server.v1.EditorService.ImportTermsJSON:output_type -> gokapi.server.v1.ImportCountResponse
+	58, // 89: gokapi.server.v1.EditorService.ExportTermsJSON:output_type -> gokapi.server.v1.ExportTermsJSONResponse
+	61, // 90: gokapi.server.v1.EditorService.ListProviderConfigs:output_type -> gokapi.server.v1.ListProviderConfigsResponse
+	59, // 91: gokapi.server.v1.EditorService.SaveProviderConfig:output_type -> gokapi.server.v1.ProviderConfigInfo
+	75, // 92: gokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
+	75, // 93: gokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
+	75, // 94: gokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
+	68, // 95: gokapi.server.v1.EditorService.WatchProject:output_type -> gokapi.server.v1.ProjectEvent
+	62, // [62:96] is the sub-list for method output_type
+	28, // [28:62] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_bowrain_proto_v1_editor_service_proto_init() }
@@ -4371,7 +5498,7 @@ func file_bowrain_proto_v1_editor_service_proto_init() {
 	if File_bowrain_proto_v1_editor_service_proto != nil {
 		return
 	}
-	file_bowrain_proto_v1_editor_service_proto_msgTypes[56].OneofWrappers = []any{
+	file_bowrain_proto_v1_editor_service_proto_msgTypes[68].OneofWrappers = []any{
 		(*ProjectEvent_BlockChange)(nil),
 		(*ProjectEvent_PresenceChange)(nil),
 	}
@@ -4381,7 +5508,7 @@ func file_bowrain_proto_v1_editor_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bowrain_proto_v1_editor_service_proto_rawDesc), len(file_bowrain_proto_v1_editor_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   63,
+			NumMessages:   75,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

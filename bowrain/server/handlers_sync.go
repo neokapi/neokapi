@@ -57,7 +57,7 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 			}
 			// Ensure the item exists in the ContentStore so it appears in the editor UI.
 			if s.ContentStore != nil {
-				_ = s.ContentStore.StoreItem(ctx, projectID, &store.Item{
+				_ = s.ContentStore.StoreItem(ctx, projectID, "main", &store.Item{
 					Name:     itemName,
 					Format:   detectFormatFromName(itemName),
 					ItemType: "file",
@@ -179,6 +179,7 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 
 	query := store.BlockQuery{
 		ProjectID: projectID,
+		Stream:    "main",
 		ItemName:  itemName,
 	}
 

@@ -325,4 +325,71 @@ var storeMigrations = []storage.Migration{
 				WHERE source_id != '';
 		`,
 	},
+	{
+		Version:     16,
+		Description: "add streams support",
+		SQL: `
+			-- Streams table
+			CREATE TABLE streams (
+				project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name        TEXT NOT NULL,
+				parent      TEXT NOT NULL DEFAULT '',
+				base_cursor INTEGER NOT NULL DEFAULT 0,
+				archived    INTEGER NOT NULL DEFAULT 0,
+				visibility  TEXT NOT NULL DEFAULT 'public',
+				description TEXT NOT NULL DEFAULT '',
+				created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+				created_by  TEXT NOT NULL DEFAULT '',
+				PRIMARY KEY (project_id, name)
+			);
+
+			-- Stream members table (for shared visibility)
+			CREATE TABLE stream_members (
+				project_id TEXT NOT NULL,
+				stream     TEXT NOT NULL,
+				user_id    TEXT NOT NULL,
+				added_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, user_id),
+				FOREIGN KEY (project_id, stream) REFERENCES streams(project_id, name) ON DELETE CASCADE
+			);
+
+			-- Add stream column to items table (recreate with stream in PK)
+			CREATE TABLE items_new (
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				name         TEXT NOT NULL,
+				format       TEXT NOT NULL DEFAULT '',
+				item_type    TEXT NOT NULL DEFAULT 'file',
+				source_bytes BLOB,
+				block_index  TEXT NOT NULL DEFAULT '{}',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, name)
+			);
+			INSERT INTO items_new (project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
+				SELECT project_id, 'main', name, format, item_type, source_bytes, block_index, properties, created_at, updated_at FROM items;
+			DROP TABLE items;
+			ALTER TABLE items_new RENAME TO items;
+			CREATE INDEX idx_items_project ON items(project_id);
+			CREATE INDEX idx_items_project_stream ON items(project_id, stream);
+
+			-- Add stream column to change_log table
+			ALTER TABLE change_log ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			DROP INDEX IF EXISTS idx_changelog_project_seq;
+			DROP INDEX IF EXISTS idx_changelog_project_locale;
+			CREATE INDEX idx_changelog_project_stream_seq ON change_log(project_id, stream, seq);
+			CREATE INDEX idx_changelog_project_stream_locale ON change_log(project_id, stream, locale, seq);
+
+			-- Add stream column to block_history table
+			ALTER TABLE block_history ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			DROP INDEX IF EXISTS idx_block_history_lookup;
+			CREATE INDEX idx_block_history_lookup ON block_history(project_id, stream, block_id, locale);
+
+			-- Add stream column to block_notes table
+			ALTER TABLE block_notes ADD COLUMN stream TEXT NOT NULL DEFAULT 'main';
+			DROP INDEX IF EXISTS idx_block_notes_lookup;
+			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, stream, block_id);
+		`,
+	},
 }

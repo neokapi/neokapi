@@ -93,7 +93,7 @@ func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID str
 		allBlocks = append(allBlocks, item.Blocks...)
 	}
 	if len(allBlocks) > 0 {
-		if err := s.store.StoreBlocks(ctx, projectID, allBlocks); err != nil {
+		if err := s.store.StoreBlocks(ctx, projectID, "main", allBlocks); err != nil {
 			return nil, fmt.Errorf("store fetched blocks: %w", err)
 		}
 	}
@@ -112,7 +112,7 @@ func (s *ConnectorService) Publish(ctx context.Context, connectorID, projectID s
 	}
 
 	// Get all blocks from the project.
-	blocks, err := s.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID})
+	blocks, err := s.store.GetBlocks(ctx, store.BlockQuery{ProjectID: projectID, Stream: "main"})
 	if err != nil {
 		return fmt.Errorf("get blocks: %w", err)
 	}

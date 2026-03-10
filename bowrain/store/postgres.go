@@ -140,7 +140,8 @@ func (s *PostgresStore) DeleteProject(ctx context.Context, id string) error {
 // Item management
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) StoreItem(ctx context.Context, projectID string, item *platstore.Item) error {
+func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string, item *platstore.Item) error {
+	stream = defaultStream(stream)
 	now := time.Now().UTC()
 	item.CreatedAt = now
 	item.UpdatedAt = now
@@ -157,13 +158,13 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID string, item *p
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		 ON CONFLICT(project_id, name) DO UPDATE SET
+		`INSERT INTO items (project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=EXCLUDED.format, item_type=EXCLUDED.item_type,
 			source_bytes=EXCLUDED.source_bytes, block_index=EXCLUDED.block_index,
 			properties=EXCLUDED.properties, updated_at=EXCLUDED.updated_at`,
-		projectID, item.Name, item.Format, item.ItemType, item.SourceBytes,
+		projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
 		item.BlockIndex, string(propsJSON), now, now)
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
@@ -171,17 +172,19 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID string, item *p
 	return nil
 }
 
-func (s *PostgresStore) GetItem(ctx context.Context, projectID, itemName string) (*platstore.Item, error) {
+func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
+	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
-		 FROM items WHERE project_id=$1 AND name=$2`, projectID, itemName)
+		 FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
 	return scanItemPg(row)
 }
 
-func (s *PostgresStore) ListItems(ctx context.Context, projectID string) ([]*platstore.Item, error) {
+func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
+	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
-		 FROM items WHERE project_id=$1 ORDER BY name`, projectID)
+		 FROM items WHERE project_id=$1 AND stream=$2 ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
 	}
@@ -198,7 +201,8 @@ func (s *PostgresStore) ListItems(ctx context.Context, projectID string) ([]*pla
 	return result, rows.Err()
 }
 
-func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, itemName string) error {
+func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -210,7 +214,7 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, itemName stri
 		return fmt.Errorf("delete item blocks: %w", err)
 	}
 
-	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=$1 AND name=$2`, projectID, itemName)
+	res, err := tx.ExecContext(ctx, `DELETE FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
 	if err != nil {
 		return fmt.Errorf("delete item: %w", err)
 	}
@@ -226,15 +230,16 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, itemName stri
 // Block storage
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, "", blocks)
+func (s *PostgresStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, stream, "", blocks)
 }
 
-func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
-	return s.storeBlocks(ctx, projectID, itemName, blocks)
+func (s *PostgresStore) StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+	return s.storeBlocks(ctx, projectID, stream, itemName, blocks)
 }
 
-func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
+func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -340,17 +345,17 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 		}
 
 		if isNew {
-			if err := logChangePg(ctx, tx, projectID, internalID, "source_added", "", identity.ContentHash); err != nil {
+			if err := logChangePg(ctx, tx, projectID, stream, internalID, "source_added", "", identity.ContentHash); err != nil {
 				return fmt.Errorf("log change for block %s: %w", internalID, err)
 			}
 			for locale := range b.Targets {
-				if err := logChangePg(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+				if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 					return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 				}
 			}
 		} else {
 			if existingHash != identity.ContentHash {
-				if err := logChangePg(ctx, tx, projectID, internalID, "source_modified", "", identity.ContentHash); err != nil {
+				if err := logChangePg(ctx, tx, projectID, stream, internalID, "source_modified", "", identity.ContentHash); err != nil {
 					return fmt.Errorf("log change for block %s: %w", internalID, err)
 				}
 			}
@@ -362,14 +367,14 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 				for locale, newSegs := range b.Targets {
 					oldSegs, had := oldTargets[locale]
 					if !had {
-						if err := logChangePg(ctx, tx, projectID, internalID, "target_added", string(locale), ""); err != nil {
+						if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_added", string(locale), ""); err != nil {
 							return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 						}
 					} else {
 						oldJSON, _ := json.Marshal(oldSegs)
 						newJSON, _ := json.Marshal(newSegs)
 						if string(oldJSON) != string(newJSON) {
-							if err := logChangePg(ctx, tx, projectID, internalID, "target_modified", string(locale), ""); err != nil {
+							if err := logChangePg(ctx, tx, projectID, stream, internalID, "target_modified", string(locale), ""); err != nil {
 								return fmt.Errorf("log target change for block %s locale %s: %w", internalID, locale, err)
 							}
 						}
@@ -383,7 +388,7 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, itemName str
 }
 
 
-func (s *PostgresStore) GetBlock(ctx context.Context, projectID, blockID string) (*platstore.StoredBlock, error) {
+func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
@@ -453,7 +458,8 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	return result, rows.Err()
 }
 
-func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, blockID string) error {
+func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
+	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
@@ -469,7 +475,7 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, blockID stri
 		return fmt.Errorf("block %s not found in project %s", blockID, projectID)
 	}
 
-	if err := logChangePg(ctx, tx, projectID, blockID, "source_removed", "", ""); err != nil {
+	if err := logChangePg(ctx, tx, projectID, stream, blockID, "source_removed", "", ""); err != nil {
 		return fmt.Errorf("log change for deleted block %s: %w", blockID, err)
 	}
 
@@ -480,7 +486,7 @@ func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, blockID stri
 // Version management
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, label, description string) (*platstore.Version, error) {
+func (s *PostgresStore) CreateVersion(ctx context.Context, projectID, stream, label, description string) (*platstore.Version, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
@@ -539,7 +545,7 @@ func (s *PostgresStore) GetVersion(ctx context.Context, versionID string) (*plat
 	return &v, nil
 }
 
-func (s *PostgresStore) ListVersions(ctx context.Context, projectID string) ([]*platstore.Version, error) {
+func (s *PostgresStore) ListVersions(ctx context.Context, projectID, stream string) ([]*platstore.Version, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, label, description, block_count, created_at
 		 FROM versions WHERE project_id=$1 ORDER BY created_at DESC`, projectID)
@@ -679,7 +685,8 @@ func queryVersionBlocks(ctx context.Context, db *sql.DB, versionID string) (map[
 }
 
 // logChangePg inserts a single change log entry within a PostgreSQL transaction.
-func logChangePg(ctx context.Context, tx *sql.Tx, projectID, blockID, changeType, locale, contentHash string) error {
+func logChangePg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, changeType, locale, contentHash string) error {
+	stream = defaultStream(stream)
 	now := time.Now().UTC()
 	var localeVal any
 	if locale == "" {
@@ -694,8 +701,8 @@ func logChangePg(ctx context.Context, tx *sql.Tx, projectID, blockID, changeType
 		hashVal = contentHash
 	}
 	_, err := tx.ExecContext(ctx,
-		`INSERT INTO change_log (project_id, block_id, change_type, locale, content_hash, logged_at)
-		 VALUES ($1, $2, $3, $4, $5, $6)`,
-		projectID, blockID, changeType, localeVal, hashVal, now)
+		`INSERT INTO change_log (project_id, stream, block_id, change_type, locale, content_hash, logged_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		projectID, stream, blockID, changeType, localeVal, hashVal, now)
 	return err
 }

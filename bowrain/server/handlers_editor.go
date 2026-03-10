@@ -84,7 +84,7 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 		if p.WorkspaceID == wsID {
 			info := projectToInfoResponse(p)
 			// Populate items so the dashboard can show file counts.
-			items, err := s.ContentStore.ListItems(ctx, p.ID)
+			items, err := s.ContentStore.ListItems(ctx, p.ID, "main")
 			if err == nil {
 				for _, item := range items {
 					info.Items = append(info.Items, ProjectItemResponse{
@@ -865,7 +865,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 		limit = 20
 	}
 
-	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, bid, locale, limit)
+	entries, err := s.ContentStore.GetBlockHistory(c.Request().Context(), pid, "main", bid, locale, limit)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
