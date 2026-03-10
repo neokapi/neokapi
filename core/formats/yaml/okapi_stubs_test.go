@@ -1,9 +1,10 @@
 package yaml_test
 
-// ---- Unmapped Java integration roundtrip tests ----
+// ---- File-based roundtrip iteration tests ----
 // RoundTripYamlIT iterates over all .yaml/.yml test resource files using EventComparator.
 // The native implementation covers roundtrip via TestExtract_RoundtripFiles,
-// TestExtract_RoundTripSubFilterProcessLiteralAsBlock, and individual double-extraction tests.
+// TestExtract_RoundTripSubFilterProcessLiteralAsBlock, individual double-extraction tests,
+// and the skeleton_test.go byte-exact roundtrip suite.
 
-// okapi-unmapped: RoundTripYamlIT — Java integration test iterating .yaml test resource directory; native roundtrip covered by extraction and double-extraction tests
-// okapi-unmapped: RoundTripYamlIT (yml extension) — Java integration test iterating .yml test resource directory; native roundtrip covered by extraction and double-extraction tests
+// okapi-deferred: RoundTripYamlIT — iterates all okf_yaml/*.yaml files; native roundtrip covered by double-extraction tests and skeleton_test.go
+// okapi-deferred: RoundTripYamlIT (yml extension) — iterates all okf_yaml/*.yml files; native roundtrip covered by double-extraction tests and skeleton_test.go

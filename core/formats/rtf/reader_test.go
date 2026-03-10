@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// okapi: RTFFilterTest#testSimpleTU — extracts translatable text from RTF paragraphs.
 func TestReadSimpleRTF(t *testing.T) {
 	ctx := context.Background()
 	reader := rtf.NewReader()
@@ -31,6 +32,7 @@ func TestReadSimpleRTF(t *testing.T) {
 	assert.Equal(t, "Second paragraph.", blocks[1].SourceText())
 }
 
+// okapi: RtfSnippetsTest#testBold — bold formatting is processed as inline content.
 func TestReadRTFWithFormatting(t *testing.T) {
 	ctx := context.Background()
 	reader := rtf.NewReader()
@@ -168,6 +170,7 @@ func TestReadRTFEscapedCharacters(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "\\")
 }
 
+// okapi: RtfEventTest#testStartDoc — verifies LayerStart/LayerEnd structure wraps RTF content.
 func TestReadLayerStartEnd(t *testing.T) {
 	ctx := context.Background()
 	reader := rtf.NewReader()
@@ -188,6 +191,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 	assert.Equal(t, "rtf", layer.Format)
 }
 
+// okapi: RTFFilterTest#testBasicProcessing — verifies RTF MIME type and signature.
 func TestReaderSignature(t *testing.T) {
 	reader := rtf.NewReader()
 	sig := reader.Signature()
@@ -240,6 +244,7 @@ func TestReadMultipleParagraphs(t *testing.T) {
 	assert.Equal(t, "Third paragraph.", blocks[2].SourceText())
 }
 
+// okapi: ExtractionComparisionTest#testDoubleExtraction — roundtrip read/write preserves RTF content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 

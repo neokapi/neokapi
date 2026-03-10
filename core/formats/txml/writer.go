@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -12,21 +14,57 @@ import (
 // Writer implements DataFormatWriter for Trados XML (TXML) files.
 type Writer struct {
 	format.BaseFormatWriter
-	sourceLocale string
-	targetLocale string
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	sourceLocale  string
+	targetLocale  string
+	blocks        []*model.Block
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TXML writer.
 func NewWriter() *Writer {
+	cfg := &Config{}
+	cfg.Reset()
 	return &Writer{
 		BaseFormatWriter: format.BaseFormatWriter{
 			FormatName: "txml",
 		},
+		cfg: cfg,
 	}
+}
+
+// Config returns the writer configuration for external modification.
+func (w *Writer) Config() *Config { return w.cfg }
+
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
 }
 
 // Write consumes Parts from a channel and writes reconstructed TXML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		// Collect all parts, then write from skeleton
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case part, ok := <-parts:
+				if !ok {
+					return w.writeFromSkeleton()
+				}
+				if part.Type == model.PartBlock {
+					if block, ok := part.Resource.(*model.Block); ok {
+						w.blocks = append(w.blocks, block)
+					}
+				}
+			}
+		}
+	}
+
 	headerWritten := false
 
 	for {
@@ -67,6 +105,67 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton() error {
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("txml writer: flush skeleton: %w", err)
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("txml writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			// Ref ID is "segIdx:elemType" where segIdx is 0-based
+			parts := strings.SplitN(refID, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			segIdx, err := strconv.Atoi(parts[0])
+			if err != nil || segIdx < 0 || segIdx >= len(w.blocks) {
+				continue
+			}
+			block := w.blocks[segIdx]
+			elemType := parts[1]
+
+			var text string
+			if elemType == "source" {
+				text = block.SourceText()
+			} else {
+				// target
+				targetLocale := model.LocaleID(w.targetLocale)
+				if !targetLocale.IsEmpty() && block.HasTarget(targetLocale) {
+					text = block.TargetText(targetLocale)
+				} else {
+					// Try any available target
+					text = block.SourceText() // fallback
+					for locale := range block.Targets {
+						if block.HasTarget(locale) {
+							text = block.TargetText(locale)
+							break
+						}
+					}
+				}
+			}
+
+			if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (w *Writer) writeHeader() error {
@@ -126,6 +225,10 @@ func (w *Writer) writeBlock(part *model.Part) error {
 	}
 	if targetText != "" {
 		if _, err := fmt.Fprintf(w.Output, "<target>%s</target>\n", xmlEscape(targetText)); err != nil {
+			return err
+		}
+	} else if w.cfg.AllowEmptyOutputTarget {
+		if _, err := io.WriteString(w.Output, "<target/>\n"); err != nil {
 			return err
 		}
 	}

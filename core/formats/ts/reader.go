@@ -15,8 +15,13 @@ import (
 // Reader implements DataFormatReader for Qt TS (Qt Linguist) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Qt TS reader.
 func NewReader() *Reader {
@@ -31,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -75,11 +85,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("ts: reading: %w", err)}
 		return
 	}
+	rawText := string(content)
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
 	decoder.Entity = xml.HTMLEntity
+
+	// Skeleton tracking: collect source/translation content positions
+	type elemPos struct {
+		startOffset int    // byte offset after opening tag
+		endOffset   int    // byte offset before closing tag
+		blockIdx    int    // 0-based block index
+		elemType    string // "source" or "translation"
+	}
+	var elemPositions []elemPos
+	var elemStartOff int64
 
 	var (
 		tsVersion      string
@@ -211,6 +232,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					sourceFrag = &model.Fragment{}
 					sourceByteElems = nil
 					buildingSourceFrag = true
+					elemStartOff = decoder.InputOffset()
 				}
 
 			case "translation":
@@ -225,6 +247,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 							transType = attr.Value
 						}
 					}
+					elemStartOff = decoder.InputOffset()
 				}
 
 			case "numerusform":
@@ -313,12 +336,40 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			case "source":
 				if inSource {
+					if r.skeletonStore != nil {
+						endOff := decoder.InputOffset()
+						closeTag := "</source>"
+						endPos := int(endOff) - len(closeTag)
+						if endPos < 0 {
+							endPos = 0
+						}
+						elemPositions = append(elemPositions, elemPos{
+							startOffset: int(elemStartOff),
+							endOffset:   endPos,
+							blockIdx:    blockCount, // will be incremented when </message> fires
+							elemType:    "source",
+						})
+					}
 					inSource = false
 					buildingSourceFrag = false
 				}
 
 			case "translation":
 				if inTranslation {
+					if r.skeletonStore != nil && !messageNumerus {
+						endOff := decoder.InputOffset()
+						closeTag := "</translation>"
+						endPos := int(endOff) - len(closeTag)
+						if endPos < 0 {
+							endPos = 0
+						}
+						elemPositions = append(elemPositions, elemPos{
+							startOffset: int(elemStartOff),
+							endOffset:   endPos,
+							blockIdx:    blockCount,
+							elemType:    "translation",
+						})
+					}
 					inTranslation = false
 					buildingTransFrag = false
 				}
@@ -481,12 +532,58 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
+	// Build skeleton from collected element positions
+	if r.skeletonStore != nil && len(elemPositions) > 0 {
+		skelPos := 0
+		for _, ep := range elemPositions {
+			// Write skeleton text from skelPos to element content start
+			if ep.startOffset > skelPos {
+				r.skelText(rawText[skelPos:ep.startOffset])
+			}
+			// Write skeleton ref: "blockIdx:elemType"
+			refID := fmt.Sprintf("%d:%s", ep.blockIdx, ep.elemType)
+			r.skelRef(refID)
+			skelPos = ep.endOffset
+		}
+		// Write remaining skeleton text
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
+	}
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // byteElem holds a <byte value="xx"/> element.
 type byteElem struct {
 	value string // hex or decimal value
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

@@ -14,8 +14,12 @@ import (
 // Writer implements DataFormatWriter for TTML subtitle files.
 type Writer struct {
 	format.BaseFormatWriter
-	docContent string // original document content for skeleton-based reconstruction
+	skeletonStore *format.SkeletonStore
+	docContent    string // original document content for skeleton-based reconstruction
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TTML writer.
 func NewWriter() *Writer {
@@ -26,8 +30,17 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed TTML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeletonStore(ctx, parts)
+	}
+
 	// Collect all parts first so we can do skeleton-based reconstruction.
 	var blocks []*model.Block
 	for {
@@ -52,6 +65,66 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeWithSkeletonStore collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeletonStore(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("ttml writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeletonStore(blocksByID)
+}
+
+// writeFromSkeletonStore reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeletonStore(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("ttml writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			if block, ok := blocks[string(entry.Data)]; ok {
+				text := w.blockText(block)
+				if _, err := io.WriteString(w.Output, text); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.SourceText()
 }
 
 // writeOutput reconstructs the TTML document, replacing <p> element text

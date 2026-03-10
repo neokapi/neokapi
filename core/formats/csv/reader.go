@@ -1,6 +1,7 @@
 package csv
 
 import (
+	"bytes"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -15,8 +16,13 @@ import (
 // Reader implements DataFormatReader for CSV files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new CSV reader.
 func NewReader() *Reader {
@@ -46,6 +52,11 @@ func NewTSVReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -112,6 +123,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("csv: reading: %w", err)}
+		return
+	}
+
+	if r.skeletonStore != nil {
+		r.readContentSkeleton(ctx, ch, layer, string(content))
 		return
 	}
 
@@ -290,6 +306,345 @@ func (r *Reader) isKeyColumn(colIdx int) bool {
 
 func (r *Reader) isCommentColumn(colIdx int) bool {
 	return slices.Contains(r.cfg.CommentColumns, colIdx)
+}
+
+// readContentSkeleton handles reading with skeleton store active.
+// It parses the raw CSV content character-by-character to preserve exact
+// formatting (quoting styles, delimiters, line endings) while extracting
+// translatable cell values as skeleton refs.
+func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartResult, layer *model.Layer, content string) {
+	// First, use encoding/csv to get parsed records (for column logic).
+	csvReader := csv.NewReader(strings.NewReader(content))
+	csvReader.Comma = r.cfg.Separator
+	csvReader.LazyQuotes = true
+	csvReader.FieldsPerRecord = -1
+
+	records, err := csvReader.ReadAll()
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("csv: parsing: %w", err)}
+		return
+	}
+
+	if len(records) == 0 {
+		r.skelText(content)
+		r.skelFlush()
+		r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+		return
+	}
+
+	// Determine header/start rows (same logic as non-skeleton path).
+	var headers []string
+	headerRow := -1
+	startRow := 0
+
+	if r.cfg.HasHeader {
+		if r.cfg.ColumnNamesRow > 0 {
+			headerRow = r.cfg.ColumnNamesRow - 1
+		} else {
+			headerRow = 0
+		}
+		if headerRow < len(records) {
+			headers = records[headerRow]
+		}
+	}
+
+	if r.cfg.ValuesStartRow > 0 {
+		startRow = r.cfg.ValuesStartRow - 1
+	} else if r.cfg.HasHeader {
+		if headerRow >= 0 {
+			startRow = headerRow + 1
+		} else {
+			startRow = 1
+		}
+	}
+
+	// Split raw content into lines preserving line endings.
+	rawLines := splitRawLines(content)
+
+	blockCounter := 0
+	dataCounter := 0
+
+	// Process each raw line, matching against parsed records.
+	for rowIdx, rawLine := range rawLines {
+		if rowIdx >= len(records) {
+			// Trailing content beyond parsed records (shouldn't happen normally).
+			r.skelText(rawLine.text + rawLine.lineEnding)
+			continue
+		}
+
+		row := records[rowIdx]
+
+		if rowIdx < startRow {
+			// Header/preamble row: emit entirely as skeleton text + Data part.
+			r.skelText(rawLine.text + rawLine.lineEnding)
+			dataCounter++
+			name := "header-row"
+			if rowIdx != headerRow {
+				name = fmt.Sprintf("preamble-row%d", rowIdx+1)
+			}
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: name,
+				Properties: map[string]string{
+					"content": strings.Join(row, string(r.cfg.Separator)),
+				},
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+			continue
+		}
+
+		rowNum := rowIdx - startRow + 1
+
+		// Build key from key columns if configured.
+		var rowKey string
+		if len(r.cfg.KeyColumns) > 0 {
+			var keyParts []string
+			for _, kc := range r.cfg.KeyColumns {
+				if kc < len(row) {
+					keyParts = append(keyParts, row[kc])
+				}
+			}
+			rowKey = strings.Join(keyParts, ".")
+		}
+
+		// Build comment from comment columns if configured.
+		var rowComment string
+		if len(r.cfg.CommentColumns) > 0 {
+			var commentParts []string
+			for _, cc := range r.cfg.CommentColumns {
+				if cc < len(row) && strings.TrimSpace(row[cc]) != "" {
+					commentParts = append(commentParts, row[cc])
+				}
+			}
+			rowComment = strings.Join(commentParts, "; ")
+		}
+
+		// Parse raw cells from this line to preserve exact quoting.
+		rawCells := splitRawCells(rawLine.text, r.cfg.Separator)
+
+		for colIdx := 0; colIdx < len(rawCells); colIdx++ {
+			rc := rawCells[colIdx]
+
+			// Write delimiter before cell (except first column).
+			if colIdx > 0 {
+				r.skelText(string(r.cfg.Separator))
+			}
+
+			parsedValue := ""
+			if colIdx < len(row) {
+				parsedValue = row[colIdx]
+			}
+
+			// Key and comment columns are non-translatable skeleton text.
+			if r.isKeyColumn(colIdx) || r.isCommentColumn(colIdx) {
+				r.skelText(rc.raw)
+				continue
+			}
+
+			if !r.isTranslatable(colIdx) {
+				// Non-translatable column -> skeleton text + Data part.
+				r.skelText(rc.raw)
+				dataCounter++
+				colName := r.columnName(headers, colIdx)
+				data := &model.Data{
+					ID:   fmt.Sprintf("d%d", dataCounter),
+					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
+					Properties: map[string]string{
+						"content": parsedValue,
+						"column":  fmt.Sprintf("%d", colIdx),
+						"row":     fmt.Sprintf("%d", rowNum),
+					},
+				}
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+					return
+				}
+				continue
+			}
+
+			cellValue := parsedValue
+			if r.cfg.TrimValues {
+				cellValue = strings.TrimSpace(cellValue)
+			}
+
+			if cellValue == "" {
+				// Empty translatable cell: write as skeleton text.
+				r.skelText(rc.raw)
+				continue
+			}
+
+			blockCounter++
+			colName := r.columnName(headers, colIdx)
+
+			blockID := fmt.Sprintf("tu%d", blockCounter)
+			if rowKey != "" {
+				blockID = rowKey
+				if len(r.cfg.TranslatableColumns) > 1 {
+					blockID = fmt.Sprintf("%s.%s", rowKey, colName)
+				}
+			}
+
+			// Write quoting prefix as skeleton text, then ref for value, then quoting suffix.
+			r.skelText(rc.prefix)
+			r.skelRef(blockID)
+			r.skelText(rc.suffix)
+
+			block := model.NewBlock(blockID, cellValue)
+			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
+			block.Properties["column"] = fmt.Sprintf("%d", colIdx)
+			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
+			if rc.prefix == "\"" {
+				block.Properties["quoted"] = "true"
+			}
+			if rowComment != "" {
+				block.Properties["comment"] = rowComment
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		}
+
+		// Write line ending as skeleton text.
+		r.skelText(rawLine.lineEnding)
+	}
+
+	r.skelFlush()
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// rawLine holds a line's content and its original line ending.
+type rawLine struct {
+	text       string
+	lineEnding string
+}
+
+// splitRawLines splits content into lines preserving exact line endings.
+func splitRawLines(content string) []rawLine {
+	var lines []rawLine
+	remaining := content
+	for len(remaining) > 0 {
+		// Find next unquoted newline. We need to track whether we're inside
+		// a quoted field to avoid splitting on newlines within quotes.
+		inQuotes := false
+		i := 0
+		for i < len(remaining) {
+			ch := remaining[i]
+			if ch == '"' {
+				inQuotes = !inQuotes
+				i++
+			} else if !inQuotes && ch == '\n' {
+				// Found line boundary.
+				lineContent := remaining[:i]
+				ending := "\n"
+				if strings.HasSuffix(lineContent, "\r") {
+					lineContent = lineContent[:len(lineContent)-1]
+					ending = "\r\n"
+				}
+				lines = append(lines, rawLine{text: lineContent, lineEnding: ending})
+				remaining = remaining[i+1:]
+				goto nextLine
+			} else {
+				i++
+			}
+		}
+		// No newline found: last line with no ending.
+		lines = append(lines, rawLine{text: remaining})
+		break
+	nextLine:
+	}
+	return lines
+}
+
+// rawCell holds a raw cell's text along with its quote prefix and suffix.
+type rawCell struct {
+	raw    string // full raw text of the cell
+	prefix string // quote character(s) before value (e.g., `"`)
+	suffix string // quote character(s) after value (e.g., `"`)
+}
+
+// splitRawCells splits a raw CSV line into cells preserving exact formatting.
+func splitRawCells(line string, sep rune) []rawCell {
+	var cells []rawCell
+	sepStr := string(sep)
+	remaining := line
+
+	for {
+		if len(remaining) == 0 {
+			cells = append(cells, rawCell{raw: ""})
+			break
+		}
+
+		if remaining[0] == '"' {
+			// Quoted field: find closing quote.
+			// The field ends at a quote not followed by another quote.
+			i := 1
+			for i < len(remaining) {
+				if remaining[i] == '"' {
+					if i+1 < len(remaining) && remaining[i+1] == '"' {
+						// Escaped quote: skip both.
+						i += 2
+					} else {
+						// End of quoted field.
+						i++
+						break
+					}
+				} else {
+					i++
+				}
+			}
+			raw := remaining[:i]
+			cells = append(cells, rawCell{
+				raw:    raw,
+				prefix: "\"",
+				suffix: "\"",
+			})
+			remaining = remaining[i:]
+			// Skip separator after field.
+			if strings.HasPrefix(remaining, sepStr) {
+				remaining = remaining[len(sepStr):]
+			} else {
+				break
+			}
+		} else {
+			// Unquoted field: find next separator.
+			idx := strings.Index(remaining, sepStr)
+			if idx < 0 {
+				cells = append(cells, rawCell{raw: remaining})
+				break
+			}
+			cells = append(cells, rawCell{raw: remaining[:idx]})
+			remaining = remaining[idx+len(sepStr):]
+		}
+	}
+
+	return cells
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

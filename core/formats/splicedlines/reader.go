@@ -2,8 +2,10 @@ package splicedlines
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -15,8 +17,13 @@ import (
 // Continuation lines are joined into a single Block.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new spliced lines reader.
 func NewReader() *Reader {
@@ -31,6 +38,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -75,20 +87,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	scanner := bufio.NewScanner(r.Doc.Reader)
+	br := bufio.NewReader(r.Doc.Reader)
 	blockID := 0
 	dataID := 0
 
-	var accumulated []string
+	type rawLine struct {
+		content    string
+		lineEnding string
+	}
+
+	var accumulated []rawLine
 
 	flushBlock := func() bool {
 		if len(accumulated) == 0 {
 			return true
 		}
-		joined := strings.Join(accumulated, "\n")
-		accumulated = nil
+		// Build joined content (without backslashes or line endings)
+		var parts []string
+		for _, rl := range accumulated {
+			parts = append(parts, rl.content)
+		}
+		joined := strings.Join(parts, "\n")
 
 		if strings.TrimSpace(joined) == "" {
+			// Write the original raw text (with line endings) to skeleton
+			for _, rl := range accumulated {
+				r.skelText(rl.lineEnding)
+			}
+			accumulated = nil
+
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
@@ -98,25 +125,73 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		blockID++
-		block := model.NewBlock(fmt.Sprintf("tu%d", blockID), joined)
+		blockIDStr := fmt.Sprintf("tu%d", blockID)
+		numLines := len(accumulated)
+
+		// Write skeleton: for continuation lines, backslash+lineEnding are skeleton text.
+		// The block ref captures only the content (without backslashes).
+		r.skelRef(blockIDStr)
+		// After the ref, write the line ending of the last line
+		lastEnding := accumulated[numLines-1].lineEnding
+		r.skelText(lastEnding)
+
+		block := model.NewBlock(blockIDStr, joined)
 		block.Name = fmt.Sprintf("block%d", blockID)
-		block.Properties["continued"] = fmt.Sprintf("%d", len(accumulated))
+		block.Properties["continued"] = fmt.Sprintf("%d", numLines)
+
+		// Store the continuation line endings so the writer can reconstruct
+		if numLines > 1 {
+			var endings []string
+			for i := 0; i < numLines-1; i++ {
+				endings = append(endings, accumulated[i].lineEnding)
+			}
+			block.Properties["continuation-endings"] = strings.Join(endings, "|")
+		}
+
+		accumulated = nil
 		return r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 	}
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		line = strings.TrimRight(line, "\r")
+	for {
+		rawLine, err := br.ReadString('\n')
+		if rawLine == "" && err != nil {
+			if err != io.EOF {
+				ch <- model.PartResult{Error: fmt.Errorf("splicedlines: reading: %w", err)}
+			}
+			break
+		}
 
-		if strings.HasSuffix(line, `\`) {
+		// Split into content and line ending
+		content := rawLine
+		lineEnding := ""
+		if strings.HasSuffix(content, "\r\n") {
+			content = content[:len(content)-2]
+			lineEnding = "\r\n"
+		} else if strings.HasSuffix(content, "\n") {
+			content = content[:len(content)-1]
+			lineEnding = "\n"
+		}
+
+		if strings.HasSuffix(content, `\`) {
 			// Continuation line: strip trailing backslash and accumulate
-			accumulated = append(accumulated, strings.TrimSuffix(line, `\`))
+			stripped := strings.TrimSuffix(content, `\`)
+			accumulated = append(accumulated, struct {
+				content    string
+				lineEnding string
+			}{content: stripped, lineEnding: lineEnding})
 		} else {
 			// Non-continuation: add to accumulator and flush
-			accumulated = append(accumulated, line)
+			accumulated = append(accumulated, struct {
+				content    string
+				lineEnding string
+			}{content: content, lineEnding: lineEnding})
 			if !flushBlock() {
 				return
 			}
+		}
+
+		if err == io.EOF {
+			break
 		}
 	}
 
@@ -127,12 +202,35 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("splicedlines: reading: %w", err)}
-		return
-	}
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

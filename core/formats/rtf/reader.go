@@ -2,6 +2,7 @@ package rtf
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -16,12 +17,18 @@ import (
 // Reader implements DataFormatReader for RTF files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new RTF reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "rtf",
@@ -32,6 +39,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -64,10 +76,12 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 
 // token represents a parsed RTF token.
 type token struct {
-	typ      tokenType
-	text     string // For text tokens: the actual text. For control: the control word.
-	param    int    // Numeric parameter for control words (-1 if none).
-	hasParam bool
+	typ       tokenType
+	text      string // For text tokens: the actual text. For control: the control word.
+	param     int    // Numeric parameter for control words (-1 if none).
+	hasParam  bool
+	byteStart int // byte offset of this token in the raw input
+	byteEnd   int // byte offset past the end of this token
 }
 
 type tokenType int
@@ -81,30 +95,71 @@ const (
 	tokenUnicode                     // \uN
 )
 
-// skipDestinations are RTF destinations whose content is non-translatable.
-var skipDestinations = map[string]bool{
+// alwaysSkipDestinations are RTF destinations that are always non-translatable.
+var alwaysSkipDestinations = map[string]bool{
 	"fonttbl":    true,
 	"colortbl":   true,
 	"stylesheet": true,
 	"info":       true,
-	"header":     true,
-	"headerl":    true,
-	"headerr":    true,
-	"headerf":    true,
-	"footer":     true,
-	"footerl":    true,
-	"footerr":    true,
-	"footerf":    true,
 	"pict":       true,
 	"object":     true,
 	"fldinst":    true,
 	"xe":         true,
 	"tc":         true,
 	"rxe":        true,
-	"bkmkstart":  true,
-	"bkmkend":    true,
 	"field":      false, // field itself is not skipped; fldinst inside is
 	"fldrslt":    false,
+}
+
+// headerFooterDestinations are RTF destinations for headers/footers.
+var headerFooterDestinations = map[string]bool{
+	"header":  true,
+	"headerl": true,
+	"headerr": true,
+	"headerf": true,
+	"footer":  true,
+	"footerl": true,
+	"footerr": true,
+	"footerf": true,
+}
+
+// annotationDestinations are RTF destinations for comments/annotations.
+var annotationDestinations = map[string]bool{
+	"atnid":   true,
+	"atnauthor": true,
+	"annotation": true,
+}
+
+// bookmarkDestinations are RTF destinations for bookmarks.
+var bookmarkDestinations = map[string]bool{
+	"bkmkstart": true,
+	"bkmkend":   true,
+}
+
+// isSkipDestination returns whether the given destination should be skipped
+// based on the reader config.
+func (r *Reader) isSkipDestination(dest string) bool {
+	if skip, ok := alwaysSkipDestinations[dest]; ok {
+		return skip
+	}
+	if headerFooterDestinations[dest] {
+		return !r.cfg.ExtractHeadersFooters
+	}
+	if annotationDestinations[dest] {
+		return !r.cfg.ExtractAnnotations
+	}
+	if bookmarkDestinations[dest] {
+		return !r.cfg.ExtractBookmarks
+	}
+	return false
+}
+
+// textRef records the byte position of a text token and its block association.
+type textRef struct {
+	startOffset int // byte offset of the text content in raw input
+	endOffset   int // byte offset past the text content
+	blockIdx    int // which block (0-based)
+	tokenIdx    int // index of this text token within the block (0-based)
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -130,15 +185,38 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		r.emitErr(ctx, ch, fmt.Errorf("rtf: read error: %w", err))
 		return
 	}
+	rawText := string(data)
 
 	tokens := tokenize(data)
-	r.emitParts(ctx, ch, tokens)
+	var textRefs []textRef
+	r.emitParts(ctx, ch, tokens, &textRefs)
+
+	// Build skeleton if needed
+	if r.skeletonStore != nil && len(textRefs) > 0 {
+		skelPos := 0
+		for _, tr := range textRefs {
+			if tr.startOffset > skelPos {
+				r.skelText(rawText[skelPos:tr.startOffset])
+			}
+			// Ref format: "blockIdx:tokenIdx:originalLen"
+			// originalLen is the length of the original raw token so the writer
+			// knows how many characters of the block text to assign here.
+			origLen := tr.endOffset - tr.startOffset
+			refID := fmt.Sprintf("%d:%d:%d", tr.blockIdx, tr.tokenIdx, origLen)
+			r.skelRef(refID)
+			skelPos = tr.endOffset
+		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
+	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // emitParts walks the token stream and emits Part events.
-func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, tokens []token) {
+func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, tokens []token, textRefs *[]textRef) {
 	blockCounter := 0
 	dataCounter := 0
 
@@ -146,12 +224,19 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 	type groupInfo struct {
 		skip           bool
 		destinationTag string
+		prevInBody     bool // saved inBody state to restore on group end
+		setInBody      bool // did this group set inBody?
 	}
 	var groupStack []groupInfo
 	depth := 0
 
 	// Accumulate text for the current paragraph.
 	var paraText strings.Builder
+	// Accumulate text token byte ranges for the current paragraph.
+	type tokenRange struct {
+		start, end int
+	}
+	var paraTokenRanges []tokenRange
 	// Accumulate raw RTF for data parts.
 	var rawRTF strings.Builder
 	inBody := false
@@ -175,7 +260,9 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 	flushParagraph := func() {
 		text := paraText.String()
+		ranges := paraTokenRanges
 		paraText.Reset()
+		paraTokenRanges = nil
 		if strings.TrimSpace(text) == "" {
 			return
 		}
@@ -184,6 +271,18 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), text)
 		block.Name = fmt.Sprintf("para.%d", blockCounter)
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+
+		// Record text references for skeleton
+		if r.skeletonStore != nil {
+			for i, tr := range ranges {
+				*textRefs = append(*textRefs, textRef{
+					startOffset: tr.start,
+					endOffset:   tr.end,
+					blockIdx:    blockCounter - 1, // 0-based
+					tokenIdx:    i,
+				})
+			}
+		}
 	}
 
 	shouldSkip := func() bool {
@@ -204,6 +303,11 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 		case tokenGroupEnd:
 			if depth > 0 {
 				depth--
+				gi := groupStack[len(groupStack)-1]
+				if gi.setInBody {
+					flushParagraph()
+					inBody = gi.prevInBody
+				}
 				groupStack = groupStack[:len(groupStack)-1]
 			}
 
@@ -213,9 +317,16 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				gi := &groupStack[len(groupStack)-1]
 				if gi.destinationTag == "" {
 					gi.destinationTag = tok.text
-					if skipDestinations[tok.text] {
+					if r.isSkipDestination(tok.text) {
 						gi.skip = true
 						continue
+					}
+					// For header/footer/annotation groups that are NOT skipped,
+					// set inBody so their text content is extracted.
+					if headerFooterDestinations[tok.text] || annotationDestinations[tok.text] {
+						gi.prevInBody = inBody
+						gi.setInBody = true
+						inBody = true
 					}
 				}
 			}
@@ -235,34 +346,42 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			case "tab":
 				if inBody {
 					paraText.WriteRune('\t')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "lquote":
 				if inBody {
 					paraText.WriteRune('\u2018')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "rquote":
 				if inBody {
 					paraText.WriteRune('\u2019')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "ldblquote":
 				if inBody {
 					paraText.WriteRune('\u201C')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "rdblquote":
 				if inBody {
 					paraText.WriteRune('\u201D')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "emdash":
 				if inBody {
 					paraText.WriteRune('\u2014')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "endash":
 				if inBody {
 					paraText.WriteRune('\u2013')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			case "bullet":
 				if inBody {
 					paraText.WriteRune('\u2022')
+					paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 				}
 			default:
 				// Store formatting control words as raw RTF data.
@@ -282,6 +401,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			if inBody || depth <= 1 {
 				inBody = true
 				paraText.WriteString(tok.text)
+				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 			} else {
 				rawRTF.WriteString(tok.text)
 			}
@@ -292,6 +412,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			}
 			if inBody {
 				paraText.WriteString(tok.text)
+				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 			}
 
 		case tokenUnicode:
@@ -300,6 +421,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			}
 			if inBody {
 				paraText.WriteString(tok.text)
+				paraTokenRanges = append(paraTokenRanges, tokenRange{tok.byteStart, tok.byteEnd})
 			}
 		}
 	}
@@ -309,10 +431,11 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 	flushData()
 }
 
-// tokenize converts raw RTF bytes into a stream of tokens.
+// tokenize converts raw RTF bytes into a stream of tokens with byte offsets.
 func tokenize(data []byte) []token {
 	var tokens []token
 	rd := bufio.NewReader(strings.NewReader(string(data)))
+	pos := 0 // current byte position
 
 	for {
 		b, err := rd.ReadByte()
@@ -320,13 +443,18 @@ func tokenize(data []byte) []token {
 			break
 		}
 
+		startPos := pos
+		pos++
+
 		switch b {
 		case '{':
-			tokens = append(tokens, token{typ: tokenGroupStart})
+			tokens = append(tokens, token{typ: tokenGroupStart, byteStart: startPos, byteEnd: pos})
 		case '}':
-			tokens = append(tokens, token{typ: tokenGroupEnd})
+			tokens = append(tokens, token{typ: tokenGroupEnd, byteStart: startPos, byteEnd: pos})
 		case '\\':
-			tok := parseControlWord(rd)
+			tok := parseControlWord(rd, &pos)
+			tok.byteStart = startPos
+			tok.byteEnd = pos
 			tokens = append(tokens, tok)
 		case '\r', '\n':
 			// RTF ignores CR/LF outside of control words.
@@ -340,13 +468,15 @@ func tokenize(data []byte) []token {
 				if err != nil {
 					break
 				}
+				pos++
 				if b2 == '{' || b2 == '}' || b2 == '\\' || b2 == '\r' || b2 == '\n' {
 					_ = rd.UnreadByte()
+					pos--
 					break
 				}
 				text.WriteByte(b2)
 			}
-			tokens = append(tokens, token{typ: tokenText, text: text.String()})
+			tokens = append(tokens, token{typ: tokenText, text: text.String(), byteStart: startPos, byteEnd: pos})
 		}
 	}
 
@@ -354,11 +484,12 @@ func tokenize(data []byte) []token {
 }
 
 // parseControlWord reads a control word or special escape after '\'.
-func parseControlWord(rd *bufio.Reader) token {
+func parseControlWord(rd *bufio.Reader, pos *int) token {
 	b, err := rd.ReadByte()
 	if err != nil {
 		return token{typ: tokenText, text: "\\"}
 	}
+	*pos++
 
 	// Special characters.
 	switch b {
@@ -380,6 +511,7 @@ func parseControlWord(rd *bufio.Reader) token {
 		// Hex character \'HH.
 		hex1, err1 := rd.ReadByte()
 		hex2, err2 := rd.ReadByte()
+		*pos += 2
 		if err1 != nil || err2 != nil {
 			return token{typ: tokenText, text: "'"}
 		}
@@ -396,6 +528,7 @@ func parseControlWord(rd *bufio.Reader) token {
 		if err != nil {
 			return token{typ: tokenControl, text: "u"}
 		}
+		*pos++
 		if first == '-' || (first >= '0' && first <= '9') {
 			numBuf.WriteByte(first)
 			for {
@@ -403,12 +536,14 @@ func parseControlWord(rd *bufio.Reader) token {
 				if err != nil {
 					break
 				}
+				*pos++
 				if c >= '0' && c <= '9' {
 					numBuf.WriteByte(c)
 				} else {
 					// Space delimiter is consumed; anything else is unread.
 					if c != ' ' {
 						_ = rd.UnreadByte()
+						*pos--
 					}
 					break
 				}
@@ -426,16 +561,18 @@ func parseControlWord(rd *bufio.Reader) token {
 			}
 			// Not a valid number - treat as control word "u" + what we read.
 			_ = rd.UnreadByte()
+			*pos--
 			return token{typ: tokenControl, text: "u" + numBuf.String()}
 		}
 		// Not a digit after \u - it's a control word starting with 'u'.
 		_ = rd.UnreadByte()
-		return readControlWordFrom(rd, "u")
+		*pos--
+		return readControlWordFrom(rd, "u", pos)
 	}
 
 	// Regular control word: alphabetic characters followed optionally by digits.
 	if b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' {
-		return readControlWordFrom(rd, string(b))
+		return readControlWordFrom(rd, string(b), pos)
 	}
 
 	// Unknown - return as text.
@@ -443,7 +580,7 @@ func parseControlWord(rd *bufio.Reader) token {
 }
 
 // readControlWordFrom reads the rest of a control word given its first character(s).
-func readControlWordFrom(rd *bufio.Reader, prefix string) token {
+func readControlWordFrom(rd *bufio.Reader, prefix string, pos *int) token {
 	var word strings.Builder
 	word.WriteString(prefix)
 
@@ -453,10 +590,12 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 		if err != nil {
 			return token{typ: tokenControl, text: word.String(), param: -1}
 		}
+		*pos++
 		if b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' {
 			word.WriteByte(b)
 		} else {
 			_ = rd.UnreadByte()
+			*pos--
 			break
 		}
 	}
@@ -468,6 +607,7 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 		if err != nil {
 			break
 		}
+		*pos++
 		if b == '-' && numBuf.Len() == 0 {
 			numBuf.WriteByte(b)
 		} else if b >= '0' && b <= '9' {
@@ -476,6 +616,7 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 			// Space delimiter after control word is consumed.
 			if b != ' ' {
 				_ = rd.UnreadByte()
+				*pos--
 			}
 			break
 		}
@@ -490,6 +631,32 @@ func readControlWordFrom(rd *bufio.Reader, prefix string) token {
 	}
 
 	return tok
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

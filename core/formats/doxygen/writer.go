@@ -3,6 +3,7 @@ package doxygen
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -12,7 +13,11 @@ import (
 // Writer implements DataFormatWriter for Doxygen/Javadoc comments in source code.
 type Writer struct {
 	format.BaseFormatWriter
+	skeletonStore *format.SkeletonStore
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new Doxygen writer.
 func NewWriter() *Writer {
@@ -23,8 +28,17 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed source.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeleton(ctx, parts)
+	}
+
 	first := true
 	for {
 		select {
@@ -39,6 +53,89 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("doxygen writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeleton(blocksByID)
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("doxygen writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			if block, ok := blocks[string(entry.Data)]; ok {
+				text := w.blockText(block)
+				style := block.Properties["style"]
+				raw := block.Properties["raw"]
+				if err := w.writeCommentStyled(text, style, raw); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// writeCommentStyled reconstructs a comment using the given style.
+func (w *Writer) writeCommentStyled(text, style, raw string) error {
+	switch style {
+	case "triple":
+		return w.writeTripleSlash(text, raw)
+	case "exclamation":
+		return w.writeExclamation(text, raw)
+	case "javadoc":
+		return w.writeJavadoc(text, raw)
+	case "qt":
+		return w.writeQt(text, raw)
+	case "trailing":
+		return w.writeTrailing(text, raw)
+	case "trailing_qt":
+		return w.writeTrailingQt(text, raw)
+	default:
+		return w.writeTripleSlash(text, raw)
+	}
+}
+
+// blockText returns target or source text for a block.
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return block.SourceText()
 }
 
 func (w *Writer) writePart(part *model.Part, first *bool) error {

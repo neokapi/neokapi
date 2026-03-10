@@ -6,6 +6,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/formats/odf"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -153,6 +154,7 @@ func TestReaderMetadata(t *testing.T) {
 	assert.Equal(t, "Open Document Format", reader.DisplayName())
 }
 
+// okapi: OpenOfficeFilterTest#testDefaultInfo — verifies ODF MIME types and file extensions.
 func TestReaderSignature(t *testing.T) {
 	reader := odf.NewReader()
 	sig := reader.Signature()
@@ -171,6 +173,7 @@ func TestReadNilDocument(t *testing.T) {
 	assert.Error(t, err)
 }
 
+// okapi: OpenOfficeFilterTest#testFirstTextUnit — extracts paragraphs from ODT content.
 func TestReadSimpleODT(t *testing.T) {
 	data := makeODFZip(mimeODT, simpleODTContent("Hello, World!", "Second paragraph"))
 	parts := readParts(t, data)
@@ -227,6 +230,7 @@ func TestReadODTHeadings(t *testing.T) {
 	assert.Equal(t, "Body text here.", blocks[1].SourceText())
 }
 
+// okapi: OpenOfficeFilterTest#testFormulaResultExtraction — extracts spreadsheet cell content.
 func TestReadODSSpreadsheet(t *testing.T) {
 	cells := [][]string{
 		{"Name", "Value"},
@@ -265,6 +269,7 @@ func TestReadODPPresentation(t *testing.T) {
 	assert.Equal(t, "Content Slide", blocks[1].SourceText())
 }
 
+// okapi: ODFFilterTest#testFirstTextUnit — inline formatting produces spans within blocks.
 func TestReadInlineFormatting(t *testing.T) {
 	content := `<?xml version="1.0" encoding="UTF-8"?>
 <office:document-content
@@ -367,6 +372,7 @@ func TestReadInvalidZip(t *testing.T) {
 	assert.Contains(t, readErr.Error(), "not a valid ZIP archive")
 }
 
+// okapi: OpenOfficeFilterTest#testDoubleExtraction — roundtrip read/write/re-read preserves ODF content.
 func TestRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	originalContent := simpleODTContent("Hello, World!", "Second paragraph")
@@ -541,4 +547,300 @@ func TestReadODTWithTab(t *testing.T) {
 func TestWriterName(t *testing.T) {
 	writer := odf.NewWriter()
 	assert.Equal(t, "odf", writer.Name())
+}
+
+// --- Skeleton Store Tests ---
+
+func TestSkeletonRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	data := makeODFZip(mimeODT, simpleODTContent("Hello, World!", "Second paragraph"))
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := odf.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
+	err = reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks1 := testutil.FilterBlocks(parts)
+	require.Len(t, blocks1, 2)
+
+	// Write with skeleton store (no translation — source roundtrip)
+	var buf bytes.Buffer
+	writer := odf.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	require.True(t, buf.Len() > 0, "output should not be empty")
+
+	// Re-read and compare blocks
+	reader2 := odf.NewReader()
+	doc2 := testutil.RawDocFromReader(bytes.NewReader(buf.Bytes()), "test.odt", model.LocaleEnglish)
+	err = reader2.Open(ctx, doc2)
+	require.NoError(t, err)
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, len(blocks1))
+	for i, b := range blocks1 {
+		assert.Equal(t, b.SourceText(), blocks2[i].SourceText(),
+			"block %d text mismatch", i)
+	}
+}
+
+func TestSkeletonRoundTripWithTranslation(t *testing.T) {
+	ctx := context.Background()
+	data := makeODFZip(mimeODT, simpleODTContent("Hello", "World"))
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := odf.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
+	err = reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translations on all blocks
+	frFR := model.LocaleID("fr-FR")
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			if b, ok := p.Resource.(*model.Block); ok && b.Translatable {
+				b.SetTargetText(frFR, "FR: "+b.SourceText())
+			}
+		}
+	}
+
+	// Write with locale
+	var buf bytes.Buffer
+	writer := odf.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	writer.SetLocale(frFR)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	require.True(t, buf.Len() > 0, "output should not be empty")
+
+	// Re-read and verify translations appear
+	reader2 := odf.NewReader()
+	doc2 := testutil.RawDocFromReader(bytes.NewReader(buf.Bytes()), "test.odt", model.LocaleEnglish)
+	err = reader2.Open(ctx, doc2)
+	require.NoError(t, err)
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, 2)
+	assert.Equal(t, "FR: Hello", blocks2[0].SourceText())
+	assert.Equal(t, "FR: World", blocks2[1].SourceText())
+}
+
+func TestSkeletonRoundTripWithStyles(t *testing.T) {
+	ctx := context.Background()
+	contentXML := simpleODTContent("Content text")
+	stylesXML := `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-styles
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+<office:master-styles>
+<text:p>Header text</text:p>
+</office:master-styles>
+</office:document-styles>`
+	data := makeODFZipWithStyles(mimeODT, contentXML, stylesXML)
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := odf.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
+	err = reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks1 := testutil.FilterBlocks(parts)
+	require.Len(t, blocks1, 2)
+
+	// Write with skeleton store
+	var buf bytes.Buffer
+	writer := odf.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Re-read and compare
+	reader2 := odf.NewReader()
+	doc2 := testutil.RawDocFromReader(bytes.NewReader(buf.Bytes()), "test.odt", model.LocaleEnglish)
+	err = reader2.Open(ctx, doc2)
+	require.NoError(t, err)
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, 2)
+	texts := testutil.BlockTexts(blocks2)
+	assert.Contains(t, texts, "Content text")
+	assert.Contains(t, texts, "Header text")
+}
+
+func TestSkeletonRoundTripODS(t *testing.T) {
+	ctx := context.Background()
+	cells := [][]string{
+		{"Name", "Value"},
+		{"Item A", "100"},
+	}
+	data := makeODFZip(mimeODS, simpleODSContent(cells))
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := odf.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.ods", model.LocaleEnglish)
+	err = reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks1 := testutil.FilterBlocks(parts)
+
+	// Write with skeleton store
+	var buf bytes.Buffer
+	writer := odf.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Re-read and compare
+	reader2 := odf.NewReader()
+	doc2 := testutil.RawDocFromReader(bytes.NewReader(buf.Bytes()), "test.ods", model.LocaleEnglish)
+	err = reader2.Open(ctx, doc2)
+	require.NoError(t, err)
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, len(blocks1))
+	for i, b := range blocks1 {
+		assert.Equal(t, b.SourceText(), blocks2[i].SourceText(),
+			"block %d text mismatch", i)
+	}
+}
+
+func TestSkeletonRoundTripEmptyParagraphs(t *testing.T) {
+	ctx := context.Background()
+	content := `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content
+  xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+<office:body><office:text>
+<text:p></text:p>
+<text:p>Non-empty</text:p>
+<text:p>   </text:p>
+</office:text></office:body></office:document-content>`
+	data := makeODFZip(mimeODT, content)
+
+	// Read with skeleton store
+	skelStore, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skelStore.Close()
+
+	reader := odf.NewReader()
+	reader.SetSkeletonStore(skelStore)
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
+	err = reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	blocks1 := testutil.FilterBlocks(parts)
+	require.Len(t, blocks1, 1)
+	assert.Equal(t, "Non-empty", blocks1[0].SourceText())
+
+	// Write with skeleton store
+	var buf bytes.Buffer
+	writer := odf.NewWriter()
+	writer.SetOriginalContent(data)
+	writer.SetSkeletonStore(skelStore)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Re-read and verify
+	reader2 := odf.NewReader()
+	doc2 := testutil.RawDocFromReader(bytes.NewReader(buf.Bytes()), "test.odt", model.LocaleEnglish)
+	err = reader2.Open(ctx, doc2)
+	require.NoError(t, err)
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	reader2.Close()
+
+	require.Len(t, blocks2, 1)
+	assert.Equal(t, "Non-empty", blocks2[0].SourceText())
+}
+
+func TestTempFileCleanup(t *testing.T) {
+	ctx := context.Background()
+	data := makeODFZip(mimeODT, simpleODTContent("Test"))
+
+	reader := odf.NewReader()
+	doc := testutil.RawDocFromReader(bytes.NewReader(data), "test.odt", model.LocaleEnglish)
+	err := reader.Open(ctx, doc)
+	require.NoError(t, err)
+
+	_ = testutil.CollectParts(t, reader.Read(ctx))
+
+	// Close should clean up temp file without error
+	err = reader.Close()
+	assert.NoError(t, err)
 }

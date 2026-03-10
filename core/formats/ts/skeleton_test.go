@@ -1,0 +1,268 @@
+package ts_test
+
+import (
+	"bytes"
+	"context"
+	"os"
+	"testing"
+
+	"github.com/gokapi/gokapi/core/format"
+	"github.com/gokapi/gokapi/core/formats/ts"
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
+	t.Helper()
+	ctx := context.Background()
+
+	reader := ts.NewReader()
+	writer := ts.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	return buf.String()
+}
+
+func TestSkeletonStore_ByteExact_SimpleTS(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello</source>
+        <translation>Bonjour</translation>
+    </message>
+    <message>
+        <source>Goodbye</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "simple TS roundtrip should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
+	data, err := os.ReadFile("testdata/simple.ts")
+	require.NoError(t, err)
+	input := string(data)
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "simple.ts file roundtrip should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_BilingualFile(t *testing.T) {
+	data, err := os.ReadFile("testdata/bilingual.ts")
+	require.NoError(t, err)
+	input := string(data)
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "bilingual.ts file roundtrip should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_MultipleContexts(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="de" sourcelanguage="en">
+<context>
+    <name>FileDialog</name>
+    <message>
+        <source>Open</source>
+        <translation>Oeffnen</translation>
+    </message>
+</context>
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Save</source>
+        <translation>Speichern</translation>
+    </message>
+</context>
+</TS>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "multiple contexts should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_WithComments(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello</source>
+        <comment>Greeting message</comment>
+        <translation>Bonjour</translation>
+    </message>
+</context>
+</TS>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "TS with comments should be byte-exact")
+}
+
+func TestSkeletonStore_ByteExact_EmptyTranslation(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>Test</name>
+    <message>
+        <source>Hello</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "empty translation should be byte-exact")
+}
+
+func TestSkeletonStore_WithTranslation(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+</TS>
+`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := ts.NewReader()
+	writer := ts.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Add translation
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "Hello" {
+				b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("Bonjour")}}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	expected := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>MainWindow</name>
+    <message>
+        <source>Hello</source>
+        <translation type="unfinished">Bonjour</translation>
+    </message>
+</context>
+</TS>
+`
+	assert.Equal(t, expected, buf.String())
+}
+
+func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="fr" sourcelanguage="en">
+<context>
+    <name>Test</name>
+    <message>
+        <source>Hello</source>
+        <translation></translation>
+    </message>
+</context>
+</TS>
+`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := ts.NewReader()
+	writer := ts.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set a translation with XML special characters
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			b.Targets[locale] = []*model.Segment{{ID: "s1", Content: model.NewFragment("A & B < C")}}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	require.NoError(t, writer.SetOutputWriter(&buf))
+
+	ch := testutil.PartsToChannel(parts)
+	require.NoError(t, writer.Write(ctx, ch))
+	writer.Close()
+
+	assert.Contains(t, buf.String(), "<translation>A &amp; B &lt; C</translation>")
+}
+
+func TestSkeletonStore_ByteExact_Unicode(t *testing.T) {
+	input := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="ja" sourcelanguage="en">
+<context>
+    <name>Test</name>
+    <message>
+        <source>Hello</source>
+        <translation>こんにちは</translation>
+    </message>
+</context>
+</TS>
+`
+	output := snippetRoundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "TS with Unicode should be byte-exact")
+}
