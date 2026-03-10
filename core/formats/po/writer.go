@@ -3,6 +3,7 @@ package po
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -12,11 +13,15 @@ import (
 // Writer implements DataFormatWriter for PO (gettext) files.
 type Writer struct {
 	format.BaseFormatWriter
-	firstEntry   bool
-	inPlural     bool
-	pluralGroup  []*model.Block
-	pendingBlock bool // true if we've written metadata (comment/ref/flags) for the next block
+	skeletonStore *format.SkeletonStore
+	firstEntry    bool
+	inPlural      bool
+	pluralGroup   []*model.Block
+	pendingBlock  bool // true if we've written metadata (comment/ref/flags) for the next block
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new PO writer.
 func NewWriter() *Writer {
@@ -28,8 +33,17 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed PO content.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		return w.writeWithSkeleton(ctx, parts)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -43,6 +57,123 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeWithSkeleton collects all blocks, then reconstructs output from skeleton entries.
+func (w *Writer) writeWithSkeleton(ctx context.Context, parts <-chan *model.Part) error {
+	blocksByID := make(map[string]*model.Block)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case part, ok := <-parts:
+			if !ok {
+				goto done
+			}
+			if part.Type == model.PartBlock {
+				if block, ok := part.Resource.(*model.Block); ok {
+					blocksByID[block.ID] = block
+				}
+			}
+		}
+	}
+done:
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("po writer: flush skeleton: %w", err)
+	}
+	return w.writeFromSkeleton(blocksByID)
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("po writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			refID := string(entry.Data)
+			if err := w.writeBlockAsMsgstr(blocks, refID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// writeBlockAsMsgstr writes the complete msgstr field for a block reference.
+// The refID is the block ID (e.g., "tu1", "tu1-singular", "tu1-plural").
+// The skeleton ref replaces the entire msgstr field (keyword + value lines).
+//
+// If the block has a "raw-msgstr" property and the text to write matches the
+// original value, the raw bytes are output verbatim for byte-exact roundtrip.
+// Otherwise, the value is re-serialized using writeMultilineField.
+func (w *Writer) writeBlockAsMsgstr(blocks map[string]*model.Block, refID string) error {
+	// Determine the field name based on the refID
+	fieldName := "msgstr"
+	if strings.HasSuffix(refID, "-singular") {
+		fieldName = "msgstr[0]"
+	} else if strings.HasSuffix(refID, "-plural") {
+		fieldName = "msgstr[1]"
+	}
+
+	block, ok := blocks[refID]
+	if !ok {
+		// Block not found — write empty msgstr field
+		_, err := fmt.Fprintf(w.Output, "%s \"\"\n", fieldName)
+		return err
+	}
+
+	text := w.blockText(block)
+
+	// Check if we can use the raw msgstr bytes for byte-exact output.
+	if raw, ok := block.Properties["raw-msgstr"]; ok && raw != "" {
+		// Parse the original msgstr value from the raw field to compare.
+		origValue := w.parseRawMsgstrValue(raw)
+		if origValue == text {
+			// Text unchanged — output raw bytes verbatim.
+			_, err := io.WriteString(w.Output, raw)
+			return err
+		}
+	}
+
+	return w.writeMultilineField(fieldName, text)
+}
+
+// parseRawMsgstrValue extracts the decoded string value from raw msgstr field text.
+// For example, from `msgstr "Bonjour"\n` it returns "Bonjour".
+// For multiline: `msgstr ""\n"Hello "\n"World"\n` returns "Hello World".
+func (w *Writer) parseRawMsgstrValue(raw string) string {
+	lines := strings.Split(strings.TrimRight(raw, "\n"), "\n")
+	if len(lines) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		// Skip the keyword prefix
+		if strings.HasPrefix(line, "msgstr") {
+			// Extract the quoted portion after "msgstr " or "msgstr[N] "
+			idx := strings.Index(line, " ")
+			if idx < 0 {
+				continue
+			}
+			line = strings.TrimSpace(line[idx+1:])
+		}
+		// Unquote
+		result.WriteString(unquotePO(line))
+	}
+	return result.String()
 }
 
 func (w *Writer) writePart(part *model.Part) error {
@@ -279,4 +410,14 @@ func escapePO(s string) string {
 	s = strings.ReplaceAll(s, "\n", "\\n")
 	s = strings.ReplaceAll(s, "\t", "\\t")
 	return s
+}
+
+// blockText returns the target text if available for the writer's locale,
+// otherwise an empty string. PO is a bilingual format — untranslated
+// entries keep an empty msgstr rather than falling back to source text.
+func (w *Writer) blockText(block *model.Block) string {
+	if !w.Locale.IsEmpty() && block.HasTarget(w.Locale) {
+		return block.TargetText(w.Locale)
+	}
+	return ""
 }

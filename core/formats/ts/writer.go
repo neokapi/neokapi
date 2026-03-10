@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -14,10 +15,15 @@ import (
 // Writer implements DataFormatWriter for Qt TS files.
 type Writer struct {
 	format.BaseFormatWriter
-	headerProps map[string]string
-	groups      []*contextGroup
-	currentCtx  *contextGroup
+	skeletonStore *format.SkeletonStore
+	headerProps   map[string]string
+	groups        []*contextGroup
+	currentCtx    *contextGroup
+	allBlocks     []*model.Block // all blocks in order, for skeleton lookup
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // contextGroup holds blocks for one <context> element.
 type contextGroup struct {
@@ -35,6 +41,11 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes Qt TS XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	for {
@@ -43,6 +54,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
+				if w.skeletonStore != nil {
+					return w.writeFromSkeleton()
+				}
 				return w.flush()
 			}
 			w.collectPart(part)
@@ -67,6 +81,7 @@ func (w *Writer) collectPart(part *model.Part) {
 		w.currentCtx = nil
 	case model.PartBlock:
 		if block, ok := part.Resource.(*model.Block); ok {
+			w.allBlocks = append(w.allBlocks, block)
 			if w.currentCtx != nil {
 				w.currentCtx.blocks = append(w.currentCtx.blocks, block)
 			} else {
@@ -91,6 +106,67 @@ func (w *Writer) collectPart(part *model.Part) {
 			}
 		}
 	}
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton() error {
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("ts writer: flush skeleton: %w", err)
+	}
+
+	// Determine target locale
+	language := w.headerProps["language"]
+	targetLocale := model.LocaleID(language)
+	if w.Locale != "" {
+		targetLocale = w.Locale
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("ts writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			// Ref ID is "blockIdx:elemType" where blockIdx is 0-based
+			refID := string(entry.Data)
+			parts := strings.SplitN(refID, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			blockIdx, err := strconv.Atoi(parts[0])
+			if err != nil || blockIdx < 0 || blockIdx >= len(w.allBlocks) {
+				continue
+			}
+			block := w.allBlocks[blockIdx]
+			elemType := parts[1]
+
+			var text string
+			switch elemType {
+			case "source":
+				text = w.fragmentToXML(block.FirstFragment())
+			case "translation":
+				if block.HasTarget(targetLocale) {
+					targetSegs := block.Targets[targetLocale]
+					if len(targetSegs) > 0 && targetSegs[0].Content != nil {
+						text = w.fragmentToXML(targetSegs[0].Content)
+					}
+				}
+			}
+
+			if _, err := io.WriteString(w.Output, text); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (w *Writer) flush() error {

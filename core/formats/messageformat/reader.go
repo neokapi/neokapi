@@ -2,8 +2,10 @@ package messageformat
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -19,8 +21,14 @@ type Reader struct {
 
 	// parsedLines stores the parsed node trees per line, used by the writer
 	// to reconstruct the original pattern structure.
-	parsedLines []parsedLine
+	parsedLines   []parsedLine
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
+	lineEndings   []string     // preserved line endings per parsedLine
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 type parsedLine struct {
 	lineNum int
@@ -43,6 +51,11 @@ func NewReader() *Reader {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
+}
+
 // Signature returns detection metadata for this format.
 func (r *Reader) Signature() format.FormatSignature {
 	return format.FormatSignature{
@@ -57,10 +70,16 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 		return fmt.Errorf("messageformat: nil document or reader")
 	}
 
+	r.parsedLines = nil
+	r.lineEndings = nil
+
+	if r.skeletonStore != nil {
+		return r.openWithSkeleton(ctx, doc)
+	}
+
 	// Pre-parse all lines to detect errors early (like CHOICE format).
 	scanner := bufio.NewScanner(doc.Reader)
 	lineNum := 0
-	r.parsedLines = nil
 	for scanner.Scan() {
 		lineNum++
 		raw := scanner.Text()
@@ -76,6 +95,61 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	}
 	if err := scanner.Err(); err != nil {
 		return fmt.Errorf("messageformat: read error: %w", err)
+	}
+
+	r.Doc = doc
+	return nil
+}
+
+// rawLine holds a line's content and its original line ending.
+type rawLine struct {
+	content    string
+	lineEnding string
+}
+
+// splitRawLines splits raw bytes into lines preserving line endings.
+func splitRawLines(data []byte) []rawLine {
+	remaining := string(data)
+	var lines []rawLine
+	for len(remaining) > 0 {
+		idx := strings.Index(remaining, "\n")
+		if idx < 0 {
+			lines = append(lines, rawLine{content: remaining})
+			break
+		}
+		lineContent := remaining[:idx]
+		ending := "\n"
+		if strings.HasSuffix(lineContent, "\r") {
+			lineContent = lineContent[:len(lineContent)-1]
+			ending = "\r\n"
+		}
+		lines = append(lines, rawLine{content: lineContent, lineEnding: ending})
+		remaining = remaining[idx+1:]
+	}
+	return lines
+}
+
+func (r *Reader) openWithSkeleton(_ context.Context, doc *model.RawDocument) error {
+	data, err := io.ReadAll(doc.Reader)
+	if err != nil {
+		return fmt.Errorf("messageformat: read error: %w", err)
+	}
+
+	rLines := splitRawLines(data)
+	lineNum := 0
+	for _, rl := range rLines {
+		lineNum++
+		raw := rl.content
+		r.lineEndings = append(r.lineEndings, rl.lineEnding)
+		if strings.TrimSpace(raw) == "" {
+			r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw})
+			continue
+		}
+		nodes, err := parse(raw)
+		if err != nil {
+			return fmt.Errorf("messageformat: line %d: %s", lineNum, err.Error())
+		}
+		r.parsedLines = append(r.parsedLines, parsedLine{lineNum: lineNum, raw: raw, nodes: nodes})
 	}
 
 	r.Doc = doc
@@ -112,25 +186,58 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	blockCounter := 0
 
-	for _, pl := range r.parsedLines {
+	for i, pl := range r.parsedLines {
+		lineEnding := ""
+		if i < len(r.lineEndings) {
+			lineEnding = r.lineEndings[i]
+		}
+
 		if pl.nodes == nil {
-			// Empty line → skip or emit as data
+			// Empty line → skeleton text, skip part emission
+			r.skelText(pl.raw + lineEnding)
 			continue
 		}
 
 		// Extract translatable segments from this pattern
 		segments := extractSegments(pl.nodes, "")
 
-		for _, seg := range segments {
+		if r.skeletonStore != nil && len(segments) == 1 {
+			// Simple case: one block per line, use skeleton ref
 			blockCounter++
 			blockID := fmt.Sprintf("tu%d", blockCounter)
+			r.skelRef(blockID)
+			r.skelText(lineEnding)
 
-			block := r.createBlock(blockID, seg, pl)
+			block := r.createBlock(blockID, segments[0], pl)
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
 			}
+		} else if r.skeletonStore != nil {
+			// Complex case: multiple segments per line (plural/select).
+			// Store entire line as skeleton text for byte-exact roundtrip.
+			r.skelText(pl.raw + lineEnding)
+
+			for _, seg := range segments {
+				blockCounter++
+				blockID := fmt.Sprintf("tu%d", blockCounter)
+				block := r.createBlock(blockID, seg, pl)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
+		} else {
+			for _, seg := range segments {
+				blockCounter++
+				blockID := fmt.Sprintf("tu%d", blockCounter)
+				block := r.createBlock(blockID, seg, pl)
+				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+					return
+				}
+			}
 		}
 	}
+
+	r.skelFlush()
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
@@ -233,6 +340,32 @@ func findBranchNodes(nodes []node, path string) []node {
 		}
 	}
 	return nodes
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -31,11 +32,73 @@ const (
 	TypeHyperlink     = "hyperlink"
 )
 
+// Skeleton part-boundary markers. The writer uses these to split the
+// single skeleton stream into per-ZIP-entry segments.
+const (
+	skelPartStartPrefix = "@@ODF_SKEL_PART_START@@"
+	skelPartEndPrefix   = "@@ODF_SKEL_PART_END@@"
+)
+
+// ODF namespace prefix map for skeleton serialization.
+var odfNSPrefixMap = map[string]string{
+	nsText:         "text",
+	nsTable:        "table",
+	nsOffice:       "office",
+	nsPresentation: "presentation",
+	nsXLink:        "xlink",
+	"urn:oasis:names:tc:opendocument:xmlns:style:1.0":            "style",
+	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":               "fo",
+	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":          "draw",
+	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":   "svg",
+	"urn:oasis:names:tc:opendocument:xmlns:chart:1.0":            "chart",
+	"urn:oasis:names:tc:opendocument:xmlns:form:1.0":             "form",
+	"urn:oasis:names:tc:opendocument:xmlns:script:1.0":           "script",
+	"urn:oasis:names:tc:opendocument:xmlns:meta:1.0":             "meta",
+	"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0":        "number",
+	"urn:oasis:names:tc:opendocument:xmlns:animation:1.0":        "anim",
+	"urn:oasis:names:tc:opendocument:xmlns:database:1.0":         "db",
+	"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0":  "smil",
+	"urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0":             "dr3d",
+	"urn:oasis:names:tc:opendocument:xmlns:config:1.0":           "config",
+	"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0":         "manifest",
+	"http://purl.org/dc/elements/1.1/":                           "dc",
+	"http://www.w3.org/XML/1998/namespace":                        "xml",
+}
+
+// odfNSRegistry tracks dynamic namespace URI -> prefix mappings from the document.
+var odfNSRegistry = struct {
+	m map[string]string
+}{m: make(map[string]string)}
+
+func odfRegisterNamespaces(attrs []xml.Attr) {
+	for _, a := range attrs {
+		if a.Name.Space == "xmlns" {
+			odfNSRegistry.m[a.Value] = a.Name.Local
+		} else if a.Name.Space == "" && a.Name.Local == "xmlns" {
+			odfNSRegistry.m[a.Value] = ""
+		}
+	}
+}
+
+func odfResolvePrefix(ns string) string {
+	if p, ok := odfNSRegistry.m[ns]; ok {
+		return p
+	}
+	if p, ok := odfNSPrefixMap[ns]; ok {
+		return p
+	}
+	return ""
+}
+
 // Reader implements DataFormatReader for ODF files (ODT, ODS, ODP).
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	tmpFile       string // path to temp file for ZIP access
 }
+
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new ODF reader.
 func NewReader() *Reader {
@@ -51,6 +114,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -101,16 +169,37 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		locale = model.LocaleEnglish
 	}
 
-	// Read all content into memory (ZIP requires random access)
-	data, err := io.ReadAll(r.Doc.Reader)
+	// Write content to a temp file (ZIP requires random access)
+	tmpFile, err := os.CreateTemp("", "gokapi-odf-*.zip")
 	if err != nil {
-		ch <- model.PartResult{Error: fmt.Errorf("odf: reading: %w", err)}
+		ch <- model.PartResult{Error: fmt.Errorf("odf: creating temp file: %w", err)}
+		return
+	}
+	r.tmpFile = tmpFile.Name()
+
+	if _, err := io.Copy(tmpFile, r.Doc.Reader); err != nil {
+		tmpFile.Close()
+		ch <- model.PartResult{Error: fmt.Errorf("odf: writing temp file: %w", err)}
 		return
 	}
 
-	// Open as ZIP
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	// Get size and rewind
+	size, err := tmpFile.Seek(0, io.SeekEnd)
 	if err != nil {
+		tmpFile.Close()
+		ch <- model.PartResult{Error: fmt.Errorf("odf: seeking temp file: %w", err)}
+		return
+	}
+	if _, err := tmpFile.Seek(0, io.SeekStart); err != nil {
+		tmpFile.Close()
+		ch <- model.PartResult{Error: fmt.Errorf("odf: seeking temp file: %w", err)}
+		return
+	}
+
+	// Open as ZIP from temp file
+	zr, err := zip.NewReader(tmpFile, size)
+	if err != nil {
+		tmpFile.Close()
 		ch <- model.PartResult{Error: fmt.Errorf("odf: not a valid ZIP archive: %w", err)}
 		return
 	}
@@ -129,6 +218,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		Properties: map[string]string{"docType": docTypeString(docType)},
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: rootLayer}) {
+		tmpFile.Close()
 		return
 	}
 
@@ -140,9 +230,12 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		contentData, err := readZipFile(contentXML)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("odf: reading content.xml: %w", err)}
+			tmpFile.Close()
 			return
 		}
+		r.skelPartStart("content.xml")
 		r.parseODFContent(ctx, ch, contentData, docType, &blockCounter, "content.xml")
+		r.skelPartEnd("content.xml")
 	}
 
 	// Process styles.xml (may contain translatable master page content)
@@ -151,19 +244,102 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		stylesData, err := readZipFile(stylesXML)
 		if err != nil {
 			ch <- model.PartResult{Error: fmt.Errorf("odf: reading styles.xml: %w", err)}
+			tmpFile.Close()
 			return
 		}
+		r.skelPartStart("styles.xml")
 		r.parseODFContent(ctx, ch, stylesData, docType, &blockCounter, "styles.xml")
+		r.skelPartEnd("styles.xml")
 	}
 
 	// End root layer
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: rootLayer})
+	tmpFile.Close()
+}
+
+// odfParser handles skeleton state during ODF XML parsing.
+type odfParser struct {
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer
+}
+
+func (p *odfParser) skelText(s string) {
+	if p.skeletonStore != nil {
+		p.skelBuf.WriteString(s)
+	}
+}
+
+func (p *odfParser) skelRef(id string) {
+	if p.skeletonStore != nil {
+		if p.skelBuf.Len() > 0 {
+			_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+			p.skelBuf.Reset()
+		}
+		_ = p.skeletonStore.WriteRef(id)
+	}
+}
+
+func (p *odfParser) skelFlush() {
+	if p.skeletonStore != nil && p.skelBuf.Len() > 0 {
+		_ = p.skeletonStore.WriteText(p.skelBuf.Bytes())
+		p.skelBuf.Reset()
+	}
+}
+
+func (p *odfParser) skelWriteStartElement(t xml.StartElement) {
+	if p.skeletonStore == nil {
+		return
+	}
+	odfRegisterNamespaces(t.Attr)
+	var buf strings.Builder
+	buf.WriteString("<")
+	odfWriteElementName(&buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		odfWriteAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString(">")
+	p.skelBuf.WriteString(buf.String())
+}
+
+func (p *odfParser) skelWriteEndElement(t xml.EndElement) {
+	if p.skeletonStore == nil {
+		return
+	}
+	var buf strings.Builder
+	buf.WriteString("</")
+	odfWriteElementName(&buf, t.Name)
+	buf.WriteString(">")
+	p.skelBuf.WriteString(buf.String())
+}
+
+func (p *odfParser) skelWriteSelfClosing(t xml.StartElement) {
+	if p.skeletonStore == nil {
+		return
+	}
+	odfRegisterNamespaces(t.Attr)
+	var buf strings.Builder
+	buf.WriteString("<")
+	odfWriteElementName(&buf, t.Name)
+	for _, a := range t.Attr {
+		buf.WriteString(" ")
+		odfWriteAttrName(&buf, a.Name)
+		buf.WriteString(`="`)
+		buf.WriteString(odfXMLEscapeAttr(a.Value))
+		buf.WriteString(`"`)
+	}
+	buf.WriteString("/>")
+	p.skelBuf.WriteString(buf.String())
 }
 
 // parseODFContent parses an ODF XML file (content.xml or styles.xml) and emits blocks.
 func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult,
 	data []byte, docType odfDocType, blockCounter *int, partPath string) {
 
+	p := &odfParser{skeletonStore: r.skeletonStore}
 	d := xml.NewDecoder(bytes.NewReader(data))
 
 	// Track nesting for context
@@ -172,6 +348,8 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 	var spans []*model.Span
 	inTranslatable := false
 	var translatableDepth int
+	// For skeleton: buffer the start element of a translatable block
+	var translatableStart xml.StartElement
 
 	for {
 		tok, err := d.Token()
@@ -188,6 +366,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 				translatableDepth = len(elementStack)
 				textBuf.Reset()
 				spans = nil
+				translatableStart = t.Copy()
 			} else if inTranslatable {
 				// Handle inline formatting elements
 				if isInlineFormattingElement(t.Name) {
@@ -223,11 +402,15 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						textBuf.WriteRune(' ')
 					}
 				}
+			} else {
+				p.skelWriteStartElement(t)
 			}
 
 		case xml.CharData:
 			if inTranslatable {
 				textBuf.Write(t)
+			} else {
+				p.skelText(odfXMLEscape(string(t)))
 			}
 
 		case xml.EndElement:
@@ -256,6 +439,11 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						*blockCounter++
 						blockID := fmt.Sprintf("tu%d", *blockCounter)
 
+						// Skeleton: write element open, ref, element close
+						p.skelWriteStartElement(translatableStart)
+						p.skelRef(blockID)
+						p.skelWriteEndElement(t)
+
 						var block *model.Block
 						if len(spans) > 0 {
 							frag := &model.Fragment{
@@ -280,15 +468,51 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 						}
 
 						r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
+					} else {
+						// Empty translatable element — pass through to skeleton
+						p.skelWriteStartElement(translatableStart)
+						p.skelText(odfXMLEscape(textBuf.String()))
+						p.skelWriteEndElement(t)
 					}
 					inTranslatable = false
 				}
+			} else {
+				p.skelWriteEndElement(t)
 			}
 
 			if len(elementStack) > 0 {
 				elementStack = elementStack[:len(elementStack)-1]
 			}
+
+		case xml.ProcInst:
+			if !inTranslatable {
+				p.skelText("<?" + t.Target + " " + string(t.Inst) + "?>")
+			}
+
+		case xml.Comment:
+			if !inTranslatable {
+				p.skelText("<!--" + string(t) + "-->")
+			}
+
+		case xml.Directive:
+			if !inTranslatable {
+				p.skelText("<!" + string(t) + ">")
+			}
 		}
+	}
+
+	p.skelFlush()
+}
+
+func (r *Reader) skelPartStart(partPath string) {
+	if r.skeletonStore != nil {
+		_ = r.skeletonStore.WriteRef(skelPartStartPrefix + partPath)
+	}
+}
+
+func (r *Reader) skelPartEnd(partPath string) {
+	if r.skeletonStore != nil {
+		_ = r.skeletonStore.WriteRef(skelPartEndPrefix + partPath)
 	}
 }
 
@@ -375,6 +599,10 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 
 // Close releases resources.
 func (r *Reader) Close() error {
+	if r.tmpFile != "" {
+		os.Remove(r.tmpFile)
+		r.tmpFile = ""
+	}
 	if r.Doc != nil && r.Doc.Reader != nil {
 		return r.Doc.Reader.Close()
 	}
@@ -399,4 +627,52 @@ func zipFileByName(zr *zip.Reader, name string) *zip.File {
 		}
 	}
 	return nil
+}
+
+// XML serialization helpers for ODF skeleton.
+
+func odfWriteElementName(buf *strings.Builder, name xml.Name) {
+	if name.Space != "" {
+		prefix := odfResolvePrefix(name.Space)
+		if prefix != "" {
+			buf.WriteString(prefix)
+			buf.WriteString(":")
+		}
+	}
+	buf.WriteString(name.Local)
+}
+
+func odfWriteAttrName(buf *strings.Builder, name xml.Name) {
+	if name.Space == "xmlns" {
+		buf.WriteString("xmlns:")
+		buf.WriteString(name.Local)
+		return
+	}
+	if name.Space == "" && name.Local == "xmlns" {
+		buf.WriteString("xmlns")
+		return
+	}
+	if name.Space != "" {
+		prefix := odfResolvePrefix(name.Space)
+		if prefix != "" {
+			buf.WriteString(prefix)
+			buf.WriteString(":")
+		}
+	}
+	buf.WriteString(name.Local)
+}
+
+func odfXMLEscape(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	return s
+}
+
+func odfXMLEscapeAttr(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	return s
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -13,7 +15,12 @@ import (
 // Writer implements DataFormatWriter for Trados TagEditor TTX files.
 type Writer struct {
 	format.BaseFormatWriter
+	skeletonStore *format.SkeletonStore
+	blocks        []*model.Block
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TTX writer.
 func NewWriter() *Writer {
@@ -24,8 +31,32 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes reconstructed TTX XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
+	if w.skeletonStore != nil {
+		// Collect all parts, then write from skeleton
+		for {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case part, ok := <-parts:
+				if !ok {
+					return w.writeFromSkeleton()
+				}
+				if part.Type == model.PartBlock {
+					if block, ok := part.Resource.(*model.Block); ok {
+						w.blocks = append(w.blocks, block)
+					}
+				}
+			}
+		}
+	}
+
 	enc := xml.NewEncoder(w.Output)
 	enc.Indent("", "  ")
 
@@ -59,6 +90,65 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton() error {
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("ttx writer: flush skeleton: %w", err)
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("ttx writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			// Ref ID is "tuIdx:tuvIdx"
+			refID := string(entry.Data)
+			parts := strings.SplitN(refID, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			tuIdx, err := strconv.Atoi(parts[0])
+			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
+				continue
+			}
+			tuvIdx, err := strconv.Atoi(parts[1])
+			if err != nil {
+				continue
+			}
+			block := w.blocks[tuIdx]
+
+			var text string
+			if tuvIdx == 0 {
+				// Source TUV
+				text = block.SourceText()
+			} else {
+				// Target TUV - find the first target
+				text = block.SourceText() // fallback
+				for locale := range block.Targets {
+					if block.HasTarget(locale) {
+						text = block.TargetText(locale)
+						break
+					}
+				}
+			}
+
+			if _, err := io.WriteString(w.Output, xmlEscape(text)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (w *Writer) writePart(part *model.Part) error {

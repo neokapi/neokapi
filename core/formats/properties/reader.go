@@ -2,8 +2,10 @@ package properties
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"unicode/utf8"
 
@@ -14,8 +16,13 @@ import (
 // Reader implements DataFormatReader for Java Properties files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Properties reader.
 func NewReader() *Reader {
@@ -30,6 +37,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -64,6 +76,12 @@ type logicalLine struct {
 	content   string
 	isComment bool
 	isBlank   bool
+	// rawLines holds the raw text of each physical line (without line endings)
+	// for skeleton reconstruction. For simple lines this has one entry;
+	// for continuation lines it has multiple entries.
+	rawLines []string
+	// lineEndings holds the line ending ("\n", "\r\n", or "") for each physical line.
+	lineEndings []string
 }
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
@@ -91,6 +109,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 	for _, line := range lines {
 		if line.isBlank {
+			// Skeleton: write the blank line's raw text + line ending
+			r.skelText(r.rawLineText(line))
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
@@ -103,6 +123,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		if line.isComment {
+			// Skeleton: write the comment line's raw text + line ending
+			r.skelText(r.rawLineText(line))
 			dataID++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataID),
@@ -125,67 +147,137 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		blockID++
-		block := model.NewBlock(fmt.Sprintf("tu%d", blockID), value)
+		blockIDStr := fmt.Sprintf("tu%d", blockID)
+
+		// Skeleton: write key+separator prefix as text, value as ref, line ending as text
+		if r.skeletonStore != nil {
+			r.skelPropertyLine(line, blockIDStr)
+		}
+
+		block := model.NewBlock(blockIDStr, value)
 		block.Name = key
 		block.Properties["separator"] = sep
+		// Store raw value for byte-exact skeleton reconstruction
+		if r.skeletonStore != nil {
+			block.Properties["rawValue"] = r.rawValueText(line)
+		}
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 			return
 		}
 	}
+
+	r.skelFlush()
 
 	// Emit layer end
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
 // readLogicalLines reads all lines, joining continuation lines (backslash at EOL).
+// It preserves raw line text and line endings for skeleton reconstruction.
 func (r *Reader) readLogicalLines() []logicalLine {
-	scanner := bufio.NewScanner(r.Doc.Reader)
+	br := bufio.NewReader(r.Doc.Reader)
 	var lines []logicalLine
 	var continuation strings.Builder
+	var contRawLines []string
+	var contLineEndings []string
 	inContinuation := false
 
-	for scanner.Scan() {
-		raw := scanner.Text()
+	for {
+		rawLine, err := br.ReadString('\n')
+		if rawLine == "" && err != nil {
+			break
+		}
+
+		// Split content from line ending
+		content := rawLine
+		lineEnding := ""
+		if strings.HasSuffix(content, "\r\n") {
+			content = content[:len(content)-2]
+			lineEnding = "\r\n"
+		} else if strings.HasSuffix(content, "\n") {
+			content = content[:len(content)-1]
+			lineEnding = "\n"
+		}
 
 		if inContinuation {
-			// Continuation: trim leading whitespace
-			trimmed := strings.TrimLeft(raw, " \t")
+			contRawLines = append(contRawLines, content)
+			contLineEndings = append(contLineEndings, lineEnding)
+			// Continuation: trim leading whitespace for logical content
+			trimmed := strings.TrimLeft(content, " \t")
 			if hasContinuation(trimmed) {
 				continuation.WriteString(trimmed[:len(trimmed)-1])
 			} else {
 				continuation.WriteString(trimmed)
-				lines = append(lines, logicalLine{content: continuation.String()})
+				lines = append(lines, logicalLine{
+					content:     continuation.String(),
+					rawLines:    contRawLines,
+					lineEndings: contLineEndings,
+				})
 				inContinuation = false
 				continuation.Reset()
+				contRawLines = nil
+				contLineEndings = nil
+			}
+			if err != nil {
+				break
 			}
 			continue
 		}
 
 		// Blank line
-		if strings.TrimSpace(raw) == "" {
-			lines = append(lines, logicalLine{isBlank: true})
+		if strings.TrimSpace(content) == "" {
+			lines = append(lines, logicalLine{
+				isBlank:     true,
+				rawLines:    []string{content},
+				lineEndings: []string{lineEnding},
+			})
+			if err != nil {
+				break
+			}
 			continue
 		}
 
 		// Comment line (# or !)
-		trimmed := strings.TrimLeft(raw, " \t")
+		trimmed := strings.TrimLeft(content, " \t")
 		if len(trimmed) > 0 && (trimmed[0] == '#' || trimmed[0] == '!') {
-			lines = append(lines, logicalLine{content: raw, isComment: true})
+			lines = append(lines, logicalLine{
+				content:     content,
+				isComment:   true,
+				rawLines:    []string{content},
+				lineEndings: []string{lineEnding},
+			})
+			if err != nil {
+				break
+			}
 			continue
 		}
 
 		// Regular or continuation line
-		if hasContinuation(raw) {
-			continuation.WriteString(raw[:len(raw)-1])
+		if hasContinuation(content) {
+			continuation.WriteString(content[:len(content)-1])
+			contRawLines = []string{content}
+			contLineEndings = []string{lineEnding}
 			inContinuation = true
 		} else {
-			lines = append(lines, logicalLine{content: raw})
+			lines = append(lines, logicalLine{
+				content:     content,
+				rawLines:    []string{content},
+				lineEndings: []string{lineEnding},
+			})
+		}
+
+		if err == io.EOF {
+			break
 		}
 	}
 
 	// If the file ends mid-continuation, emit what we have
 	if inContinuation {
-		lines = append(lines, logicalLine{content: continuation.String()})
+		lines = append(lines, logicalLine{
+			content:     continuation.String(),
+			rawLines:    contRawLines,
+			lineEndings: contLineEndings,
+		})
 	}
 
 	return lines
@@ -356,6 +448,179 @@ func parseHexRune(hex string) (rune, bool) {
 		return 0, false
 	}
 	return r, true
+}
+
+// rawLineText reconstructs the full raw text (with line endings) for a non-property line.
+func (r *Reader) rawLineText(line logicalLine) string {
+	var sb strings.Builder
+	for i, raw := range line.rawLines {
+		sb.WriteString(raw)
+		if i < len(line.lineEndings) {
+			sb.WriteString(line.lineEndings[i])
+		}
+	}
+	return sb.String()
+}
+
+// rawValueText extracts the raw value portion from a property line's raw lines.
+// For single lines: returns the text after key+separator.
+// For continuation lines: returns the multi-line raw value with continuation markers.
+func (r *Reader) rawValueText(line logicalLine) string {
+	if len(line.rawLines) == 0 {
+		return ""
+	}
+	// Find the value start position in the first raw line
+	first := line.rawLines[0]
+	_, _, sep := parseProperty(first)
+	_ = sep
+	// Find separator position in the raw line
+	trimmed := strings.TrimLeft(first, " \t")
+	offset := len(first) - len(trimmed)
+	i := offset
+	for i < len(first) {
+		if first[i] == '\\' && i+1 < len(first) {
+			i += 2
+			continue
+		}
+		if first[i] == '=' || first[i] == ':' {
+			// Value starts after separator and optional whitespace
+			valStart := i + 1
+			for valStart < len(first) && (first[valStart] == ' ' || first[valStart] == '\t') {
+				valStart++
+			}
+			if len(line.rawLines) == 1 {
+				return first[valStart:]
+			}
+			// Multi-line: reconstruct the raw value across continuation lines
+			var sb strings.Builder
+			sb.WriteString(first[valStart:])
+			for j := 1; j < len(line.rawLines); j++ {
+				sb.WriteString(line.lineEndings[j-1])
+				sb.WriteString(line.rawLines[j])
+			}
+			return sb.String()
+		}
+		if first[i] == ' ' || first[i] == '\t' {
+			// Space separator
+			j := i
+			for j < len(first) && (first[j] == ' ' || first[j] == '\t') {
+				j++
+			}
+			if j < len(first) && (first[j] == '=' || first[j] == ':') {
+				valStart := j + 1
+				for valStart < len(first) && (first[valStart] == ' ' || first[valStart] == '\t') {
+					valStart++
+				}
+				if len(line.rawLines) == 1 {
+					return first[valStart:]
+				}
+				var sb strings.Builder
+				sb.WriteString(first[valStart:])
+				for k := 1; k < len(line.rawLines); k++ {
+					sb.WriteString(line.lineEndings[k-1])
+					sb.WriteString(line.rawLines[k])
+				}
+				return sb.String()
+			}
+			// Space is the separator; value starts at j
+			if len(line.rawLines) == 1 {
+				return first[j:]
+			}
+			var sb strings.Builder
+			sb.WriteString(first[j:])
+			for k := 1; k < len(line.rawLines); k++ {
+				sb.WriteString(line.lineEndings[k-1])
+				sb.WriteString(line.rawLines[k])
+			}
+			return sb.String()
+		}
+		i++
+	}
+	return ""
+}
+
+// skelPropertyLine writes skeleton entries for a key=value property line.
+// The key+separator prefix goes as skeleton text, the value as a ref,
+// and the trailing line ending as skeleton text.
+func (r *Reader) skelPropertyLine(line logicalLine, blockID string) {
+	if len(line.rawLines) == 0 {
+		return
+	}
+	// Find where the value starts in the first raw line
+	first := line.rawLines[0]
+	prefix := r.rawKeyPrefix(first)
+	r.skelText(prefix)
+	r.skelRef(blockID)
+	// Write trailing line ending (last physical line's ending)
+	if len(line.lineEndings) > 0 {
+		lastEnding := line.lineEndings[len(line.lineEndings)-1]
+		r.skelText(lastEnding)
+	}
+}
+
+// rawKeyPrefix returns the key+separator+whitespace prefix of a raw property line,
+// i.e., everything before the value starts.
+func (r *Reader) rawKeyPrefix(line string) string {
+	trimmed := strings.TrimLeft(line, " \t")
+	offset := len(line) - len(trimmed)
+	i := offset
+	for i < len(line) {
+		if line[i] == '\\' && i+1 < len(line) {
+			i += 2
+			continue
+		}
+		if line[i] == '=' || line[i] == ':' {
+			valStart := i + 1
+			for valStart < len(line) && (line[valStart] == ' ' || line[valStart] == '\t') {
+				valStart++
+			}
+			return line[:valStart]
+		}
+		if line[i] == ' ' || line[i] == '\t' {
+			j := i
+			for j < len(line) && (line[j] == ' ' || line[j] == '\t') {
+				j++
+			}
+			if j < len(line) && (line[j] == '=' || line[j] == ':') {
+				valStart := j + 1
+				for valStart < len(line) && (line[valStart] == ' ' || line[valStart] == '\t') {
+					valStart++
+				}
+				return line[:valStart]
+			}
+			// Space is the separator
+			return line[:j]
+		}
+		i++
+	}
+	// Key only, no value
+	return line
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

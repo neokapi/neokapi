@@ -1,6 +1,7 @@
 package tmx
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -14,8 +15,13 @@ import (
 // Reader implements DataFormatReader for TMX (Translation Memory eXchange) files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new TMX reader.
 func NewReader() *Reader {
@@ -30,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -85,8 +96,9 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		ch <- model.PartResult{Error: fmt.Errorf("tmx: reading: %w", err)}
 		return
 	}
+	rawText := string(content)
 
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	// Enable tolerance for DTD declarations and entity references.
 	decoder.Strict = false
 	decoder.AutoClose = xml.HTMLAutoClose
@@ -100,6 +112,15 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		headerNotes []string
 		headerPropList []headerProp // header-level <prop> and <note> elements
 	)
+
+	// Skeleton tracking: collect seg positions for byte-exact reconstruction
+	type segPos struct {
+		startOffset int // byte offset of start of <seg> content (after <seg> tag)
+		endOffset   int // byte offset of end of <seg> content (before </seg> tag)
+		tuIdx       int // which TU (0-based)
+		lang        string
+	}
+	var segPositions []segPos
 
 	var (
 		currentTU      *tuState
@@ -115,6 +136,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		segBuilder     *segContentBuilder
 		noteBuilder    strings.Builder
 		propBuilder    strings.Builder
+		segStartOff    int64  // byte offset after <seg> start tag
+		tuCount        int    // track TU index for skeleton
 	)
 
 	for {
@@ -187,6 +210,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				}
 
 			case "tu":
+				tuCount++
 				currentTU = &tuState{}
 				for _, attr := range t.Attr {
 					switch attr.Name.Local {
@@ -207,6 +231,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				if currentTUV != nil {
 					inSeg = true
 					segBuilder = newSegContentBuilder()
+					segStartOff = decoder.InputOffset()
 				}
 
 			case "bpt":
@@ -307,6 +332,22 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			case "seg":
 				if inSeg && segBuilder != nil && currentTUV != nil {
+					// Record seg position for skeleton before consuming the end tag
+					if r.skeletonStore != nil {
+						// InputOffset() is now past </seg>, so we need to find the </seg> start
+						endOff := decoder.InputOffset()
+						segEndTag := "</seg>"
+						segEndPos := int(endOff) - len(segEndTag)
+						if segEndPos < 0 {
+							segEndPos = 0
+						}
+						segPositions = append(segPositions, segPos{
+							startOffset: int(segStartOff),
+							endOffset:   segEndPos,
+							tuIdx:       tuCount - 1,
+							lang:        currentTUV.lang,
+						})
+					}
 					currentTUV.seg = segBuilder.build()
 					inSeg = false
 					segBuilder = nil
@@ -362,6 +403,27 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				segBuilder.addText(text)
 			}
 		}
+	}
+
+	// Build skeleton from collected seg positions
+	if r.skeletonStore != nil && len(segPositions) > 0 {
+		skelPos := 0
+		for _, sp := range segPositions {
+			// Write skeleton text from skelPos to seg content start
+			if sp.startOffset > skelPos {
+				r.skelText(rawText[skelPos:sp.startOffset])
+			}
+			// Write skeleton ref for this seg content
+			// Use "tuIdx:lang" as the ref ID so the writer can look up the right text
+			refID := fmt.Sprintf("%d:%s", sp.tuIdx, sp.lang)
+			r.skelRef(refID)
+			skelPos = sp.endOffset
+		}
+		// Write remaining skeleton text
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
 	}
 
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
@@ -649,6 +711,32 @@ func langMatches(a, b string) bool {
 		return true
 	}
 	return false
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

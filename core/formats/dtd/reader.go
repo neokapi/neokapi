@@ -1,9 +1,10 @@
 package dtd
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -15,8 +16,13 @@ import (
 // Reader implements DataFormatReader for DTD files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new DTD reader.
 func NewReader() *Reader {
@@ -31,6 +37,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -86,19 +97,18 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	// Read entire content
-	scanner := bufio.NewScanner(r.Doc.Reader)
-	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
-	var content strings.Builder
-	for scanner.Scan() {
-		content.WriteString(scanner.Text())
-		content.WriteByte('\n')
+	// Read entire content — use io.ReadAll to preserve raw bytes (including line endings)
+	rawContent, err := io.ReadAll(r.Doc.Reader)
+	if err != nil {
+		ch <- model.PartResult{Error: fmt.Errorf("dtd: reading: %w", err)}
+		return
 	}
 
-	text := content.String()
+	text := string(rawContent)
 	blockCounter := 0
 	dataCounter := 0
 	pos := 0
+	skelPos := 0 // tracks how far we've written to skeleton
 
 	// Track pending comment for attachment to next entity
 	var pendingComment string
@@ -113,6 +123,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		if pos >= len(text) {
 			// Trailing whitespace as data
 			if pos > start {
+				r.skelText(text[skelPos:pos])
+				skelPos = pos
 				dataCounter++
 				d := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
@@ -128,6 +140,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			endIdx := strings.Index(text[pos:], "-->")
 			if endIdx == -1 {
 				// Unclosed comment — treat rest as data
+				r.skelText(text[skelPos:])
+				skelPos = len(text)
 				dataCounter++
 				d := &model.Data{
 					ID:   fmt.Sprintf("d%d", dataCounter),
@@ -150,6 +164,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 				break
 			}
 			entityDecl := text[pos : pos+entityEnd+1]
+			entityStart := pos
 			pos += entityEnd + 1
 
 			name, value, ok := parseEntityDecl(entityDecl)
@@ -171,8 +186,23 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			resolved := resolveReferences(value)
 
 			blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), resolved)
+			blockID := fmt.Sprintf("tu%d", blockCounter)
+			block := model.NewBlock(blockID, resolved)
 			block.Name = name
+
+			// For skeleton: find the value position within the entity declaration
+			// The value is the quoted string after the entity name
+			if r.skeletonStore != nil {
+				valueStart, valueEnd := findEntityValuePos(text[entityStart:pos])
+				if valueStart >= 0 {
+					// Write skeleton text up to the value start
+					r.skelText(text[skelPos : entityStart+valueStart])
+					// Write skeleton ref for the value
+					r.skelRef(blockID)
+					// Update skelPos to after the value
+					skelPos = entityStart + valueEnd
+				}
+			}
 
 			// Attach pending comment as note
 			if pendingComment != "" {
@@ -229,7 +259,46 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		pos++
 	}
 
+	// Flush any remaining skeleton text
+	if r.skeletonStore != nil && skelPos < len(text) {
+		r.skelText(text[skelPos:])
+	}
+	r.skelFlush()
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// findEntityValuePos finds the byte offset of the entity value content
+// (without quotes) within an entity declaration string.
+// Returns (start, end) where start is after the opening quote and end is before the closing quote.
+func findEntityValuePos(decl string) (int, int) {
+	// Find the quote character after the entity name
+	i := len("<!ENTITY")
+	// Skip whitespace
+	for i < len(decl) && (decl[i] == ' ' || decl[i] == '\t') {
+		i++
+	}
+	// Skip entity name
+	for i < len(decl) && decl[i] != ' ' && decl[i] != '\t' && decl[i] != '"' && decl[i] != '\'' {
+		i++
+	}
+	// Skip whitespace before quote
+	for i < len(decl) && (decl[i] == ' ' || decl[i] == '\t') {
+		i++
+	}
+	if i >= len(decl) {
+		return -1, -1
+	}
+	quote := decl[i]
+	if quote != '"' && quote != '\'' {
+		return -1, -1
+	}
+	valueStart := i + 1
+	valueEnd := strings.IndexByte(decl[valueStart:], quote)
+	if valueEnd == -1 {
+		return -1, -1
+	}
+	return valueStart, valueStart + valueEnd
 }
 
 // parseEntityDecl parses an ENTITY declaration and returns (name, value, ok).
@@ -351,6 +420,32 @@ func resolveReferences(s string) string {
 		}
 	}
 	return buf.String()
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -12,11 +15,15 @@ import (
 // Writer implements DataFormatWriter for XLIFF 2.0 files.
 type Writer struct {
 	format.BaseFormatWriter
-	blocks     []*model.Block
-	sourceLang model.LocaleID
-	targetLang model.LocaleID
-	fileID     string
+	skeletonStore *format.SkeletonStore
+	blocks        []*model.Block
+	sourceLang    model.LocaleID
+	targetLang    model.LocaleID
+	fileID        string
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new XLIFF 2.0 writer.
 func NewWriter() *Writer {
@@ -27,6 +34,11 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes XLIFF 2.0 output.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	for {
@@ -35,6 +47,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
+				if w.skeletonStore != nil {
+					return w.writeFromSkeleton()
+				}
 				return w.flush()
 			}
 			switch part.Type {
@@ -53,6 +68,65 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			}
 		}
 	}
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton() error {
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("xliff2 writer: flush skeleton: %w", err)
+	}
+
+	targetLang := w.targetLang
+	if !w.Locale.IsEmpty() {
+		targetLang = w.Locale
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("xliff2 writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			// Ref ID is "blockIdx:elemType"
+			refID := string(entry.Data)
+			parts := strings.SplitN(refID, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			blockIdx, err := strconv.Atoi(parts[0])
+			if err != nil || blockIdx < 0 || blockIdx >= len(w.blocks) {
+				continue
+			}
+			block := w.blocks[blockIdx]
+			elemType := parts[1]
+
+			var text string
+			switch elemType {
+			case "source":
+				text = block.SourceText()
+			case "target":
+				if block.HasTarget(targetLang) {
+					text = block.TargetText(targetLang)
+				} else {
+					// Fallback to original source text
+					text = block.SourceText()
+				}
+			}
+
+			if _, err := io.WriteString(w.Output, xmlEscapeText(text)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (w *Writer) flush() error {

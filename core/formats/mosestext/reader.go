@@ -2,8 +2,10 @@ package mosestext
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
@@ -15,8 +17,13 @@ import (
 // Empty lines become Data parts.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new Moses Text reader.
 func NewReader() *Reader {
@@ -31,6 +38,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -78,14 +90,26 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	lines := r.readLines()
+	if r.skeletonStore != nil {
+		r.readLinesSkeleton(ctx, ch)
+	} else {
+		r.readLinesNormal(ctx, ch)
+	}
+
+	r.skelFlush()
+
+	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
+}
+
+// readLinesNormal reads all lines without skeleton tracking.
+func (r *Reader) readLinesNormal(ctx context.Context, ch chan<- model.PartResult) {
+	lines := r.scanLines()
 
 	blockCounter := 0
 	dataCounter := 0
 
 	for _, line := range lines {
 		if line == "" {
-			// Empty lines become Data parts
 			dataCounter++
 			data := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataCounter),
@@ -105,22 +129,72 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			return
 		}
 	}
-
-	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// readLines reads all lines from the document, handling CR, CRLF, and LF line endings.
-func (r *Reader) readLines() []string {
+// readLinesSkeleton reads lines while recording skeleton entries for byte-exact roundtrip.
+func (r *Reader) readLinesSkeleton(ctx context.Context, ch chan<- model.PartResult) {
+	br := bufio.NewReader(r.Doc.Reader)
+	blockCounter := 0
+	dataCounter := 0
+
+	for {
+		rawLine, err := br.ReadString('\n')
+		if rawLine == "" && err != nil {
+			if err != io.EOF {
+				ch <- model.PartResult{Error: fmt.Errorf("mosestext: reading: %w", err)}
+			}
+			break
+		}
+
+		// Split into content and line ending.
+		content := rawLine
+		lineEnding := ""
+		if strings.HasSuffix(content, "\r\n") {
+			content = content[:len(content)-2]
+			lineEnding = "\r\n"
+		} else if strings.HasSuffix(content, "\n") {
+			content = content[:len(content)-1]
+			lineEnding = "\n"
+		}
+
+		if content == "" {
+			// Empty line is non-translatable data
+			r.skelText(lineEnding)
+			dataCounter++
+			data := &model.Data{
+				ID:   fmt.Sprintf("d%d", dataCounter),
+				Name: fmt.Sprintf("empty-line%d", dataCounter),
+			}
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
+				return
+			}
+		} else {
+			blockCounter++
+			blockIDStr := fmt.Sprintf("tu%d", blockCounter)
+			r.skelRef(blockIDStr)
+			r.skelText(lineEnding)
+			block := model.NewBlock(blockIDStr, content)
+			block.Name = fmt.Sprintf("line%d", blockCounter)
+			block.PreserveWhitespace = true
+			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
+				return
+			}
+		}
+
+		if err == io.EOF {
+			break
+		}
+	}
+}
+
+// scanLines reads all lines from the document, handling CR, CRLF, and LF line endings.
+func (r *Reader) scanLines() []string {
 	scanner := bufio.NewScanner(r.Doc.Reader)
 	var lines []string
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Handle CR within lines (bufio.Scanner splits on LF, so CR-only
-		// line endings appear as a single line with embedded \r characters).
 		line = strings.TrimRight(line, "\r")
-		// If the original text uses CR-only line endings, bufio.Scanner will
-		// return the entire content as one line with \r separators. Split on \r.
 		if strings.Contains(line, "\r") {
 			parts := strings.Split(line, "\r")
 			lines = append(lines, parts...)
@@ -130,6 +204,32 @@ func (r *Reader) readLines() []string {
 	}
 
 	return lines
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {

@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"testing"
 
+	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/formats/archive"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/testutil"
@@ -28,6 +30,21 @@ func makeZip(t *testing.T, entries map[string]string) []byte {
 	return buf.Bytes()
 }
 
+// makeOrderedZip creates a ZIP with entries in a deterministic order.
+func makeOrderedZip(t *testing.T, names []string, contents map[string]string) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, name := range names {
+		w, err := zw.Create(name)
+		require.NoError(t, err)
+		_, err = io.WriteString(w, contents[name])
+		require.NoError(t, err)
+	}
+	require.NoError(t, zw.Close())
+	return buf.Bytes()
+}
+
 func rawDocFromBytes(data []byte, locale model.LocaleID) *model.RawDocument {
 	return &model.RawDocument{
 		URI:          "test://input.zip",
@@ -37,12 +54,24 @@ func rawDocFromBytes(data []byte, locale model.LocaleID) *model.RawDocument {
 	}
 }
 
+// writeTmpZip writes ZIP data to a temp file and returns its path.
+func writeTmpZip(t *testing.T, data []byte) string {
+	t.Helper()
+	f, err := os.CreateTemp("", "gokapi-test-archive-*")
+	require.NoError(t, err)
+	_, err = f.Write(data)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	t.Cleanup(func() { os.Remove(f.Name()) })
+	return f.Name()
+}
+
 func TestReadArchiveWithTextEntries(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
-		"hello.txt":   "Hello world\nSecond line",
-		"readme.txt":  "Read me",
-		"image.png":   "\x89PNG binary data",
+		"hello.txt":  "Hello world\nSecond line",
+		"readme.txt": "Read me",
+		"image.png":  "\x89PNG binary data",
 	})
 
 	reader := archive.NewReader()
@@ -177,6 +206,7 @@ func TestRoundTrip(t *testing.T) {
 		"image.png": "binary data",
 	}
 	data := makeZip(t, entries)
+	tmpPath := writeTmpZip(t, data)
 
 	reader := archive.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
@@ -189,7 +219,7 @@ func TestRoundTrip(t *testing.T) {
 	writer := archive.NewWriter()
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetOriginalContent(data)
+	writer.SetOriginalZip(tmpPath)
 	writer.SetLocale(model.LocaleEnglish)
 
 	ch := testutil.PartsToChannel(parts)
@@ -214,6 +244,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 	data := makeZip(t, map[string]string{
 		"msg.txt": "Hello",
 	})
+	tmpPath := writeTmpZip(t, data)
 
 	reader := archive.NewReader()
 	err := reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
@@ -236,7 +267,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 	writer := archive.NewWriter()
 	err = writer.SetOutputWriter(&buf)
 	require.NoError(t, err)
-	writer.SetOriginalContent(data)
+	writer.SetOriginalZip(tmpPath)
 	writer.SetLocale("fr")
 
 	ch := testutil.PartsToChannel(parts)
@@ -253,6 +284,166 @@ func TestRoundTripWithTranslation(t *testing.T) {
 	blocks := testutil.CollectBlocks(t, reader2.Read(ctx))
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Bonjour", blocks[0].SourceText())
+}
+
+func TestSkeletonRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	names := []string{"hello.txt", "image.png"}
+	contents := map[string]string{
+		"hello.txt": "Hello world\nGoodbye",
+		"image.png": "binary data",
+	}
+	data := makeOrderedZip(t, names, contents)
+	tmpPath := writeTmpZip(t, data)
+
+	// Create skeleton store
+	skel, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skel.Close()
+
+	// Read with skeleton
+	reader := archive.NewReader()
+	reader.SetSkeletonStore(skel)
+	err = reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Verify blocks were extracted
+	blocks := testutil.FilterBlocks(parts)
+	require.Len(t, blocks, 2)
+	texts := testutil.BlockTexts(blocks)
+	assert.Equal(t, "Hello world", texts[0])
+	assert.Equal(t, "Goodbye", texts[1])
+
+	// Write with skeleton
+	var buf bytes.Buffer
+	writer := archive.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetSkeletonStore(skel)
+	writer.SetOriginalZip(tmpPath)
+	writer.SetLocale(model.LocaleEnglish)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Read back and verify byte-exact text content
+	reader2 := archive.NewReader()
+	err = reader2.Open(ctx, rawDocFromBytes(buf.Bytes(), model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader2.Close()
+
+	blocks2 := testutil.CollectBlocks(t, reader2.Read(ctx))
+	texts2 := testutil.BlockTexts(blocks2)
+	assert.Contains(t, texts2, "Hello world")
+	assert.Contains(t, texts2, "Goodbye")
+
+	// Verify the output ZIP has the binary entry too
+	zr, err := zip.NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	require.NoError(t, err)
+	var entryNames []string
+	for _, f := range zr.File {
+		entryNames = append(entryNames, f.Name)
+	}
+	assert.Contains(t, entryNames, "image.png")
+
+	// Verify binary content is preserved
+	for _, f := range zr.File {
+		if f.Name == "image.png" {
+			rc, err := f.Open()
+			require.NoError(t, err)
+			got, err := io.ReadAll(rc)
+			rc.Close()
+			require.NoError(t, err)
+			assert.Equal(t, "binary data", string(got))
+		}
+	}
+}
+
+func TestSkeletonTranslation(t *testing.T) {
+	ctx := context.Background()
+	data := makeZip(t, map[string]string{
+		"msg.txt": "Hello\nWorld",
+	})
+	tmpPath := writeTmpZip(t, data)
+
+	// Create skeleton store
+	skel, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer skel.Close()
+
+	// Read with skeleton
+	reader := archive.NewReader()
+	reader.SetSkeletonStore(skel)
+	err = reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	// Set translations
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			block := p.Resource.(*model.Block)
+			switch block.SourceText() {
+			case "Hello":
+				block.SetTargetText("fr", "Bonjour")
+			case "World":
+				block.SetTargetText("fr", "Monde")
+			}
+		}
+	}
+
+	// Write with skeleton
+	var buf bytes.Buffer
+	writer := archive.NewWriter()
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+	writer.SetSkeletonStore(skel)
+	writer.SetOriginalZip(tmpPath)
+	writer.SetLocale("fr")
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	// Verify translated content
+	reader2 := archive.NewReader()
+	err = reader2.Open(ctx, rawDocFromBytes(buf.Bytes(), model.LocaleEnglish))
+	require.NoError(t, err)
+	defer reader2.Close()
+
+	blocks := testutil.CollectBlocks(t, reader2.Read(ctx))
+	texts := testutil.BlockTexts(blocks)
+	assert.Contains(t, texts, "Bonjour")
+	assert.Contains(t, texts, "Monde")
+}
+
+func TestReaderCleansTempFile(t *testing.T) {
+	ctx := context.Background()
+	data := makeZip(t, map[string]string{
+		"doc.txt": "Content",
+	})
+
+	reader := archive.NewReader()
+	err := reader.Open(ctx, rawDocFromBytes(data, model.LocaleEnglish))
+	require.NoError(t, err)
+
+	// Drain the channel
+	_ = testutil.CollectParts(t, reader.Read(ctx))
+
+	// Close should clean up the temp file
+	err = reader.Close()
+	require.NoError(t, err)
+
+	// A second close should not fail
+	err = reader.Close()
+	require.NoError(t, err)
 }
 
 func TestConfigApplyMap(t *testing.T) {

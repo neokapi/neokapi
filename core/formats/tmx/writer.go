@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"io"
+	"strconv"
+	"strings"
 
 	"github.com/gokapi/gokapi/core/format"
 	"github.com/gokapi/gokapi/core/model"
@@ -12,9 +15,13 @@ import (
 // Writer implements DataFormatWriter for TMX files.
 type Writer struct {
 	format.BaseFormatWriter
-	headerProps map[string]string
-	blocks      []*model.Block
+	skeletonStore *format.SkeletonStore
+	headerProps   map[string]string
+	blocks        []*model.Block
 }
+
+// Ensure Writer implements SkeletonStoreConsumer.
+var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 
 // NewWriter creates a new TMX writer.
 func NewWriter() *Writer {
@@ -26,6 +33,11 @@ func NewWriter() *Writer {
 	}
 }
 
+// SetSkeletonStore sets the skeleton store for byte-exact output.
+func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
+	w.skeletonStore = store
+}
+
 // Write consumes Parts from a channel and writes TMX XML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 	for {
@@ -34,6 +46,9 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			return ctx.Err()
 		case part, ok := <-parts:
 			if !ok {
+				if w.skeletonStore != nil {
+					return w.writeFromSkeleton()
+				}
 				return w.flush()
 			}
 			w.collectPart(part)
@@ -54,6 +69,87 @@ func (w *Writer) collectPart(part *model.Part) {
 			}
 		}
 	}
+}
+
+// writeFromSkeleton reads skeleton entries and fills in block content.
+func (w *Writer) writeFromSkeleton() error {
+	if err := w.skeletonStore.Flush(); err != nil {
+		return fmt.Errorf("tmx writer: flush skeleton: %w", err)
+	}
+
+	// Build a lookup: srcLang from header
+	srcLang := strings.ToLower(w.headerProps["srclang"])
+	if srcLang == "" {
+		srcLang = "en"
+	}
+
+	for {
+		entry, err := w.skeletonStore.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("tmx writer: read skeleton: %w", err)
+		}
+		switch entry.Type {
+		case format.SkeletonText:
+			if _, err := w.Output.Write(entry.Data); err != nil {
+				return err
+			}
+		case format.SkeletonRef:
+			// Ref ID is "tuIdx:lang" where tuIdx is 0-based
+			refID := string(entry.Data)
+			parts := strings.SplitN(refID, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			tuIdx, err := strconv.Atoi(parts[0])
+			if err != nil || tuIdx < 0 || tuIdx >= len(w.blocks) {
+				continue
+			}
+			block := w.blocks[tuIdx]
+			lang := parts[1]
+
+			// Determine the text for this TUV
+			var text string
+			langLower := strings.ToLower(lang)
+			if langMatches(langLower, srcLang) {
+				// Source language TUV
+				text = block.SourceText()
+			} else {
+				// Target language TUV
+				localeID := model.LocaleID(lang)
+				if block.HasTarget(localeID) {
+					text = block.TargetText(localeID)
+				} else {
+					text = block.SourceText()
+				}
+			}
+
+			if _, err := io.WriteString(w.Output, xmlEscapeString(text)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// xmlEscapeString escapes special XML characters in text content.
+func xmlEscapeString(s string) string {
+	var buf strings.Builder
+	for _, r := range s {
+		switch r {
+		case '&':
+			buf.WriteString("&amp;")
+		case '<':
+			buf.WriteString("&lt;")
+		case '>':
+			buf.WriteString("&gt;")
+		default:
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
 }
 
 // xmlTMX and related types for output.

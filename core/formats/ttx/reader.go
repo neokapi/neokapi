@@ -1,6 +1,7 @@
 package ttx
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
@@ -14,8 +15,13 @@ import (
 // Reader implements DataFormatReader for Trados TagEditor TTX files.
 type Reader struct {
 	format.BaseFormatReader
-	cfg *Config
+	cfg           *Config
+	skeletonStore *format.SkeletonStore
+	skelBuf       bytes.Buffer // coalesces skeleton text between refs
 }
+
+// Ensure Reader implements SkeletonStoreEmitter.
+var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new TTX reader.
 func NewReader() *Reader {
@@ -30,6 +36,11 @@ func NewReader() *Reader {
 		},
 		cfg: cfg,
 	}
+}
+
+// SetSkeletonStore sets the skeleton store for streaming skeleton output.
+func (r *Reader) SetSkeletonStore(store *format.SkeletonStore) {
+	r.skeletonStore = store
 }
 
 // Signature returns detection metadata for this format.
@@ -63,12 +74,21 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 	return ch
 }
 
+// segPosition records the byte position of a <Seg> content region.
+type segPosition struct {
+	startOffset int // byte offset after <Seg> start tag
+	endOffset   int // byte offset before </Seg> end tag
+	tuIdx       int // which TU (0-based)
+	tuvIdx      int // which TUV within TU (0=source, 1=target)
+}
+
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	content, err := io.ReadAll(r.Doc.Reader)
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("ttx: reading: %w", err)}
 		return
 	}
+	rawText := string(content)
 
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
@@ -87,10 +107,13 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		return
 	}
 
-	decoder := xml.NewDecoder(strings.NewReader(string(content)))
+	decoder := xml.NewDecoder(strings.NewReader(rawText))
 	decoder.Strict = false
 
 	blockCounter := 0
+	tuCount := 0
+
+	var segPositions []segPosition
 
 	for {
 		tok, err := decoder.Token()
@@ -107,7 +130,10 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 			if t.Name.Local == "Tu" {
 				blockCounter++
 				matchPercent := attrVal(t.Attr, "MatchPercent")
-				block := r.parseTransUnit(decoder, locale, blockCounter, matchPercent)
+				var segs []segPosition
+				block := r.parseTransUnitWithSkeleton(decoder, locale, blockCounter, matchPercent, tuCount, &segs)
+				segPositions = append(segPositions, segs...)
+				tuCount++
 				if block != nil {
 					if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 						return
@@ -117,15 +143,33 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 	}
 
+	// Build skeleton from collected seg positions
+	if r.skeletonStore != nil && len(segPositions) > 0 {
+		skelPos := 0
+		for _, sp := range segPositions {
+			if sp.startOffset > skelPos {
+				r.skelText(rawText[skelPos:sp.startOffset])
+			}
+			refID := fmt.Sprintf("%d:%d", sp.tuIdx, sp.tuvIdx)
+			r.skelRef(refID)
+			skelPos = sp.endOffset
+		}
+		if skelPos < len(rawText) {
+			r.skelText(rawText[skelPos:])
+		}
+		r.skelFlush()
+	}
+
 	r.emit(ctx, ch, &model.Part{Type: model.PartLayerEnd, Resource: layer})
 }
 
-// parseTransUnit parses a <Tu> element with its <Tuv> children.
-func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleID, counter int, matchPercent string) *model.Block {
+// parseTransUnitWithSkeleton parses a <Tu> element, collecting seg positions for skeleton.
+func (r *Reader) parseTransUnitWithSkeleton(decoder *xml.Decoder, sourceLocale model.LocaleID, counter int, matchPercent string, tuIdx int, segs *[]segPosition) *model.Block {
 	var sourceText string
 	var targetText string
 	var targetLang model.LocaleID
 	var sourceLang model.LocaleID
+	tuvIdx := 0
 
 	depth := 1
 	for depth > 0 {
@@ -139,7 +183,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleI
 			depth++
 			if t.Name.Local == "Tuv" {
 				lang := model.LocaleID(attrVal(t.Attr, "Lang"))
-				segText := r.parseTuv(decoder)
+				segText := r.parseTuvWithSkeleton(decoder, tuIdx, tuvIdx, segs)
 				depth-- // parseTuv consumed end element
 
 				if sourceLang.IsEmpty() {
@@ -149,6 +193,7 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleI
 					targetLang = lang
 					targetText = segText
 				}
+				tuvIdx++
 			}
 		case xml.EndElement:
 			depth--
@@ -175,8 +220,8 @@ func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleI
 	return block
 }
 
-// parseTuv parses a <Tuv> element, extracting text from its <Seg> child.
-func (r *Reader) parseTuv(decoder *xml.Decoder) string {
+// parseTuvWithSkeleton parses a <Tuv> element, recording seg positions.
+func (r *Reader) parseTuvWithSkeleton(decoder *xml.Decoder, tuIdx, tuvIdx int, segs *[]segPosition) string {
 	depth := 1
 	var segText string
 
@@ -190,8 +235,24 @@ func (r *Reader) parseTuv(decoder *xml.Decoder) string {
 		case xml.StartElement:
 			depth++
 			if t.Name.Local == "Seg" {
+				segStartOff := decoder.InputOffset()
 				segText = readSegContent(decoder)
 				depth-- // readSegContent consumed end element
+
+				if r.skeletonStore != nil {
+					endOff := decoder.InputOffset()
+					segEndTag := "</Seg>"
+					segEndPos := int(endOff) - len(segEndTag)
+					if segEndPos < 0 {
+						segEndPos = 0
+					}
+					*segs = append(*segs, segPosition{
+						startOffset: int(segStartOff),
+						endOffset:   segEndPos,
+						tuIdx:       tuIdx,
+						tuvIdx:      tuvIdx,
+					})
+				}
 			}
 		case xml.EndElement:
 			depth--
@@ -199,6 +260,17 @@ func (r *Reader) parseTuv(decoder *xml.Decoder) string {
 	}
 
 	return segText
+}
+
+// parseTransUnit parses a <Tu> element with its <Tuv> children.
+func (r *Reader) parseTransUnit(decoder *xml.Decoder, sourceLocale model.LocaleID, counter int, matchPercent string) *model.Block {
+	var segs []segPosition
+	return r.parseTransUnitWithSkeleton(decoder, sourceLocale, counter, matchPercent, 0, &segs)
+}
+
+// parseTuv parses a <Tuv> element, extracting text from its <Seg> child.
+func (r *Reader) parseTuv(decoder *xml.Decoder) string {
+	return r.parseTuvWithSkeleton(decoder, 0, 0, &[]segPosition{})
 }
 
 // readSegContent reads the text content of a <Seg> element, handling inline tags.
@@ -231,6 +303,32 @@ func attrVal(attrs []xml.Attr, name string) string {
 		}
 	}
 	return ""
+}
+
+// skelText appends text to the skeleton buffer if active.
+func (r *Reader) skelText(s string) {
+	if r.skeletonStore != nil && s != "" {
+		r.skelBuf.WriteString(s)
+	}
+}
+
+// skelRef flushes buffered text and writes a block reference to the skeleton store.
+func (r *Reader) skelRef(id string) {
+	if r.skeletonStore != nil {
+		if r.skelBuf.Len() > 0 {
+			_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+			r.skelBuf.Reset()
+		}
+		_ = r.skeletonStore.WriteRef(id)
+	}
+}
+
+// skelFlush writes any remaining buffered text to the skeleton store.
+func (r *Reader) skelFlush() {
+	if r.skeletonStore != nil && r.skelBuf.Len() > 0 {
+		_ = r.skeletonStore.WriteText(r.skelBuf.Bytes())
+		r.skelBuf.Reset()
+	}
 }
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
