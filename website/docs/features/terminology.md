@@ -40,39 +40,64 @@ A **concept** groups related terms across languages. Each concept can have:
 
 ## Storage Backends
 
-- **In-memory** — ephemeral; ideal for batch processing and session-scoped lookups
-- **SQLite** — persistent; for long-lived termbases with fuzzy matching
+Three storage tiers support progressive complexity:
+
+1. **In-memory** (`core/termbase/`) — fast, ephemeral. Used for session-scoped batch processing.
+2. **CLI SQLite** (`cli/storage/termbase/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
+3. **Server SQLite/PostgreSQL** (`bowrain/termbase/`) — persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation.
+
+### kapi vs Bowrain
+
+| Aspect | kapi CLI | Bowrain Server |
+|--------|---------|---------------|
+| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
+| Scope | Single user, single machine | Multi-user, multi-workspace |
+| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
 
 ## CLI Usage
+
+### Resource Location
+
+All termbase commands (except `list`) accept these mutually exclusive flags:
+
+| Flag | Resolves to | Example |
+|------|------------|---------|
+| `--name <n>` | `~/.config/kapi/termbases/<n>.db` | `--name project-terms` |
+| `--local` | `./termbase.db` (current directory) | `--local` |
+| `--file <path>` | Explicit file path | `--file /shared/glossary.db` |
+| *(no flag)* | Same as `--local` | |
+
+Databases are created on demand if they don't exist.
 
 ### Import Terms
 
 ```bash
-# Import from CSV (source,target columns with optional domain)
+# Import into a named termbase in KAPI_HOME
+kapi termbase import terms.csv --name project-terms --format csv -s en -t fr
+
+# Import into default local termbase (./termbase.db)
 kapi termbase import terms.csv --format csv -s en -t fr --domain general
 
-# Import from CSV with header row
-kapi termbase import terms.csv --format csv -s en -t fr --has-header
+# Import from JSON
+kapi termbase import terms.json --format json
 
-# Import from JSON (full concept format)
-kapi termbase import termbase.json --format json
+# Import into a specific file
+kapi termbase import terms.csv --file /shared/glossary.db --format csv -s en -t fr
 ```
 
 ### Export Terms
 
 ```bash
-# Export as CSV
-kapi termbase export --format csv -s en -t fr -o terms.csv
-
-# Export as JSON
-kapi termbase export --format json -o termbase.json
+kapi termbase export --name project-terms --format csv -o terms.csv -s en -t fr
+kapi termbase export --format json -o terms.json
 ```
 
 ### Look Up Terms
 
 ```bash
-# Look up terms in text
-kapi termbase lookup "The authentication module uses end-to-end encryption" -s en -t fr
+# Exact lookup using a named termbase
+kapi termbase lookup "encryption" --name project-terms -s en -t fr
 
 # Fuzzy lookup
 kapi termbase lookup "authenticating users" -s en -t fr --fuzzy
@@ -81,17 +106,21 @@ kapi termbase lookup "authenticating users" -s en -t fr --fuzzy
 ### Search Concepts
 
 ```bash
-# Search by term text
-kapi termbase search "encryption" -s en
-
-# Filter by domain
-kapi termbase search "encryption" -s en --domain security
+kapi termbase search "encryption" --name project-terms -s en
+kapi termbase search "auth" -s en --limit 50
 ```
 
 ### View Statistics
 
 ```bash
-kapi termbase stats
+kapi termbase stats --name project-terms
+kapi termbase stats                          # uses ./termbase.db
+```
+
+### List Named Termbases
+
+```bash
+kapi termbase list
 ```
 
 ## Pipeline Integration
