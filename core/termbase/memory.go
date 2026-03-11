@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 )
@@ -371,7 +373,11 @@ func matchesTerm(text, term string, caseSensitive bool) bool {
 	return strings.EqualFold(text, term)
 }
 
+// NormalizeTerm normalizes a term for comparison by applying Unicode NFC
+// normalization, lowercasing, trimming whitespace, and collapsing internal
+// whitespace to single spaces.
 func NormalizeTerm(s string) string {
+	s = norm.NFC.String(s)
 	s = strings.TrimSpace(s)
 	s = strings.ToLower(s)
 	fields := strings.Fields(s)

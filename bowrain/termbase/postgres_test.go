@@ -1,0 +1,188 @@
+//go:build integration
+
+package termbase_test
+
+import (
+	"fmt"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/gokapi/gokapi/core/model"
+	"github.com/gokapi/gokapi/core/termbase"
+
+	storage "github.com/gokapi/gokapi/bowrain/storage"
+	pgtb "github.com/gokapi/gokapi/bowrain/termbase"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func openTestPostgresTermBase(t *testing.T) *pgtb.PostgresTermBase {
+	t.Helper()
+	connStr := os.Getenv("BOWRAIN_TEST_POSTGRES_URL")
+	if connStr == "" {
+		connStr = "postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable"
+	}
+	db, err := storage.OpenPostgres(connStr)
+	if err != nil {
+		t.Skipf("PostgreSQL not available: %v", err)
+	}
+	wsID := fmt.Sprintf("test-%s-%d", t.Name(), time.Now().UnixNano())
+	tb, err := pgtb.NewPostgresTermBaseFromDB(db, wsID)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		db.Exec("DELETE FROM tb_terms WHERE workspace_id = $1", wsID)
+		db.Exec("DELETE FROM tb_concepts WHERE workspace_id = $1", wsID)
+		db.Close()
+	})
+	return tb
+}
+
+func populatePgTB(t *testing.T, tb termbase.TermBase) {
+	t.Helper()
+	for _, c := range softwareConcepts() {
+		require.NoError(t, tb.AddConcept(c))
+	}
+}
+
+func TestPostgresTermBase_IntegrationAddAndGet(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+	assert.Equal(t, 3, tb.Count())
+
+	c, ok := tb.GetConcept("c1")
+	assert.True(t, ok)
+	assert.Equal(t, "software", c.Domain)
+	assert.Len(t, c.Terms, 3)
+}
+
+func TestPostgresTermBase_IntegrationDelete(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+
+	err := tb.DeleteConcept("c2")
+	require.NoError(t, err)
+	assert.Equal(t, 2, tb.Count())
+
+	_, ok := tb.GetConcept("c2")
+	assert.False(t, ok)
+}
+
+func TestPostgresTermBase_IntegrationUpdate(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+
+	err := tb.AddConcept(termbase.Concept{
+		ID:         "c1",
+		Domain:     "software-ui",
+		Definition: "Updated",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 3, tb.Count())
+
+	c, ok := tb.GetConcept("c1")
+	assert.True(t, ok)
+	assert.Equal(t, "software-ui", c.Domain)
+	assert.Len(t, c.Terms, 1)
+}
+
+func TestPostgresTermBase_IntegrationLookup(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+
+	matches := tb.Lookup("Save", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+	require.Len(t, matches, 1)
+	assert.Equal(t, "Save", matches[0].Term.Text)
+	assert.Equal(t, 1.0, matches[0].Score)
+}
+
+func TestPostgresTermBase_IntegrationLookupAll(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+
+	text := "Click Save or Cancel"
+	matches := tb.LookupAll(text, termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+	require.GreaterOrEqual(t, len(matches), 2)
+}
+
+func TestPostgresTermBase_IntegrationSearch(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	populatePgTB(t, tb)
+
+	results, total := tb.Search("save", "", "", 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, results, 1)
+}
+
+func TestPostgresTermBase_IntegrationInterfaceCompliance(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	var _ termbase.TermBase = tb
+	var _ pgtb.TBStore = tb
+	assert.NoError(t, tb.Close())
+}
+
+func TestPostgresTermBase_IntegrationAddConceptWithStream(t *testing.T) {
+	tb := openTestPostgresTermBase(t)
+
+	mainConcept := termbase.Concept{
+		ID:     "c-main",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "File", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Datei", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConceptWithStream(mainConcept, "main"))
+
+	featureConcept := termbase.Concept{
+		ID:     "c-feat",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Document", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Dokument", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConceptWithStream(featureConcept, "feature/rebrand"))
+
+	wsConcept := termbase.Concept{
+		ID:     "c-ws",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: "en-US", Status: model.TermApproved},
+			{Text: "Speichern", Locale: "de-DE", Status: model.TermApproved},
+		},
+	}
+	require.NoError(t, tb.AddConcept(wsConcept))
+
+	concepts, total := tb.SearchForStream("", "", "",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 3, total)
+	assert.Len(t, concepts, 3)
+	assert.Equal(t, "c-feat", concepts[0].ID)
+
+	concepts, total = tb.SearchForStream("", "", "", "", nil, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "c-ws", concepts[0].ID)
+
+	concepts, total = tb.SearchForStream("save", "", "",
+		"feature/rebrand", []string{"main", ""}, 0, 100)
+	assert.Equal(t, 1, total)
+	assert.Len(t, concepts, 1)
+	assert.Equal(t, "c-ws", concepts[0].ID)
+}

@@ -68,6 +68,29 @@ var tbMigrationsPg = []storage.Migration{
 		SQL: `ALTER TABLE tb_concepts ADD COLUMN stream TEXT NOT NULL DEFAULT '';
 		CREATE INDEX IF NOT EXISTS idx_tb_concepts_ws_stream ON tb_concepts(workspace_id, stream);`,
 	},
+	{
+		Version:     3,
+		Description: "pg_trgm trigram index for fuzzy term matching + tsvector for UI search",
+		SQL: `
+		CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+		CREATE INDEX IF NOT EXISTS idx_tb_terms_trgm ON tb_terms USING gin (text_lower gin_trgm_ops);
+
+		ALTER TABLE tb_terms ADD COLUMN search_tsv tsvector;
+		UPDATE tb_terms SET search_tsv = to_tsvector('simple', text_lower);
+		CREATE INDEX IF NOT EXISTS idx_tb_terms_search_tsv ON tb_terms USING gin (search_tsv);
+
+		CREATE OR REPLACE FUNCTION tb_terms_search_tsv_update() RETURNS trigger AS $$
+		BEGIN
+			NEW.search_tsv := to_tsvector('simple', NEW.text_lower);
+			RETURN NEW;
+		END $$ LANGUAGE plpgsql;
+
+		DROP TRIGGER IF EXISTS tb_terms_search_tsv_trigger ON tb_terms;
+		CREATE TRIGGER tb_terms_search_tsv_trigger BEFORE INSERT OR UPDATE ON tb_terms
+			FOR EACH ROW EXECUTE FUNCTION tb_terms_search_tsv_update();
+		`,
+	},
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
@@ -243,8 +266,73 @@ func (tb *PostgresTermBase) LookupAll(sourceText string, opts fw.LookupOptions) 
 	return matches
 }
 
-// Search performs a case-insensitive text search across concepts.
+// Search performs a ranked full-text search across concepts and terms.
+// Uses pg_trgm for term matching when a query is provided, falls back to LIKE.
 func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
+	if query != "" {
+		concepts, total, err := tb.pgSearchTrgm(query, sourceLocale, targetLocale, offset, limit)
+		if err == nil {
+			return concepts, total
+		}
+	}
+	return tb.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (tb *PostgresTermBase) pgSearchTrgm(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int, error) {
+	where := "t.workspace_id = $1 AND t.text_lower % $2"
+	args := []any{tb.workspaceID, strings.ToLower(query)}
+	argN := 3
+
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND t.locale = $%d", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		// Need to check that concept has a term in target locale too.
+		where += fmt.Sprintf(` AND t.concept_id IN (
+			SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)`, argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	countQ := fmt.Sprintf(`SELECT COUNT(DISTINCT t.concept_id)
+		FROM tb_terms t WHERE %s`, where)
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	var total int
+	if err := tb.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	q := fmt.Sprintf(`SELECT DISTINCT t.concept_id
+		FROM tb_terms t
+		JOIN tb_concepts c ON t.workspace_id = c.workspace_id AND t.concept_id = c.id
+		WHERE %s
+		ORDER BY similarity(t.text_lower, $2) DESC
+		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	args = append(args, limit, offset)
+
+	rows, err := tb.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var concepts []fw.Concept
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		if c, err := tb.scanConcept(id); err == nil {
+			concepts = append(concepts, c)
+		}
+	}
+	return concepts, total, nil
+}
+
+func (tb *PostgresTermBase) pgSearchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
 	where := "workspace_id = $1"
 	args := []any{tb.workspaceID}
 	argN := 2
@@ -299,10 +387,97 @@ func (tb *PostgresTermBase) Search(query, sourceLocale, targetLocale string, off
 	return concepts, total
 }
 
-// SearchForStream performs a case-insensitive text search with stream inheritance.
+// SearchForStream performs a ranked full-text search with stream inheritance.
+// Uses pg_trgm when a query is provided, falls back to LIKE.
 // The streamChain is an ordered list of ancestor streams to search.
 // Concepts from earlier streams take priority.
 func (tb *PostgresTermBase) SearchForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
+	if query != "" {
+		concepts, total, err := tb.pgSearchTrgmForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+		if err == nil {
+			return concepts, total
+		}
+	}
+	return tb.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+}
+
+func (tb *PostgresTermBase) pgSearchTrgmForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int, error) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	where := "c.workspace_id = $1"
+	args := []any{tb.workspaceID}
+	argN := 2
+
+	// Stream filter.
+	placeholders := make([]string, len(streams))
+	for i, s := range streams {
+		placeholders[i] = fmt.Sprintf("$%d", argN)
+		args = append(args, s)
+		argN++
+	}
+	where += " AND c.stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	where += fmt.Sprintf(` AND c.id IN (SELECT concept_id FROM tb_terms
+		WHERE workspace_id = $1 AND text_lower %% $%d)`, argN)
+	args = append(args, strings.ToLower(query))
+	argN++
+
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND c.id IN (SELECT concept_id FROM tb_terms WHERE workspace_id = $1 AND locale = $%d)", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	if err := tb.db.QueryRow("SELECT COUNT(DISTINCT c.id) FROM tb_concepts c WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Build CASE expression for stream priority ordering.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE c.stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
+		args = append(args, s)
+		argN++
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`SELECT DISTINCT c.id FROM tb_concepts c WHERE %s ORDER BY %s, c.updated_at DESC LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tb.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	var concepts []fw.Concept
+	for _, id := range ids {
+		if c, err := tb.scanConcept(id); err == nil {
+			concepts = append(concepts, c)
+		}
+	}
+	return concepts, total, nil
+}
+
+func (tb *PostgresTermBase) pgSearchLikeForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.Concept, int) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
@@ -504,16 +679,56 @@ func (tb *PostgresTermBase) queryNormalizedTerms(normalizedSource string, opts f
 }
 
 func (tb *PostgresTermBase) queryFuzzyTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+	// Try pg_trgm candidate retrieval first, fall back to full scan.
+	matches := tb.queryFuzzyTrigramCandidates(normalizedSource, opts)
+	if matches != nil {
+		return matches
+	}
+	return tb.queryFuzzyFullScan(normalizedSource, opts)
+}
+
+func (tb *PostgresTermBase) queryFuzzyTrigramCandidates(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+	// Use pg_trgm similarity operator (%) with GIN index.
 	rows, err := tb.db.Query(`
 		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
 		FROM tb_terms t
-		WHERE t.workspace_id = $1 AND t.locale = $2
-	`, tb.workspaceID, string(opts.SourceLocale))
+		WHERE t.workspace_id = $1 AND t.locale = $2 AND t.text_lower % $3
+		LIMIT 200
+	`, tb.workspaceID, string(opts.SourceLocale), normalizedSource)
+	if err != nil {
+		return nil // pg_trgm unavailable, signal fallback.
+	}
+	defer rows.Close()
+
+	return tb.pgScoreFuzzyCandidates(rows, normalizedSource, opts)
+}
+
+func (tb *PostgresTermBase) queryFuzzyFullScan(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+	keyLen := len([]rune(normalizedSource))
+	minLen := int(float64(keyLen) * 0.7)
+	maxLen := int(float64(keyLen) * 1.3)
+	if minLen < 0 {
+		minLen = 0
+	}
+
+	rows, err := tb.db.Query(`
+		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		FROM tb_terms t
+		WHERE t.workspace_id = $1 AND t.locale = $2 AND LENGTH(t.text_lower) BETWEEN $3 AND $4
+		LIMIT 500
+	`, tb.workspaceID, string(opts.SourceLocale), minLen, maxLen)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
 
+	return tb.pgScoreFuzzyCandidates(rows, normalizedSource, opts)
+}
+
+func (tb *PostgresTermBase) pgScoreFuzzyCandidates(rows interface {
+	Next() bool
+	Scan(...any) error
+}, normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
 	type fuzzyCandidate struct {
 		row   pgScanTermRow
 		score float64

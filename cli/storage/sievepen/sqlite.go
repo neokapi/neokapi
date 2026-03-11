@@ -61,6 +61,62 @@ var tmMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_tm_plain   ON tm_entries(source_plain, source_locale, target_locale);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "FTS5 trigram indexes for fuzzy candidate retrieval",
+		SQL: `
+		CREATE VIRTUAL TABLE IF NOT EXISTS tm_trigram USING fts5(
+			source_plain, source_struct, source_general,
+			content='tm_entries', content_rowid='rowid',
+			tokenize='trigram'
+		);
+
+		-- Populate from existing data.
+		INSERT INTO tm_trigram(rowid, source_plain, source_struct, source_general)
+			SELECT rowid, source_plain, source_struct, source_general FROM tm_entries;
+
+		-- Keep FTS5 in sync via triggers.
+		CREATE TRIGGER tm_trigram_ai AFTER INSERT ON tm_entries BEGIN
+			INSERT INTO tm_trigram(rowid, source_plain, source_struct, source_general)
+			VALUES (new.rowid, new.source_plain, new.source_struct, new.source_general);
+		END;
+		CREATE TRIGGER tm_trigram_ad AFTER DELETE ON tm_entries BEGIN
+			INSERT INTO tm_trigram(tm_trigram, rowid, source_plain, source_struct, source_general)
+			VALUES ('delete', old.rowid, old.source_plain, old.source_struct, old.source_general);
+		END;
+		CREATE TRIGGER tm_trigram_au AFTER UPDATE ON tm_entries BEGIN
+			INSERT INTO tm_trigram(tm_trigram, rowid, source_plain, source_struct, source_general)
+			VALUES ('delete', old.rowid, old.source_plain, old.source_struct, old.source_general);
+			INSERT INTO tm_trigram(rowid, source_plain, source_struct, source_general)
+			VALUES (new.rowid, new.source_plain, new.source_struct, new.source_general);
+		END;
+
+		-- FTS5 word-based index for UI search with BM25 ranking.
+		CREATE VIRTUAL TABLE IF NOT EXISTS tm_search USING fts5(
+			source_text, target_text,
+			content='tm_entries', content_rowid='rowid',
+			tokenize='unicode61'
+		);
+
+		INSERT INTO tm_search(rowid, source_text, target_text)
+			SELECT rowid, source_plain, target_coded FROM tm_entries;
+
+		CREATE TRIGGER tm_search_ai AFTER INSERT ON tm_entries BEGIN
+			INSERT INTO tm_search(rowid, source_text, target_text)
+			VALUES (new.rowid, new.source_plain, new.target_coded);
+		END;
+		CREATE TRIGGER tm_search_ad AFTER DELETE ON tm_entries BEGIN
+			INSERT INTO tm_search(tm_search, rowid, source_text, target_text)
+			VALUES ('delete', old.rowid, old.source_plain, old.target_coded);
+		END;
+		CREATE TRIGGER tm_search_au AFTER UPDATE ON tm_entries BEGIN
+			INSERT INTO tm_search(tm_search, rowid, source_text, target_text)
+			VALUES ('delete', old.rowid, old.source_plain, old.target_coded);
+			INSERT INTO tm_search(rowid, source_text, target_text)
+			VALUES (new.rowid, new.source_plain, new.target_coded);
+		END;
+		`,
+	},
 }
 
 // Add inserts or updates a translation memory entry.
@@ -221,8 +277,8 @@ func (tm *SQLiteTM) tieredLookup(plainKey, structKey, generalKey string, entityA
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
-	// Tier 4-6: Fuzzy matches (scan with Levenshtein).
-	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
+	// Tier 4-6: Fuzzy matches (trigram candidate retrieval + Levenshtein scoring).
+	allEntries, err := tm.queryFuzzyCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
 	if err != nil {
 		return nil, err
 	}
@@ -301,19 +357,115 @@ func (tm *SQLiteTM) queryExact(column, value string, sourceLocale, targetLocale 
 	return tm.scanEntries(rows)
 }
 
-func (tm *SQLiteTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+// queryFuzzyCandidates uses FTS5 trigram indexes to retrieve a limited set of
+// candidate entries for Levenshtein scoring, replacing the previous full table scan.
+// Falls back to length-based pre-filtering if FTS5 trigram is unavailable.
+func (tm *SQLiteTM) queryFuzzyCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	// Try FTS5 trigram candidate retrieval first.
+	entries, err := tm.queryTrigramCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
+	if err == nil {
+		return entries, nil
+	}
+
+	// Fallback: length-based pre-filtering. With MinScore=0.7, entries differing
+	// by more than 30% in length cannot possibly match.
+	return tm.queryLengthFiltered(plainKey, sourceLocale, targetLocale)
+}
+
+func (tm *SQLiteTM) queryTrigramCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	// Build OR query across all three key columns.
+	rows, err := tm.db.Query(`
+		SELECT DISTINCT e.id, e.source_coded, e.target_coded, e.source_locale, e.target_locale,
+			e.entities, e.properties, e.created_at, e.updated_at
+		FROM tm_entries e
+		WHERE e.rowid IN (
+			SELECT rowid FROM tm_trigram WHERE tm_trigram MATCH ?
+			UNION
+			SELECT rowid FROM tm_trigram WHERE tm_trigram MATCH ?
+			UNION
+			SELECT rowid FROM tm_trigram WHERE tm_trigram MATCH ?
+		) AND e.source_locale = ? AND e.target_locale = ?
+		LIMIT 200
+	`, buildTrigramQuery(plainKey), buildTrigramQuery(structKey), buildTrigramQuery(generalKey),
+		string(sourceLocale), string(targetLocale))
+	if err != nil {
+		return nil, fmt.Errorf("trigram query: %w", err)
+	}
+	defer rows.Close()
+
+	return tm.scanEntries(rows)
+}
+
+func (tm *SQLiteTM) queryLengthFiltered(plainKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	keyLen := len([]rune(plainKey))
+	minLen := int(float64(keyLen) * 0.7)
+	maxLen := int(float64(keyLen) * 1.3)
+	if minLen < 0 {
+		minLen = 0
+	}
+
 	rows, err := tm.db.Query(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE source_locale = ? AND target_locale = ?
-	`, string(sourceLocale), string(targetLocale))
+			AND LENGTH(source_plain) BETWEEN ? AND ?
+		LIMIT 500
+	`, string(sourceLocale), string(targetLocale), minLen, maxLen)
 	if err != nil {
-		return nil, fmt.Errorf("query locale: %w", err)
+		return nil, fmt.Errorf("length-filtered query: %w", err)
 	}
 	defer rows.Close()
 
 	return tm.scanEntries(rows)
+}
+
+// buildTrigramQuery builds an FTS5 trigram MATCH expression for candidate retrieval.
+// For multi-word text, uses OR of individual words (each as a substring match).
+// For text without word boundaries (CJK, single words), uses overlapping windows.
+func buildTrigramQuery(s string) string {
+	escape := func(w string) string {
+		return `"` + strings.ReplaceAll(w, `"`, `""`) + `"`
+	}
+
+	fields := strings.Fields(s)
+	if len(fields) > 1 {
+		// Multi-word: OR individual words as substring matches.
+		var parts []string
+		for _, f := range fields {
+			if len([]rune(f)) >= 3 {
+				parts = append(parts, escape(f))
+			}
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, " OR ")
+		}
+	}
+
+	// Single word or no word boundaries (CJK): use overlapping windows.
+	runes := []rune(s)
+	if len(runes) <= 5 {
+		return escape(s)
+	}
+
+	windowSize := 4
+	step := (len(runes) - windowSize) / 4
+	if step < 1 {
+		step = 1
+	}
+	var parts []string
+	seen := make(map[string]bool)
+	for i := 0; i < len(runes)-windowSize+1 && len(parts) < 6; i += step {
+		w := string(runes[i : i+windowSize])
+		if !seen[w] {
+			seen[w] = true
+			parts = append(parts, escape(w))
+		}
+	}
+	if len(parts) == 0 {
+		return escape(s)
+	}
+	return strings.Join(parts, " OR ")
 }
 
 func (tm *SQLiteTM) scanEntries(rows interface {
@@ -393,8 +545,66 @@ func (tm *SQLiteTM) Close() error {
 	return tm.db.Close()
 }
 
-// SearchEntries performs a case-insensitive substring search on source/target text.
+// SearchEntries performs a ranked full-text search using FTS5 with BM25 ranking.
+// Falls back to LIKE-based substring search if FTS5 is unavailable.
 func (tm *SQLiteTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
+	if query != "" {
+		entries, total, err := tm.searchFTS5(query, sourceLocale, targetLocale, offset, limit)
+		if err == nil {
+			return entries, total
+		}
+		// Fall through to LIKE-based search.
+	}
+	return tm.searchLike(query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (tm *SQLiteTM) searchFTS5(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int, error) {
+	// Build locale filter for the main table.
+	localeWhere := "1=1"
+	var localeArgs []any
+	if sourceLocale != "" {
+		localeWhere += " AND e.source_locale = ?"
+		localeArgs = append(localeArgs, sourceLocale)
+	}
+	if targetLocale != "" {
+		localeWhere += " AND e.target_locale = ?"
+		localeArgs = append(localeArgs, targetLocale)
+	}
+
+	// Count matching entries.
+	countQ := fmt.Sprintf(`
+		SELECT COUNT(*) FROM tm_entries e
+		WHERE e.rowid IN (SELECT rowid FROM tm_search WHERE tm_search MATCH ?)
+		AND %s`, localeWhere)
+	countArgs := append([]any{query}, localeArgs...)
+	var total int
+	if err := tm.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch ranked results.
+	q := fmt.Sprintf(`
+		SELECT e.id, e.source_coded, e.target_coded, e.source_locale, e.target_locale,
+			e.entities, e.properties, e.created_at, e.updated_at
+		FROM tm_entries e
+		JOIN tm_search s ON s.rowid = e.rowid
+		WHERE tm_search MATCH ? AND %s
+		ORDER BY s.rank
+		LIMIT ? OFFSET ?`, localeWhere)
+	args := append([]any{query}, localeArgs...)
+	args = append(args, limit, offset)
+
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	entries, err := tm.scanEntries(rows)
+	return entries, total, err
+}
+
+func (tm *SQLiteTM) searchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
 	where := "1=1"
 	var args []any
 	if query != "" {

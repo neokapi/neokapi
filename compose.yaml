@@ -60,5 +60,22 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: bowrain
+      POSTGRES_DB: bowrain_test
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bowrain -d bowrain_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
 volumes:
   nats-data:
+  postgres-data:

@@ -684,6 +684,243 @@ func TestInMemoryTM_InterfaceCompliance(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+// --- Okapi parity tests ---
+
+func TestInMemoryTM_ShortStringFuzzy(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	// Short 2-4 character entries (Okapi pensieve tests short strings like "abc", "am").
+	entries := []struct {
+		id, source, target string
+	}{
+		{"s1", "am", "suis"},
+		{"s2", "abc", "xyz"},
+		{"s3", "zq", "qz"},
+		{"s4", "save", "sauv"},
+		{"s5", "open", "ouvr"},
+	}
+	for _, e := range entries {
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID:           e.id,
+			Source:       model.NewFragment(e.source),
+			Target:       model.NewFragment(e.target),
+			SourceLocale: model.LocaleEnglish,
+			TargetLocale: model.LocaleFrench,
+		}))
+	}
+
+	// Exact match on 2-char string.
+	matches, err := tm.LookupText("am", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "suis", matches[0].Entry.TargetText())
+
+	// Exact match on 3-char string.
+	matches, err = tm.LookupText("abc", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "xyz", matches[0].Entry.TargetText())
+
+	// Fuzzy match: "abd" should match "abc" with high score (1 char diff out of 3).
+	matches, err = tm.LookupText("abd", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.5, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	assert.Equal(t, "xyz", matches[0].Entry.TargetText())
+	assert.Greater(t, matches[0].Score, 0.5)
+
+	// Fuzzy match: "sav" vs "save" (1 edit).
+	matches, err = tm.LookupText("sav", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.5, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	// Best match should be "save".
+	assert.Equal(t, "sauv", matches[0].Entry.TargetText())
+
+	// No match for completely different short string.
+	matches, err = tm.LookupText("xx", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+}
+
+func TestInMemoryTM_ExactDeduplication(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	// Add the same entry 5 times (same source text, different IDs).
+	for i := range 5 {
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID:           "dup-" + strings.Repeat("x", i+1),
+			Source:       model.NewFragment("Hello World"),
+			Target:       model.NewFragment("Bonjour le monde"),
+			SourceLocale: model.LocaleEnglish,
+			TargetLocale: model.LocaleFrench,
+		}))
+	}
+	assert.Equal(t, 5, tm.Count())
+
+	// Exact search should return at most MaxResults, not duplicated hits.
+	matches, err := tm.LookupText("Hello World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	// All 5 entries are exact matches, capped by MaxResults.
+	assert.LessOrEqual(t, len(matches), 10)
+	for _, m := range matches {
+		assert.Equal(t, 1.0, m.Score)
+	}
+}
+
+func TestInMemoryTM_EmptyTMReturnsEmptySlice(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+	assert.Equal(t, 0, tm.Count())
+
+	// LookupText on empty TM should return empty (not nil), no error.
+	matches, err := tm.LookupText("Hello", model.LocaleEnglish, model.LocaleFrench, sievepen.DefaultLookupOptions())
+	require.NoError(t, err)
+	assert.Empty(t, matches)
+
+	// SearchEntries on empty TM should return empty.
+	entries, total := tm.SearchEntries("", "", "", 0, 100)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, entries)
+
+	// Entries() on empty TM should return empty.
+	assert.Empty(t, tm.Entries())
+}
+
+func TestInMemoryTM_SpecialCharacters(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	specialCases := []struct {
+		id, source, target string
+	}{
+		{"sp1", "§1.2 Definitions", "§1.2 Définitions"},
+		{"sp2", "© 2024 Acme Corp", "© 2024 Acme Corp"},
+		{"sp3", "Product™ name", "Nom Product™"},
+		{"sp4", "See 42 C.F.R. §483", "Voir 42 C.F.R. §483"},
+		{"sp5", "Price: $99.99", "Prix : 99,99 $"},
+		{"sp6", "100% complete", "100 % terminé"},
+		{"sp7", "file.tar.gz", "file.tar.gz"},
+	}
+
+	for _, sc := range specialCases {
+		require.NoError(t, tm.Add(sievepen.TMEntry{
+			ID: sc.id, Source: model.NewFragment(sc.source), Target: model.NewFragment(sc.target),
+			SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+		}))
+	}
+
+	// Exact match with §.
+	matches, err := tm.LookupText("§1.2 Definitions", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+	assert.Equal(t, "§1.2 Définitions", matches[0].Entry.TargetText())
+
+	// Exact match with ©.
+	matches, err = tm.LookupText("© 2024 Acme Corp", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+
+	// Exact match with ™.
+	matches, err = tm.LookupText("Product™ name", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+
+	// Exact match with C.F.R. (periods between letters).
+	matches, err = tm.LookupText("See 42 C.F.R. §483", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 1.0, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.Len(t, matches, 1)
+
+	// Fuzzy match with slightly different special char text.
+	matches, err = tm.LookupText("§1.3 Definitions", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	assert.Greater(t, matches[0].Score, 0.7)
+}
+
+func TestInMemoryTM_WhitespaceNormalization(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "ws1", Source: model.NewFragment("Hello World"), Target: model.NewFragment("Bonjour le monde"),
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+
+	// Extra spaces should still match via normalization.
+	matches, err := tm.LookupText("Hello  World", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	// NormalizeText collapses whitespace, so this should be a high-scoring match.
+	assert.Greater(t, matches[0].Score, 0.7)
+
+	// Leading/trailing whitespace.
+	matches, err = tm.LookupText("  Hello World  ", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	assert.Greater(t, matches[0].Score, 0.9)
+
+	// Tab characters (treated as whitespace by NormalizeText).
+	matches, err = tm.LookupText("Hello\tWorld", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	assert.Greater(t, matches[0].Score, 0.9)
+}
+
+func TestInMemoryTM_InlineCodeMismatch(t *testing.T) {
+	tm := sievepen.NewInMemoryTM()
+
+	// Create a fragment with inline codes (bold markup around "Save").
+	sourceFrag := model.NewFragment("")
+	sourceFrag.AppendText("Click ")
+	sourceFrag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "bold", Data: "<b>"})
+	sourceFrag.AppendText("Save")
+	sourceFrag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "bold", Data: "</b>"})
+
+	targetFrag := model.NewFragment("")
+	targetFrag.AppendText("Cliquez sur ")
+	targetFrag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "bold", Data: "<b>"})
+	targetFrag.AppendText("Enregistrer")
+	targetFrag.AppendSpan(&model.Span{SpanType: model.SpanClosing, Type: "bold", Data: "</b>"})
+
+	require.NoError(t, tm.Add(sievepen.TMEntry{
+		ID: "ic1", Source: sourceFrag, Target: targetFrag,
+		SourceLocale: model.LocaleEnglish, TargetLocale: model.LocaleFrench,
+	}))
+
+	// Lookup with plain text (no inline codes) -- should still match via plain key.
+	matches, err := tm.LookupText("Click Save", model.LocaleEnglish, model.LocaleFrench, sievepen.LookupOptions{
+		MinScore: 0.7, MaxResults: 10,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, matches)
+	// Plain key should match -- "Click Save" matches the plain text of the stored entry.
+	assert.Greater(t, matches[0].Score, 0.9)
+}
+
 func TestTMEntry_HelperMethods(t *testing.T) {
 	entry := sievepen.TMEntry{
 		ID:     "e1",

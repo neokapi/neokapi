@@ -350,8 +350,9 @@ test-bowrain-cli: ## Run Bowrain CLI tests only
 test-bowrain: ## Run bowrain tests only
 	cd bowrain && $(GOTEST) ./... -count=1
 
-test-integration: ## Run integration tests
+test-integration: ## Run integration tests (requires Docker: docker compose up -d --wait)
 	$(GOTEST) ./... -count=1 -tags=integration -run Integration
+	cd cli && $(GOTEST) ./... -count=1 -tags=integration -run Integration
 	cd bowrain && $(GOTEST) ./... -count=1 -tags=integration -run Integration
 
 GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)

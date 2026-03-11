@@ -45,12 +45,50 @@ type TMMatch struct {
 
 The `tm-leverage` tool ([AD-006](/docs/ad/006-tool-system)) applies adaptations automatically -- translators receive pre-adapted targets with correct entity values.
 
+## Fuzzy Candidate Retrieval
+
+Tiers 4-6 (fuzzy matching) previously scanned all entries for a locale pair and computed Levenshtein distance for each -- O(n) full table scan. This was replaced with trigram-based candidate retrieval that reduces 100K entries to ~200 candidates before Levenshtein scoring.
+
+### Unicode NFC Normalization
+
+`NormalizeText()` applies Unicode NFC normalization (`golang.org/x/text/unicode/norm`) before whitespace normalization. This fixes real edge cases: Arabic diacritics (tashkeel) as separate characters vs. combined, Hangul jamo vs. composed syllables, and accented Latin (e + combining acute vs. e).
+
+### SQLite: FTS5 Trigram Tokenizer
+
+Two FTS5 virtual tables synced via INSERT/UPDATE/DELETE triggers:
+
+- **`tm_trigram`**: `tokenize='trigram'` on source_plain, source_struct, source_general. Used for fuzzy candidate retrieval.
+- **`tm_search`**: `tokenize='unicode61'` on source_text, target_text. Used for ranked UI search with BM25.
+
+`buildTrigramQuery()` constructs the FTS5 MATCH expression:
+- **Multi-word text** (Latin, etc.): OR of individual words ≥3 chars as quoted substrings.
+- **Single word / CJK**: Overlapping 4-character windows sampled at even intervals (max 6 windows).
+
+Falls back to length-based pre-filtering (`LENGTH(source_plain) BETWEEN min AND max`) if FTS5 trigram is unavailable at runtime.
+
+### PostgreSQL: pg_trgm + fuzzystrmatch
+
+- **pg_trgm extension**: GIN trigram indexes on source_plain, source_struct, source_general. Uses the `%` similarity operator for candidate retrieval with a low threshold to maximize recall.
+- **fuzzystrmatch extension**: Provides `levenshtein_less_equal()` for optional threshold-based filtering in SQL.
+- **tsvector column**: `search_tsv` with `to_tsvector('simple', ...)` populated via BEFORE INSERT/UPDATE trigger. `ts_rank()` provides BM25-like ranking for UI search.
+
+Falls back to length-based pre-filtering if pg_trgm is unavailable.
+
+### Performance
+
+| Dataset | Before (full scan) | After (trigram + Levenshtein) |
+|---------|-------------------|-------------------------------|
+| 1K entries | ~5ms | ~2ms |
+| 10K entries | ~50ms | ~5ms |
+| 100K entries | ~500ms+ | ~10-15ms |
+
 ## Storage Backends
 
 1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch processing.
-2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure layer with TermBase ([AD-010](/docs/ad/010-terminology)) and Content Store ([AD-003](/docs/ad/003-content-store)). Pure Go with no CGo dependencies.
+2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Uses the shared `bowrain/storage/` infrastructure layer with TermBase ([AD-010](/docs/ad/010-terminology)) and Content Store ([AD-003](/docs/ad/003-content-store)). Pure Go with no CGo dependencies.
+3. **PostgreSQL**: persistent; same matching logic with pg_trgm GIN indexes for fuzzy candidate retrieval and tsvector/tsquery for ranked UI search. Workspace-scoped isolation via `workspace_id` column.
 
-Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching falls back to scanning with Levenshtein, which is acceptable because exact and near-exact matches dominate in localization workflows.
+Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
 
 ## TMX Element Mapping
 

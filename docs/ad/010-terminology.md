@@ -60,10 +60,16 @@ See [Terminology Data Model](/docs/notes/terminology-data-model) for full Go str
 
 ### Term Lookup: Tiered Matching
 
-Default pipeline: exact -> normalized -> fuzzy (Levenshtein). Opt-in:
-stem matching (Snowball stemmers) and AI-assisted matching (LLM provider
-from [AD-008](./008-ai-integration.md)). The architecture is extensible via a
-`Matcher` interface.
+Default pipeline: exact -> normalized -> fuzzy. Fuzzy matching uses
+trigram-based candidate retrieval (FTS5 trigram tokenizer for SQLite,
+pg_trgm GIN indexes for PostgreSQL) to reduce full table scans to ~200
+candidates, followed by character-level Levenshtein scoring in Go. Text
+normalization applies Unicode NFC (`golang.org/x/text/unicode/norm`) before
+comparison. UI search uses ranked full-text search (FTS5 trigram with
+substring matching for SQLite, pg_trgm similarity() ranking for PostgreSQL)
+instead of unranked LIKE queries. Opt-in: stem matching (Snowball stemmers)
+and AI-assisted matching (LLM provider from [AD-008](./008-ai-integration.md)).
+The architecture is extensible via a `Matcher` interface.
 
 ### Pipeline Tools
 
