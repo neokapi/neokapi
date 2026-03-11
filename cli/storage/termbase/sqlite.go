@@ -351,7 +351,7 @@ func (tb *SQLiteTermBase) scanConcept(id string) (fw.Concept, error) {
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
-		return c, nil
+		return fw.Concept{}, fmt.Errorf("query terms: %w", err)
 	}
 	defer rows.Close()
 
@@ -359,11 +359,14 @@ func (tb *SQLiteTermBase) scanConcept(id string) (fw.Concept, error) {
 		var t fw.Term
 		var locale, status string
 		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note); err != nil {
-			continue
+			return fw.Concept{}, fmt.Errorf("scan term: %w", err)
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
 		c.Terms = append(c.Terms, t)
+	}
+	if err := rows.Err(); err != nil {
+		return fw.Concept{}, fmt.Errorf("iterate terms: %w", err)
 	}
 
 	return c, nil
