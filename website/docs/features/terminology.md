@@ -40,7 +40,7 @@ A **concept** groups related terms across languages. Each concept can have:
 
 ## Storage Backends
 
-- **In-memory** — ephemeral; used in Bowrain for per-project termbases
+- **In-memory** — ephemeral; ideal for batch processing and session-scoped lookups
 - **SQLite** — persistent; for long-lived termbases with fuzzy matching
 
 ## CLI Usage
@@ -108,37 +108,6 @@ The `term-enforce` tool checks that translated blocks use the correct terminolog
 
 Violations are reported as block properties (`term-enforce-errors`, `term-enforce-violations`) and as annotations with details about expected vs. actual term usage.
 
-## Bowrain Integration
-
-In Bowrain, each project has its own termbase that persists in the project database:
-
-### Terminology Explorer
-
-Click "Terminology" in the project view to open the full terminology management panel:
-
-- **Browse concepts** with search and locale filtering
-- **Add concepts** with terms in multiple locales and status assignments
-- **Edit concepts** inline — click any concept to modify its terms, domain, or definition
-- **Delete concepts** that are no longer needed
-- **Import** terms from CSV files or JSON termbases
-- **Export** the full termbase as JSON
-
-### Context Panel
-
-In the translation editor, click "Context" in the toolbar to show a side panel with:
-
-- **TM Matches** for the current block (with scores and apply buttons)
-- **Terminology** matches found in the current block's source text
-
-For each matched term, the panel shows:
-- Source term with lifecycle status badge
-- Target term suggestions for the current target locale
-- Domain classification
-
-### Term Enforcement
-
-Use the `term-enforce` tool in a flow to check all translated blocks for correct terminology usage. Violations highlight blocks where expected terms are missing from the translation.
-
 ## Import/Export Formats
 
 ### CSV Format
@@ -189,7 +158,7 @@ gokapi uses a concept-oriented model (inspired by TBX) rather than flat source�
 
 ### In-Text Discovery
 
-The `LookupAll` function scans running text to find all term occurrences. This powers both the pipeline `term-lookup` tool and the Bowrain editor's context panel. Case-insensitive matching is used by default with exact string matching for maximum precision.
+The `LookupAll` function scans running text to find all term occurrences. This powers the pipeline `term-lookup` tool and can be used by editors to show per-block terminology suggestions. Case-insensitive matching is used by default with exact string matching for maximum precision.
 
 ### Separate from TM
 
@@ -197,4 +166,4 @@ Terminology and translation memory are separate systems because they serve diffe
 - **TM** answers: "How was this sentence translated before?"
 - **Terminology** answers: "What is the correct term for this concept?"
 
-Both integrate through the Block's annotation system and are displayed together in the editor's Context panel.
+Both integrate through the Block's annotation system, making them available to any downstream tool or editor.

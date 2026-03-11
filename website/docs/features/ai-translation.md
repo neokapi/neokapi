@@ -30,8 +30,8 @@ tools:
 Or use environment variables:
 
 ```bash
-export BOWRAIN_TOOLS_AI_TRANSLATION_PROVIDER=anthropic
-export BOWRAIN_TOOLS_AI_TRANSLATION_MODEL=claude-sonnet-4-20250514
+export KAPI_TOOLS_AI_TRANSLATION_PROVIDER=anthropic
+export KAPI_TOOLS_AI_TRANSLATION_MODEL=claude-sonnet-4-20250514
 export ANTHROPIC_API_KEY=sk-...
 ```
 
