@@ -62,6 +62,32 @@ var tmMigrationsPg = []storage.Migration{
 		SQL: `ALTER TABLE tm_entries ADD COLUMN stream TEXT NOT NULL DEFAULT '';
 		CREATE INDEX IF NOT EXISTS idx_tm_ws_stream ON tm_entries(workspace_id, stream, source_locale, target_locale);`,
 	},
+	{
+		Version:     3,
+		Description: "pg_trgm trigram indexes for fuzzy candidate retrieval + tsvector for UI search",
+		SQL: `
+		CREATE EXTENSION IF NOT EXISTS pg_trgm;
+		CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+
+		CREATE INDEX IF NOT EXISTS idx_tm_trgm_plain   ON tm_entries USING gin (source_plain gin_trgm_ops);
+		CREATE INDEX IF NOT EXISTS idx_tm_trgm_struct   ON tm_entries USING gin (source_struct gin_trgm_ops);
+		CREATE INDEX IF NOT EXISTS idx_tm_trgm_general  ON tm_entries USING gin (source_general gin_trgm_ops);
+
+		ALTER TABLE tm_entries ADD COLUMN search_tsv tsvector;
+		UPDATE tm_entries SET search_tsv = to_tsvector('simple', source_plain || ' ' || COALESCE(target_coded, ''));
+		CREATE INDEX IF NOT EXISTS idx_tm_search_tsv ON tm_entries USING gin (search_tsv);
+
+		CREATE OR REPLACE FUNCTION tm_search_tsv_update() RETURNS trigger AS $$
+		BEGIN
+			NEW.search_tsv := to_tsvector('simple', NEW.source_plain || ' ' || COALESCE(NEW.target_coded, ''));
+			RETURN NEW;
+		END $$ LANGUAGE plpgsql;
+
+		DROP TRIGGER IF EXISTS tm_search_tsv_trigger ON tm_entries;
+		CREATE TRIGGER tm_search_tsv_trigger BEFORE INSERT OR UPDATE ON tm_entries
+			FOR EACH ROW EXECUTE FUNCTION tm_search_tsv_update();
+		`,
+	},
 }
 
 // Add inserts or updates a translation memory entry with an empty stream.
@@ -228,8 +254,8 @@ func (tm *PostgresTM) tieredLookup(plainKey, structKey, generalKey string, entit
 		return fw.LimitResults(matches, opts.MaxResults), nil
 	}
 
-	// Fuzzy matching: scan all entries for locale pair.
-	allEntries, err := tm.queryLocale(sourceLocale, targetLocale)
+	// Fuzzy matching: trigram candidate retrieval + Levenshtein scoring.
+	allEntries, err := tm.queryFuzzyCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
 	if err != nil {
 		return nil, err
 	}
@@ -308,15 +334,58 @@ func (tm *PostgresTM) queryExact(column, value string, sourceLocale, targetLocal
 	return scanTMEntries(rows)
 }
 
-func (tm *PostgresTM) queryLocale(sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+// queryFuzzyCandidates uses pg_trgm indexes to retrieve a limited set of
+// candidate entries for Levenshtein scoring, replacing the previous full table scan.
+// Falls back to length-based pre-filtering if pg_trgm is unavailable.
+func (tm *PostgresTM) queryFuzzyCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	entries, err := tm.queryTrigramCandidates(plainKey, structKey, generalKey, sourceLocale, targetLocale)
+	if err == nil {
+		return entries, nil
+	}
+
+	// Fallback: length-based pre-filtering.
+	return tm.queryLengthFiltered(plainKey, sourceLocale, targetLocale)
+}
+
+func (tm *PostgresTM) queryTrigramCandidates(plainKey, structKey, generalKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	// Use pg_trgm similarity operator (%) on all three key columns.
+	// Set a low threshold to maximize recall; final scoring is done in Go.
+	rows, err := tm.db.Query(`
+		SELECT DISTINCT ON (id) id, source_coded, target_coded, source_locale, target_locale,
+			entities, properties, created_at, updated_at
+		FROM tm_entries
+		WHERE workspace_id = $1
+			AND source_locale = $2 AND target_locale = $3
+			AND (source_plain % $4 OR source_struct % $5 OR source_general % $6)
+		LIMIT 200
+	`, tm.workspaceID, string(sourceLocale), string(targetLocale),
+		plainKey, structKey, generalKey)
+	if err != nil {
+		return nil, fmt.Errorf("trigram query: %w", err)
+	}
+	defer rows.Close()
+
+	return scanTMEntries(rows)
+}
+
+func (tm *PostgresTM) queryLengthFiltered(plainKey string, sourceLocale, targetLocale model.LocaleID) ([]fw.TMEntry, error) {
+	keyLen := len([]rune(plainKey))
+	minLen := int(float64(keyLen) * 0.7)
+	maxLen := int(float64(keyLen) * 1.3)
+	if minLen < 0 {
+		minLen = 0
+	}
+
 	rows, err := tm.db.Query(`
 		SELECT id, source_coded, target_coded, source_locale, target_locale,
 			entities, properties, created_at, updated_at
 		FROM tm_entries
 		WHERE workspace_id = $1 AND source_locale = $2 AND target_locale = $3
-	`, tm.workspaceID, string(sourceLocale), string(targetLocale))
+			AND LENGTH(source_plain) BETWEEN $4 AND $5
+		LIMIT 500
+	`, tm.workspaceID, string(sourceLocale), string(targetLocale), minLen, maxLen)
 	if err != nil {
-		return nil, fmt.Errorf("query locale: %w", err)
+		return nil, fmt.Errorf("length-filtered query: %w", err)
 	}
 	defer rows.Close()
 
@@ -354,8 +423,58 @@ func (tm *PostgresTM) Close() error {
 	return nil
 }
 
-// SearchEntries performs a case-insensitive substring search on source/target text.
+// SearchEntries performs a ranked full-text search using tsvector with BM25-like ranking.
+// Falls back to LIKE-based substring search if tsvector column is unavailable.
 func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
+	if query != "" {
+		entries, total, err := tm.searchTsVector(query, sourceLocale, targetLocale, offset, limit)
+		if err == nil {
+			return entries, total
+		}
+	}
+	return tm.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (tm *PostgresTM) searchTsVector(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int, error) {
+	where := "workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $2)"
+	args := []any{tm.workspaceID, query}
+	argN := 3
+
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND source_locale = $%d", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND target_locale = $%d", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s
+		ORDER BY ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
+		LIMIT $%d OFFSET $%d`, where, argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	entries, err := scanTMEntries(rows)
+	return entries, total, err
+}
+
+func (tm *PostgresTM) pgSearchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
 	where := "workspace_id = $1"
 	args := []any{tm.workspaceID}
 	argN := 2
@@ -396,10 +515,82 @@ func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	return entries, total
 }
 
-// SearchEntriesForStream performs a case-insensitive substring search with stream
-// inheritance. The streamChain is an ordered list of ancestor streams to search.
+// SearchEntriesForStream performs a ranked full-text search with stream
+// inheritance. Uses tsvector when a query is provided, falls back to LIKE.
+// The streamChain is an ordered list of ancestor streams to search.
 // Entries from earlier streams in the chain take priority.
 func (tm *PostgresTM) SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
+	if query != "" {
+		entries, total, err := tm.searchTsVectorForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+		if err == nil {
+			return entries, total
+		}
+	}
+	return tm.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+}
+
+func (tm *PostgresTM) searchTsVectorForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int, error) {
+	streams := []string{stream}
+	streams = append(streams, streamChain...)
+
+	where := "workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $2)"
+	args := []any{tm.workspaceID, query}
+	argN := 3
+
+	// Stream filter.
+	placeholders := make([]string, len(streams))
+	for i, s := range streams {
+		placeholders[i] = fmt.Sprintf("$%d", argN)
+		args = append(args, s)
+		argN++
+	}
+	where += " AND stream IN (" + strings.Join(placeholders, ",") + ")"
+
+	if sourceLocale != "" {
+		where += fmt.Sprintf(" AND source_locale = $%d", argN)
+		args = append(args, sourceLocale)
+		argN++
+	}
+	if targetLocale != "" {
+		where += fmt.Sprintf(" AND target_locale = $%d", argN)
+		args = append(args, targetLocale)
+		argN++
+	}
+
+	var total int
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	if err := tm.db.QueryRow("SELECT COUNT(*) FROM tm_entries WHERE "+where, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Build CASE expression for stream priority ordering.
+	var caseExpr strings.Builder
+	caseExpr.WriteString("CASE stream")
+	for i, s := range streams {
+		caseExpr.WriteString(fmt.Sprintf(" WHEN $%d THEN %d", argN, i))
+		args = append(args, s)
+		argN++
+	}
+	caseExpr.WriteString(fmt.Sprintf(" ELSE %d END", len(streams)))
+
+	q := fmt.Sprintf(`SELECT id, source_coded, target_coded, source_locale, target_locale,
+		entities, properties, created_at, updated_at
+		FROM tm_entries WHERE %s
+		ORDER BY %s, ts_rank(search_tsv, plainto_tsquery('simple', $2)) DESC
+		LIMIT $%d OFFSET $%d`, where, caseExpr.String(), argN, argN+1)
+	args = append(args, limit, offset)
+	rows, err := tm.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	entries, err := scanTMEntries(rows)
+	return entries, total, err
+}
+
+func (tm *PostgresTM) pgSearchLikeForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 

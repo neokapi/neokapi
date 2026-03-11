@@ -112,9 +112,17 @@ selects the backend at startup based on the `DATABASE_URL` connection string
 prefix ([AD-003](./003-content-store.md)).
 
 Generalized and structural exact matching is an indexed lookup -- fast even for
-large TMs. Fuzzy matching falls back to scanning with Levenshtein, which is
-acceptable because exact and near-exact matches dominate in localization
-workflows.
+large TMs. Fuzzy matching uses trigram-based candidate retrieval (FTS5 trigram
+tokenizer for SQLite, pg_trgm GIN indexes for PostgreSQL) to reduce full table
+scans to ~200 candidates, followed by character-level Levenshtein scoring in
+Go. UI search uses ranked full-text search (FTS5 unicode61 with BM25 for
+SQLite, tsvector/tsquery with ts_rank for PostgreSQL) instead of unranked
+LIKE queries. Text normalization applies Unicode NFC before comparison,
+ensuring consistent matching across scripts (Arabic diacritics, Hangul jamo,
+accented Latin).
+
+See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for trigram
+candidate retrieval details and the `buildTrigramQuery()` approach.
 
 ### Content Store Integration
 

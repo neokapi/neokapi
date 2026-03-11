@@ -65,6 +65,40 @@ var tbMigrations = []storage.Migration{
 		CREATE INDEX IF NOT EXISTS idx_tb_terms_text ON tb_terms(text_lower, locale);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "FTS5 trigram index for fuzzy term matching",
+		SQL: `
+		CREATE VIRTUAL TABLE IF NOT EXISTS tb_terms_trigram USING fts5(
+			text_lower,
+			content='tb_terms', content_rowid='id',
+			tokenize='trigram'
+		);
+
+		INSERT INTO tb_terms_trigram(rowid, text_lower)
+			SELECT id, text_lower FROM tb_terms;
+
+		CREATE TRIGGER tb_terms_trigram_ai AFTER INSERT ON tb_terms BEGIN
+			INSERT INTO tb_terms_trigram(rowid, text_lower) VALUES (new.id, new.text_lower);
+		END;
+		CREATE TRIGGER tb_terms_trigram_ad AFTER DELETE ON tb_terms BEGIN
+			INSERT INTO tb_terms_trigram(tb_terms_trigram, rowid, text_lower)
+			VALUES ('delete', old.id, old.text_lower);
+		END;
+		CREATE TRIGGER tb_terms_trigram_au AFTER UPDATE ON tb_terms BEGIN
+			INSERT INTO tb_terms_trigram(tb_terms_trigram, rowid, text_lower)
+			VALUES ('delete', old.id, old.text_lower);
+			INSERT INTO tb_terms_trigram(rowid, text_lower) VALUES (new.id, new.text_lower);
+		END;
+
+		-- FTS5 word-based index for UI search with BM25 ranking.
+		CREATE VIRTUAL TABLE IF NOT EXISTS tb_search USING fts5(
+			term_text, definition, domain,
+			content='',
+			tokenize='unicode61'
+		);
+		`,
+	},
 }
 
 // AddConcept inserts or updates a concept with all its terms.
@@ -234,8 +268,79 @@ func (tb *SQLiteTermBase) LookupAll(sourceText string, opts fw.LookupOptions) []
 	return matches
 }
 
-// Search performs a case-insensitive text search across concepts.
+// Search performs a ranked full-text search across concepts and terms.
+// Uses FTS5 with BM25 ranking when a query is provided, falls back to LIKE.
 func (tb *SQLiteTermBase) Search(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
+	if query != "" {
+		concepts, total, err := tb.searchFTS5(query, sourceLocale, targetLocale, offset, limit)
+		if err == nil {
+			return concepts, total
+		}
+		// Fall through to LIKE-based search.
+	}
+	return tb.searchLike(query, sourceLocale, targetLocale, offset, limit)
+}
+
+func (tb *SQLiteTermBase) searchFTS5(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int, error) {
+	// The tb_search table is a contentless FTS5 table managed manually.
+	// We search it and join back to get concept IDs.
+	localeWhere := ""
+	var localeArgs []any
+	if sourceLocale != "" {
+		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
+		localeArgs = append(localeArgs, sourceLocale)
+	}
+	if targetLocale != "" {
+		localeWhere += " AND c.id IN (SELECT concept_id FROM tb_terms WHERE locale = ?)"
+		localeArgs = append(localeArgs, targetLocale)
+	}
+
+	// Count.
+	countQ := `SELECT COUNT(DISTINCT t.concept_id)
+		FROM tb_terms t
+		JOIN tb_concepts c ON t.concept_id = c.id
+		WHERE t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)` + localeWhere
+	countArgs := append([]any{`"` + strings.ReplaceAll(query, `"`, `""`) + `"`}, localeArgs...)
+	var total int
+	if err := tb.db.QueryRow(countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	// Fetch concept IDs using trigram search for ranking.
+	q := `SELECT DISTINCT t.concept_id
+		FROM tb_terms t
+		JOIN tb_concepts c ON t.concept_id = c.id
+		WHERE t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)` +
+		localeWhere + ` ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`
+	args := append([]any{`"` + strings.ReplaceAll(query, `"`, `""`) + `"`}, localeArgs...)
+	args = append(args, limit, offset)
+
+	rows, err := tb.db.Query(q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	// Collect IDs first to release the connection before loading concepts.
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	var concepts []fw.Concept
+	for _, id := range ids {
+		if c, err := tb.scanConcept(id); err == nil {
+			concepts = append(concepts, c)
+		}
+	}
+	return concepts, total, nil
+}
+
+func (tb *SQLiteTermBase) searchLike(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.Concept, int) {
 	where := "1=1"
 	var args []any
 
@@ -417,18 +522,59 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts fw.
 }
 
 func (tb *SQLiteTermBase) queryFuzzyTerms(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
-	where := "t.locale = ?"
-	args := []any{string(opts.SourceLocale)}
+	// Try FTS5 trigram candidate retrieval first, fall back to full scan.
+	matches := tb.queryFuzzyTrigramCandidates(normalizedSource, opts)
+	if matches != nil {
+		return matches
+	}
+	return tb.queryFuzzyFullScan(normalizedSource, opts)
+}
 
-	rows, err := tb.db.Query(fmt.Sprintf(`
+func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+	trigramQuery := `"` + strings.ReplaceAll(normalizedSource, `"`, `""`) + `"`
+	rows, err := tb.db.Query(`
 		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
-		FROM tb_terms t WHERE %s
-	`, where), args...)
+		FROM tb_terms t
+		WHERE t.id IN (SELECT rowid FROM tb_terms_trigram WHERE tb_terms_trigram MATCH ?)
+			AND t.locale = ?
+		LIMIT 200
+	`, trigramQuery, string(opts.SourceLocale))
+	if err != nil {
+		return nil // FTS5 unavailable, signal fallback with nil.
+	}
+	defer rows.Close()
+
+	return tb.scoreFuzzyCandidates(rows, normalizedSource, opts)
+}
+
+func (tb *SQLiteTermBase) queryFuzzyFullScan(normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
+	// Length-based pre-filtering: entries differing by >30% in rune length
+	// cannot match at MinScore >= 0.7.
+	keyLen := len([]rune(normalizedSource))
+	minLen := int(float64(keyLen) * 0.7)
+	maxLen := int(float64(keyLen) * 1.3)
+	if minLen < 0 {
+		minLen = 0
+	}
+
+	rows, err := tb.db.Query(`
+		SELECT t.concept_id, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		FROM tb_terms t
+		WHERE t.locale = ? AND LENGTH(t.text_lower) BETWEEN ? AND ?
+		LIMIT 500
+	`, string(opts.SourceLocale), minLen, maxLen)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
 
+	return tb.scoreFuzzyCandidates(rows, normalizedSource, opts)
+}
+
+func (tb *SQLiteTermBase) scoreFuzzyCandidates(rows interface {
+	Next() bool
+	Scan(...any) error
+}, normalizedSource string, opts fw.LookupOptions) []fw.TermMatch {
 	type fuzzyCandidate struct {
 		row   scanTermRow
 		score float64

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gokapi/gokapi/core/model"
+	"golang.org/x/text/unicode/norm"
 )
 
 // DefaultMaxEntries is the default maximum number of entries in an InMemoryTM.
@@ -469,9 +470,13 @@ func ComputeEntityAdaptations(entry TMEntry, currentEntities []*model.EntityAnno
 	return adaptations
 }
 
-// NormalizeText normalizes text for comparison by trimming whitespace
-// and collapsing internal whitespace to single spaces.
+// NormalizeText normalizes text for comparison by applying Unicode NFC
+// normalization, trimming whitespace, and collapsing internal whitespace
+// to single spaces. NFC normalization ensures consistent representation
+// of composed characters (e.g., Hangul jamo → syllables, combining
+// diacritics → precomposed forms, Arabic tashkeel).
 func NormalizeText(s string) string {
+	s = norm.NFC.String(s)
 	s = strings.TrimSpace(s)
 	fields := strings.Fields(s)
 	return strings.Join(fields, " ")
