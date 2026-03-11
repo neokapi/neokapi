@@ -411,12 +411,20 @@ describeOrSkip("Video Recordings", () => {
     if (teProject) {
       await callBackend(page, "PseudoTranslateItem", teProject.id, "about-us.html", "nb");
     }
-    // Navigate away and back to reload blocks
-    await page.getByTestId("nav-settings").click();
-    await page.waitForTimeout(100);
-    await page.getByTestId("nav-translate").click();
-    await page.waitForTimeout(200);
-    await humanClick(page, page.getByText("Company Website").first());
+    if (useServerMode) {
+      // Server mode: reload to pick up SQLite-persisted translations
+      await page.reload();
+      await page.waitForTimeout(500);
+      await setTheme(page, theme);
+      await humanClick(page, page.getByText("Company Website").first());
+    } else {
+      // Mock mode: navigate away and back (data lives in JS memory)
+      await page.getByTestId("nav-settings").click();
+      await page.waitForTimeout(100);
+      await page.getByTestId("nav-translate").click();
+      await page.waitForTimeout(200);
+      await humanClick(page, page.getByText("Company Website").first());
+    }
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
     await humanClickNative(page, "open-file-about-us.html");
     await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });

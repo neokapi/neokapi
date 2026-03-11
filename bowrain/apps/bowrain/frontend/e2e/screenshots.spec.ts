@@ -235,19 +235,24 @@ test.describe("Screenshots", () => {
       const projects = await callBackend(page, "ListProjects");
       const currentProject = projects[projects.length - 1];
       if (currentProject) {
-        const stats = await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
-        console.log(`PseudoTranslateItem stats: ${JSON.stringify(stats)}`);
-
-        // Verify blocks are translated directly via backend
-        const blocks = await callBackend(page, "GetItemBlocks", currentProject.id, "index.html");
-        const withTargets = blocks?.filter((b: any) => b.targets?.fr);
-        console.log(`GetItemBlocks: ${blocks?.length} total, ${withTargets?.length} with fr target`);
-        if (blocks?.length > 0) {
-          console.log(`First block targets: ${JSON.stringify(blocks[0].targets)}`);
-        }
+        await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
       }
-      // Navigate away and back to reload
-      await clickTestId(page, "back-to-project");
+
+      if (useServerMode) {
+        // In server mode, data is persisted in SQLite. A full page reload
+        // ensures the UI fetches fresh blocks from the backend.
+        await page.reload();
+        await page.waitForTimeout(500);
+        await setTheme(page, theme);
+
+        // Navigate to the project and open the file
+        await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
+        await page.getByText("Website Redesign").first().click();
+      } else {
+        // In mock mode, data lives in JS memory — navigate away and back.
+        await clickTestId(page, "back-to-project");
+      }
+
       await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
       await page.evaluate(() => {
         const btn = document.querySelector('[data-testid="open-file-index.html"]') as HTMLElement;
