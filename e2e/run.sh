@@ -1,40 +1,27 @@
 #!/bin/bash
-# Run the full e2e test lifecycle: setup → test → teardown.
+# Run all e2e tests (kapi CLI + Bowrain server).
+#
+# For kapi-only:    bash kapi/e2e/run.sh
+# For bowrain-only: bash bowrain/e2e/server/run.sh
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-cleanup() {
-  echo ""
-  echo "Tearing down e2e stack..."
-  bash "$SCRIPT_DIR/teardown.sh" || true
-}
-trap cleanup EXIT
-
 echo "============================================"
-echo "gokapi E2E Tests"
+echo "gokapi E2E Tests (all)"
 echo "============================================"
 echo ""
 
-# Check for Docker
-if ! command -v docker &> /dev/null; then
-  echo "Docker not found. Skipping e2e tests."
-  exit 0
-fi
-
-if ! docker compose version &> /dev/null; then
-  echo "Docker Compose not found. Skipping e2e tests."
-  exit 0
-fi
-
-# Setup
-bash "$SCRIPT_DIR/setup.sh"
+# ── Kapi CLI E2E ───────────────────────────────────────────────
+echo "── Kapi CLI E2E ──────────────────────────────"
+bash "$ROOT_DIR/kapi/e2e/run.sh"
 
 echo ""
-echo "Running e2e tests..."
-cd "$ROOT_DIR"
-go test -tags=e2e -count=1 -v ./e2e/
+
+# ── Bowrain Server E2E ─────────────────────────────────────────
+echo "── Bowrain Server E2E ────────────────────────"
+bash "$ROOT_DIR/bowrain/e2e/server/run.sh"
 
 echo ""
 echo "All e2e tests passed!"

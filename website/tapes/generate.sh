@@ -54,7 +54,7 @@ echo "Generating kapi CLI demo videos..."
 echo ""
 
 failed=0
-for tape in overview.tape word-count.tape pseudo-translate.tape; do
+for tape in overview.tape word-count.tape pseudo-translate.tape termbase-qa.tape termbase-pretranslation.tape; do
   name="${tape%.tape}"
   echo "  Recording: $name"
   if timeout 180 vhs "$tape" 2>&1; then

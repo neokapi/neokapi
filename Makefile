@@ -47,7 +47,7 @@ PROTOC        := $(shell which protoc 2>/dev/null)
 PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 .PHONY: all build build-bowrain-cli build-server build-headless build-bowrain build-all build-frontend test test-fast test-parallel test-unit test-integration \
-        test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-framework test-platform test-cli test-kapi test-bowrain-cli test-bowrain lint fmt vet proto clean install cover tools help \
+        test-bridge-filters test-bridge-pool fetch-bridge-jar fetch-bridge-testdata test-race test-e2e test-e2e-kapi test-e2e-bowrain test-framework test-platform test-cli test-kapi test-bowrain-cli test-bowrain lint fmt vet proto clean install cover tools help \
         ui-deps frontend-deps frontend-dev frontend-build \
         kapi-web-deps kapi-web-build web-deps web-build \
         email-deps email-build \
@@ -404,8 +404,14 @@ generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefir
 	$(GO) run ./scripts/gen-test-stubs \
 		-surefire-dir $(OKAPI_SUREFIRE_DIR)
 
-test-e2e: ## Run end-to-end tests against Docker stack
+test-e2e: ## Run all end-to-end tests (kapi CLI + Bowrain server)
 	bash e2e/run.sh
+
+test-e2e-kapi: ## Run kapi CLI end-to-end tests (no Docker required)
+	bash kapi/e2e/run.sh
+
+test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
+	bash bowrain/e2e/server/run.sh
 
 test-verbose: ## Run tests with verbose output
 	$(GOTEST) ./... -count=1 -v
