@@ -427,7 +427,7 @@ func (tm *PostgresTM) Close() error {
 // Falls back to LIKE-based substring search if tsvector column is unavailable.
 func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int) {
 	if query != "" {
-		entries, total, err := tm.searchTsVector(query, sourceLocale, targetLocale, offset, limit)
+		entries, total, err := tm.searchTSVector(query, sourceLocale, targetLocale, offset, limit)
 		if err == nil {
 			return entries, total
 		}
@@ -435,7 +435,7 @@ func (tm *PostgresTM) SearchEntries(query, sourceLocale, targetLocale string, of
 	return tm.pgSearchLike(query, sourceLocale, targetLocale, offset, limit)
 }
 
-func (tm *PostgresTM) searchTsVector(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int, error) {
+func (tm *PostgresTM) searchTSVector(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int, error) {
 	where := "workspace_id = $1 AND search_tsv @@ plainto_tsquery('simple', $2)"
 	args := []any{tm.workspaceID, query}
 	argN := 3
@@ -521,7 +521,7 @@ func (tm *PostgresTM) pgSearchLike(query, sourceLocale, targetLocale string, off
 // Entries from earlier streams in the chain take priority.
 func (tm *PostgresTM) SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int) {
 	if query != "" {
-		entries, total, err := tm.searchTsVectorForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
+		entries, total, err := tm.searchTSVectorForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 		if err == nil {
 			return entries, total
 		}
@@ -529,7 +529,7 @@ func (tm *PostgresTM) SearchEntriesForStream(query, sourceLocale, targetLocale, 
 	return tm.pgSearchLikeForStream(query, sourceLocale, targetLocale, stream, streamChain, offset, limit)
 }
 
-func (tm *PostgresTM) searchTsVectorForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int, error) {
+func (tm *PostgresTM) searchTSVectorForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int, error) {
 	streams := []string{stream}
 	streams = append(streams, streamChain...)
 
