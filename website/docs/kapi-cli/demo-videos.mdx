@@ -45,53 +45,53 @@ Generate pseudo-translations to test UI for truncation and RTL issues.
 kapi pseudo-translate messages.json --target-lang fr
 ```
 
-## Translation Memory
+## Terminology QA
 
-Import, export, and look up translation memory entries.
+Import a glossary, look up and search terms, then run QA with terminology enforcement.
 
-:::note[Video coming soon]
-This demo will be auto-generated once the TM CLI end-to-end test is added.
-:::
-
-```bash
-# Leverage TM in a translation flow
-kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
-```
-
-## Terminology Management
-
-Import termbases, look up terms in running text, search concepts, and view statistics.
-
-:::note[Video coming soon]
-This demo will be auto-generated once the termbase CLI end-to-end test is added.
-:::
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/kapi/termbase-qa.webm" type="video/webm" />
+</video>
 
 ```bash
 # Import terms from CSV
-kapi termbase import terms.csv --format csv -s en -t fr --domain general
+kapi termbase import glossary.csv --name product-terms --format csv -s en -t fr
 
-# Look up terms in a sentence
-kapi termbase lookup "The authentication module uses end-to-end encryption" -s en -t fr
+# Check termbase statistics
+kapi termbase stats --name product-terms
 
-# Search the termbase
-kapi termbase search "encryption" -s en --domain security
+# Look up a specific term
+kapi termbase lookup password --name product-terms -s en -t fr
 
-# View termbase statistics
-kapi termbase stats
+# Search across all terms
+kapi termbase search encrypt --name product-terms -s en
+
+# Run QA with terminology enforcement
+kapi flow run qa-check -i translated.json -o qa_report.json \
+  --source-lang en --target-lang fr --termbase product-terms
 ```
 
-## Translation Flows
+## Pre-Translation Pipeline
 
-Run translation and quality assurance pipelines on files.
+Full pre-translation workflow: import TM and termbase, leverage TM, translate remaining segments, verify terminology compliance.
 
-:::note[Video coming soon]
-This demo will be auto-generated once the flow end-to-end test is added.
-:::
+<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+  <source src="/video/kapi/termbase-pretranslation.webm" type="video/webm" />
+</video>
 
 ```bash
-# AI translation
-kapi flow run ai-translate -i docs/input.html -o out/output.html --source-lang en --target-lang fr
+# Set up language assets
+kapi termbase import glossary.csv --name product-terms --format csv -s en -t fr
+kapi tm import project.tmx --name project-tm -s en -t fr
 
-# Translation + quality assurance
-kapi flow run ai-translate-qa -i docs/input.html -o out/output.html --source-lang en --target-lang fr
+# Step 1: Leverage translation memory
+kapi flow run tm-leverage -i messages_en.json -o step1_tm.json \
+  --source-lang en --target-lang fr --tm project-tm
+
+# Step 2: Translate remaining segments
+kapi flow run pseudo-translate -i step1_tm.json -o step2_translated.json --target-lang fr
+
+# Step 3: Verify terminology compliance
+kapi flow run qa-check -i step2_translated.json -o step3_qa.json \
+  --source-lang en --target-lang fr --termbase product-terms
 ```

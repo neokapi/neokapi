@@ -108,9 +108,9 @@ async function openProjectView(page: any) {
   await page.getByTestId("create-project-submit").click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
-  // Add four files
+  // Add four files to the most recently created project
   const projects = await callBackend(page, "ListProjects");
-  const p = projects[0];
+  const p = projects[projects.length - 1];
   if (p) {
     await callBackend(page, "AddItems", p.id, useServerMode
       ? [fixture("index.html"), fixture("strings.json"), fixture("about.md"), fixture("messages.yaml")]
@@ -143,8 +143,9 @@ async function openEditor(page: any) {
   await expect(page.getByTestId("file-drop-zone")).toBeVisible();
 
   const projects = await callBackend(page, "ListProjects");
-  if (projects.length > 0) {
-    await callBackend(page, "AddItems", projects[0].id, useServerMode
+  const currentProject = projects[projects.length - 1];
+  if (currentProject) {
+    await callBackend(page, "AddItems", currentProject.id, useServerMode
       ? [fixture("index.html")]
       : ["/src/index.html"]);
   }
@@ -230,10 +231,11 @@ test.describe("Screenshots", () => {
       await openEditor(page);
       await setTheme(page, theme);
 
-      // Pseudo-translate via backend
+      // Pseudo-translate the most recently created project (the one open in the editor)
       const projects = await callBackend(page, "ListProjects");
-      if (projects.length > 0) {
-        await callBackend(page, "PseudoTranslateItem", projects[0].id, "index.html", "fr");
+      const currentProject = projects[projects.length - 1];
+      if (currentProject) {
+        await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
       }
       // Navigate away and back to reload
       await clickTestId(page, "back-to-project");
@@ -269,9 +271,9 @@ test.describe("Screenshots", () => {
       await page.getByTestId("create-project-submit").click();
       await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
-      // Seed TM entries
+      // Seed TM entries for the most recently created project
       const projects = await callBackend(page, "ListProjects");
-      const pid = projects[0]?.id;
+      const pid = projects[projects.length - 1]?.id;
       if (pid) {
         await callBackend(page, "AddTMEntry", pid, "Hello World", "Bonjour le monde", "en", "fr");
         await callBackend(page, "AddTMEntry", pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
@@ -326,10 +328,11 @@ test.describe("Screenshots", () => {
       await openEditor(page);
       await setTheme(page, theme);
 
-      // Pseudo-translate via backend
+      // Pseudo-translate the most recently created project (the one open in the editor)
       const projects = await callBackend(page, "ListProjects");
-      if (projects.length > 0) {
-        await callBackend(page, "PseudoTranslateItem", projects[0].id, "index.html", "fr");
+      const currentProject = projects[projects.length - 1];
+      if (currentProject) {
+        await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
       }
       // Navigate away and back to reload
       await clickTestId(page, "back-to-project");
