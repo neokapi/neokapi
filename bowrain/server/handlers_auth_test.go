@@ -18,9 +18,10 @@ import (
 
 func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	startForm := url.Values{"client_id": {"test-client"}}
@@ -41,9 +42,10 @@ func TestDeviceAuthStartRespectsForwardedHeaders(t *testing.T) {
 func TestHandleDeviceVerificationFormValues(t *testing.T) {
 	// No OIDC configured → uses direct authorization with form values.
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Step 1: Start device auth to get a user_code.
@@ -89,9 +91,10 @@ func TestHandleDeviceVerificationFormValues(t *testing.T) {
 func TestHandleDeviceVerificationDefaultValues(t *testing.T) {
 	// No OIDC configured, no email/name provided → defaults should be used.
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	// Manually create a device code entry and user code index.
 	ctx := context.Background()
@@ -147,11 +150,12 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 	})
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	// Create a pending device code entry with user code index.
 	ctx := context.Background()
@@ -199,9 +203,10 @@ func TestHandleDeviceVerificationOIDCRedirect(t *testing.T) {
 
 func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Missing code and state → should redirect to verify page with error.
@@ -214,9 +219,10 @@ func TestHandleDeviceAuthCallbackMissingParams(t *testing.T) {
 
 func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Valid code but unknown state → should redirect to verify page with error.
@@ -234,9 +240,10 @@ func TestHandleDeviceAuthCallbackInvalidState(t *testing.T) {
 func TestDeviceVerifyStatesCleanup(t *testing.T) {
 	// Verify state entries are consumed after use (even on OIDC exchange failure).
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	ctx := context.Background()
 	state := "test-device-cleanup"
@@ -266,11 +273,12 @@ func TestDeviceVerifyStatesCleanup(t *testing.T) {
 
 func TestHandleDesktopLoginMissingParams(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180" // needed to pass OIDC check
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// No redirect_uri or code_challenge → should get 400.
@@ -283,11 +291,12 @@ func TestHandleDesktopLoginMissingParams(t *testing.T) {
 
 func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Non-localhost redirect_uri → should get 400.
@@ -305,11 +314,12 @@ func TestHandleDesktopLoginNonLocalhostRedirect(t *testing.T) {
 
 func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// bowrain:// scheme should be accepted (will fail at OIDC discovery, but not at redirect_uri validation).
@@ -327,11 +337,12 @@ func TestHandleDesktopLoginAcceptsBowrainScheme(t *testing.T) {
 
 func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	params := url.Values{
@@ -348,9 +359,10 @@ func TestHandleDesktopLoginUnsupportedChallengeMethod(t *testing.T) {
 
 func TestHandleDesktopCallbackMissingState(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Missing code and state → should get 400 HTML error.
@@ -363,9 +375,10 @@ func TestHandleDesktopCallbackMissingState(t *testing.T) {
 
 func TestHandleDesktopCallbackInvalidState(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Valid code but unknown state → should get 400.
@@ -383,9 +396,10 @@ func TestHandleDesktopCallbackInvalidState(t *testing.T) {
 func TestDesktopAuthStatesCleanup(t *testing.T) {
 	// Verify that state entries are cleaned up after use.
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	ctx := context.Background()
 	state := "test-cleanup-state"
@@ -445,11 +459,12 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 	})
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Step 1: Call HandleAuthLogin — should redirect and store state.
@@ -485,11 +500,12 @@ func TestWebFlowStateStoredAndConsumed(t *testing.T) {
 
 func TestWebFlowCallbackWithoutState(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = "http://localhost:8180"
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	// Callback with code but empty state → should get error HTML.
@@ -531,11 +547,12 @@ func TestOIDCRedirectIncludesPKCEAndNonce(t *testing.T) {
 	})
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = mockOIDC.URL
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	assertPKCEAndNonce := func(t *testing.T, location string) {
@@ -614,11 +631,12 @@ func TestDesktopEntryHasPKCEAndNonce(t *testing.T) {
 	defer mockOIDC.Close()
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	params := url.Values{
@@ -664,11 +682,12 @@ func TestDeviceVerifyEntryHasPKCEAndNonce(t *testing.T) {
 	defer mockOIDC.Close()
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	cfg.OIDCIssuerURL = oidcURL
 	cfg.OIDCClientID = "test-client"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	// Create a pending device code via session store.
 	ctx := context.Background()
@@ -807,9 +826,10 @@ func TestAuthMiddlewareNeitherHeaderNorCookie(t *testing.T) {
 
 func TestLogoutClearsCookies(t *testing.T) {
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 	e := srv.GetEcho()
 
 	token := generateTestToken(t, cfg.JWTSecret)

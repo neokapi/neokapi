@@ -26,8 +26,8 @@ import (
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/cli/output"
-	sqltm "github.com/gokapi/gokapi/cli/storage/sievepen"
-	sqltb "github.com/gokapi/gokapi/cli/storage/termbase"
+	sqltm "github.com/gokapi/gokapi/core/sievepen"
+	sqltb "github.com/gokapi/gokapi/core/termbase"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )

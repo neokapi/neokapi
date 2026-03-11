@@ -1,6 +1,6 @@
-// Package storage provides a lightweight SQLite infrastructure layer for
-// CLI-based termbases and translation memories. It mirrors bowrain/storage
-// but without PostgreSQL, connection pooling, or workspace scoping.
+// Package storage provides a shared SQLite infrastructure layer for
+// persistent translation memories and termbases. It handles connection
+// management, WAL mode, and common pragmas.
 package storage
 
 import (
@@ -33,9 +33,9 @@ func Open(dbPath string) (*DB, error) {
 	if dbPath == ":memory:" || strings.Contains(dbPath, "mode=memory") {
 		db.SetMaxOpenConns(1)
 	} else {
-		db.SetMaxOpenConns(5)
-		db.SetMaxIdleConns(2)
-		db.SetConnMaxLifetime(10 * time.Minute)
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(30 * time.Minute)
 	}
 
 	if err := applyPragmas(db); err != nil {
@@ -57,7 +57,7 @@ func applyPragmas(db *sql.DB) error {
 		"PRAGMA synchronous=NORMAL",
 		"PRAGMA foreign_keys=ON",
 		"PRAGMA busy_timeout=5000",
-		"PRAGMA cache_size=-4000", // 4MB cache
+		"PRAGMA cache_size=-8000", // 8MB cache
 	}
 	for _, p := range pragmas {
 		if _, err := db.Exec(p); err != nil {

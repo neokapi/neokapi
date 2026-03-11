@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/id"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/platform/store"
 )
@@ -77,13 +79,20 @@ type UpdateConceptRequest struct {
 	Terms      []TermInfo `json:"terms"`
 }
 
-// getOrCreateTB lazily initializes the app-level in-memory termbase.
-func (a *App) getOrCreateTB() *termbase.InMemoryTermBase {
+// getOrCreateTB lazily initializes the app-level persistent SQLite termbase.
+func (a *App) getOrCreateTB() (*termbase.SQLiteTermBase, error) {
 	if a.tb != nil {
-		return a.tb
+		return a.tb, nil
 	}
-	a.tb = termbase.NewInMemoryTermBase()
-	return a.tb
+	tbDir := filepath.Join(desktopConfigDir(), "termbase")
+	os.MkdirAll(tbDir, 0755)
+	tbPath := filepath.Join(tbDir, "default.db")
+	tb, err := termbase.NewSQLiteTermBase(tbPath)
+	if err != nil {
+		return nil, err
+	}
+	a.tb = tb
+	return tb, nil
 }
 
 func conceptToInfo(c termbase.Concept) ConceptInfo {
@@ -140,7 +149,10 @@ func (a *App) GetTerms(projectID, query, sourceLocale, targetLocale string, offs
 			return result, nil
 		}
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	results, total := tb.Search(query, sourceLocale, targetLocale, offset, limit)
 	infos := make([]ConceptInfo, len(results))
 	for i, c := range results {
@@ -165,7 +177,11 @@ func (a *App) GetTermCount(projectID string) (int, error) {
 			return count, nil
 		}
 	}
-	return a.getOrCreateTB().Count(), nil
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return 0, fmt.Errorf("init termbase: %w", err)
+	}
+	return tb.Count(), nil
 }
 
 // AddConcept adds a new concept to the termbase.
@@ -184,7 +200,10 @@ func (a *App) AddConcept(req AddConceptRequest) (*ConceptInfo, error) {
 	} else if a.isOffline() {
 		a.enqueue("add_concept", req)
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	concept := termbase.Concept{
 		ID:         id.New(),
 		Domain:     req.Domain,
@@ -218,7 +237,10 @@ func (a *App) UpdateConcept(req UpdateConceptRequest) error {
 	} else if a.isOffline() {
 		a.enqueue("update_concept", req)
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return fmt.Errorf("init termbase: %w", err)
+	}
 	concept := termbase.Concept{
 		ID:         req.ConceptID,
 		Domain:     req.Domain,
@@ -245,13 +267,19 @@ func (a *App) DeleteConcept(projectID, conceptID string) error {
 	} else if a.isOffline() {
 		a.enqueue("delete_concept", deleteConceptPayload{ConceptID: conceptID})
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return fmt.Errorf("init termbase: %w", err)
+	}
 	return tb.DeleteConcept(conceptID)
 }
 
 // LookupTerms looks up terms matching the given text.
 func (a *App) LookupTerms(projectID, text, sourceLocale, targetLocale string) (*TermLookupResult, error) {
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	matches := tb.LookupAll(text, termbase.LookupOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 	})
@@ -295,7 +323,10 @@ func (a *App) ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, 
 			return count, nil
 		}
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return 0, fmt.Errorf("init termbase: %w", err)
+	}
 	count, err := termbase.ImportCSV(tb, strings.NewReader(csvContent), termbase.CSVImportOptions{
 		SourceLocale: model.LocaleID(sourceLocale),
 		TargetLocale: model.LocaleID(targetLocale),
@@ -322,7 +353,10 @@ func (a *App) ImportTermsJSON(projectID, jsonContent string) (int, error) {
 			return count, nil
 		}
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return 0, fmt.Errorf("init termbase: %w", err)
+	}
 	count, err := termbase.ImportJSON(tb, strings.NewReader(jsonContent))
 	if err != nil {
 		return 0, fmt.Errorf("import JSON: %w", err)
@@ -344,7 +378,10 @@ func (a *App) ExportTermsJSON(projectID, name string) (string, error) {
 			return result, nil
 		}
 	}
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return "", fmt.Errorf("init termbase: %w", err)
+	}
 	var buf bytes.Buffer
 	if err := termbase.ExportJSON(tb, &buf, name); err != nil {
 		return "", fmt.Errorf("export JSON: %w", err)
@@ -361,7 +398,10 @@ func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermE
 		return nil, err
 	}
 
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	if tb.Count() == 0 {
 		return nil, nil
 	}

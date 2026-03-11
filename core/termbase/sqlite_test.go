@@ -1,18 +1,16 @@
 package termbase_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
-
-	sqltb "github.com/gokapi/gokapi/bowrain/termbase"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func softwareConcepts() []termbase.Concept {
+func sqliteSoftwareConcepts() []termbase.Concept {
 	return []termbase.Concept{
 		{
 			ID:         "c1",
@@ -46,19 +44,19 @@ func softwareConcepts() []termbase.Concept {
 	}
 }
 
-func populateTB(t *testing.T, tb termbase.TermBase) {
+func sqlitePopulateTB(t *testing.T, tb termbase.TermBase) {
 	t.Helper()
-	for _, c := range softwareConcepts() {
+	for _, c := range sqliteSoftwareConcepts() {
 		require.NoError(t, tb.AddConcept(c))
 	}
 }
 
 func TestSQLiteTermBase_AddAndGet(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 	assert.Equal(t, 3, tb.Count())
 
 	c, ok := tb.GetConcept("c1")
@@ -68,11 +66,11 @@ func TestSQLiteTermBase_AddAndGet(t *testing.T) {
 }
 
 func TestSQLiteTermBase_Delete(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 
 	err = tb.DeleteConcept("c2")
 	require.NoError(t, err)
@@ -83,11 +81,11 @@ func TestSQLiteTermBase_Delete(t *testing.T) {
 }
 
 func TestSQLiteTermBase_Update(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 
 	err = tb.AddConcept(termbase.Concept{
 		ID:         "c1",
@@ -107,11 +105,11 @@ func TestSQLiteTermBase_Update(t *testing.T) {
 }
 
 func TestSQLiteTermBase_Lookup(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 
 	matches := tb.Lookup("Save", termbase.LookupOptions{
 		SourceLocale: model.LocaleEnglish,
@@ -122,11 +120,11 @@ func TestSQLiteTermBase_Lookup(t *testing.T) {
 }
 
 func TestSQLiteTermBase_LookupAll(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 
 	text := "Click Save or Cancel"
 	matches := tb.LookupAll(text, termbase.LookupOptions{
@@ -136,11 +134,11 @@ func TestSQLiteTermBase_LookupAll(t *testing.T) {
 }
 
 func TestSQLiteTermBase_Search(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	populateTB(t, tb)
+	sqlitePopulateTB(t, tb)
 
 	results, total := tb.Search("save", "", "", 0, 100)
 	assert.Equal(t, 1, total)
@@ -148,20 +146,19 @@ func TestSQLiteTermBase_Search(t *testing.T) {
 }
 
 func TestSQLiteTermBase_InterfaceCompliance(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 
 	var _ termbase.TermBase = tb
-	var _ sqltb.TBStore = tb
+	var _ termbase.TBStore = tb
 	assert.NoError(t, tb.Close())
 }
 
 func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
-	tb, err := sqltb.NewSQLiteTermBase(":memory:")
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
 	require.NoError(t, err)
 	defer tb.Close()
 
-	// Add concepts on different streams.
 	mainConcept := termbase.Concept{
 		ID:     "c-main",
 		Domain: "software",
@@ -190,26 +187,78 @@ func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {
 			{Text: "Speichern", Locale: "de-DE", Status: model.TermApproved},
 		},
 	}
-	require.NoError(t, tb.AddConcept(wsConcept)) // default empty stream
+	require.NoError(t, tb.AddConcept(wsConcept))
 
-	// SearchForStream with stream chain inheritance.
 	concepts, total := tb.SearchForStream("", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
 	assert.Equal(t, 3, total)
 	assert.Len(t, concepts, 3)
-	// Feature stream concepts should come first (priority 0).
 	assert.Equal(t, "c-feat", concepts[0].ID)
 
-	// Search only workspace stream.
 	concepts, total = tb.SearchForStream("", "", "", "", nil, 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
 
-	// Search with text filter.
 	concepts, total = tb.SearchForStream("save", "", "",
 		"feature/rebrand", []string{"main", ""}, 0, 100)
 	assert.Equal(t, 1, total)
 	assert.Len(t, concepts, 1)
 	assert.Equal(t, "c-ws", concepts[0].ID)
+}
+
+func TestSQLiteTermBase_FuzzyLookup(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c1", Domain: "IT",
+		Terms: []termbase.Term{{Text: "computer", Locale: "en-US", Status: "approved"}}}))
+	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c2", Domain: "IT",
+		Terms: []termbase.Term{{Text: "computing", Locale: "en-US", Status: "approved"}}}))
+	require.NoError(t, tb.AddConcept(termbase.Concept{ID: "c3", Domain: "IT",
+		Terms: []termbase.Term{{Text: "unrelated", Locale: "en-US", Status: "approved"}}}))
+
+	matches := tb.Lookup("computers", termbase.LookupOptions{
+		SourceLocale: "en-US",
+		MinScore:     0.7,
+	})
+	assert.GreaterOrEqual(t, len(matches), 1)
+	for _, m := range matches {
+		assert.GreaterOrEqual(t, m.Score, 0.7)
+		assert.NotEqual(t, "c3", m.Concept.ID)
+	}
+}
+
+func TestSQLiteTermBase_ScaleTest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping scale test in short mode")
+	}
+
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	for i := range 500 {
+		require.NoError(t, tb.AddConcept(termbase.Concept{
+			ID:     fmt.Sprintf("c%d", i),
+			Domain: "domain",
+			Terms: []termbase.Term{
+				{Text: fmt.Sprintf("terminology entry number %d", i), Locale: "en-US", Status: "approved"},
+				{Text: fmt.Sprintf("entrée terminologique numéro %d", i), Locale: "fr-FR", Status: "approved"},
+			},
+		}))
+	}
+
+	assert.Equal(t, 500, tb.Count())
+
+	matches := tb.Lookup("terminology entry number 42", termbase.LookupOptions{
+		SourceLocale: "en-US",
+		MinScore:     0.7,
+	})
+	assert.GreaterOrEqual(t, len(matches), 1)
+
+	concepts, total := tb.Search("terminology", "", "", 0, 10)
+	assert.GreaterOrEqual(t, total, 1)
+	assert.GreaterOrEqual(t, len(concepts), 1)
 }

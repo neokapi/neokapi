@@ -18,9 +18,11 @@ import (
 func newTestServer(t *testing.T) (*Server, string) {
 	t.Helper()
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-secret"
 	s := NewServer(cfg)
+	initTestStores(t, s)
+
 	require.NotNil(t, s.Services, "services should be initialized")
 	require.NotNil(t, s.AuthStore, "auth store should be initialized")
 
