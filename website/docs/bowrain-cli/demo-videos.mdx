@@ -102,56 +102,22 @@ curl -X POST -H "Authorization: Bearer $TOKEN" \
   https://gokapi.example.com/api/v1/workspaces/acme/projects
 ```
 
-## Translation Memory
+## Translation Memory & Terminology
 
-Import, export, and look up translation memory entries.
+The `bowrain` CLI shares TM and termbase commands with `kapi`. See the [Kapi CLI Demos](/docs/kapi-cli/demo-videos#terminology-qa) for animated walkthroughs of:
 
-:::note[Video coming soon]
-This demo will be auto-generated once the TM CLI end-to-end test is added.
-:::
-
-```bash
-# Leverage TM in a translation flow
-bowrain flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
-```
-
-## Terminology Management
-
-Import termbases, look up terms in running text, search concepts, and view statistics.
-
-:::note[Video coming soon]
-This demo will be auto-generated once the termbase CLI end-to-end test is added.
-:::
+- **Terminology QA** — import glossary, look up terms, search, and run QA with terminology enforcement
+- **Pre-Translation Pipeline** — TM leverage, pseudo-translate remaining segments, verify terminology compliance
 
 ```bash
 # Import terms from CSV
-bowrain termbase import terms.csv --format csv -s en -t fr --domain general
+bowrain termbase import glossary.csv --name product-terms --format csv -s en -t fr
 
-# Look up terms in a sentence
-bowrain termbase lookup "The authentication module uses end-to-end encryption" -s en -t fr
+# Leverage TM in a translation flow
+bowrain flow run tm-leverage -i input.html -o output.html \
+  --source-lang en --target-lang fr --tm project-tm
 
-# Fuzzy lookup
-bowrain termbase lookup "authenticating users" -s en -t fr --fuzzy
-
-# Search the termbase
-bowrain termbase search "encryption" -s en --domain security
-
-# View termbase statistics
-bowrain termbase stats
-```
-
-## Terminology-Aware Translation Flow
-
-Run a pipeline that uses both TM and terminology to enrich translations.
-
-:::note[Video coming soon]
-This demo will be auto-generated once the terminology-aware flow end-to-end test is added.
-:::
-
-```bash
-# AI translation flow
-bowrain flow run ai-translate -i docs/input.html -o out/output.html --source-lang en --target-lang fr
-
-# Translation + quality assurance flow
-bowrain flow run ai-translate-qa -i docs/input.html -o out/output.html --source-lang en --target-lang fr
+# Run QA with terminology enforcement
+bowrain flow run qa-check -i translated.json -o qa_report.json \
+  --source-lang en --target-lang fr --termbase product-terms
 ```

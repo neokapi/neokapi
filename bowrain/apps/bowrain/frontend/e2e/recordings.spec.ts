@@ -407,13 +407,10 @@ describeOrSkip("Video Recordings", () => {
     await pause(page, 400);
 
     // === PHASE 4: Pseudo-translate remaining blocks via backend ===
-    await page.evaluate(async () => {
-      const backend = (window as any).__wailsMockByName;
-      const projects = await backend.ListProjects();
-      if (projects.length > 0) {
-        await backend.PseudoTranslateItem(projects[0].id, "about-us.html", "fr");
-      }
-    });
+    const teProject = await findProject(page, "Company Website");
+    if (teProject) {
+      await callBackend(page, "PseudoTranslateItem", teProject.id, "about-us.html", "nb");
+    }
     // Navigate away and back to reload blocks
     await page.getByTestId("nav-settings").click();
     await page.waitForTimeout(100);
