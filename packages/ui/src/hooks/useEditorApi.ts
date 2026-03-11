@@ -41,12 +41,6 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  const pseudoTranslateFile = useCallback(
-    async (projectId: string, fileName: string, targetLocale: string): Promise<TranslationStats> =>
-      api.pseudoTranslateFile(ws, projectId, fileName, targetLocale, activeStream),
-    [api, ws, activeStream],
-  );
-
   const aiTranslateFile = useCallback(
     async (req: AITranslateFileRequest): Promise<TranslationStats> =>
       api.aiTranslateFile(ws, req),
@@ -135,7 +129,6 @@ export function useEditorApi() {
     getFileBlocks,
     updateBlockTarget,
     updateBlockTargetCoded,
-    pseudoTranslateFile,
     aiTranslateFile,
     tmTranslateFile,
     getWordCount,
@@ -154,7 +147,6 @@ export function useEditorApi() {
     getFileBlocks,
     updateBlockTarget,
     updateBlockTargetCoded,
-    pseudoTranslateFile,
     aiTranslateFile,
     tmTranslateFile,
     getWordCount,
