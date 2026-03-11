@@ -1,9 +1,9 @@
 ---
 sidebar_position: 6
-title: Bowrain Termbase
+title: Termbase
 ---
 
-# Bowrain Termbase Library
+# Termbase Library
 
 The termbase library (`termbase/`) provides concept-oriented terminology management inspired by the TBX (TermBase eXchange) standard. It supports multi-locale terms with lifecycle statuses, domain classification, and both in-text discovery and single-term lookup.
 
@@ -49,7 +49,7 @@ type TermBase interface {
 }
 ```
 
-`Lookup` finds the best match for a single term. `LookupAll` scans running text and returns all term occurrences with positions — this powers the editor's Context panel and the `term-lookup` pipeline tool.
+`Lookup` finds the best match for a single term. `LookupAll` scans running text and returns all term occurrences with positions — this powers the `term-lookup` pipeline tool and can be used by editors to show per-block terminology suggestions.
 
 ## Key Types
 
@@ -128,7 +128,7 @@ tb := termbase.NewInMemoryTermBase()
 defer tb.Close()
 ```
 
-Fast, ephemeral. Used in Bowrain for per-project termbases.
+Fast, ephemeral. Ideal for batch processing and session-scoped lookups.
 
 ### SQLite
 
@@ -250,8 +250,8 @@ func main() {
 
 This powers:
 - The **term-lookup** pipeline tool — annotates blocks with matched terms
-- The **Bowrain Context panel** — shows per-block terminology suggestions
 - The **term-enforce** tool — validates that translations use correct terms
+- **Editor integration** — editors can use `LookupAll` to show per-block terminology suggestions
 
 ## Pipeline Integration
 
