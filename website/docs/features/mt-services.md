@@ -42,7 +42,7 @@ MT services are available as pipeline tools via `kapi flow run`. Configure the d
 kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang de
 ```
 
-The MT provider is selected based on your configuration. See [Configuration](/docs/bowrain-server/configuration) for details.
+The MT provider is selected based on your configuration.
 
 ## Comparison with AI Translation
 

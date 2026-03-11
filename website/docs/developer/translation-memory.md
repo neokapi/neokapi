@@ -118,7 +118,7 @@ tm := sievepen.NewInMemoryTM()
 defer tm.Close()
 ```
 
-Fast, ephemeral. Used in Bowrain for per-project TMs and during batch processing.
+Fast, ephemeral. Ideal for batch processing and session-scoped leverage.
 
 ### SQLite
 
@@ -195,9 +195,9 @@ The `EntityAdaptations` field on `TMMatch` lists each substitution with its posi
 
 ## Integration Points
 
-- **Pipeline tool**: `tools/TMLeverageTool` uses `Lookup` to pre-fill translations
-- **Bowrain editor**: `LookupTMForBlock` in the backend uses `Lookup` for per-block matches in the Context panel
-- **Bowrain TM Explorer**: Uses `SearchEntries` for paginated browsing
+- **Pipeline tool**: `tools/TMLeverageTool` uses `Lookup` to pre-fill translations during flow execution
+- **Editor integration**: `Lookup` can be used by editors to show per-block TM matches with scores and match types
+- **Browsing**: `SearchEntries` provides paginated search for building TM exploration UIs
 
 ## Design Decisions
 

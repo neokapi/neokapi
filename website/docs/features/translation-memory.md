@@ -40,16 +40,6 @@ kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target
 
 TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches are attached as `AltTranslation` annotations for translator review.
 
-## Bowrain Integration
-
-In Bowrain, each project has its own in-memory TM that persists in the project database:
-
-1. **TM Explorer**: Click "Translation Memory" in the project view to browse, search, edit, add, and delete TM entries
-2. **TM Lookup**: In the translation editor, click "TM Lookup" to batch-apply TM matches to all untranslated blocks
-3. **Context Panel**: Click "Context" in the editor toolbar to see per-block TM matches. Each match shows the source, target, match score, and match type. Click "Apply" to insert a match into the current block.
-
-TM entries are automatically saved when you save the project and restored when you open it.
-
 ## Configuration
 
 ```yaml
@@ -63,9 +53,9 @@ tools:
 
 ## Design Decision: Separate TM and Termbase
 
-TM and terminology are **separate systems** in gokapi. While they share the same SQLite infrastructure (`bowrain/storage/`), they have fundamentally different data shapes:
+TM and terminology are **separate systems** in gokapi with fundamentally different data shapes:
 
 - **TM entries** are segment pairs (source fragment → target fragment) with inline markup preservation
 - **Termbase concepts** are multi-term, multi-locale knowledge units with lifecycle statuses
 
-The `Block` with its annotations serves as the integration point: TM matches and term matches are both attached as annotations during pipeline processing, and both are displayed in the Bowrain editor's Context panel.
+The `Block` annotation system serves as the integration point: both TM matches and term matches are attached as annotations during pipeline processing, making them available to any downstream tool or editor.
