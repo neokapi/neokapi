@@ -111,14 +111,14 @@ test.describe("Web App Screenshots", () => {
 
       // Navigate directly to the project detail route
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}`);
+      await page.goto(`/${wsSlug}/project/${p.id}/stream/main`);
       await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "project-view.png") });
 
       // Navigate directly to the editor route
-      await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
+      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/about-us.html`);
       await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
       // Switch to grid layout for screenshots
       await page.getByTestId("layout-grid").click();
