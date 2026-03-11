@@ -394,7 +394,7 @@ describeOrSkip("Video Recordings", () => {
     await humanClick(page, page.getByTestId("preview-target-toggle"));
     await pause(page, 600); // Show that preview now displays translated text
 
-    // Skip block 4 in server mode — it has inline spans (<strong>/<em>) which render
+    // Skip block 3 — it has inline spans (<strong>/<em>) which render
     // as a Lexical rich editor (TargetCellEditor) instead of a plain textarea.
     // Edit blocks 5 and 6 instead (plain text in both server and mock mode).
     await page.getByTestId("target-cell-5").dblclick();
