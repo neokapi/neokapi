@@ -21,9 +21,11 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/core/preset"
+	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/cli/output"
+	sqltm "github.com/gokapi/gokapi/cli/storage/sievepen"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -87,6 +89,8 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 	flowRunCmd.Flags().String("model", "", "AI model name")
 	flowRunCmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 	flowRunCmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
+	flowRunCmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
+	flowRunCmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
 
 	flowListCmd := &cobra.Command{
 		Use:   "list",
@@ -206,7 +210,7 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// avoiding a second JVM startup.
 	reader.Close()
 
-	flowTools, err := a.buildFlowTools(flowName)
+	flowTools, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
@@ -461,7 +465,7 @@ func (a *App) processFlowFile(ctx context.Context, flowName, inputPath, outputTe
 func (a *App) processFlowFileRoundTrip(ctx context.Context, flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
-	flowTools, err := a.buildFlowTools(flowName)
+	flowTools, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
@@ -574,7 +578,7 @@ func (a *App) processFlowFileNative(ctx context.Context, flowName, inputPath, ou
 	reader.Close()
 
 	// Build fresh tool instances for this file (thread-safe).
-	flowTools, err := a.buildFlowTools(flowName)
+	flowTools, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
@@ -682,7 +686,7 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 	return r.Replace(tmpl)
 }
 
-func (a *App) buildFlowTools(flowName string) ([]tool.Tool, error) {
+func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Tool, error) {
 	switch flowName {
 	case "ai-translate":
 		p := a.getProvider()
@@ -721,12 +725,26 @@ func (a *App) buildFlowTools(flowName string) ([]tool.Tool, error) {
 			}),
 		}, nil
 	case "tm-leverage":
+		var tmProvider libtools.TMProvider = libtools.NullTMProvider{}
+		if len(cmd) > 0 && cmd[0] != nil {
+			if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
+				tmPath, err := resolveNamedResource("tm", tmName)
+				if err != nil {
+					return nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+				}
+				sqltm, err := sqltm.NewSQLiteTM(tmPath)
+				if err != nil {
+					return nil, fmt.Errorf("open TM %q: %w", tmName, err)
+				}
+				tmProvider = &cliTMProvider{tm: sqltm}
+			}
+		}
 		return []tool.Tool{
 			libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
 				SourceLocale:   model.LocaleID(a.SourceLang),
 				TargetLocale:   model.LocaleID(a.TargetLang),
 				FuzzyThreshold: 70,
-				Provider:       libtools.NullTMProvider{},
+				Provider:       tmProvider,
 			}),
 		}, nil
 	default:
@@ -748,4 +766,36 @@ func defaultParallelBlocks(flowName string) int {
 	default:
 		return 0
 	}
+}
+
+// cliTMProvider adapts a CLI SQLite TM to the libtools.TMProvider interface.
+type cliTMProvider struct {
+	tm *sqltm.SQLiteTM
+}
+
+func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
+	opts := sievepen.LookupOptions{
+		MinScore:   1.0,
+		MaxResults: 1,
+		MatchModes: []sievepen.MatchMode{sievepen.MatchModePlain},
+	}
+	matches, err := p.tm.LookupText(source, sourceLocale, targetLocale, opts)
+	if err != nil || len(matches) == 0 {
+		return "", false
+	}
+	return matches[0].Entry.TargetText(), true
+}
+
+func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
+	minScore := float64(threshold) / 100.0
+	opts := sievepen.LookupOptions{
+		MinScore:   minScore,
+		MaxResults: 1,
+	}
+	matches, err := p.tm.LookupText(source, sourceLocale, targetLocale, opts)
+	if err != nil || len(matches) == 0 {
+		return "", 0, false
+	}
+	score := int(matches[0].Score * 100)
+	return matches[0].Entry.TargetText(), score, true
 }

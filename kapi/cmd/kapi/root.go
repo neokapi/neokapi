@@ -33,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewPresetsCmd())
 	rootCmd.AddCommand(app.NewTermbaseCmd())
+	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
 
 	for _, cmd := range app.NewToolCommands() {
