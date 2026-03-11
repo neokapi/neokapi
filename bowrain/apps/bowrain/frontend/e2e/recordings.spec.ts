@@ -416,7 +416,7 @@ describeOrSkip("Video Recordings", () => {
       await page.reload();
       await page.waitForTimeout(500);
       await setTheme(page, theme);
-      await humanClick(page, page.getByText("Company Website").first());
+      await humanClick(page, page.getByText("Company Website").last());
     } else {
       // Mock mode: navigate away and back (data lives in JS memory)
       await page.getByTestId("nav-settings").click();

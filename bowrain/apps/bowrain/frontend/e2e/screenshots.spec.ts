@@ -245,9 +245,10 @@ test.describe("Screenshots", () => {
         await page.waitForTimeout(500);
         await setTheme(page, theme);
 
-        // Navigate to the project and open the file
-        await expect(page.getByText("Website Redesign")).toBeVisible({ timeout: 5000 });
-        await page.getByText("Website Redesign").first().click();
+        // Navigate to the project — click the last "Website Redesign" card
+        // (projects accumulate across tests in the shared SQLite DB).
+        await expect(page.getByText("Website Redesign").first()).toBeVisible({ timeout: 5000 });
+        await page.getByText("Website Redesign").last().click();
       } else {
         // In mock mode, data lives in JS memory — navigate away and back.
         await clickTestId(page, "back-to-project");
