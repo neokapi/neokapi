@@ -351,14 +351,17 @@ describeOrSkip("Video Recordings", () => {
     await humanType(page, page.getByTestId("edit-target-0"), "Om selskapet vårt");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    // Wait for save to complete (HTTP round-trip in server mode)
+    await expect(page.getByTestId("target-text-0")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
     // Block 1: p - "We are a leading technology company..."
     await page.getByTestId("target-cell-1").dblclick();
-    await expect(page.getByTestId("edit-target-1")).toBeVisible();
+    await expect(page.getByTestId("edit-target-1")).toBeVisible({ timeout: 5000 });
     await humanType(page, page.getByTestId("edit-target-1"), "Vi er et ledende teknologiselskap grunnlagt i 2015.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-1")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
     // === PHASE 2: Switch to Split View, translate 2 units (preview shows source) ===
@@ -368,18 +371,20 @@ describeOrSkip("Video Recordings", () => {
 
     // Block 2: p - "Our mission is to deliver..."
     await page.getByTestId("target-cell-2").dblclick();
-    await expect(page.getByTestId("edit-target-2")).toBeVisible();
+    await expect(page.getByTestId("edit-target-2")).toBeVisible({ timeout: 5000 });
     await humanType(page, page.getByTestId("edit-target-2"), "Vår misjon er å levere innovative løsninger som transformerer bedrifter.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-2")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
     // Block 3: h2 - "Our Values"
     await page.getByTestId("target-cell-3").dblclick();
-    await expect(page.getByTestId("edit-target-3")).toBeVisible();
+    await expect(page.getByTestId("edit-target-3")).toBeVisible({ timeout: 5000 });
     await humanType(page, page.getByTestId("edit-target-3"), "Våre verdier");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-3")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
     // === PHASE 3: Toggle preview to show Target, translate 2 more units ===
@@ -397,6 +402,7 @@ describeOrSkip("Video Recordings", () => {
     await humanType(page, page.getByTestId("edit-target-5"), "Vi tror på kvalitet, integritet og kundesuksess.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-5")).toBeVisible({ timeout: 5000 });
     await pause(page, 200);
 
     await page.getByTestId("target-cell-6").dblclick();
@@ -404,6 +410,7 @@ describeOrSkip("Video Recordings", () => {
     await humanType(page, page.getByTestId("edit-target-6"), "Hvert prosjekt starter med å forstå dine unike behov.");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-6")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
     // === PHASE 4: Pseudo-translate remaining blocks via backend ===
@@ -562,10 +569,11 @@ describeOrSkip("Video Recordings", () => {
 
     // View 1: Grid view - translate first block
     await page.getByTestId("target-cell-0").dblclick();
-    await expect(page.getByTestId("edit-target-0")).toBeVisible();
+    await expect(page.getByTestId("edit-target-0")).toBeVisible({ timeout: 5000 });
     await humanType(page, page.getByTestId("edit-target-0"), "Bienvenue chez Acme");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-0")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
     // View 2: Split view with preview
@@ -575,10 +583,11 @@ describeOrSkip("Video Recordings", () => {
 
     // Translate second block in split view
     await page.getByTestId("target-cell-1").dblclick();
-    await expect(page.getByTestId("edit-target-1")).toBeVisible();
+    await expect(page.getByTestId("edit-target-1")).toBeVisible({ timeout: 5000 });
     await humanType(page, page.getByTestId("edit-target-1"), "La meilleure solution pour vos besoins");
     await pause(page, 200);
     await page.keyboard.press("Tab");
+    await expect(page.getByTestId("target-text-1")).toBeVisible({ timeout: 5000 });
     await pause(page, 400);
 
     // View 3: Focus view
