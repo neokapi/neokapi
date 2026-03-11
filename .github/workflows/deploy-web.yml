@@ -86,5 +86,5 @@ jobs:
           gh workflow run deploy-web.yml \
             --repo gokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
-            -f triggerRunId="$RUN_ID" \
+            -f source="$RUN_ID" \
             -f triggerRepo="$REPO"
