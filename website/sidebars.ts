@@ -31,6 +31,14 @@ const sidebars: SidebarsConfig = {
             'kapi-cli/commands/word-count',
           ],
         },
+        {
+          type: 'category',
+          label: 'Use Cases',
+          items: [
+            'kapi-cli/use-cases/terminology-qa',
+            'kapi-cli/use-cases/terminology-pretranslation',
+          ],
+        },
         'kapi-cli/mcp',
         'kapi-cli/demo-videos',
       ],
