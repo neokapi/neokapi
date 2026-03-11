@@ -81,3 +81,8 @@ go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
 - [Terminology](/docs/kapi-cli/commands/termbase)
 - [Translation Memory](/docs/kapi-cli/commands/tm)
 - [Plugins](/docs/kapi-cli/commands/plugins)
+
+### Use Cases
+
+- [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — catch terminology mistakes in translated files
+- [Pre-Translation with Terminology](/docs/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and your glossary for consistent translations

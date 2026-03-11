@@ -63,6 +63,8 @@ kapi flow list
 | `--provider` | | LLM provider: anthropic, openai, ollama (default: anthropic) |
 | `--api-key` | | API key for LLM provider |
 | `--model` | | LLM model name |
+| `--tm` | | Named TM for tm-leverage (resolves from KAPI_HOME) |
+| `--termbase` | | Named termbase for terminology lookup/enforcement (resolves from KAPI_HOME) |
 
 :::note
 The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
@@ -79,6 +81,11 @@ specific to `flow run` and tool commands. They are not global flags.
 | `qa-check` | Run rule-based quality checks on translations |
 | `tm-leverage` | Pre-fill translations from translation memory |
 | `segmentation` | Split source text into sentence segments |
+
+## Use Cases
+
+- [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — validate terminology compliance in translated files
+- [Pre-Translation with Terminology](/docs/kapi-cli/use-cases/terminology-pretranslation) — combine TM, AI, and terminology in a single workflow
 
 ## Listing Available Tools
 
