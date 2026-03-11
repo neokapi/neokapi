@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/gokapi/gokapi/cli/output"
-	sqltb "github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/spf13/cobra"
@@ -51,7 +50,7 @@ func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string,
 	if err != nil {
 		return nil, "", err
 	}
-	tb, err := sqltb.NewSQLiteTermBase(dbPath)
+	tb, err := termbase.NewSQLiteTermBase(dbPath)
 	if err != nil {
 		return nil, dbPath, fmt.Errorf("open termbase: %w", err)
 	}

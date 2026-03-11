@@ -21,13 +21,11 @@ import (
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/core/preset"
-	"github.com/gokapi/gokapi/core/sievepen"
-	"github.com/gokapi/gokapi/core/termbase"
+	sqltm "github.com/gokapi/gokapi/core/sievepen"
+	sqltb "github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/cli/output"
-	sqltm "github.com/gokapi/gokapi/core/sievepen"
-	sqltb "github.com/gokapi/gokapi/core/termbase"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -732,11 +730,11 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 			return nil, nil, err
 		} else if tb != nil {
 			qaTools = append(qaTools,
-				termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+				sqltb.NewTermLookupTool(tb, sqltb.TermLookupConfig{
 					SourceLocale: model.LocaleID(a.SourceLang),
 					TargetLocale: model.LocaleID(a.TargetLang),
 				}),
-				termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+				sqltb.NewTermEnforceTool(tb, sqltb.TermEnforceConfig{
 					SourceLocale: model.LocaleID(a.SourceLang),
 					TargetLocale: model.LocaleID(a.TargetLang),
 				}),
@@ -808,10 +806,10 @@ type cliTMProvider struct {
 }
 
 func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale model.LocaleID) (string, bool) {
-	opts := sievepen.LookupOptions{
+	opts := sqltm.LookupOptions{
 		MinScore:   1.0,
 		MaxResults: 1,
-		MatchModes: []sievepen.MatchMode{sievepen.MatchModePlain},
+		MatchModes: []sqltm.MatchMode{sqltm.MatchModePlain},
 	}
 	matches, err := p.tm.LookupText(source, sourceLocale, targetLocale, opts)
 	if err != nil || len(matches) == 0 {
@@ -822,7 +820,7 @@ func (p *cliTMProvider) LookupExact(source string, sourceLocale, targetLocale mo
 
 func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale model.LocaleID, threshold int) (string, int, bool) {
 	minScore := float64(threshold) / 100.0
-	opts := sievepen.LookupOptions{
+	opts := sqltm.LookupOptions{
 		MinScore:   minScore,
 		MaxResults: 1,
 	}

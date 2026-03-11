@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/gokapi/gokapi/cli/output"
-	sqltm "github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/spf13/cobra"
@@ -45,12 +44,12 @@ Default (no flag): same as --local (uses ./tm.db).`,
 	return tmCmd
 }
 
-func (a *App) openTMSQLite(cmd *cobra.Command) (*sqltm.SQLiteTM, string, error) {
+func (a *App) openTMSQLite(cmd *cobra.Command) (*sievepen.SQLiteTM, string, error) {
 	dbPath, err := ResolveResourcePath(cmd, "tm", "tm.db")
 	if err != nil {
 		return nil, "", err
 	}
-	tm, err := sqltm.NewSQLiteTM(dbPath)
+	tm, err := sievepen.NewSQLiteTM(dbPath)
 	if err != nil {
 		return nil, dbPath, fmt.Errorf("open TM: %w", err)
 	}
