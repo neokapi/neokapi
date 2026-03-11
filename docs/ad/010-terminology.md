@@ -43,7 +43,18 @@ The core data model is concept-oriented, following TBX principles. A Concept gro
 
 ### TermBase Interface
 
-The TermBase interface provides concept CRUD, term lookup, search, and import/export. Backends: In-memory (CLI batch), SQLite (persistent, local/desktop), and PostgreSQL (persistent, SaaS), all using the shared `bowrain/storage` layer from [AD-003](./003-content-store.md). PostgreSQL termbases are workspace-scoped via `workspace_id`.
+The TermBase interface provides concept CRUD, term lookup, search, and import/export. Three storage tiers:
+
+1. **In-memory** (`core/termbase/`): Fast, ephemeral. Used for session-scoped batch processing.
+2. **CLI SQLite** (`cli/storage/termbase/`): Persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
+3. **Server SQLite/PostgreSQL** (`bowrain/termbase/`): Persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation (PostgreSQL). Uses the shared `bowrain/storage` layer from [AD-003](./003-content-store.md).
+
+| Aspect | kapi CLI | Bowrain Server |
+|--------|---------|---------------|
+| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
+| Scope | Single user, single machine | Multi-user, multi-workspace |
+| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
 
 See [Terminology Data Model](/docs/notes/terminology-data-model) for full Go struct definitions (Concept, Term, TermContext, TermBase interface).
 

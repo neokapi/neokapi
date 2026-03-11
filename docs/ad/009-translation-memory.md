@@ -78,25 +78,38 @@ Spans for the structural key. No separate pre-processing step is needed.
 
 ### Storage Backends
 
-1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch
-   processing.
-2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are
+Three storage tiers:
+
+1. **In-memory** (`core/sievepen/`): fast, ephemeral; for session-scoped
+   leverage during batch processing.
+2. **CLI SQLite** (`cli/storage/sievepen/`): persistent file-based storage for
+   kapi and bowrain CLI. Same matching algorithm and schema as the server
+   variant but without project_id, stream, or workspace_id columns. Resources
+   are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file`
+   (explicit path). Created on demand. Uses a lightweight `cli/storage/`
+   infrastructure layer.
+3. **Server SQLite** (`bowrain/sievepen/`): persistent; matching keys are
    pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
    layer with TermBase ([AD-010](./010-terminology.md)) and Content Store
    ([AD-003](./003-content-store.md)). Pure Go with no CGo dependencies.
    SQLite is the default for local development, single-instance deployments,
-   and the desktop app.
-3. **PostgreSQL** (via `pgx`): persistent; same schema and matching logic as
-   SQLite, with workspace-scoped isolation (`workspace_id` column). All
-   workspace TMs share the same PostgreSQL database. Uses the shared
-   `bowrain/storage/` infrastructure layer with independent migration tables.
-   PostgreSQL is used for SaaS and multi-instance deployments, sharing the
-   connection pool with ContentStore, AuthStore, TermBase, JobStore, and
-   QuotaStore ([AD-003](./003-content-store.md)).
+   and the desktop app. Supports project scoping and stream branching.
+4. **Server PostgreSQL** (`bowrain/sievepen/`): persistent; same schema and
+   matching logic as SQLite, with workspace-scoped isolation (`workspace_id`).
+   Used for SaaS and multi-instance deployments, sharing the connection pool
+   with ContentStore, AuthStore, TermBase, JobStore, and QuotaStore
+   ([AD-003](./003-content-store.md)).
 
-Both SQLite and PostgreSQL backends implement the same `TranslationMemory`
-interface. The server selects the backend at startup based on the
-`DATABASE_URL` connection string prefix ([AD-003](./003-content-store.md)).
+| Aspect | kapi CLI | Bowrain Server |
+|--------|---------|---------------|
+| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
+| Scope | Single user, single machine | Multi-user, multi-workspace |
+| Features | CRUD, TMX import/export, lookup, search | + streams, project scoping, REST API |
+
+All backends implement the same `TranslationMemory` interface. The server
+selects the backend at startup based on the `DATABASE_URL` connection string
+prefix ([AD-003](./003-content-store.md)).
 
 Generalized and structural exact matching is an indexed lookup -- fast even for
 large TMs. Fuzzy matching falls back to scanning with Levenshtein, which is
