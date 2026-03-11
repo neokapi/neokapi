@@ -104,6 +104,7 @@ func TestSQLiteTM_SearchFTS5(t *testing.T) {
 
 	results, total = tm.SearchEntries("monde", "en-US", "fr-FR", 0, 10)
 	assert.GreaterOrEqual(t, total, 1)
+	assert.NotEmpty(t, results)
 }
 
 func TestSQLiteTM_TrigramFallback(t *testing.T) {
