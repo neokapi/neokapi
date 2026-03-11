@@ -94,6 +94,40 @@ test_cmd "pseudo-translate json" "kapi pseudo-translate samples/messages.json --
 rm -rf out
 echo ""
 
+# Use isolated config for termbase/TM tests
+export KAPI_CONFIG_DIR="$(mktemp -d)"
+
+# termbase-qa.tape commands
+echo "termbase-qa.tape commands:"
+printf "  Checking: %-40s" "samples/glossary.csv"
+if [ -f "samples/glossary.csv" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
+printf "  Checking: %-40s" "samples/messages_en.json"
+if [ -f "samples/messages_en.json" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
+test_cmd "termbase import csv" "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr" ""
+test_cmd "termbase stats" "kapi termbase stats --name product-terms" "7"
+test_cmd "termbase lookup" "kapi termbase lookup password --name product-terms -s en -t fr" "mot de passe"
+test_cmd "termbase search" "kapi termbase search encrypt --name product-terms -s en" "encryption"
+rm -rf out
+test_cmd "pseudo-translate en→fr" "kapi flow run pseudo-translate -i samples/messages_en.json -o out/pseudo_fr.json --target-lang fr" ""
+test_cmd "qa-check with termbase" "kapi flow run qa-check -i out/pseudo_fr.json -o out/qa_report.json --source-lang en --target-lang fr --termbase product-terms" ""
+rm -rf out
+echo ""
+
+# termbase-pretranslation.tape commands
+echo "termbase-pretranslation.tape commands:"
+printf "  Checking: %-40s" "samples/project.tmx"
+if [ -f "samples/project.tmx" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
+test_cmd "tm import tmx" "kapi tm import samples/project.tmx --name project-tm -s en -t fr" ""
+rm -rf out
+test_cmd "tm-leverage" "kapi flow run tm-leverage -i samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm" ""
+test_cmd "pseudo-translate step2" "kapi flow run pseudo-translate -i out/step1_tm.json -o out/step2_translated.json --target-lang fr" ""
+test_cmd "qa-check pipeline" "kapi flow run qa-check -i out/step2_translated.json -o out/step3_qa.json --source-lang en --target-lang fr --termbase product-terms" ""
+rm -rf out
+echo ""
+
+# Clean up
+rm -rf "$KAPI_CONFIG_DIR"
+
 echo "============================================"
 echo -e "Results: ${GREEN}$passed passed${NC}, ${RED}$failed failed${NC}"
 echo "============================================"

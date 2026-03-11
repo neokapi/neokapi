@@ -22,10 +22,12 @@ import (
 	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
 	"github.com/gokapi/gokapi/core/preset"
 	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/tool"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/cli/output"
 	sqltm "github.com/gokapi/gokapi/cli/storage/sievepen"
+	sqltb "github.com/gokapi/gokapi/cli/storage/termbase"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -722,9 +724,26 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 			}),
 		}, noop, nil
 	case "qa-check":
-		return []tool.Tool{
+		qaTools := []tool.Tool{
 			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))),
-		}, noop, nil
+		}
+		cleanup := noop
+		if tb, tbCleanup, err := a.openTermbase(cmd...); err != nil {
+			return nil, nil, err
+		} else if tb != nil {
+			qaTools = append(qaTools,
+				termbase.NewTermLookupTool(tb, termbase.TermLookupConfig{
+					SourceLocale: model.LocaleID(a.SourceLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
+				}),
+				termbase.NewTermEnforceTool(tb, termbase.TermEnforceConfig{
+					SourceLocale: model.LocaleID(a.SourceLang),
+					TargetLocale: model.LocaleID(a.TargetLang),
+				}),
+			)
+			cleanup = tbCleanup
+		}
+		return qaTools, cleanup, nil
 	case "segmentation":
 		return []tool.Tool{
 			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
@@ -736,9 +755,15 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		cleanup := noop
 		if len(cmd) > 0 && cmd[0] != nil {
 			if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
-				tmPath, err := resolveNamedResource("tm", tmName)
-				if err != nil {
-					return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+				var tmPath string
+				if strings.ContainsAny(tmName, "/\\") || strings.HasSuffix(tmName, ".db") {
+					tmPath = tmName
+				} else {
+					var err error
+					tmPath, err = resolveNamedResource("tm", tmName)
+					if err != nil {
+						return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+					}
 				}
 				sqltm, err := sqltm.NewSQLiteTM(tmPath)
 				if err != nil {
@@ -807,4 +832,36 @@ func (p *cliTMProvider) LookupFuzzy(source string, sourceLocale, targetLocale mo
 	}
 	score := int(matches[0].Score * 100)
 	return matches[0].Entry.TargetText(), score, true
+}
+
+// openTermbase resolves the --termbase flag and opens a SQLite termbase.
+// The flag value can be a named resource (no path separators) which resolves
+// via KAPI_HOME, or an explicit file path.
+// Returns (nil, noop, nil) if no --termbase flag was provided.
+func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func(), error) {
+	noop := func() {}
+	if len(cmd) == 0 || cmd[0] == nil {
+		return nil, noop, nil
+	}
+	tbValue, _ := cmd[0].Flags().GetString("termbase")
+	if tbValue == "" {
+		return nil, noop, nil
+	}
+	var tbPath string
+	if strings.ContainsAny(tbValue, "/\\") || strings.HasSuffix(tbValue, ".db") {
+		// Explicit file path.
+		tbPath = tbValue
+	} else {
+		// Named resource.
+		var err error
+		tbPath, err = resolveNamedResource("termbases", tbValue)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve termbase %q: %w", tbValue, err)
+		}
+	}
+	tb, err := sqltb.NewSQLiteTermBase(tbPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("open termbase %q: %w", tbValue, err)
+	}
+	return tb, func() { tb.Close() }, nil
 }

@@ -12,6 +12,19 @@ permissions:
   packages: read
 
 jobs:
+  # ── Kapi CLI E2E (no Docker, no external services) ────────────────────────
+  kapi-e2e:
+    name: Kapi CLI E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-go-modules
+
+      - name: Run kapi CLI e2e tests
+        run: go test -tags=e2e -count=1 -v ./kapi/e2e/
+        timeout-minutes: 5
+
   # ── Bowrain frontend Playwright E2E (self-contained, mock backend) ───────
   playwright:
     name: Playwright E2E
@@ -43,9 +56,9 @@ jobs:
           path: bowrain/apps/bowrain/frontend/playwright-report/
           retention-days: 30
 
-  # ── Full Docker stack E2E ────────────────────────────────────────────────
-  e2e:
-    name: E2E (Docker)
+  # ── Bowrain server Docker stack E2E ────────────────────────────────────────
+  bowrain-e2e:
+    name: Bowrain E2E (Docker)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -61,11 +74,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start E2E stack
-        run: docker compose -f e2e/compose.yaml up -d --wait
+        run: docker compose -f bowrain/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 
-      - name: Run Go E2E tests
-        run: go test -tags=e2e -count=1 -v ./e2e/
+      - name: Run Bowrain server E2E tests
+        run: go test -tags=e2e -count=1 -v ./bowrain/e2e/server/
         timeout-minutes: 5
 
       - name: Cache Playwright browsers
@@ -85,4 +98,4 @@ jobs:
 
       - name: Tear down E2E stack
         if: always()
-        run: docker compose -f e2e/compose.yaml down -v
+        run: docker compose -f bowrain/e2e/server/compose.yaml down -v
