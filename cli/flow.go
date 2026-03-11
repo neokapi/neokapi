@@ -465,7 +465,7 @@ func (a *App) processFlowFile(ctx context.Context, flowName, inputPath, outputTe
 func (a *App) processFlowFileRoundTrip(ctx context.Context, flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
-	flowTools, err := a.buildFlowTools(flowName, cmd)
+	flowTools, err := a.buildFlowTools(flowName)
 	if err != nil {
 		return err
 	}
@@ -578,7 +578,7 @@ func (a *App) processFlowFileNative(ctx context.Context, flowName, inputPath, ou
 	reader.Close()
 
 	// Build fresh tool instances for this file (thread-safe).
-	flowTools, err := a.buildFlowTools(flowName, cmd)
+	flowTools, err := a.buildFlowTools(flowName)
 	if err != nil {
 		return err
 	}
