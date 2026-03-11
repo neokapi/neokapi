@@ -71,16 +71,16 @@ func TestTermbaseImport(t *testing.T) {
 	tb := tempDB(t, "tb")
 
 	out := kapi(t, "termbase", "import", filepath.Join(testdata, "glossary.csv"),
-		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr")
-	assert.Contains(t, out, "7") // 7 concepts imported
+		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
+	assert.Contains(t, out, "Imported 7") // 7 concepts imported
 }
 
 func TestTermbaseStats(t *testing.T) {
 	tb := importedTermbase(t)
 
 	out := kapi(t, "termbase", "stats", "--file", tb)
-	assert.Contains(t, out, "7")  // 7 concepts
-	assert.Contains(t, out, "14") // 14 terms (7 en + 7 fr)
+	assert.Contains(t, out, "Concepts:  7")  // 7 concepts
+	assert.Contains(t, out, "Terms:     14") // 14 terms (7 en + 7 fr)
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
 }
@@ -187,14 +187,14 @@ func TestTMImport(t *testing.T) {
 
 	out := kapi(t, "tm", "import", filepath.Join(testdata, "project.tmx"),
 		"--file", tmFile, "-s", "en", "-t", "fr")
-	assert.Contains(t, out, "2") // 2 entries imported
+	assert.Contains(t, out, "Imported 2") // 2 entries imported
 }
 
 func TestTMStats(t *testing.T) {
 	tmFile := importedTM(t)
 
 	out := kapi(t, "tm", "stats", "--file", tmFile)
-	assert.Contains(t, out, "2") // 2 entries
+	assert.Contains(t, out, "Entries: 2") // 2 entries
 	assert.Contains(t, out, "en")
 	assert.Contains(t, out, "fr")
 }
@@ -289,7 +289,7 @@ func importedTermbase(t *testing.T) string {
 	t.Helper()
 	tb := tempDB(t, "tb")
 	kapi(t, "termbase", "import", filepath.Join(testdata, "glossary.csv"),
-		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr")
+		"--file", tb, "--format", "csv", "-s", "en", "-t", "fr", "--header")
 	return tb
 }
 

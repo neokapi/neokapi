@@ -55,24 +55,24 @@ test.describe("Routing", () => {
 
   test("deep link to project detail loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
 
     // Project view should load
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
-    // URL should contain the project ID
-    expect(page.url()).toContain(`/project/${projectId}`);
+    // URL should contain the project ID and stream
+    expect(page.url()).toContain(`/project/${projectId}/stream/main`);
   });
 
   test("deep link to editor loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}/translate/about-us.html`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main/translate/about-us.html`);
 
     // Editor should load (layout switcher is always visible regardless of mode)
     await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
 
     // URL should contain the file name
-    expect(page.url()).toContain("/translate/about-us.html");
+    expect(page.url()).toContain("/stream/main/translate/about-us.html");
   });
 
   test("deep link to TM explorer loads correctly", async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe("Routing", () => {
 
   test("URL persists on page refresh", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
     // Refresh the page
@@ -111,7 +111,7 @@ test.describe("Routing", () => {
 
     // Project view should still be loaded after refresh
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain(`/project/${projectId}`);
+    expect(page.url()).toContain(`/project/${projectId}/stream/main`);
   });
 
   test("sidebar navigation updates URL", async ({ page }) => {

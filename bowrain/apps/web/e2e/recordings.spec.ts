@@ -207,7 +207,7 @@ test.describe("Web App Recordings", () => {
 
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/translate/release-notes.md`);
+      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/release-notes.md`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
@@ -252,7 +252,7 @@ test.describe("Web App Recordings", () => {
 
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/translate/app-strings.json`);
+      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/app-strings.json`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
@@ -364,7 +364,7 @@ test.describe("Web App Recordings", () => {
 
       // Navigate directly to the editor route
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/translate/about-us.html`);
+      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/about-us.html`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);

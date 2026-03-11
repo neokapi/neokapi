@@ -79,7 +79,7 @@ test.describe("Open in Desktop", () => {
   test("shows Open in Desktop banner on project view", async ({ page }) => {
     await injectAuthCookie(page, token);
     // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
 
     // The "Open in Bowrain Desktop" banner should appear in server mode.
     await expect(page.getByText("Open in Bowrain Desktop")).toBeVisible({ timeout: 10000 });
@@ -89,7 +89,7 @@ test.describe("Open in Desktop", () => {
   test("generates correct deep link URL", async ({ page }) => {
     await injectAuthCookie(page, token);
     // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
 
     const btn = page.getByTestId("open-in-desktop-btn");
     await expect(btn).toBeVisible({ timeout: 10000 });
@@ -106,7 +106,7 @@ test.describe("Open in Desktop", () => {
   test("dismiss banner persists across navigation", async ({ page }) => {
     await injectAuthCookie(page, token);
     // Navigate directly to the project detail route
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
 
     // Banner should be visible.
     await expect(page.getByText("Open in Bowrain Desktop")).toBeVisible({ timeout: 10000 });
@@ -136,7 +136,7 @@ test.describe("Open in Desktop", () => {
     await injectAuthCookie(page, token);
 
     // Clear any dismissed state and navigate to project.
-    await page.goto(`/${wsSlug}/project/${projectId}`);
+    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
     await page.evaluate(() => localStorage.removeItem("bowrain-open-in-desktop-dismissed"));
     await page.reload();
 
