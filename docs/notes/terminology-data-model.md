@@ -51,7 +51,23 @@ type TermBase interface {
 }
 ```
 
-Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Backends: In-memory (CLI batch) and SQLite (persistent). Both use the shared `bowrain/storage` layer from [AD-003](/docs/ad/003-content-store).
+Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Backends: In-memory (CLI batch), SQLite (persistent), and PostgreSQL (persistent, workspace-scoped). Persistent backends use the shared `bowrain/storage` layer from [AD-003](/docs/ad/003-content-store).
+
+## Fuzzy Matching and Search
+
+Term lookup uses a tiered matching pipeline: exact -> normalized -> fuzzy. Fuzzy matching uses trigram-based candidate retrieval to avoid full table scans:
+
+- **SQLite**: FTS5 `trigram` tokenizer on `text_lower` column, synced via triggers. Falls back to length-based pre-filtering if FTS5 is unavailable.
+- **PostgreSQL**: pg_trgm GIN index on `text_lower` column, using the `%` similarity operator. Falls back to length-based pre-filtering.
+
+Character-level Levenshtein scoring (on `[]rune`) is applied to ~200 trigram candidates. This is correct for all scripts including CJK (each character is a morpheme).
+
+UI search uses ranked full-text search:
+
+- **SQLite**: FTS5 `trigram` tokenizer for substring matching on term text.
+- **PostgreSQL**: pg_trgm `similarity()` ranking on `text_lower`.
+
+Text normalization applies Unicode NFC (`golang.org/x/text/unicode/norm`) via `NormalizeTerm()` before comparison, handling Arabic diacritics, Hangul jamo composition, and accented Latin characters.
 
 ## Pipeline Tools
 

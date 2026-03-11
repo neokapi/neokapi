@@ -298,6 +298,175 @@ func TestInMemoryTermBase_ConceptHelpers(t *testing.T) {
 	assert.Nil(t, missing)
 }
 
+// --- Okapi parity tests ---
+
+func TestInMemoryTermBase_WordBoundaryDetection(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "src-concept",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "src", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "source", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+
+	// LookupAll uses substring matching (strings.Index). The current implementation
+	// does NOT enforce word boundaries, so "src" inside "WithinWordsrcWord" WILL match.
+	// This documents the current behavior. The Okapi SimpleTB uses Unicode word
+	// boundary detection and would NOT match here. This is a known difference.
+	text := "WithinWordsrcWord has src at word boundary"
+	matches := tb.LookupAll(text, termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+
+	// Current implementation finds "src" at both positions (substring match).
+	require.GreaterOrEqual(t, len(matches), 2, "substring matching finds 'src' inside compound words too")
+
+	// Verify that word-boundary occurrence is found.
+	var foundWordBoundary bool
+	for _, m := range matches {
+		if m.Position.Start == strings.Index(text, " src ") + 1 {
+			foundWordBoundary = true
+		}
+	}
+	assert.True(t, foundWordBoundary, "should find 'src' at word boundary position")
+}
+
+func TestInMemoryTermBase_LongestMatchFirst(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "sc",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "source code", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "code source", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "c",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "code", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "code", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+
+	text := "Review the source code carefully"
+	matches := tb.LookupAll(text, termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+
+	// Should find both "source code" (longer) and "code" (shorter, overlapping).
+	require.GreaterOrEqual(t, len(matches), 2)
+
+	// LookupAll sorts by position, then longer matches first at same position.
+	// Find the match at the "source code" position.
+	sourceCodeStart := strings.Index(text, "source code")
+	var foundLong, foundShort bool
+	for _, m := range matches {
+		if m.Position.Start == sourceCodeStart && m.Term.Text == "source code" {
+			foundLong = true
+		}
+		if m.Term.Text == "code" {
+			foundShort = true
+		}
+	}
+	assert.True(t, foundLong, "should find 'source code' multi-word match")
+	assert.True(t, foundShort, "should find 'code' single-word match")
+
+	// When multiple matches start at the same position, longer match comes first.
+	for i := 1; i < len(matches); i++ {
+		if matches[i].Position.Start == matches[i-1].Position.Start {
+			assert.GreaterOrEqual(t, matches[i-1].Position.End, matches[i].Position.End,
+				"at same start position, longer match should come first")
+		}
+	}
+}
+
+func TestInMemoryTermBase_NonOverlappingMatches(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "ab",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "ab", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	// Text: "ababab" contains "ab" at positions 0, 2, 4.
+	// The current implementation advances past each match, so it finds non-overlapping matches.
+	text := "ababab"
+	matches := tb.LookupAll(text, termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+
+	require.Len(t, matches, 3, "should find 3 non-overlapping 'ab' matches")
+	assert.Equal(t, 0, matches[0].Position.Start)
+	assert.Equal(t, 2, matches[0].Position.End)
+	assert.Equal(t, 2, matches[1].Position.Start)
+	assert.Equal(t, 4, matches[1].Position.End)
+	assert.Equal(t, 4, matches[2].Position.Start)
+	assert.Equal(t, 6, matches[2].Position.End)
+}
+
+func TestInMemoryTermBase_MultiWordTermPrecedence(t *testing.T) {
+	tb := termbase.NewInMemoryTermBase()
+
+	// Add multi-word term and its constituent single-word term.
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "src1-src2",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Src1 src2", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "Quelle1 quelle2", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "src2-only",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "src2", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+			{Text: "quelle2", Locale: model.LocaleFrench, Status: model.TermPreferred},
+		},
+	}))
+
+	text := "Here is Src1 src2 in context"
+	matches := tb.LookupAll(text, termbase.LookupOptions{
+		SourceLocale:  model.LocaleEnglish,
+		CaseSensitive: false,
+	})
+
+	// Should find both the multi-word "Src1 src2" and the single-word "src2".
+	require.GreaterOrEqual(t, len(matches), 2)
+
+	var foundMulti, foundSingle bool
+	for _, m := range matches {
+		if m.Concept.ID == "src1-src2" {
+			foundMulti = true
+		}
+		if m.Concept.ID == "src2-only" {
+			foundSingle = true
+		}
+	}
+	assert.True(t, foundMulti, "should find multi-word term 'Src1 src2'")
+	assert.True(t, foundSingle, "should find single-word term 'src2'")
+
+	// The multi-word match should appear before the single-word match
+	// when sorted by position (multi-word starts earlier).
+	for _, m := range matches {
+		if m.Concept.ID == "src1-src2" {
+			multiStart := m.Position.Start
+			for _, m2 := range matches {
+				if m2.Concept.ID == "src2-only" {
+					assert.Less(t, multiStart, m2.Position.Start,
+						"multi-word term starts before its constituent single-word term")
+				}
+			}
+		}
+	}
+}
+
 func TestInMemoryTermBase_InterfaceCompliance(t *testing.T) {
 	tb := termbase.NewInMemoryTermBase()
 	var _ termbase.TermBase = tb
