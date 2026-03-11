@@ -1,0 +1,68 @@
+// Package storage provides a lightweight SQLite infrastructure layer for
+// CLI-based termbases and translation memories. It mirrors bowrain/storage
+// but without PostgreSQL, connection pooling, or workspace scoping.
+package storage
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+	"time"
+
+	// Pure Go SQLite driver — no CGo dependencies.
+	_ "modernc.org/sqlite"
+)
+
+// DB wraps a sql.DB with shared configuration applied.
+type DB struct {
+	*sql.DB
+	path string
+}
+
+// Open opens a SQLite database at the given path with shared pragmas.
+// Use ":memory:" for in-memory databases (useful for testing).
+// Parent directories must already exist; the file is created on demand.
+func Open(dbPath string) (*DB, error) {
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
+	}
+
+	// In-memory databases create a separate DB per connection. Force a single
+	// connection so all queries share the same in-memory state.
+	if dbPath == ":memory:" || strings.Contains(dbPath, "mode=memory") {
+		db.SetMaxOpenConns(1)
+	} else {
+		db.SetMaxOpenConns(5)
+		db.SetMaxIdleConns(2)
+		db.SetConnMaxLifetime(10 * time.Minute)
+	}
+
+	if err := applyPragmas(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("apply pragmas: %w", err)
+	}
+
+	return &DB{DB: db, path: dbPath}, nil
+}
+
+// Path returns the database file path.
+func (db *DB) Path() string {
+	return db.path
+}
+
+func applyPragmas(db *sql.DB) error {
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL",
+		"PRAGMA synchronous=NORMAL",
+		"PRAGMA foreign_keys=ON",
+		"PRAGMA busy_timeout=5000",
+		"PRAGMA cache_size=-4000", // 4MB cache
+	}
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			return fmt.Errorf("execute %s: %w", p, err)
+		}
+	}
+	return nil
+}

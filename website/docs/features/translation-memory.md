@@ -21,21 +21,75 @@ Each tier can produce exact (100%) or fuzzy matches. When a generalized exact ma
 
 ## Storage Backends
 
-- **In-memory** — fast, ephemeral; ideal for session-scoped leverage during batch processing
-- **SQLite** — persistent; pure Go implementation (no CGo); supports import/export of TMX files
+Four storage tiers support progressive complexity:
 
-Both backends implement the same `TranslationMemory` interface and support all matching tiers.
+1. **In-memory** (`core/sievepen/`) — fast, ephemeral. Used for session-scoped batch processing.
+2. **CLI SQLite** (`cli/storage/sievepen/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
+3. **Server SQLite** (`bowrain/sievepen/`) — server-managed with project scoping and terminology streams.
+4. **Server PostgreSQL** (`bowrain/sievepen/`) — multi-user, multi-workspace with full stream inheritance and project boosting.
+
+All backends implement the same `TranslationMemory` interface and support all matching tiers.
+
+### kapi vs Bowrain
+
+| Aspect | kapi CLI | Bowrain Server |
+|--------|---------|---------------|
+| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
+| Scope | Single user, single machine | Multi-user, multi-workspace |
+| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
 
 ## Fuzzy Matching
 
 Sievepen uses Levenshtein edit distance with a configurable threshold (default 70%). Results are sorted by score (highest first) and by match tier (generalized > structural > plain).
+
+## CLI Usage
+
+### Resource Location
+
+All TM commands (except `list`) accept these mutually exclusive flags:
+
+| Flag | Resolves to | Example |
+|------|------------|---------|
+| `--name <n>` | `~/.config/kapi/tm/<n>.db` | `--name project-tm` |
+| `--local` | `./tm.db` (current directory) | `--local` |
+| `--file <path>` | Explicit file path | `--file /shared/memory.db` |
+| *(no flag)* | Same as `--local` | |
+
+Databases are created on demand if they don't exist.
+
+### Commands
+
+```bash
+# Import TMX
+kapi tm import translations.tmx --name project-tm -s en -t fr
+
+# Export TMX
+kapi tm export --name project-tm -s en -t fr -o output.tmx
+
+# Look up text
+kapi tm lookup "Welcome to our platform" --name project-tm -s en -t fr
+
+# Search entries
+kapi tm search "welcome" --name project-tm -s en
+
+# Statistics
+kapi tm stats --name project-tm
+
+# List named TMs
+kapi tm list
+```
 
 ## Pipeline Integration
 
 The `tm-leverage` flow queries the TM for each Block's source segments and applies matches:
 
 ```bash
-kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
+# Use a named TM from KAPI_HOME
+kapi flow run ai-translate -i input.html -o output.html -s en -t fr \
+  --tm project-tm
+
+# TM leverage is automatic when --tm is specified
 ```
 
 TM exact matches skip AI translation, reducing cost and latency. Fuzzy matches are attached as `AltTranslation` annotations for translator review.
@@ -47,8 +101,6 @@ tools:
   tm-leverage:
     threshold: 0.70     # minimum match score (0.0-1.0)
     max_results: 10     # maximum matches per block
-    storage: sqlite     # "memory" or "sqlite"
-    path: ./project.tm  # SQLite database path
 ```
 
 ## Design Decision: Separate TM and Termbase

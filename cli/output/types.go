@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+	"time"
 )
 
 // VersionOutput represents version information.
@@ -719,6 +720,189 @@ func (o TermbaseStatsOutput) FormatText(w io.Writer) error {
 	}
 
 	return nil
+}
+
+// --- TM output types ---
+
+// TMImportOutput represents the result of a TM import.
+type TMImportOutput struct {
+	Imported int    `json:"imported"`
+	DBPath   string `json:"db_path"`
+	Total    int    `json:"total"`
+}
+
+func (o TMImportOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Imported %d entries into %s (total: %d)\n", o.Imported, o.DBPath, o.Total)
+	return nil
+}
+
+// TMExportOutput represents the result of a TM export.
+type TMExportOutput struct {
+	Count      int    `json:"count"`
+	OutputPath string `json:"output_path"`
+}
+
+func (o TMExportOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Exported %d entries to %s\n", o.Count, o.OutputPath)
+	return nil
+}
+
+// TMLookupEntry represents a single TM match.
+type TMLookupEntry struct {
+	Source    string  `json:"source"`
+	Target    string  `json:"target"`
+	Score     float64 `json:"score"`
+	MatchType string  `json:"match_type"`
+	EntryID   string  `json:"entry_id"`
+}
+
+// TMLookupOutput represents the result of a TM lookup.
+type TMLookupOutput struct {
+	Matches []TMLookupEntry `json:"matches"`
+	Total   int             `json:"total"`
+}
+
+func (o TMLookupOutput) FormatText(w io.Writer) error {
+	if len(o.Matches) == 0 {
+		fmt.Fprintln(w, "No matches found.")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "  SOURCE\tTARGET\tSCORE\tMATCH TYPE\n")
+	fmt.Fprintf(tw, "  ------\t------\t-----\t----------\n")
+	for _, m := range o.Matches {
+		source := m.Source
+		if len(source) > 40 {
+			source = source[:37] + "..."
+		}
+		target := m.Target
+		if len(target) > 40 {
+			target = target[:37] + "..."
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%.0f%%\t%s\n", source, target, m.Score*100, m.MatchType)
+	}
+	tw.Flush()
+	fmt.Fprintf(w, "\nTotal: %d match(es)\n", o.Total)
+	return nil
+}
+
+// TMSearchEntry represents a single TM entry in search results.
+type TMSearchEntry struct {
+	ID           string `json:"id"`
+	Source       string `json:"source"`
+	Target       string `json:"target"`
+	SourceLocale string `json:"source_locale"`
+	TargetLocale string `json:"target_locale"`
+}
+
+// TMSearchOutput represents the result of a TM search.
+type TMSearchOutput struct {
+	Entries []TMSearchEntry `json:"entries"`
+	Total   int             `json:"total"`
+	Shown   int             `json:"shown"`
+}
+
+func (o TMSearchOutput) FormatText(w io.Writer) error {
+	if len(o.Entries) == 0 {
+		fmt.Fprintln(w, "No entries found.")
+		return nil
+	}
+
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "  SOURCE\tTARGET\tLOCALES\n")
+	fmt.Fprintf(tw, "  ------\t------\t-------\n")
+	for _, e := range o.Entries {
+		source := e.Source
+		if len(source) > 40 {
+			source = source[:37] + "..."
+		}
+		target := e.Target
+		if len(target) > 40 {
+			target = target[:37] + "..."
+		}
+		fmt.Fprintf(tw, "  %s\t%s\t%s → %s\n", source, target, e.SourceLocale, e.TargetLocale)
+	}
+	tw.Flush()
+
+	if o.Total > o.Shown {
+		fmt.Fprintf(w, "\nShowing %d of %d results. Use --limit to see more.\n", o.Shown, o.Total)
+	}
+	return nil
+}
+
+// TMStatsOutput represents the result of TM stats.
+type TMStatsOutput struct {
+	DBPath      string         `json:"db_path"`
+	Entries     int            `json:"entries"`
+	LocalePairs map[string]int `json:"locale_pairs,omitempty"`
+}
+
+func (o TMStatsOutput) FormatText(w io.Writer) error {
+	fmt.Fprintf(w, "Translation Memory: %s\n", o.DBPath)
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "  Entries: %d\n", o.Entries)
+
+	if len(o.LocalePairs) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  Locale pairs:")
+		keys := SortedKeys(o.LocalePairs)
+		for _, k := range keys {
+			fmt.Fprintf(w, "    %-20s %d entries\n", k, o.LocalePairs[k])
+		}
+	}
+
+	return nil
+}
+
+// --- Resource list output types ---
+
+// ResourceListEntry represents a named resource (termbase or TM) in KAPI_HOME.
+type ResourceListEntry struct {
+	Name     string    `json:"name"`
+	Path     string    `json:"path"`
+	Size     int64     `json:"size"`
+	Modified time.Time `json:"modified"`
+}
+
+// ResourceListOutput represents the list of named resources.
+type ResourceListOutput struct {
+	Kind      string              `json:"kind"`
+	Resources []ResourceListEntry `json:"resources"`
+	Total     int                 `json:"total"`
+}
+
+func (o ResourceListOutput) FormatText(w io.Writer) error {
+	if len(o.Resources) == 0 {
+		fmt.Fprintf(w, "No named %ss found.\n", o.Kind)
+		return nil
+	}
+
+	fmt.Fprintf(w, "Named %ss:\n\n", o.Kind)
+	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+	fmt.Fprintf(tw, "  NAME\tSIZE\tMODIFIED\tPATH\n")
+	fmt.Fprintf(tw, "  ----\t----\t--------\t----\n")
+	for _, r := range o.Resources {
+		sizeStr := formatBytes(r.Size)
+		modStr := r.Modified.Format("2006-01-02 15:04")
+		fmt.Fprintf(tw, "  %s\t%s\t%s\t%s\n", r.Name, sizeStr, modStr, r.Path)
+	}
+	tw.Flush()
+	fmt.Fprintf(w, "\nTotal: %d %s(s)\n", o.Total, o.Kind)
+	return nil
+}
+
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
 // SortedKeys returns the keys of a map[string]int sorted alphabetically.

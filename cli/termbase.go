@@ -5,21 +5,29 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gokapi/gokapi/cli/output"
+	sqltb "github.com/gokapi/gokapi/cli/storage/termbase"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
-	"github.com/gokapi/gokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 
-// NewTermbaseCmd creates the termbase command group (import, export, lookup, search, stats).
+// NewTermbaseCmd creates the termbase command group.
 func (a *App) NewTermbaseCmd() *cobra.Command {
 	tbCmd := &cobra.Command{
 		Use:   "termbase",
 		Short: "Manage terminology",
 		Long: `Manage project terminology.
 
-A termbase is a glossary of approved terms stored as a JSON file.
-Use these commands to import, export, look up, and manage terms.`,
+A termbase is a glossary of approved terms stored as a SQLite database.
+Use these commands to import, export, look up, and manage terms.
+
+Resource location (mutually exclusive):
+  --name <n>      Named termbase in KAPI_HOME (~/.config/kapi/termbases/<n>.db)
+  --local         Termbase in current directory (./termbase.db)
+  --file <path>   Explicit file path
+
+Default (no flag): same as --local (uses ./termbase.db).`,
 	}
 
 	importCmd := a.newTermbaseImportCmd()
@@ -27,14 +35,27 @@ Use these commands to import, export, look up, and manage terms.`,
 	lookupCmd := a.newTermbaseLookupCmd()
 	searchCmd := a.newTermbaseSearchCmd()
 	statsCmd := a.newTermbaseStatsCmd()
+	listCmd := a.newTermbaseListCmd()
 
-	// Shared --db flag for all subcommands.
+	// Shared resource flags for all subcommands (except list).
 	for _, cmd := range []*cobra.Command{importCmd, exportCmd, lookupCmd, searchCmd, statsCmd} {
-		cmd.Flags().String("db", "termbase.json", "path to the termbase file")
+		AddResourceFlags(cmd)
 	}
 
-	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd)
+	tbCmd.AddCommand(importCmd, exportCmd, lookupCmd, searchCmd, statsCmd, listCmd)
 	return tbCmd
+}
+
+func (a *App) openTermbaseSQLite(cmd *cobra.Command) (termbase.TermBase, string, error) {
+	dbPath, err := ResolveResourcePath(cmd, "termbases", "termbase.db")
+	if err != nil {
+		return nil, "", err
+	}
+	tb, err := sqltb.NewSQLiteTermBase(dbPath)
+	if err != nil {
+		return nil, dbPath, fmt.Errorf("open termbase: %w", err)
+	}
+	return tb, dbPath, nil
 }
 
 func (a *App) newTermbaseImportCmd() *cobra.Command {
@@ -43,7 +64,6 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 		Short: "Import terms from CSV or JSON into a termbase",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, _ := cmd.Flags().GetString("db")
 			format, _ := cmd.Flags().GetString("format")
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
@@ -51,10 +71,11 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 			hasHeader, _ := cmd.Flags().GetBool("header")
 			delimiter, _ := cmd.Flags().GetString("delimiter")
 
-			tb, err := openTermbase(dbPath)
+			tb, dbPath, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
+			defer tb.Close()
 
 			f, err := os.Open(args[0])
 			if err != nil {
@@ -87,10 +108,6 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 				return fmt.Errorf("import: %w", err)
 			}
 
-			if err := saveTermbase(tb, dbPath, ""); err != nil {
-				return fmt.Errorf("save termbase: %w", err)
-			}
-
 			if a.Quiet {
 				return nil
 			}
@@ -103,8 +120,8 @@ func (a *App) newTermbaseImportCmd() *cobra.Command {
 	}
 
 	cmd.Flags().String("format", "csv", "import format (csv, tsv, json)")
-	cmd.Flags().String("source-locale", "en", "source locale for CSV import")
-	cmd.Flags().String("target-locale", "", "target locale for CSV import")
+	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV import")
+	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV import")
 	cmd.Flags().String("domain", "", "domain to assign to imported concepts")
 	cmd.Flags().Bool("header", false, "CSV has header row")
 	cmd.Flags().String("delimiter", "", "CSV field delimiter (default: comma)")
@@ -117,17 +134,17 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 		Use:   "export",
 		Short: "Export termbase to CSV or JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, _ := cmd.Flags().GetString("db")
 			format, _ := cmd.Flags().GetString("format")
 			outputPath, _ := cmd.Flags().GetString("output")
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
-			name, _ := cmd.Flags().GetString("name")
+			tbName, _ := cmd.Flags().GetString("export-name")
 
-			tb, err := openTermbase(dbPath)
+			tb, dbPath, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
+			defer tb.Close()
 
 			w := os.Stdout
 			if outputPath != "" {
@@ -142,10 +159,10 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 			case "csv":
 				err = termbase.ExportCSV(tb, w, model.LocaleID(srcLocale), model.LocaleID(tgtLocale), true)
 			case "json":
-				if name == "" {
-					name = dbPath
+				if tbName == "" {
+					tbName = dbPath
 				}
-				err = termbase.ExportJSON(tb, w, name)
+				err = termbase.ExportJSON(tb, w, tbName)
 			default:
 				return fmt.Errorf("unsupported format: %s (use csv or json)", format)
 			}
@@ -166,9 +183,9 @@ func (a *App) newTermbaseExportCmd() *cobra.Command {
 
 	cmd.Flags().StringP("output", "o", "", "output file (default: stdout)")
 	cmd.Flags().String("format", "json", "export format (csv, json)")
-	cmd.Flags().String("source-locale", "en", "source locale for CSV export")
-	cmd.Flags().String("target-locale", "", "target locale for CSV export")
-	cmd.Flags().String("name", "", "termbase name for JSON export")
+	cmd.Flags().StringP("source-locale", "s", "en", "source locale for CSV export")
+	cmd.Flags().StringP("target-locale", "t", "", "target locale for CSV export")
+	cmd.Flags().String("export-name", "", "termbase name for JSON export")
 
 	return cmd
 }
@@ -179,16 +196,16 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 		Short: "Look up a term in the termbase",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, _ := cmd.Flags().GetString("db")
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			domain, _ := cmd.Flags().GetString("domain")
 			fuzzy, _ := cmd.Flags().GetBool("fuzzy")
 
-			tb, err := openTermbase(dbPath)
+			tb, _, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
+			defer tb.Close()
 
 			opts := termbase.LookupOptions{
 				SourceLocale: model.LocaleID(srcLocale),
@@ -243,8 +260,8 @@ func (a *App) newTermbaseLookupCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("source-locale", "en", "source locale")
-	cmd.Flags().String("target-locale", "", "target locale to show translations")
+	cmd.Flags().StringP("source-locale", "s", "en", "source locale")
+	cmd.Flags().StringP("target-locale", "t", "", "target locale to show translations")
 	cmd.Flags().String("domain", "", "filter by domain")
 	cmd.Flags().Bool("fuzzy", false, "also show approximate matches")
 
@@ -257,15 +274,15 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 		Short: "Search concepts in the termbase",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, _ := cmd.Flags().GetString("db")
 			srcLocale, _ := cmd.Flags().GetString("source-locale")
 			tgtLocale, _ := cmd.Flags().GetString("target-locale")
 			limit, _ := cmd.Flags().GetInt("limit")
 
-			tb, err := openTermbase(dbPath)
+			tb, _, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
+			defer tb.Close()
 
 			results, total := tb.Search(args[0], srcLocale, tgtLocale, 0, limit)
 
@@ -294,8 +311,8 @@ func (a *App) newTermbaseSearchCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().String("source-locale", "", "filter by source locale")
-	cmd.Flags().String("target-locale", "", "filter by target locale")
+	cmd.Flags().StringP("source-locale", "s", "", "filter by source locale")
+	cmd.Flags().StringP("target-locale", "t", "", "filter by target locale")
 	cmd.Flags().Int("limit", 25, "max results")
 
 	return cmd
@@ -306,12 +323,11 @@ func (a *App) newTermbaseStatsCmd() *cobra.Command {
 		Use:   "stats",
 		Short: "Show termbase statistics",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dbPath, _ := cmd.Flags().GetString("db")
-
-			tb, err := openTermbase(dbPath)
+			tb, dbPath, err := a.openTermbaseSQLite(cmd)
 			if err != nil {
 				return err
 			}
+			defer tb.Close()
 
 			concepts := tb.Concepts()
 			totalTerms := 0
@@ -347,33 +363,31 @@ func (a *App) newTermbaseStatsCmd() *cobra.Command {
 	}
 }
 
-func openTermbase(path string) (termbase.TermBase, error) {
-	tb := termbase.NewInMemoryTermBase()
+func (a *App) newTermbaseListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List named termbases in KAPI_HOME",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			resources, err := ListNamedResources("termbases")
+			if err != nil {
+				return fmt.Errorf("list termbases: %w", err)
+			}
 
-	f, err := os.Open(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return tb, nil
-		}
-		return nil, fmt.Errorf("open termbase: %w", err)
-	}
-	defer f.Close()
+			entries := make([]output.ResourceListEntry, len(resources))
+			for i, r := range resources {
+				entries[i] = output.ResourceListEntry{
+					Name:     r.Name,
+					Path:     r.Path,
+					Size:     r.Size,
+					Modified: r.Modified,
+				}
+			}
 
-	if _, err := termbase.ImportJSON(tb, f); err != nil {
-		return nil, fmt.Errorf("load termbase: %w", err)
+			return output.Print(cmd, output.ResourceListOutput{
+				Kind:      "termbase",
+				Resources: entries,
+				Total:     len(entries),
+			})
+		},
 	}
-	return tb, nil
-}
-
-func saveTermbase(tb termbase.TermBase, path, name string) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("create output: %w", err)
-	}
-	defer f.Close()
-
-	if name == "" {
-		name = path
-	}
-	return termbase.ExportJSON(tb, f, name)
 }

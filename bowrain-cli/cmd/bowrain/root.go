@@ -61,6 +61,7 @@ func init() {
 	rootCmd.AddCommand(presetsCmd)
 
 	rootCmd.AddCommand(app.NewTermbaseCmd())
+	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
 
 	for _, cmd := range app.NewToolCommands() {
