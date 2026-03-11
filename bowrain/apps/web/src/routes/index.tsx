@@ -194,19 +194,6 @@ const dashboardRoute = createRoute({
   component: ProjectDashboardRoute,
 });
 
-// Legacy project route without stream — redirect to /stream/main.
-const projectRedirectRoute = createRoute({
-  getParentRoute: () => workspaceRoute,
-  path: "project/$projectId",
-  beforeLoad: ({ params }) => {
-    throw redirect({
-      to: "/$workspace/project/$projectId/stream/$stream",
-      params: { ...params, stream: "main" },
-      replace: true,
-    });
-  },
-});
-
 // Stream-scoped project routes.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
@@ -313,7 +300,6 @@ const routeTree = rootRoute.addChildren([
   ]),
   workspaceRoute.addChildren([
     dashboardRoute,
-    projectRedirectRoute,
     projectRoute,
     translateRoute,
     automationsRoute,
