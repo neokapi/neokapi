@@ -38,6 +38,10 @@ kapi tools
 kapi termbase import terms.csv --format csv -s en -t fr
 kapi termbase lookup "authentication module" -s en -t fr
 
+# Manage translation memory
+kapi tm import translations.tmx --name project-tm -s en -t fr
+kapi tm lookup "Welcome to our platform" -s en -t fr
+
 # List presets
 kapi presets list
 
@@ -75,4 +79,5 @@ go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
 - [Pseudo-Translation](/docs/kapi-cli/commands/pseudo-translate)
 - [Word Count](/docs/kapi-cli/commands/word-count)
 - [Terminology](/docs/kapi-cli/commands/termbase)
+- [Translation Memory](/docs/kapi-cli/commands/tm)
 - [Plugins](/docs/kapi-cli/commands/plugins)
