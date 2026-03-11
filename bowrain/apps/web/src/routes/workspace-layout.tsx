@@ -28,7 +28,7 @@ import type { WorkspaceRouteContext } from ".";
 
 export function WorkspaceLayout() {
   const navigate = useNavigate();
-  const { workspace: workspaceSlug } = useParams({ strict: false });
+  const { workspace: workspaceSlug, stream } = useParams({ strict: false });
   const queryClient = useQueryClient();
 
   // Data from route beforeLoad — already fetched, no loading state needed.
@@ -38,6 +38,24 @@ export function WorkspaceLayout() {
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
   const setLastWorkspaceSlug = useUIStore((s) => s.setLastWorkspaceSlug);
+
+  // Stream from URL path param (e.g. /$workspace/project/$pid/stream/$stream/...).
+  // Falls back to "main" when on non-project routes (dashboard, settings, etc.).
+  const currentStream = (stream as string | undefined) || "main";
+
+  const handleStreamChange = useCallback(
+    (newStream: string) => {
+      // Replace the stream segment in the current URL.
+      const ws = workspaceSlug ?? "";
+      const path = window.location.pathname;
+      const streamPattern = /\/stream\/[^/]+/;
+      if (streamPattern.test(path)) {
+        const newPath = path.replace(streamPattern, `/stream/${encodeURIComponent(newStream)}`);
+        navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
+      }
+    },
+    [navigate, workspaceSlug],
+  );
 
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
@@ -175,7 +193,7 @@ export function WorkspaceLayout() {
           headerSlot={<TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />}
           contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
         >
-          <StreamProvider>
+          <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
             <Outlet />
           </StreamProvider>
         </AppShell>

@@ -7,14 +7,14 @@ import type { WorkspaceRouteContext } from "..";
 
 export function ProjectDetailRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId } = useParams({ strict: false });
+  const { workspace, projectId, stream } = useParams({ strict: false });
   const adapter = useApi();
   const queryClient = useQueryClient();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
   const { activeStream } = useStream();
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
+  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!, activeStream));
 
   useEffect(() => {
     document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -42,8 +42,13 @@ export function ProjectDetailRoute() {
       onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? ws } })}
       onOpenFile={(f) =>
         navigate({
-          to: "/$workspace/project/$projectId/translate/$fileName",
-          params: { workspace: workspace ?? ws, projectId: project.id, fileName: f },
+          to: "/$workspace/project/$projectId/stream/$stream/translate/$fileName",
+          params: {
+            workspace: workspace ?? ws,
+            projectId: project.id,
+            stream: activeStream,
+            fileName: f,
+          },
         })
       }
       onUploadFiles={handleUploadFiles}

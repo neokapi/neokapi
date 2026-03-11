@@ -6,18 +6,20 @@ import {
   PresenceAvatars,
   useApi,
   useCollaboration,
+  useStream,
 } from "@gokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
 export function TranslateRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, fileName } = useParams({ strict: false });
+  const { workspace, projectId, stream, fileName } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
+  const { activeStream } = useStream();
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!));
+  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!, activeStream));
 
   useEffect(() => {
     document.title = `${fileName} — ${project.name} — Bowrain`;
@@ -44,8 +46,12 @@ export function TranslateRoute() {
       fileName={fileName!}
       onBack={() =>
         navigate({
-          to: "/$workspace/project/$projectId",
-          params: { workspace: workspace ?? ws, projectId: project.id },
+          to: "/$workspace/project/$projectId/stream/$stream",
+          params: {
+            workspace: workspace ?? ws,
+            projectId: project.id,
+            stream: activeStream,
+          },
         })
       }
       presenceSlot={

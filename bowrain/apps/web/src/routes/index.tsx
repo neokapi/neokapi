@@ -194,24 +194,38 @@ const dashboardRoute = createRoute({
   component: ProjectDashboardRoute,
 });
 
-const projectRoute = createRoute({
+// Legacy project route without stream — redirect to /stream/main.
+const projectRedirectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "project/$projectId",
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: "/$workspace/project/$projectId/stream/$stream",
+      params: { ...params, stream: "main" },
+      replace: true,
+    });
+  },
+});
+
+// Stream-scoped project routes.
+const projectRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "project/$projectId/stream/$stream",
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId));
+    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
   },
   component: ProjectDetailRoute,
 });
 
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "project/$projectId/translate/$fileName",
+  path: "project/$projectId/stream/$stream/translate/$fileName",
   component: lazyRouteComponent(
     () => import("./workspace/translate"),
     "TranslateRoute",
   ),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId));
+    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
   },
   validateSearch: (
     search: Record<string, unknown>,
@@ -220,6 +234,18 @@ const translateRoute = createRoute({
     block: typeof search.block === "string" ? search.block : undefined,
     layout: typeof search.layout === "string" ? search.layout : undefined,
   }),
+});
+
+const automationsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "project/$projectId/stream/$stream/automations",
+  component: lazyRouteComponent(
+    () => import("./workspace/automations"),
+    "AutomationsRoute",
+  ),
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
+  },
 });
 
 const termbaseRoute = createRoute({
@@ -238,18 +264,6 @@ const memoryRoute = createRoute({
     () => import("./workspace/memory"),
     "MemoryRoute",
   ),
-});
-
-const automationsRoute = createRoute({
-  getParentRoute: () => workspaceRoute,
-  path: "project/$projectId/automations",
-  component: lazyRouteComponent(
-    () => import("./workspace/automations"),
-    "AutomationsRoute",
-  ),
-  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId));
-  },
 });
 
 const settingsRoute = createRoute({
@@ -299,6 +313,7 @@ const routeTree = rootRoute.addChildren([
   ]),
   workspaceRoute.addChildren([
     dashboardRoute,
+    projectRedirectRoute,
     projectRoute,
     translateRoute,
     automationsRoute,

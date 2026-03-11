@@ -165,6 +165,11 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.text();
   }
 
+  /** Encode a file path for use in URLs, keeping `/` separators intact. */
+  private encodeFilePath(name: string): string {
+    return name.split("/").map(encodeURIComponent).join("/");
+  }
+
   /** Appends ?stream=X to a path (or &stream=X if query params exist). */
   private withStream(path: string, stream?: string): string {
     if (!stream || stream === "main") return path;
@@ -382,7 +387,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async removeFile(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<ProjectInfo> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file/${this.encodeFilePath(fileName)}`, stream),
       { method: "DELETE" },
     );
   }
@@ -391,7 +396,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getFileBlocks(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<BlockInfo[]> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-blocks/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-blocks/${this.encodeFilePath(fileName)}`, stream),
     );
   }
 
@@ -411,7 +416,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async pseudoTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${this.encodeFilePath(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
@@ -425,20 +430,20 @@ export class RestApiAdapter implements ApiAdapter {
 
   async tmTranslateFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<TranslationStats> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${this.encodeFilePath(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
 
   async getWordCount(workspaceSlug: string, projectId: string, fileName: string, stream?: string): Promise<WordCountResult> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${this.encodeFilePath(fileName)}`, stream),
     );
   }
 
   async exportTranslatedFile(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<Blob> {
     return this.fetchBlob(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-export/${encodeURIComponent(fileName)}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-export/${this.encodeFilePath(fileName)}`, stream),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
     );
   }
@@ -500,7 +505,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async runFileQACheck(workspaceSlug: string, projectId: string, fileName: string, locale: string, stream?: string): Promise<FileQAResult[]> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${encodeURIComponent(fileName)}?locale=${locale}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${this.encodeFilePath(fileName)}?locale=${locale}`, stream),
       { method: "POST" },
     );
   }
@@ -509,7 +514,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async renderDocumentPreview(workspaceSlug: string, projectId: string, fileName: string, targetLocale: string, stream?: string): Promise<string> {
     return this.fetchText(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-preview/${encodeURIComponent(fileName)}?locale=${targetLocale}`, stream),
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/file-preview/${this.encodeFilePath(fileName)}?locale=${targetLocale}`, stream),
     );
   }
 
