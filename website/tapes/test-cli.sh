@@ -103,7 +103,7 @@ printf "  Checking: %-40s" "samples/glossary.csv"
 if [ -f "samples/glossary.csv" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
 printf "  Checking: %-40s" "samples/messages_en.json"
 if [ -f "samples/messages_en.json" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
-test_cmd "termbase import csv" "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr" ""
+test_cmd "termbase import csv" "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr --header" ""
 test_cmd "termbase stats" "kapi termbase stats --name product-terms" "7"
 test_cmd "termbase lookup" "kapi termbase lookup password --name product-terms -s en -t fr" "mot de passe"
 test_cmd "termbase search" "kapi termbase search encrypt --name product-terms -s en" "encryption"

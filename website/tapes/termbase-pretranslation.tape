@@ -14,7 +14,7 @@ Type "# Set up language assets: termbase + translation memory"
 Enter
 Sleep 500ms
 
-Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr"
+Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr --header"
 Enter
 Sleep 1500ms
 

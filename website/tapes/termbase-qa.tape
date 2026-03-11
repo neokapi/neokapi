@@ -18,7 +18,7 @@ Type "cat samples/glossary.csv"
 Enter
 Sleep 1500ms
 
-Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr"
+Type "kapi termbase import samples/glossary.csv --name product-terms --format csv -s en -t fr --header"
 Enter
 Sleep 1500ms
 

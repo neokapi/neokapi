@@ -235,7 +235,16 @@ test.describe("Screenshots", () => {
       const projects = await callBackend(page, "ListProjects");
       const currentProject = projects[projects.length - 1];
       if (currentProject) {
-        await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
+        const stats = await callBackend(page, "PseudoTranslateItem", currentProject.id, "index.html", "fr");
+        console.log(`PseudoTranslateItem stats: ${JSON.stringify(stats)}`);
+
+        // Verify blocks are translated directly via backend
+        const blocks = await callBackend(page, "GetItemBlocks", currentProject.id, "index.html");
+        const withTargets = blocks?.filter((b: any) => b.targets?.fr);
+        console.log(`GetItemBlocks: ${blocks?.length} total, ${withTargets?.length} with fr target`);
+        if (blocks?.length > 0) {
+          console.log(`First block targets: ${JSON.stringify(blocks[0].targets)}`);
+        }
       }
       // Navigate away and back to reload
       await clickTestId(page, "back-to-project");
