@@ -1,28 +1,26 @@
 package sievepen
 
-import fw "github.com/gokapi/gokapi/core/sievepen"
-
-// TMStore extends TranslationMemory with search and export methods
-// needed by the bowrain server (REST + gRPC handlers).
+// TMStore extends TranslationMemory with search, stream, and export methods
+// needed by persistent backends (SQLite and PostgreSQL).
 type TMStore interface {
-	fw.TranslationMemory
+	TranslationMemory
 
 	// AddWithStream inserts or updates a TM entry associated with a stream.
 	// The stream is a persistence concern (e.g., a git branch name).
-	AddWithStream(entry fw.TMEntry, stream string) error
+	AddWithStream(entry TMEntry, stream string) error
 
 	// SearchEntries performs a case-insensitive substring search on source/target text.
-	SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]fw.TMEntry, int)
+	SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int)
 
 	// SearchEntriesForStream performs a case-insensitive substring search with stream
 	// inheritance. The streamChain is the ordered list of ancestor streams to search
 	// (e.g., ["feature/rebrand", "main", ""]). Entries from earlier streams in the
 	// chain take priority.
-	SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]fw.TMEntry, int)
+	SearchEntriesForStream(query, sourceLocale, targetLocale, stream string, streamChain []string, offset, limit int) ([]TMEntry, int)
 
 	// GetEntry fetches a single entry by ID.
-	GetEntry(id string) (fw.TMEntry, bool)
+	GetEntry(id string) (TMEntry, bool)
 
 	// Entries returns all entries (for export).
-	Entries() []fw.TMEntry
+	Entries() []TMEntry
 }

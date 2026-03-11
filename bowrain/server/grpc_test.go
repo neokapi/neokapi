@@ -20,8 +20,9 @@ func setupGRPC(t *testing.T) pb.GokapiServiceClient {
 	t.Helper()
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = ":memory:"
+
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()

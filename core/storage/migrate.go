@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"regexp"
 )
 
 // Migration represents a single schema migration step.
@@ -11,22 +12,29 @@ type Migration struct {
 	SQL         string
 }
 
-// Migrate applies schema migrations to the database.
-// It creates a migrations tracking table if it doesn't exist,
-// then applies any migrations whose version exceeds the current version.
-func Migrate(db *DB, migrations []Migration) error {
-	if _, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS schema_migrations (
+// validTableName ensures the namespace only contains safe characters for a table name.
+var validTableName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+// Migrate applies schema migrations to the database using a namespaced migration
+// tracking table. Each subsystem (sievepen, termbase) should use a distinct
+// namespace to avoid version collisions when sharing a database file.
+func Migrate(db *DB, tableName string, migrations []Migration) error {
+	if !validTableName.MatchString(tableName) {
+		return fmt.Errorf("invalid migration table name: %q", tableName)
+	}
+
+	if _, err := db.Exec(fmt.Sprintf(`
+		CREATE TABLE IF NOT EXISTS %s (
 			version     INTEGER PRIMARY KEY,
 			description TEXT NOT NULL,
 			applied_at  TEXT NOT NULL DEFAULT (datetime('now'))
 		)
-	`); err != nil {
+	`, tableName)); err != nil {
 		return fmt.Errorf("create migrations table: %w", err)
 	}
 
 	var currentVersion int
-	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&currentVersion)
+	err := db.QueryRow(fmt.Sprintf("SELECT COALESCE(MAX(version), 0) FROM %s", tableName)).Scan(&currentVersion)
 	if err != nil {
 		return fmt.Errorf("get current version: %w", err)
 	}
@@ -47,7 +55,7 @@ func Migrate(db *DB, migrations []Migration) error {
 		}
 
 		if _, err := tx.Exec(
-			"INSERT INTO schema_migrations (version, description) VALUES (?, ?)",
+			fmt.Sprintf("INSERT INTO %s (version, description) VALUES (?, ?)", tableName),
 			m.Version, m.Description,
 		); err != nil {
 			_ = tx.Rollback()

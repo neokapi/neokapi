@@ -6,9 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
-	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/id"
+	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 )
 
@@ -39,7 +38,7 @@ type TMUpdateRequest struct {
 }
 
 // getOrCreateTM lazily initializes the app-level persistent SQLite TM.
-func (a *App) getOrCreateTM() (*sqltm.SQLiteTM, error) {
+func (a *App) getOrCreateTM() (*sievepen.SQLiteTM, error) {
 	if a.tm != nil {
 		return a.tm, nil
 	}
@@ -49,7 +48,7 @@ func (a *App) getOrCreateTM() (*sqltm.SQLiteTM, error) {
 		os.MkdirAll(tmDir, 0755)
 		tmPath = filepath.Join(tmDir, "default.db")
 	}
-	tm, err := sqltm.NewSQLiteTM(tmPath)
+	tm, err := sievepen.NewSQLiteTM(tmPath)
 	if err != nil {
 		return nil, err
 	}

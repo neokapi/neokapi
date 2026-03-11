@@ -13,7 +13,7 @@ import (
 )
 
 func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
-	tb := termbase.NewInMemoryTermBase()
+	tb := newTestTBStore()
 	ws := &workspaceStores{
 		stores: map[string]*workspaceTMTB{
 			"test-ws": {tb: tb},
@@ -56,7 +56,7 @@ func TestProcessDecisionSideEffects_ApproveTermCandidate(t *testing.T) {
 }
 
 func TestProcessDecisionSideEffects_ApproveTermDNT(t *testing.T) {
-	tb := termbase.NewInMemoryTermBase()
+	tb := newTestTBStore()
 	ws := &workspaceStores{
 		stores: map[string]*workspaceTMTB{
 			"ws": {tb: tb},
@@ -160,6 +160,10 @@ func TestProcessDecisionSideEffects_ApproveEntityDNT(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, "Acme Corp", entries[0].Text)
 	assert.Equal(t, string(model.EntityOrganization), entries[0].EntityType)
+}
+
+func newTestTBStore() *testTermStore {
+	return &testTermStore{InMemoryTermBase: termbase.NewInMemoryTermBase()}
 }
 
 // newTestReviewStoreForServer creates a ReviewQueueStore for tests.

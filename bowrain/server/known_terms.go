@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gokapi/gokapi/core/model"
 )
@@ -15,7 +16,10 @@ type ServerKnownTermsLoader struct {
 
 // LoadKnownTerms returns all term texts for the given locale from the workspace termbase.
 func (l *ServerKnownTermsLoader) LoadKnownTerms(_ context.Context, _ string, locale string) ([]string, error) {
-	tb := l.wsStores.getTB(l.workspaceSlug)
+	tb, err := l.wsStores.getTB(l.workspaceSlug)
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 
 	concepts := tb.Concepts()
 	seen := make(map[string]struct{})

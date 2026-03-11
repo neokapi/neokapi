@@ -114,7 +114,7 @@ func NewServer(cfg ServerConfig) *Server {
 		ToolRegistry:   toolReg,
 		ConnectorReg:   connReg,
 		EventBus:       event.NewChannelEventBus(),
-		wsStores:       newWorkspaceStores(cfg.DataDir),
+		wsStores:       newWorkspaceStores(),
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
 	}
@@ -139,19 +139,14 @@ func NewServer(cfg ServerConfig) *Server {
 	// Initialize email sender and mailer.
 	s.initMailer(cfg)
 
-	// Initialize stores based on DatabaseURL or StorePath.
-	dbURL := cfg.DatabaseURL
-	if dbURL == "" && cfg.StorePath != "" {
-		dbURL = "sqlite:///" + cfg.StorePath
-	}
-
-	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
+	// Initialize stores from PostgreSQL DatabaseURL.
+	if cfg.DatabaseURL != "" {
 		var pg *pgStores
 		var err error
 		if cfg.DatabaseAuth == "azure" {
-			pg, err = openPostgresStoresAzure(dbURL, cfg.AzureClientID)
+			pg, err = openPostgresStoresAzure(cfg.DatabaseURL, cfg.AzureClientID)
 		} else {
-			pg, err = openPostgresStores(dbURL)
+			pg, err = openPostgresStores(cfg.DatabaseURL)
 		}
 		if err != nil {
 			log.Printf("WARNING: failed to open PostgreSQL stores: %v", err)
@@ -160,9 +155,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
 			s.QuotaStore = pg.Quota
-			// In PostgreSQL (SaaS) mode, TM and termbase use the shared PG pool.
 			s.wsStores.pgDB = pg.DB
-			// Wire up automation, review queue, and notification stores for PG.
 			pgSQL := pg.DB.DB // embedded *sql.DB
 			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
@@ -170,35 +163,6 @@ func NewServer(cfg ServerConfig) *Server {
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
-			}
-		}
-	} else if cfg.StorePath != "" || strings.HasPrefix(dbURL, "sqlite:///") {
-		storePath := cfg.StorePath
-		if storePath == "" {
-			storePath = strings.TrimPrefix(dbURL, "sqlite:///")
-		}
-		cs, err := bstore.NewSQLiteStore(storePath)
-		if err != nil {
-			log.Printf("WARNING: failed to open content store at %s: %v", storePath, err)
-		} else {
-			s.ContentStore = cs
-			s.Services = service.NewServices(cs, connReg, formatReg, toolReg)
-			s.AutomationRuleStore = event.NewSQLiteRuleStore(cs.DB())
-			s.ReviewQueueStore = bstore.NewReviewQueueStore(cs.DB())
-			s.NotificationStore = bstore.NewNotificationStore(cs.DB())
-		}
-
-		// Initialize auth store when authentication is configured.
-		if cfg.JWTSecret != "" {
-			authDBPath := storePath + ".auth"
-			as, err := auth.NewSQLiteAuthStore(authDBPath)
-			if err != nil {
-				log.Printf("WARNING: failed to open auth store at %s: %v", authDBPath, err)
-			} else {
-				s.AuthStore = as
-				if s.Services != nil {
-					s.Services.Auth = service.NewAuthService(as, cfg.JWTSecret)
-				}
 			}
 		}
 	}

@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gokapi/gokapi/cli/output"
-	sqltm "github.com/gokapi/gokapi/cli/storage/sievepen"
+	sqltm "github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/spf13/cobra"

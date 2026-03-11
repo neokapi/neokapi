@@ -745,7 +745,10 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 		return nil, err
 	}
 
-	tb := a.getOrCreateTB()
+	tb, err := a.getOrCreateTB()
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	if tb.Count() == 0 {
 		return nil, nil
 	}

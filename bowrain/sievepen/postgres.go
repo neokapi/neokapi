@@ -734,3 +734,10 @@ func scanTMEntries(rows *sql.Rows) ([]fw.TMEntry, error) {
 	return entries, nil
 }
 
+func nullableString(b []byte) *string {
+	if len(b) == 0 {
+		return nil
+	}
+	s := string(b)
+	return &s
+}

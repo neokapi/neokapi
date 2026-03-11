@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
 	"github.com/gokapi/gokapi/bowrain/server"
@@ -18,7 +19,7 @@ func main() {
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")
 	flag.StringVar(&cfg.Host, "host", cfg.Host, "Address to bind to")
 	flag.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "Directory for temporary files")
-	flag.StringVar(&cfg.StorePath, "store", cfg.StorePath, "Path to SQLite content store database")
+	flag.StringVar(&cfg.DatabaseURL, "database-url", cfg.DatabaseURL, "PostgreSQL connection string (postgres://...)")
 	flag.StringVar(&cfg.JWTSecret, "jwt-secret", cfg.JWTSecret, "JWT signing secret")
 	flag.StringVar(&cfg.OIDCIssuerURL, "oidc-issuer-url", cfg.OIDCIssuerURL, "OIDC issuer URL")
 	flag.StringVar(&cfg.OIDCClientID, "oidc-client-id", cfg.OIDCClientID, "OIDC OAuth client ID")
@@ -37,9 +38,6 @@ func main() {
 	}
 	if envDataDir := os.Getenv("BOWRAIN_DATA_DIR"); envDataDir != "" {
 		cfg.DataDir = envDataDir
-	}
-	if envStore := os.Getenv("BOWRAIN_STORE"); envStore != "" {
-		cfg.StorePath = envStore
 	}
 	if envDBURL := os.Getenv("BOWRAIN_DATABASE_URL"); envDBURL != "" {
 		cfg.DatabaseURL = envDBURL
@@ -97,6 +95,11 @@ func main() {
 	}
 	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
 		cfg.WebUIDir = envWebUI
+	}
+
+	// Validate that DatabaseURL is a PostgreSQL connection string.
+	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
+		log.Fatalf("Invalid -database-url: must start with postgres:// or postgresql://")
 	}
 
 	srv := server.NewServer(cfg)

@@ -8,10 +8,10 @@ gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframewo
 
 The repository is a **multi-module monorepo** with six Go modules:
 
-- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system. All framework Go packages live under `core/`. Zero platform dependencies (no SQLite, Wails, Echo, Cobra, OIDC).
-- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config, SQLite-backed termbase and TM storage (`cli/storage/`). Depends on framework only. No platform dependency.
+- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`core/sievepen/`, `core/termbase/`), shared SQLite infrastructure (`core/storage/`). All framework Go packages live under `core/`. No platform dependencies (no Wails, Echo, Cobra, OIDC).
+- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config. Uses framework's SQLite TM/termbase from `core/sievepen/` and `core/termbase/`. Depends on framework only. No platform dependency.
 - **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
-- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite is provided via the CLI module for persistent termbase and TM storage.
+- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
 - **Bowrain CLI** (`github.com/gokapi/gokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
 - **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
 
@@ -107,8 +107,9 @@ gokapi/
 │   ├── formats/           # 15 built-in format implementations
 │   ├── ai/                # LLM providers + AI tools
 │   ├── mt/                # MT providers + MT tools
-│   ├── sievepen/          # Translation memory (interface + in-memory + matching)
-│   ├── termbase/          # Terminology (interface + in-memory + import)
+│   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
+│   ├── sievepen/          # Translation memory (interface + in-memory + SQLite + matching)
+│   ├── termbase/          # Terminology (interface + in-memory + SQLite + import)
 │   ├── tools/             # Built-in utility tools
 │   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
 │   └── testutil/          # Shared test helpers

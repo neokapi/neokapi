@@ -30,28 +30,35 @@ import (
 	"github.com/gokapi/gokapi/platform/store"
 )
 
+var (
+	errNoPgDB = fmt.Errorf("PostgreSQL database not configured")
+)
+
 // ---------------------------------------------------------------------------
-// Workspace TM/TB management (persistent, file-backed)
+// Workspace TM/TB management (persistent, PostgreSQL-backed)
 // ---------------------------------------------------------------------------
 
 // workspaceTMTB holds workspace-scoped TM and terminology stores.
 type workspaceTMTB struct {
-	tm sqltm.TMStore
-	tb termbase.TermBase
+	tm sievepen.TMStore
+	tb termbase.TBStore
 }
 
 // workspaceStores manages per-workspace TM and terminology stores.
 type workspaceStores struct {
-	mu      sync.RWMutex
-	stores  map[string]*workspaceTMTB
-	dataDir string
-	pgDB    *storage.PgDB // non-nil in PostgreSQL (SaaS) mode
+	mu     sync.RWMutex
+	stores map[string]*workspaceTMTB
+	pgDB   *storage.PgDB // PostgreSQL database (required in production)
+
+	// tmFactory and tbFactory are optional factory functions for creating
+	// TM/TB stores without PostgreSQL. Used by tests to inject in-memory stores.
+	tmFactory func() sievepen.TMStore
+	tbFactory func() termbase.TBStore
 }
 
-func newWorkspaceStores(dataDir string) *workspaceStores {
+func newWorkspaceStores() *workspaceStores {
 	return &workspaceStores{
-		stores:  make(map[string]*workspaceTMTB),
-		dataDir: dataDir,
+		stores: make(map[string]*workspaceTMTB),
 	}
 }
 
@@ -66,33 +73,21 @@ func (ws *workspaceStores) getOrCreate(wsSlug string) *workspaceTMTB {
 	return w
 }
 
-func (ws *workspaceStores) getTM(wsSlug string) (sqltm.TMStore, error) {
+func (ws *workspaceStores) getTM(wsSlug string) (sievepen.TMStore, error) {
 	w := ws.getOrCreate(wsSlug)
 	if w.tm != nil {
 		return w.tm, nil
 	}
 
-	// PostgreSQL mode: all workspaces share the same database, scoped by workspace_id.
-	if ws.pgDB != nil {
-		tm, err := sqltm.NewPostgresTMFromDB(ws.pgDB, wsSlug)
-		if err != nil {
-			return nil, err
+	if ws.pgDB == nil {
+		if ws.tmFactory != nil {
+			w.tm = ws.tmFactory()
+			return w.tm, nil
 		}
-		w.tm = tm
-		return tm, nil
+		return nil, errNoPgDB
 	}
 
-	// SQLite mode: file-backed per workspace (or in-memory).
-	tmPath := ":memory:"
-	if ws.dataDir != "" {
-		tmDir := filepath.Join(ws.dataDir, "tm")
-		if err := os.MkdirAll(tmDir, 0755); err != nil {
-			return nil, fmt.Errorf("create TM dir: %w", err)
-		}
-		tmPath = filepath.Join(tmDir, wsSlug+".db")
-	}
-
-	tm, err := sqltm.NewSQLiteTM(tmPath)
+	tm, err := sqltm.NewPostgresTMFromDB(ws.pgDB, wsSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -100,25 +95,26 @@ func (ws *workspaceStores) getTM(wsSlug string) (sqltm.TMStore, error) {
 	return tm, nil
 }
 
-func (ws *workspaceStores) getTB(wsSlug string) termbase.TermBase {
+func (ws *workspaceStores) getTB(wsSlug string) (termbase.TBStore, error) {
 	w := ws.getOrCreate(wsSlug)
 	if w.tb != nil {
-		return w.tb
+		return w.tb, nil
 	}
 
-	// PostgreSQL mode: persistent workspace-scoped termbase.
-	if ws.pgDB != nil {
-		tb, err := sqltb.NewPostgresTermBaseFromDB(ws.pgDB, wsSlug)
-		if err == nil {
-			w.tb = tb
-			return tb
+	if ws.pgDB == nil {
+		if ws.tbFactory != nil {
+			w.tb = ws.tbFactory()
+			return w.tb, nil
 		}
-		// Fall back to in-memory on error.
+		return nil, errNoPgDB
 	}
 
-	// SQLite / in-memory mode.
-	w.tb = termbase.NewInMemoryTermBase()
-	return w.tb
+	tb, err := sqltb.NewPostgresTermBaseFromDB(ws.pgDB, wsSlug)
+	if err != nil {
+		return nil, err
+	}
+	w.tb = tb
+	return tb, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -939,7 +935,10 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		return nil, err
 	}
 
-	tb := wsStores.getTB(ws)
+	tb, err := wsStores.getTB(ws)
+	if err != nil {
+		return nil, fmt.Errorf("init termbase: %w", err)
+	}
 	if tb.Count() == 0 {
 		return nil, nil
 	}
@@ -979,6 +978,38 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 		})
 	}
 	return result, nil
+}
+
+// buildStreamChain resolves the parent chain for a stream by walking the
+// ContentStore. Returns a slice of stream names from most specific to least
+// (e.g., ["feature/rebrand", "main"]). For "main" or empty, returns ["main"].
+func buildStreamChain(ctx context.Context, cs store.ContentStore, projectID, stream string) []string {
+	if stream == "" || stream == "main" {
+		return []string{"main"}
+	}
+
+	chain := []string{stream}
+	visited := map[string]bool{stream: true}
+
+	current := stream
+	for {
+		st, err := cs.GetStream(ctx, projectID, current)
+		if err != nil || st.Parent == "" {
+			// Add "main" as final fallback if not already there.
+			if current != "main" {
+				chain = append(chain, "main")
+			}
+			break
+		}
+		if visited[st.Parent] {
+			break // avoid cycles
+		}
+		visited[st.Parent] = true
+		chain = append(chain, st.Parent)
+		current = st.Parent
+	}
+
+	return chain
 }
 
 // ---------------------------------------------------------------------------

@@ -331,7 +331,14 @@ func (g *EditorGRPCServer) GetTMEntries(ctx context.Context, req *pb.TMEntriesRe
 		limit = 50
 	}
 
-	entries, total := tm.SearchEntries(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+	var entries []sievepen.TMEntry
+	var total int
+	if req.Stream != "" && req.Stream != "main" && g.srv.ContentStore != nil {
+		chain := buildStreamChain(ctx, g.srv.ContentStore, "", req.Stream)
+		entries, total = tm.SearchEntriesForStream(req.Query, req.SourceLocale, req.TargetLocale, req.Stream, chain[1:], int(req.Offset), limit)
+	} else {
+		entries, total = tm.SearchEntries(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+	}
 
 	resp := &pb.TMEntriesResponse{TotalCount: int32(total)}
 	for _, e := range entries {
@@ -373,7 +380,12 @@ func (g *EditorGRPCServer) AddTMEntry(ctx context.Context, req *pb.AddTMEntryReq
 		CreatedAt:    time.Now(),
 		UpdatedAt:    time.Now(),
 	}
-	if err := tm.Add(entry); err != nil {
+	if req.Stream != "" && req.Stream != "main" {
+		err = tm.AddWithStream(entry, req.Stream)
+	} else {
+		err = tm.Add(entry)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "add TM entry: %v", err)
 	}
 
@@ -436,14 +448,24 @@ func (g *EditorGRPCServer) GetTerms(ctx context.Context, req *pb.TermsRequest) (
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 
 	limit := int(req.Limit)
 	if limit <= 0 {
 		limit = 50
 	}
 
-	concepts, total := tb.Search(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+	var concepts []termbase.Concept
+	var total int
+	if req.Stream != "" && req.Stream != "main" && g.srv.ContentStore != nil {
+		chain := buildStreamChain(ctx, g.srv.ContentStore, "", req.Stream)
+		concepts, total = tb.SearchForStream(req.Query, req.SourceLocale, req.TargetLocale, req.Stream, chain[1:], int(req.Offset), limit)
+	} else {
+		concepts, total = tb.Search(req.Query, req.SourceLocale, req.TargetLocale, int(req.Offset), limit)
+	}
 
 	resp := &pb.TermsResponse{TotalCount: int32(total)}
 	for _, c := range concepts {
@@ -457,7 +479,10 @@ func (g *EditorGRPCServer) GetTermCount(ctx context.Context, req *pb.TermCountRe
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 	return &pb.TermCountResponse{Count: int32(tb.Count())}, nil
 }
 
@@ -466,7 +491,10 @@ func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptReq
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 
 	concept := termbase.Concept{
 		ID:         id.New(),
@@ -477,7 +505,12 @@ func (g *EditorGRPCServer) AddConcept(ctx context.Context, req *pb.AddConceptReq
 		CreatedAt:  time.Now(),
 		UpdatedAt:  time.Now(),
 	}
-	if err := tb.AddConcept(concept); err != nil {
+	if req.Stream != "" && req.Stream != "main" {
+		err = tb.AddConceptWithStream(concept, req.Stream)
+	} else {
+		err = tb.AddConcept(concept)
+	}
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "add concept: %v", err)
 	}
 
@@ -489,7 +522,10 @@ func (g *EditorGRPCServer) UpdateConcept(ctx context.Context, req *pb.UpdateConc
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 
 	existing, ok := tb.GetConcept(req.ConceptId)
 	if !ok {
@@ -514,7 +550,10 @@ func (g *EditorGRPCServer) DeleteConcept(ctx context.Context, req *pb.DeleteConc
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 	if err := tb.DeleteConcept(req.ConceptId); err != nil {
 		return nil, status.Errorf(codes.NotFound, "concept not found: %v", err)
 	}
@@ -527,7 +566,10 @@ func (g *EditorGRPCServer) ImportTermsCSV(ctx context.Context, req *pb.ImportTer
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 	count, err := termbase.ImportCSV(tb, strings.NewReader(req.CsvContent), termbase.CSVImportOptions{
 		HasHeader:    req.HasHeader,
 		SourceLocale: model.LocaleID(req.SourceLocale),
@@ -546,7 +588,10 @@ func (g *EditorGRPCServer) ImportTermsJSON(ctx context.Context, req *pb.ImportTe
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 	count, err := termbase.ImportJSON(tb, strings.NewReader(req.JsonContent))
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "import JSON: %v", err)
@@ -560,7 +605,10 @@ func (g *EditorGRPCServer) ExportTermsJSON(ctx context.Context, req *pb.ExportTe
 		return nil, status.Error(codes.Unavailable, "editor not configured")
 	}
 
-	tb := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	tb, err := g.srv.wsStores.getTB(req.WorkspaceSlug)
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable, "init termbase: %v", err)
+	}
 	var buf strings.Builder
 	if err := termbase.ExportJSON(tb, &buf, req.Name); err != nil {
 		return nil, status.Errorf(codes.Internal, "export JSON: %v", err)
