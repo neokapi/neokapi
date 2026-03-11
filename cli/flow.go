@@ -210,10 +210,11 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// avoiding a second JVM startup.
 	reader.Close()
 
-	flowTools, err := a.buildFlowTools(flowName, cmd)
+	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	// Wrap IO-bound tools with ParallelBlockTool.
 	// AI flows default to 5 concurrent blocks; --parallel-blocks overrides.
@@ -379,7 +380,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 
 	for _, inputPath := range inputPaths {
 		g.Go(func() error {
-			if err := a.processFlowFile(ctx, flowName, inputPath, outputTemplate); err != nil {
+			if err := a.processFlowFile(ctx, cmd, flowName, inputPath, outputTemplate); err != nil {
 				return fmt.Errorf("%s: %w", inputPath, err)
 			}
 			mu.Lock()
@@ -409,7 +410,7 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 // For bridge-backed formats, it uses RoundTrip: a single bidirectional gRPC stream
 // that combines read→process→write into one call, sharing the JVM across concurrent
 // files via the pool's shared access mode.
-func (a *App) processFlowFile(ctx context.Context, flowName, inputPath, outputTemplate string) error {
+func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string) error {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(inputPath)
@@ -453,22 +454,23 @@ func (a *App) processFlowFile(ctx context.Context, flowName, inputPath, outputTe
 	// a single shared JVM. This eliminates per-file JVM startup and enables
 	// N files to process through one bridge via concurrent gRPC streams.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		return a.processFlowFileRoundTrip(ctx, flowName, inputPath, outputTemplate, bridgeReader)
+		return a.processFlowFileRoundTrip(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader)
 	}
 
 	// Native formats: use the standard read → process → write pipeline.
-	return a.processFlowFileNative(ctx, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig)
+	return a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig)
 }
 
 // processFlowFileRoundTrip uses bridge RoundTrip for the full read→process→write
 // cycle through a single shared JVM instance.
-func (a *App) processFlowFileRoundTrip(ctx context.Context, flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
+func (a *App) processFlowFileRoundTrip(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
-	flowTools, err := a.buildFlowTools(flowName)
+	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	rt := bridgeReader.NewRoundTripper()
 
@@ -533,7 +535,7 @@ func (a *App) processFlowFileRoundTrip(ctx context.Context, flowName, inputPath,
 
 // processFlowFileNative uses the standard read → process → write pipeline
 // for native (non-bridge) formats.
-func (a *App) processFlowFileNative(ctx context.Context, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any) error {
+func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any) error {
 	inputContent, err := os.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("read input: %w", err)
@@ -578,10 +580,11 @@ func (a *App) processFlowFileNative(ctx context.Context, flowName, inputPath, ou
 	reader.Close()
 
 	// Build fresh tool instances for this file (thread-safe).
-	flowTools, err := a.buildFlowTools(flowName)
+	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
 		return err
 	}
+	defer cleanup()
 
 	// Auto-wrap IO-bound tools with ParallelBlockTool.
 	if n := defaultParallelBlocks(flowName); n > 1 {
@@ -686,7 +689,11 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 	return r.Replace(tmpl)
 }
 
-func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Tool, error) {
+// buildFlowTools creates the tool chain for the given flow. The returned cleanup
+// function releases any resources opened during tool creation (e.g. SQLite TM).
+// Callers must defer cleanup() after checking err.
+func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Tool, func(), error) {
+	noop := func() {}
 	switch flowName {
 	case "ai-translate":
 		p := a.getProvider()
@@ -695,7 +702,7 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 				SourceLocale: model.LocaleID(a.SourceLang),
 				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
-		}, nil
+		}, noop, nil
 	case "ai-translate-qa":
 		p := a.getProvider()
 		return []tool.Tool{
@@ -707,36 +714,38 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 				SourceLocale: model.LocaleID(a.SourceLang),
 				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
-		}, nil
+		}, noop, nil
 	case "pseudo-translate":
 		return []tool.Tool{
 			libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
-		}, nil
+		}, noop, nil
 	case "qa-check":
 		return []tool.Tool{
 			libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(a.TargetLang))),
-		}, nil
+		}, noop, nil
 	case "segmentation":
 		return []tool.Tool{
 			libtools.NewSegmentationTool(&libtools.SegmentationConfig{
 				TargetLocale: model.LocaleID(a.TargetLang),
 			}),
-		}, nil
+		}, noop, nil
 	case "tm-leverage":
 		var tmProvider libtools.TMProvider = libtools.NullTMProvider{}
+		cleanup := noop
 		if len(cmd) > 0 && cmd[0] != nil {
 			if tmName, _ := cmd[0].Flags().GetString("tm"); tmName != "" {
 				tmPath, err := resolveNamedResource("tm", tmName)
 				if err != nil {
-					return nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
+					return nil, nil, fmt.Errorf("resolve TM %q: %w", tmName, err)
 				}
 				sqltm, err := sqltm.NewSQLiteTM(tmPath)
 				if err != nil {
-					return nil, fmt.Errorf("open TM %q: %w", tmName, err)
+					return nil, nil, fmt.Errorf("open TM %q: %w", tmName, err)
 				}
 				tmProvider = &cliTMProvider{tm: sqltm}
+				cleanup = func() { sqltm.Close() }
 			}
 		}
 		return []tool.Tool{
@@ -746,9 +755,9 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 				FuzzyThreshold: 70,
 				Provider:       tmProvider,
 			}),
-		}, nil
+		}, cleanup, nil
 	default:
-		return nil, fmt.Errorf("unknown flow: %q", flowName)
+		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
 }
 
