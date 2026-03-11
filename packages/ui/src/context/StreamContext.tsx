@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 interface StreamContextValue {
   /** The currently active stream name. Defaults to "main". */
@@ -12,12 +12,28 @@ const StreamContext = createContext<StreamContextValue>({
   setActiveStream: () => {},
 });
 
-export function StreamProvider({ initialStream = "main", children }: { initialStream?: string; children: ReactNode }) {
+export function StreamProvider({
+  initialStream = "main",
+  onStreamChange,
+  children,
+}: {
+  initialStream?: string;
+  /** Called when the active stream changes (e.g. to sync URL search params). */
+  onStreamChange?: (stream: string) => void;
+  children: ReactNode;
+}) {
   const [activeStream, setActiveStreamState] = useState(initialStream);
 
+  // Sync when parent changes initialStream (e.g., URL navigation).
+  useEffect(() => {
+    setActiveStreamState(initialStream);
+  }, [initialStream]);
+
   const setActiveStream = useCallback((stream: string) => {
-    setActiveStreamState(stream || "main");
-  }, []);
+    const s = stream || "main";
+    setActiveStreamState(s);
+    onStreamChange?.(s);
+  }, [onStreamChange]);
 
   return (
     <StreamContext.Provider value={{ activeStream, setActiveStream }}>
