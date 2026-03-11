@@ -17,8 +17,9 @@ func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 	t.Helper()
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = ":memory:"
+
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()
@@ -50,8 +51,9 @@ func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.GokapiServiceCli
 	t.Helper()
 
 	cfg := DefaultServerConfig()
-	cfg.StorePath = ":memory:"
+
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
 
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()

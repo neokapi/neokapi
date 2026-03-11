@@ -109,7 +109,11 @@ func (s *Server) approveTermCandidate(ctx context.Context, item *bstore.ReviewIt
 		UpdatedAt: time.Now(),
 	}
 
-	tb := s.wsStores.getTB(wsSlug)
+	tb, tbErr := s.wsStores.getTB(wsSlug)
+	if tbErr != nil {
+		log.Printf("review-effects: failed to init termbase for %q: %v", wsSlug, tbErr)
+		return
+	}
 	if err := tb.AddConcept(concept); err != nil {
 		log.Printf("review-effects: failed to add concept for %q: %v", candidate.Text, err)
 		return

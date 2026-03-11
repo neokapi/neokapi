@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/gokapi/gokapi/cli/output"
-	sqltb "github.com/gokapi/gokapi/cli/storage/termbase"
+	sqltb "github.com/gokapi/gokapi/core/termbase"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/termbase"
 	"github.com/spf13/cobra"

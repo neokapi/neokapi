@@ -17,9 +17,11 @@ import (
 func newTokenTestServer(t *testing.T) (*Server, string, string) {
 	t.Helper()
 	cfg := DefaultServerConfig()
-	cfg.StorePath = t.TempDir() + "/test.db"
+
 	cfg.JWTSecret = "test-token-secret"
 	srv := NewServer(cfg)
+	initTestStores(t, srv)
+
 	require.NotNil(t, srv.Services)
 	require.NotNil(t, srv.Services.Auth)
 	require.NotNil(t, srv.AuthStore)

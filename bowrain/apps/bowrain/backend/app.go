@@ -9,13 +9,13 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/connector"
 	"github.com/gokapi/gokapi/bowrain/event"
-	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/formats"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/plugin/loader"
 	"github.com/gokapi/gokapi/core/registry"
+	"github.com/gokapi/gokapi/core/sievepen"
 	"github.com/gokapi/gokapi/core/termbase"
 	libtools "github.com/gokapi/gokapi/core/tools"
 	"github.com/gokapi/gokapi/core/version"
@@ -31,8 +31,8 @@ type App struct {
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
 	store        store.ContentStore         // persistent SQLite
-	tm           *sqltm.SQLiteTM            // lazily initialized
-	tb           *termbase.InMemoryTermBase // lazily initialized
+	tm           *sievepen.SQLiteTM          // lazily initialized
+	tb           *termbase.SQLiteTermBase   // lazily initialized
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	connectorReg *platconn.Registry

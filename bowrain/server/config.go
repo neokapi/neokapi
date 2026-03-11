@@ -16,16 +16,10 @@ type ServerConfig struct {
 	// DataDir is the directory for temporary files during processing.
 	DataDir string
 
-	// StorePath is the path to the SQLite content store database.
-	// If empty and DatabaseURL is also empty, project/block/connector APIs are disabled.
-	// Deprecated: prefer DatabaseURL for new deployments.
-	StorePath string
-
-	// DatabaseURL is a database connection string. Supported schemes:
+	// DatabaseURL is a PostgreSQL connection string. Supported schemes:
 	//   - postgres://user:pass@host/db  → PostgreSQL via pgx
 	//   - postgresql://user@host/db     → PostgreSQL via pgx
-	//   - sqlite:///path/to/file.db     → SQLite (same as StorePath)
-	// When set, takes precedence over StorePath.
+	// Required for production deployments.
 	DatabaseURL string
 
 	// DatabaseAuth selects the PostgreSQL authentication method.
