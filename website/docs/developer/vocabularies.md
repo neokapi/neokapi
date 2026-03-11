@@ -293,21 +293,7 @@ customData, _ := os.ReadFile("my-domain.json")
 vocab.Load(customData)
 ```
 
-### 3. Add Frontend Vocabulary (Shared UI)
-
-Create a corresponding JSON file in `packages/ui/src/vocabularies/` and register it in the `VocabularyRegistry`:
-
-```typescript
-// packages/ui/src/vocabularies/my-domain.json
-// (same JSON schema as the Go-side file)
-
-// In your app initialization:
-import myDomain from "./my-domain.json";
-const registry = getDefaultRegistry();
-registry.load(myDomain);
-```
-
-### 4. Map in Your Format Reader
+### 3. Map in Your Format Reader
 
 Add the new type to your format reader's semantic type mapping:
 
@@ -318,29 +304,15 @@ var myFormatSemanticTypes = map[string]string{
 }
 ```
 
-## Vocabulary-Driven UI
+## Vocabulary-Driven Editing
 
-The vocabulary system drives several UI features automatically:
+The vocabulary system provides the metadata that editors need to present inline codes to translators:
 
-### Tag Chip Rendering
+- **Tag chip rendering**: Each vocabulary type defines chip labels and colors (e.g., `B>` for bold opening, `/B` for bold closing). Colors are category-specific (blue for formatting, orange for code, etc.).
+- **Constraint enforcement**: Editors can use the `Deletable`, `Cloneable`, and `Reorderable` constraint fields to prevent translators from making invalid changes — for example, blocking deletion of required tags or preventing duplication of non-cloneable tags.
+- **Inline code legend**: Vocabulary categories and constraint metadata allow editors to present a grouped reference of all tag types in a segment, with indicators for which tags are required, duplicatable, or position-locked.
 
-Each vocabulary type defines chip labels and colors. Opening tags show `B>`, closing tags show `/B`, and placeholders show `br`. Colors are category-specific (blue for formatting, orange for code, etc.).
-
-### Constraint Enforcement
-
-The editor prevents constraint violations in real time:
-
-- **Non-deletable tags**: Cannot be removed via backspace/delete. Shown with dashed borders.
-- **Non-cloneable tags**: Blocked in the tag palette after first use. Cannot be inserted again.
-- **Validation bar**: Warns about missing required tags and duplicated non-cloneable tags.
-
-### Inline Code Legend
-
-A collapsible panel shows all tag types in the current segment, grouped by vocabulary category, with constraint indicators (required, no duplicates, fixed position).
-
-### Format Vocabulary Badge
-
-A compact badge in the editor header summarizes which vocabulary categories are active, giving translators an at-a-glance view of the content complexity.
+These fields are part of the framework's content model. How they are rendered is up to the consuming editor or application.
 
 ## SpanClassify Tool
 
@@ -394,14 +366,6 @@ func TestMyVocabulary(t *testing.T) {
     assert.Equal(t, "generic", unknown.Category)
 }
 ```
-
-### Frontend Tests
-
-The Storybook stories serve as visual regression tests for vocabulary rendering. Key stories:
-
-- **VocabularyExplorer** — Interactive browsing of all types
-- **FormatAwareEditing** — Cross-format consistency verification
-- **ConstraintBehaviors** — Constraint enforcement demonstration
 
 ## Best Practices
 

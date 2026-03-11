@@ -24,7 +24,7 @@ QA checks are validation rules that run automatically on your translations to ca
 Include the `qa-check` tool in your flows:
 
 ```yaml
-# .bowrain/flows/translate-and-check.yaml
+# flows/translate-and-check.yaml
 name: translate-and-check
 description: Translate with AI and run QA
 
@@ -42,19 +42,6 @@ steps:
         - number-mismatch
         - term-violation
 ```
-
-### In Pre-Push Hooks
-
-Run QA automatically before pushing to the server:
-
-```yaml
-# .bowrain/config.yaml
-hooks:
-  pre-push:
-    - qa-check
-```
-
-See [Flow Hooks](/docs/bowrain-cli/flows/hooks) for details.
 
 ## Available QA Rules
 
@@ -82,6 +69,5 @@ QA check framework is under development. Current status:
 
 ## Next Steps
 
-- [Flow Hooks](/docs/bowrain-cli/flows/hooks)
-- [Custom Flows](/docs/bowrain-cli/flows/custom-flows)
 - [Terminology](/docs/features/terminology)
+- [Implementing a Tool](/docs/developer/tools)

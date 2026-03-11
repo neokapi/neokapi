@@ -5,48 +5,15 @@ title: Architecture
 
 # gokapi: Architecture
 
-gokapi is an open localization platform built in Go. Bidirectional connectors
-sync content from live systems into a versioned store, composable tools process
-content through a concurrent pipeline, and automation drives the workflow. For
-the reasoning behind each major design choice, see the
-[Architecture Decisions](/docs/ad/001-vision).
+gokapi is an open-source localization framework built in Go. It provides
+format-aware document parsing, composable processing tools, and a concurrent
+streaming pipeline for translation workflows. For the reasoning behind each
+major design choice, see the [Architecture Decisions](/docs/ad/001-vision).
 
-## Platform Architecture
+## Processing Pipeline
 
 ```mermaid
-graph TB
-    subgraph "Source Systems"
-        CMS[CMS]
-        Design[Design Tools]
-        Code[Code Repos]
-        Marketing[Marketing]
-        Files[Files]
-    end
-
-    subgraph "Connectors"
-        C1[CMS Connector]
-        C2[Design Connector]
-        C3[Code Connector]
-        C4[Marketing Connector]
-        C5[FileConnector]
-    end
-
-    CMS --- C1
-    Design --- C2
-    Code --- C3
-    Marketing --- C4
-    Files --- C5
-
-    subgraph "Content Store"
-        CS[Versioned Store<br/>SHA-256 · dedup · history]
-    end
-
-    C1 -->|pull/push| CS
-    C2 -->|pull/push| CS
-    C3 -->|pull/push| CS
-    C4 -->|pull/push| CS
-    C5 -->|pull/push| CS
-
+graph LR
     subgraph "Processing Pipeline"
         direction LR
         DFR[Format Reader]
@@ -62,9 +29,6 @@ graph TB
         T4 -->|"chan Part"| DFW
     end
 
-    CS --> DFR
-    DFW --> CS
-
     subgraph "Resources"
         TM[Translation Memory]
         TB[Terminology]
@@ -72,13 +36,6 @@ graph TB
 
     TM -.- T2
     TB -.- T4
-
-    subgraph "Automation"
-        EVT[Event Bus<br/>triggers · gates · webhooks]
-    end
-
-    CS -.- EVT
-    EVT -.- DFR
 
     subgraph "Plugin System (gRPC)"
         P1[Native Go]
@@ -91,23 +48,18 @@ graph TB
     P3 -.- T3
 
     style T3 fill:#e1f5fe
-    style CS fill:#fff3e0
-    style EVT fill:#f3e5f5
 ```
 
-Content flows from source systems through bidirectional connectors into a
-versioned content store. The processing pipeline runs each tool in its own
-goroutine, connected by buffered channels with automatic backpressure.
-Event-driven automation triggers flows, enforces quality gates, and sends
-notifications. See [AD-001](/docs/ad/001-vision) and
+The processing pipeline runs each tool in its own goroutine, connected by
+buffered channels with automatic backpressure. Context cancellation propagates
+to all stages. See [AD-001](/docs/ad/001-vision) and
 [AD-004](/docs/ad/004-processing-engine).
 
 ## Package Layout
 
 ```
-gokapi/                              ── Framework Module ──
+gokapi/
 ├── go.mod                           # module github.com/gokapi/gokapi
-├── go.work                          # workspace: use . ./cli ./platform ./kapi ./bowrain-cli ./bowrain
 │
 ├── core/                            # All framework Go packages
 │   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
@@ -135,55 +87,9 @@ gokapi/                              ── Framework Module ──
 │   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
 │   └── testutil/                    # Shared test helpers
 │
-│                                    ── CLI Module ──
-├── cli/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/cli (framework only)
-│   ├── config/                      # Viper-based app configuration (~/.config/kapi/)
-│   └── output/                      # Shared output formatting + types
-│
-│                                    ── Platform Module ──
-├── platform/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/platform (framework only)
-│   ├── project/                     # .bowrain/ project model (types, config, sync cache)
-│   ├── auth/                        # Auth types, JWT, device flow client
-│   ├── connector/                   # Connector interfaces + base types
-│   ├── client/                      # REST client for bowrain API
-│   ├── config/                      # Auth persistence (StoredAuth, LoadAuth, SaveAuth)
-│   ├── store/                       # ContentStore interface + domain types
-│   ├── event/                       # Event types + bus interface
-│   └── credentials/                 # Provider credential management
-│
-│                                    ── Kapi Module ──
-├── kapi/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/kapi (framework + cli)
-│   └── cmd/kapi/                    # Thin root cmd wiring shared CLI commands
-│
-│                                    ── Bowrain CLI Module ──
-├── bowrain-cli/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain-cli (framework + cli + platform)
-│   └── cmd/bowrain/                 # Bowrain CLI (project cmds + shared CLI base)
-│       └── output/                  # Bowrain CLI-specific output types
-│
-│                                    ── Bowrain Module ──
-├── bowrain/
-│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain (framework + platform)
-│   ├── auth/                        # OIDC, AuthStore, SQLite auth
-│   ├── connector/                   # Concrete connector implementations
-│   ├── store/                       # SQLite ContentStore implementation
-│   ├── server/                      # HTTP/gRPC server handlers
-│   ├── service/                     # Auth, project, connector, flow services
-│   ├── event/                       # Event bus implementation + automation
-│   ├── sievepen/                    # SQLite TM implementation
-│   ├── termbase/                    # SQLite TermBase implementation
-│   ├── cmd/bowrain-server/          # Echo v4 REST API server
-│   └── apps/
-│       ├── bowrain/                 # Wails v3 desktop app (Go + React/TypeScript)
-│       └── web/                     # SaaS web UI
-│
-│   ── Non-Go Assets ──
-├── packages/ui/                     # Shared React component library (@gokapi/ui)
-├── docs/                            # Architecture decisions, notes
-└── website/                         # Docusaurus 3 documentation site
+├── cli/                             # Shared CLI base (Cobra, Viper)
+├── kapi/                            # Kapi standalone CLI
+└── docs/                            # Architecture decisions, notes
 ```
 
 ## Content Model
@@ -350,10 +256,8 @@ type LLMProvider interface {
 | Channel | Target | Command |
 |---------|--------|---------|
 | Homebrew formula | kapi CLI | `brew install gokapi/tap/kapi` |
-| Homebrew Cask | Bowrain GUI (macOS) | `brew install --cask gokapi/tap/bowrain` |
 | GitHub Releases | All platforms | Direct download |
-| Go install | Go developers | `go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest` |
+| Go install | Go developers | `go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
-push) and `release.yml` (GoReleaser on tag push). See
-[Release Process](/docs/developer/release) for details.
+push) and `release.yml` (GoReleaser on tag push).
