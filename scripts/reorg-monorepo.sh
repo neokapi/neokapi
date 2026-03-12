@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # scripts/reorg-monorepo.sh — Reorganize the gokapi monorepo
 #
-# Consolidates all bowrain-related code under ./bowrain/ and keeps framework
-# code (core, cli) at the root.
+# Creates two top-level directories: framework/ and bowrain/.
+# Framework code (core, cli, kapi, examples, bench) moves under framework/.
+# Bowrain-related code (bowrain-cli, platform, packages/ui, docker, deploy,
+# compose, assets) consolidates under bowrain/.
 #
 # Target layout:
 #
-#   core/                   framework packages (unchanged)
-#   core/cli/               shared CLI base (moved from ./cli/)
-#   kapi/                   kapi CLI tool (unchanged, kapi-web removed)
+#   framework/              framework Go module root (go.mod moves here)
+#     core/                 framework packages (moved from ./core/)
+#     cli/                  shared CLI base (moved from ./cli/)
+#     kapi/                 kapi CLI tool (moved from ./kapi/, kapi-web removed)
+#     examples/             plugin examples (moved from ./examples/)
+#     bench/                benchmarks (moved from ./bench/)
 #   bowrain/                bowrain server, apps, desktop (unchanged)
 #     cli/                  bowrain CLI (moved from ./bowrain-cli/)
 #     platform/             platform types & interfaces (moved from ./platform/)
@@ -64,10 +69,33 @@ fi
 
 echo "==> Starting monorepo reorganization in $REPO_ROOT"
 
-# ─── 1. Move cli/ → core/cli/ ───────────────────────────────────────────────
+# ─── 1. Create framework/ and move core, cli, kapi, examples, bench ─────────
 
-echo "--- Moving cli/ → core/cli/"
-git mv cli core/cli
+echo "--- Creating framework/ directory"
+mkdir -p framework
+
+echo "--- Moving go.mod + go.sum → framework/"
+git mv go.mod framework/go.mod
+git mv go.sum framework/go.sum
+
+echo "--- Moving core/ → framework/core/"
+git mv core framework/core
+
+echo "--- Moving cli/ → framework/cli/"
+git mv cli framework/cli
+
+echo "--- Moving kapi/ → framework/kapi/"
+git mv kapi framework/kapi
+
+if [[ -d examples ]]; then
+  echo "--- Moving examples/ → framework/examples/"
+  git mv examples framework/examples
+fi
+
+if [[ -d bench ]]; then
+  echo "--- Moving bench/ → framework/bench/"
+  git mv bench framework/bench
+fi
 
 # ─── 2. Move bowrain-cli/ → bowrain/cli/ ────────────────────────────────────
 
@@ -113,8 +141,8 @@ git mv assets/bowrain-logo.png bowrain/assets/bowrain-logo.png
 
 # ─── 9. Remove kapi/apps/kapi-web/ ──────────────────────────────────────────
 
-echo "--- Removing kapi/apps/kapi-web/ (decouples kapi from bowrain UI)"
-git rm -rf kapi/apps/kapi-web
+echo "--- Removing framework/kapi/apps/kapi-web/ (decouples kapi from bowrain UI)"
+git rm -rf framework/kapi/apps/kapi-web
 
 # ─── 10. Move root package.json + lockfile → bowrain/ ───────────────────────
 
@@ -146,10 +174,10 @@ cat > go.work <<'GOWORK'
 go 1.26.0
 
 use (
-	.
-	./core/cli
+	./framework
+	./framework/cli
+	./framework/kapi
 	./bowrain/platform
-	./kapi
 	./bowrain/cli
 	./bowrain
 )
@@ -159,47 +187,63 @@ GOWORK
 
 echo "--- Updating go.mod replace directives"
 
-# core/cli/go.mod: was cli/go.mod, root is now ../..
-sed -i 's|=> \.\./|=> ../../|g' core/cli/go.mod
+# framework/cli/go.mod: was cli/go.mod
+# cli/ was at repo-root/cli/, go.mod root was repo-root/ (=> ../)
+# Now: framework/cli/, go.mod root is framework/ (=> ../)
+# No change needed — relative path is identical.
 
-# kapi/go.mod: root stays ../, cli is now ../core/cli
-sed -i 's|=> \.\./cli|=> ../core/cli|g' kapi/go.mod
+# framework/kapi/go.mod: was kapi/go.mod
+# root was => ../ → framework/ is still => ../
+# cli was => ../cli → framework/cli is still => ../cli
+# No change needed — relative paths are identical.
 
-# bowrain/cli/go.mod: was bowrain-cli/go.mod, root is now ../..
-# Also update cli and platform paths
-sed -i 's|=> \.\./|=> ../../|g' bowrain/cli/go.mod
-sed -i 's|=> \.\./\.\./cli|=> ../../core/cli|g' bowrain/cli/go.mod
-sed -i 's|=> \.\./\.\./platform|=> ../platform|g' bowrain/cli/go.mod
+# bowrain/cli/go.mod: was bowrain-cli/go.mod (moved 1 level deeper)
+# gokapi root: => ../ → => ../../framework
+# cli: => ../cli → => ../../framework/cli
+# platform: => ../platform → => ../platform (stays — sibling under bowrain/)
+sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/cli/go.mod
+sed -i 's|gokapi/cli => \.\./cli|gokapi/cli => ../../framework/cli|' bowrain/cli/go.mod
 
-# bowrain/platform/go.mod: was platform/go.mod, root is now ../..
-sed -i 's|=> \.\./|=> ../../|g' bowrain/platform/go.mod
+# bowrain/platform/go.mod: was platform/go.mod (moved 1 level deeper)
+# gokapi root: => ../ → => ../../framework
+sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/platform/go.mod
 
-# bowrain/go.mod: root stays ../, platform is now ./platform (same parent)
-sed -i 's|=> \.\./platform|=> ./platform|g' bowrain/go.mod
+# bowrain/go.mod: stays at bowrain/ (not moved)
+# gokapi root: => ../ → => ../framework
+# platform: => ../platform → => ./platform (now a sibling under bowrain/)
+# Important: process platform first (more specific) before the root pattern
+sed -i 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
+sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
 
 # ─── 14. Update Makefile ────────────────────────────────────────────────────
 
 echo "--- Updating Makefile path references"
 
-# Module directory variables (use explicit spaces for POSIX sed compatibility)
-sed -i 's|^CLI_DIR  *:=.*|CLI_DIR         := core/cli|' Makefile
+# Module directory variables
+sed -i 's|^CLI_DIR  *:=.*|CLI_DIR         := framework/cli|' Makefile
 sed -i 's|^PLATFORM_DIR  *:=.*|PLATFORM_DIR    := bowrain/platform|' Makefile
 sed -i 's|^BOWRAIN_CLI_DIR  *:=.*|BOWRAIN_CLI_DIR := bowrain/cli|' Makefile
+sed -i 's|^KAPI_DIR  *:=.*|KAPI_DIR        := framework/kapi|' Makefile
+
+# Framework root (go.mod is now in framework/)
+sed -i 's|go build \./\.\.\.|cd framework \&\& go build ./...|g' Makefile
+sed -i 's|go test \./core/|cd framework \&\& go test ./core/|g' Makefile
 
 # Path variables
 sed -i 's|CERT_DIR  *:= docker/traefik/certs|CERT_DIR     := bowrain/docker/traefik/certs|' Makefile
 sed -i 's|KAPI_WEB_DIR  *:= kapi/apps/kapi-web|# KAPI_WEB_DIR removed (kapi-web decoupled)|' Makefile
 
 # cd commands for module operations
-sed -i 's|cd cli \&\&|cd core/cli \&\&|g' Makefile
+sed -i 's|cd cli \&\&|cd framework/cli \&\&|g' Makefile
 sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' Makefile
 sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' Makefile
+sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' Makefile
 
-# Docker compose references (use -f flag context to avoid matching deploy paths)
+# Docker compose references
 sed -i 's|-f compose\.yaml|-f bowrain/compose.yaml|g' Makefile
 sed -i 's|-f compose\.override\.yaml|-f bowrain/compose.override.yaml|g' Makefile
 
-# Docker build context paths (Dockerfiles moved under bowrain/)
+# Docker build context paths
 sed -i 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' Makefile
 sed -i 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' Makefile
 sed -i 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' Makefile
@@ -207,7 +251,6 @@ sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' Makefile
 sed -i 's|docker/traefik|bowrain/docker/traefik|g' Makefile
 
 # Remove kapi-web references from Makefile (kapi-web was removed)
-# Note: review result manually — these patterns remove lines containing the marker
 sed -i '/KAPI_WEB_DIR/d' Makefile
 sed -i '/kapi-web-deps/d' Makefile
 sed -i '/kapi-web-build/d' Makefile
@@ -218,12 +261,14 @@ sed -i '/kapi\/apps\/kapi-web/d' Makefile
 echo "--- Updating .goreleaser.yaml"
 
 # Before hooks: update cd paths for module tidy
-sed -i 's|cd cli \&\&|cd core/cli \&\&|g' .goreleaser.yaml
+sed -i 's|cd cli \&\&|cd framework/cli \&\&|g' .goreleaser.yaml
 sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' .goreleaser.yaml
 sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' .goreleaser.yaml
+sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.yaml
 
-# Build dir for bowrain-cli
+# Build dirs
 sed -i 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
+sed -i 's|dir: kapi\b|dir: framework/kapi|g' .goreleaser.yaml
 
 # ─── 16. Update .dockerignore ───────────────────────────────────────────────
 
@@ -242,7 +287,9 @@ echo "--- Updating CI workflow path triggers"
 update_workflow_paths() {
   local file="$1"
   # Update path triggers in workflow files
-  sed -i "s|'cli/\*\*'|'core/cli/**'|g" "$file"
+  sed -i "s|'core/\*\*'|'framework/core/**'|g" "$file"
+  sed -i "s|'cli/\*\*'|'framework/cli/**'|g" "$file"
+  sed -i "s|'kapi/\*\*'|'framework/kapi/**'|g" "$file"
   sed -i "s|'platform/\*\*'|'bowrain/platform/**'|g" "$file"
   sed -i "s|'bowrain-cli/\*\*'|'bowrain/cli/**'|g" "$file"
   sed -i "s|'packages/ui/\*\*'|'bowrain/packages/ui/**'|g" "$file"
@@ -252,7 +299,9 @@ update_workflow_paths() {
   sed -i "s|'docker/keycloak/\*\*'|'bowrain/docker/keycloak/**'|g" "$file"
   sed -i "s|'kapi/apps/kapi-web/\*\*'||g" "$file"
   # Also handle double-quoted variants
-  sed -i 's|"cli/\*\*"|"core/cli/**"|g' "$file"
+  sed -i 's|"core/\*\*"|"framework/core/**"|g' "$file"
+  sed -i 's|"cli/\*\*"|"framework/cli/**"|g' "$file"
+  sed -i 's|"kapi/\*\*"|"framework/kapi/**"|g' "$file"
   sed -i 's|"platform/\*\*"|"bowrain/platform/**"|g' "$file"
   sed -i 's|"bowrain-cli/\*\*"|"bowrain/cli/**"|g' "$file"
   sed -i 's|"packages/ui/\*\*"|"bowrain/packages/ui/**"|g' "$file"
@@ -260,12 +309,13 @@ update_workflow_paths() {
   sed -i 's|"docker/bowrain-web/\*\*"|"bowrain/docker/bowrain-web/**"|g' "$file"
   sed -i 's|"docker/bowrain-worker/\*\*"|"bowrain/docker/bowrain-worker/**"|g' "$file"
   sed -i 's|"docker/keycloak/\*\*"|"bowrain/docker/keycloak/**"|g' "$file"
-  # Remove kapi-web path entries entirely (including surrounding YAML list syntax)
+  # Remove kapi-web path entries entirely
   sed -i "/kapi\/apps\/kapi-web/d" "$file"
   # cd commands in workflow steps
-  sed -i 's|cd cli|cd core/cli|g' "$file"
+  sed -i 's|cd cli|cd framework/cli|g' "$file"
   sed -i 's|cd platform|cd bowrain/platform|g' "$file"
   sed -i 's|cd bowrain-cli|cd bowrain/cli|g' "$file"
+  sed -i 's|cd kapi|cd framework/kapi|g' "$file"
 }
 
 for wf in .github/workflows/*.yml; do
@@ -293,8 +343,8 @@ echo ""
 echo "==> Reorganization complete. Next steps:"
 echo ""
 echo "  1. Review changes:  git diff --stat"
-echo "  2. Verify Go build: go build ./..."
+echo "  2. Verify Go build: cd framework && go build ./..."
 echo "  3. Verify tests:    make test"
 echo "  4. Verify frontend: cd bowrain && npm install && npm run build"
-echo "  5. Commit:          git add -A && git commit -m 'reorg: consolidate bowrain under ./bowrain/'"
+echo "  5. Commit:          git add -A && git commit -m 'reorg: framework/ and bowrain/ top-level layout'"
 echo ""
