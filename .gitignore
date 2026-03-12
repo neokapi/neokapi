@@ -28,6 +28,7 @@ okapi-surefire/
 # Frontend
 node_modules/
 dist/
+!/platform/apps/bowrain/frontend/dist/.gitkeep
 *.tsbuildinfo
 **/public/version.json
 
