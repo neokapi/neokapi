@@ -4,7 +4,7 @@
 # Creates two top-level directories: framework/ and bowrain/.
 # Framework code (core, cli, kapi, examples, bench) moves under framework/.
 # Bowrain-related code (bowrain-cli, platform, packages/ui, docker, deploy,
-# compose, assets) consolidates under bowrain/.
+# compose, assets, e2e) consolidates under bowrain/.
 #
 # Target layout:
 #
@@ -24,6 +24,7 @@
 #     packages/ui/          shared React component library (moved from ./packages/ui/)
 #     docker/               Dockerfiles (moved from ./docker/)
 #     deploy/               deployment configs (moved from ./deploy/)
+#     e2e/                  e2e test infra (files merged from ./e2e/ into existing bowrain/e2e/)
 #     assets/               bowrain logo (moved from ./assets/bowrain-logo.png)
 #     compose.yaml          dev compose (moved from root)
 #     compose.override.yaml dev compose overlay (moved from root)
@@ -154,13 +155,25 @@ git mv docker bowrain/docker
 echo "--- Moving deploy/ → bowrain/deploy/"
 git mv deploy bowrain/deploy
 
-# ─── 7. Move compose files → bowrain/ ───────────────────────────────────────
+# ─── 7. Move e2e/ files → bowrain/e2e/ ──────────────────────────────────────
+
+echo "--- Moving e2e/ files → bowrain/e2e/ (merging with existing bowrain/e2e/)"
+# bowrain/e2e/ already exists (has server/ and tapes/ subdirs), so move files individually
+for f in e2e/*; do
+  git mv "$f" "bowrain/e2e/$(basename "$f")"
+done
+# Remove e2e/ if now empty
+if [[ -d e2e ]] && [[ -z "$(ls -A e2e)" ]]; then
+  rmdir e2e
+fi
+
+# ─── 8. Move compose files → bowrain/ ───────────────────────────────────────
 
 echo "--- Moving compose files → bowrain/"
 git mv compose.yaml bowrain/compose.yaml
 git mv compose.override.yaml bowrain/compose.override.yaml
 
-# ─── 8. Move assets/ → website/assets/ ────────────────────────────────────────
+# ─── 9. Move assets/ → website/assets/ ────────────────────────────────────────
 
 echo "--- Moving bowrain-logo.png → bowrain/assets/"
 mkdir -p bowrain/assets
@@ -169,18 +182,18 @@ git mv assets/bowrain-logo.png bowrain/assets/bowrain-logo.png
 echo "--- Moving remaining assets/ → website/assets/"
 git mv assets website/assets
 
-# ─── 9. Remove kapi/apps/kapi-web/ ──────────────────────────────────────────
+# ─── 10. Remove kapi/apps/kapi-web/ ─────────────────────────────────────────
 
 echo "--- Removing framework/kapi/apps/kapi-web/ (decouples kapi from bowrain UI)"
 git rm -rf framework/kapi/apps/kapi-web
 
-# ─── 10. Move root package.json + lockfile → bowrain/ ───────────────────────
+# ─── 11. Move root package.json + lockfile → bowrain/ ───────────────────────
 
 echo "--- Moving package.json and package-lock.json → bowrain/"
 git mv package.json bowrain/package.json
 git mv package-lock.json bowrain/package-lock.json
 
-# ─── 11. Rewrite bowrain/package.json workspaces ────────────────────────────
+# ─── 12. Rewrite bowrain/package.json workspaces ────────────────────────────
 
 echo "--- Rewriting bowrain/package.json workspaces"
 cat > bowrain/package.json <<'PKGJSON'
@@ -197,7 +210,7 @@ cat > bowrain/package.json <<'PKGJSON'
 }
 PKGJSON
 
-# ─── 12. Update go.work ─────────────────────────────────────────────────────
+# ─── 13. Update go.work ─────────────────────────────────────────────────────
 
 echo "--- Updating go.work"
 cat > go.work <<'GOWORK'
@@ -213,7 +226,7 @@ use (
 )
 GOWORK
 
-# ─── 13. Rewrite Go import paths for promoted packages ──────────────────────
+# ─── 14. Rewrite Go import paths for promoted packages ──────────────────────
 
 echo "--- Rewriting Go import paths for promoted packages"
 
@@ -234,7 +247,7 @@ find framework/ bowrain/ -name '*.go' -exec sed "${_SED_I_ARGS[@]}" \
   -e 's|gokapi/gokapi/core/mt/provider"|gokapi/gokapi/providers/mt"|g' \
   {} +
 
-# ─── 14. Update replace directives in go.mod files ──────────────────────────
+# ─── 15. Update replace directives in go.mod files ──────────────────────────
 
 echo "--- Updating go.mod replace directives"
 
@@ -266,7 +279,7 @@ sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framewo
 sed "${_SED_I_ARGS[@]}" 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
 sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
 
-# ─── 15. Update Makefile ────────────────────────────────────────────────────
+# ─── 16. Update Makefile ────────────────────────────────────────────────────
 
 echo "--- Updating Makefile path references"
 
@@ -303,7 +316,7 @@ sed "${_SED_I_ARGS[@]}" '/kapi-web-deps/d' Makefile
 sed "${_SED_I_ARGS[@]}" '/kapi-web-build/d' Makefile
 sed "${_SED_I_ARGS[@]}" '/kapi\/apps\/kapi-web/d' Makefile
 
-# ─── 16. Update .goreleaser.yaml ────────────────────────────────────────────
+# ─── 17. Update .goreleaser.yaml ────────────────────────────────────────────
 
 echo "--- Updating .goreleaser.yaml"
 
@@ -317,7 +330,7 @@ sed "${_SED_I_ARGS[@]}" 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.ya
 sed "${_SED_I_ARGS[@]}" 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
 sed "${_SED_I_ARGS[@]}" 's|dir: kapi$|dir: framework/kapi|g' .goreleaser.yaml
 
-# ─── 17. Update .dockerignore ───────────────────────────────────────────────
+# ─── 18. Update .dockerignore ───────────────────────────────────────────────
 
 echo "--- Updating .dockerignore"
 
@@ -327,7 +340,7 @@ sed "${_SED_I_ARGS[@]}" 's|apps/web/dist/|bowrain/apps/web/dist/|g' .dockerignor
 sed "${_SED_I_ARGS[@]}" 's|apps/bowrain/frontend/dist/|bowrain/apps/bowrain/frontend/dist/|g' .dockerignore
 sed "${_SED_I_ARGS[@]}" 's|apps/bowrain/|bowrain/apps/bowrain/|g' .dockerignore
 
-# ─── 18. Update CI workflows ────────────────────────────────────────────────
+# ─── 19. Update CI workflows ────────────────────────────────────────────────
 
 echo "--- Updating CI workflow path triggers"
 
@@ -363,13 +376,15 @@ update_workflow_paths() {
   sed "${_SED_I_ARGS[@]}" 's|cd platform|cd bowrain/platform|g' "$file"
   sed "${_SED_I_ARGS[@]}" 's|cd bowrain-cli|cd bowrain/cli|g' "$file"
   sed "${_SED_I_ARGS[@]}" 's|cd kapi|cd framework/kapi|g' "$file"
+  # e2e compose path (root e2e/ moved into bowrain/e2e/)
+  sed "${_SED_I_ARGS[@]}" 's|-f e2e/compose\.yaml|-f bowrain/e2e/compose.yaml|g' "$file"
 }
 
 for wf in .github/workflows/*.yml; do
   update_workflow_paths "$wf"
 done
 
-# ─── 19. Update deploy/docker/compose.yaml Dockerfile paths ─────────────────
+# ─── 20. Update deploy/docker/compose.yaml Dockerfile paths ─────────────────
 
 echo "--- Updating bowrain/deploy/docker/compose.yaml"
 if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
@@ -379,7 +394,7 @@ if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
   sed "${_SED_I_ARGS[@]}" 's|docker/keycloak|bowrain/docker/keycloak|g' bowrain/deploy/docker/compose.yaml
 fi
 
-# ─── 20. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
+# ─── 21. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
 
 echo "--- Copying .dockerignore into bowrain/"
 cp .dockerignore bowrain/.dockerignore
