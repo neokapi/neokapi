@@ -1,0 +1,300 @@
+#!/usr/bin/env bash
+# scripts/reorg-monorepo.sh — Reorganize the gokapi monorepo
+#
+# Consolidates all bowrain-related code under ./bowrain/ and keeps framework
+# code (core, cli) at the root.
+#
+# Target layout:
+#
+#   core/                   framework packages (unchanged)
+#   core/cli/               shared CLI base (moved from ./cli/)
+#   kapi/                   kapi CLI tool (unchanged, kapi-web removed)
+#   bowrain/                bowrain server, apps, desktop (unchanged)
+#     cli/                  bowrain CLI (moved from ./bowrain-cli/)
+#     platform/             platform types & interfaces (moved from ./platform/)
+#     packages/ui/          shared React component library (moved from ./packages/ui/)
+#     docker/               Dockerfiles (moved from ./docker/)
+#     deploy/               deployment configs (moved from ./deploy/)
+#     assets/               bowrain logo (moved from ./assets/bowrain-logo.png)
+#     compose.yaml          dev compose (moved from root)
+#     compose.override.yaml dev compose overlay (moved from root)
+#     package.json          npm workspaces (moved + rewritten)
+#     package-lock.json     lockfile (moved from root)
+#     docs/                 bowrain docs (already in place)
+#   assets/                 gokapi framework logos (bowrain logo removed)
+#   website/                main docusaurus site (unchanged)
+#
+# What changes:
+#   - Directory locations (git mv)
+#   - go.work use directives
+#   - replace directives in every go.mod
+#   - Makefile path variables
+#   - .goreleaser.yaml build dirs and hooks
+#   - .dockerignore paths
+#   - CI workflow path triggers
+#   - Root package.json → bowrain/package.json (rewritten workspaces)
+#   - deploy/docker/compose.yaml Dockerfile paths
+#
+# What does NOT change:
+#   - Go module names (github.com/gokapi/gokapi/cli stays the same)
+#   - Go import paths in source code (no source rewriting needed)
+#   - Website configuration (bowrain docs plugin already configured)
+#
+# Usage:
+#   git checkout -b reorg
+#   bash scripts/reorg-monorepo.sh
+#   # Review changes, run tests, commit
+#
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# ─── safety checks ──────────────────────────────────────────────────────────
+
+if [[ -n "$(git status --porcelain)" ]]; then
+  echo "ERROR: working tree is dirty — commit or stash first" >&2
+  exit 1
+fi
+
+if ! command -v git &>/dev/null; then
+  echo "ERROR: git is required" >&2
+  exit 1
+fi
+
+echo "==> Starting monorepo reorganization in $REPO_ROOT"
+
+# ─── 1. Move cli/ → core/cli/ ───────────────────────────────────────────────
+
+echo "--- Moving cli/ → core/cli/"
+git mv cli core/cli
+
+# ─── 2. Move bowrain-cli/ → bowrain/cli/ ────────────────────────────────────
+
+echo "--- Moving bowrain-cli/ → bowrain/cli/"
+git mv bowrain-cli bowrain/cli
+
+# ─── 3. Move platform/ → bowrain/platform/ ──────────────────────────────────
+
+echo "--- Moving platform/ → bowrain/platform/"
+git mv platform bowrain/platform
+
+# ─── 4. Move packages/ui/ → bowrain/packages/ui/ ────────────────────────────
+
+echo "--- Moving packages/ui/ → bowrain/packages/ui/"
+mkdir -p bowrain/packages
+git mv packages/ui bowrain/packages/ui
+# Remove packages/ if now empty
+if [[ -d packages ]] && [[ -z "$(ls -A packages)" ]]; then
+  rmdir packages
+fi
+
+# ─── 5. Move docker/ → bowrain/docker/ ──────────────────────────────────────
+
+echo "--- Moving docker/ → bowrain/docker/"
+git mv docker bowrain/docker
+
+# ─── 6. Move deploy/ → bowrain/deploy/ ──────────────────────────────────────
+
+echo "--- Moving deploy/ → bowrain/deploy/"
+git mv deploy bowrain/deploy
+
+# ─── 7. Move compose files → bowrain/ ───────────────────────────────────────
+
+echo "--- Moving compose files → bowrain/"
+git mv compose.yaml bowrain/compose.yaml
+git mv compose.override.yaml bowrain/compose.override.yaml
+
+# ─── 8. Move bowrain asset → bowrain/assets/ ─────────────────────────────────
+
+echo "--- Moving bowrain-logo.png → bowrain/assets/"
+mkdir -p bowrain/assets
+git mv assets/bowrain-logo.png bowrain/assets/bowrain-logo.png
+
+# ─── 9. Remove kapi/apps/kapi-web/ ──────────────────────────────────────────
+
+echo "--- Removing kapi/apps/kapi-web/ (decouples kapi from bowrain UI)"
+git rm -rf kapi/apps/kapi-web
+
+# ─── 10. Move root package.json + lockfile → bowrain/ ───────────────────────
+
+echo "--- Moving package.json and package-lock.json → bowrain/"
+git mv package.json bowrain/package.json
+git mv package-lock.json bowrain/package-lock.json
+
+# ─── 11. Rewrite bowrain/package.json workspaces ────────────────────────────
+
+echo "--- Rewriting bowrain/package.json workspaces"
+cat > bowrain/package.json <<'PKGJSON'
+{
+  "private": true,
+  "workspaces": [
+    "packages/ui",
+    "apps/web",
+    "apps/bowrain/frontend"
+  ],
+  "devDependencies": {
+    "storybook": "^10.2.13"
+  }
+}
+PKGJSON
+
+# ─── 12. Update go.work ─────────────────────────────────────────────────────
+
+echo "--- Updating go.work"
+cat > go.work <<'GOWORK'
+go 1.26.0
+
+use (
+	.
+	./core/cli
+	./bowrain/platform
+	./kapi
+	./bowrain/cli
+	./bowrain
+)
+GOWORK
+
+# ─── 13. Update replace directives in go.mod files ──────────────────────────
+
+echo "--- Updating go.mod replace directives"
+
+# core/cli/go.mod: was cli/go.mod, root is now ../..
+sed -i 's|=> \.\./|=> ../../|g' core/cli/go.mod
+
+# kapi/go.mod: root stays ../, cli is now ../core/cli
+sed -i 's|=> \.\./cli|=> ../core/cli|g' kapi/go.mod
+
+# bowrain/cli/go.mod: was bowrain-cli/go.mod, root is now ../..
+# Also update cli and platform paths
+sed -i 's|=> \.\./|=> ../../|g' bowrain/cli/go.mod
+sed -i 's|=> \.\./\.\./cli|=> ../../core/cli|g' bowrain/cli/go.mod
+sed -i 's|=> \.\./\.\./platform|=> ../platform|g' bowrain/cli/go.mod
+
+# bowrain/platform/go.mod: was platform/go.mod, root is now ../..
+sed -i 's|=> \.\./|=> ../../|g' bowrain/platform/go.mod
+
+# bowrain/go.mod: root stays ../, platform is now ./platform (same parent)
+sed -i 's|=> \.\./platform|=> ./platform|g' bowrain/go.mod
+
+# ─── 14. Update Makefile ────────────────────────────────────────────────────
+
+echo "--- Updating Makefile path references"
+
+# Module directory variables (use explicit spaces for POSIX sed compatibility)
+sed -i 's|^CLI_DIR  *:=.*|CLI_DIR         := core/cli|' Makefile
+sed -i 's|^PLATFORM_DIR  *:=.*|PLATFORM_DIR    := bowrain/platform|' Makefile
+sed -i 's|^BOWRAIN_CLI_DIR  *:=.*|BOWRAIN_CLI_DIR := bowrain/cli|' Makefile
+
+# Path variables
+sed -i 's|CERT_DIR  *:= docker/traefik/certs|CERT_DIR     := bowrain/docker/traefik/certs|' Makefile
+sed -i 's|KAPI_WEB_DIR  *:= kapi/apps/kapi-web|# KAPI_WEB_DIR removed (kapi-web decoupled)|' Makefile
+
+# cd commands for module operations
+sed -i 's|cd cli \&\&|cd core/cli \&\&|g' Makefile
+sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' Makefile
+sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' Makefile
+
+# Docker compose references (use -f flag context to avoid matching deploy paths)
+sed -i 's|-f compose\.yaml|-f bowrain/compose.yaml|g' Makefile
+sed -i 's|-f compose\.override\.yaml|-f bowrain/compose.override.yaml|g' Makefile
+
+# Docker build context paths (Dockerfiles moved under bowrain/)
+sed -i 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' Makefile
+sed -i 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' Makefile
+sed -i 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' Makefile
+sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' Makefile
+sed -i 's|docker/traefik|bowrain/docker/traefik|g' Makefile
+
+# Remove kapi-web references from Makefile (kapi-web was removed)
+# Note: review result manually — these patterns remove lines containing the marker
+sed -i '/KAPI_WEB_DIR/d' Makefile
+sed -i '/kapi-web-deps/d' Makefile
+sed -i '/kapi-web-build/d' Makefile
+sed -i '/kapi\/apps\/kapi-web/d' Makefile
+
+# ─── 15. Update .goreleaser.yaml ────────────────────────────────────────────
+
+echo "--- Updating .goreleaser.yaml"
+
+# Before hooks: update cd paths for module tidy
+sed -i 's|cd cli \&\&|cd core/cli \&\&|g' .goreleaser.yaml
+sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' .goreleaser.yaml
+sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' .goreleaser.yaml
+
+# Build dir for bowrain-cli
+sed -i 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
+
+# ─── 16. Update .dockerignore ───────────────────────────────────────────────
+
+echo "--- Updating .dockerignore"
+
+# The Dockerfiles now live under bowrain/docker/ and the build context
+# is likely bowrain/. Adjust relative paths accordingly.
+sed -i 's|apps/web/dist/|bowrain/apps/web/dist/|g' .dockerignore
+sed -i 's|apps/bowrain/frontend/dist/|bowrain/apps/bowrain/frontend/dist/|g' .dockerignore
+sed -i 's|apps/bowrain/|bowrain/apps/bowrain/|g' .dockerignore
+
+# ─── 17. Update CI workflows ────────────────────────────────────────────────
+
+echo "--- Updating CI workflow path triggers"
+
+update_workflow_paths() {
+  local file="$1"
+  # Update path triggers in workflow files
+  sed -i "s|'cli/\*\*'|'core/cli/**'|g" "$file"
+  sed -i "s|'platform/\*\*'|'bowrain/platform/**'|g" "$file"
+  sed -i "s|'bowrain-cli/\*\*'|'bowrain/cli/**'|g" "$file"
+  sed -i "s|'packages/ui/\*\*'|'bowrain/packages/ui/**'|g" "$file"
+  sed -i "s|'docker/bowrain-server/\*\*'|'bowrain/docker/bowrain-server/**'|g" "$file"
+  sed -i "s|'docker/bowrain-web/\*\*'|'bowrain/docker/bowrain-web/**'|g" "$file"
+  sed -i "s|'docker/bowrain-worker/\*\*'|'bowrain/docker/bowrain-worker/**'|g" "$file"
+  sed -i "s|'docker/keycloak/\*\*'|'bowrain/docker/keycloak/**'|g" "$file"
+  sed -i "s|'kapi/apps/kapi-web/\*\*'||g" "$file"
+  # Also handle double-quoted variants
+  sed -i 's|"cli/\*\*"|"core/cli/**"|g' "$file"
+  sed -i 's|"platform/\*\*"|"bowrain/platform/**"|g' "$file"
+  sed -i 's|"bowrain-cli/\*\*"|"bowrain/cli/**"|g' "$file"
+  sed -i 's|"packages/ui/\*\*"|"bowrain/packages/ui/**"|g' "$file"
+  sed -i 's|"docker/bowrain-server/\*\*"|"bowrain/docker/bowrain-server/**"|g' "$file"
+  sed -i 's|"docker/bowrain-web/\*\*"|"bowrain/docker/bowrain-web/**"|g' "$file"
+  sed -i 's|"docker/bowrain-worker/\*\*"|"bowrain/docker/bowrain-worker/**"|g' "$file"
+  sed -i 's|"docker/keycloak/\*\*"|"bowrain/docker/keycloak/**"|g' "$file"
+  # Remove kapi-web path entries entirely (including surrounding YAML list syntax)
+  sed -i "/kapi\/apps\/kapi-web/d" "$file"
+  # cd commands in workflow steps
+  sed -i 's|cd cli|cd core/cli|g' "$file"
+  sed -i 's|cd platform|cd bowrain/platform|g' "$file"
+  sed -i 's|cd bowrain-cli|cd bowrain/cli|g' "$file"
+}
+
+for wf in .github/workflows/*.yml; do
+  update_workflow_paths "$wf"
+done
+
+# ─── 18. Update deploy/docker/compose.yaml Dockerfile paths ─────────────────
+
+echo "--- Updating bowrain/deploy/docker/compose.yaml"
+if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
+  sed -i 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' bowrain/deploy/docker/compose.yaml
+  sed -i 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' bowrain/deploy/docker/compose.yaml
+  sed -i 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' bowrain/deploy/docker/compose.yaml
+  sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' bowrain/deploy/docker/compose.yaml
+fi
+
+# ─── 19. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
+
+echo "--- Copying .dockerignore into bowrain/"
+cp .dockerignore bowrain/.dockerignore
+
+# ─── Done ────────────────────────────────────────────────────────────────────
+
+echo ""
+echo "==> Reorganization complete. Next steps:"
+echo ""
+echo "  1. Review changes:  git diff --stat"
+echo "  2. Verify Go build: go build ./..."
+echo "  3. Verify tests:    make test"
+echo "  4. Verify frontend: cd bowrain && npm install && npm run build"
+echo "  5. Commit:          git add -A && git commit -m 'reorg: consolidate bowrain under ./bowrain/'"
+echo ""
