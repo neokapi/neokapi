@@ -84,11 +84,36 @@ Falls back to length-based pre-filtering if pg_trgm is unavailable.
 
 ## Storage Backends
 
-1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch processing.
-2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Uses the shared `bowrain/storage/` infrastructure layer with TermBase ([AD-010](/docs/ad/010-terminology)) and Content Store ([AD-003](/docs/ad/003-content-store)). Pure Go with no CGo dependencies.
-3. **PostgreSQL**: persistent; same matching logic with pg_trgm GIN indexes for fuzzy candidate retrieval and tsvector/tsquery for ranked UI search. Workspace-scoped isolation via `workspace_id` column.
+1. **In-memory** (`core/sievepen/`): fast, ephemeral; for session-scoped leverage during batch processing. Linear scan.
+2. **CLI SQLite** (`core/sievepen/`): persistent file-based storage for kapi and bowrain CLI. Same matching algorithm and FTS5 indexes as the server SQLite variant but without project_id, stream, or workspace_id columns. Pure Go via `modernc.org/sqlite`.
+3. **Server SQLite** (`bowrain/sievepen/`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Uses the shared `bowrain/storage/` infrastructure layer with TermBase ([AD-010](/docs/ad/010-terminology)) and Content Store ([AD-003](/docs/ad/003-content-store)). Supports project scoping and stream branching. Pure Go with no CGo dependencies.
+4. **Server PostgreSQL** (`bowrain/sievepen/`): persistent; same matching logic with pg_trgm GIN indexes for fuzzy candidate retrieval and tsvector/tsquery for ranked UI search. Workspace-scoped isolation via `workspace_id` column.
 
 Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
+
+## Project Scoping (Bowrain Platform)
+
+Server backends support `ProjectScope` filtering on TM lookups:
+
+- **ProjectScopeAll** (default): workspace-wide search. When a fuzzy match comes from the current project, a +0.03 score boost is applied (capped at 1.0), giving slight preference to project-local matches.
+- **ProjectScopeOnly**: restricts lookup to entries from the current project only.
+- **ProjectScopeExclude**: returns entries from other projects only (useful for cross-project reuse analysis).
+
+Project filtering is applied via SQL WHERE clauses (`project_id = ?` or `project_id != ?`) on both exact and fuzzy queries.
+
+## Stream-Aware Search (Bowrain Platform)
+
+Server backends support stream-based search with inheritance. A `streamChain` (e.g., `["feature/rebrand", "main", ""]`) defines the lookup order. Entries from earlier streams in the chain take priority via a SQL `CASE` expression:
+
+```sql
+ORDER BY CASE
+    WHEN stream = 'feature/rebrand' THEN 0
+    WHEN stream = 'main' THEN 1
+    WHEN stream = '' THEN 2
+END
+```
+
+The `idx_tm_stream(stream, source_locale, target_locale)` index supports efficient stream-scoped queries.
 
 ## TMX Element Mapping
 

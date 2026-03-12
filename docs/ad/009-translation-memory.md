@@ -78,16 +78,15 @@ Spans for the structural key. No separate pre-processing step is needed.
 
 ### Storage Backends
 
-Three storage tiers:
+Four storage tiers:
 
 1. **In-memory** (`core/sievepen/`): fast, ephemeral; for session-scoped
    leverage during batch processing.
-2. **CLI SQLite** (`cli/storage/sievepen/`): persistent file-based storage for
+2. **CLI SQLite** (`core/sievepen/`): persistent file-based storage for
    kapi and bowrain CLI. Same matching algorithm and schema as the server
    variant but without project_id, stream, or workspace_id columns. Resources
    are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file`
-   (explicit path). Created on demand. Uses a lightweight `cli/storage/`
-   infrastructure layer.
+   (explicit path). Created on demand.
 3. **Server SQLite** (`bowrain/sievepen/`): persistent; matching keys are
    pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
    layer with TermBase ([AD-010](./010-terminology.md)) and Content Store

@@ -84,13 +84,20 @@ See [Translation Editor](./translation-editor.md) for details on context panel T
 
 ## Matching Algorithm
 
-The TM system uses a three-tier matching approach:
+The TM uses a 6-tier matching pipeline, tried in order of reuse potential:
 
-1. **Generalized matching** — normalizes text by removing inline tags, producing broader matches across different tag structures
-2. **Structural matching** — considers the tag structure but tolerates minor text variations, catching matches where formatting differs
-3. **Plain matching** — exact text comparison including all inline tags, for precise matches
+| Tier | Type | Description | Score |
+|------|------|-------------|-------|
+| 1 | Generalized Exact | Named entities replaced with typed placeholders (`{PERSON}`, `{ORGANIZATION}`). Matches segments with different entity values. | 100% |
+| 2 | Structural Exact | Inline markup normalized to numbered codes (`{1}`, `{/1}`). Matches segments with different formatting. | 100% |
+| 3 | Plain Exact | Raw text exact match (all span markers stripped). | 100% |
+| 4 | Generalized Fuzzy | Levenshtein distance on entity-normalized text. | 70-99% |
+| 5 | Structural Fuzzy | Levenshtein distance on markup-normalized text. | 70-99% |
+| 6 | Plain Fuzzy | Levenshtein distance on plain text. | 70-99% |
 
-Each match receives a **score** (0-100%) based on Levenshtein distance similarity. Matches are color-coded:
+The first tier producing a match at or above the score threshold wins. Generalized exact matches include entity adaptation — entity values from the current source are automatically substituted into the stored target.
+
+Matches are color-coded in the UI:
 - **Green** (100%) — exact match
 - **Yellow** (70-99%) — fuzzy match
 - Lower scores appear with reduced emphasis

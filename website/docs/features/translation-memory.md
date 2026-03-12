@@ -13,18 +13,18 @@ Unlike traditional TMs that store plain strings, Sievepen works with the full co
 
 | Tier | Match Type | Description |
 |------|-----------|-------------|
-| 1 | **Generalized** | Entity-aware: named entities (people, products, dates) are replaced with typed placeholders. Matches segments with different entity values (e.g., "Welcome, John" matches "Welcome, Alice"). |
-| 2 | **Structural** | Inline-code-aware: inline markup (`<b>`, `<a href>`, etc.) is normalized. Matches segments with different formatting. |
-| 3 | **Plain** | Text-only: standard Levenshtein fuzzy matching on plain text. |
+| 1 | **Generalized** | Entity-aware: named entities (people, products, dates) are replaced with typed placeholders (`{PERSON}`, `{ORGANIZATION}`). Matches segments with different entity values (e.g., "Welcome, John" matches "Welcome, Alice"). |
+| 2 | **Structural** | Inline-code-aware: inline markup (`<b>`, `<a href>`, etc.) is normalized to numbered codes (`{1}`, `{/1}`). Matches segments with different formatting. |
+| 3 | **Plain** | Text-only: all inline markup is stripped. Matches on raw text content. |
 
-Each tier can produce exact (100%) or fuzzy matches. When a generalized exact match is found, entity values from the current source are adapted into the stored target.
+Each tier can produce exact (100%) or fuzzy matches, giving a 6-tier pipeline: generalized exact, structural exact, plain exact, then generalized fuzzy, structural fuzzy, and plain fuzzy. The first match at or above the score threshold wins. When a generalized exact match is found, entity values from the current source are adapted into the stored target.
 
 ## Storage Backends
 
 Four storage tiers support progressive complexity:
 
 1. **In-memory** (`core/sievepen/`) — fast, ephemeral. Used for session-scoped batch processing.
-2. **CLI SQLite** (`cli/storage/sievepen/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
+2. **CLI SQLite** (`core/sievepen/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
 3. **Server SQLite** (`bowrain/sievepen/`) — server-managed with project scoping and terminology streams.
 4. **Server PostgreSQL** (`bowrain/sievepen/`) — multi-user, multi-workspace with full stream inheritance and project boosting.
 
