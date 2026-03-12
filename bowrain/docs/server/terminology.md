@@ -1,0 +1,144 @@
+---
+sidebar_position: 5
+title: Terminology
+---
+
+# Terminology
+
+The Terminology Explorer provides concept-oriented term management for maintaining consistent vocabulary across translations. Each concept represents a single meaning with terms in multiple languages, lifecycle statuses, and domain classification.
+
+## Accessing the Terminology Explorer
+
+There are two ways to open the Terminology Explorer:
+
+1. **From a project** — click the **Terminology** button in the project view header. This opens the explorer with the project name displayed and source/target locales available for filtering.
+2. **From the sidebar** — click **Termbase** in the main sidebar to access the workspace-scoped explorer.
+
+## Browsing Concepts
+
+The explorer displays concepts in a paginated table with these columns:
+
+| Column | Description |
+|--------|-------------|
+| **Source Term** | The term in the source language |
+| **Target Term** | The translated term |
+| **Domain** | Subject area classification (e.g., "legal", "medical", "UI") |
+| **Status** | Lifecycle status badge |
+| **Updated** | Date the concept was last modified |
+| **Actions** | Edit and Delete buttons |
+
+The concept count badge in the header shows the total number of concepts matching current filters.
+
+## Term Lifecycle Statuses
+
+Each term carries a lifecycle status that communicates its approval level:
+
+| Status | Meaning |
+|--------|---------|
+| **Preferred** | The recommended term — translators should use this |
+| **Approved** | Accepted for use |
+| **Admitted** | Acceptable but not preferred |
+| **Deprecated** | Was once approved but should no longer be used |
+| **Proposed** | Under review, not yet approved |
+| **Forbidden** | Must not be used in translations |
+
+## Searching
+
+Type in the search box to filter concepts by source or target term text. The search uses debounced input (300ms delay) and results update automatically.
+
+## Filtering
+
+Use the filter controls to narrow the concept list:
+
+- **Source locale filter** — show only concepts with a term in the specified source language
+- **Target locale filter** — show only concepts with a term in the specified target language
+- **Status filter** — show only concepts with a specific lifecycle status
+
+Filters can be combined with text search. Changing a filter resets to page 1.
+
+## Adding Concepts
+
+1. Click **Add Concept** in the header
+2. Fill in the form:
+   - **Source term** — the term in the source language
+   - **Target term** — the translated term
+   - **Source locale** — select from available locales
+   - **Target locale** — select from available locales
+   - **Domain** (optional) — subject area classification
+   - **Status** — lifecycle status (defaults to "proposed")
+3. Click **Add** to save, or **Cancel** to discard
+
+## Editing Concepts
+
+1. Click **Edit** on a concept row
+2. The target term becomes an inline text input
+3. Modify the translation
+4. Click **Save** to confirm, or **Cancel** to discard changes
+
+## Deleting Concepts
+
+1. Click **Delete** on a concept row
+2. A confirmation dialog appears: "Are you sure you want to delete this concept?"
+3. Click **Delete** to confirm, or **Cancel** to keep the concept
+
+## Import and Export
+
+### Import from CSV
+
+Click **Import CSV** and select a CSV file. The expected format:
+
+```csv
+source_term,target_term,source_locale,target_locale,domain,status
+login,connexion,en,fr,UI,approved
+password,mot de passe,en,fr,UI,preferred
+```
+
+### Import from JSON
+
+Click **Import JSON** and select a JSON file containing an array of concept objects:
+
+```json
+[
+  {
+    "source_term": "login",
+    "target_term": "connexion",
+    "source_locale": "en",
+    "target_locale": "fr",
+    "domain": "UI",
+    "status": "approved"
+  }
+]
+```
+
+### Export to JSON
+
+Click **Export JSON** to download the entire termbase as a JSON file. This is useful for backup, sharing with other workspaces, or importing into external tools.
+
+## Pagination
+
+When there are more than 50 concepts, pagination controls appear below the table:
+
+- **Previous** / **Next** buttons to navigate pages
+- **Page X of Y** indicator showing current position
+
+## Terminology in the Translation Editor
+
+Terminology is also used within the translation editor:
+
+- **Context panel** — shows per-block term matches with source terms, target suggestions, status badges, and domain labels
+- **Term enforcement** — validates that target translations use the correct terminology
+
+When a block is selected in the editor, the context panel automatically looks up matching terms and displays them alongside TM matches.
+
+See [Translation Editor](./translation-editor.md) for details on the context panel.
+
+## Concept Model
+
+The terminology system is concept-oriented, inspired by the TBX (TermBase eXchange) standard:
+
+- A **concept** represents a single meaning or notion
+- Each concept has **terms** in one or more languages
+- Terms have **metadata**: lifecycle status, domain, and notes
+- Concepts are scoped to the workspace and shared across all projects
+
+For more on the terminology system architecture, see [Terminology](/docs/features/terminology) in the User Guide.

@@ -21,7 +21,7 @@ The `flow run` command executes a named processing pipeline. Documents are read,
 Use `flow list` to see available flows.
 
 :::note
-For project-based flows with automatic file mappings and locale configuration, see [Bowrain CLI flow command](/docs/bowrain-cli/commands/flow).
+For project-based flows with automatic file mappings and locale configuration, see [Bowrain CLI flow command](/bowrain/cli/commands/flow).
 :::
 
 ## Examples
