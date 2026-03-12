@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/labstack/echo/v4"
 )
 
 // HandleRenderDocumentPreview returns a full HTML preview for a file in a project.

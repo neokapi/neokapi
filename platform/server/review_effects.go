@@ -7,8 +7,8 @@ import (
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
 )
 

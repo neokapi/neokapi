@@ -28,10 +28,10 @@ var htmlToSemanticType = map[string]string{
 	"s": "fmt:strikethrough", "del": "fmt:strikethrough", "strike": "fmt:strikethrough",
 	"a":    "link:hyperlink",
 	"code": "fmt:code", "kbd": "fmt:code", "samp": "fmt:code", "tt": "fmt:code",
-	"sub":  "fmt:subscript", "sup": "fmt:superscript",
+	"sub": "fmt:subscript", "sup": "fmt:superscript",
 	"mark": "fmt:highlight",
 	"br":   "struct:break", "hr": "struct:break",
-	"img":  "media:image",
+	"img": "media:image",
 }
 
 // okapiSubTypeMap maps known Okapi Code type strings to vocabulary types.

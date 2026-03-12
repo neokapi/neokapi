@@ -14,25 +14,25 @@ import (
 
 // noTextCommands are commands whose arguments are non-translatable.
 var noTextCommands = map[string]bool{
-	"label":           true,
-	"ref":             true,
-	"cite":            true,
-	"include":         true,
-	"input":           true,
-	"bibliography":    true,
+	"label":             true,
+	"ref":               true,
+	"cite":              true,
+	"include":           true,
+	"input":             true,
+	"bibliography":      true,
 	"bibliographystyle": true,
-	"pageref":         true,
-	"eqref":           true,
-	"documentclass":   true,
-	"usepackage":      true,
-	"newcommand":      true,
-	"renewcommand":    true,
-	"setlength":       true,
-	"setcounter":      true,
-	"addtocounter":    true,
-	"pagestyle":       true,
-	"thispagestyle":   true,
-	"pagenumbering":   true,
+	"pageref":           true,
+	"eqref":             true,
+	"documentclass":     true,
+	"usepackage":        true,
+	"newcommand":        true,
+	"renewcommand":      true,
+	"setlength":         true,
+	"setcounter":        true,
+	"addtocounter":      true,
+	"pagestyle":         true,
+	"thispagestyle":     true,
+	"pagenumbering":     true,
 }
 
 // inlineTextCommands are commands whose arguments contain inline translatable text.
@@ -69,19 +69,19 @@ var paragraphTextCommands = map[string]bool{
 
 // nonTranslatableEnvironments that should be emitted as Data.
 var nonTranslatableEnvironments = map[string]bool{
-	"verbatim":  true,
-	"lstlisting": true,
-	"equation":  true,
-	"equation*": true,
-	"align":     true,
-	"align*":    true,
-	"gather":    true,
-	"gather*":   true,
-	"multline":  true,
-	"multline*": true,
-	"eqnarray":  true,
-	"eqnarray*": true,
-	"math":      true,
+	"verbatim":    true,
+	"lstlisting":  true,
+	"equation":    true,
+	"equation*":   true,
+	"align":       true,
+	"align*":      true,
+	"gather":      true,
+	"gather*":     true,
+	"multline":    true,
+	"multline*":   true,
+	"eqnarray":    true,
+	"eqnarray*":   true,
+	"math":        true,
 	"displaymath": true,
 }
 
@@ -207,7 +207,7 @@ func (p *parser) parse(ctx context.Context, ch chan<- model.PartResult, r *Reade
 
 	var textBuf strings.Builder
 	var rawBuf strings.Builder // raw TeX for Data reconstruction
-	textStartPos := -1        // source position where text accumulation started
+	textStartPos := -1         // source position where text accumulation started
 
 	flushText := func() {
 		text := strings.TrimSpace(textBuf.String())

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -21,11 +21,11 @@ import (
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
-	sqltm "github.com/neokapi/neokapi/sievepen"
-	sqltb "github.com/neokapi/neokapi/termbase"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/providers/ai"
+	sqltm "github.com/neokapi/neokapi/sievepen"
+	sqltb "github.com/neokapi/neokapi/termbase"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -783,7 +783,6 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 		return nil, nil, fmt.Errorf("unknown flow: %q", flowName)
 	}
 }
-
 
 func (a *App) getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()

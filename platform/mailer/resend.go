@@ -32,10 +32,10 @@ func NewResendSender(apiKey, from string) *ResendSender {
 }
 
 type resendRequest struct {
-	From    string `json:"from"`
+	From    string   `json:"from"`
 	To      []string `json:"to"`
-	Subject string `json:"subject"`
-	HTML    string `json:"html"`
+	Subject string   `json:"subject"`
+	HTML    string   `json:"html"`
 }
 
 type resendError struct {

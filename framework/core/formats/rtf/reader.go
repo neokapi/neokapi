@@ -125,8 +125,8 @@ var headerFooterDestinations = map[string]bool{
 
 // annotationDestinations are RTF destinations for comments/annotations.
 var annotationDestinations = map[string]bool{
-	"atnid":   true,
-	"atnauthor": true,
+	"atnid":      true,
+	"atnauthor":  true,
 	"annotation": true,
 }
 

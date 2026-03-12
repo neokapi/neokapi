@@ -103,37 +103,37 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	var elemStartOff int64
 
 	var (
-		tsVersion      string
-		tsLanguage     string
-		tsSrcLanguage  string
-		blockCount     int
-		contextName    string
-		contextCount   int
-		inContext       bool
-		inMessage      bool
-		inSource       bool
-		inTranslation  bool
-		inComment      bool
-		inExtraComment bool
-		inTransComment bool
-		inNumerusForm  bool
-		inContextName  bool
-		messageID      string
-		messageNumerus bool
-		transType      string
-		sourceBuilder  strings.Builder
-		transBuilder   strings.Builder
-		commentBuilder strings.Builder
+		tsVersion           string
+		tsLanguage          string
+		tsSrcLanguage       string
+		blockCount          int
+		contextName         string
+		contextCount        int
+		inContext           bool
+		inMessage           bool
+		inSource            bool
+		inTranslation       bool
+		inComment           bool
+		inExtraComment      bool
+		inTransComment      bool
+		inNumerusForm       bool
+		inContextName       bool
+		messageID           string
+		messageNumerus      bool
+		transType           string
+		sourceBuilder       strings.Builder
+		transBuilder        strings.Builder
+		commentBuilder      strings.Builder
 		extraCommentBuilder strings.Builder
 		transCommentBuilder strings.Builder
 		contextNameBuilder  strings.Builder
-		numerusForms   []string
-		sourceFrag     *model.Fragment
-		sourceByteElems []byteElem
-		transByteElems  []byteElem
-		buildingSourceFrag bool
-		buildingTransFrag  bool
-		transFrag    *model.Fragment
+		numerusForms        []string
+		sourceFrag          *model.Fragment
+		sourceByteElems     []byteElem
+		transByteElems      []byteElem
+		buildingSourceFrag  bool
+		buildingTransFrag   bool
+		transFrag           *model.Fragment
 	)
 
 	layer := &model.Layer{

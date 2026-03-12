@@ -210,10 +210,10 @@ type anthropicMessage struct {
 }
 
 type anthropicRequest struct {
-	Model      string              `json:"model"`
-	MaxTokens  int                 `json:"max_tokens"`
-	Messages   []anthropicMessage  `json:"messages"`
-	Tools      []anthropicTool     `json:"tools,omitempty"`
+	Model      string               `json:"model"`
+	MaxTokens  int                  `json:"max_tokens"`
+	Messages   []anthropicMessage   `json:"messages"`
+	Tools      []anthropicTool      `json:"tools,omitempty"`
 	ToolChoice *anthropicToolChoice `json:"tool_choice,omitempty"`
 }
 

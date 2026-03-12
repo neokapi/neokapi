@@ -387,7 +387,6 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	return tx.Commit()
 }
 
-
 func (s *PostgresStore) GetBlock(ctx context.Context, projectID, stream, blockID string) (*platstore.StoredBlock, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/mattn/go-isatty"
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
@@ -20,7 +21,6 @@ import (
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/mattn/go-isatty"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 	"golang.org/x/sync/errgroup"

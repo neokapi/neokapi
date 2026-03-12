@@ -19,15 +19,15 @@ import (
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 var (
@@ -174,7 +174,7 @@ type BlockInfoResponse struct {
 
 // EntityInfoResponse represents an entity annotation on a block.
 type EntityInfoResponse struct {
-	Key    string `json:"key"`              // annotation key (e.g. "entity:0")
+	Key    string `json:"key"` // annotation key (e.g. "entity:0")
 	Text   string `json:"text"`
 	Type   string `json:"type"`
 	Start  int    `json:"start"`

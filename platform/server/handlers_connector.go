@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/platform/connector"
 )
 
 // ConnectorAddRequest is the request for adding a connector.

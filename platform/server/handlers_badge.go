@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // BadgeResponse is a shields.io endpoint-compatible JSON response.

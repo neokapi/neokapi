@@ -158,4 +158,3 @@ func TestFullFile_LQIExternalXMLStandoff(t *testing.T) {
 	assert.Contains(t, texts, "Title", "should extract title")
 	assert.Contains(t, texts, "Paragraph 1", "should extract paragraph 1")
 }
-

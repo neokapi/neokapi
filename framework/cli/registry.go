@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

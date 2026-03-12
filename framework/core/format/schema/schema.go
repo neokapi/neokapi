@@ -93,7 +93,7 @@ type PropertySchema struct {
 // SchemaRegistry manages filter parameter schemas.
 type SchemaRegistry struct {
 	mu            sync.RWMutex
-	schemas       map[string]*FilterSchema    // filterID -> schema
+	schemas       map[string]*FilterSchema     // filterID -> schema
 	classSections map[string]map[string]string // filterClass -> sectionMap
 }
 

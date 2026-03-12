@@ -1434,7 +1434,7 @@ func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 	reader := jsonfmt.NewReader()
 	writer := jsonfmt.NewWriter()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
-		"useKeyAsName":  true,
+		"useKeyAsName":   true,
 		"useFullKeyPath": true,
 	}))
 

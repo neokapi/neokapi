@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	apiclient "github.com/neokapi/neokapi/platform/client"
 	platev "github.com/neokapi/neokapi/platform/event"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/platform/store"
-	"github.com/labstack/echo/v4"
 )
 
 // HandleSyncPush receives source blocks from a client and stores them.

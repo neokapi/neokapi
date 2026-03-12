@@ -12,11 +12,11 @@ import (
 
 func TestExternalCommandToolCatStdin(t *testing.T) {
 	cfg := &tools.ExternalCommandConfig{
-		Command:      "cat",
-		ApplySource:  true,
-		ApplyTarget:  false,
-		SendAsStdin:  true,
-		Timeout:      5,
+		Command:     "cat",
+		ApplySource: true,
+		ApplyTarget: false,
+		SendAsStdin: true,
+		Timeout:     5,
 	}
 	tl := tools.NewExternalCommandTool(cfg)
 
@@ -33,12 +33,12 @@ func TestExternalCommandToolCatStdin(t *testing.T) {
 
 func TestExternalCommandToolArgsPlaceholders(t *testing.T) {
 	cfg := &tools.ExternalCommandConfig{
-		Command:      "echo",
-		Args:         []string{"-n", "${source}"},
-		ApplySource:  true,
-		ApplyTarget:  false,
-		SendAsStdin:  false,
-		Timeout:      5,
+		Command:     "echo",
+		Args:        []string{"-n", "${source}"},
+		ApplySource: true,
+		ApplyTarget: false,
+		SendAsStdin: false,
+		Timeout:     5,
 	}
 	tl := tools.NewExternalCommandTool(cfg)
 
@@ -76,12 +76,12 @@ func TestExternalCommandToolTarget(t *testing.T) {
 
 func TestExternalCommandToolTimeout(t *testing.T) {
 	cfg := &tools.ExternalCommandConfig{
-		Command:      "sleep",
-		Args:         []string{"10"},
-		ApplySource:  true,
-		ApplyTarget:  false,
-		SendAsStdin:  false,
-		Timeout:      1,
+		Command:     "sleep",
+		Args:        []string{"10"},
+		ApplySource: true,
+		ApplyTarget: false,
+		SendAsStdin: false,
+		Timeout:     1,
 	}
 	tl := tools.NewExternalCommandTool(cfg)
 

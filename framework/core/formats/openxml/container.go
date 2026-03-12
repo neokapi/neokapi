@@ -34,11 +34,11 @@ func (dt docType) String() string {
 
 // containerInfo holds parsed metadata about an OpenXML ZIP container.
 type containerInfo struct {
-	docType            docType
-	translatableParts  []string // ordered list of XML part paths to extract
-	mainDocumentPart   string   // e.g., "word/document.xml"
-	relationships      map[string][]relationship
-	sharedStrings      []string // XLSX: shared string table (populated during parsing)
+	docType           docType
+	translatableParts []string // ordered list of XML part paths to extract
+	mainDocumentPart  string   // e.g., "word/document.xml"
+	relationships     map[string][]relationship
+	sharedStrings     []string // XLSX: shared string table (populated during parsing)
 }
 
 // relationship represents an OpenXML relationship entry.
@@ -56,20 +56,20 @@ type contentType struct {
 
 // Well-known content type prefixes for detection.
 const (
-	ctWordDoc     = "application/vnd.openxmlformats-officedocument.wordprocessingml"
-	ctPresentDoc  = "application/vnd.openxmlformats-officedocument.presentationml"
-	ctSpreadDoc   = "application/vnd.openxmlformats-officedocument.spreadsheetml"
+	ctWordDoc    = "application/vnd.openxmlformats-officedocument.wordprocessingml"
+	ctPresentDoc = "application/vnd.openxmlformats-officedocument.presentationml"
+	ctSpreadDoc  = "application/vnd.openxmlformats-officedocument.spreadsheetml"
 )
 
 // Well-known relationship types.
 const (
-	relTypeMainDoc    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
-	relTypeHeader     = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
-	relTypeFooter     = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
-	relTypeFootnotes  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
-	relTypeEndnotes   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
-	relTypeComments   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
-	relTypeHyperlink  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
+	relTypeMainDoc   = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+	relTypeHeader    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"
+	relTypeFooter    = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"
+	relTypeFootnotes = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+	relTypeEndnotes  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/endnotes"
+	relTypeComments  = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
+	relTypeHyperlink = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
 )
 
 // parseContainer analyzes the ZIP archive and returns container metadata.

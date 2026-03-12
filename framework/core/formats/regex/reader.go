@@ -136,11 +136,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 // match represents a regex match with its associated rule.
 type match struct {
-	start       int
-	end         int
-	groups      []string
-	rule        compiledRule
-	fullMatch   string
+	start     int
+	end       int
+	groups    []string
+	rule      compiledRule
+	fullMatch string
 }
 
 func (r *Reader) extractWithRules(ctx context.Context, ch chan<- model.PartResult, content string, rules []compiledRule) {

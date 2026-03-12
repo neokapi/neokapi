@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,8 +18,8 @@ type mockNERProvider struct {
 	entities map[string][]ner.DetectedEntity // keyed by text prefix
 }
 
-func (m *mockNERProvider) Name() string { return "mock-ner" }
-func (m *mockNERProvider) Close() error { return nil }
+func (m *mockNERProvider) Name() string                       { return "mock-ner" }
+func (m *mockNERProvider) Close() error                       { return nil }
 func (m *mockNERProvider) SupportedLocales() []model.LocaleID { return nil }
 
 func (m *mockNERProvider) DetectEntities(_ context.Context, req ner.Request) (*ner.Response, error) {

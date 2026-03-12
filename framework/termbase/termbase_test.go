@@ -326,7 +326,7 @@ func TestInMemoryTermBase_WordBoundaryDetection(t *testing.T) {
 	// Verify that word-boundary occurrence is found.
 	var foundWordBoundary bool
 	for _, m := range matches {
-		if m.Position.Start == strings.Index(text, " src ") + 1 {
+		if m.Position.Start == strings.Index(text, " src ")+1 {
 			foundWordBoundary = true
 		}
 	}

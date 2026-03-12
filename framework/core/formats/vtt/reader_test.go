@@ -876,4 +876,3 @@ func TestExtract_CueWithID(t *testing.T) {
 	assert.Contains(t, blocks[0].SourceText(), "Welcome to the show")
 	assert.Equal(t, "intro", blocks[0].Properties["cue-id"])
 }
-

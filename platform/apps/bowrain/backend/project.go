@@ -41,8 +41,8 @@ type ProjectItem struct {
 
 // SpanInfo describes an inline span element for the frontend.
 type SpanInfo struct {
-	SpanType    string `json:"span_type"`              // "opening", "closing", "placeholder"
-	Type        string `json:"type"`                   // Semantic type from vocabulary (e.g., "fmt:bold")
+	SpanType    string `json:"span_type"` // "opening", "closing", "placeholder"
+	Type        string `json:"type"`      // Semantic type from vocabulary (e.g., "fmt:bold")
 	ID          string `json:"id"`
 	Data        string `json:"data"`                   // original markup: "<b>", "</b>", "<br/>"
 	SubType     string `json:"sub_type,omitempty"`     // Format-specific refinement (e.g., "html:b")

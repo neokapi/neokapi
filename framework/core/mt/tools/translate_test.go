@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/providers/mt"
 	"github.com/neokapi/neokapi/core/mt/tools"
+	"github.com/neokapi/neokapi/providers/mt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -531,7 +531,7 @@ func TestConfigSupport_InlineWithExclude(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 		"elements": map[string]any{
@@ -559,7 +559,7 @@ func TestConfigSupport_InlineWithExcludeStandalone(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 		"elements": map[string]any{
@@ -585,7 +585,7 @@ func TestConfigSupport_InlineWithExcludeRegexTrick(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 		"elements": map[string]any{

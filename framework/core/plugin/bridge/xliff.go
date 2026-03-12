@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// emptyTargetLangRe matches empty target-language="" or target-language='' attributes
+// emptyTargetLangRe matches empty target-language="" or target-language=” attributes
 // in XLIFF content. These must be stripped before sending to Okapi because Okapi's
 // XLIFF writer sets target-language from the RawDocument target locale — if the input
 // already has an empty target-language, Okapi produces a duplicate attribute that

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIQACheckTool checks translation quality using an LLM provider.

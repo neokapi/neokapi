@@ -57,23 +57,23 @@ type goTestEvent struct {
 // --- Output JSON ---
 
 type ComparisonData struct {
-	GeneratedAt   string             `json:"generatedAt"`
-	OkapiVersion  string             `json:"okapiVersion"`
+	GeneratedAt    string             `json:"generatedAt"`
+	OkapiVersion   string             `json:"okapiVersion"`
 	NeokapiVersion string             `json:"neokapiVersion"`
-	GoCommitSHA   string             `json:"goCommitSHA,omitempty"`
-	OkapiTag      string             `json:"okapiTag,omitempty"`
-	Filters       []FilterComparison `json:"filters"`
-	Summary       Summary            `json:"summary"`
+	GoCommitSHA    string             `json:"goCommitSHA,omitempty"`
+	OkapiTag       string             `json:"okapiTag,omitempty"`
+	Filters        []FilterComparison `json:"filters"`
+	Summary        Summary            `json:"summary"`
 }
 
 type Summary struct {
-	TotalFiltersOkapi  int     `json:"totalFiltersOkapi"`
-	TotalFiltersBridge int     `json:"totalFiltersBridge"`
-	TotalFiltersNative int     `json:"totalFiltersNative"`
-	TotalFiltersBoth   int     `json:"totalFiltersBoth"`
-	TotalTestsOkapi    int     `json:"totalTestsOkapi"`
-	TotalTestsBridge   int     `json:"totalTestsBridge"`
-	TotalTestsNative   int     `json:"totalTestsNative"`
+	TotalFiltersOkapi  int            `json:"totalFiltersOkapi"`
+	TotalFiltersBridge int            `json:"totalFiltersBridge"`
+	TotalFiltersNative int            `json:"totalFiltersNative"`
+	TotalFiltersBoth   int            `json:"totalFiltersBoth"`
+	TotalTestsOkapi    int            `json:"totalTestsOkapi"`
+	TotalTestsBridge   int            `json:"totalTestsBridge"`
+	TotalTestsNative   int            `json:"totalTestsNative"`
 	CoveragePct        float64        `json:"coveragePct"`
 	TotalFuncsBridge   int            `json:"totalFuncsBridge,omitempty"`
 	TotalFuncsNative   int            `json:"totalFuncsNative,omitempty"`
@@ -120,41 +120,41 @@ type Test struct {
 }
 
 type TestCaseMatch struct {
-	JavaClass    string `json:"javaClass"`
-	JavaMethod   string `json:"javaMethod"`
-	OkapiStatus  string `json:"okapiStatus"`
-	OkapiFile    string `json:"okapiFile,omitempty"`
-	BridgeTest   string `json:"bridgeTest,omitempty"`
-	BridgeStatus string `json:"bridgeStatus"`
-	BridgeFile   string `json:"bridgeFile,omitempty"`
-	BridgeLine   int    `json:"bridgeLine,omitempty"`
-	NativeTest   string `json:"nativeTest,omitempty"`
-	NativeStatus string `json:"nativeStatus"`
-	NativeFile   string `json:"nativeFile,omitempty"`
-	NativeLine   int    `json:"nativeLine,omitempty"`
-	SkipReason   string `json:"skipReason,omitempty"`
-	SkipCategory string `json:"skipCategory,omitempty"` // auto-classified category
-	TestState      string `json:"testState"`                  // "implemented" | "pending" | "unmapped" | "not-applicable" | "okapi-skip"
+	JavaClass      string `json:"javaClass"`
+	JavaMethod     string `json:"javaMethod"`
+	OkapiStatus    string `json:"okapiStatus"`
+	OkapiFile      string `json:"okapiFile,omitempty"`
+	BridgeTest     string `json:"bridgeTest,omitempty"`
+	BridgeStatus   string `json:"bridgeStatus"`
+	BridgeFile     string `json:"bridgeFile,omitempty"`
+	BridgeLine     int    `json:"bridgeLine,omitempty"`
+	NativeTest     string `json:"nativeTest,omitempty"`
+	NativeStatus   string `json:"nativeStatus"`
+	NativeFile     string `json:"nativeFile,omitempty"`
+	NativeLine     int    `json:"nativeLine,omitempty"`
+	SkipReason     string `json:"skipReason,omitempty"`
+	SkipCategory   string `json:"skipCategory,omitempty"` // auto-classified category
+	TestState      string `json:"testState"`              // "implemented" | "pending" | "unmapped" | "not-applicable" | "okapi-skip"
 	BridgeSubtests int    `json:"bridgeSubtests,omitempty"`
 	NativeSubtests int    `json:"nativeSubtests,omitempty"`
 }
 
 type CoverageStats struct {
-	TotalOkapi      int     `json:"totalOkapi"`
-	BridgeMapped    int     `json:"bridgeMapped"`
-	BridgePassing   int     `json:"bridgePassing"`
-	NativeMapped    int     `json:"nativeMapped"`
-	NativePassing   int     `json:"nativePassing"`
-	CoveragePct     float64 `json:"coveragePct"`
-	IgnoredCount    int     `json:"ignoredCount"`
-	OkapiSkipCount  int     `json:"okapiSkipCount"`
-	PendingCount    int     `json:"pendingCount"`
+	TotalOkapi         int            `json:"totalOkapi"`
+	BridgeMapped       int            `json:"bridgeMapped"`
+	BridgePassing      int            `json:"bridgePassing"`
+	NativeMapped       int            `json:"nativeMapped"`
+	NativePassing      int            `json:"nativePassing"`
+	CoveragePct        float64        `json:"coveragePct"`
+	IgnoredCount       int            `json:"ignoredCount"`
+	OkapiSkipCount     int            `json:"okapiSkipCount"`
+	PendingCount       int            `json:"pendingCount"`
 	ImplementedPct     float64        `json:"implementedPct"`
 	NotApplicableCount int            `json:"notApplicableCount"`
 	CategoryCounts     map[string]int `json:"categoryCounts,omitempty"`
-	BridgeAndNative    int            `json:"bridgeAndNative"`    // tests with both bridge AND native
-	BridgeOnly         int            `json:"bridgeOnly"`         // tests with bridge but no native
-	NativeOnly         int            `json:"nativeOnly"`         // tests with native but no bridge
+	BridgeAndNative    int            `json:"bridgeAndNative"` // tests with both bridge AND native
+	BridgeOnly         int            `json:"bridgeOnly"`      // tests with bridge but no native
+	NativeOnly         int            `json:"nativeOnly"`      // tests with native but no bridge
 }
 
 // annotation maps a Go test function to its Java test counterpart.
@@ -178,6 +178,7 @@ type skipAnnotation struct {
 }
 
 var annotationRe = regexp.MustCompile(`^//\s*okapi:\s+(\w+)#(\w+)\s*$`)
+
 // skipAnnotRe is kept for backward compatibility but okapi-skip is now treated as okapi-unmapped.
 var skipAnnotRe = regexp.MustCompile(`^//\s*okapi-skip:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
 var unmappedAnnotRe = regexp.MustCompile(`^//\s*okapi-unmapped:\s+(\w+)#(\w+)\s*[\x{2014}\x{2013}\-]\s*(.+)$`)
@@ -384,8 +385,8 @@ func worseStatus(a, b string) string {
 // goTestResults holds parsed Go test results along with skip message data.
 type goTestResults struct {
 	filters       map[string]*FilterResult
-	skipMsgs      map[string]string          // "pkg/TestName" → skip output message
-	subtestCounts map[string]map[string]int  // filter → funcName → subtest count
+	skipMsgs      map[string]string         // "pkg/TestName" → skip output message
+	subtestCounts map[string]map[string]int // filter → funcName → subtest count
 }
 
 // parseGoTestResults parses Go test JSON output using a filter extraction function.
@@ -535,10 +536,10 @@ func bridgeFilterFromPkg(pkg string) string {
 // when they differ. This ensures native test results are merged with the correct
 // Okapi filter entry in the comparison dashboard.
 var nativeToOkapiAlias = map[string]string{
-	"csv":  "table",
-	"xml":  "xmlstream",
-	"vtt":  "subtitles",
-	"srt":  "subtitles",
+	"csv": "table",
+	"xml": "xmlstream",
+	"vtt": "subtitles",
+	"srt": "subtitles",
 }
 
 // canonicalFilterName returns the Okapi surefire name for a native filter.
@@ -962,13 +963,13 @@ func merge(
 	}
 
 	return &ComparisonData{
-		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
-		OkapiVersion:  okapiVer,
+		GeneratedAt:    time.Now().UTC().Format(time.RFC3339),
+		OkapiVersion:   okapiVer,
 		NeokapiVersion: neokapiVer,
-		GoCommitSHA:   goCommit,
-		OkapiTag:      okapiTagVal,
-		Filters:       filters,
-		Summary:       sum,
+		GoCommitSHA:    goCommit,
+		OkapiTag:       okapiTagVal,
+		Filters:        filters,
+		Summary:        sum,
 	}
 }
 

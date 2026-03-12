@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/ai"
 )
 
 // AITerminologyTool extracts terminology from Blocks using an LLM.

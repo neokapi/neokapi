@@ -338,7 +338,7 @@ func TestInline_BasicBoldAnchor(t *testing.T) {
 // okapi: XmlStreamEventTest#testPWithInlines2
 func TestInline_BoldAndImg(t *testing.T) {
 	cfg := &xmlfmt.Config{
-		InlineElements:     []string{"b", "img"},
+		InlineElements:         []string{"b", "img"},
 		TranslatableAttributes: []string{"alt"},
 	}
 	parts := readXMLWithConfig(t,

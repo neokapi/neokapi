@@ -121,7 +121,7 @@ type readState struct {
 	pendingNote     string // note text to attach to next block
 	pendingID       string // ID to use as name for next block
 	pendingMeta     map[string]string
-	pendingMaxwidth int    // -1 = not set
+	pendingMaxwidth int // -1 = not set
 	idStack         []string
 }
 

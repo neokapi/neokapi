@@ -18,16 +18,16 @@ import (
 
 // FormatDoc is the JSON structure for a single format.
 type FormatDoc struct {
-	ID          string            `json:"id"`
-	DisplayName string            `json:"displayName"`
-	Description string            `json:"description"`
-	Extensions  []string          `json:"extensions"`
-	MIMETypes   []string          `json:"mimeTypes"`
-	HasReader   bool              `json:"hasReader"`
-	HasWriter   bool              `json:"hasWriter"`
-	Groups      []GroupDoc        `json:"groups,omitempty"`
+	ID          string             `json:"id"`
+	DisplayName string             `json:"displayName"`
+	Description string             `json:"description"`
+	Extensions  []string           `json:"extensions"`
+	MIMETypes   []string           `json:"mimeTypes"`
+	HasReader   bool               `json:"hasReader"`
+	HasWriter   bool               `json:"hasWriter"`
+	Groups      []GroupDoc         `json:"groups,omitempty"`
 	Properties  map[string]PropDoc `json:"properties,omitempty"`
-	Presets     []PresetDoc       `json:"presets,omitempty"`
+	Presets     []PresetDoc        `json:"presets,omitempty"`
 }
 
 // GroupDoc is a parameter group for UI display.
@@ -228,4 +228,3 @@ func convertPresets(configs []schema.FilterConfiguration) []PresetDoc {
 	}
 	return result
 }
-

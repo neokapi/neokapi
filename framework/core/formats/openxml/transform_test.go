@@ -17,15 +17,15 @@ func TestOkapiOpenXMLTransform_DirectMappings(t *testing.T) {
 	from := config.OkapiFilterConfigKind("openxml")
 	to := config.FormatConfigKind("openxml")
 	spec := map[string]any{
-		"translateDocProperties":  true,
-		"translateHiddenText":     true,
-		"aggressiveCleanup":      false,
-		"tabAsCharacter":         true,
-		"translateSlideNotes":    false,
-		"excludeColors":         []string{"FF0000", "00FF00"},
-		"excludeStyles":         []string{"CodeBlock"},
-		"excludedColumns":       []string{"A", "B"},
-		"includedSlides":        []int{1, 3, 5},
+		"translateDocProperties":   true,
+		"translateHiddenText":      true,
+		"aggressiveCleanup":        false,
+		"tabAsCharacter":           true,
+		"translateSlideNotes":      false,
+		"excludeColors":            []string{"FF0000", "00FF00"},
+		"excludeStyles":            []string{"CodeBlock"},
+		"excludedColumns":          []string{"A", "B"},
+		"includedSlides":           []int{1, 3, 5},
 		"lineSeparatorReplacement": "\\n",
 	}
 
@@ -49,21 +49,21 @@ func TestOkapiOpenXMLTransform_RenamedKeys(t *testing.T) {
 	to := config.FormatConfigKind("openxml")
 	spec := map[string]any{
 		"translateDocumentProperties": true,
-		"extractNotes":               false,
-		"extractMasterPages":         true,
-		"extractHiddenSlides":        true,
-		"translateExcelSheetNames":   true,
-		"tsExcludedStyles":           []string{"Heading1"},
-		"tsIncludedStyles":           []string{"Normal"},
-		"tsExcludedColumns":          []string{"C"},
-		"tsExcludedSheets":           []string{"Sheet2"},
-		"tsIncludedSlides":           []any{float64(1), float64(2)},
-		"tsLineSeparatorReplacement": "\n",
-		"tsReplaceLineSeparator":     true,
-		"tsAggressiveCleanup":        false,
-		"tsTabAsCharacter":           true,
-		"tsExtractChartStrings":      true,
-		"tsExtractDiagramData":       true,
+		"extractNotes":                false,
+		"extractMasterPages":          true,
+		"extractHiddenSlides":         true,
+		"translateExcelSheetNames":    true,
+		"tsExcludedStyles":            []string{"Heading1"},
+		"tsIncludedStyles":            []string{"Normal"},
+		"tsExcludedColumns":           []string{"C"},
+		"tsExcludedSheets":            []string{"Sheet2"},
+		"tsIncludedSlides":            []any{float64(1), float64(2)},
+		"tsLineSeparatorReplacement":  "\n",
+		"tsReplaceLineSeparator":      true,
+		"tsAggressiveCleanup":         false,
+		"tsTabAsCharacter":            true,
+		"tsExtractChartStrings":       true,
+		"tsExtractDiagramData":        true,
 	}
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
@@ -91,13 +91,13 @@ func TestOkapiOpenXMLTransform_AdvancedParams(t *testing.T) {
 	from := config.OkapiFilterConfigKind("openxml")
 	to := config.FormatConfigKind("openxml")
 	spec := map[string]any{
-		"translateDocProperties":              true,
-		"translateExcelDrawings":              true,
-		"tsComplexFieldDefinitionsToExtract":  "HYPERLINK",
-		"fontMappings":                        "some-mapping",
-		"optimiseWordStyles":                  true,
-		"extractRunFontsInfo":                 true,
-		"codeFinder":                          map[string]any{"rules": []string{"<br>"}},
+		"translateDocProperties":             true,
+		"translateExcelDrawings":             true,
+		"tsComplexFieldDefinitionsToExtract": "HYPERLINK",
+		"fontMappings":                       "some-mapping",
+		"optimiseWordStyles":                 true,
+		"extractRunFontsInfo":                true,
+		"codeFinder":                         map[string]any{"rules": []string{"<br>"}},
 	}
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)

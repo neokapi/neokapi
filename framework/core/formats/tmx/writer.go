@@ -250,4 +250,3 @@ func (w *Writer) flush() error {
 
 	return nil
 }
-

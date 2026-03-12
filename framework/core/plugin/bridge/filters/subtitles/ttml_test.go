@@ -242,7 +242,7 @@ func TestExtract_CodeFinder(t *testing.T) {
 // rather than being replaced with spaces.
 func TestExtract_ProcessTextUnitNonEscapeBrMode(t *testing.T) {
 	params := map[string]any{
-		"escapeBrMode": false,
+		"escapeBrMode":  false,
 		"useCodeFinder": false,
 	}
 	parts := readTTML(t, twoSubtitleSnippet, params)

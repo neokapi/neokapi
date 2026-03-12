@@ -77,8 +77,8 @@ type parseState int
 const (
 	stateText parseState = iota
 	stateYAML
-	stateRmdCode  // ```{r} ... ```
-	stateRnwCode  // <<>>= ... @
+	stateRmdCode // ```{r} ... ```
+	stateRnwCode // <<>>= ... @
 )
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {

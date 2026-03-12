@@ -53,9 +53,9 @@ func (w *Writer) SetSkeletonStore(store *format.SkeletonStore) {
 
 // Write consumes Parts from a channel and writes reconstructed JSON.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	blocksByID := make(map[string]*model.Block)     // block.ID → block (for skeleton store)
-	blocksByPath := make(map[string]*model.Block)    // json keypath → block (for token reparse)
-	childLayerValues := make(map[string]string)      // layer.Name (key path) → reconstructed string
+	blocksByID := make(map[string]*model.Block)   // block.ID → block (for skeleton store)
+	blocksByPath := make(map[string]*model.Block) // json keypath → block (for token reparse)
+	childLayerValues := make(map[string]string)   // layer.Name (key path) → reconstructed string
 	var originalJSON []byte
 
 	for {

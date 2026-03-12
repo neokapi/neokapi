@@ -88,7 +88,7 @@ func TestTransform_DropsParserAssumeWellformed(t *testing.T) {
 
 	input := map[string]any{
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 	}

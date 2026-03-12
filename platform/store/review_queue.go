@@ -45,7 +45,7 @@ type ReviewItem struct {
 	Type        ReviewItemType   `json:"type"`
 	Status      ReviewItemStatus `json:"status"`
 	PushID      string           `json:"push_id,omitempty"`
-	Data        json.RawMessage  `json:"data"`        // TermCandidateAnnotation or EntityAnnotation JSON
+	Data        json.RawMessage  `json:"data"` // TermCandidateAnnotation or EntityAnnotation JSON
 	Occurrences []Occurrence     `json:"occurrences"`
 	AssignedTo  string           `json:"assigned_to,omitempty"`
 	DecidedBy   string           `json:"decided_by,omitempty"`
@@ -354,16 +354,16 @@ func (s *ReviewQueueStore) SplitItem(ctx context.Context, itemID string, occurre
 
 	// Create new item.
 	newItem := &ReviewItem{
-		ID:         id.New(),
-		ProjectID:  original.ProjectID,
-		Type:       original.Type,
-		Status:     ReviewItemPending,
-		PushID:     original.PushID,
-		Data:       original.Data,
+		ID:          id.New(),
+		ProjectID:   original.ProjectID,
+		Type:        original.Type,
+		Status:      ReviewItemPending,
+		PushID:      original.PushID,
+		Data:        original.Data,
 		Occurrences: split,
-		Confidence: original.Confidence,
-		Locale:     original.Locale,
-		CreatedAt:  time.Now().UTC(),
+		Confidence:  original.Confidence,
+		Locale:      original.Locale,
+		CreatedAt:   time.Now().UTC(),
 	}
 
 	splitJSON, _ := json.Marshal(split)

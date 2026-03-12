@@ -19,10 +19,10 @@ func TestOkapiPOTransform_DropsOkapiOnlyParams(t *testing.T) {
 	from := config.OkapiFilterConfigKind("po")
 	to := config.FormatConfigKind("po")
 	spec := map[string]any{
-		"useCodeFinder":    true,
-		"codeFinderRules":  []string{`%[sdf]`},
-		"bilingualMode":    true,
-		"protectApproved":  true,
+		"useCodeFinder":        true,
+		"codeFinderRules":      []string{`%[sdf]`},
+		"bilingualMode":        true,
+		"protectApproved":      true,
 		"preserveUntranslated": true,
 	}
 

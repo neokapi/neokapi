@@ -70,14 +70,14 @@ func (c *Config) ConfigKind() config.Kind { return config.FormatConfigKind("mif"
 // Reset restores default values matching Okapi's MIF filter defaults.
 func (c *Config) Reset() {
 	*c = Config{
-		ExtractBodyPages:       true,
-		ExtractMasterPages:     true,
-		ExtractReferencePages:  true,
-		ExtractHiddenPages:     true,
-		ExtractVariables:       true,
-		ExtractIndexMarkers:    true,
-		ExtractLinks:           false,
-		ExtractReferenceFormats: false,
+		ExtractBodyPages:           true,
+		ExtractMasterPages:         true,
+		ExtractReferencePages:      true,
+		ExtractHiddenPages:         true,
+		ExtractVariables:           true,
+		ExtractIndexMarkers:        true,
+		ExtractLinks:               false,
+		ExtractReferenceFormats:    false,
 		ExtractPgfNumFormatsInline: false,
 		ExtractHardReturnsAsText:   true,
 		UseCodeFinder:              true,

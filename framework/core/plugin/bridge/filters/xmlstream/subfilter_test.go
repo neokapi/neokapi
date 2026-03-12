@@ -50,7 +50,7 @@ func TestSubfilter_CdataSubfilter(t *testing.T) {
 
 	params := map[string]any{
 		"global_cdata_subfilter": "okf_html",
-		"parser":                map[string]any{"preserveWhitespace": false},
+		"parser":                 map[string]any{"preserveWhitespace": false},
 		"elements": map[string]any{
 			"entry": map[string]any{
 				"ruleTypes":    []string{"TEXTUNIT"},
@@ -79,7 +79,7 @@ func TestSubfilter_CdataSubfilterEmptyElement(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	params := map[string]any{
 		"global_cdata_subfilter": "okf_html",
-		"parser":                map[string]any{"preserveWhitespace": false},
+		"parser":                 map[string]any{"preserveWhitespace": false},
 	}
 	parts := bridgetest.ReadString(t, pool, cfg, filterClass,
 		`<?xml version="1.0" encoding="UTF-8"?><doc><text/></doc>`,
@@ -96,7 +96,7 @@ func TestSubfilter_CdataMerging(t *testing.T) {
 
 	params := map[string]any{
 		"global_cdata_subfilter": "okf_html",
-		"parser":                map[string]any{"preserveWhitespace": false},
+		"parser":                 map[string]any{"preserveWhitespace": false},
 	}
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, xmlPath, mimeType, params)
 
@@ -110,7 +110,7 @@ func TestSubfilter_NestedTextunits(t *testing.T) {
 	params := map[string]any{
 		"global_pcdata_subfilter": "okf_html",
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": false,
 		},
 		"elements": map[string]any{
@@ -141,7 +141,7 @@ func TestSubfilter_ProduceDistinctTextUnitIds(t *testing.T) {
 	params := map[string]any{
 		"global_pcdata_subfilter": "okf_html",
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": false,
 		},
 		"elements": map[string]any{
@@ -324,9 +324,9 @@ func TestCdataRegex_DoubleExtractionWithRegex(t *testing.T) {
 
 	params := map[string]any{
 		"global_cdata_subfilter": "okf_html",
-		"parser":                map[string]any{"preserveWhitespace": true},
-		"useCodeFinder":         true,
-		"codeFinderRules":       "#v1\ncount.i=1\nrule0=\\$\\{[^}]+\\}",
+		"parser":                 map[string]any{"preserveWhitespace": true},
+		"useCodeFinder":          true,
+		"codeFinderRules":        "#v1\ncount.i=1\nrule0=\\$\\{[^}]+\\}",
 	}
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -406,7 +406,7 @@ func TestPcdata_TextUnitToDocumentPartWithHtmlProperty(t *testing.T) {
 	params := map[string]any{
 		"global_pcdata_subfilter": "okf_html",
 		"parser": map[string]any{
-			"assumeWellformed":    true,
+			"assumeWellformed":   true,
 			"preserveWhitespace": true,
 		},
 		"elements": map[string]any{

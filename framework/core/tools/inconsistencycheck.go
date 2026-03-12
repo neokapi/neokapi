@@ -12,8 +12,8 @@ import (
 // Inconsistency check property keys stored on Block.Properties.
 const (
 	PropInconsistencyStatus  = "inconsistency-status"  // "consistent", "inconsistent"
-	PropInconsistencyType    = "inconsistency-type"     // "target-inconsistency", "source-inconsistency"
-	PropInconsistencyDetails = "inconsistency-details"  // JSON: alternative translations/sources seen
+	PropInconsistencyType    = "inconsistency-type"    // "target-inconsistency", "source-inconsistency"
+	PropInconsistencyDetails = "inconsistency-details" // JSON: alternative translations/sources seen
 )
 
 // InconsistencyCheckConfig holds configuration for the inconsistency check tool.

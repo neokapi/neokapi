@@ -107,4 +107,3 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 	}
 	return n
 }
-

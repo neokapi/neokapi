@@ -68,7 +68,7 @@ func TestLengthCheckToolMaxPercentage(t *testing.T) {
 	}
 	tl := tools.NewLengthCheckTool(cfg)
 
-	block := model.NewBlock("tu1", "Hi")                          // 2 chars
+	block := model.NewBlock("tu1", "Hi")                         // 2 chars
 	block.SetTargetText(model.LocaleFrench, "Bonjour le monde!") // 17 chars = 850%
 	part := &model.Part{Type: model.PartBlock, Resource: block}
 	result := processPart(t, tl, part)

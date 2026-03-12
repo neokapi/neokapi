@@ -40,16 +40,16 @@ type Metadata struct {
 
 // BenchmarkResult holds results for a single benchmark.
 type BenchmarkResult struct {
-	Category        string `json:"category"`        // "single" or "collection"
-	Engine          string `json:"engine"`           // "kapi-native", "kapi-bridge", "okapi"
-	Format          string `json:"format"`           // format name (single) or "mixed" (collection)
-	FileSize        string `json:"fileSize"`         // size tier: "small", "medium", "large"
-	FileSizeBytes   int64  `json:"fileSizeBytes"`    // actual input bytes (single file)
-	FileCount       int    `json:"fileCount"`        // number of files (collection only)
-	TotalInputBytes int64  `json:"totalInputBytes"`  // total input bytes across all files
-	UnitCount       int    `json:"unitCount"`        // translatable unit count
-	Version         string `json:"version"`          // engine version
-	Iterations      int    `json:"iterations"`       // measurement iterations
+	Category        string  `json:"category"`        // "single" or "collection"
+	Engine          string  `json:"engine"`          // "kapi-native", "kapi-bridge", "okapi"
+	Format          string  `json:"format"`          // format name (single) or "mixed" (collection)
+	FileSize        string  `json:"fileSize"`        // size tier: "small", "medium", "large"
+	FileSizeBytes   int64   `json:"fileSizeBytes"`   // actual input bytes (single file)
+	FileCount       int     `json:"fileCount"`       // number of files (collection only)
+	TotalInputBytes int64   `json:"totalInputBytes"` // total input bytes across all files
+	UnitCount       int     `json:"unitCount"`       // translatable unit count
+	Version         string  `json:"version"`         // engine version
+	Iterations      int     `json:"iterations"`      // measurement iterations
 	Metrics         Metrics `json:"metrics"`
 }
 

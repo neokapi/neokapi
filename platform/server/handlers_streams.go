@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // HandleListStreams returns all streams for a project.

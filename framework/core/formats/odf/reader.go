@@ -46,23 +46,23 @@ var odfNSPrefixMap = map[string]string{
 	nsOffice:       "office",
 	nsPresentation: "presentation",
 	nsXLink:        "xlink",
-	"urn:oasis:names:tc:opendocument:xmlns:style:1.0":            "style",
-	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":               "fo",
-	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":          "draw",
-	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":   "svg",
-	"urn:oasis:names:tc:opendocument:xmlns:chart:1.0":            "chart",
-	"urn:oasis:names:tc:opendocument:xmlns:form:1.0":             "form",
-	"urn:oasis:names:tc:opendocument:xmlns:script:1.0":           "script",
-	"urn:oasis:names:tc:opendocument:xmlns:meta:1.0":             "meta",
-	"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0":        "number",
-	"urn:oasis:names:tc:opendocument:xmlns:animation:1.0":        "anim",
-	"urn:oasis:names:tc:opendocument:xmlns:database:1.0":         "db",
-	"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0":  "smil",
-	"urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0":             "dr3d",
-	"urn:oasis:names:tc:opendocument:xmlns:config:1.0":           "config",
-	"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0":         "manifest",
-	"http://purl.org/dc/elements/1.1/":                           "dc",
-	"http://www.w3.org/XML/1998/namespace":                        "xml",
+	"urn:oasis:names:tc:opendocument:xmlns:style:1.0":           "style",
+	"urn:oasis:names:tc:opendocument:xmlns:fo:1.0":              "fo",
+	"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0":         "draw",
+	"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0":  "svg",
+	"urn:oasis:names:tc:opendocument:xmlns:chart:1.0":           "chart",
+	"urn:oasis:names:tc:opendocument:xmlns:form:1.0":            "form",
+	"urn:oasis:names:tc:opendocument:xmlns:script:1.0":          "script",
+	"urn:oasis:names:tc:opendocument:xmlns:meta:1.0":            "meta",
+	"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0":       "number",
+	"urn:oasis:names:tc:opendocument:xmlns:animation:1.0":       "anim",
+	"urn:oasis:names:tc:opendocument:xmlns:database:1.0":        "db",
+	"urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0": "smil",
+	"urn:oasis:names:tc:opendocument:xmlns:dr3d:1.0":            "dr3d",
+	"urn:oasis:names:tc:opendocument:xmlns:config:1.0":          "config",
+	"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0":        "manifest",
+	"http://purl.org/dc/elements/1.1/":                          "dc",
+	"http://www.w3.org/XML/1998/namespace":                      "xml",
 }
 
 // odfNSRegistry tracks dynamic namespace URI -> prefix mappings from the document.
@@ -165,10 +165,10 @@ func (r *Reader) Read(ctx context.Context) <-chan model.PartResult {
 type odfDocType int
 
 const (
-	odfTypeUnknown odfDocType = iota
-	odfTypeText               // ODT
-	odfTypeSpreadsheet        // ODS
-	odfTypePresentation       // ODP
+	odfTypeUnknown      odfDocType = iota
+	odfTypeText                    // ODT
+	odfTypeSpreadsheet             // ODS
+	odfTypePresentation            // ODP
 )
 
 func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {

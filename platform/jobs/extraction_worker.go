@@ -10,10 +10,10 @@ import (
 
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/ner"
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	bstore "github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
 

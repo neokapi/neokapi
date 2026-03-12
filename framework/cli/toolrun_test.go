@@ -76,8 +76,8 @@ func TestMatchFormatMapping(t *testing.T) {
 		{"/home/user/doc.docx", "okf_openxml:test"},
 		{"/home/user/README.md", "okf_markdown@0.38"},
 		{"/tmp/report-2024.txt", "plaintext"},
-		{"/tmp/notes.txt", ""},       // no match
-		{"/tmp/data.json", ""},        // no match
+		{"/tmp/notes.txt", ""}, // no match
+		{"/tmp/data.json", ""}, // no match
 		{"relative/path/file.docx", "okf_openxml:test"},
 	}
 

@@ -35,11 +35,11 @@ type AIUsageRecord struct {
 
 // UsageSummary summarizes AI usage for a workspace.
 type UsageSummary struct {
-	WorkspaceSlug  string `json:"workspace_slug"`
-	MonthlyLimit   int64  `json:"monthly_limit"`
-	UsedTokens     int64  `json:"used_tokens"`
-	RemainingTokens int64 `json:"remaining_tokens"`
-	PeriodStart    time.Time `json:"period_start"`
+	WorkspaceSlug   string    `json:"workspace_slug"`
+	MonthlyLimit    int64     `json:"monthly_limit"`
+	UsedTokens      int64     `json:"used_tokens"`
+	RemainingTokens int64     `json:"remaining_tokens"`
+	PeriodStart     time.Time `json:"period_start"`
 }
 
 // DefaultMonthlyQuota is the default token quota per workspace per month.

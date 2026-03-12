@@ -3,10 +3,10 @@ package server
 import (
 	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
-	"github.com/labstack/echo/v4"
 )
 
 // WorkspaceRequest is the request body for creating/updating a workspace.

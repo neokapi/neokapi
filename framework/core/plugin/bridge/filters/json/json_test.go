@@ -447,10 +447,10 @@ func TestExtract_InlineCodeFinderEscaping(t *testing.T) {
 	parts := readJSON(t, input, map[string]any{
 		"useCodeFinder": true,
 		"codeFinderRules": map[string]any{
-			"count":                     1,
-			"rule0":                     `</?([A-Z0-9a-z]*)\b[^>]*>`,
-			"sample":                    `<tag></at><tag/> <tag attr='val'> </tag="val">`,
-			"useAllRulesWhenTesting":    true,
+			"count":                  1,
+			"rule0":                  `</?([A-Z0-9a-z]*)\b[^>]*>`,
+			"sample":                 `<tag></at><tag/> <tag attr='val'> </tag="val">`,
+			"useAllRulesWhenTesting": true,
 		},
 	})
 
@@ -468,10 +468,10 @@ func TestExtract_InlineCodeFinderNewLineCharacter(t *testing.T) {
 	parts := readJSON(t, input, map[string]any{
 		"useCodeFinder": true,
 		"codeFinderRules": map[string]any{
-			"count":                     1,
-			"rule0":                     `\\n`,
-			"sample":                    `\n`,
-			"useAllRulesWhenTesting":    true,
+			"count":                  1,
+			"rule0":                  `\\n`,
+			"sample":                 `\n`,
+			"useAllRulesWhenTesting": true,
 		},
 	})
 
@@ -545,8 +545,8 @@ func TestExtract_GenericMetaRules(t *testing.T) {
 	// genericMetaRules attaches metadata annotations to TUs.
 	input := `{"meta": "metadata-value", "key": "Text1"}`
 	parts := readJSON(t, input, map[string]any{
-		"extractAllPairs":    true,
-		"genericMetaRules":   "meta",
+		"extractAllPairs":  true,
+		"genericMetaRules": "meta",
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -562,9 +562,9 @@ func TestExtract_GenericMetaRulesWithId(t *testing.T) {
 	// Generic meta rules combined with id rules.
 	input := `{"id": "my-id", "meta": "metadata-value", "key": "Text1"}`
 	parts := readJSON(t, input, map[string]any{
-		"extractAllPairs":    true,
-		"idRules":            "id",
-		"genericMetaRules":   "meta",
+		"extractAllPairs":  true,
+		"idRules":          "id",
+		"genericMetaRules": "meta",
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -580,8 +580,8 @@ func TestExtract_ExtractionRules(t *testing.T) {
 	// extractionRules limits which keys are extracted.
 	input := `{"title": "Extract me", "body": "Extract me too", "id": "Skip me"}`
 	parts := readJSON(t, input, map[string]any{
-		"extractAllPairs":   false,
-		"extractionRules":   "title|body",
+		"extractAllPairs": false,
+		"extractionRules": "title|body",
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -706,10 +706,10 @@ func TestExtract_MaxwidthRulesWithSizeChar(t *testing.T) {
 	// maxwidthSizeUnit=char sets SIZE_UNIT property.
 	input := `{"maxwidth": 50, "title": "Text1"}`
 	parts := readJSON(t, input, map[string]any{
-		"extractAllPairs":    false,
-		"exceptions":         "title",
-		"maxwidthRules":      "maxwidth",
-		"maxwidthSizeUnit":   "char",
+		"extractAllPairs":  false,
+		"exceptions":       "title",
+		"maxwidthRules":    "maxwidth",
+		"maxwidthSizeUnit": "char",
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -724,11 +724,11 @@ func TestExtract_VariableMaxWidthInNestedObjects(t *testing.T) {
 	path := bridgetest.TestdataFile(t, "okf_json/nested_charsize.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
-		"extractAllPairs":    false,
-		"exceptions":         "title|content|^extracted",
-		"useKeyAsName":       true,
-		"maxwidthRules":      "maxchars",
-		"maxwidthSizeUnit":   "char",
+		"extractAllPairs":  false,
+		"exceptions":       "title|content|^extracted",
+		"useKeyAsName":     true,
+		"maxwidthRules":    "maxchars",
+		"maxwidthSizeUnit": "char",
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)

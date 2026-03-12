@@ -17,8 +17,8 @@ func TestOkapiXLIFFTransform_DropsOkapiOnlyParams(t *testing.T) {
 	from := config.OkapiFilterConfigKind("xliff")
 	to := config.FormatConfigKind("xliff")
 	spec := map[string]any{
-		"inlineCdata":             true,
-		"bilingualMode":           true,
+		"inlineCdata":            true,
+		"bilingualMode":          true,
 		"generateTarget":         true,
 		"escapeGT":               true,
 		"addTargetLanguage":      true,

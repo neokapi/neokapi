@@ -304,7 +304,7 @@ func (r *Reader) tokenize(content string) []token {
 	return tokens
 }
 
-// parseSingleQuoted parses a single-quoted string starting at content[0]=='\''.
+// parseSingleQuoted parses a single-quoted string starting at content[0]=='\”.
 func (r *Reader) parseSingleQuoted(content string) (token, int) {
 	var buf strings.Builder
 	i := 1 // skip opening quote
