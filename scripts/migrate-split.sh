@@ -217,6 +217,30 @@ filter_repo_paths() {
     fi
 }
 
+# filter_repo_remove_stale <work-dir>
+#   Removes files/directories that should not appear in EITHER output repo.
+#   Called after the neokapi/bowrain path split so that stale content is
+#   stripped from whichever repo inherited it.
+filter_repo_remove_stale() {
+    local work="$1"
+
+    # Paths to drop from both repos (clean slate)
+    local stale_paths=(
+        ".serena/"
+        "docs/okapi-test-plan.md"
+        "docs/okapi-filters/"
+    )
+
+    local path_args=()
+    for p in "${stale_paths[@]}"; do
+        path_args+=( "--path" "$p" )
+    done
+
+    info "Removing stale paths from history: ${stale_paths[*]}"
+    run $FILTER_REPO --source "$work" --target "$work" \
+        "${path_args[@]}" --invert-paths --force
+}
+
 # filter_repo_rename <work-dir> <replacements-file>
 #   Rewrites file contents and renames files that contain "gokapi".
 filter_repo_rename() {
@@ -500,6 +524,7 @@ build_neokapi() {
 
     clone_source "$work"
     filter_repo_paths "$work" "neokapi"
+    filter_repo_remove_stale "$work"
 
     local repl
     repl="$(mktemp)"
@@ -540,6 +565,7 @@ build_bowrain() {
 
     clone_source "$work"
     filter_repo_paths "$work" "bowrain"
+    filter_repo_remove_stale "$work"
 
     local repl
     repl="$(mktemp)"
