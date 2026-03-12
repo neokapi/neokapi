@@ -9,12 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/ai/provider"
+	"github.com/gokapi/gokapi/providers/ai"
 	"github.com/gokapi/gokapi/core/locale"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/sievepen"
 	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/termbase"
 	"github.com/labstack/echo/v4"
 )
 

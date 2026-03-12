@@ -11,7 +11,7 @@ import (
 
 	"github.com/gokapi/gokapi/bowrain/storage"
 	"github.com/gokapi/gokapi/core/model"
-	fw "github.com/gokapi/gokapi/core/sievepen"
+	fw "github.com/gokapi/gokapi/sievepen"
 )
 
 // PostgresTM is a persistent translation memory backed by PostgreSQL.

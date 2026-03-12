@@ -111,6 +111,6 @@ require (
 )
 
 replace (
-	github.com/gokapi/gokapi => ../
-	github.com/gokapi/gokapi/platform => ../platform
+	github.com/gokapi/gokapi => ../framework
+	github.com/gokapi/gokapi/platform => ./platform
 )

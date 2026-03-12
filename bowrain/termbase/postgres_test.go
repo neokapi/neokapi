@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/termbase"
 
 	storage "github.com/gokapi/gokapi/bowrain/storage"
 	pgtb "github.com/gokapi/gokapi/bowrain/termbase"

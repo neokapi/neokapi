@@ -7,7 +7,7 @@ import (
 
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/termbase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
