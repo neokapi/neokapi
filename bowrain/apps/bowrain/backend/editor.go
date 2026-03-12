@@ -10,8 +10,8 @@ import (
 	"runtime"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/sievepen"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/sievepen"
+	"github.com/gokapi/gokapi/termbase"
 	"github.com/gokapi/gokapi/core/tool"
 	"github.com/gokapi/gokapi/platform/store"
 )

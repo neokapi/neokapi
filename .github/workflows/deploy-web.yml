@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths:
       - 'bowrain/apps/web/**'
-      - 'packages/ui/**'
+      - 'bowrain/packages/ui/**'
 
 permissions:
   contents: read

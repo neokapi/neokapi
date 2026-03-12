@@ -6,8 +6,8 @@ import (
 	"github.com/gokapi/gokapi/bowrain/auth"
 	"github.com/gokapi/gokapi/bowrain/service"
 	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/sievepen"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/sievepen"
+	"github.com/gokapi/gokapi/termbase"
 	"github.com/stretchr/testify/require"
 )
 

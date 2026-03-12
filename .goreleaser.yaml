@@ -9,15 +9,15 @@ before:
     - mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
     - go mod tidy
-    - bash -c "cd cli && go mod tidy"
-    - bash -c "cd platform && go mod tidy"
-    - bash -c "cd kapi && go mod tidy"
-    - bash -c "cd bowrain-cli && go mod tidy"
+    - bash -c "cd framework/cli && go mod tidy"
+    - bash -c "cd bowrain/platform && go mod tidy"
+    - bash -c "cd framework/kapi && go mod tidy"
+    - bash -c "cd bowrain/cli && go mod tidy"
     - bash -c "cd bowrain && go mod tidy"
 
 builds:
   - id: kapi
-    dir: kapi
+    dir: framework/kapi
     main: ./cmd/kapi
     binary: kapi
     env:
@@ -36,7 +36,7 @@ builds:
       - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
 
   - id: bowrain-cli
-    dir: bowrain-cli
+    dir: bowrain/cli
     main: ./cmd/bowrain
     binary: bowrain
     env:

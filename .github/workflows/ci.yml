@@ -66,7 +66,6 @@ jobs:
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^packages/ui/' '^bowrain/apps/web/' '^kapi/apps/kapi-web/' '^bowrain/apps/bowrain/frontend/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
@@ -88,7 +87,6 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: kapi/apps/kapi-web
         run: npm run build
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
@@ -156,7 +154,7 @@ jobs:
 
       - name: Run platform tests
         run: |
-          cd platform
+          cd bowrain/platform
           go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1 || true
 
       - name: Convert to JUnit XML
@@ -201,7 +199,7 @@ jobs:
 
       - name: Run cli tests
         run: |
-          cd cli
+          cd framework/cli
           go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1 || true
 
       - name: Convert to JUnit XML
@@ -246,7 +244,7 @@ jobs:
 
       - name: Run kapi tests
         run: |
-          cd kapi
+          cd framework/kapi
           go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1 || true
 
       - name: Convert to JUnit XML
@@ -291,7 +289,7 @@ jobs:
 
       - name: Run Bowrain CLI tests
         run: |
-          cd bowrain-cli
+          cd bowrain/cli
           go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1 || true
 
       - name: Convert to JUnit XML
@@ -421,7 +419,6 @@ jobs:
       - name: Create embed placeholders
         run: |
           mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
-          mkdir -p kapi/apps/kapi-web/dist && echo placeholder > kapi/apps/kapi-web/dist/index.html
 
       - name: Lint framework
         uses: golangci/golangci-lint-action@v7
@@ -507,14 +504,13 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: kapi/apps/kapi-web
         run: npm run build
 
       - name: Build kapi CLI
-        run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
+        run: cd framework/kapi && go build -o ../bin/kapi ./cmd/kapi
 
       - name: Build Bowrain CLI
-        run: cd bowrain-cli && go build -o ../bin/bowrain ./cmd/bowrain
+        run: cd bowrain/cli && go build -o ../bin/bowrain ./cmd/bowrain
 
       - name: Build bowrain-server
         run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
@@ -523,20 +519,20 @@ jobs:
         run: GOWORK=off go build ./...
 
       - name: Verify cli module isolation
-        run: GOWORK=off bash -c "cd cli && go build ./..."
+        run: GOWORK=off bash -c "cd framework/cli && go build ./..."
 
       - name: Verify platform module isolation
-        run: GOWORK=off bash -c "cd platform && go build ./..."
+        run: GOWORK=off bash -c "cd bowrain/platform && go build ./..."
 
       - name: Verify kapi module isolation
-        run: GOWORK=off bash -c "cd kapi && go build ./..."
+        run: GOWORK=off bash -c "cd framework/kapi && go build ./..."
 
       - name: Verify Bowrain CLI module isolation
-        run: GOWORK=off bash -c "cd bowrain-cli && go build ./..."
+        run: GOWORK=off bash -c "cd bowrain/cli && go build ./..."
 
       - name: Verify kapi has no platform dep
         run: |
-          if cd kapi && GOWORK=off go list -m all | grep -q 'gokapi/platform'; then
+          if cd framework/kapi && GOWORK=off go list -m all | grep -q 'gokapi/platform'; then
             echo "kapi should not depend on platform"
             exit 1
           fi
@@ -550,7 +546,7 @@ jobs:
 
       - name: Verify kapi has no heavy deps
         run: |
-          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc|keyring'; then
+          if cd framework/kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc|keyring'; then
             exit 1
           fi
 

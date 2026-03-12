@@ -275,7 +275,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start full stack (pre-built Docker images)
-        run: docker compose -f e2e/compose.yaml up -d --wait
+        run: docker compose -f bowrain/e2e/compose.yaml up -d --wait
 
       - name: Generate Bowrain CLI recordings
         timeout-minutes: 30
@@ -291,7 +291,7 @@ jobs:
 
       - name: Shutdown
         if: always()
-        run: docker compose -f e2e/compose.yaml down -v
+        run: docker compose -f bowrain/e2e/compose.yaml down -v
 
       - name: Upload Bowrain CLI assets
         uses: actions/upload-artifact@v4

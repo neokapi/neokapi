@@ -11,7 +11,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/termbase"
 	"github.com/gokapi/gokapi/platform/store"
 )
 

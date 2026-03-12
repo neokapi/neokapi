@@ -44,7 +44,6 @@ jobs:
         run: npm run build
 
       - name: Build kapi web UI
-        working-directory: kapi/apps/kapi-web
         run: npm run build
 
       - name: Create Bowrain frontend placeholder
@@ -53,7 +52,7 @@ jobs:
       - name: Download modules
         run: |
           go mod download && go mod verify
-          cd cli && go mod download && go mod verify
+          cd framework/cli && go mod download && go mod verify
           cd ../platform && go mod download && go mod verify
           cd ../kapi && go mod download && go mod verify
           cd ../bowrain-cli && go mod download && go mod verify

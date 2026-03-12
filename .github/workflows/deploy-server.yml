@@ -13,13 +13,13 @@ on:
   push:
     branches: [main]
     paths:
-      - 'core/**'
-      - 'platform/**'
+      - 'framework/core/**'
+      - 'bowrain/platform/**'
       - 'bowrain/**'
       - '!bowrain/apps/web/**'
       - '!bowrain/apps/keycloak-theme/**'
-      - 'docker/bowrain-server/**'
-      - 'docker/bowrain-worker/**'
+      - 'bowrain/docker/bowrain-server/**'
+      - 'bowrain/docker/bowrain-worker/**'
       - 'go.mod'
       - 'go.sum'
       - 'go.work'

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/sievepen"
 
 	pgtm "github.com/gokapi/gokapi/bowrain/sievepen"
 	storage "github.com/gokapi/gokapi/bowrain/storage"

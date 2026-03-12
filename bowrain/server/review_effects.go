@@ -9,7 +9,7 @@ import (
 	bstore "github.com/gokapi/gokapi/bowrain/store"
 	"github.com/gokapi/gokapi/core/model"
 	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/core/termbase"
+	"github.com/gokapi/gokapi/termbase"
 )
 
 // processDecisionSideEffects handles the downstream effects of a review decision.

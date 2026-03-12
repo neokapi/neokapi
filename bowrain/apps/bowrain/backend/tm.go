@@ -8,7 +8,7 @@ import (
 
 	"github.com/gokapi/gokapi/core/id"
 	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/sievepen"
+	"github.com/gokapi/gokapi/sievepen"
 )
 
 // TMEntryInfo is the frontend-facing representation of a TM entry.

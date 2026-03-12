@@ -14,7 +14,7 @@ on:
     branches: [main]
     paths:
       - 'bowrain/apps/keycloak-theme/**'
-      - 'docker/keycloak/**'
+      - 'bowrain/docker/keycloak/**'
 
 permissions:
   packages: write
