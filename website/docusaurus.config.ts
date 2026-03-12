@@ -52,6 +52,16 @@ const config: Config = {
         editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
       },
     ],
+    [
+      '@docusaurus/plugin-content-docs',
+      {
+        id: 'bowrain',
+        path: '../bowrain/docs',
+        routeBasePath: 'bowrain',
+        sidebarPath: './sidebars-bowrain.ts',
+        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+      },
+    ],
   ],
 
   presets: [
@@ -86,6 +96,7 @@ const config: Config = {
         },
         {
           type: 'docSidebar',
+          docsPluginId: 'bowrain',
           sidebarId: 'bowrainSidebar',
           position: 'left',
           label: 'Bowrain',
@@ -122,15 +133,15 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/docs/bowrain/introduction',
+              to: '/bowrain/getting-started/introduction',
             },
             {
               label: 'Bowrain CLI',
-              to: '/docs/bowrain-cli/overview',
+              to: '/bowrain/cli/overview',
             },
             {
               label: 'Bowrain Web',
-              to: '/docs/bowrain-server/web-overview',
+              to: '/bowrain/server/web-overview',
             },
           ],
         },
