@@ -4,7 +4,7 @@
 package output
 
 import (
-	shared "github.com/gokapi/gokapi/cli/output"
+	shared "github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

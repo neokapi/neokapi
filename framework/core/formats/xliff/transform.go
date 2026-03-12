@@ -1,6 +1,6 @@
 package xliff
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiXLIFFTransformer converts okf_xliff filter specs to xliff format config.
 // The native XLIFF format currently has no configurable parameters,

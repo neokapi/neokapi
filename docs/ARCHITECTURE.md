@@ -1,6 +1,6 @@
-# gokapi: Architecture
+# neokapi: Architecture
 
-gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
+neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/)
 in Go. For the reasoning behind each major design choice, see the
 [Architecture Decisions](ad/README.md).
 
@@ -65,13 +65,13 @@ its own goroutine. Buffered channels provide backpressure. See
 ## Package Layout
 
 The project is a **multi-module monorepo** with two Go modules coordinated by
-`go.work`: the **framework** (`github.com/gokapi/gokapi`) provides the
-localization engine, and the **platform** (`github.com/gokapi/gokapi/bowrain`)
+`go.work`: the **framework** (`github.com/neokapi/neokapi`) provides the
+localization engine, and the **platform** (`github.com/neokapi/neokapi/bowrain`)
 builds the full-stack application on top.
 
 ```
-gokapi/                              ── Framework Module ──
-├── go.mod                           # module github.com/gokapi/gokapi
+neokapi/                              ── Framework Module ──
+├── go.mod                           # module github.com/neokapi/neokapi
 ├── go.work                          # workspace: use . and ./bowrain
 │
 ├── model/                           # Part, Block, Layer, Fragment, Span, Data, Media
@@ -126,7 +126,7 @@ gokapi/                              ── Framework Module ──
 ├── testutil/                        # Shared test helpers
 │
 ├── bowrain/                         ── Platform Module ──
-│   ├── go.mod                       # module github.com/gokapi/gokapi/bowrain
+│   ├── go.mod                       # module github.com/neokapi/neokapi/bowrain
 │   ├── config/                      # Viper-based AppConfig
 │   ├── store/                       # ContentStore + SQLite implementation
 │   ├── auth/                        # OIDC, JWT, device flow authentication
@@ -264,7 +264,7 @@ DataFormatReader.Read(ctx) -> chan PartResult
 
 ## Terminology Mapping from Okapi
 
-| Okapi (Java)               | gokapi (Go)                |
+| Okapi (Java)               | neokapi (Go)                |
 |----------------------------|----------------------------|
 | Filter                     | DataFormat (Reader/Writer)  |
 | Step                       | Tool                       |
@@ -314,10 +314,10 @@ type LLMProvider interface {
 
 | Channel | Target | Command |
 |---------|--------|---------|
-| Homebrew formula | kapi CLI | `brew install gokapi/tap/kapi` |
-| Homebrew Cask | Bowrain GUI (macOS) | `brew install --cask gokapi/tap/bowrain` |
+| Homebrew formula | kapi CLI | `brew install neokapi/tap/kapi` |
+| Homebrew Cask | Bowrain GUI (macOS) | `brew install --cask neokapi/tap/bowrain` |
 | GitHub Releases | All platforms | Direct download |
-| Go install | Go developers | `go install github.com/gokapi/gokapi/bowrain/cmd/kapi@latest` |
+| Go install | Go developers | `go install github.com/neokapi/neokapi/bowrain/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (GoReleaser on tag push). See

@@ -15,7 +15,7 @@ CLI commands to access workspace-scoped resources on a remote server.
 Start an interactive login using the OAuth device flow:
 
 ```bash
-bowrain auth login --server https://gokapi.example.com
+bowrain auth login --server https://neokapi.example.com
 ```
 
 The CLI will display a URL and a one-time code. Open the URL in your browser,
@@ -23,8 +23,8 @@ enter the code, and authorize the application. The CLI polls automatically and
 stores your token on success.
 
 ```
-$ bowrain auth login --server https://gokapi.example.com
-Open https://gokapi.example.com/auth/device and enter code: ABCD-1234
+$ bowrain auth login --server https://neokapi.example.com
+Open https://neokapi.example.com/auth/device and enter code: ABCD-1234
 Waiting for authorization...
 Logged in as translator@example.com
 ```
@@ -43,7 +43,7 @@ bowrain auth status
 Output:
 
 ```
-Server:  https://gokapi.example.com
+Server:  https://neokapi.example.com
 User:    translator@example.com
 Name:    Jane Translator
 Expires: 2026-02-11 14:30:00
@@ -81,7 +81,7 @@ Tokens are stored in `~/.config/bowrain/auth.json`:
 
 ```json
 {
-  "server_url": "https://gokapi.example.com",
+  "server_url": "https://neokapi.example.com",
   "access_token": "eyJ...",
   "refresh_token": "...",
   "expiry": "2026-02-11T14:30:00Z",

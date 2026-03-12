@@ -17,7 +17,7 @@ title: Testing
 ## Test Structure
 
 ```
-gokapi/
+neokapi/
 ├── model/
 │   ├── block_test.go               # Block creation, segment management
 │   ├── layer_test.go               # Layer nesting, embedded content

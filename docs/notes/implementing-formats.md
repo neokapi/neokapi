@@ -4,13 +4,13 @@ title: Implementing Formats
 ---
 # Implementing Formats
 
-Step-by-step guide for implementing new gokapi format readers/writers or
+Step-by-step guide for implementing new neokapi format readers/writers or
 migrating existing Okapi filters. Parent AD:
 [AD-005](/docs/ad/005-connector-system).
 
 ## Terminology Mapping from Okapi
 
-| Okapi (Java) | gokapi (Go) |
+| Okapi (Java) | neokapi (Go) |
 |---|---|
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |
@@ -373,7 +373,7 @@ re-parse. Simpler formats may only need skeleton + build-from-blocks.
 Register the format in `core/formats/register.go`:
 
 ```go
-import "<name>fmt" "github.com/gokapi/gokapi/core/formats/<name>"
+import "<name>fmt" "github.com/neokapi/neokapi/core/formats/<name>"
 
 // In RegisterAll():
 reg.RegisterReader("<name>", func() format.DataFormatReader { return <name>fmt.NewReader() })
@@ -458,9 +458,9 @@ When migrating an Okapi filter, port its test inventory:
 4. Convert Java assertions to Go assert/require calls
 5. The Okapi gold files (`.gold` suffix) become expected outputs
 
-Okapi test patterns map to gokapi as:
+Okapi test patterns map to neokapi as:
 
-| Okapi Pattern | gokapi Equivalent |
+| Okapi Pattern | neokapi Equivalent |
 |---|---|
 | `testRoundTrip(input)` | `roundtrip(t, input)` / `roundtripWithSkeleton(t, input)` |
 | `testExtraction(input, events)` | Read + assert block count, text, properties |

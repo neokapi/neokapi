@@ -29,14 +29,14 @@ func TestBridgeFilterFromPkg(t *testing.T) {
 		pkg  string
 		want string
 	}{
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/html", "html"},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/json", "json"},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/its", "its"},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/subtitles", "subtitles"},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/php", "php"},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/okf_legacy", "legacy"}, // okf_ prefix still works
-		{"github.com/gokapi/gokapi/core/formats/html", ""},
-		{"github.com/gokapi/gokapi/core/tools/pseudo", ""},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/html", "html"},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/json", "json"},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/its", "its"},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/subtitles", "subtitles"},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/php", "php"},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/okf_legacy", "legacy"}, // okf_ prefix still works
+		{"github.com/neokapi/neokapi/core/formats/html", ""},
+		{"github.com/neokapi/neokapi/core/tools/pseudo", ""},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, bridgeFilterFromPkg(tt.pkg), "pkg=%s", tt.pkg)
@@ -48,10 +48,10 @@ func TestNativeFilterFromPkg(t *testing.T) {
 		pkg  string
 		want string
 	}{
-		{"github.com/gokapi/gokapi/core/formats/json", "json"},
-		{"github.com/gokapi/gokapi/core/formats/html", "html"},
-		{"github.com/gokapi/gokapi/core/tools/pseudo", ""},
-		{"github.com/gokapi/gokapi/core/plugin/bridge/filters/json", ""},
+		{"github.com/neokapi/neokapi/core/formats/json", "json"},
+		{"github.com/neokapi/neokapi/core/formats/html", "html"},
+		{"github.com/neokapi/neokapi/core/tools/pseudo", ""},
+		{"github.com/neokapi/neokapi/core/plugin/bridge/filters/json", ""},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, nativeFilterFromPkg(tt.pkg), "pkg=%s", tt.pkg)
@@ -336,10 +336,10 @@ func TestParseGoTestResults_SubtestGrouping(t *testing.T) {
 	jsonl := filepath.Join(dir, "bridge.jsonl")
 
 	lines := []string{
-		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/html","Test":"TestFoo","Elapsed":0.1}`,
-		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/html","Test":"TestFoo/sub1","Elapsed":0.01}`,
-		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/html","Test":"TestFoo/sub2","Elapsed":0.02}`,
-		`{"Action":"pass","Package":"github.com/gokapi/gokapi/core/plugin/bridge/filters/html","Test":"TestBar","Elapsed":0.05}`,
+		`{"Action":"pass","Package":"github.com/neokapi/neokapi/core/plugin/bridge/filters/html","Test":"TestFoo","Elapsed":0.1}`,
+		`{"Action":"pass","Package":"github.com/neokapi/neokapi/core/plugin/bridge/filters/html","Test":"TestFoo/sub1","Elapsed":0.01}`,
+		`{"Action":"pass","Package":"github.com/neokapi/neokapi/core/plugin/bridge/filters/html","Test":"TestFoo/sub2","Elapsed":0.02}`,
+		`{"Action":"pass","Package":"github.com/neokapi/neokapi/core/plugin/bridge/filters/html","Test":"TestBar","Elapsed":0.05}`,
 	}
 	require.NoError(t, os.WriteFile(jsonl, []byte(strings.Join(lines, "\n")), 0o644))
 

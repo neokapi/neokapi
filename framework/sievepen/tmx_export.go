@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // EntryProvider is implemented by TM backends that can list all entries.
@@ -30,7 +30,7 @@ func ExportTMX(tm TranslationMemory, writer io.Writer, sourceLocale, targetLocal
 
 	doc := tmxDocument{
 		Header: tmxHeader{
-			CreationTool:        "gokapi-sievepen",
+			CreationTool:        "neokapi-sievepen",
 			CreationToolVersion: "2.0",
 			SegType:             "sentence",
 			AdminLang:           string(sourceLocale),

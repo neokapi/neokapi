@@ -1,6 +1,6 @@
 package xml
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the XML format's parameters.
 func (c *Config) Schema() *schema.FilterSchema {

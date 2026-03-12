@@ -16,7 +16,7 @@ The CLI reflects the **project-based architecture** ([AD-016](./016-kapi-project
 **This AD establishes the role separation:**
 - **Bowrain CLI** = project-centric sync companion, git-like workflow, syncs with Bowrain Server
 - **Bowrain Server** = multi-user platform, integration connectors, automation, ContentStore
-- **Kapi** (separate CLI, see below) = standalone file processing tool demonstrating the gokapi framework, no project directory, no server sync
+- **Kapi** (separate CLI, see below) = standalone file processing tool demonstrating the neokapi framework, no project directory, no server sync
 
 ## Decision
 
@@ -50,7 +50,7 @@ See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full RE
 
 ### Kapi: Standalone File Processing
 
-Kapi (`kapi` binary) is a separate CLI that demonstrates the gokapi open-source framework. It operates on files directly without requiring a project directory or server connection:
+Kapi (`kapi` binary) is a separate CLI that demonstrates the neokapi open-source framework. It operates on files directly without requiring a project directory or server connection:
 
 ```bash
 kapi formats list                                              # List available formats

@@ -4,7 +4,7 @@ import (
 	"context"
 	"io"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // OriginalContentSetter is implemented by writers that need the original

@@ -15,19 +15,19 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	sqltm "github.com/gokapi/gokapi/bowrain/sievepen"
-	"github.com/gokapi/gokapi/bowrain/storage"
-	sqltb "github.com/gokapi/gokapi/bowrain/termbase"
-	"github.com/gokapi/gokapi/providers/ai"
-	"github.com/gokapi/gokapi/core/ai/tools"
-	"github.com/gokapi/gokapi/core/editor"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/termbase"
-	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/credentials"
+	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
+	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/editor"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 var (

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/storage"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // SQLiteTM is a persistent translation memory backed by SQLite with

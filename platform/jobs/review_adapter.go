@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	bstore "github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // ReviewQueueStoreAdapter adapts bstore.ReviewQueueStore to the ReviewQueueCreator interface.

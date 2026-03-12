@@ -53,7 +53,7 @@ Authenticate the CLI against a deployed bowrain-server using the OAuth device fl
 
 ```bash
 # Login to a bowrain-server
-bowrain auth login --server https://gokapi.example.com
+bowrain auth login --server https://neokapi.example.com
 
 # Check authentication status
 bowrain auth status
@@ -89,17 +89,17 @@ Create and manage workspaces via the REST API for team collaboration.
 ```bash
 # List your workspaces
 curl -H "Authorization: Bearer $TOKEN" \
-  https://gokapi.example.com/api/v1/workspaces
+  https://neokapi.example.com/api/v1/workspaces
 
 # Create a team workspace
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "Acme Translations", "slug": "acme"}' \
-  https://gokapi.example.com/api/v1/workspaces
+  https://neokapi.example.com/api/v1/workspaces
 
 # Create a project in the workspace
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "Website", "source_locale": "en", "target_locales": ["fr","de"]}' \
-  https://gokapi.example.com/api/v1/workspaces/acme/projects
+  https://neokapi.example.com/api/v1/workspaces/acme/projects
 ```
 
 ## Translation Memory & Terminology

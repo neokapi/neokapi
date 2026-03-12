@@ -4,12 +4,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
-	"github.com/gokapi/gokapi/cli"
-	cliconfig "github.com/gokapi/gokapi/cli/config"
-	clioutput "github.com/gokapi/gokapi/cli/output"
-	"github.com/gokapi/gokapi/core/preset"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain/output"
+	"github.com/neokapi/neokapi/cli"
+	cliconfig "github.com/neokapi/neokapi/cli/config"
+	clioutput "github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

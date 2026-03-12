@@ -36,7 +36,7 @@ The Docker Compose setup runs **Traefik** as a TLS-terminating reverse proxy in 
 |---|---|---|
 | Web app (dev) | `https://bowrain.mymac` | host:5173 (Vite HMR) |
 | API | `https://bowrain.mymac/api/*` | host:8080 (bowrain-server, h2c) |
-| gRPC | `https://bowrain.mymac/gokapi.*` | host:8080 (bowrain-server, h2c) |
+| gRPC | `https://bowrain.mymac/neokapi.*` | host:8080 (bowrain-server, h2c) |
 | Keycloak | `https://auth.bowrain.mymac` | keycloak container:8080 |
 | Mailpit | `https://mail.bowrain.mymac` | mailpit container:8025 |
 | Traefik dashboard | `https://traefik.bowrain.mymac` | traefik:8080 |
@@ -137,7 +137,7 @@ services:
 
 - **Image**: `traefik:v3`
 - **Static config**: `docker/traefik/traefik.yml` — entrypoints (80→443 redirect), Docker + file providers, dashboard
-- **Dynamic config**: `docker/traefik/dynamic.yml` — HTTP routers for `bowrain.mymac` (API at priority 100 via h2c to host:8080, gRPC for `gokapi.*` paths via h2c, Vite at priority 90 to host:5173), TLS cert paths, dashboard router
+- **Dynamic config**: `docker/traefik/dynamic.yml` — HTTP routers for `bowrain.mymac` (API at priority 100 via h2c to host:8080, gRPC for `neokapi.*` paths via h2c, Vite at priority 90 to host:5173), TLS cert paths, dashboard router
 - **TLS certificates**: `docker/traefik/certs/` — mkcert-generated wildcard cert (`*.bowrain.mymac`), gitignored. Used by Traefik for TLS termination
 - **Docker labels**: Used for containerized services (Keycloak, Mailpit)
 - **File provider**: Used for host-running services (bowrain-server, Vite) via `host.docker.internal`

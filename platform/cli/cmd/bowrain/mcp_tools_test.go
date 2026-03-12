@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/cli"
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/cli"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

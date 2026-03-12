@@ -10,12 +10,12 @@ title: Getting Started
 ### macOS (Homebrew)
 
 ```bash
-brew install --cask gokapi/tap/bowrain
+brew install --cask neokapi/tap/bowrain
 ```
 
 ### Binary Download
 
-Download the latest release from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
+Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
 - **macOS**: Universal DMG (Intel + Apple Silicon)
 - **Windows**: ZIP archive (amd64, arm64)

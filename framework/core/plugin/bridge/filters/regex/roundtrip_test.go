@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
+	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 )
 
 // --- RoundTrip Integration Tests ---

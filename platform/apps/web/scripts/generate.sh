@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 WEB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "=== Gokapi Web App Screenshot & Recording Generation ==="
+echo "=== Neokapi Web App Screenshot & Recording Generation ==="
 echo ""
 
 # Step 1: Start Docker stack

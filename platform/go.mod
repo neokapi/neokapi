@@ -1,4 +1,4 @@
-module github.com/gokapi/gokapi/bowrain
+module github.com/neokapi/neokapi/bowrain
 
 go 1.26.0
 
@@ -8,8 +8,8 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus v1.10.0
 	github.com/coder/websocket v1.8.14
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/gokapi/gokapi v0.0.0
-	github.com/gokapi/gokapi/platform v0.0.0
+	github.com/neokapi/neokapi v0.0.0
+	github.com/neokapi/neokapi/platform v0.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/labstack/echo/v4 v4.15.0
@@ -111,6 +111,6 @@ require (
 )
 
 replace (
-	github.com/gokapi/gokapi => ../framework
-	github.com/gokapi/gokapi/platform => ./core
+	github.com/neokapi/neokapi => ../framework
+	github.com/neokapi/neokapi/platform => ./core
 )

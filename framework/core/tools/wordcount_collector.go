@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // DocumentWordCount holds word counts for a single document.

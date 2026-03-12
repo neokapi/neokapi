@@ -210,7 +210,7 @@ POST   /api/v1/publish                               # Publish content via conne
 Two gRPC services are defined in `bowrain/proto/v1/`:
 
 ```protobuf
-service GokapiService {
+service NeokapiService {
     // Project management
     rpc CreateProject(CreateProjectRequest) returns (ProjectResponse);
     rpc GetProject(GetProjectRequest) returns (ProjectResponse);

@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ParallelBlockTool wraps an inner tool and fans out Block processing across

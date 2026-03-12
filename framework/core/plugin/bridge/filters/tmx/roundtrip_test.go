@@ -5,7 +5,7 @@ package tmx
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
+	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 )
 
 func TestRoundTrip_Simple(t *testing.T) {

@@ -157,9 +157,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Run source QA
         run: bowrain flow run source-qa

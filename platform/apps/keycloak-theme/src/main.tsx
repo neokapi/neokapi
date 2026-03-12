@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { StrictMode } from "react";
-import { ThemeProvider } from "@gokapi/ui/context/ThemeContext";
+import { ThemeProvider } from "@neokapi/ui/context/ThemeContext";
 import { KcPage } from "./kc.gen";
 
 // Uncomment to test a specific page with `npm run dev`:

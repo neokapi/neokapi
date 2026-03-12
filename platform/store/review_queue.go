@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/core/id"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // ReviewItemType classifies review queue items.

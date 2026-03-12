@@ -1,12 +1,12 @@
-// Package tools provides additional localization tools for the gokapi pipeline.
+// Package tools provides additional localization tools for the neokapi pipeline.
 package tools
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // accentMap maps ASCII characters to accented equivalents for pseudo-translation.

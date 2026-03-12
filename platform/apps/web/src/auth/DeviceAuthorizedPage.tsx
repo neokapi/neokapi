@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@gokapi/ui";
+import { Card, CardContent } from "@neokapi/ui";
 
 function CheckCircleIcon() {
   return (

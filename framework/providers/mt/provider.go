@@ -4,7 +4,7 @@ package provider
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // MTProvider defines the interface for machine translation service providers.

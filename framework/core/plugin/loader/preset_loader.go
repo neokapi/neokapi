@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gokapi/gokapi/core/preset"
+	"github.com/neokapi/neokapi/core/preset"
 	"gopkg.in/yaml.v3"
 )
 

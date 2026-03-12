@@ -5,9 +5,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/providers/mt"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/providers/mt"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // MTTranslateTool translates Blocks using an MT provider.

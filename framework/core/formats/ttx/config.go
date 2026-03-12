@@ -3,7 +3,7 @@ package ttx
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 )
 
 // SegmentMode controls how the TTX reader handles segmentation.

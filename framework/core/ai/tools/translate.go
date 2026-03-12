@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/providers/ai"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // AITranslateTool translates untranslated Blocks using an LLM provider.

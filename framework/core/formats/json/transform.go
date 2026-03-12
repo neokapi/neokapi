@@ -1,6 +1,6 @@
 package json
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiJSONTransformer converts OkfJsonFilterConfig specs to JsonFormatConfig.
 // The native JSON format supports the same parameter set as the okapi bridge,

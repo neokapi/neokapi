@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 )
 
 // okapiCSVTransformer converts OkfCommaseparatedvaluesFilterConfig specs

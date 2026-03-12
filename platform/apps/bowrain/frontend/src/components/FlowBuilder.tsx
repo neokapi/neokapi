@@ -17,7 +17,7 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Button, Input, Badge, cn, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@gokapi/ui";
+import { Button, Input, Badge, cn, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
 

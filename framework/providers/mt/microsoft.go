@@ -8,8 +8,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/httputil"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // DefaultMicrosoftBaseURL is the default Azure Translator API endpoint.

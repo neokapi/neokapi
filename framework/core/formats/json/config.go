@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gokapi/gokapi/core/config"
-	"github.com/gokapi/gokapi/core/format"
+	"github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // Config holds configuration for the JSON format.

@@ -17,7 +17,7 @@ The deployment creates a full Bowrain stack on Azure Container Apps:
 | Secrets | Azure Key Vault | RBAC | RBAC |
 | Images | Azure Container Registry | managed identity | managed identity |
 
-Infrastructure is defined in Bicep in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo and deployed via GitHub Actions.
+Infrastructure is defined in Bicep in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo and deployed via GitHub Actions.
 
 ## Workflow structure
 
@@ -31,7 +31,7 @@ lookup  →  build  →  deploy-apps
 2. **build** — builds Docker images and pushes them to ACR
 3. **deploy-apps** — checks out bowrain-infra repo, deploys Container Apps and DNS records via `apps.bicep`, using infra values from environment variables and the newly built image tag
 
-Core infrastructure (identity, networking, databases, caches, ACR, Key Vault) is managed entirely in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo. After deploying core infrastructure, bowrain-infra runs `sync-vars.sh` to push outputs to this repo's GitHub environment variables.
+Core infrastructure (identity, networking, databases, caches, ACR, Key Vault) is managed entirely in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo. After deploying core infrastructure, bowrain-infra runs `sync-vars.sh` to push outputs to this repo's GitHub environment variables.
 
 ### Triggers
 
@@ -182,7 +182,7 @@ az containerapp logs show \
 
 ## Environment configuration
 
-Bicep parameters live in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo under `environments/{dev,prod}/`:
+Bicep parameters live in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo under `environments/{dev,prod}/`:
 
 | File | Layer | Environment | Notes |
 |---|---|---|---|
@@ -204,7 +204,7 @@ TLS certificates are automatically provisioned and managed by Azure Container Ap
 
 ## Infrastructure modules
 
-All Bicep modules live in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo under `modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
+All Bicep modules live in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo under `modules/`. The two orchestrator files (`core.bicep` and `apps.bicep`) compose these modules into deployment layers:
 
 | Module | Layer | Resources |
 |---|---|---|
@@ -227,4 +227,4 @@ All Bicep modules live in the [bowrain-infra](https://github.com/gokapi/bowrain-
 make gha-lint     # Lint GitHub Actions workflows (requires actionlint)
 ```
 
-Bicep linting is handled in the [bowrain-infra](https://github.com/gokapi/bowrain-infra) repo (`make lint`).
+Bicep linting is handled in the [bowrain-infra](https://github.com/neokapi/bowrain-infra) repo (`make lint`).

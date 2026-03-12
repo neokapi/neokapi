@@ -1,6 +1,6 @@
 package yaml
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiYAMLTransformer converts okf_yaml filter config specs to native YAML
 // format config. Most Okapi YAML filter parameters map directly to native

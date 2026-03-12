@@ -37,7 +37,7 @@ services:
       - "1025:1025"   # SMTP
 
   bowrain:
-    image: ghcr.io/gokapi/bowrain-server:latest
+    image: ghcr.io/neokapi/bowrain-server:latest
     ports:
       - "8080:8080"
     environment:
@@ -180,7 +180,7 @@ When using a reverse proxy, update the OIDC redirect URI and the
 Pull a specific version:
 
 ```bash
-docker pull ghcr.io/gokapi/bowrain-server:0.5.0
+docker pull ghcr.io/neokapi/bowrain-server:0.5.0
 ```
 
 ## Backup & Restore

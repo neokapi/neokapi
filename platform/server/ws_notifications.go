@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/labstack/echo/v4"
 )
 

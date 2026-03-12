@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/gokapi/gokapi/core/version"
+	"github.com/neokapi/neokapi/core/version"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
 )

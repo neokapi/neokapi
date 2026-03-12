@@ -1,6 +1,6 @@
 package tmx
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiTMXTransformer converts OkfTmxFilterConfig specs to TmxFormatConfig.
 // The TMX format has no configurable parameters, so all okapi-specific

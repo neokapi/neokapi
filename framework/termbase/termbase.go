@@ -3,7 +3,7 @@ package termbase
 import (
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Term represents a single term in a specific locale with lifecycle metadata.

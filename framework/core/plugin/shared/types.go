@@ -1,4 +1,4 @@
-// Package shared defines serializable types for the gokapi plugin RPC protocol.
+// Package shared defines serializable types for the neokapi plugin RPC protocol.
 // These types mirror the core model types but are JSON-serializable and free
 // of interfaces, channels, and io.Readers, making them safe for wire transport.
 //

@@ -5,7 +5,7 @@ title: Translation Memory
 
 # Translation Memory
 
-gokapi includes **Sievepen**, a built-in content-aware translation memory (TM) system with tiered matching, fuzzy matching, and TMX import/export.
+neokapi includes **Sievepen**, a built-in content-aware translation memory (TM) system with tiered matching, fuzzy matching, and TMX import/export.
 
 ## Content-Aware Matching
 
@@ -105,7 +105,7 @@ tools:
 
 ## Design Decision: Separate TM and Termbase
 
-TM and terminology are **separate systems** in gokapi with fundamentally different data shapes:
+TM and terminology are **separate systems** in neokapi with fundamentally different data shapes:
 
 - **TM entries** are segment pairs (source fragment → target fragment) with inline markup preservation
 - **Termbase concepts** are multi-term, multi-locale knowledge units with lifecycle statuses

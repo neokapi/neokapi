@@ -11,7 +11,7 @@ Terminology management in localization ranges from simple glossaries (CSV with
 source/target pairs) to concept-oriented termbases (TBX, MultiTerm) to full
 brand governance platforms (Acrolinx, Writer.com). No existing tool integrates
 concept-oriented terminology with a streaming localization pipeline as
-first-class tools. gokapi needs progressive complexity: start simple (CSV),
+first-class tools. neokapi needs progressive complexity: start simple (CSV),
 grow into concept management and brand governance.
 
 Key gaps in the market:
@@ -84,7 +84,7 @@ See [Terminology Data Model](/docs/notes/terminology-data-model) for pipeline to
 ### Brand Voice (Phase 3)
 
 Brand voice rules (tone, style) with a `brand-voice-check` pipeline tool
-using LLM analysis ([AD-008](./008-ai-integration.md)). Positions gokapi as
+using LLM analysis ([AD-008](./008-ai-integration.md)). Positions neokapi as
 the only open-source system bridging terminology and brand governance.
 
 ### Content Model Extensions

@@ -5,19 +5,19 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/bridge"
-	"github.com/gokapi/gokapi/core/plugin/loader"
-	"github.com/gokapi/gokapi/core/preset"
+	"github.com/neokapi/neokapi/core/plugin/bridge"
+	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/preset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// bridgeJAR returns the JAR path from GOKAPI_BRIDGE_JAR or skips the test.
+// bridgeJAR returns the JAR path from NEOKAPI_BRIDGE_JAR or skips the test.
 func bridgeJAR(t *testing.T) string {
 	t.Helper()
-	jar := os.Getenv("GOKAPI_BRIDGE_JAR")
+	jar := os.Getenv("NEOKAPI_BRIDGE_JAR")
 	if jar == "" {
-		t.Skip("GOKAPI_BRIDGE_JAR not set — skipping bridge integration test")
+		t.Skip("NEOKAPI_BRIDGE_JAR not set — skipping bridge integration test")
 	}
 	return jar
 }

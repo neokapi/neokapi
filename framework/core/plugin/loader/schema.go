@@ -2,7 +2,7 @@
 // New code should import core/format/schema directly.
 package loader
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import "github.com/neokapi/neokapi/core/format/schema"
 
 // Type aliases for backward compatibility.
 type FilterSchema = schema.FilterSchema

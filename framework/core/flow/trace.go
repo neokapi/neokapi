@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // TraceEvent represents a single timestamped event during flow execution.

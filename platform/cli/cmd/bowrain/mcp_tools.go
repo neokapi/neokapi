@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/cli"
-	clioutput "github.com/gokapi/gokapi/cli/output"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/cli"
+	clioutput "github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 

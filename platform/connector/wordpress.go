@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/model"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 )
 
 // WordPressConnector integrates with WordPress sites via the REST API.

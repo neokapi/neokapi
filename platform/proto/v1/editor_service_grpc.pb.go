@@ -23,40 +23,40 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EditorService_GetCurrentUser_FullMethodName       = "/gokapi.server.v1.EditorService/GetCurrentUser"
-	EditorService_ListWorkspaces_FullMethodName       = "/gokapi.server.v1.EditorService/ListWorkspaces"
-	EditorService_ListEditorProjects_FullMethodName   = "/gokapi.server.v1.EditorService/ListEditorProjects"
-	EditorService_GetEditorProject_FullMethodName     = "/gokapi.server.v1.EditorService/GetEditorProject"
-	EditorService_ListStreams_FullMethodName          = "/gokapi.server.v1.EditorService/ListStreams"
-	EditorService_CreateStream_FullMethodName         = "/gokapi.server.v1.EditorService/CreateStream"
-	EditorService_GetStreamInfo_FullMethodName        = "/gokapi.server.v1.EditorService/GetStreamInfo"
-	EditorService_ArchiveStream_FullMethodName        = "/gokapi.server.v1.EditorService/ArchiveStream"
-	EditorService_MergeStream_FullMethodName          = "/gokapi.server.v1.EditorService/MergeStream"
-	EditorService_DiffStream_FullMethodName           = "/gokapi.server.v1.EditorService/DiffStream"
-	EditorService_GetBlocks_FullMethodName            = "/gokapi.server.v1.EditorService/GetBlocks"
-	EditorService_UpdateBlockTarget_FullMethodName    = "/gokapi.server.v1.EditorService/UpdateBlockTarget"
-	EditorService_ReviewBlock_FullMethodName          = "/gokapi.server.v1.EditorService/ReviewBlock"
-	EditorService_LookupTMForBlock_FullMethodName     = "/gokapi.server.v1.EditorService/LookupTMForBlock"
-	EditorService_LookupTermsForBlock_FullMethodName  = "/gokapi.server.v1.EditorService/LookupTermsForBlock"
-	EditorService_GetTMEntries_FullMethodName         = "/gokapi.server.v1.EditorService/GetTMEntries"
-	EditorService_GetTMCount_FullMethodName           = "/gokapi.server.v1.EditorService/GetTMCount"
-	EditorService_AddTMEntry_FullMethodName           = "/gokapi.server.v1.EditorService/AddTMEntry"
-	EditorService_UpdateTMEntry_FullMethodName        = "/gokapi.server.v1.EditorService/UpdateTMEntry"
-	EditorService_DeleteTMEntry_FullMethodName        = "/gokapi.server.v1.EditorService/DeleteTMEntry"
-	EditorService_GetTerms_FullMethodName             = "/gokapi.server.v1.EditorService/GetTerms"
-	EditorService_GetTermCount_FullMethodName         = "/gokapi.server.v1.EditorService/GetTermCount"
-	EditorService_AddConcept_FullMethodName           = "/gokapi.server.v1.EditorService/AddConcept"
-	EditorService_UpdateConcept_FullMethodName        = "/gokapi.server.v1.EditorService/UpdateConcept"
-	EditorService_DeleteConcept_FullMethodName        = "/gokapi.server.v1.EditorService/DeleteConcept"
-	EditorService_ImportTermsCSV_FullMethodName       = "/gokapi.server.v1.EditorService/ImportTermsCSV"
-	EditorService_ImportTermsJSON_FullMethodName      = "/gokapi.server.v1.EditorService/ImportTermsJSON"
-	EditorService_ExportTermsJSON_FullMethodName      = "/gokapi.server.v1.EditorService/ExportTermsJSON"
-	EditorService_ListProviderConfigs_FullMethodName  = "/gokapi.server.v1.EditorService/ListProviderConfigs"
-	EditorService_SaveProviderConfig_FullMethodName   = "/gokapi.server.v1.EditorService/SaveProviderConfig"
-	EditorService_DeleteProviderConfig_FullMethodName = "/gokapi.server.v1.EditorService/DeleteProviderConfig"
-	EditorService_TestProviderConfig_FullMethodName   = "/gokapi.server.v1.EditorService/TestProviderConfig"
-	EditorService_UpdatePresence_FullMethodName       = "/gokapi.server.v1.EditorService/UpdatePresence"
-	EditorService_WatchProject_FullMethodName         = "/gokapi.server.v1.EditorService/WatchProject"
+	EditorService_GetCurrentUser_FullMethodName       = "/neokapi.server.v1.EditorService/GetCurrentUser"
+	EditorService_ListWorkspaces_FullMethodName       = "/neokapi.server.v1.EditorService/ListWorkspaces"
+	EditorService_ListEditorProjects_FullMethodName   = "/neokapi.server.v1.EditorService/ListEditorProjects"
+	EditorService_GetEditorProject_FullMethodName     = "/neokapi.server.v1.EditorService/GetEditorProject"
+	EditorService_ListStreams_FullMethodName          = "/neokapi.server.v1.EditorService/ListStreams"
+	EditorService_CreateStream_FullMethodName         = "/neokapi.server.v1.EditorService/CreateStream"
+	EditorService_GetStreamInfo_FullMethodName        = "/neokapi.server.v1.EditorService/GetStreamInfo"
+	EditorService_ArchiveStream_FullMethodName        = "/neokapi.server.v1.EditorService/ArchiveStream"
+	EditorService_MergeStream_FullMethodName          = "/neokapi.server.v1.EditorService/MergeStream"
+	EditorService_DiffStream_FullMethodName           = "/neokapi.server.v1.EditorService/DiffStream"
+	EditorService_GetBlocks_FullMethodName            = "/neokapi.server.v1.EditorService/GetBlocks"
+	EditorService_UpdateBlockTarget_FullMethodName    = "/neokapi.server.v1.EditorService/UpdateBlockTarget"
+	EditorService_ReviewBlock_FullMethodName          = "/neokapi.server.v1.EditorService/ReviewBlock"
+	EditorService_LookupTMForBlock_FullMethodName     = "/neokapi.server.v1.EditorService/LookupTMForBlock"
+	EditorService_LookupTermsForBlock_FullMethodName  = "/neokapi.server.v1.EditorService/LookupTermsForBlock"
+	EditorService_GetTMEntries_FullMethodName         = "/neokapi.server.v1.EditorService/GetTMEntries"
+	EditorService_GetTMCount_FullMethodName           = "/neokapi.server.v1.EditorService/GetTMCount"
+	EditorService_AddTMEntry_FullMethodName           = "/neokapi.server.v1.EditorService/AddTMEntry"
+	EditorService_UpdateTMEntry_FullMethodName        = "/neokapi.server.v1.EditorService/UpdateTMEntry"
+	EditorService_DeleteTMEntry_FullMethodName        = "/neokapi.server.v1.EditorService/DeleteTMEntry"
+	EditorService_GetTerms_FullMethodName             = "/neokapi.server.v1.EditorService/GetTerms"
+	EditorService_GetTermCount_FullMethodName         = "/neokapi.server.v1.EditorService/GetTermCount"
+	EditorService_AddConcept_FullMethodName           = "/neokapi.server.v1.EditorService/AddConcept"
+	EditorService_UpdateConcept_FullMethodName        = "/neokapi.server.v1.EditorService/UpdateConcept"
+	EditorService_DeleteConcept_FullMethodName        = "/neokapi.server.v1.EditorService/DeleteConcept"
+	EditorService_ImportTermsCSV_FullMethodName       = "/neokapi.server.v1.EditorService/ImportTermsCSV"
+	EditorService_ImportTermsJSON_FullMethodName      = "/neokapi.server.v1.EditorService/ImportTermsJSON"
+	EditorService_ExportTermsJSON_FullMethodName      = "/neokapi.server.v1.EditorService/ExportTermsJSON"
+	EditorService_ListProviderConfigs_FullMethodName  = "/neokapi.server.v1.EditorService/ListProviderConfigs"
+	EditorService_SaveProviderConfig_FullMethodName   = "/neokapi.server.v1.EditorService/SaveProviderConfig"
+	EditorService_DeleteProviderConfig_FullMethodName = "/neokapi.server.v1.EditorService/DeleteProviderConfig"
+	EditorService_TestProviderConfig_FullMethodName   = "/neokapi.server.v1.EditorService/TestProviderConfig"
+	EditorService_UpdatePresence_FullMethodName       = "/neokapi.server.v1.EditorService/UpdatePresence"
+	EditorService_WatchProject_FullMethodName         = "/neokapi.server.v1.EditorService/WatchProject"
 )
 
 // EditorServiceClient is the client API for EditorService service.
@@ -1262,7 +1262,7 @@ type EditorService_WatchProjectServer = grpc.ServerStreamingServer[ProjectEvent]
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var EditorService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "gokapi.server.v1.EditorService",
+	ServiceName: "neokapi.server.v1.EditorService",
 	HandlerType: (*EditorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

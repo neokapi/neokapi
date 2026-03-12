@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 )
 
 // FileConnector reads and writes localization content from the filesystem

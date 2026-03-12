@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@gokapi/ui";
+import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui";
 import { useFormats, useTools, useFlows, usePlugins, useVersion, useProviderConfigs, useProviderApi } from "../hooks/useApi";
 import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
 

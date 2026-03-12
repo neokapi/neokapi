@@ -3,9 +3,9 @@ sidebar_position: 1
 title: Architecture
 ---
 
-# gokapi: Architecture
+# neokapi: Architecture
 
-gokapi is an open-source localization framework built in Go. It provides
+neokapi is an open-source localization framework built in Go. It provides
 format-aware document parsing, composable processing tools, and a concurrent
 streaming pipeline for translation workflows. For the reasoning behind each
 major design choice, see the [Architecture Decisions](/docs/ad/001-vision).
@@ -58,8 +58,8 @@ to all stages. See [AD-001](/docs/ad/001-vision) and
 ## Package Layout
 
 ```
-gokapi/
-├── go.mod                           # module github.com/gokapi/gokapi
+neokapi/
+├── go.mod                           # module github.com/neokapi/neokapi
 │
 ├── core/                            # All framework Go packages
 │   ├── model/                       # Part, Block, Layer, Fragment, Span, Data, Media
@@ -205,7 +205,7 @@ DataFormatReader.Read(ctx) -> chan PartResult
 
 ## Terminology Mapping from Okapi
 
-| Okapi (Java)               | gokapi (Go)                |
+| Okapi (Java)               | neokapi (Go)                |
 |----------------------------|----------------------------|
 | Filter                     | DataFormat (Reader/Writer)  |
 | Step                       | Tool                       |
@@ -255,9 +255,9 @@ type LLMProvider interface {
 
 | Channel | Target | Command |
 |---------|--------|---------|
-| Homebrew formula | kapi CLI | `brew install gokapi/tap/kapi` |
+| Homebrew formula | kapi CLI | `brew install neokapi/tap/kapi` |
 | GitHub Releases | All platforms | Direct download |
-| Go install | Go developers | `go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest` |
+| Go install | Go developers | `go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest` |
 
 CI/CD runs via GitHub Actions: `ci.yml` (test, vet, lint, build on every
 push) and `release.yml` (GoReleaser on tag push).

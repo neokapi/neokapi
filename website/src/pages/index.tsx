@@ -13,7 +13,7 @@ function HomepageHeader() {
       <div className="container">
         <img
           src="/img/hero-logo.png"
-          alt="gokapi"
+          alt="neokapi"
           className={styles.heroLogo}
         />
         <Heading as="h1" className={clsx('hero__title', styles.heroTitle)}>
@@ -24,7 +24,7 @@ function HomepageHeader() {
             className="button button--secondary button--lg"
             to="/docs/getting-started/introduction"
             style={{marginRight: '1rem'}}>
-            Gokapi Framework
+            Neokapi Framework
           </Link>
           <Link
             className="button button--secondary button--lg"
@@ -44,7 +44,7 @@ type ProductItem = {
   linkText: string;
 };
 
-const GokapiFeatures: ProductItem[] = [
+const NeokapiFeatures: ProductItem[] = [
   {
     title: '41+ Formats & Plugins',
     description:
@@ -109,13 +109,13 @@ function HomepageFeatures() {
     <section className={styles.features}>
       <div className="container">
         <Heading as="h2" className="text--center margin-bottom--lg">
-          Gokapi Framework
+          Neokapi Framework
         </Heading>
         <p className="text--center margin-bottom--lg">
           Open-source localization engine and <Link to="/docs/kapi-cli/overview">kapi CLI</Link> for standalone file processing.
         </p>
         <div className="row margin-bottom--xl">
-          {GokapiFeatures.map((props, idx) => (
+          {NeokapiFeatures.map((props, idx) => (
             <ProductCard key={idx} {...props} />
           ))}
         </div>

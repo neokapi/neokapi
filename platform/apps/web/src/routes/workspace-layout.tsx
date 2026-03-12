@@ -16,7 +16,7 @@ import {
   CardTitle,
   type View,
   type Workspace,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
 import { viewFromPath } from "./view-from-path";

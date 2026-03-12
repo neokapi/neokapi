@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

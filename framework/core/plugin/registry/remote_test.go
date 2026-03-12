@@ -196,7 +196,7 @@ func TestInstallPluginBridge(t *testing.T) {
 		"plugin_type": "bundle",
 		"install_type": "bridge",
 		"command": "java",
-		"args": ["-jar", "gokapi-bridge-jar-with-dependencies.jar"],
+		"args": ["-jar", "neokapi-bridge-jar-with-dependencies.jar"],
 		"capabilities": [
 			{"type": "format", "name": "html", "display_name": "HTML Filter", "extensions": [".html"]},
 			{"type": "format", "name": "openxml", "display_name": "OpenXML Filter", "extensions": [".docx"]},
@@ -206,7 +206,7 @@ func TestInstallPluginBridge(t *testing.T) {
 	}`
 
 	archive := makeTarGz(t, map[string][]byte{
-		"gokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
+		"neokapi-bridge-jar-with-dependencies.jar": []byte("fake-jar"),
 		"manifest.json":                []byte(bundledManifest),
 		"schemas/okf_html.schema.json": []byte(`{"x-filter":{"id":"okf_html"}}`),
 	})
@@ -254,7 +254,7 @@ func TestInstallPluginBridge(t *testing.T) {
 
 	// Verify extracted files exist in versioned directory.
 	versionDir := VersionedPluginDir(dir, "okapi-bridge", "1.0.0")
-	_, err = os.Stat(filepath.Join(versionDir, "gokapi-bridge-jar-with-dependencies.jar"))
+	_, err = os.Stat(filepath.Join(versionDir, "neokapi-bridge-jar-with-dependencies.jar"))
 	assert.NoError(t, err)
 	_, err = os.Stat(filepath.Join(versionDir, "manifest.json"))
 	assert.NoError(t, err)

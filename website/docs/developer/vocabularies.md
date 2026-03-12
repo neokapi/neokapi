@@ -5,11 +5,11 @@ title: Vocabularies
 
 # Vocabularies
 
-Vocabularies are the semantic type system that drives format-independent inline code handling across gokapi. They define how each inline code type (bold, links, variables, etc.) is rendered, validated, and constrained in the translation editor — regardless of the source file format.
+Vocabularies are the semantic type system that drives format-independent inline code handling across neokapi. They define how each inline code type (bold, links, variables, etc.) is rendered, validated, and constrained in the translation editor — regardless of the source file format.
 
 ## Overview
 
-When gokapi parses a document, each inline code element (like `<b>`, `**`, or `{userName}`) is mapped to a **semantic type** from a vocabulary. This semantic type carries:
+When neokapi parses a document, each inline code element (like `<b>`, `**`, or `{userName}`) is mapped to a **semantic type** from a vocabulary. This semantic type carries:
 
 | Layer | What it provides | Example |
 |---|---|---|
@@ -25,7 +25,7 @@ Because `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all map to `fmt:bold`
 
 ## Built-in Vocabularies
 
-gokapi ships three vocabulary files. They form a layered system where each vocabulary can extend another:
+neokapi ships three vocabulary files. They form a layered system where each vocabulary can extend another:
 
 ### common-formatting (base)
 
@@ -153,7 +153,7 @@ Every format reader initializes a `VocabularyRegistry` and uses it to populate s
 package myformat
 
 import (
-    "github.com/gokapi/gokapi/core/model"
+    "github.com/neokapi/neokapi/core/model"
 )
 
 type Reader struct {

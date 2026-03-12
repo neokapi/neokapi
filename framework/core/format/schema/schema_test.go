@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/preset"
+	"github.com/neokapi/neokapi/core/preset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestSchemaRegistry_LoadFromDirectory(t *testing.T) {
 	// Create a test schema file
 	schema := `{
 		"$schema": "http://json-schema.org/draft-07/schema#",
-		"$id": "https://gokapi.dev/schemas/filters/okf_json.schema.json",
+		"$id": "https://neokapi.dev/schemas/filters/okf_json.schema.json",
 		"$version": "1.0.0",
 		"title": "JSON Filter",
 		"description": "Configuration for the Okapi JSON Filter",
@@ -222,7 +222,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 	// multiple property types, and x-groups for UI.
 	htmlSchema := `{
 		"$schema": "http://json-schema.org/draft-07/schema#",
-		"$id": "https://gokapi.dev/schemas/filters/okf_html.schema.json",
+		"$id": "https://neokapi.dev/schemas/filters/okf_html.schema.json",
 		"$version": "1.47.0",
 		"title": "HTML Filter",
 		"description": "Configuration for the Okapi HTML Filter",
@@ -260,7 +260,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 
 	xmlSchema := `{
 		"$schema": "http://json-schema.org/draft-07/schema#",
-		"$id": "https://gokapi.dev/schemas/filters/okf_xml.schema.json",
+		"$id": "https://neokapi.dev/schemas/filters/okf_xml.schema.json",
 		"$version": "1.47.0",
 		"title": "XML Filter",
 		"description": "Configuration for the Okapi XML Filter",

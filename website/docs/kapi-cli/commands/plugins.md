@@ -86,10 +86,10 @@ Plugins are stored in `~/.config/kapi/plugins/`. Multiple versions can be instal
   okapi/
     1.46.0/
       version.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
     1.47.0/
       version.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
 ```
 
 ## Okapi Bridge Bundle

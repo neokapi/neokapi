@@ -1,6 +1,6 @@
 package xliff2
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiXLIFF2Transformer converts OkfXliff2FilterConfig specs to Xliff2FormatConfig.
 // XLIFF 2.0 has no configurable parameters in the native implementation,

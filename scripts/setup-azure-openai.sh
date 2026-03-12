@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Provision Azure OpenAI resources for gokapi AI translation.
+# Provision Azure OpenAI resources for neokapi AI translation.
 #
 # Prerequisites:
 #   - Azure CLI (az) installed and logged in: az login
@@ -10,14 +10,14 @@
 #   bash scripts/setup-azure-openai.sh [resource-name] [location] [deployment-name]
 #
 # Defaults:
-#   resource-name:   gokapi-openai
+#   resource-name:   neokapi-openai
 #   location:        eastus
 #   deployment-name: gpt-4o
 
 set -euo pipefail
 
-RESOURCE_GROUP="gokapi-ai-rg"
-RESOURCE_NAME="${1:-gokapi-openai}"
+RESOURCE_GROUP="neokapi-ai-rg"
+RESOURCE_NAME="${1:-neokapi-openai}"
 LOCATION="${2:-eastus}"
 DEPLOYMENT_NAME="${3:-gpt-4o}"
 MODEL_NAME="gpt-4o"
@@ -70,7 +70,7 @@ echo "  Endpoint:    ${ENDPOINT}"
 echo "  API Key:     ${API_KEY}"
 echo "  Deployment:  ${DEPLOYMENT_NAME}"
 echo ""
-echo "Use these values when adding an Azure OpenAI provider in gokapi settings:"
+echo "Use these values when adding an Azure OpenAI provider in neokapi settings:"
 echo "  - Base URL:  ${ENDPOINT}"
 echo "  - Model:     ${DEPLOYMENT_NAME}"
 echo "  - API Key:   ${API_KEY}"

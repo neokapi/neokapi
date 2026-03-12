@@ -47,7 +47,7 @@ work with local projects.
 To access shared workspaces on a `bowrain-server`:
 
 1. Open **Settings** in the navigation panel
-2. Enter the server URL (e.g., `https://gokapi.example.com`)
+2. Enter the server URL (e.g., `https://neokapi.example.com`)
 3. Click **Connect** — this opens the login flow in your browser
 4. After authorization, your server workspaces appear in the workspace rail
 

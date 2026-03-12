@@ -47,7 +47,7 @@ func stripEmptyTargetLanguageFile(path string) (resultPath string, cleanup func(
 
 	stripped := emptyTargetLangRe.ReplaceAll(content, nil)
 
-	tmp, err := os.CreateTemp("", "gokapi-xliff-*")
+	tmp, err := os.CreateTemp("", "neokapi-xliff-*")
 	if err != nil {
 		return "", nil, err
 	}

@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
+      "@neokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
     },
   },
   server: {

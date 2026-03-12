@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/text/unicode/norm"
 )
 

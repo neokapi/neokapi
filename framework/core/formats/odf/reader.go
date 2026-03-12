@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ODF XML namespaces.
@@ -178,7 +178,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 
 	// Write content to a temp file (ZIP requires random access)
-	tmpFile, err := os.CreateTemp("", "gokapi-odf-*.zip")
+	tmpFile, err := os.CreateTemp("", "neokapi-odf-*.zip")
 	if err != nil {
 		ch <- model.PartResult{Error: fmt.Errorf("odf: creating temp file: %w", err)}
 		return

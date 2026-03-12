@@ -7,10 +7,10 @@ import {
     CardHeader,
     CardContent,
     CardFooter,
-} from "@gokapi/ui/components/ui/card";
-import { Button } from "@gokapi/ui/components/ui/button";
-import { Input as BaseInput } from "@gokapi/ui/components/ui/input";
-import { Label } from "@gokapi/ui/components/ui/label";
+} from "@neokapi/ui/components/ui/card";
+import { Button } from "@neokapi/ui/components/ui/button";
+import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
+import { Label } from "@neokapi/ui/components/ui/label";
 
 const Input = BaseInput as React.ForwardRefExoticComponent<
     React.InputHTMLAttributes<HTMLInputElement> &

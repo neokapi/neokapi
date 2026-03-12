@@ -3,7 +3,7 @@ package flow
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Collector accumulates results from processed documents.

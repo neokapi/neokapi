@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/registry"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/registry"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 )
 
 // GitConnector fetches and publishes localization content from Git repositories.
@@ -40,7 +40,7 @@ func NewGitConnector(formatReg *registry.FormatRegistry, config map[string]strin
 	}
 	localPath := config["local_path"]
 	if localPath == "" {
-		localPath = filepath.Join(os.TempDir(), "gokapi-git-"+filepath.Base(repoURL))
+		localPath = filepath.Join(os.TempDir(), "neokapi-git-"+filepath.Base(repoURL))
 	}
 	id := config["id"]
 	if id == "" {

@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // OllamaProvider implements LLMProvider for local Ollama models.

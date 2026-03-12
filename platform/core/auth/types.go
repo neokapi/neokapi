@@ -1,5 +1,5 @@
 // Package auth provides user authentication, workspace management,
-// and authorization primitives for the gokapi platform.
+// and authorization primitives for the neokapi platform.
 package auth
 
 import "time"

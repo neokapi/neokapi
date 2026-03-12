@@ -25,7 +25,7 @@ set -euo pipefail
 OKAPI_VERSION="${1:-1.48.0}"
 GITLAB_REPO="https://gitlab.com/okapiframework/okapi.git"
 GITLAB_TAG="v${OKAPI_VERSION}"
-GITHUB_REPO="gokapi/gokapi"
+GITHUB_REPO="neokapi/neokapi"
 RELEASE_TAG="okapi-testdata-${OKAPI_VERSION}"
 ASSET_NAME="okapi-testdata.tar.gz"
 

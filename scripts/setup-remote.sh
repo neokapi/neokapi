@@ -10,7 +10,7 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-echo "==> Setting up gokapi remote environment"
+echo "==> Setting up neokapi remote environment"
 
 # ── Go 1.26 ──────────────────────────────────────────────────────────────────
 # The cloud image ships a recent Go but may not have 1.26 yet.

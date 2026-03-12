@@ -5,11 +5,11 @@ title: Okapi Bridge
 
 # Okapi Bridge
 
-The Okapi bridge provides access to all 40+ Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between gokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
+The Okapi bridge provides access to all 40+ Okapi Framework filters without rewriting them in Go. It works by running a subprocess that hosts an adapter translating between neokapi's Part model and Okapi's Event model. The current implementation runs a JVM, but the bridge protocol is gRPC-based and language-agnostic.
 
 ## How It Works
 
-The bridge subprocess starts a gRPC server and prints its socket address to stdout. The Go side connects as a client and communicates via the `BridgeService` defined in `core/plugin/proto/v2/gokapi_bridge.proto`:
+The bridge subprocess starts a gRPC server and prints its socket address to stdout. The Go side connects as a client and communicates via the `BridgeService` defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
 
 | RPC | Direction | Purpose |
 |-----|-----------|---------|
@@ -56,7 +56,7 @@ Each plugin version includes a `*.bridge.json` descriptor:
 
 ```json
 {
-  "jar": "gokapi-okapi-bridge.jar",
+  "jar": "neokapi-okapi-bridge.jar",
   "jvmArgs": ["-Xmx512m"],
   "filters": ["html", "xml", "docx", "xlsx", "epub"],
   "timeout": "30s"
@@ -65,6 +65,6 @@ Each plugin version includes a `*.bridge.json` descriptor:
 
 ## Available Filters
 
-Through the Okapi bridge, gokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
+Through the Okapi bridge, neokapi can access Okapi's full filter library including DOCX, XLSX, EPUB, IDML, PDF, DITA, FrameMaker, InDesign, and many more.
 
 See [AD-007](/docs/ad/007-plugin-system) for the complete design rationale.

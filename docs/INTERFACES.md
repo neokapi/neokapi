@@ -1,6 +1,6 @@
-# gokapi: Key Interface Definitions
+# neokapi: Key Interface Definitions
 
-This document defines the concrete Go interfaces and types that form the foundation of gokapi. These definitions serve as the contract for all implementations.
+This document defines the concrete Go interfaces and types that form the foundation of neokapi. These definitions serve as the contract for all implementations.
 
 ## Table of Contents
 - [Content Model](#content-model)
@@ -889,7 +889,7 @@ func (c *AppConfig) Load() error {
 //
 // plugins:
 //   directory: "./plugins"
-//   registry: "https://plugins.gokapi.dev"
+//   registry: "https://plugins.neokapi.dev"
 //
 // flow:
 //   channelBuffer: 64
@@ -904,7 +904,7 @@ func (c *AppConfig) Load() error {
 
 ```protobuf
 syntax = "proto3";
-package gokapi.plugin.v1;
+package neokapi.plugin.v1;
 
 // DataFormatReaderPlugin is served by format reader plugins.
 service DataFormatReaderPlugin {
@@ -986,11 +986,11 @@ import (
 // Handshake is shared between host and plugins.
 var Handshake = plugin.HandshakeConfig{
     ProtocolVersion:  1,
-    MagicCookieKey:   "GOKAPI_PLUGIN",
-    MagicCookieValue: "gokapi-v1",
+    MagicCookieKey:   "NEOKAPI_PLUGIN",
+    MagicCookieValue: "neokapi-v1",
 }
 
-// PluginMap defines the plugin types gokapi supports.
+// PluginMap defines the plugin types neokapi supports.
 var PluginMap = map[string]plugin.Plugin{
     "format_reader": &DataFormatReaderGRPCPlugin{},
     "format_writer": &DataFormatWriterGRPCPlugin{},
@@ -1016,14 +1016,14 @@ func (p *DataFormatReaderGRPCPlugin) GRPCClient(broker *plugin.GRPCBroker, c *gr
 ### Java Bridge Plugin
 
 ```go
-// JavaBridgeReader wraps an Okapi Java filter as a gokapi DataFormatReader plugin.
+// JavaBridgeReader wraps an Okapi Java filter as a neokapi DataFormatReader plugin.
 // It runs a JVM subprocess communicating via gRPC.
 //
 // The Java side implements the DataFormatReaderPlugin gRPC service,
 // delegating to the original Okapi IFilter implementation.
 //
 // Usage: register as a go-plugin executable:
-//   gokapi-okapi-bridge --filter=net.sf.okapi.filters.openxml.OpenXMLFilter
+//   neokapi-okapi-bridge --filter=net.sf.okapi.filters.openxml.OpenXMLFilter
 type JavaBridgeReader struct {
     filterClass string
     jvmPath     string

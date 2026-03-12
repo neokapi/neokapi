@@ -3,7 +3,7 @@ package cli
 import (
 	"strings"
 
-	"github.com/gokapi/gokapi/cli/output"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

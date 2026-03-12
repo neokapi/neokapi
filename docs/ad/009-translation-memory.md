@@ -25,7 +25,7 @@ alone. This loses critical information:
 - **Translation context** (entity annotations, term matches, QA results)
   produced by the pipeline is lost when storing flat strings.
 
-gokapi's TM is content-aware: it stores full Fragments with Spans and entity
+neokapi's TM is content-aware: it stores full Fragments with Spans and entity
 metadata, derives multiple matching keys, and returns matches with entity
 adaptation information. TM persists within the Content Store ecosystem
 ([AD-003](./003-content-store.md)).
@@ -147,7 +147,7 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
 - **Plain text TM**: loses inline code information and entity metadata; no
   generalized matching. Dramatically lower reuse rates.
 - **External TM server** (Moses, Trados): adds deployment complexity; defeats
-  the single-binary goal. gokapi's TM must work out of the box.
+  the single-binary goal. neokapi's TM must work out of the box.
 - **BoltDB / BadgerDB**: key-value stores lack query flexibility for tiered
   matching with multiple indexed keys.
 - **PostgreSQL only**: Requires an external service; SQLite provides

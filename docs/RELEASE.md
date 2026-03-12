@@ -1,11 +1,11 @@
 # Release Process
 
-This document describes how to create a release of gokapi.
+This document describes how to create a release of neokapi.
 
 ## Prerequisites
 
-- The `gokapi/homebrew-tap` repository exists with a `Casks/` directory
-- The `HOMEBREW_TAP_TOKEN` secret is configured in the `gokapi/gokapi` repository settings (a GitHub PAT with write access to `gokapi/homebrew-tap`)
+- The `neokapi/homebrew-tap` repository exists with a `Casks/` directory
+- The `HOMEBREW_TAP_TOKEN` secret is configured in the `neokapi/neokapi` repository settings (a GitHub PAT with write access to `neokapi/homebrew-tap`)
 - GoReleaser configuration is in `.goreleaser.yaml`
 
 ## Creating a Release
@@ -36,11 +36,11 @@ This document describes how to create a release of gokapi.
 
 The tag push triggers `.github/workflows/release.yml`, which runs these jobs in sequence:
 
-1. **GoReleaser** — builds the `kapi` CLI for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formula in `gokapi/homebrew-tap`
+1. **GoReleaser** — builds the `kapi` CLI for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formula in `neokapi/homebrew-tap`
 
 2. **Build Bowrain** (matrix: linux/amd64, windows/amd64, darwin/universal) — uses `dAppServer/wails-build-action` to build the Bowrain desktop app on all three platforms in parallel. Each platform variant packages its artifact (DMG for macOS, ZIP for Windows, tarball for Linux) and uploads to the GitHub release
 
-3. **Update Homebrew Cask** — downloads the macOS DMG, computes SHA256, updates `Casks/bowrain.rb` in `gokapi/homebrew-tap`
+3. **Update Homebrew Cask** — downloads the macOS DMG, computes SHA256, updates `Casks/bowrain.rb` in `neokapi/homebrew-tap`
 
 ## Verifying a Release
 
@@ -53,11 +53,11 @@ gh release view v0.1.0 --json assets -q '.assets[].name'
 
 # Test Homebrew CLI install
 brew update
-brew install --cask gokapi/tap/kapi
+brew install --cask neokapi/tap/kapi
 kapi version
 
 # Test Homebrew Cask install (Bowrain, macOS)
-brew install --cask gokapi/tap/bowrain
+brew install --cask neokapi/tap/bowrain
 ```
 
 ## Testing Locally
@@ -74,7 +74,7 @@ This builds all artifacts in `dist/` without creating a GitHub release or updati
 
 ### GoReleaser fails
 
-- Check that `HOMEBREW_TAP_TOKEN` is set and has write access to `gokapi/homebrew-tap`
+- Check that `HOMEBREW_TAP_TOKEN` is set and has write access to `neokapi/homebrew-tap`
 - Verify `.goreleaser.yaml` is valid: `goreleaser check`
 - Ensure the tag follows semver: `v1.2.3`
 
@@ -121,5 +121,5 @@ Then fix the issue and re-tag.
   - `bowrain-*-windows-amd64.zip`
   - `bowrain-*-linux-amd64.tar.gz`
   - `checksums.txt`
-- [ ] `brew install --cask gokapi/tap/kapi` works
+- [ ] `brew install --cask neokapi/tap/kapi` works
 - [ ] `kapi version` shows the correct version

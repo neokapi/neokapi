@@ -1,4 +1,4 @@
-# gokapi Makefile
+# neokapi Makefile
 # ================
 
 # Suppress macOS linker warnings for CGO (Wails WebView)
@@ -14,12 +14,12 @@ GOTEST      := $(GO) test
 GOBUILD     := $(GO) build
 GOVET       := $(GO) vet
 GOFMT       := gofmt
-MODULE      := github.com/gokapi/gokapi
-CLI_MOD     := github.com/gokapi/gokapi/cli
-PLATFORM    := github.com/gokapi/gokapi/platform
-KAPI_MOD    := github.com/gokapi/gokapi/kapi
-BOWRAIN_CLI := github.com/gokapi/gokapi/bowrain-cli
-BOWRAIN     := github.com/gokapi/gokapi/bowrain
+MODULE      := github.com/neokapi/neokapi
+CLI_MOD     := github.com/neokapi/neokapi/cli
+PLATFORM    := github.com/neokapi/neokapi/platform
+KAPI_MOD    := github.com/neokapi/neokapi/kapi
+BOWRAIN_CLI := github.com/neokapi/neokapi/bowrain-cli
+BOWRAIN     := github.com/neokapi/neokapi/bowrain
 CLI_PKG     := $(KAPI_MOD)/cmd/kapi
 SERVER_PKG  := $(BOWRAIN)/cmd/bowrain-server
 WORKER_PKG  := $(BOWRAIN)/cmd/bowrain-worker
@@ -171,10 +171,10 @@ keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
-DOCKER_IMAGE          := ghcr.io/gokapi/bowrain-server
-DOCKER_WORKER_IMAGE   := ghcr.io/gokapi/bowrain-worker
-DOCKER_WEB_IMAGE      := ghcr.io/gokapi/bowrain-web
-DOCKER_KEYCLOAK_IMAGE := ghcr.io/gokapi/bowrain-keycloak
+DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server
+DOCKER_WORKER_IMAGE   := ghcr.io/neokapi/bowrain-worker
+DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
+DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
 docker-server: ## Build server and worker images
 	docker build -f platform/docker/bowrain-server/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest .
@@ -351,7 +351,7 @@ test-integration: ## Run integration tests (requires Docker: docker compose up -
 GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)
 OKAPI_BRIDGE_VERSION ?= v2.11.0
 OKAPI_VERSION        ?= 1.48.0
-BRIDGE_JAR           := $(HOME)/.cache/gokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
+BRIDGE_JAR           := $(HOME)/.cache/neokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 OKAPI_FILTERS_DIR    ?= $(HOME)/src/okapi/Okapi/okapi/filters
 OKAPI_SUREFIRE_DIR   ?= okapi-surefire/$(OKAPI_VERSION)-v1
 GOTEST_JSON_FILE     := $(COVER_DIR)/bridge-test-results.jsonl
@@ -368,14 +368,14 @@ fetch-okapi-surefire: ## Download Okapi Surefire XML reports from GitHub release
 	@GITHUB_TOKEN=$(GITHUB_TOKEN) bash scripts/fetch-okapi-surefire.sh
 
 test-bridge-filters: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter integration tests (requires Java)
-	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
+	NEOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -v ./core/plugin/bridge/filters/...
 
 test-bridge-pool: fetch-bridge-jar fetch-bridge-testdata ## Run bridge tests with shared JVM pool (faster, default 4 JVMs)
-	@GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) bash scripts/run-bridge-tests.sh $(or $(BRIDGE_POOL_SIZE),4)
+	@NEOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) bash scripts/run-bridge-tests.sh $(or $(BRIDGE_POOL_SIZE),4)
 
 test-bridge-json: fetch-bridge-jar fetch-bridge-testdata ## Run bridge filter tests with JSON output
 	@mkdir -p $(COVER_DIR)
-	GOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE); true
+	NEOKAPI_BRIDGE_JAR=$(BRIDGE_JAR) $(GOTEST) -tags=integration -count=1 -json ./core/plugin/bridge/filters/... > $(GOTEST_JSON_FILE); true
 
 test-native-json: ## Run native format tests with JSON output
 	@mkdir -p $(COVER_DIR)

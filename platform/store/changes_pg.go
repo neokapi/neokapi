@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	platstore "github.com/gokapi/gokapi/platform/store"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // GetChanges returns change log entries for a project since the given cursor.

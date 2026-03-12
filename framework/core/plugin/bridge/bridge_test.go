@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

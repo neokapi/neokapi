@@ -17,9 +17,9 @@
 #   - deploy config paths
 #
 # What does NOT change:
-#   - Go module names (github.com/gokapi/gokapi/bowrain stays the same)
+#   - Go module names (github.com/neokapi/neokapi/bowrain stays the same)
 #   - Go import paths in .go source files (module names unchanged)
-#   - Docker image names (ghcr.io/gokapi/bowrain-*)
+#   - Docker image names (ghcr.io/neokapi/bowrain-*)
 #   - GHA cache scope names (scope=bowrain-*)
 #   - Environment variable names (BOWRAIN_OIDC_*, BOWRAIN_SMTP_*, etc.)
 #   - Makefile target names (build-bowrain, test-bowrain, etc.)
@@ -105,11 +105,11 @@ GOWORK
 echo "--- Step 3: Updating go.mod replace directives"
 
 sed "${_SED_I_ARGS[@]}" \
-  's|gokapi/platform => \./platform|gokapi/platform => ./core|' \
+  's|neokapi/platform => \./platform|neokapi/platform => ./core|' \
   platform/go.mod
 
 sed "${_SED_I_ARGS[@]}" \
-  's|gokapi/platform => \.\./platform|gokapi/platform => ../core|' \
+  's|neokapi/platform => \.\./platform|neokapi/platform => ../core|' \
   platform/cli/go.mod
 
 # ─── 4. Update Makefile ─────────────────────────────────────────────────────

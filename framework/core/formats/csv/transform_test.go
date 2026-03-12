@@ -3,8 +3,8 @@ package csv_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/config"
-	_ "github.com/gokapi/gokapi/core/formats/csv" // registers transform
+	"github.com/neokapi/neokapi/core/config"
+	_ "github.com/neokapi/neokapi/core/formats/csv" // registers transform
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

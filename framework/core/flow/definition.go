@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 	"gopkg.in/yaml.v3"
 )
 

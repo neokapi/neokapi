@@ -1,4 +1,4 @@
-import { RestApiAdapter } from "@gokapi/ui";
+import { RestApiAdapter } from "@neokapi/ui";
 
 export const api = new RestApiAdapter();
 

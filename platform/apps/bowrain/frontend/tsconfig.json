@@ -16,8 +16,8 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@gokapi/ui": ["../../../../packages/ui/src"],
-      "@gokapi/ui/*": ["../../../../packages/ui/src/*"]
+      "@neokapi/ui": ["../../../../packages/ui/src"],
+      "@neokapi/ui/*": ["../../../../packages/ui/src/*"]
     }
   },
   "include": ["src"],

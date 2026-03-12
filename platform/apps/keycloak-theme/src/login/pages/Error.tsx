@@ -5,8 +5,8 @@ import {
     CardHeader,
     CardContent,
     CardFooter,
-} from "@gokapi/ui/components/ui/card";
-import { Button } from "@gokapi/ui/components/ui/button";
+} from "@neokapi/ui/components/ui/card";
+import { Button } from "@neokapi/ui/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 export default function ErrorPage(props: {

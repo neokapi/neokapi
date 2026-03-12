@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
-	platauth "github.com/gokapi/gokapi/platform/auth"
-	apiclient "github.com/gokapi/gokapi/platform/client"
-	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+	apiclient "github.com/neokapi/neokapi/platform/client"
+	platev "github.com/neokapi/neokapi/platform/event"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

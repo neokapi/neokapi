@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/core/id"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // NotificationType classifies notifications.

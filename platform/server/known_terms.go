@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ServerKnownTermsLoader loads known terms from the server's workspace termbases.

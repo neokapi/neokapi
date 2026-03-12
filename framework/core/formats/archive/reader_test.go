@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/formats/archive"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/formats/archive"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +57,7 @@ func rawDocFromBytes(data []byte, locale model.LocaleID) *model.RawDocument {
 // writeTmpZip writes ZIP data to a temp file and returns its path.
 func writeTmpZip(t *testing.T, data []byte) string {
 	t.Helper()
-	f, err := os.CreateTemp("", "gokapi-test-archive-*")
+	f, err := os.CreateTemp("", "neokapi-test-archive-*")
 	require.NoError(t, err)
 	_, err = f.Write(data)
 	require.NoError(t, err)

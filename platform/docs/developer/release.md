@@ -7,8 +7,8 @@ title: Release Process
 
 ## Prerequisites
 
-- The `gokapi/homebrew-tap` repository exists with a `Casks/` directory
-- The `HOMEBREW_TAP_TOKEN` secret is configured in the `gokapi/gokapi` repository settings (a GitHub PAT with write access to `gokapi/homebrew-tap`)
+- The `neokapi/homebrew-tap` repository exists with a `Casks/` directory
+- The `HOMEBREW_TAP_TOKEN` secret is configured in the `neokapi/neokapi` repository settings (a GitHub PAT with write access to `neokapi/homebrew-tap`)
 - GoReleaser configuration is in `.goreleaser.yaml`
 
 ## Creating a Release
@@ -39,11 +39,11 @@ title: Release Process
 
 The tag push triggers `.github/workflows/release.yml`, which runs these jobs:
 
-1. **GoReleaser** — builds the `kapi` and `bowrain` CLIs for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formulae in `gokapi/homebrew-tap`
+1. **GoReleaser** — builds the `kapi` and `bowrain` CLIs for all platforms (linux/darwin/windows, amd64/arm64), creates the GitHub release with changelog, publishes checksums, and updates the Homebrew formulae in `neokapi/homebrew-tap`
 
 2. **Build Bowrain** (matrix: linux/amd64, linux/arm64, windows/amd64, windows/arm64, darwin/universal) — builds the Bowrain desktop app for each platform. Each entry packages its artifact (DMG for macOS, ZIP for Windows, tarball for Linux) and uploads to the GitHub release
 
-3. **Update Homebrew Cask** — downloads the macOS DMG, computes SHA256, updates `Casks/bowrain.rb` in `gokapi/homebrew-tap`
+3. **Update Homebrew Cask** — downloads the macOS DMG, computes SHA256, updates `Casks/bowrain.rb` in `neokapi/homebrew-tap`
 
 ## Verifying a Release
 
@@ -52,10 +52,10 @@ gh release view v0.1.0
 gh release view v0.1.0 --json assets -q '.assets[].name'
 
 brew update
-brew install --cask gokapi/tap/kapi
+brew install --cask neokapi/tap/kapi
 kapi version
 
-brew install --cask gokapi/tap/bowrain
+brew install --cask neokapi/tap/bowrain
 ```
 
 ## Testing Locally
@@ -68,7 +68,7 @@ goreleaser release --snapshot --clean
 
 ### GoReleaser fails
 
-- Check that `HOMEBREW_TAP_TOKEN` is set and has write access to `gokapi/homebrew-tap`
+- Check that `HOMEBREW_TAP_TOKEN` is set and has write access to `neokapi/homebrew-tap`
 - Verify `.goreleaser.yaml` is valid: `goreleaser check`
 - Ensure the tag follows semver: `v1.2.3`
 
@@ -93,5 +93,5 @@ git tag -d v0.1.0
 - [ ] Tag is annotated (`git tag -a`, not lightweight)
 - [ ] Release workflow completes all jobs
 - [ ] GitHub release has all expected assets
-- [ ] `brew install --cask gokapi/tap/kapi` works
+- [ ] `brew install --cask neokapi/tap/kapi` works
 - [ ] `kapi version` shows the correct version

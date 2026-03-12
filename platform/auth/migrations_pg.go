@@ -1,6 +1,6 @@
 package auth
 
-import "github.com/gokapi/gokapi/bowrain/storage"
+import "github.com/neokapi/neokapi/bowrain/storage"
 
 // authMigrationsPg is a single clean PostgreSQL schema that represents the
 // final state of all 8 incremental SQLite auth migrations consolidated into one.

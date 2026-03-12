@@ -7,7 +7,7 @@ import {
   useApi,
   useCollaboration,
   useStream,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 

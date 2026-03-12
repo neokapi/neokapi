@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // sqliteJobMigrations defines the SQLite schema for translation jobs.

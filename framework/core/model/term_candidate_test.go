@@ -3,7 +3,7 @@ package model_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 )
 

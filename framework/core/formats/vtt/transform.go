@@ -1,6 +1,6 @@
 package vtt
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiVTTTransformer converts okf_vtt filter config specs to native VTT config.
 // The native VTT format has no configurable parameters, so all Okapi-specific

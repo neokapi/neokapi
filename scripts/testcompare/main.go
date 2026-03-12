@@ -59,7 +59,7 @@ type goTestEvent struct {
 type ComparisonData struct {
 	GeneratedAt   string             `json:"generatedAt"`
 	OkapiVersion  string             `json:"okapiVersion"`
-	GokapiVersion string             `json:"gokapiVersion"`
+	NeokapiVersion string             `json:"neokapiVersion"`
 	GoCommitSHA   string             `json:"goCommitSHA,omitempty"`
 	OkapiTag      string             `json:"okapiTag,omitempty"`
 	Filters       []FilterComparison `json:"filters"`
@@ -196,7 +196,7 @@ func main() {
 
 	outFile := flag.String("out", "", "output JSON file path")
 	okapiVer := flag.String("okapi-version", "", "Okapi version label")
-	gokapiVer := flag.String("gokapi-version", "", "gokapi version label")
+	neokapiVer := flag.String("neokapi-version", "", "neokapi version label")
 	goCommit := flag.String("go-commit", "", "Go repo commit SHA (for GitHub source links)")
 	okapiTag := flag.String("okapi-tag", "", "Okapi version tag (for GitLab source links, e.g. v1.48.0)")
 	flag.Parse()
@@ -241,7 +241,7 @@ func main() {
 		bridgeTestStatus, nativeTestStatus,
 		bridgeResults.skipMsgs, nativeResults.skipMsgs,
 		bridgeResults.subtestCounts, nativeResults.subtestCounts,
-		*okapiVer, *gokapiVer, *goCommit, *okapiTag)
+		*okapiVer, *neokapiVer, *goCommit, *okapiTag)
 
 	b, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
@@ -759,7 +759,7 @@ func merge(
 	bridgeTestStatus, nativeTestStatus map[string]string,
 	bridgeSkipMsgs, nativeSkipMsgs map[string]string,
 	bridgeSubtestCounts, nativeSubtestCounts map[string]map[string]int,
-	okapiVer, gokapiVer, goCommit, okapiTagVal string,
+	okapiVer, neokapiVer, goCommit, okapiTagVal string,
 ) *ComparisonData {
 	// Build annotation lookup: filter → javaClass#method → []annInfo
 	type annKey struct{ filter, class, method string }
@@ -964,7 +964,7 @@ func merge(
 	return &ComparisonData{
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
 		OkapiVersion:  okapiVer,
-		GokapiVersion: gokapiVer,
+		NeokapiVersion: neokapiVer,
 		GoCommitSHA:   goCommit,
 		OkapiTag:      okapiTagVal,
 		Filters:       filters,

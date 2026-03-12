@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/core/id"
-	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/core/id"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
 // AuthService provides authentication and workspace business logic.

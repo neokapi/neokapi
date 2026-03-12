@@ -5,7 +5,7 @@ title: AI Translation
 
 # AI Translation
 
-gokapi provides first-class LLM integration for translation, quality assurance, terminology extraction, and review.
+neokapi provides first-class LLM integration for translation, quality assurance, terminology extraction, and review.
 
 ## Supported Providers
 

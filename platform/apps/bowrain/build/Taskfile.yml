@@ -60,7 +60,7 @@ tasks:
       - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true
       # Workaround: Wails v3 alpha binding generator emits "$0." instead of
       # "store$0." for the store module alias. Patch the generated file.
-      - sed -i.bak 's/= \$0\./= store\$0./g' frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js && rm -f frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js.bak
+      - sed -i.bak 's/= \$0\./= store\$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js && rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` files from an image

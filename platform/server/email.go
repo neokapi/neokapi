@@ -12,7 +12,7 @@ package server
 import (
 	"log"
 
-	"github.com/gokapi/gokapi/bowrain/mailer"
+	"github.com/neokapi/neokapi/bowrain/mailer"
 )
 
 // EmailSenderI is an alias for mailer.EmailSenderI so tests and server-package

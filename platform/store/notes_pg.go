@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // AddBlockNote inserts a new block note.

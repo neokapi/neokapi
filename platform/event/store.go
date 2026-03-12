@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	platev "github.com/gokapi/gokapi/platform/event"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // StoredRule represents a persisted automation rule.

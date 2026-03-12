@@ -286,12 +286,12 @@ Kapi is a standalone file-processing tool with no project model or push/pull com
 
 ### GitHub Action for CI/CD (Client-Side)
 
-The `gokapi/bowrain-action` GitHub Action brings Bowrain sync into CI/CD
+The `neokapi/bowrain-action` GitHub Action brings Bowrain sync into CI/CD
 pipelines:
 
-1. `gokapi/setup-bowrain@v1` installs the Bowrain CLI with platform
+1. `neokapi/setup-bowrain@v1` installs the Bowrain CLI with platform
    detection, checksum verification, and GitHub Actions caching
-2. `gokapi/bowrain-action@v1` runs `bowrain sync` (push → wait → pull),
+2. `neokapi/bowrain-action@v1` runs `bowrain sync` (push → wait → pull),
    commits translated files, and pushes to the repository
 
 This enables fully automated translation pipelines: a developer pushes

@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 )
 
 // ProjectWatcher manages a WatchProject gRPC stream for real-time updates.

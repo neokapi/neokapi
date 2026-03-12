@@ -5,20 +5,20 @@ import (
 	"fmt"
 	"time"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/platform/connector"
-	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/gokapi/gokapi/platform/store"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/platform/connector"
+	platev "github.com/neokapi/neokapi/platform/event"
+	"github.com/neokapi/neokapi/platform/store"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"
 )
 
-// GRPCServer implements the GokapiServiceServer interface.
+// GRPCServer implements the NeokapiServiceServer interface.
 type GRPCServer struct {
-	pb.UnimplementedGokapiServiceServer
+	pb.UnimplementedNeokapiServiceServer
 	srv *Server
 }
 
@@ -97,7 +97,7 @@ func (g *GRPCServer) StoreBlocks(ctx context.Context, req *pb.StoreBlocksRequest
 	return &pb.StoreBlocksResponse{StoredCount: int32(len(blocks))}, nil
 }
 
-func (g *GRPCServer) StreamBlocks(req *pb.StreamBlocksRequest, stream pb.GokapiService_StreamBlocksServer) error {
+func (g *GRPCServer) StreamBlocks(req *pb.StreamBlocksRequest, stream pb.NeokapiService_StreamBlocksServer) error {
 	if g.srv.Services == nil {
 		return status.Error(codes.Unavailable, "content store not configured")
 	}
@@ -192,7 +192,7 @@ type flowConfig struct {
 	Tools []string `yaml:"tools"`
 }
 
-func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.GokapiService_ExecuteFlowServer) error {
+func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.NeokapiService_ExecuteFlowServer) error {
 	if g.srv.Services == nil {
 		return status.Error(codes.Unavailable, "content store not configured")
 	}
@@ -281,7 +281,7 @@ func (g *GRPCServer) ExecuteFlow(req *pb.ExecuteFlowRequest, stream pb.GokapiSer
 	})
 }
 
-func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.GokapiService_SubscribeServer) error {
+func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.NeokapiService_SubscribeServer) error {
 	if g.srv.EventBus == nil {
 		return status.Error(codes.Unavailable, "event bus not configured")
 	}
@@ -379,6 +379,6 @@ func grpcCtx(stream interface{ Context() context.Context }) context.Context {
 
 // Ensure GRPCServer implements the interface.
 func init() {
-	var _ pb.GokapiServiceServer = (*GRPCServer)(nil)
+	var _ pb.NeokapiServiceServer = (*GRPCServer)(nil)
 	_ = fmt.Sprintf // suppress unused import
 }

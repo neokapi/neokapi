@@ -34,9 +34,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/formats/tmx"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/formats/tmx"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1813,7 +1813,7 @@ func TestOpenEmptyContent(t *testing.T) {
 func TestHeaderMetadataComplete(t *testing.T) {
 	input := `<?xml version="1.0"?>
 <tmx version="1.4">
-  <header creationtool="gokapi" creationtoolversion="1.0"
+  <header creationtool="neokapi" creationtoolversion="1.0"
     segtype="sentence" o-tmf="xliff" adminlang="en-US"
     srclang="en" datatype="xml">
   </header>
@@ -1832,7 +1832,7 @@ func TestHeaderMetadataComplete(t *testing.T) {
 				assert.Equal(t, "xml", data.Properties["datatype"])
 				assert.Equal(t, "sentence", data.Properties["segtype"])
 				assert.Equal(t, "xliff", data.Properties["o-tmf"])
-				assert.Equal(t, "gokapi", data.Properties["creationtool"])
+				assert.Equal(t, "neokapi", data.Properties["creationtool"])
 			}
 		}
 	}

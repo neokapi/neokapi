@@ -1,6 +1,6 @@
 package yaml
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the YAML format.
 func (c *Config) Schema() *schema.FilterSchema {

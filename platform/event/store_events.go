@@ -3,9 +3,9 @@ package event
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
-	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	platev "github.com/neokapi/neokapi/platform/event"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // EventEmittingStore wraps a ContentStore and emits events on mutations.

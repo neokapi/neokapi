@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button } from "@gokapi/ui";
+import { Card, CardContent, CardHeader, CardTitle, Button } from "@neokapi/ui";
 
 export function LoginPage() {
   const [serverUrl, setServerUrl] = useState("");
@@ -13,7 +13,7 @@ export function LoginPage() {
     <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
       <Card className="min-w-[360px] glass-surface">
         <CardHeader className="items-center text-center">
-          <CardTitle className="text-3xl font-bold">gokapi</CardTitle>
+          <CardTitle className="text-3xl font-bold">neokapi</CardTitle>
           <p className="text-sm text-muted-foreground">
             Sign in to your workspace
           </p>

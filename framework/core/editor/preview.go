@@ -1,7 +1,7 @@
 package editor
 
 import (
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // BuildPreview generates a preview HTML string for the given parts.

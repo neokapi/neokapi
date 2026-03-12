@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useWorkspace, useApi, GlassCard, InviteManager, ApiTokenManager, type ConfigResponse, type WebVersionInfo } from "@gokapi/ui";
+import { useWorkspace, useApi, GlassCard, InviteManager, ApiTokenManager, type ConfigResponse, type WebVersionInfo } from "@neokapi/ui";
 
 function SettingsField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (

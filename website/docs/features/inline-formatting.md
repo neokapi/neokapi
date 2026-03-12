@@ -5,11 +5,11 @@ title: Inline Formatting
 
 # Working with Inline Formatting
 
-When documents are processed through the pipeline, gokapi preserves inline formatting like **bold**, *italic*, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
+When documents are processed through the pipeline, neokapi preserves inline formatting like **bold**, *italic*, [links](https://example.com), and embedded values like variables and placeholders. This is handled through the Fragment and Span model, which normalizes format-specific markup into a format-independent representation.
 
 ## How It Works
 
-gokapi extracts inline formatting from any supported format and represents it using coded text with Span metadata. This means `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all produce the same semantic type (`fmt:bold`), enabling format-independent processing.
+neokapi extracts inline formatting from any supported format and represents it using coded text with Span metadata. This means `<b>` (HTML), `**` (Markdown), and `<w:b/>` (DOCX) all produce the same semantic type (`fmt:bold`), enabling format-independent processing.
 
 The Span model carries metadata that editors can use to guide translators:
 

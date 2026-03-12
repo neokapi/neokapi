@@ -1,5 +1,5 @@
 // Package bridge implements a JVM subprocess manager that wraps Okapi Framework
-// Java filters as gokapi DataFormatReader/DataFormatWriter implementations.
+// Java filters as neokapi DataFormatReader/DataFormatWriter implementations.
 // Communication uses gRPC with proto-generated types.
 package bridge
 
@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 )
 
 // OpenParams are sent with the Open RPC.

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/providers/mt"
-	"github.com/gokapi/gokapi/core/mt/tools"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/providers/mt"
+	"github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

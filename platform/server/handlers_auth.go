@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
-	"github.com/gokapi/gokapi/bowrain/auth"
-	platformAuth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	platformAuth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 )

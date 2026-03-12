@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/store"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // ConnectorInfo describes a connector for the frontend.

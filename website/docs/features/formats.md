@@ -5,7 +5,7 @@ title: Supported Formats
 
 # Supported Formats
 
-gokapi includes 42 built-in format readers and writers covering document, localization, subtitle, office, and specialized text formats.
+neokapi includes 42 built-in format readers and writers covering document, localization, subtitle, office, and specialized text formats.
 
 ## Built-in Formats
 
@@ -92,7 +92,7 @@ With the [Okapi bridge plugin](/docs/kapi-cli/commands/plugins) installed, you g
 
 ## Format Detection
 
-gokapi automatically detects formats using a cascade strategy:
+neokapi automatically detects formats using a cascade strategy:
 
 1. Explicit MIME type (if provided)
 2. File extension mapping

@@ -33,34 +33,34 @@ framework (core/)
 
 | Module | Import Path | Role |
 |--------|------------|------|
-| Framework | `github.com/gokapi/gokapi` | Content model, formats, tools, pipeline, plugin system |
-| CLI | `github.com/gokapi/gokapi/cli` | Shared CLI base: App struct, command factories, output formatting, app config |
-| Platform | `github.com/gokapi/gokapi/platform` | Shared platform types: project model, auth, connector interfaces, REST client |
-| Kapi | `github.com/gokapi/gokapi/kapi` | Standalone CLI tool for local file processing |
-| Bowrain CLI | `github.com/gokapi/gokapi/bowrain-cli` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
-| Bowrain | `github.com/gokapi/gokapi/bowrain` | REST server, desktop app, SQLite/PostgreSQL storage, OIDC, connectors |
+| Framework | `github.com/neokapi/neokapi` | Content model, formats, tools, pipeline, plugin system |
+| CLI | `github.com/neokapi/neokapi/cli` | Shared CLI base: App struct, command factories, output formatting, app config |
+| Platform | `github.com/neokapi/neokapi/platform` | Shared platform types: project model, auth, connector interfaces, REST client |
+| Kapi | `github.com/neokapi/neokapi/kapi` | Standalone CLI tool for local file processing |
+| Bowrain CLI | `github.com/neokapi/neokapi/bowrain-cli` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
+| Bowrain | `github.com/neokapi/neokapi/bowrain` | REST server, desktop app, SQLite/PostgreSQL storage, OIDC, connectors |
 
 ### Directory Layout
 
 Framework packages live under `core/` to reduce root-level clutter. Each module has its own `go.mod` with `replace` directives for local development:
 
 ```
-gokapi/
+neokapi/
 ├── go.work          # use . ./cli ./platform ./kapi ./bowrain-cli ./bowrain
-├── go.mod           # github.com/gokapi/gokapi
+├── go.mod           # github.com/neokapi/neokapi
 ├── core/            # All framework Go packages
 ├── cli/             # Shared CLI base + app config
-│   ├── go.mod       # github.com/gokapi/gokapi/cli
+│   ├── go.mod       # github.com/neokapi/neokapi/cli
 │   ├── config/      # Viper-based app configuration
 │   └── output/      # Shared output formatting
 ├── platform/        # Shared platform types
-│   └── go.mod       # github.com/gokapi/gokapi/platform
+│   └── go.mod       # github.com/neokapi/neokapi/platform
 ├── kapi/            # Standalone CLI tool
-│   └── go.mod       # github.com/gokapi/gokapi/kapi
+│   └── go.mod       # github.com/neokapi/neokapi/kapi
 ├── bowrain-cli/     # Project sync CLI
-│   └── go.mod       # github.com/gokapi/gokapi/bowrain-cli
+│   └── go.mod       # github.com/neokapi/neokapi/bowrain-cli
 ├── bowrain/         # Server + desktop
-│   └── go.mod       # github.com/gokapi/gokapi/bowrain
+│   └── go.mod       # github.com/neokapi/neokapi/bowrain
 └── packages/ui/     # Shared React component library
 ```
 
@@ -83,7 +83,7 @@ To minimize the blast radius of the split, bowrain packages that previously defi
 ```go
 // bowrain/auth/types.go
 package auth
-import platauth "github.com/gokapi/gokapi/platform/auth"
+import platauth "github.com/neokapi/neokapi/platform/auth"
 type User = platauth.User
 type Workspace = platauth.Workspace
 ```
@@ -121,7 +121,7 @@ bowrain/v0.16.0   → bowrain
 
 All modules target Go 1.26+. The Makefile provides per-module build, test, vet, and lint targets. CI verifies module isolation with `GOWORK=off` builds to catch accidental cross-module imports.
 
-`go mod tidy` does not respect `go.work` — each child module requires explicit `replace` directives in its `go.mod` for local development (e.g., `replace github.com/gokapi/gokapi => ../`).
+`go mod tidy` does not respect `go.work` — each child module requires explicit `replace` directives in its `go.mod` for local development (e.g., `replace github.com/neokapi/neokapi => ../`).
 
 ## Consequences
 

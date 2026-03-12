@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/httputil"
-	"github.com/gokapi/gokapi/core/model"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/model"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 )
 
 // HubSpotConnector integrates with HubSpot CMS for marketing content.

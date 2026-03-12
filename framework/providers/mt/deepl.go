@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/httputil"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // DefaultDeepLBaseURL is the default DeepL free API endpoint.

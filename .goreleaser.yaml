@@ -31,9 +31,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/gokapi/gokapi/core/version.Version={{.Version}}
-      - -X github.com/gokapi/gokapi/core/version.Commit={{.Commit}}
-      - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
+      - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
+      - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
+      - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
 
   - id: bowrain-cli
     dir: platform/cli
@@ -50,9 +50,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/gokapi/gokapi/core/version.Version={{.Version}}
-      - -X github.com/gokapi/gokapi/core/version.Commit={{.Commit}}
-      - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
+      - -X github.com/neokapi/neokapi/core/version.Version={{.Version}}
+      - -X github.com/neokapi/neokapi/core/version.Commit={{.Commit}}
+      - -X github.com/neokapi/neokapi/core/version.BuildDate={{.Date}}
 
 archives:
   - id: kapi
@@ -76,10 +76,10 @@ brews:
     ids:
       - kapi
     repository:
-      owner: gokapi
+      owner: neokapi
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/gokapi/gokapi"
+    homepage: "https://github.com/neokapi/neokapi"
     description: "AI-native localization framework — format-aware parsing, concurrent pipelines, and pluggable tools"
     license: "Apache-2.0"
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
@@ -91,10 +91,10 @@ brews:
     ids:
       - bowrain-cli
     repository:
-      owner: gokapi
+      owner: neokapi
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/gokapi/gokapi"
+    homepage: "https://github.com/neokapi/neokapi"
     description: "Bowrain CLI — manage localization projects, sync with Bowrain Server"
     license: "Apache-2.0"
     download_strategy: GitHubPrivateRepositoryReleaseDownloadStrategy
@@ -108,7 +108,7 @@ checksum:
 changelog:
   sort: asc
   abbrev: 7
-  format: "[`{{ .SHA }}`](https://github.com/gokapi/gokapi/commit/{{ .SHA }}) {{ .Message }}"
+  format: "[`{{ .SHA }}`](https://github.com/neokapi/neokapi/commit/{{ .SHA }}) {{ .Message }}"
   groups:
     - title: Features
       regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
@@ -131,22 +131,22 @@ release:
 
     **Homebrew (kapi CLI):**
     ```
-    brew install gokapi/tap/kapi
+    brew install neokapi/tap/kapi
     ```
 
     **Homebrew (bowrain CLI):**
     ```
-    brew install gokapi/tap/bowrain-cli
+    brew install neokapi/tap/bowrain-cli
     ```
 
     **Homebrew (Bowrain desktop app, macOS):**
     ```
-    brew install --cask gokapi/tap/bowrain
+    brew install --cask neokapi/tap/bowrain
     ```
 
     **Docker (server):**
     ```
-    docker pull ghcr.io/gokapi/bowrain-server:{{ .Version }}
+    docker pull ghcr.io/neokapi/bowrain-server:{{ .Version }}
     ```
 
     ## Platform Support

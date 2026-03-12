@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/core/storage"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/core/storage"
 )
 
 // SQLiteTermBase is a persistent termbase backed by SQLite.

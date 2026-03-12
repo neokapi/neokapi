@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
-	"github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain/output"
+	"github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

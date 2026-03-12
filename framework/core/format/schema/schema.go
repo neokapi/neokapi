@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/preset"
+	"github.com/neokapi/neokapi/core/preset"
 )
 
 // FilterSchema represents a JSON Schema for a filter's parameters.

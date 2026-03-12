@@ -201,8 +201,8 @@ package main
 
 import (
     "fmt"
-    "github.com/gokapi/gokapi/model"
-    "github.com/gokapi/gokapi/termbase"
+    "github.com/neokapi/neokapi/model"
+    "github.com/neokapi/neokapi/termbase"
 )
 
 func main() {

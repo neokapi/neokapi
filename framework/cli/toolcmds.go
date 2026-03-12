@@ -3,10 +3,10 @@ package cli
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
-	libtools "github.com/gokapi/gokapi/core/tools"
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )
 

@@ -532,14 +532,14 @@ jobs:
 
       - name: Verify kapi has no platform dep
         run: |
-          if cd framework/kapi && GOWORK=off go list -m all | grep -q 'gokapi/platform'; then
+          if cd framework/kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then
             echo "kapi should not depend on platform"
             exit 1
           fi
 
       - name: Verify bowrain has no cli dep
         run: |
-          if cd bowrain && GOWORK=off go list -m all | grep -q 'gokapi/cli'; then
+          if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
             echo "bowrain should not depend on cli"
             exit 1
           fi
@@ -572,15 +572,15 @@ jobs:
       - name: Cache okapi-bridge JAR
         uses: actions/cache@v4
         with:
-          path: ~/.cache/gokapi/bridge/
+          path: ~/.cache/neokapi/bridge/
           key: okapi-bridge-v2.12.0-okapi1.48.0
 
       - name: Fetch okapi-bridge JAR
         run: |
           bash scripts/fetch-okapi-bridge.sh
-          echo "GOKAPI_BRIDGE_JAR=$HOME/.cache/gokapi/bridge/v2.12.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
+          echo "NEOKAPI_BRIDGE_JAR=$HOME/.cache/neokapi/bridge/v2.12.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
-          GITHUB_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Cache okapi test data
         uses: actions/cache@v4
@@ -599,9 +599,9 @@ jobs:
       - name: Start shared bridge JVM pool
         run: |
           eval "$(bash scripts/start-bridge-pool.sh 4)"
-          echo "GOKAPI_BRIDGE_ADDRS=$GOKAPI_BRIDGE_ADDRS" >> "$GITHUB_ENV"
+          echo "NEOKAPI_BRIDGE_ADDRS=$NEOKAPI_BRIDGE_ADDRS" >> "$GITHUB_ENV"
           echo "BRIDGE_PIDS=$BRIDGE_PIDS" >> "$GITHUB_ENV"
-          echo "Started 4 bridge JVMs: $GOKAPI_BRIDGE_ADDRS"
+          echo "Started 4 bridge JVMs: $NEOKAPI_BRIDGE_ADDRS"
 
       - name: Run bridge filter integration tests
         run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash scripts/go-test-progress.sh > test-results-bridge.json || true

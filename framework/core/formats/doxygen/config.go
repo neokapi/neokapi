@@ -3,7 +3,7 @@ package doxygen
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
 )
 
 // Config holds configuration for the Doxygen comment format.

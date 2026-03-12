@@ -31,7 +31,7 @@ ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
 RUN CGO_ENABLED=0 cd bowrain && go build \
-    -ldflags="-s -w -X github.com/gokapi/gokapi/core/version.Version=${VERSION} -X github.com/gokapi/gokapi/core/version.Commit=${COMMIT} -X github.com/gokapi/gokapi/core/version.BuildDate=${BUILD_DATE}" \
+    -ldflags="-s -w -X github.com/neokapi/neokapi/core/version.Version=${VERSION} -X github.com/neokapi/neokapi/core/version.Commit=${COMMIT} -X github.com/neokapi/neokapi/core/version.BuildDate=${BUILD_DATE}" \
     -o /out/bowrain-worker ./cmd/bowrain-worker
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────

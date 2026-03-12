@@ -8,8 +8,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // XLIFF 2.0 XML structures (used for DOM-based parsing without skeleton)

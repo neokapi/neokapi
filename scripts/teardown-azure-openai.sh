@@ -2,7 +2,7 @@
 #
 # Tear down Azure OpenAI resources created by setup-azure-openai.sh.
 #
-# This deletes the entire resource group (gokapi-ai-rg) and all resources
+# This deletes the entire resource group (neokapi-ai-rg) and all resources
 # within it, including the OpenAI resource and its deployments.
 #
 # Prerequisites:
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-RESOURCE_GROUP="gokapi-ai-rg"
+RESOURCE_GROUP="neokapi-ai-rg"
 
 echo "==> Checking if resource group '${RESOURCE_GROUP}' exists..."
 if ! az group show --name "${RESOURCE_GROUP}" --output none 2>/dev/null; then

@@ -64,7 +64,7 @@ func TestParseAPIVersion(t *testing.T) {
 		{name: "v0", input: "v0", wantErr: true},
 		{name: "v-1", input: "v-1", wantErr: true},
 		{name: "vabc", input: "vabc", wantErr: true},
-		{name: "old slash format", input: "gokapi/html/v1", wantErr: true},
+		{name: "old slash format", input: "neokapi/html/v1", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

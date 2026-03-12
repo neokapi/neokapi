@@ -1,8 +1,8 @@
 package format
 
 import (
-	"github.com/gokapi/gokapi/core/config"
-	"github.com/gokapi/gokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/format/schema"
 )
 
 // DataFormatConfig holds configuration for a data format.

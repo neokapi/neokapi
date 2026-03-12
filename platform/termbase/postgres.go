@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
-	fw "github.com/gokapi/gokapi/termbase"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
+	fw "github.com/neokapi/neokapi/termbase"
 )
 
 // PostgresTermBase is a persistent termbase backed by PostgreSQL.

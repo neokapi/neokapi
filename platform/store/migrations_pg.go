@@ -1,6 +1,6 @@
 package store
 
-import "github.com/gokapi/gokapi/bowrain/storage"
+import "github.com/neokapi/neokapi/bowrain/storage"
 
 // storeMigrationsPg is a single clean PostgreSQL schema that represents the
 // final state of all 8 incremental SQLite migrations consolidated into one.

@@ -1,5 +1,5 @@
 // Package event provides an event bus for publishing and subscribing to
-// events in the gokapi platform, plus automation rules and quality gates.
+// events in the neokapi platform, plus automation rules and quality gates.
 package event
 
 import (

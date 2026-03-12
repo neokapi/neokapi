@@ -3,8 +3,8 @@ package prompt_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/ai/prompt"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/ai/prompt"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 )
 

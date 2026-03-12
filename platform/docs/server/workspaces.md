@@ -5,7 +5,7 @@ sidebar_position: 9
 
 # Workspaces
 
-Workspaces are the top-level organizational unit in gokapi. They group projects,
+Workspaces are the top-level organizational unit in neokapi. They group projects,
 members, and resources together — like a GitHub organization or Slack workspace.
 
 ## Concepts
@@ -57,17 +57,17 @@ The workspace switcher in the left sidebar provides quick access:
 ```bash
 # List your workspaces
 curl -H "Authorization: Bearer $TOKEN" \
-  https://gokapi.example.com/api/v1/workspaces
+  https://neokapi.example.com/api/v1/workspaces
 
 # Create a workspace
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "Acme Translations", "slug": "acme"}' \
-  https://gokapi.example.com/api/v1/workspaces
+  https://neokapi.example.com/api/v1/workspaces
 
 # Add a member
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -d '{"user_id": "usr_abc", "role": "member"}' \
-  https://gokapi.example.com/api/v1/workspaces/acme/members
+  https://neokapi.example.com/api/v1/workspaces/acme/members
 ```
 
 ## Workspace-Scoped Projects
@@ -77,12 +77,12 @@ All project operations are scoped to the active workspace:
 ```bash
 # List projects in a workspace
 curl -H "Authorization: Bearer $TOKEN" \
-  https://gokapi.example.com/api/v1/workspaces/acme/projects
+  https://neokapi.example.com/api/v1/workspaces/acme/projects
 
 # Create a project in a workspace
 curl -X POST -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "Website", "source_locale": "en", "target_locales": ["fr", "de"]}' \
-  https://gokapi.example.com/api/v1/workspaces/acme/projects
+  https://neokapi.example.com/api/v1/workspaces/acme/projects
 ```
 
 In the Bowrain desktop app and web UI, the project list automatically filters

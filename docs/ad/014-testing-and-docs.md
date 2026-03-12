@@ -7,7 +7,7 @@ title: "AD-014: Testing, Documentation, and Website"
 
 ## Context
 
-gokapi needs comprehensive documentation for two distinct audiences:
+neokapi needs comprehensive documentation for two distinct audiences:
 
 1. **End users** -- translators and localization engineers using the CLI, desktop
    app, or REST API. They need quickstart guides, command references, and
@@ -107,7 +107,7 @@ from ADs.
 
 ### Hosting: GitHub Pages
 
-Deploy to `https://gokapi.github.io/` via GitHub Actions on push to `main`.
+Deploy to `https://neokapi.github.io/` via GitHub Actions on push to `main`.
 
 ### CLI Demos: VHS
 

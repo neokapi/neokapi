@@ -5,7 +5,7 @@ slug: index
 ---
 # Architecture Decisions
 
-This directory contains Architecture Decisions (ADs) for gokapi —
+This directory contains Architecture Decisions (ADs) for neokapi —
 the open localization platform. Each AD documents a significant architectural
 choice, the context behind it, alternatives considered, and the consequences.
 ADs are organized by architectural layer rather than chronologically.

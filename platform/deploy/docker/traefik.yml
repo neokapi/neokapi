@@ -16,7 +16,7 @@ http:
     # gRPC requests → bowrain-server
     # gRPC paths follow /<package>.<service>/<method> convention.
     bowrain-grpc:
-      rule: "PathPrefix(`/gokapi.`)"
+      rule: "PathPrefix(`/neokapi.`)"
       service: bowrain-api
       entryPoints:
         - web

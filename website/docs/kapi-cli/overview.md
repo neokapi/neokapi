@@ -64,12 +64,12 @@ For project management, server sync, and team collaboration, use the [Bowrain CL
 
 ```bash
 # macOS/Linux
-brew install gokapi/tap/kapi
+brew install neokapi/tap/kapi
 
 # Go install
-go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
+go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
 
-# Binary downloads: https://github.com/gokapi/gokapi/releases
+# Binary downloads: https://github.com/neokapi/neokapi/releases
 ```
 
 ## Next Steps

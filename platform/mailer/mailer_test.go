@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/mailer"
+	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

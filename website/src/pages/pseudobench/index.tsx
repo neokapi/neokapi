@@ -612,7 +612,7 @@ export default function PseudoBench() {
   }, []);
 
   return (
-    <Layout title="PseudoBench" description="gokapi performance benchmarks">
+    <Layout title="PseudoBench" description="neokapi performance benchmarks">
       <div className={styles.container}>
         <h1>PseudoBench</h1>
         <p className={styles.subtitle}>

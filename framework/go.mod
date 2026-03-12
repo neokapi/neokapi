@@ -1,4 +1,4 @@
-module github.com/gokapi/gokapi
+module github.com/neokapi/neokapi
 
 go 1.26.0
 

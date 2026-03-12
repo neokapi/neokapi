@@ -6,10 +6,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/formats/tmx"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/formats/tmx"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -62,7 +62,7 @@ func TestSkeletonStore_ByteExact_SimpleTMX(t *testing.T) {
 func TestSkeletonStore_ByteExact_BilingualTMX(t *testing.T) {
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <tmx version="1.4">
-  <header creationtool="gokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
+  <header creationtool="neokapi" creationtoolversion="1.0" segtype="sentence" o-tmf="unknown" adminlang="en" srclang="en" datatype="plaintext"/>
   <body>
     <tu tuid="tu1">
       <tuv xml:lang="en">

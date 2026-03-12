@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	apiclient "github.com/gokapi/gokapi/platform/client"
-	"github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	apiclient "github.com/neokapi/neokapi/platform/client"
+	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

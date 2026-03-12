@@ -8,19 +8,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/bowrain/connector"
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/bowrain/mailer"
-	"github.com/gokapi/gokapi/bowrain/service"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/registry"
-	libtools "github.com/gokapi/gokapi/core/tools"
-	platconn "github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/connector"
+	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/mailer"
+	"github.com/neokapi/neokapi/bowrain/service"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
+	libtools "github.com/neokapi/neokapi/core/tools"
+	platconn "github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/net/http2"
@@ -28,7 +28,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Server is the REST API server for gokapi.
+// Server is the REST API server for neokapi.
 type Server struct {
 	Config         ServerConfig
 	FormatRegistry *registry.FormatRegistry

@@ -170,7 +170,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 ```
 
 Key behaviors:
-- Persists to `localStorage` and HTTP cookie under the key `gokapi-theme`
+- Persists to `localStorage` and HTTP cookie under the key `neokapi-theme`
 - Defaults to `"system"` when no stored preference exists
 - Sets `data-theme="aurora"` for dark mode, `data-theme="light"` for light mode
 - Toggles `dark` class for Tailwind dark-mode utilities
@@ -205,14 +205,14 @@ All four frontend projects consume the theme system identically:
 
 1. **CSS import**: Each project's `index.css` imports the shared globals:
    ```css
-   @import "@gokapi/ui/styles/globals.css";
+   @import "@neokapi/ui/styles/globals.css";
    ```
 
-2. **Vite alias**: Each project's `vite.config.ts` maps `@gokapi/ui` to the shared package source:
+2. **Vite alias**: Each project's `vite.config.ts` maps `@neokapi/ui` to the shared package source:
    ```ts
    resolve: {
      alias: {
-       "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
+       "@neokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
      },
    },
    ```
@@ -231,4 +231,4 @@ All four frontend projects consume the theme system identically:
 | Kapi Web | `kapi/apps/kapi-web/src/index.css` | `App.tsx` |
 | Keycloak Theme | `bowrain/apps/keycloak-theme/src/login/main.css` | `main.tsx` |
 
-The Keycloak theme is a special case: it imports `@gokapi/ui/styles/globals.css` but also re-declares approximately 135 additional CSS custom properties (full OKLCH color palettes, glass surfaces, component variants, effects) in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. The shared `packages/ui` defines ~76 properties; the Keycloak theme adds ~59 more for the complete glass design system. See [Keycloak Theming](keycloak-theming.md) for details.
+The Keycloak theme is a special case: it imports `@neokapi/ui/styles/globals.css` but also re-declares approximately 135 additional CSS custom properties (full OKLCH color palettes, glass surfaces, component variants, effects) in `:root` to work around Keycloakify's CSS processing, which can strip or reorder `@layer` blocks. The shared `packages/ui` defines ~76 properties; the Keycloak theme adds ~59 more for the complete glass design system. See [Keycloak Theming](keycloak-theming.md) for details.

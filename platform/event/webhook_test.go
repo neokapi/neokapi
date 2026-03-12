@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	platev "github.com/gokapi/gokapi/platform/event"
+	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,8 +19,8 @@ func TestWebhookDelivery(t *testing.T) {
 	var receivedType string
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		receivedSig = r.Header.Get("X-Gokapi-Signature")
-		receivedType = r.Header.Get("X-Gokapi-Event")
+		receivedSig = r.Header.Get("X-Neokapi-Signature")
+		receivedType = r.Header.Get("X-Neokapi-Event")
 		receivedBody, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusOK)
 	}))

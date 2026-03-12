@@ -3,7 +3,7 @@ package archive
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/format"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // Config holds configuration for the archive format.

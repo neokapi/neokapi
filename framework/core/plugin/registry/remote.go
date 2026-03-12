@@ -123,7 +123,7 @@ func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
 	}
 
 	// Build the destination path.
-	filename := "gokapi-plugin-" + manifest.Name
+	filename := "neokapi-plugin-" + manifest.Name
 	if runtime.GOOS == "windows" {
 		filename += ".exe"
 	}

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // runProps holds normalized run properties extracted from <w:rPr>.

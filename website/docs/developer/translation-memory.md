@@ -5,7 +5,7 @@ title: Sievepen
 
 # Sievepen Library
 
-Sievepen (`sievepen/`) is gokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Sievepen works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
+Sievepen (`sievepen/`) is neokapi's content-aware translation memory system. Unlike traditional TMs that store plain strings, Sievepen works with the full content model — `Fragment` objects with inline markup — and supports tiered matching with entity-aware adaptation.
 
 ## Architecture
 
@@ -123,7 +123,7 @@ Fast, ephemeral. Used for session-scoped batch processing.
 ### 2. CLI SQLite (`cli/storage/sievepen/`)
 
 ```go
-import sqltm "github.com/gokapi/gokapi/cli/storage/sievepen"
+import sqltm "github.com/neokapi/neokapi/cli/storage/sievepen"
 
 tm, err := sqltm.NewSQLiteTM("/path/to/tm.db")
 defer tm.Close()
@@ -175,8 +175,8 @@ package main
 
 import (
     "fmt"
-    "github.com/gokapi/gokapi/model"
-    "github.com/gokapi/gokapi/sievepen"
+    "github.com/neokapi/neokapi/model"
+    "github.com/neokapi/neokapi/sievepen"
 )
 
 func main() {

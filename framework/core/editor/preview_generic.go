@@ -5,7 +5,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // buildGenericPreview generates a basic fallback preview for formats

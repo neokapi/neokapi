@@ -7,7 +7,7 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
-import type { ApiAdapter, User, Workspace } from "@gokapi/ui";
+import type { ApiAdapter, User, Workspace } from "@neokapi/ui";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";

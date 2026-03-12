@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Reader implements DataFormatReader for ZIP archive files.
@@ -72,7 +72,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	r.Doc = doc
 
 	// Write content to a temp file instead of holding the entire ZIP in memory.
-	tmpFile, err := os.CreateTemp("", "gokapi-archive-*")
+	tmpFile, err := os.CreateTemp("", "neokapi-archive-*")
 	if err != nil {
 		return fmt.Errorf("archive: creating temp file: %w", err)
 	}

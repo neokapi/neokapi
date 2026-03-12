@@ -7,7 +7,7 @@ title: "AD-019: Machine Translation Providers"
 
 ## Context
 
-Machine translation is a core capability in localization workflows. Traditional approaches treat MT services as external integrations — users configure API keys, call a service, and paste results. gokapi integrates MT as first-class pipeline tools, mirroring the AI provider architecture ([AD-008](./008-ai-integration.md)).
+Machine translation is a core capability in localization workflows. Traditional approaches treat MT services as external integrations — users configure API keys, call a service, and paste results. neokapi integrates MT as first-class pipeline tools, mirroring the AI provider architecture ([AD-008](./008-ai-integration.md)).
 
 The MT provider system was originally placed under `connectors/`, but connectors are bidirectional integrations with content systems (CMS, design tools, code repositories). MT services are stateless transformation providers — they take text in and return text out. This mismatch led to the `mt/provider/` reorganization.
 

@@ -4,16 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-gokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation.
+neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. It provides format-aware document parsing, channel-based concurrent processing flows, and pluggable tools for localization and translation.
 
 The repository is a **multi-module monorepo** with six Go modules:
 
-- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`core/sievepen/`, `core/termbase/`), shared SQLite infrastructure (`core/storage/`). All framework Go packages live under `core/`. No platform dependencies (no Wails, Echo, Cobra, OIDC).
-- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config. Uses framework's SQLite TM/termbase from `core/sievepen/` and `core/termbase/`. Depends on framework only. No platform dependency.
-- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
-- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
-- **Bowrain CLI** (`github.com/gokapi/gokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
-- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
+- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`core/sievepen/`, `core/termbase/`), shared SQLite infrastructure (`core/storage/`). All framework Go packages live under `core/`. No platform dependencies (no Wails, Echo, Cobra, OIDC).
+- **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config. Uses framework's SQLite TM/termbase from `core/sievepen/` and `core/termbase/`. Depends on framework only. No platform dependency.
+- **Platform** (`github.com/neokapi/neokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
+- **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
+- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
+- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
 
 Both **kapi** and **bowrain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., bowrain adds project flow support via a `RegistryResolver` hook).
 
@@ -89,9 +89,9 @@ For the multi-module structure:
 ### Multi-Module Structure
 
 ```
-gokapi/
+neokapi/
 ├── go.work                # Workspace: use . ./cli ./platform ./kapi ./bowrain-cli ./bowrain
-├── go.mod                 # module github.com/gokapi/gokapi (framework)
+├── go.mod                 # module github.com/neokapi/neokapi (framework)
 │
 │   ── Framework Module ──────────────────
 ├── core/
@@ -117,14 +117,14 @@ gokapi/
 │
 │   ── CLI Module ────────────────────────
 ├── cli/
-│   ├── go.mod             # module github.com/gokapi/gokapi/cli (framework only)
+│   ├── go.mod             # module github.com/neokapi/neokapi/cli (framework only)
 │   ├── config/            # Viper-based app configuration (~/.config/kapi/)
 │   ├── output/            # Shared output formatting + types (used by kapi & bowrain)
 │   └── storage/           # SQLite-backed termbase and TM for CLI workflows
 │
 │   ── Platform Module ───────────────────
 ├── platform/
-│   ├── go.mod             # module github.com/gokapi/gokapi/platform (framework only)
+│   ├── go.mod             # module github.com/neokapi/neokapi/platform (framework only)
 │   ├── project/           # .bowrain/ project model (types, config, sync cache)
 │   ├── auth/              # Auth types, JWT, device flow client
 │   ├── connector/         # Connector interfaces + base types
@@ -136,20 +136,20 @@ gokapi/
 │
 │   ── Kapi Module ───────────────────────
 ├── kapi/
-│   ├── go.mod             # module github.com/gokapi/gokapi/kapi (framework + cli)
+│   ├── go.mod             # module github.com/neokapi/neokapi/kapi (framework + cli)
 │   ├── cmd/kapi/          # Thin root cmd wiring shared CLI commands
 │   └── apps/
 │       └── kapi-web/      # kapi serve web UI
 │
 │   ── Bowrain CLI Module ──────────────────
 ├── bowrain-cli/
-│   ├── go.mod             # module github.com/gokapi/gokapi/bowrain-cli (framework + cli + platform)
+│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain-cli (framework + cli + platform)
 │   └── cmd/bowrain/       # Bowrain CLI (project cmds + shared CLI base)
 │       └── output/        # Bowrain CLI-specific output types
 │
 │   ── Bowrain Module ────────────────────
 ├── bowrain/
-│   ├── go.mod             # module github.com/gokapi/gokapi/bowrain (framework + platform)
+│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain (framework + platform)
 │   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)
 │   ├── store/             # SQLite + PostgreSQL ContentStore implementations
@@ -216,7 +216,7 @@ kapi presets list             # List available presets
 ```
 
 **Role Separation:**
-- **Kapi** = standalone file-processing tool, demonstrates gokapi's power as open-source toolchain
+- **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
 - **Bowrain CLI** (`bowrain` binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
 - **Shared CLI base** (`cli/`) = common commands (formats, plugins, tools, flows, presets, termbase, version) used by both kapi and bowrain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
@@ -254,7 +254,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 
 ### Terminology Mapping from Okapi
 
-| Okapi (Java) | gokapi (Go) |
+| Okapi (Java) | neokapi (Go) |
 |---|---|
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |
@@ -346,7 +346,7 @@ make fetch-docs-assets           # downloads tarball from docs-assets GitHub rel
 
 ### Real systems, not mocks
 
-All screenshots and recordings must run against real gokapi infrastructure. Specifically:
+All screenshots and recordings must run against real neokapi infrastructure. Specifically:
 
 - **Authentication & identity**: Use the real Keycloak OIDC provider via `compose.yaml`. Never mock the auth flow.
 - **bowrain-server**: Use the real server binary (locally built). Never use a mock API server.

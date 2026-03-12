@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // OpenAIProvider implements LLMProvider for OpenAI-compatible APIs.

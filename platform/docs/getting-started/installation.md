@@ -11,12 +11,12 @@ slug: /installation
 ### Homebrew (macOS/Linux)
 
 ```bash
-brew install gokapi/tap/bowrain-cli
+brew install neokapi/tap/bowrain-cli
 ```
 
 ### Binary Downloads
 
-Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/gokapi/gokapi/releases) page:
+Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:
 
 - Linux (amd64, arm64)
 - macOS (amd64, arm64)
@@ -25,7 +25,7 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 ### Go Install
 
 ```bash
-go install github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain@latest
+go install github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain@latest
 ```
 
 ### Verify
@@ -39,12 +39,12 @@ bowrain version
 ### Homebrew (macOS)
 
 ```bash
-brew install --cask gokapi/tap/bowrain
+brew install --cask neokapi/tap/bowrain
 ```
 
 ### Binary Downloads
 
-Download from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
+Download from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 - macOS (universal DMG)
 - Linux (amd64, arm64)
 - Windows (amd64, arm64)
@@ -54,8 +54,8 @@ Download from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
 ### Docker (Recommended)
 
 ```bash
-docker pull ghcr.io/gokapi/bowrain-server:latest
-docker run -p 8080:8080 ghcr.io/gokapi/bowrain-server:latest
+docker pull ghcr.io/neokapi/bowrain-server:latest
+docker run -p 8080:8080 ghcr.io/neokapi/bowrain-server:latest
 ```
 
 For production deployments, see [Self-Hosting](/bowrain/server/self-hosting).
@@ -63,8 +63,8 @@ For production deployments, see [Self-Hosting](/bowrain/server/self-hosting).
 ### Building from Source
 
 ```bash
-git clone https://github.com/gokapi/gokapi.git
-cd gokapi
+git clone https://github.com/neokapi/neokapi.git
+cd neokapi
 make build-bowrain      # Bowrain CLI → bin/bowrain
 make build-server      # Bowrain Server → bin/bowrain-server
 make build-all         # All binaries

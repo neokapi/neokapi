@@ -5,7 +5,7 @@ title: Plugin System
 
 # Plugin System
 
-gokapi uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with gRPC transport for out-of-process plugins. Each plugin is a separate executable that communicates with the host over stdin/stdout.
+neokapi uses [HashiCorp go-plugin](https://github.com/hashicorp/go-plugin) with gRPC transport for out-of-process plugins. Each plugin is a separate executable that communicates with the host over stdin/stdout.
 
 ## Plugin Types
 
@@ -34,8 +34,8 @@ When a bundle is installed, its individual capabilities (formats, tools) are reg
 
 Plugins are discovered by scanning a directory for executables matching the naming convention:
 
-- `gokapi-format-*` — format reader/writer plugins
-- `gokapi-tool-*` — tool plugins
+- `neokapi-format-*` — format reader/writer plugins
+- `neokapi-tool-*` — tool plugins
 
 The host launches each plugin, performs a version handshake, queries capabilities via `Info()`, and registers into the appropriate registry. Bundles (like bridge plugins) are discovered via `*.bridge.json` descriptors and may register many capabilities at once.
 
@@ -49,11 +49,11 @@ Multiple versions of the same plugin (or bundle) can be installed side-by-side:
     1.46.0/
       version.json
       okapi.bridge.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
     1.47.0/
       version.json
       okapi.bridge.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
 ```
 
 Formats register with versioned names (`okapi-html@1.46.0`) and bare aliases (`okapi-html`) pointing to the latest version.
@@ -67,7 +67,7 @@ package main
 
 import (
     "github.com/hashicorp/go-plugin"
-    gp "github.com/gokapi/gokapi/plugin"
+    gp "github.com/neokapi/neokapi/plugin"
 )
 
 func main() {

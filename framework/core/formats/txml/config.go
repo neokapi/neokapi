@@ -3,7 +3,7 @@ package txml
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 )
 
 // Config holds configuration for the Trados XML (TXML) format.

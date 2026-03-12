@@ -8,19 +8,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// These tests verify that gokapi's config envelope system produces Kind and
+// These tests verify that neokapi's config envelope system produces Kind and
 // apiVersion values compatible with okapi-bridge v2.13.0.
 //
 // The bridge's FilterRegistry.toKind() maps "okf_{format}" → "Okf{Format}FilterConfig"
 // and FilterRegistry.toApiVersion(n) → "vN". The bridge's resolveByKind() does the
 // reverse: "Okf{Format}FilterConfig" → "okf_{format}" → filter class lookup.
 //
-// If these tests fail, configs written by gokapi won't be understood by the bridge
+// If these tests fail, configs written by neokapi won't be understood by the bridge
 // (or vice versa).
 
 // TestBridgeKindNaming verifies that OkapiFilterConfigKind produces the same
 // Kind strings as okapi-bridge's FilterRegistry.toKind() for all bridge filters
-// that have corresponding gokapi native formats.
+// that have corresponding neokapi native formats.
 func TestBridgeKindNaming(t *testing.T) {
 	// Map from Okapi filter ID suffix to the expected Kind from versions.json.
 	// These are the exact values produced by the bridge's toKind() method.
@@ -40,9 +40,9 @@ func TestBridgeKindNaming(t *testing.T) {
 
 	for format, expectedKind := range bridgeKinds {
 		t.Run(format, func(t *testing.T) {
-			gokapiKind := OkapiFilterConfigKind(format)
-			assert.Equal(t, Kind(expectedKind), gokapiKind,
-				"gokapi OkapiFilterConfigKind(%q) must match bridge toKind(\"okf_%s\")", format, format)
+			neokapiKind := OkapiFilterConfigKind(format)
+			assert.Equal(t, Kind(expectedKind), neokapiKind,
+				"neokapi OkapiFilterConfigKind(%q) must match bridge toKind(\"okf_%s\")", format, format)
 		})
 	}
 }
@@ -64,7 +64,7 @@ func TestBridgeAPIVersionFormat(t *testing.T) {
 }
 
 // TestBridgeEnvelopeParsing verifies that configs emitted in bridge envelope
-// format can be parsed by gokapi's config.Parse().
+// format can be parsed by neokapi's config.Parse().
 func TestBridgeEnvelopeParsing(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -153,7 +153,7 @@ func TestBridgeEnvelopeJSON(t *testing.T) {
 	assert.Equal(t, false, env.Spec["useCodeFinder"])
 }
 
-// TestBridgeResolveByKindCompatibility verifies that gokapi's OkapiFilterConfigKind
+// TestBridgeResolveByKindCompatibility verifies that neokapi's OkapiFilterConfigKind
 // produces kinds that the bridge's resolveByKind() would accept.
 // Bridge validation: kind must start with "Okf" and end with "FilterConfig".
 func TestBridgeResolveByKindCompatibility(t *testing.T) {
@@ -239,9 +239,9 @@ spec:
 // TestBridgeEnvelopeUnwrapParams verifies the envelope unwrapping that the
 // bridge performs in applyFilterParams. When the bridge receives kind + spec
 // in filter_params, it unwraps spec as the actual params. This test ensures
-// gokapi can construct such an envelope correctly.
+// neokapi can construct such an envelope correctly.
 func TestBridgeEnvelopeUnwrapParams(t *testing.T) {
-	// Simulate what gokapi sends to the bridge as filter_params
+	// Simulate what neokapi sends to the bridge as filter_params
 	kind := OkapiFilterConfigKind("html")
 	apiVersion := FormatAPIVersion(1)
 
@@ -264,7 +264,7 @@ func TestBridgeEnvelopeUnwrapParams(t *testing.T) {
 // TestBridgeVersionsJsonKindConsistency verifies naming for all filters in
 // the bridge's versions.json. The bridge uses toKind("okf_{format}") which
 // does: strip "okf_" prefix, PascalCase first char, append "FilterConfig".
-// gokapi's OkapiFilterConfigKind does: "Okf" + PascalCase(format) + "FilterConfig".
+// neokapi's OkapiFilterConfigKind does: "Okf" + PascalCase(format) + "FilterConfig".
 //
 // This test verifies both algorithms agree for various filter names.
 func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
@@ -294,8 +294,8 @@ func TestBridgeVersionsJsonKindConsistency(t *testing.T) {
 		t.Run(entry.filterID, func(t *testing.T) {
 			// Strip "okf_" prefix to get the format name
 			format := strings.TrimPrefix(entry.filterID, "okf_")
-			gokapiKind := OkapiFilterConfigKind(format)
-			assert.Equal(t, Kind(entry.bridgeKind), gokapiKind,
+			neokapiKind := OkapiFilterConfigKind(format)
+			assert.Equal(t, Kind(entry.bridgeKind), neokapiKind,
 				"OkapiFilterConfigKind(%q) must produce %q to match bridge versions.json",
 				format, entry.bridgeKind)
 		})

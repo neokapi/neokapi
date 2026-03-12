@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	platev "github.com/gokapi/gokapi/platform/event"
+	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

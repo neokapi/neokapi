@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/httputil"
 )
 
 const defaultAzureAPIVersion = "2024-10-21"

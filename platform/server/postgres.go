@@ -3,11 +3,11 @@ package server
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/bowrain/storage"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // openPostgresStores opens PostgreSQL-backed ContentStore and AuthStore

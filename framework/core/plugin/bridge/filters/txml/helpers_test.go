@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 )
 
 const filterClass = "net.sf.okapi.filters.txml.TXMLFilter"

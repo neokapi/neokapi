@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gokapi/gokapi/providers/ai"
-	"github.com/gokapi/gokapi/core/ai/tools"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

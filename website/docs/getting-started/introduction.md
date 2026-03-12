@@ -6,13 +6,13 @@ slug: /getting-started/introduction
 
 # Introduction
 
-gokapi is an open-source localization framework in Go. It provides format-aware document parsing, composable processing tools, and a concurrent streaming pipeline for translation workflows.
+neokapi is an open-source localization framework in Go. It provides format-aware document parsing, composable processing tools, and a concurrent streaming pipeline for translation workflows.
 
-## What is gokapi?
+## What is neokapi?
 
-gokapi consists of two products:
+neokapi consists of two products:
 
-- **Gokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
+- **Neokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
 - **Bowrain Platform** — full-stack localization platform with web editor, desktop app, and server
 
 This section covers the framework and kapi CLI. For the Bowrain platform, see [Bowrain Introduction](/bowrain/introduction).
@@ -66,7 +66,7 @@ Each tool runs in its own goroutine. Buffered channels provide backpressure. Con
 
 If you're familiar with the Okapi Framework, here's how concepts map:
 
-| Okapi (Java) | gokapi (Go) |
+| Okapi (Java) | neokapi (Go) |
 |---|---|
 | Filter | DataFormat (Reader/Writer) |
 | Step | Tool |

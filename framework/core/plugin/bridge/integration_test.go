@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,9 +22,9 @@ func skipIfNoJava(t *testing.T) {
 
 func skipIfNoJAR(t *testing.T) string {
 	t.Helper()
-	jarPath := os.Getenv("GOKAPI_BRIDGE_JAR")
+	jarPath := os.Getenv("NEOKAPI_BRIDGE_JAR")
 	if jarPath == "" {
-		t.Skip("GOKAPI_BRIDGE_JAR not set, skipping integration test")
+		t.Skip("NEOKAPI_BRIDGE_JAR not set, skipping integration test")
 	}
 	if _, err := os.Stat(jarPath); os.IsNotExist(err) {
 		t.Skipf("JAR not found at %s, skipping integration test", jarPath)

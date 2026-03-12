@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/core/id"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/labstack/echo/v4"
 )
 

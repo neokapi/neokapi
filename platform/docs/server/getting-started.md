@@ -75,7 +75,7 @@ The project opens in the project view.
 2. The server auto-detects the file format (HTML, XML, JSON, YAML, PO, Markdown, XLIFF, and more)
 3. Files appear in the file list with format icon, block count, and word count
 
-Supported formats include all formats registered in the gokapi format registry. See [Formats](/docs/features/formats) for the complete list.
+Supported formats include all formats registered in the neokapi format registry. See [Formats](/docs/features/formats) for the complete list.
 
 ## Opening the Editor
 

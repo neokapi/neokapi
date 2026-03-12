@@ -6,7 +6,7 @@ import (
 	"net"
 	"testing"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -16,7 +16,7 @@ import (
 
 const bufSize = 1024 * 1024
 
-func setupGRPC(t *testing.T) pb.GokapiServiceClient {
+func setupGRPC(t *testing.T) pb.NeokapiServiceClient {
 	t.Helper()
 
 	cfg := DefaultServerConfig()
@@ -26,7 +26,7 @@ func setupGRPC(t *testing.T) pb.GokapiServiceClient {
 
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()
-	pb.RegisterGokapiServiceServer(grpcSrv, NewGRPCServer(srv))
+	pb.RegisterNeokapiServiceServer(grpcSrv, NewGRPCServer(srv))
 
 	go func() {
 		if err := grpcSrv.Serve(lis); err != nil {
@@ -44,7 +44,7 @@ func setupGRPC(t *testing.T) pb.GokapiServiceClient {
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 
-	return pb.NewGokapiServiceClient(conn)
+	return pb.NewNeokapiServiceClient(conn)
 }
 
 func TestGRPCProjectCRUD(t *testing.T) {

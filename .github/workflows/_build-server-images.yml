@@ -50,8 +50,8 @@ jobs:
           file: docker/bowrain-server/Dockerfile
           push: true
           tags: |
-            ghcr.io/gokapi/bowrain-server:${{ inputs.image-tag }}
-            ghcr.io/gokapi/bowrain-server:latest
+            ghcr.io/neokapi/bowrain-server:${{ inputs.image-tag }}
+            ghcr.io/neokapi/bowrain-server:latest
           build-args: |
             VERSION=${{ inputs.version }}
             COMMIT=${{ inputs.commit }}
@@ -68,8 +68,8 @@ jobs:
           file: docker/bowrain-worker/Dockerfile
           push: true
           tags: |
-            ghcr.io/gokapi/bowrain-worker:${{ inputs.image-tag }}
-            ghcr.io/gokapi/bowrain-worker:latest
+            ghcr.io/neokapi/bowrain-worker:${{ inputs.image-tag }}
+            ghcr.io/neokapi/bowrain-worker:latest
           build-args: |
             VERSION=${{ inputs.version }}
             COMMIT=${{ inputs.commit }}

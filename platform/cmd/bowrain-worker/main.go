@@ -8,11 +8,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/bowrain/storage"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 func main() {

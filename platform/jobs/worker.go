@@ -6,12 +6,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/credentials"
-	"github.com/gokapi/gokapi/providers/ai"
-	"github.com/gokapi/gokapi/core/ai/tools"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/credentials"
+	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/neokapi/neokapi/core/ai/tools"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/platform/store"
 	"golang.org/x/time/rate"
 )
 

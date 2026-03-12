@@ -1,6 +1,6 @@
 package properties
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiPropertiesTransformer converts OkfPropertiesFilterConfig specs to
 // PropertiesFormatConfig. Most parameters pass through; okapi-specific

@@ -61,7 +61,7 @@ export const RichMarkup: Story = {
 
 export const PlainText: Story = {
   args: {
-    codedText: "Welcome to Gokapi — the AI-native localization engine.",
+    codedText: "Welcome to Neokapi — the AI-native localization engine.",
     spans: [],
   },
 };

@@ -5,11 +5,11 @@ import (
 	"log"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/id"
-	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/id"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // registerDefaultAutomations registers the built-in automation rules.

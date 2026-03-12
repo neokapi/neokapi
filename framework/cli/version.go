@@ -1,8 +1,8 @@
 package cli
 
 import (
-	"github.com/gokapi/gokapi/core/version"
-	"github.com/gokapi/gokapi/cli/output"
+	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

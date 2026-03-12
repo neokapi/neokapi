@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { TopBar } from "@gokapi/ui";
+import { TopBar } from "@neokapi/ui";
 import { ServerConnect } from "./components/ServerConnect";
 import { SettingsPage } from "./components/SettingsPage";
 import {
@@ -16,18 +16,18 @@ import {
   cn,
   type View,
   type NavItem,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
 import { DocumentPreview } from "./components/DocumentPreview";
 import { useConnection } from "./hooks/useApi";
 import { WailsApiAdapter } from "./api/WailsApiAdapter";
-import type { ProjectInfo, BlockInfo, Workspace, User } from "@gokapi/ui";
+import type { ProjectInfo, BlockInfo, Workspace, User } from "@neokapi/ui";
 import { Shuffle, Link, Loader2 } from "lucide-react";
 import { Events } from "@wailsio/runtime";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
+import * as Backend from "../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
 
 type AppView = View | "flows" | "connectors";
 type AppMode = "loading" | "connecting" | "ready";

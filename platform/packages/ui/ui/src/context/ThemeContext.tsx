@@ -10,8 +10,8 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const VALID_THEMES: Theme[] = ["dark", "light", "system"];
-const STORAGE_KEY = "gokapi-theme";
-const COOKIE_NAME = "gokapi-theme";
+const STORAGE_KEY = "neokapi-theme";
+const COOKIE_NAME = "neokapi-theme";
 const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
 
 function isValidTheme(value: string): value is Theme {

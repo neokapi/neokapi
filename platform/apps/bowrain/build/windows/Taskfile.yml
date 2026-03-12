@@ -15,7 +15,7 @@ vars:
   CROSS_IMAGE: wails-cross
 
   # Version info injected at build time (mirrors Makefile LDFLAGS)
-  VERSION_PKG: github.com/gokapi/gokapi/core/version
+  VERSION_PKG: github.com/neokapi/neokapi/core/version
   GIT_VERSION:
     sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
   GIT_COMMIT:

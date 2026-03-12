@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/core/tool"
-	libtools "github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
+	libtools "github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
