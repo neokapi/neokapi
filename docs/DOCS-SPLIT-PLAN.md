@@ -126,12 +126,13 @@ The website goes to **neokapi**.  It currently has two sidebars: `gokapiSidebar`
 
 ### Pre-split actions
 
-1. **Remove bowrain content from the website.**  Move or delete the following
-   sections from `website/docs/` so that the neokapi website is clean:
-   - `bowrain-cli/` → delete (lives in bowrain repo docs)
-   - `bowrain-desktop/` → delete
-   - `bowrain-getting-started/` → delete
-   - `bowrain-server/` → delete
+1. **Extract bowrain content from the website.**  Move the following sections
+   out of `website/docs/` so that the neokapi website is clean and the content
+   is ready for the bowrain Docusaurus site:
+   - `bowrain-cli/` → bowrain website
+   - `bowrain-desktop/` → bowrain website
+   - `bowrain-getting-started/` → bowrain website
+   - `bowrain-server/` → bowrain website
 
 2. **Update `website/sidebars.ts`** to remove `bowrainSidebar`.
 
@@ -154,15 +155,31 @@ The website goes to **neokapi**.  It currently has two sidebars: `gokapiSidebar`
 7. **Update `website/docusaurus.config.ts`** — remove bowrain navbar item,
    update title/tagline from "gokapi" to "neokapi".
 
-### Bowrain documentation (post-split)
+### Bowrain Docusaurus site (post-split)
 
-Bowrain gets a minimal `docs/` directory in its repo with:
-- The bowrain-specific website pages listed above
-- Its own getting-started, CLI, and server docs
-- A link back to neokapi for framework concepts
+Bowrain gets its own dedicated Docusaurus site under `website/` in the bowrain
+repo.  Structure mirrors the neokapi site:
 
-Whether bowrain gets its own Docusaurus site or a simpler README-based docs
-structure is a separate decision.
+```
+bowrain/
+└── website/
+    ├── docusaurus.config.ts   # bowrain branding, single sidebar
+    ├── sidebars.ts            # bowrainSidebar (from current monorepo)
+    ├── src/                   # Landing page, custom components
+    └── docs/
+        ├── getting-started/   # Bowrain getting-started content
+        ├── bowrain-cli/       # Bowrain CLI reference
+        ├── bowrain-server/    # Server admin & API docs
+        ├── bowrain-desktop/   # Desktop app docs
+        └── developer/         # server.md, connectors.md, events.md, content-store.md
+```
+
+Content sources:
+- The bowrain-specific website pages extracted in pre-split step 1 above
+- Bowrain-specific developer pages extracted in pre-split step 3 above
+- Its own getting-started, CLI, server, and desktop docs
+- Links back to the neokapi site for framework concepts (content model,
+  pipelines, tools, formats)
 
 ---
 
@@ -185,5 +202,7 @@ After the split:
 - [ ] In neokapi: verify website builds (`cd website && npm run build`)
 - [ ] In neokapi: verify all doc links resolve
 - [ ] In neokapi: rewrite AD-018 for the `framework + cli + kapi` layout
-- [ ] In bowrain: create a minimal docs structure from the extracted content
-- [ ] In bowrain: document the `bowrain + bowrain-cli + platform` layout in README or new AD
+- [ ] In bowrain: scaffold Docusaurus site (`website/`) with bowrain branding
+- [ ] In bowrain: populate `website/docs/` from extracted bowrain content
+- [ ] In bowrain: verify website builds (`cd website && npm run build`)
+- [ ] In bowrain: document the `bowrain + bowrain-cli + platform` layout in a new AD
