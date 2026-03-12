@@ -10,6 +10,10 @@
 #
 #   framework/              framework Go module root (go.mod moves here)
 #     core/                 framework packages (moved from ./core/)
+#     sievepen/             translation memory (promoted from core/sievepen/)
+#     termbase/             terminology (promoted from core/termbase/)
+#     providers/ai/         LLM providers (promoted from core/ai/provider/)
+#     providers/mt/         MT providers (promoted from core/mt/provider/)
 #     cli/                  shared CLI base (moved from ./cli/)
 #     kapi/                 kapi CLI tool (moved from ./kapi/, kapi-web removed)
 #     examples/             plugin examples (moved from ./examples/)
@@ -26,13 +30,14 @@
 #     package.json          npm workspaces (moved + rewritten)
 #     package-lock.json     lockfile (moved from root)
 #     docs/                 bowrain docs (already in place)
-#   assets/                 gokapi framework logos (bowrain logo removed)
-#   website/                main docusaurus site (unchanged)
+#   website/                main docusaurus site (assets/ moved here)
+#     assets/               logos and images (moved from ./assets/)
 #
 # What changes:
 #   - Directory locations (git mv)
 #   - go.work use directives
 #   - replace directives in every go.mod
+#   - Go import paths for promoted packages (sievepen, termbase, ai/provider, mt/provider)
 #   - Makefile path variables
 #   - .goreleaser.yaml build dirs and hooks
 #   - .dockerignore paths
@@ -42,7 +47,7 @@
 #
 # What does NOT change:
 #   - Go module names (github.com/gokapi/gokapi/cli stays the same)
-#   - Go import paths in source code (no source rewriting needed)
+#   - Most Go import paths (only promoted packages change)
 #   - Website configuration (bowrain docs plugin already configured)
 #
 # Usage:
@@ -80,6 +85,21 @@ git mv go.sum framework/go.sum
 
 echo "--- Moving core/ → framework/core/"
 git mv core framework/core
+
+# ─── 1b. Promote packages out of core/ to framework/ top level ───────────────
+
+echo "--- Promoting sievepen/ out of core/"
+git mv framework/core/sievepen framework/sievepen
+
+echo "--- Promoting termbase/ out of core/"
+git mv framework/core/termbase framework/termbase
+
+echo "--- Promoting mt/provider/ → providers/mt/"
+mkdir -p framework/providers
+git mv framework/core/mt/provider framework/providers/mt
+
+echo "--- Promoting ai/provider/ → providers/ai/"
+git mv framework/core/ai/provider framework/providers/ai
 
 echo "--- Moving cli/ → framework/cli/"
 git mv cli framework/cli
@@ -133,11 +153,14 @@ echo "--- Moving compose files → bowrain/"
 git mv compose.yaml bowrain/compose.yaml
 git mv compose.override.yaml bowrain/compose.override.yaml
 
-# ─── 8. Move bowrain asset → bowrain/assets/ ─────────────────────────────────
+# ─── 8. Move assets/ → website/assets/ ────────────────────────────────────────
 
 echo "--- Moving bowrain-logo.png → bowrain/assets/"
 mkdir -p bowrain/assets
 git mv assets/bowrain-logo.png bowrain/assets/bowrain-logo.png
+
+echo "--- Moving remaining assets/ → website/assets/"
+git mv assets website/assets
 
 # ─── 9. Remove kapi/apps/kapi-web/ ──────────────────────────────────────────
 
@@ -183,7 +206,28 @@ use (
 )
 GOWORK
 
-# ─── 13. Update replace directives in go.mod files ──────────────────────────
+# ─── 13. Rewrite Go import paths for promoted packages ──────────────────────
+
+echo "--- Rewriting Go import paths for promoted packages"
+
+# sievepen:    core/sievepen    → sievepen       (drops core/ prefix)
+# termbase:    core/termbase    → termbase       (drops core/ prefix)
+# ai/provider: core/ai/provider → providers/ai   (reorganized)
+# mt/provider: core/mt/provider → providers/mt   (reorganized)
+#
+# These find/replace operate on all .go files across every module.
+# The module name (github.com/gokapi/gokapi) stays the same — only the
+# package path suffix changes.  We match the partial path (without leading
+# quote) to also catch aliased imports like:  fw "github.com/…/core/sievepen"
+
+find framework/ bowrain/ -name '*.go' -exec sed -i \
+  -e 's|gokapi/gokapi/core/sievepen"|gokapi/gokapi/sievepen"|g' \
+  -e 's|gokapi/gokapi/core/termbase"|gokapi/gokapi/termbase"|g' \
+  -e 's|gokapi/gokapi/core/ai/provider"|gokapi/gokapi/providers/ai"|g' \
+  -e 's|gokapi/gokapi/core/mt/provider"|gokapi/gokapi/providers/mt"|g' \
+  {} +
+
+# ─── 14. Update replace directives in go.mod files ──────────────────────────
 
 echo "--- Updating go.mod replace directives"
 
@@ -215,7 +259,7 @@ sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/plat
 sed -i 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
 sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
 
-# ─── 14. Update Makefile ────────────────────────────────────────────────────
+# ─── 15. Update Makefile ────────────────────────────────────────────────────
 
 echo "--- Updating Makefile path references"
 
@@ -252,7 +296,7 @@ sed -i '/kapi-web-deps/d' Makefile
 sed -i '/kapi-web-build/d' Makefile
 sed -i '/kapi\/apps\/kapi-web/d' Makefile
 
-# ─── 15. Update .goreleaser.yaml ────────────────────────────────────────────
+# ─── 16. Update .goreleaser.yaml ────────────────────────────────────────────
 
 echo "--- Updating .goreleaser.yaml"
 
@@ -266,7 +310,7 @@ sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.yaml
 sed -i 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
 sed -i 's|dir: kapi$|dir: framework/kapi|g' .goreleaser.yaml
 
-# ─── 16. Update .dockerignore ───────────────────────────────────────────────
+# ─── 17. Update .dockerignore ───────────────────────────────────────────────
 
 echo "--- Updating .dockerignore"
 
@@ -276,7 +320,7 @@ sed -i 's|apps/web/dist/|bowrain/apps/web/dist/|g' .dockerignore
 sed -i 's|apps/bowrain/frontend/dist/|bowrain/apps/bowrain/frontend/dist/|g' .dockerignore
 sed -i 's|apps/bowrain/|bowrain/apps/bowrain/|g' .dockerignore
 
-# ─── 17. Update CI workflows ────────────────────────────────────────────────
+# ─── 18. Update CI workflows ────────────────────────────────────────────────
 
 echo "--- Updating CI workflow path triggers"
 
@@ -318,7 +362,7 @@ for wf in .github/workflows/*.yml; do
   update_workflow_paths "$wf"
 done
 
-# ─── 18. Update deploy/docker/compose.yaml Dockerfile paths ─────────────────
+# ─── 19. Update deploy/docker/compose.yaml Dockerfile paths ─────────────────
 
 echo "--- Updating bowrain/deploy/docker/compose.yaml"
 if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
@@ -328,7 +372,7 @@ if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
   sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' bowrain/deploy/docker/compose.yaml
 fi
 
-# ─── 19. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
+# ─── 20. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
 
 echo "--- Copying .dockerignore into bowrain/"
 cp .dockerignore bowrain/.dockerignore
