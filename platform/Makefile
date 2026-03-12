@@ -1,0 +1,337 @@
+# platform/Makefile
+# =================
+# Build, test, and lint targets for the Bowrain platform, CLI, and core modules.
+# Can be used standalone (cd platform && make test) or delegated from root.
+
+# Suppress macOS linker warnings for CGO (Wails WebView)
+ifeq ($(shell uname -s),Darwin)
+export MACOSX_DEPLOYMENT_TARGET := 10.15
+export CGO_CFLAGS := -mmacosx-version-min=10.15
+export CGO_LDFLAGS := -mmacosx-version-min=10.15
+endif
+
+# ── Shared Variables (inherit from root or compute standalone) ────────────────
+
+ROOT_DIR    ?= $(shell cd .. && pwd)
+VERSION     ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT      ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE  ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+VERSION_PKG ?= github.com/neokapi/neokapi/core/version
+LDFLAGS     ?= -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
+
+GO          := go
+GOTEST      := $(GO) test
+GOBUILD     := $(GO) build
+GOVET       := $(GO) vet
+GOFMT       := gofmt
+NPM         := npm
+BIN_DIR     := $(ROOT_DIR)/bin
+COVER_DIR   := $(ROOT_DIR)/coverage
+
+FRONTEND_DIR := apps/bowrain/frontend
+WEB_DIR      := apps/web
+KC_THEME_DIR := apps/keycloak-theme
+EMAILS_DIR   := emails
+CERT_DIR     := docker/traefik/certs
+SERVER_PROTO_DIR := proto/v1
+
+# Tools
+GOLANGCI_LINT := $(shell which golangci-lint 2>/dev/null || { test -x "$$(go env GOPATH)/bin/golangci-lint" && echo "$$(go env GOPATH)/bin/golangci-lint"; })
+PROTOC        := $(shell which protoc 2>/dev/null)
+PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
+
+# Docker
+DOCKER_IMAGE          := ghcr.io/neokapi/bowrain-server
+DOCKER_WORKER_IMAGE   := ghcr.io/neokapi/bowrain-worker
+DOCKER_WEB_IMAGE      := ghcr.io/neokapi/bowrain-web
+DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
+
+.PHONY: all help \
+        build-server build-worker build-bowrain-cli build-bowrain build-headless install-bowrain-cli \
+        ui-deps ui-build storybook storybook-dev storybook-build \
+        frontend-deps frontend-dev frontend-build build-ui \
+        web-deps web-build email-deps email-build keycloak-theme \
+        docker-server docker-web docker-keycloak docker-all \
+        docker-push-server docker-push-web docker-push-keycloak docker-push \
+        dev-deps dev-deps-down dev-server dev-web bowrain-dev certs \
+        screenshots recordings bowrain-cli-recordings \
+        test test-fast test-unit test-race test-verbose test-integration \
+        test-platform test-bowrain-cli test-bowrain test-e2e-bowrain \
+        cover fmt vet lint check proto deps deps-update clean
+
+# ── General ──────────────────────────────────────────────────────────────────
+
+all: help
+
+help: ## Show platform targets
+	@echo ""
+	@echo "Platform targets (make -C platform <target>):"
+	@awk '/^[a-zA-Z_-]+:.*## / { \
+		match($$0, /## (.*)/); desc = substr($$0, RSTART+3); \
+		match($$0, /^[a-zA-Z_-]+/); target = substr($$0, RSTART, RLENGTH); \
+		printf "  \033[36m%-20s\033[0m %s\n", target, desc \
+	}' $(MAKEFILE_LIST)
+	@echo ""
+
+# ── Build ────────────────────────────────────────────────────────────────────
+
+build-server: ## Build the Bowrain REST server
+	@mkdir -p $(BIN_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-server ./cmd/bowrain-server
+
+build-worker: ## Build the Bowrain worker
+	@mkdir -p $(BIN_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-worker ./cmd/bowrain-worker
+
+build-bowrain-cli: ## Build Bowrain CLI
+	@mkdir -p $(BIN_DIR)
+	cd cli && $(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain ./cmd/bowrain
+
+build-bowrain: frontend-build ## Build the Bowrain desktop app
+	cd apps/bowrain && wails3 build -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
+
+build-headless: frontend-build ## Build headless desktop binary (server mode, no GUI deps)
+	@mkdir -p $(BIN_DIR)
+	cd apps/bowrain && $(GOBUILD) -tags server $(LDFLAGS) -o $(BIN_DIR)/bowrain-headless .
+
+install-bowrain-cli: ## Install Bowrain CLI to GOPATH/bin
+	cd cli && $(GO) install $(LDFLAGS) ./cmd/bowrain
+
+# ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
+
+frontend-deps: ## Install frontend dependencies
+	cd $(FRONTEND_DIR) && $(NPM) install
+
+frontend-dev: ## Start frontend dev server
+	@printf '\033]0;Bowrain Frontend\007'
+	cd $(FRONTEND_DIR) && $(NPM) run dev
+
+frontend-build: ui-build frontend-deps ## Build frontend for production
+	cd $(FRONTEND_DIR) && $(NPM) run build
+
+build-ui: build-server frontend-build ## Build server + frontend
+
+# ── Shared UI Package ──────────────────────────────────────────────────────
+
+ui-deps: ## Install shared UI package dependencies
+	cd packages/ui && $(NPM) install
+
+ui-build: ui-deps ## Build shared UI declarations
+	cd packages/ui && npx tsc
+
+storybook: ui-deps ## Launch Storybook dev server (port 6006)
+	@printf '\033]0;Storybook\007'
+	cd packages/ui && $(NPM) run storybook
+
+storybook-dev: storybook ## Alias for storybook
+
+storybook-build: ui-deps ## Build Storybook static site
+	cd packages/ui && $(NPM) run storybook:build
+
+# ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
+
+web-deps: ## Install SaaS web UI dependencies
+	cd $(WEB_DIR) && $(NPM) install
+
+web-build: ui-build web-deps ## Build SaaS web UI for production
+	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
+	cd $(WEB_DIR) && $(NPM) run build
+
+# ── Email Templates (React Email -> HTML) ────────────────────────────────────
+
+email-deps: ## Install React Email template dependencies
+	cd $(EMAILS_DIR) && $(NPM) install
+
+email-build: email-deps ## Pre-render React Email templates
+	cd $(EMAILS_DIR) && $(NPM) run build
+
+# ── Keycloak Theme ─────────────────────────────────────────────────────────
+
+keycloak-theme: ui-deps ## Build Keycloak login theme JAR
+	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run build-keycloak-theme
+
+# ── Docker ──────────────────────────────────────────────────────────────────
+
+docker-server: ## Build server and worker images
+	docker build -f docker/bowrain-server/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_IMAGE):$(VERSION) -t $(DOCKER_IMAGE):latest $(ROOT_DIR)
+	docker build -f docker/bowrain-worker/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_WORKER_IMAGE):$(VERSION) -t $(DOCKER_WORKER_IMAGE):latest $(ROOT_DIR)
+
+docker-web: ## Build web UI image
+	docker build -f docker/bowrain-web/Dockerfile --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILD_DATE=$(BUILD_DATE) -t $(DOCKER_WEB_IMAGE):$(VERSION) -t $(DOCKER_WEB_IMAGE):latest $(ROOT_DIR)
+
+docker-keycloak: ## Build keycloak image
+	docker build -f docker/keycloak/Dockerfile -t $(DOCKER_KEYCLOAK_IMAGE):$(VERSION) -t $(DOCKER_KEYCLOAK_IMAGE):latest $(ROOT_DIR)
+
+docker-all: docker-server docker-web docker-keycloak ## Build all Docker images
+
+docker-push-server: ## Push server and worker images
+	docker push $(DOCKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_IMAGE):latest
+	docker push $(DOCKER_WORKER_IMAGE):$(VERSION)
+	docker push $(DOCKER_WORKER_IMAGE):latest
+
+docker-push-web: ## Push web UI image
+	docker push $(DOCKER_WEB_IMAGE):$(VERSION)
+	docker push $(DOCKER_WEB_IMAGE):latest
+
+docker-push-keycloak: ## Push keycloak image
+	docker push $(DOCKER_KEYCLOAK_IMAGE):$(VERSION)
+	docker push $(DOCKER_KEYCLOAK_IMAGE):latest
+
+docker-push: docker-push-server docker-push-web docker-push-keycloak ## Push all Docker images
+
+# ── Dev Environment ──────────────────────────────────────────────────────────
+
+dev-deps: ## Start dev dependencies (Traefik + Keycloak + Mailpit) in Docker
+	@printf '\033]0;Dev Dependencies\007'
+	docker compose -f $(ROOT_DIR)/compose.yaml up -d --wait
+
+dev-deps-down: ## Stop dev dependencies
+	docker compose -f $(ROOT_DIR)/compose.yaml down -v
+
+bowrain-dev: ## Launch Bowrain desktop app in dev mode (hot reload)
+	@printf '\033]0;Bowrain Desktop\007'
+	cd apps/bowrain && wails3 dev
+
+certs: ## Generate mkcert TLS certificates for *.bowrain.mymac
+	@mkdir -p $(CERT_DIR)
+	mkcert -cert-file $(CERT_DIR)/wildcard.pem -key-file $(CERT_DIR)/wildcard-key.pem \
+		"*.bowrain.mymac" "bowrain.mymac"
+
+dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
+	@printf '\033]0;Bowrain Server\007'
+	@mkdir -p $(BIN_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BIN_DIR)/bowrain-server ./cmd/bowrain-server
+	BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
+	BOWRAIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain \
+	BOWRAIN_OIDC_CLIENT_ID=bowrain \
+	BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
+	BOWRAIN_SMTP_HOST=localhost:1025 \
+	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
+	BOWRAIN_STORE=bowrain-dev.db \
+	BOWRAIN_REDIS_URL=redis://localhost:6379 \
+	$(BIN_DIR)/bowrain-server
+
+dev-web: ## Run web UI dev server with HMR (proxy -> localhost:8080)
+	@printf '\033]0;Web UI\007'
+	cd apps/web && $(NPM) run dev
+
+# ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
+
+screenshots: frontend-deps ## Generate documentation screenshots
+	cd $(FRONTEND_DIR) && $(NPM) run screenshots
+
+recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
+	cd $(FRONTEND_DIR) && $(NPM) run recordings:all
+
+bowrain-cli-recordings: build-bowrain-cli ## Generate Bowrain CLI demo videos (VHS)
+	./e2e/tapes/generate.sh
+
+test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
+	bash e2e/server/run.sh
+
+# ── Test ─────────────────────────────────────────────────────────────────────
+
+test: ## Run all platform tests
+	cd core && $(GOTEST) ./... -count=1
+	cd cli && $(GOTEST) ./... -count=1
+	$(GOTEST) ./... -count=1
+
+test-fast: ## Run all platform tests with caching
+	cd core && $(GOTEST) ./...
+	cd cli && $(GOTEST) ./...
+	$(GOTEST) ./...
+
+test-unit: ## Run platform unit tests only
+	cd core && $(GOTEST) ./... -count=1 -short
+	cd cli && $(GOTEST) ./... -count=1 -short
+	$(GOTEST) ./... -count=1 -short
+
+test-race: ## Run platform tests with race detector
+	cd core && $(GOTEST) ./... -count=1 -race
+	cd cli && $(GOTEST) ./... -count=1 -race
+	$(GOTEST) ./... -count=1 -race
+
+test-verbose: ## Run platform tests with verbose output
+	cd core && $(GOTEST) ./... -count=1 -v
+	cd cli && $(GOTEST) ./... -count=1 -v
+	$(GOTEST) ./... -count=1 -v
+
+test-integration: ## Run platform integration tests
+	$(GOTEST) ./... -count=1 -tags=integration -run Integration
+
+test-platform: ## Run platform core module tests only
+	cd core && $(GOTEST) ./... -count=1
+
+test-bowrain-cli: ## Run Bowrain CLI tests only
+	cd cli && $(GOTEST) ./... -count=1
+
+test-bowrain: ## Run bowrain module tests only
+	$(GOTEST) ./... -count=1
+
+# ── Coverage ─────────────────────────────────────────────────────────────────
+
+cover: ## Run platform tests with coverage
+	@mkdir -p $(COVER_DIR)
+	cd core && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/platform.out -covermode=atomic
+	cd cli && $(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain-cli.out -covermode=atomic
+	$(GOTEST) ./... -count=1 -coverprofile=$(COVER_DIR)/bowrain.out -covermode=atomic
+
+# ── Code Quality ─────────────────────────────────────────────────────────────
+
+fmt: ## Format Go source files
+	$(GOFMT) -w -s .
+
+vet: ## Run go vet
+	cd core && $(GOVET) ./...
+	cd cli && $(GOVET) ./...
+	$(GOVET) ./...
+
+lint: ## Run golangci-lint
+ifdef GOLANGCI_LINT
+	cd core && $(GOLANGCI_LINT) run ./...
+	cd cli && $(GOLANGCI_LINT) run ./...
+	$(GOLANGCI_LINT) run ./...
+else
+	@echo "golangci-lint not installed. Run 'make tools' to install."
+endif
+
+check: fmt vet lint ## Run all code quality checks
+
+# ── Protobuf ─────────────────────────────────────────────────────────────────
+
+proto: ## Generate Go code from server protobuf definitions
+ifndef PROTOC
+	$(error "protoc not found. Install Protocol Buffers compiler.")
+endif
+ifndef PROTOC_GEN_GO
+	$(error "protoc-gen-go not found. Run 'make tools' to install.")
+endif
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		$(SERVER_PROTO_DIR)/*.proto
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+
+deps: ## Download and tidy platform dependencies
+	cd core && $(GO) mod download && $(GO) mod tidy
+	cd cli && $(GO) mod download && $(GO) mod tidy
+	$(GO) mod download && $(GO) mod tidy
+
+deps-update: ## Update platform dependencies
+	cd core && $(GO) get -u ./... && $(GO) mod tidy
+	cd cli && $(GO) get -u ./... && $(GO) mod tidy
+	$(GO) get -u ./... && $(GO) mod tidy
+
+# ── Clean ────────────────────────────────────────────────────────────────────
+
+clean: ## Clean platform build artifacts
+	rm -rf packages/ui/storybook-static
+	rm -rf packages/ui/node_modules
+	rm -rf $(FRONTEND_DIR)/dist
+	rm -rf $(FRONTEND_DIR)/node_modules
+	rm -rf $(WEB_DIR)/dist
+	rm -rf $(WEB_DIR)/node_modules
+	rm -rf $(KC_THEME_DIR)/dist_keycloak
+	rm -rf $(KC_THEME_DIR)/node_modules
+	$(GO) clean -cache -testcache
