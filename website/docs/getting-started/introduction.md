@@ -15,7 +15,7 @@ gokapi consists of two products:
 - **Gokapi Framework + Kapi CLI** — open-source localization engine and command-line tool for file processing
 - **Bowrain Platform** — full-stack localization platform with web editor, desktop app, and server
 
-This section covers the framework and kapi CLI. For the Bowrain platform, see [Bowrain Introduction](/docs/bowrain/introduction).
+This section covers the framework and kapi CLI. For the Bowrain platform, see [Bowrain Introduction](/bowrain/introduction).
 
 ## Kapi CLI
 
@@ -84,4 +84,4 @@ If you're familiar with the Okapi Framework, here's how concepts map:
 
 - [Installation](/docs/getting-started/installation) — install kapi CLI
 - [Quick Start](/docs/getting-started/quickstart) — process your first file
-- [Bowrain Platform](/docs/bowrain/introduction) — team collaboration with Bowrain CLI, web editor, and server
+- [Bowrain Platform](/bowrain/introduction) — team collaboration with Bowrain CLI, web editor, and server
