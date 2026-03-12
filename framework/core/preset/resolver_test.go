@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

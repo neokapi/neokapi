@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
-	"github.com/gokapi/gokapi/core/model"
-	fw "github.com/gokapi/gokapi/sievepen"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/core/model"
+	fw "github.com/neokapi/neokapi/sievepen"
 )
 
 // PostgresTM is a persistent translation memory backed by PostgreSQL.

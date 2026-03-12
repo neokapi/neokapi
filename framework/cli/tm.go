@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gokapi/gokapi/cli/output"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
+	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
 	"github.com/spf13/cobra"
 )
 

@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
+	"github.com/neokapi/neokapi/core/format"
 )
 
 // RuleType defines an element or attribute processing rule.

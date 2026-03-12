@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain-cli/cmd/bowrain/output"
-	cliconfig "github.com/gokapi/gokapi/cli/config"
-	"github.com/gokapi/gokapi/platform/auth"
-	"github.com/gokapi/gokapi/platform/config"
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain/output"
+	cliconfig "github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/platform/auth"
+	"github.com/neokapi/neokapi/platform/config"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

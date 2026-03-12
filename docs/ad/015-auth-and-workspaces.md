@@ -7,7 +7,7 @@ title: "AD-015: Authentication and Workspaces"
 
 ## Context
 
-gokapi is evolving from a single-user localization toolkit into a multi-user
+neokapi is evolving from a single-user localization toolkit into a multi-user
 platform. This requires user authentication, organizational hierarchy, and
 access control. The architecture draws inspiration from Speckle's
 Workspace > Project model for organizational hierarchy, and Slack's
@@ -47,7 +47,7 @@ avatar URL. Roles within a workspace are hierarchical:
 Authentication uses a federated OpenID Connect identity provider —
 [Keycloak](https://www.keycloak.org/) in production.
 OIDC providers support multiple upstream identity sources (GitHub,
-Google, LDAP, SAML, etc.) while presenting a single OIDC interface to gokapi.
+Google, LDAP, SAML, etc.) while presenting a single OIDC interface to neokapi.
 
 - **Server mode**: `bowrain-server` starts with OIDC configuration (issuer URL,
   client ID, client secret). The web UI redirects to the OIDC provider for login.
@@ -203,6 +203,6 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
   use Bearer tokens in headers.
 - Refresh token rotation with server-side hashing prevents token reuse attacks.
 - Keycloak is the primary OIDC provider in production, with custom-themed
-  login pages matching the gokapi visual style.
+  login pages matching the neokapi visual style.
 - An OIDC provider is a deployment dependency for multi-user mode but not
   required for standalone or local use.

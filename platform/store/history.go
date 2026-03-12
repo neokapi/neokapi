@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	platstore "github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // MaxHistoryEntries is the default maximum number of history entries returned.

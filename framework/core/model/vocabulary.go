@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model/vocabularies"
+	"github.com/neokapi/neokapi/core/model/vocabularies"
 )
 
 // SpanTypeInfo describes a semantic span type from a vocabulary.

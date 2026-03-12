@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // StreamingWordCountCollector counts words inline as Parts flow through the

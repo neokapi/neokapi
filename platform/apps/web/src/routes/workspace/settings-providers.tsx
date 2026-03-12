@@ -1,4 +1,4 @@
-import { useWorkspace, GlassCard } from "@gokapi/ui";
+import { useWorkspace, GlassCard } from "@neokapi/ui";
 
 export function SettingsProvidersRoute() {
   const { activeWorkspace } = useWorkspace();

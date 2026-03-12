@@ -1,4 +1,4 @@
-// Package loader discovers and loads gokapi plugins from a directory.
+// Package loader discovers and loads neokapi plugins from a directory.
 // It supports both Go binary plugins (via host.PluginManager) and
 // bridge plugins (via bridge.JavaBridge) described by manifest.json files.
 //
@@ -17,12 +17,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/plugin/bridge"
-	"github.com/gokapi/gokapi/core/plugin/host"
-	pluginreg "github.com/gokapi/gokapi/core/plugin/registry"
-	"github.com/gokapi/gokapi/core/preset"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/plugin/bridge"
+	"github.com/neokapi/neokapi/core/plugin/host"
+	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
+	"github.com/neokapi/neokapi/core/preset"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // OriginalContentSetter is an alias for format.OriginalContentSetter.
@@ -359,7 +359,7 @@ func (l *PluginLoader) LoadBridges(formatReg *registry.FormatRegistry, toolReg *
 
 	// Load binary plugins.
 	for _, vDir := range l.pendingBinaryDirs {
-		pattern := filepath.Join(vDir, "gokapi-plugin-*")
+		pattern := filepath.Join(vDir, "neokapi-plugin-*")
 		binaries, err := filepath.Glob(pattern)
 		if err != nil {
 			l.logf("scanning binaries in %s: %v", vDir, err)

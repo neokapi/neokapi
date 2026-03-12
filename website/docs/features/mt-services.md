@@ -5,7 +5,7 @@ title: Machine Translation Services
 
 # Machine Translation Services
 
-gokapi integrates with external machine translation (MT) services as an alternative to LLM-based translation.
+neokapi integrates with external machine translation (MT) services as an alternative to LLM-based translation.
 
 ## Supported Services
 
@@ -19,7 +19,7 @@ gokapi integrates with external machine translation (MT) services as an alternat
 
 ## Configuration
 
-Configure MT providers in `gokapi.yaml`:
+Configure MT providers in `neokapi.yaml`:
 
 ```yaml
 mt:
@@ -36,7 +36,7 @@ mt:
 
 ## Usage
 
-MT services are available as pipeline tools via `kapi flow run`. Configure the desired service in `gokapi.yaml` and use flows to translate documents:
+MT services are available as pipeline tools via `kapi flow run`. Configure the desired service in `neokapi.yaml` and use flows to translate documents:
 
 ```bash
 kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang de

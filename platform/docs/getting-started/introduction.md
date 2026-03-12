@@ -6,7 +6,7 @@ slug: /introduction
 
 # Bowrain Platform
 
-Bowrain is a full-stack localization platform that turns your source content into production-ready translations. It combines a CLI for developers, a visual editor for translators, and a server for automation — all powered by the gokapi framework's 41+ format readers and 46+ processing tools.
+Bowrain is a full-stack localization platform that turns your source content into production-ready translations. It combines a CLI for developers, a visual editor for translators, and a server for automation — all powered by the neokapi framework's 41+ format readers and 46+ processing tools.
 
 ## One Command, Full Cycle
 

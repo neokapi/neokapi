@@ -7,7 +7,7 @@ title: "AD-004: Processing Engine"
 
 ## Context
 
-gokapi's processing engine uses Go's goroutines and channels to run each
+neokapi's processing engine uses Go's goroutines and channels to run each
 pipeline stage concurrently in its own goroutine, connected by typed channels.
 The engine provides both intra-document concurrency (tools running in parallel
 within one document) and inter-document concurrency (multiple documents
@@ -209,7 +209,7 @@ Five built-in flow definitions are provided:
 `FlowStore` persists user-created flow definitions as JSON files on disk.
 Flow definitions are distinguished by source:
 
-- `source: "built-in"` -- shipped with gokapi, immutable
+- `source: "built-in"` -- shipped with neokapi, immutable
 - `source: "user"` -- created by the user, stored in the user's config
   directory
 - `source: "project"` -- stored within a project directory

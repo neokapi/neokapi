@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Writer implements DataFormatWriter for ZIP archive files.
@@ -63,7 +63,7 @@ func (w *Writer) SetSourcePath(path string) {
 // SetOriginalContent implements format.OriginalContentSetter.
 // It writes the content to a temp file and uses that for roundtrip fidelity.
 func (w *Writer) SetOriginalContent(content []byte) {
-	f, err := os.CreateTemp("", "gokapi-archive-writer-*")
+	f, err := os.CreateTemp("", "neokapi-archive-writer-*")
 	if err != nil {
 		return
 	}

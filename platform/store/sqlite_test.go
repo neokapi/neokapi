@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	platstore "github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	platstore "github.com/neokapi/neokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

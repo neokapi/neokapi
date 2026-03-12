@@ -1,9 +1,9 @@
-module github.com/gokapi/gokapi/cli
+module github.com/neokapi/neokapi/cli
 
 go 1.26.0
 
 require (
-	github.com/gokapi/gokapi v0.0.0
+	github.com/neokapi/neokapi v0.0.0
 	github.com/mattn/go-isatty v0.0.20
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -57,4 +57,4 @@ require (
 	modernc.org/sqlite v1.46.1 // indirect
 )
 
-replace github.com/gokapi/gokapi => ../
+replace github.com/neokapi/neokapi => ../

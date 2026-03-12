@@ -11,7 +11,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"github.com/gokapi/gokapi/platform/project"
+	"github.com/neokapi/neokapi/platform/project"
 	"github.com/spf13/cobra"
 )
 

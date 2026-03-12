@@ -29,7 +29,7 @@ website/
 Thumbs.db
 
 # Plugin binaries
-gokapi-plugin-*
+neokapi-plugin-*
 
 # Test / CI artifacts
 test-results/

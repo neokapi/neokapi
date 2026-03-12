@@ -1,5 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { ApiAdapter } from "@gokapi/ui";
+import type { ApiAdapter } from "@neokapi/ui";
 
 export const configQueryOptions = (api: ApiAdapter) =>
   queryOptions({

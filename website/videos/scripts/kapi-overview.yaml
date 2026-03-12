@@ -47,6 +47,6 @@ scenes:
 
   - type: title-card
     duration: 2.5
-    heading: "$ brew install gokapi/tap/kapi"
+    heading: "$ brew install neokapi/tap/kapi"
     subheading: Get started in seconds
     style: dark

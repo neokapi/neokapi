@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

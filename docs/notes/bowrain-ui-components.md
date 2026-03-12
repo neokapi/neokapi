@@ -61,13 +61,13 @@ In local/desktop mode, a "Personal" workspace is created automatically. When con
 
 ## Shared Component Library (`packages/ui/`)
 
-Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse across Bowrain (desktop) and the web app. The library includes:
+Core UI components are extracted to `packages/ui/` (`@neokapi/ui`) for reuse across Bowrain (desktop) and the web app. The library includes:
 
 - **Layout**: `WorkspaceRail`, `AppSidebar`, `AccountMenu`, `WorkspaceIcon`
 - **Context**: `AuthContext`, `WorkspaceContext` with React hooks
 - **API Adapter**: `ApiAdapter` interface with platform-specific implementations -- `RestApiAdapter` for the web app, Wails bindings for desktop
 
-Bowrain imports from `@gokapi/ui` and provides a Wails-specific API adapter that bridges Go method calls to the shared `ApiAdapter` interface. This ensures the same UI components render identically in both desktop and browser contexts.
+Bowrain imports from `@neokapi/ui` and provides a Wails-specific API adapter that bridges Go method calls to the shared `ApiAdapter` interface. This ensures the same UI components render identically in both desktop and browser contexts.
 
 ## Offline Queue
 

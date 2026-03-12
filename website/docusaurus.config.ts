@@ -3,15 +3,15 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'gokapi',
+  title: 'neokapi',
   tagline: 'Open, AI-native localization platform in Go',
   favicon: 'img/favicon.png',
 
-  url: 'https://gokapi.github.io',
+  url: 'https://neokapi.github.io',
   baseUrl: '/',
 
-  organizationName: 'gokapi',
-  projectName: 'gokapi',
+  organizationName: 'neokapi',
+  projectName: 'neokapi',
   trailingSlash: false,
 
   onBrokenLinks: 'throw',
@@ -39,7 +39,7 @@ const config: Config = {
         path: '../docs/ad',
         routeBasePath: 'docs/ad',
         sidebarPath: './sidebars-ad.ts',
-        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
       },
     ],
     [
@@ -49,7 +49,7 @@ const config: Config = {
         path: '../docs/notes',
         routeBasePath: 'docs/notes',
         sidebarPath: './sidebars-notes.ts',
-        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
       },
     ],
     [
@@ -59,7 +59,7 @@ const config: Config = {
         path: '../bowrain/docs',
         routeBasePath: 'bowrain',
         sidebarPath: './sidebars-bowrain.ts',
-        editUrl: 'https://github.com/gokapi/gokapi/tree/main/',
+        editUrl: 'https://github.com/neokapi/neokapi/tree/main/',
       },
     ],
   ],
@@ -70,7 +70,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/gokapi/gokapi/tree/main/website/',
+          editUrl: 'https://github.com/neokapi/neokapi/tree/main/website/',
         },
         blog: false,
         theme: {
@@ -82,17 +82,17 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'gokapi',
+      title: 'neokapi',
       logo: {
-        alt: 'gokapi',
+        alt: 'neokapi',
         src: 'img/logo.png',
       },
       items: [
         {
           type: 'docSidebar',
-          sidebarId: 'gokapiSidebar',
+          sidebarId: 'neokapiSidebar',
           position: 'left',
-          label: 'Gokapi',
+          label: 'Neokapi',
         },
         {
           type: 'docSidebar',
@@ -102,7 +102,7 @@ const config: Config = {
           label: 'Bowrain',
         },
         {
-          href: 'https://github.com/gokapi/gokapi',
+          href: 'https://github.com/neokapi/neokapi',
           label: 'GitHub',
           position: 'right',
         },
@@ -112,7 +112,7 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Gokapi',
+          title: 'Neokapi',
           items: [
             {
               label: 'Getting Started',
@@ -150,16 +150,16 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/gokapi/gokapi',
+              href: 'https://github.com/neokapi/neokapi',
             },
             {
               label: 'Homebrew Tap',
-              href: 'https://github.com/gokapi/homebrew-tap',
+              href: 'https://github.com/neokapi/homebrew-tap',
             },
           ],
         },
       ],
-      copyright: `Copyright \u00a9 ${new Date().getFullYear()} gokapi contributors. Built with Docusaurus.`,
+      copyright: `Copyright \u00a9 ${new Date().getFullYear()} neokapi contributors. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,

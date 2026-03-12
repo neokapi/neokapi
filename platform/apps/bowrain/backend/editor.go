@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/termbase"
-	"github.com/gokapi/gokapi/core/tool"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.

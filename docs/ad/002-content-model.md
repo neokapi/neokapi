@@ -95,7 +95,7 @@ The industry has converged on a layered model. From bottom to top:
 5. **Text equivalent** — plain text representation for non-aware tools
 6. **Editing constraints** — can the code be copied, deleted, reordered?
 
-gokapi's Fragment and Span model implements all six layers.
+neokapi's Fragment and Span model implements all six layers.
 
 ## Decision
 
@@ -852,10 +852,10 @@ the editor permits.
 
 ## Comparison with Okapi Framework
 
-gokapi's content model draws from Okapi's proven concepts but adapts them
+neokapi's content model draws from Okapi's proven concepts but adapts them
 to Go's type system and modern localization needs:
 
-| Concern | Okapi Framework | gokapi |
+| Concern | Okapi Framework | neokapi |
 |---|---|---|
 | **Type hierarchy** | Deep `IResource` inheritance (`TextUnit`, `DocumentPart`, `StartDocument`, etc.) with instanceof checks | Single `Part` struct with `PartType` discriminator and `Resource` interface — switch dispatch, no casts |
 | **Inline codes** | `Code` objects with type flags; code simplification step collapses redundant codes | Six-layer `Span` model with semantic types, native data, display text, and editing constraints — no simplification step needed |
@@ -870,7 +870,7 @@ The key insight is separating semantic meaning (what a code represents) from
 native markup (what a code looks like in the source format). Okapi's code
 simplification step exists because the model conflates these two layers —
 tools must normalize adjacent codes that differ in markup but agree in
-semantics. gokapi's Span model eliminates this by design: tools process at
+semantics. neokapi's Span model eliminates this by design: tools process at
 the semantic level, writers replay native markup verbatim.
 
 ## Alternatives Considered

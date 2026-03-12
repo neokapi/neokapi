@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // CSVImportOptions controls how CSV data is interpreted.

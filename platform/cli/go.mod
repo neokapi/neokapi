@@ -1,12 +1,12 @@
-module github.com/gokapi/gokapi/bowrain-cli
+module github.com/neokapi/neokapi/bowrain-cli
 
 go 1.26.0
 
 require (
 	github.com/charmbracelet/huh v0.8.0
-	github.com/gokapi/gokapi v0.0.0
-	github.com/gokapi/gokapi/cli v0.0.0
-	github.com/gokapi/gokapi/platform v0.0.0
+	github.com/neokapi/neokapi v0.0.0
+	github.com/neokapi/neokapi/cli v0.0.0
+	github.com/neokapi/neokapi/platform v0.0.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
@@ -90,7 +90,7 @@ require (
 )
 
 replace (
-	github.com/gokapi/gokapi => ../../framework
-	github.com/gokapi/gokapi/cli => ../../framework/cli
-	github.com/gokapi/gokapi/platform => ../core
+	github.com/neokapi/neokapi => ../../framework
+	github.com/neokapi/neokapi/cli => ../../framework/cli
+	github.com/neokapi/neokapi/platform => ../core
 )

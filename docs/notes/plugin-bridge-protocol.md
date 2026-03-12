@@ -8,9 +8,9 @@ This note provides implementation details for [AD-007](/docs/ad/007-plugin-syste
 
 ## gRPC Bridge Protocol
 
-The Okapi bridge is a subprocess that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between gokapi's Part model and Okapi's Event model.
+The Okapi bridge is a subprocess that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between neokapi's Part model and Okapi's Event model.
 
-The protocol is defined in `core/plugin/proto/v2/gokapi_bridge.proto`:
+The protocol is defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
 
 ```protobuf
 service BridgeService {
@@ -178,11 +178,11 @@ Multiple versions of the same plugin can be installed side-by-side:
     1.46.0/
       version.json
       manifest.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
     1.47.0/
       version.json
       manifest.json
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
 ```
 
 Each version directory contains a `version.json` manifest with name, version, and install type. The plugin loader scans all version directories and registers capabilities with versioned names:

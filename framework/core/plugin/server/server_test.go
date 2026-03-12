@@ -3,10 +3,10 @@ package server_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/server"
-	"github.com/gokapi/gokapi/core/plugin/shared"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/server"
+	"github.com/neokapi/neokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

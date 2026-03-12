@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/registry"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

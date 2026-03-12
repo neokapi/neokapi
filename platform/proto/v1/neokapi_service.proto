@@ -1,14 +1,14 @@
-// gokapi_service.proto - gRPC service definitions for Bowrain Server.
+// neokapi_service.proto - gRPC service definitions for Bowrain Server.
 // Provides streaming access to projects, blocks, flows, connectors, and events.
 
 syntax = "proto3";
 
-package gokapi.server.v1;
+package neokapi.server.v1;
 
-option go_package = "github.com/gokapi/gokapi/bowrain/proto/v1;serverv1";
+option go_package = "github.com/neokapi/neokapi/bowrain/proto/v1;serverv1";
 
-// GokapiService provides platform operations via gRPC.
-service GokapiService {
+// NeokapiService provides platform operations via gRPC.
+service NeokapiService {
   // Project management
   rpc CreateProject(CreateProjectRequest) returns (ProjectResponse);
   rpc GetProject(GetProjectRequest) returns (ProjectResponse);

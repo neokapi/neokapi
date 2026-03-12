@@ -247,7 +247,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     exportTranslatedFile: async () => new Blob(["mock export"], { type: "application/octet-stream" }),
 
     lookupTMForBlock: async (): Promise<TMMatchInfo[]> => [
-      { source: "Welcome to Gokapi", target: "Bienvenue sur Gokapi", score: 100, match_type: "exact" },
+      { source: "Welcome to Neokapi", target: "Bienvenue sur Neokapi", score: 100, match_type: "exact" },
       { source: "Welcome to the app", target: "Bienvenue dans l'application", score: 85, match_type: "fuzzy" },
     ],
 

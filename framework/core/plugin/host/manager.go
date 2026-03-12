@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/hashicorp/go-plugin"
 )
 
@@ -46,9 +46,9 @@ func NewPluginManager(logger *log.Logger) *PluginManager {
 
 // DiscoverAndRegister scans a directory for plugin executables, launches each one,
 // queries its type and metadata, and registers it with the given FormatRegistry.
-// Plugin executables are expected to be named gokapi-plugin-* (or gokapi-plugin-*.exe on Windows).
+// Plugin executables are expected to be named neokapi-plugin-* (or neokapi-plugin-*.exe on Windows).
 func (m *PluginManager) DiscoverAndRegister(dir string, reg *registry.FormatRegistry) error {
-	pattern := filepath.Join(dir, "gokapi-plugin-*")
+	pattern := filepath.Join(dir, "neokapi-plugin-*")
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return fmt.Errorf("scanning plugin directory %s: %w", dir, err)
@@ -286,10 +286,10 @@ func (m *PluginManager) ShutdownPlugin(path string) error {
 }
 
 // pluginBaseName returns the base name of a plugin executable without
-// the "gokapi-plugin-" prefix and OS-specific suffix.
+// the "neokapi-plugin-" prefix and OS-specific suffix.
 func pluginBaseName(path string) string {
 	base := filepath.Base(path)
-	base = strings.TrimPrefix(base, "gokapi-plugin-")
+	base = strings.TrimPrefix(base, "neokapi-plugin-")
 	if runtime.GOOS == "windows" {
 		base = strings.TrimSuffix(base, ".exe")
 	}

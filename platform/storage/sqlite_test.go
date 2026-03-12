@@ -3,7 +3,7 @@ package storage_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

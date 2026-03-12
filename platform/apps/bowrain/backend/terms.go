@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/termbase"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/termbase"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // TermInfo is the frontend-facing representation of a term.

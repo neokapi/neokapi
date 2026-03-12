@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/httputil"
+	"github.com/neokapi/neokapi/core/httputil"
 )
 
 // AnthropicProvider implements LLMProvider for Anthropic Claude API.

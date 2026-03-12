@@ -6,7 +6,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
-	"github.com/gokapi/gokapi/providers/ai"
+	"github.com/neokapi/neokapi/providers/ai"
 )
 
 const cognitiveServicesScope = "https://cognitiveservices.azure.com/.default"

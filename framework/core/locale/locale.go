@@ -1,12 +1,12 @@
 // Package locale provides BCP-47 locale validation, normalization, and display
-// name resolution for use throughout gokapi.
+// name resolution for use throughout neokapi.
 package locale
 
 import (
 	"fmt"
 	"sort"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/text/language"
 	"golang.org/x/text/language/display"
 )

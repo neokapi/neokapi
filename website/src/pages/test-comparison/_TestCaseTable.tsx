@@ -92,7 +92,7 @@ function goSourceUrl(
 ): string {
   const ref = commitSHA || 'main';
   if (file) {
-    const base = `https://github.com/gokapi/gokapi/blob/${ref}/${file}`;
+    const base = `https://github.com/neokapi/neokapi/blob/${ref}/${file}`;
     return line ? `${base}#L${line}` : base;
   }
   // Fallback to directory
@@ -100,7 +100,7 @@ function goSourceUrl(
     kind === 'bridge'
       ? `core/plugin/bridge/filters/okf_${filterName}/`
       : `core/formats/${filterName}/`;
-  return `https://github.com/gokapi/gokapi/tree/${ref}/${dir}`;
+  return `https://github.com/neokapi/neokapi/tree/${ref}/${dir}`;
 }
 
 /** Build a GitLab source URL for an Okapi Java test file. */

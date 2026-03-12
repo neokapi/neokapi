@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -24,8 +24,8 @@ func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()
 	pb.RegisterEditorServiceServer(grpcSrv, NewEditorGRPCServer(srv))
-	// Also register GokapiService for project setup.
-	pb.RegisterGokapiServiceServer(grpcSrv, NewGRPCServer(srv))
+	// Also register NeokapiService for project setup.
+	pb.RegisterNeokapiServiceServer(grpcSrv, NewGRPCServer(srv))
 
 	go func() {
 		if err := grpcSrv.Serve(lis); err != nil {
@@ -46,8 +46,8 @@ func setupEditorGRPC(t *testing.T) pb.EditorServiceClient {
 	return pb.NewEditorServiceClient(conn)
 }
 
-// gokapiClient returns a GokapiServiceClient on the same connection for test setup.
-func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.GokapiServiceClient) {
+// neokapiClient returns a NeokapiServiceClient on the same connection for test setup.
+func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.NeokapiServiceClient) {
 	t.Helper()
 
 	cfg := DefaultServerConfig()
@@ -58,7 +58,7 @@ func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.GokapiServiceCli
 	lis := bufconn.Listen(bufSize)
 	grpcSrv := grpc.NewServer()
 	pb.RegisterEditorServiceServer(grpcSrv, NewEditorGRPCServer(srv))
-	pb.RegisterGokapiServiceServer(grpcSrv, NewGRPCServer(srv))
+	pb.RegisterNeokapiServiceServer(grpcSrv, NewGRPCServer(srv))
 
 	go func() {
 		if err := grpcSrv.Serve(lis); err != nil {
@@ -76,22 +76,22 @@ func setupBothClients(t *testing.T) (pb.EditorServiceClient, pb.GokapiServiceCli
 	require.NoError(t, err)
 	t.Cleanup(func() { conn.Close() })
 
-	return pb.NewEditorServiceClient(conn), pb.NewGokapiServiceClient(conn)
+	return pb.NewEditorServiceClient(conn), pb.NewNeokapiServiceClient(conn)
 }
 
 func TestEditorGRPCGetBlocks(t *testing.T) {
-	editor, gokapi := setupBothClients(t)
+	editor, neokapi := setupBothClients(t)
 	ctx := context.Background()
 
-	// Create a project with blocks via GokapiService.
-	proj, err := gokapi.CreateProject(ctx, &pb.CreateProjectRequest{
+	// Create a project with blocks via NeokapiService.
+	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
 		Name:          "Editor Test",
 		SourceLocale:  "en",
 		TargetLocales: []string{"fr", "de"},
 	})
 	require.NoError(t, err)
 
-	_, err = gokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
+	_, err = neokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
 		ProjectId: proj.Id,
 		Blocks: []*pb.BlockMessage{
 			{Id: "b1", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}},
@@ -121,18 +121,18 @@ func TestEditorGRPCGetBlocks(t *testing.T) {
 }
 
 func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
-	editor, gokapi := setupBothClients(t)
+	editor, neokapi := setupBothClients(t)
 	ctx := context.Background()
 
 	// Setup project with block.
-	proj, err := gokapi.CreateProject(ctx, &pb.CreateProjectRequest{
+	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
 		Name:          "Update Test",
 		SourceLocale:  "en",
 		TargetLocales: []string{"fr"},
 	})
 	require.NoError(t, err)
 
-	_, err = gokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
+	_, err = neokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
 		ProjectId: proj.Id,
 		Blocks:    []*pb.BlockMessage{{Id: "b1", Source: "Hello"}},
 	})
@@ -158,17 +158,17 @@ func TestEditorGRPCUpdateBlockTarget(t *testing.T) {
 }
 
 func TestEditorGRPCReviewBlock(t *testing.T) {
-	editor, gokapi := setupBothClients(t)
+	editor, neokapi := setupBothClients(t)
 	ctx := context.Background()
 
-	proj, err := gokapi.CreateProject(ctx, &pb.CreateProjectRequest{
+	proj, err := neokapi.CreateProject(ctx, &pb.CreateProjectRequest{
 		Name:          "Review Test",
 		SourceLocale:  "en",
 		TargetLocales: []string{"fr"},
 	})
 	require.NoError(t, err)
 
-	_, err = gokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
+	_, err = neokapi.StoreBlocks(ctx, &pb.StoreBlocksRequest{
 		ProjectId: proj.Id,
 		Blocks:    []*pb.BlockMessage{{Id: "b1", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}}},
 	})

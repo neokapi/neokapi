@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
-	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
+	"github.com/neokapi/neokapi/core/plugin/shared"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"

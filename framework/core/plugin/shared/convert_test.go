@@ -3,8 +3,8 @@ package shared_test
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/shared"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

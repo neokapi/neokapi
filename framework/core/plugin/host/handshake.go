@@ -1,4 +1,4 @@
-// Package host implements the plugin host side of the gokapi plugin system.
+// Package host implements the plugin host side of the neokapi plugin system.
 // It discovers, launches, and communicates with plugin processes using
 // HashiCorp's go-plugin framework over net/rpc.
 package host
@@ -9,12 +9,12 @@ import (
 	"github.com/hashicorp/go-plugin"
 )
 
-// HandshakeConfig is the shared handshake configuration for all gokapi plugins.
+// HandshakeConfig is the shared handshake configuration for all neokapi plugins.
 // Both the host and the plugin process must agree on these values.
 var HandshakeConfig = plugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "GOKAPI_PLUGIN",
-	MagicCookieValue: "gokapi-v1",
+	MagicCookieKey:   "NEOKAPI_PLUGIN",
+	MagicCookieValue: "neokapi-v1",
 }
 
 // FormatReaderPluginName is the plugin type identifier for format readers.

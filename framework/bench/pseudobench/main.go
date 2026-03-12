@@ -36,7 +36,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `PseudoBench — gokapi performance benchmarks
+	fmt.Fprintf(os.Stderr, `PseudoBench — neokapi performance benchmarks
 
 Usage:
   pseudobench generate [flags]    Generate test data files

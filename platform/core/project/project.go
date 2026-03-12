@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 const (

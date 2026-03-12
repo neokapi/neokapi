@@ -100,11 +100,11 @@ export default function TestComparison() {
   return (
     <Layout
       title="Test Comparison"
-      description="Okapi vs gokapi filter test comparison">
+      description="Okapi vs neokapi filter test comparison">
       <main className="container margin-vert--lg">
         <h1>Filter Test Comparison</h1>
         <p>
-          Side-by-side view of Okapi Framework (Java) tests and their gokapi
+          Side-by-side view of Okapi Framework (Java) tests and their neokapi
           bridge and native counterparts.
         </p>
 

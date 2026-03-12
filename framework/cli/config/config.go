@@ -33,7 +33,7 @@ func NewAppConfig() *AppConfig {
 		pluginDir = filepath.Join(configDir, "kapi", "plugins")
 	}
 	v.SetDefault("plugins.directory", pluginDir)
-	v.SetDefault("plugins.registry", "https://gokapi.github.io/registry/plugins.json")
+	v.SetDefault("plugins.registry", "https://neokapi.github.io/registry/plugins.json")
 
 	return &AppConfig{v: v}
 }
@@ -126,8 +126,8 @@ type RegistryEntry struct {
 	Channels []string `yaml:"channels,omitempty" json:"channels,omitempty"`
 }
 
-// DefaultRegistryURL is the official gokapi plugin registry.
-const DefaultRegistryURL = "https://gokapi.github.io/registry/plugins.json"
+// DefaultRegistryURL is the official neokapi plugin registry.
+const DefaultRegistryURL = "https://neokapi.github.io/registry/plugins.json"
 
 // Registries returns the configured list of plugin registries.
 // If the "registries" key is set, those entries are returned.

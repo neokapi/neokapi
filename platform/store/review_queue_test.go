@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	platstore "github.com/gokapi/gokapi/platform/store"
-	"github.com/gokapi/gokapi/core/model"
+	platstore "github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *SQLiteStore) {

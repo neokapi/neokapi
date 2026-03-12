@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/providers/mt"
-	mttools "github.com/gokapi/gokapi/core/mt/tools"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/providers/mt"
+	mttools "github.com/neokapi/neokapi/core/mt/tools"
+	"github.com/neokapi/neokapi/core/tool"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

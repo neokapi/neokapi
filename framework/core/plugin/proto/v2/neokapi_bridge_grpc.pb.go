@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.0
-// source: core/plugin/proto/v2/gokapi_bridge.proto
+// source: core/plugin/proto/v2/neokapi_bridge.proto
 
 package bridgev2
 
@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BridgeService_Info_FullMethodName        = "/gokapi.bridge.v2.BridgeService/Info"
-	BridgeService_ListFilters_FullMethodName = "/gokapi.bridge.v2.BridgeService/ListFilters"
-	BridgeService_Open_FullMethodName        = "/gokapi.bridge.v2.BridgeService/Open"
-	BridgeService_Read_FullMethodName        = "/gokapi.bridge.v2.BridgeService/Read"
-	BridgeService_Write_FullMethodName       = "/gokapi.bridge.v2.BridgeService/Write"
-	BridgeService_Close_FullMethodName       = "/gokapi.bridge.v2.BridgeService/Close"
-	BridgeService_Shutdown_FullMethodName    = "/gokapi.bridge.v2.BridgeService/Shutdown"
-	BridgeService_RoundTrip_FullMethodName   = "/gokapi.bridge.v2.BridgeService/RoundTrip"
+	BridgeService_Info_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Info"
+	BridgeService_ListFilters_FullMethodName = "/neokapi.bridge.v2.BridgeService/ListFilters"
+	BridgeService_Open_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Open"
+	BridgeService_Read_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Read"
+	BridgeService_Write_FullMethodName       = "/neokapi.bridge.v2.BridgeService/Write"
+	BridgeService_Close_FullMethodName       = "/neokapi.bridge.v2.BridgeService/Close"
+	BridgeService_Shutdown_FullMethodName    = "/neokapi.bridge.v2.BridgeService/Shutdown"
+	BridgeService_RoundTrip_FullMethodName   = "/neokapi.bridge.v2.BridgeService/RoundTrip"
 )
 
 // BridgeServiceClient is the client API for BridgeService service.
@@ -376,7 +376,7 @@ type BridgeService_RoundTripServer = grpc.BidiStreamingServer[RoundTripRequest, 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var BridgeService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "gokapi.bridge.v2.BridgeService",
+	ServiceName: "neokapi.bridge.v2.BridgeService",
 	HandlerType: (*BridgeServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -418,5 +418,5 @@ var BridgeService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "core/plugin/proto/v2/gokapi_bridge.proto",
+	Metadata: "core/plugin/proto/v2/neokapi_bridge.proto",
 }

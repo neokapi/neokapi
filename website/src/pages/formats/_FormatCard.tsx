@@ -20,7 +20,7 @@ function buildYaml(
 ): string {
   const kind = `${pascalCase(formatId)}FormatConfig`;
   const lines = [
-    `apiVersion: gokapi/v1`,
+    `apiVersion: neokapi/v1`,
     `kind: ${kind}`,
     `metadata:`,
     `  name: ${formatId}`,

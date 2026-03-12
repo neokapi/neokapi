@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	platauth "github.com/gokapi/gokapi/platform/auth"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -1,4 +1,4 @@
-@import "@gokapi/ui/styles/globals.css";
+@import "@neokapi/ui/styles/globals.css";
 
 /* Ensure Tailwind scans shadcn-glass-ui dist for runtime class names (pl-10, left-2.5, etc.) */
 @source "../../../../../node_modules/shadcn-glass-ui/dist";

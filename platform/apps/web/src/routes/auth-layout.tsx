@@ -1,5 +1,5 @@
 import { Outlet } from "@tanstack/react-router";
-import { AnimatedBackgroundGlass } from "@gokapi/ui";
+import { AnimatedBackgroundGlass } from "@neokapi/ui";
 
 /** Auth layout — renders auth pages without sidebar/workspace chrome. */
 export function AuthLayout() {

@@ -3,7 +3,7 @@ package config
 import "strings"
 
 // Envelope is a k8s-style versioned configuration wrapper.
-// All gokapi config files (format configs, presets, flows, project configs)
+// All neokapi config files (format configs, presets, flows, project configs)
 // use this structure for schema versioning and cross-format transformation.
 type Envelope struct {
 	APIVersion string         `json:"apiVersion" yaml:"apiVersion"`

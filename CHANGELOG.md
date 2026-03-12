@@ -46,8 +46,8 @@
 - **Webhook delivery**: HMAC-SHA256 signed webhooks with retry and exponential backoff
 
 ### gRPC Server (Phase 3.3)
-- **Proto definitions**: `proto/v1/gokapi_service.proto` with streaming RPCs
-- **GokapiService**: Full gRPC server with project CRUD, block streaming, versions, connectors, flow execution, and event subscription
+- **Proto definitions**: `proto/v1/neokapi_service.proto` with streaming RPCs
+- **NeokapiService**: Full gRPC server with project CRUD, block streaming, versions, connectors, flow execution, and event subscription
 - **Concurrent servers**: REST and gRPC servers start concurrently with `--grpc-port` flag
 
 ### Bowrain Integration (Phase 5)

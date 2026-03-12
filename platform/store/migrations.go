@@ -1,6 +1,6 @@
 package store
 
-import "github.com/gokapi/gokapi/bowrain/storage"
+import "github.com/neokapi/neokapi/bowrain/storage"
 
 var storeMigrations = []storage.Migration{
 	{

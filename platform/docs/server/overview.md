@@ -105,7 +105,7 @@ For solo work or local-only workflows, use **Kapi CLI** instead — no server re
 docker run -p 8080:8080 \
   -e DATABASE_URL=postgres://... \
   -e OIDC_ISSUER=https://dex.example.com \
-  ghcr.io/gokapi/bowrain-server:latest
+  ghcr.io/neokapi/bowrain-server:latest
 ```
 
 ### Kubernetes
@@ -113,7 +113,7 @@ docker run -p 8080:8080 \
 Helm chart for production deployments:
 
 ```bash
-helm install bowrain gokapi/bowrain-server \
+helm install bowrain neokapi/bowrain-server \
   --set database.url=postgres://... \
   --set oidc.issuer=https://dex.example.com
 ```

@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	platev "github.com/gokapi/gokapi/platform/event"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // WebhookConfig configures a webhook delivery endpoint.
@@ -57,8 +57,8 @@ func (w *WebhookDelivery) Deliver(event platev.Event) error {
 			return fmt.Errorf("create request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("X-Gokapi-Signature", signature)
-		req.Header.Set("X-Gokapi-Event", string(event.Type))
+		req.Header.Set("X-Neokapi-Signature", signature)
+		req.Header.Set("X-Neokapi-Event", string(event.Type))
 
 		resp, err := w.client.Do(req)
 		if err != nil {

@@ -7,7 +7,7 @@ package filters
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
+	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

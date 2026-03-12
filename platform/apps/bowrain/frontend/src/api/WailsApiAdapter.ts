@@ -1,4 +1,4 @@
-import type { ApiAdapter } from "@gokapi/ui";
+import type { ApiAdapter } from "@neokapi/ui";
 import type {
   User, Workspace, Membership, ProjectInfo, ConfigResponse,
   BlockInfo, UpdateBlockRequest, UpdateBlockTargetCodedRequest,
@@ -13,11 +13,11 @@ import type {
   AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
   NotificationInfo, EntityInfo,
   StreamInfo, StreamDiffResult, StreamMergeResult,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
+import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
 
 /**
  * ApiAdapter implementation for the Bowrain desktop app.

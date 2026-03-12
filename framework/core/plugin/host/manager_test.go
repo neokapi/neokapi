@@ -3,10 +3,10 @@ package host
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/shared"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/hashicorp/go-plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,8 +15,8 @@ import (
 func TestHandshakeConfig(t *testing.T) {
 	// Verify handshake values match between host and what plugin servers expect.
 	assert.Equal(t, uint(1), HandshakeConfig.ProtocolVersion)
-	assert.Equal(t, "GOKAPI_PLUGIN", HandshakeConfig.MagicCookieKey)
-	assert.Equal(t, "gokapi-v1", HandshakeConfig.MagicCookieValue)
+	assert.Equal(t, "NEOKAPI_PLUGIN", HandshakeConfig.MagicCookieKey)
+	assert.Equal(t, "neokapi-v1", HandshakeConfig.MagicCookieValue)
 }
 
 func TestPluginMap(t *testing.T) {
@@ -74,9 +74,9 @@ func TestPluginBaseName(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"/usr/local/bin/gokapi-plugin-csv", "csv"},
-		{"/opt/plugins/gokapi-plugin-xliff-reader", "xliff-reader"},
-		{"gokapi-plugin-json", "json"},
+		{"/usr/local/bin/neokapi-plugin-csv", "csv"},
+		{"/opt/plugins/neokapi-plugin-xliff-reader", "xliff-reader"},
+		{"neokapi-plugin-json", "json"},
 		{"other-binary", "other-binary"},
 	}
 	for _, tt := range tests {

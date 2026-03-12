@@ -36,7 +36,7 @@ type SkeletonStore struct {
 
 // NewSkeletonStore creates a new skeleton store backed by a temporary file.
 func NewSkeletonStore() (*SkeletonStore, error) {
-	f, err := os.CreateTemp("", "gokapi-skeleton-*")
+	f, err := os.CreateTemp("", "neokapi-skeleton-*")
 	if err != nil {
 		return nil, fmt.Errorf("skeleton store: create temp: %w", err)
 	}

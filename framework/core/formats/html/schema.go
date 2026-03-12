@@ -1,6 +1,6 @@
 package html
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the HTML format's parameters.
 // The schema mirrors the okf_html bridge schema structure so that presets

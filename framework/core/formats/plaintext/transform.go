@@ -1,6 +1,6 @@
 package plaintext
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiPlaintextTransformer converts OkfPlaintextFilterConfig specs to
 // PlaintextFormatConfig. The native plaintext format supports the same

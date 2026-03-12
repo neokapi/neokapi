@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	platstore "github.com/gokapi/gokapi/platform/store"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // MaxChangesPerRequest is the maximum number of change entries returned per query.

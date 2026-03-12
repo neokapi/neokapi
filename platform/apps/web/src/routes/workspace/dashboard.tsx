@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { ProjectDashboard, useApi, type ProjectInfo } from "@gokapi/ui";
+import { ProjectDashboard, useApi, type ProjectInfo } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 

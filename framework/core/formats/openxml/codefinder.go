@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // codeFinder wraps text matching regex patterns as placeholder spans.

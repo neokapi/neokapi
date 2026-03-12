@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { TermExplorer, useWorkspace, GlassCard } from "@gokapi/ui";
+import { TermExplorer, useWorkspace, GlassCard } from "@neokapi/ui";
 
 export function TermbaseRoute() {
   const navigate = useNavigate();

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // PendingChange represents a queued mutation that couldn't be sent to the server.

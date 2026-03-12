@@ -5,12 +5,12 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 import { Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import type { ConnectionInfo } from "../hooks/useApi";
 
 // @ts-ignore – generated .js bindings outside the TS project root
-import * as Backend from "../../bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js";
+import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
 
 const FALLBACK_DEFAULT_URL = "https://bowrain.mymac";
 

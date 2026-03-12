@@ -1,4 +1,4 @@
-# gokapi: Test Strategy
+# neokapi: Test Strategy
 
 ## Table of Contents
 - [Principles](#principles)
@@ -29,7 +29,7 @@ The project has two Go modules. Framework tests run from the root, platform
 tests run from `bowrain/`. Both are exercised by `make test`.
 
 ```
-gokapi/                              ── Framework Module Tests ──
+neokapi/                              ── Framework Module Tests ──
 ├── model/
 │   ├── block_test.go                # Block creation, source/target segment management
 │   ├── layer_test.go                # Layer nesting, embedded content, format association
@@ -217,7 +217,7 @@ await waitFor(() => expect(...));
 ```tsx
 act(() => screen.getByTestId("set-dark").click());
 expect(document.documentElement.dataset.theme).toBe("dark");
-expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+expect(localStorage.getItem("neokapi-theme")).toBe("dark");
 ```
 
 #### Adding a New Unit Test
@@ -379,7 +379,7 @@ public void testSimpleHtml() {
 }
 ```
 
-**Go (gokapi):**
+**Go (neokapi):**
 ```go
 func TestSimpleHTML(t *testing.T) {
     input := `<html><body><p>Hello</p></body></html>`
@@ -623,7 +623,7 @@ func TestEndToEndHTML(t *testing.T) {
 
 func TestPluginRoundTrip(t *testing.T) {
     // Build example CSV plugin
-    exec.Command("go", "build", "-o", "testplugins/gokapi-format-csv",
+    exec.Command("go", "build", "-o", "testplugins/neokapi-format-csv",
         "./examples/plugin-format-csv").Run()
 
     // Load plugin

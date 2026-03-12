@@ -5,7 +5,7 @@ import (
 	"maps"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // BuildBlockIndex creates a BlockIndex from a Part stream.

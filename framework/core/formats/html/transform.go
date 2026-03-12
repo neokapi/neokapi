@@ -1,6 +1,6 @@
 package html
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiHTMLTransformer converts OkfHtmlFilterConfig specs to HtmlFormatConfig.
 // It keeps shared parameters (parser, elements, attributes, codeFinder) and

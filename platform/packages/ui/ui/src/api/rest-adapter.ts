@@ -16,7 +16,7 @@ import type {
 } from "../types/api";
 
 /**
- * RestApiAdapter talks to the gokapi REST server.
+ * RestApiAdapter talks to the neokapi REST server.
  * Used by the web apps (apps/web and apps/kapi-web).
  *
  * Supports two auth modes:

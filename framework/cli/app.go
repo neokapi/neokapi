@@ -1,4 +1,4 @@
-// Package cli provides a shared CLI base for gokapi CLI tools.
+// Package cli provides a shared CLI base for neokapi CLI tools.
 // Both kapi and bowrain build on this package, selecting which commands to expose.
 package cli
 
@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	gokapiconfig "github.com/gokapi/gokapi/core/config"
-	"github.com/gokapi/gokapi/core/format/schema"
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/plugin/loader"
-	"github.com/gokapi/gokapi/core/registry"
-	"github.com/gokapi/gokapi/cli/output"
-	"github.com/gokapi/gokapi/cli/config"
+	neokapiconfig "github.com/neokapi/neokapi/core/config"
+	"github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/spf13/cobra"
 )
 
@@ -75,7 +75,7 @@ func (a *App) Init() {
 	a.FormatReg.CollectNativeSchemas(a.SchemaReg)
 
 	// Register config envelope decoders for all native formats.
-	a.FormatReg.CollectNativeDecoders(gokapiconfig.DefaultRegistry)
+	a.FormatReg.CollectNativeDecoders(neokapiconfig.DefaultRegistry)
 
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()

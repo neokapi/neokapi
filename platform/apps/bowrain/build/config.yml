@@ -1,11 +1,11 @@
 version: '3'
 
 info:
-  companyName: "gokapi"
+  companyName: "neokapi"
   productName: "Bowrain"
-  productIdentifier: "io.github.gokapi.bowrain"
-  description: "Localization Workbench - powered by gokapi"
-  copyright: "(c) 2025, gokapi"
+  productIdentifier: "io.github.neokapi.bowrain"
+  description: "Localization Workbench - powered by neokapi"
+  copyright: "(c) 2025, neokapi"
   comments: "AI-native translation editor"
   version: "0.1.0"
 

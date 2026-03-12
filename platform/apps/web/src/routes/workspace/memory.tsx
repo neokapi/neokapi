@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
-import { TMExplorer, useWorkspace, GlassCard } from "@gokapi/ui";
+import { TMExplorer, useWorkspace, GlassCard } from "@neokapi/ui";
 
 export function MemoryRoute() {
   const navigate = useNavigate();

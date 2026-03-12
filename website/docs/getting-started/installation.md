@@ -10,18 +10,18 @@ Install the `kapi` CLI for standalone file processing.
 ## Homebrew (macOS/Linux)
 
 ```bash
-brew install gokapi/tap/kapi
+brew install neokapi/tap/kapi
 ```
 
 ## Go Install
 
 ```bash
-go install github.com/gokapi/gokapi/kapi/cmd/kapi@latest
+go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
 ```
 
 ## Binary Downloads
 
-Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/gokapi/gokapi/releases) page:
+Pre-built binaries for all platforms are available on the [GitHub Releases](https://github.com/neokapi/neokapi/releases) page:
 
 - Linux (amd64, arm64)
 - macOS (amd64, arm64)
@@ -30,8 +30,8 @@ Pre-built binaries for all platforms are available on the [GitHub Releases](http
 ## Building from Source
 
 ```bash
-git clone https://github.com/gokapi/gokapi.git
-cd gokapi
+git clone https://github.com/neokapi/neokapi.git
+cd neokapi
 make build       # Build kapi CLI → bin/kapi
 ```
 

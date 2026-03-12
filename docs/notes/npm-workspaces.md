@@ -28,29 +28,29 @@ Note that `bowrain/apps/keycloak-theme` is intentionally excluded from the works
 
 | Project | Package Name | Purpose | Key Dependencies |
 |---------|-------------|---------|-----------------|
-| `packages/ui` | `@gokapi/ui` | Shared React component library | shadcn-glass-ui, Tailwind v4, Radix UI |
-| `bowrain/apps/web` | `gokapi-web` | SaaS web UI (bowrain-server) | React 19, Lexical, Tailwind v4 |
-| `kapi/apps/kapi-web` | `gokapi-kapi-web` | Kapi serve web UI | React 19, Lexical, Tailwind v4 |
+| `packages/ui` | `@neokapi/ui` | Shared React component library | shadcn-glass-ui, Tailwind v4, Radix UI |
+| `bowrain/apps/web` | `neokapi-web` | SaaS web UI (bowrain-server) | React 19, Lexical, Tailwind v4 |
+| `kapi/apps/kapi-web` | `neokapi-kapi-web` | Kapi serve web UI | React 19, Lexical, Tailwind v4 |
 | `bowrain/apps/bowrain/frontend` | `bowrain` | Wails v3 desktop app frontend | React 19, Wails runtime, XYFlow, Lexical |
 
-All four projects share React 19, Tailwind CSS v4, and TypeScript 5.8+. The three app projects consume `@gokapi/ui` through Vite path aliases rather than npm package resolution.
+All four projects share React 19, Tailwind CSS v4, and TypeScript 5.8+. The three app projects consume `@neokapi/ui` through Vite path aliases rather than npm package resolution.
 
-## @gokapi/ui Consumption Pattern
+## @neokapi/ui Consumption Pattern
 
-Rather than publishing `@gokapi/ui` as an npm package or using workspace protocol references, each app project resolves it through a Vite alias:
+Rather than publishing `@neokapi/ui` as an npm package or using workspace protocol references, each app project resolves it through a Vite alias:
 
 ```ts
 // vite.config.ts — bowrain/apps/web and kapi/apps/kapi-web (3 levels up)
 resolve: {
   alias: {
-    "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
+    "@neokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
   },
 },
 
 // vite.config.ts — bowrain/apps/bowrain/frontend (4 levels up)
 resolve: {
   alias: {
-    "@gokapi/ui": path.resolve(__dirname, "../../../../packages/ui/src"),
+    "@neokapi/ui": path.resolve(__dirname, "../../../../packages/ui/src"),
   },
 },
 ```
@@ -59,7 +59,7 @@ This means:
 - Apps import directly from TypeScript source, not compiled output
 - No separate build step for the UI package in development
 - Changes to `packages/ui` are reflected immediately in Vite dev mode
-- TypeScript compilation of `@gokapi/ui` happens as part of each app's build
+- TypeScript compilation of `@neokapi/ui` happens as part of each app's build
 
 However, for production builds, `packages/ui` must have its TypeScript declarations compiled first via `npx tsc` to ensure type checking passes.
 

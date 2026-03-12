@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
-	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/core/model"
-	platstore "github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // PostgresStore implements ContentStore using PostgreSQL.

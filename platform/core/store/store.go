@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ContentStore is the primary persistence interface for localization content.

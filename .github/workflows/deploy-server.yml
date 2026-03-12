@@ -81,20 +81,20 @@ jobs:
     needs: [image-tag, build]
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+      GH_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
     steps:
       - name: Deploy server
         run: |
           gh workflow run deploy-server.yml \
-            --repo gokapi/bowrain-infra \
+            --repo neokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
             -f imageTag="$IMAGE_TAG"
 
       - name: Deploy worker
         run: |
           gh workflow run deploy-worker.yml \
-            --repo gokapi/bowrain-infra \
+            --repo neokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
             -f imageTag="$IMAGE_TAG"

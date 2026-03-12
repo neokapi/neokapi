@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tools"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tools"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

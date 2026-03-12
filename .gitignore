@@ -18,7 +18,7 @@ Thumbs.db
 vendor/
 
 # Plugin binaries
-gokapi-plugin-*
+neokapi-plugin-*
 *.exe
 
 # Okapi filter test data (fetched from GitHub release)

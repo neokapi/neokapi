@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // QuotaStore tracks AI token usage per workspace and project.

@@ -1,10 +1,10 @@
-# gokapi
+# neokapi
 
-[![CI](https://github.com/gokapi/gokapi/actions/workflows/ci.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/ci.yml)
-[![Screenshots & Recordings](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/screenshots-recordings.yml)
-[![Docs](https://github.com/gokapi/gokapi/actions/workflows/docs.yml/badge.svg)](https://github.com/gokapi/gokapi/actions/workflows/docs.yml)
+[![CI](https://github.com/neokapi/neokapi/actions/workflows/ci.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/ci.yml)
+[![Screenshots & Recordings](https://github.com/neokapi/neokapi/actions/workflows/screenshots-recordings.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/screenshots-recordings.yml)
+[![Docs](https://github.com/neokapi/neokapi/actions/workflows/docs.yml/badge.svg)](https://github.com/neokapi/neokapi/actions/workflows/docs.yml)
 
-> **Experimental:** Gokapi is an ongoing experiment and should not be used in production.
+> **Experimental:** Neokapi is an ongoing experiment and should not be used in production.
 
 An AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) in Go. Format-aware document parsing, channel-based concurrent processing, and pluggable tools for localization and translation.
 
@@ -13,11 +13,11 @@ An AI-native reimagining of the [Okapi Framework](https://okapiframework.org/) i
 **Homebrew:**
 
 ```bash
-brew install --cask gokapi/tap/kapi      # CLI
-brew install --cask gokapi/tap/bowrain    # Desktop app (macOS)
+brew install --cask neokapi/tap/kapi      # CLI
+brew install --cask neokapi/tap/bowrain    # Desktop app (macOS)
 ```
 
-Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://github.com/gokapi/gokapi/releases) page.
+Pre-built binaries for Linux, macOS, and Windows are on the [Releases](https://github.com/neokapi/neokapi/releases) page.
 
 ## Repository Layout
 

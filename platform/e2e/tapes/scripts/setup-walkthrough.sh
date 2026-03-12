@@ -7,7 +7,7 @@ set -e
 
 WALKTHROUGH_DIR="$(mktemp -d)/bowrain-example-docusaurus"
 
-git clone -q https://github.com/gokapi/bowrain-example-docusaurus.git "$WALKTHROUGH_DIR"
+git clone -q https://github.com/neokapi/bowrain-example-docusaurus.git "$WALKTHROUGH_DIR"
 cd "$WALKTHROUGH_DIR"
 git config user.email "alex@example.com"
 git config user.name "Alex Developer"

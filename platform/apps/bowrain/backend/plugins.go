@@ -3,10 +3,10 @@ package backend
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/plugin/registry"
+	"github.com/neokapi/neokapi/core/plugin/registry"
 )
 
-const defaultRegistryURL = "https://gokapi.github.io/registry/plugins.json"
+const defaultRegistryURL = "https://neokapi.github.io/registry/plugins.json"
 
 // Capability describes a specific format or tool provided by a plugin.
 type Capability struct {

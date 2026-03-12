@@ -17,7 +17,7 @@ async function setTheme(page: any, theme: "dark" | "light") {
   await page.evaluate((t: string) => {
     const isDark = t === "dark";
     document.documentElement.classList.toggle("dark", isDark);
-    localStorage.setItem("gokapi-theme", t);
+    localStorage.setItem("neokapi-theme", t);
   }, theme);
   await page.waitForTimeout(100);
 }

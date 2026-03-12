@@ -1,7 +1,7 @@
 export interface TestComparisonData {
   generatedAt: string;
   okapiVersion: string;
-  gokapiVersion: string;
+  neokapiVersion: string;
   goCommitSHA?: string;
   okapiTag?: string;
   filters: FilterComparison[];
@@ -21,8 +21,8 @@ export interface Summary {
   totalFuncsNative?: number;
   categoryCounts?: Record<string, number>;
   // Backward compat (old JSON may have these)
-  totalFiltersGokapi?: number;
-  totalTestsGokapi?: number;
+  totalFiltersNeokapi?: number;
+  totalTestsNeokapi?: number;
 }
 
 export interface FilterComparison {
@@ -34,7 +34,7 @@ export interface FilterComparison {
   testCases: TestCaseRow[];
   coverage: CoverageStats | null;
   // Backward compat (old JSON may have this)
-  gokapi?: FilterResult | null;
+  neokapi?: FilterResult | null;
 }
 
 export interface FilterResult {
@@ -137,7 +137,7 @@ export interface TestCaseRow {
   bridgeTest: string;
   /** Bridge status or empty string. */
   bridgeStatus: string;
-  /** Bridge test source file path (relative to gokapi repo root). */
+  /** Bridge test source file path (relative to neokapi repo root). */
   bridgeFile?: string;
   /** Bridge test source line number (1-based). */
   bridgeLine?: number;
@@ -145,7 +145,7 @@ export interface TestCaseRow {
   nativeTest: string;
   /** Native status or empty string. */
   nativeStatus: string;
-  /** Native test source file path (relative to gokapi repo root). */
+  /** Native test source file path (relative to neokapi repo root). */
   nativeFile?: string;
   /** Native test source line number (1-based). */
   nativeLine?: number;
@@ -205,7 +205,7 @@ export interface CoverageStats {
  * otherwise from raw suite data.
  */
 export function normalizeFilter(f: FilterComparison): FilterComparison {
-  const bridge = f.bridge ?? f.gokapi ?? null;
+  const bridge = f.bridge ?? f.neokapi ?? null;
   const native = f.native ?? null;
 
   // If the Go tool provided annotation-based testCases, convert them.
@@ -327,8 +327,8 @@ function shortClass(fqn: string): string {
 export function normalizeSummary(s: Summary): Summary {
   return {
     ...s,
-    totalFiltersBridge: s.totalFiltersBridge ?? s.totalFiltersGokapi ?? 0,
-    totalTestsBridge: s.totalTestsBridge ?? s.totalTestsGokapi ?? 0,
+    totalFiltersBridge: s.totalFiltersBridge ?? s.totalFiltersNeokapi ?? 0,
+    totalTestsBridge: s.totalTestsBridge ?? s.totalTestsNeokapi ?? 0,
     totalFiltersNative: s.totalFiltersNative ?? 0,
     totalTestsNative: s.totalTestsNative ?? 0,
     totalFuncsBridge: s.totalFuncsBridge,

@@ -15,8 +15,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/ai/ner"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/ai/ner"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 const (

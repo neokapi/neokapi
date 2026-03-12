@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/editor"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/editor"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/labstack/echo/v4"
 )
 

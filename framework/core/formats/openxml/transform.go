@@ -1,6 +1,6 @@
 package openxml
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiOpenXMLTransformer converts OkfOpenxmlFilterConfig specs to OpenxmlFormatConfig.
 //

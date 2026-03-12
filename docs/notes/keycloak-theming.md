@@ -49,7 +49,7 @@ keycloak-theme: ui-deps  ## Build Keycloak login theme JAR
 	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run build-keycloak-theme
 ```
 
-Note that `keycloak-theme` depends on `ui-deps` because the theme imports components from `@gokapi/ui`.
+Note that `keycloak-theme` depends on `ui-deps` because the theme imports components from `@neokapi/ui`.
 
 ## Vite Configuration
 
@@ -65,7 +65,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@gokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
+      "@neokapi/ui": path.resolve(__dirname, "../../../packages/ui/src"),
     },
   },
 });
@@ -74,7 +74,7 @@ export default defineConfig({
 Key points:
 - `themeName: "bowrain"` -- the theme is registered in Keycloak under this name
 - `accountThemeImplementation: "none"` -- only the login theme is customized; the account management pages use Keycloak defaults
-- The `@gokapi/ui` alias points to the shared UI package source for direct TypeScript consumption
+- The `@neokapi/ui` alias points to the shared UI package source for direct TypeScript consumption
 
 ## doUseDefaultCss=false
 
@@ -118,7 +118,7 @@ All pages render inside an `AnimatedBackgroundGlass` component for the floating-
 
 ### Login Page
 
-Uses `@gokapi/ui` components (`Card`, `Button`, `Input`, `Label`) with the `glass-surface` class for backdrop blur. Features:
+Uses `@neokapi/ui` components (`Card`, `Button`, `Input`, `Label`) with the `glass-surface` class for backdrop blur. Features:
 - Email/username + password form
 - "Remember me" checkbox (conditional on realm config)
 - Password reset link
@@ -138,7 +138,7 @@ Minimal card displaying the error message with an optional "Back to Application"
 Keycloakify's CSS processing can strip or reorder `@layer` blocks, which causes `shadcn-glass-ui` tokens (defined inside layers) to be lost. The `main.css` file works around this by re-declaring all required tokens in `:root` outside any layer:
 
 ```css
-@import "@gokapi/ui/styles/globals.css";
+@import "@neokapi/ui/styles/globals.css";
 @source "../../../../../node_modules/shadcn-glass-ui/dist";
 
 :root {

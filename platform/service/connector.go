@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/connector"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // ConnectorService manages connectors and orchestrates fetch/publish operations.

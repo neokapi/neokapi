@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
 
-	pgtm "github.com/gokapi/gokapi/bowrain/sievepen"
-	storage "github.com/gokapi/gokapi/bowrain/storage"
+	pgtm "github.com/neokapi/neokapi/bowrain/sievepen"
+	storage "github.com/neokapi/neokapi/bowrain/storage"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

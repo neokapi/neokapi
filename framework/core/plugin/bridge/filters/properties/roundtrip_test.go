@@ -5,7 +5,7 @@ package properties
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/plugin/bridge/filters/bridgetest"
+	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 )
 
 // okapi: PropertiesFilterTest#testDoubleExtraction

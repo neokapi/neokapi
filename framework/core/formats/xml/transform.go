@@ -1,6 +1,6 @@
 package xml
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiXMLTransformer converts OkfXmlFilterConfig and OkfXmlstreamFilterConfig
 // specs to XmlFormatConfig.

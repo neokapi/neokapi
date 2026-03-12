@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/id"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/zalando/go-keyring"
 )
 

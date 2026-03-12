@@ -1,6 +1,6 @@
 package po
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiPOTransformer converts okf_po filter config specs to native PO format config.
 // The PO filter has few config parameters, so most Okapi-only params are dropped.

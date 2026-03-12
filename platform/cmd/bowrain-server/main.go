@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
-	"github.com/gokapi/gokapi/bowrain/server"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/bowrain/server"
 	"google.golang.org/grpc"
 )
 
@@ -113,7 +113,7 @@ func main() {
 		)
 	}
 	grpcSrv := grpc.NewServer(grpcOpts...)
-	pb.RegisterGokapiServiceServer(grpcSrv, server.NewGRPCServer(srv))
+	pb.RegisterNeokapiServiceServer(grpcSrv, server.NewGRPCServer(srv))
 	pb.RegisterEditorServiceServer(grpcSrv, server.NewEditorGRPCServer(srv))
 	srv.GRPCServer = grpcSrv
 

@@ -4,7 +4,7 @@ import type { KcContext } from "./KcContext";
 import { useI18n } from "./i18n";
 import DefaultPage from "keycloakify/login/DefaultPage";
 import Template from "keycloakify/login/Template";
-import { AnimatedBackgroundGlass } from "@gokapi/ui/components/ui/animated-background";
+import { AnimatedBackgroundGlass } from "@neokapi/ui/components/ui/animated-background";
 import "./main.css";
 
 const Login = lazy(() => import("./pages/Login"));

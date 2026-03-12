@@ -3,7 +3,7 @@ package format
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // DataFormatReader reads a document and produces a stream of Parts.

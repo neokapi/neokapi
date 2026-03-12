@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	platauth "github.com/gokapi/gokapi/platform/auth"
-	"github.com/gokapi/gokapi/platform/store"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

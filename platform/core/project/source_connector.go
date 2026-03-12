@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/registry"
-	apiclient "github.com/gokapi/gokapi/platform/client"
-	"github.com/gokapi/gokapi/platform/config"
-	"github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/registry"
+	apiclient "github.com/neokapi/neokapi/platform/client"
+	"github.com/neokapi/neokapi/platform/config"
+	"github.com/neokapi/neokapi/platform/connector"
 )
 
 // BowrainSourceConnector implements connector.SourceConnector for local bowrain-cli projects.

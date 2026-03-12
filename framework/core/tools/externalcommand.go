@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // Property keys for external command results.

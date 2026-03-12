@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/flow"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/tools"
+	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

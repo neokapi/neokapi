@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	platstore "github.com/gokapi/gokapi/platform/store"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // GetBlockHistory returns history entries for a block in a specific locale.

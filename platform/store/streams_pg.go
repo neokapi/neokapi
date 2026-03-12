@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	platstore "github.com/gokapi/gokapi/platform/store"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 // ---------------------------------------------------------------------------

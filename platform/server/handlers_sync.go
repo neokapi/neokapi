@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/jobs"
-	"github.com/gokapi/gokapi/core/model"
-	apiclient "github.com/gokapi/gokapi/platform/client"
-	platev "github.com/gokapi/gokapi/platform/event"
-	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/bowrain/jobs"
+	"github.com/neokapi/neokapi/core/model"
+	apiclient "github.com/neokapi/neokapi/platform/client"
+	platev "github.com/neokapi/neokapi/platform/event"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

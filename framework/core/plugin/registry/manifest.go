@@ -96,7 +96,7 @@ type PluginManifest struct {
 	// DownloadURL is the URL to download the plugin binary.
 	DownloadURL string `json:"download_url"`
 
-	// MinHostVersion is the minimum gokapi version required to run this plugin.
+	// MinHostVersion is the minimum neokapi version required to run this plugin.
 	MinHostVersion string `json:"min_host_version,omitempty"`
 
 	// Capabilities lists the fine-grained capabilities this plugin provides.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/labstack/echo/v4"
 )
 

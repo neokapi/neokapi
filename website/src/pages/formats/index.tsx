@@ -33,7 +33,7 @@ export default function Formats() {
   return (
     <Layout
       title="Format Reference"
-      description="Interactive reference for all gokapi built-in formats with configurable parameters">
+      description="Interactive reference for all neokapi built-in formats with configurable parameters">
       <main className="container margin-vert--lg">
         <h1>Format Reference</h1>
         <p>

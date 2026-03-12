@@ -7,9 +7,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
-	pb "github.com/gokapi/gokapi/core/plugin/proto/v2"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
+	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

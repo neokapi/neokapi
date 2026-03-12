@@ -45,7 +45,7 @@ jobs:
           file: docker/keycloak/Dockerfile
           push: true
           tags: |
-            ghcr.io/gokapi/bowrain-keycloak:${{ inputs.image-tag }}
-            ghcr.io/gokapi/bowrain-keycloak:latest
+            ghcr.io/neokapi/bowrain-keycloak:${{ inputs.image-tag }}
+            ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
           cache-to: type=gha,mode=max,scope=bowrain-keycloak

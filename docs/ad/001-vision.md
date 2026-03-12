@@ -7,31 +7,31 @@ title: "AD-001: Vision — The Open Localization Platform"
 
 ## Vision
 
-**gokapi** is an open-source localization framework in Go, licensed under
+**neokapi** is an open-source localization framework in Go, licensed under
 Apache 2.0. It provides format-aware document parsing, a channel-based
 concurrent processing engine, and composable tools for translation, quality
-assurance, terminology management, and review. gokapi is the foundation — a
+assurance, terminology management, and review. neokapi is the foundation — a
 library and toolkit with zero platform dependencies. As the Apache-licensed
-core, gokapi is the primary vehicle for driving open localization innovation,
+core, neokapi is the primary vehicle for driving open localization innovation,
 including format support, processing tools, and AI integration.
 
-**Bowrain** is a localization platform built on gokapi. It adds a versioned
+**Bowrain** is a localization platform built on neokapi. It adds a versioned
 content store, bidirectional connectors to live systems (CMS, design tools,
 code repositories, marketing platforms), event-driven automation, multi-user
 workspaces, and collaborative editing. Content flows into the store, gets
-processed by gokapi's composable tools, and flows back to its source system.
+processed by neokapi's composable tools, and flows back to its source system.
 Bowrain is dual-licensed under AGPL and a commercial license, available as a
 SaaS offering or for open-source self-hosting.
 
-**The boundary:** gokapi handles content models, format parsing, tool
+**The boundary:** neokapi handles content models, format parsing, tool
 execution, and pipeline orchestration. Bowrain handles persistence, sync,
-connectors, authentication, and multi-user collaboration. gokapi has no
-database, no server, no authentication. Bowrain depends on gokapi but not
+connectors, authentication, and multi-user collaboration. neokapi has no
+database, no server, no authentication. Bowrain depends on neokapi but not
 the reverse.
 
 Two CLIs demonstrate this separation:
 - **Kapi** (`kapi` binary) — standalone file-processing tool that demonstrates
-  gokapi's capabilities. No project directory, no server, no sync. Processes
+  neokapi's capabilities. No project directory, no server, no sync. Processes
   files directly.
 - **Bowrain CLI** (`bowrain` binary) — project-centric sync companion for
   Bowrain Server. Manages `.bowrain/` project directories, syncs with the
@@ -112,15 +112,15 @@ goroutine.
 The project is a multi-module monorepo with six Go modules coordinated by
 `go.work`:
 
-- **Framework** (`github.com/gokapi/gokapi`) — the open-source localization engine
-- **CLI** (`github.com/gokapi/gokapi/cli`) — shared CLI base for kapi and bowrain
-- **Platform** (`github.com/gokapi/gokapi/platform`) — shared platform types (project model, auth, connectors)
-- **Kapi** (`github.com/gokapi/gokapi/kapi`) — standalone CLI for local file processing
-- **Bowrain CLI** (`github.com/gokapi/gokapi/bowrain-cli`) — project sync companion CLI
-- **Bowrain** (`github.com/gokapi/gokapi/bowrain`) — full-stack localization platform
+- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine
+- **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base for kapi and bowrain
+- **Platform** (`github.com/neokapi/neokapi/platform`) — shared platform types (project model, auth, connectors)
+- **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI for local file processing
+- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain-cli`) — project sync companion CLI
+- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — full-stack localization platform
 
 ```
-gokapi/                    ── Framework Module (open-source, Apache 2.0) ──
+neokapi/                    ── Framework Module (open-source, Apache 2.0) ──
   core/
     model/          content model types (Part, Block, Layer, Fragment, Span)
     format/         DataFormatReader/Writer interfaces, detection

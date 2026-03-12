@@ -3,7 +3,7 @@ package sievepen
 import (
 	"time"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // MatchType indicates how a TM match was found, ordered by reuse potential.

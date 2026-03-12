@@ -20,7 +20,7 @@
 
 set -euo pipefail
 
-REPO="gokapi/gokapi"
+REPO="neokapi/neokapi"
 TAG="${OKAPI_SUREFIRE_TAG:-okapi-surefire-1.48.0}"
 VERSION="${SUREFIRE_VERSION:-1.48.0-v1}"
 ASSET_NAME="okapi-surefire.tar.gz"

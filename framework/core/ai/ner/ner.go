@@ -10,7 +10,7 @@ package ner
 import (
 	"context"
 
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Provider detects named entities in text using ML models or cloud services.

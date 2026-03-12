@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/plugin/registry"
-	"github.com/gokapi/gokapi/cli/output"
-	"github.com/gokapi/gokapi/cli/config"
+	"github.com/neokapi/neokapi/core/plugin/registry"
+	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/cli/config"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -515,8 +515,8 @@ func (w *barWriter) Write(p []byte) (int, error) {
 }
 
 // channelRegistryURL derives a channel-specific registry URL from the base URL.
-// For example, given base "https://gokapi.github.io/registry/plugins.json" and
-// channel "snapshot", it returns "https://gokapi.github.io/registry/channels/snapshot.json".
+// For example, given base "https://neokapi.github.io/registry/plugins.json" and
+// channel "snapshot", it returns "https://neokapi.github.io/registry/channels/snapshot.json".
 func channelRegistryURL(baseURL, channel string) string {
 	dir := path.Dir(baseURL)
 	return dir + "/channels/" + channel + ".json"

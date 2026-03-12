@@ -10,10 +10,10 @@ import (
 	"os"
 	"sort"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/format/schema"
-	"github.com/gokapi/gokapi/core/formats"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/registry"
 )
 
 // FormatDoc is the JSON structure for a single format.

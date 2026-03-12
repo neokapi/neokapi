@@ -61,8 +61,8 @@ jobs:
           file: docker/bowrain-web/Dockerfile
           push: true
           tags: |
-            ghcr.io/gokapi/bowrain-web:${{ github.sha }}
-            ghcr.io/gokapi/bowrain-web:latest
+            ghcr.io/neokapi/bowrain-web:${{ github.sha }}
+            ghcr.io/neokapi/bowrain-web:latest
           build-args: |
             VERSION=${{ steps.meta.outputs.version }}
             COMMIT=${{ steps.meta.outputs.commit }}
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
     env:
-      GH_TOKEN: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+      GH_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       RUN_ID: ${{ github.run_id }}
       REPO: ${{ github.repository }}
@@ -84,7 +84,7 @@ jobs:
       - name: Deploy web
         run: |
           gh workflow run deploy-web.yml \
-            --repo gokapi/bowrain-infra \
+            --repo neokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
             -f source="$RUN_ID" \
             -f triggerRepo="$REPO"

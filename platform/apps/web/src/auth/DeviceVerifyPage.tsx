@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, Button, Input, Label } from "@gokapi/ui";
+import { Card, CardContent, CardHeader, Button, Input, Label } from "@neokapi/ui";
 
 export function DeviceVerifyPage() {
   const params = new URLSearchParams(window.location.search);

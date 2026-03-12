@@ -1,10 +1,10 @@
-# Gokapi as the Speckle of Localization: Architecture Analysis
+# Neokapi as the Speckle of Localization: Architecture Analysis
 
 ## Executive Summary
 
-[Speckle](https://speckle.systems/) is an open-source data platform for the AEC (Architecture, Engineering, Construction) industry that has solved a problem remarkably similar to what Gokapi faces in localization: extracting structured data from a vast number of proprietary native formats, processing it through a common model, and writing it back — all while an "official standard" (IFC for AEC, XLIFF for localization) exists but has failed to deliver true interoperability.
+[Speckle](https://speckle.systems/) is an open-source data platform for the AEC (Architecture, Engineering, Construction) industry that has solved a problem remarkably similar to what Neokapi faces in localization: extracting structured data from a vast number of proprietary native formats, processing it through a common model, and writing it back — all while an "official standard" (IFC for AEC, XLIFF for localization) exists but has failed to deliver true interoperability.
 
-This report analyzes Speckle's architecture, contrasts it with Gokapi's current design, and identifies concrete gaps and opportunities for Gokapi to become the definitive open-source platform for localization data interoperability.
+This report analyzes Speckle's architecture, contrasts it with Neokapi's current design, and identifies concrete gaps and opportunities for Neokapi to become the definitive open-source platform for localization data interoperability.
 
 ---
 
@@ -122,11 +122,11 @@ Speckle Automate provides serverless functions that trigger on data changes — 
 
 ---
 
-## 3. Gokapi's Current Architecture
+## 3. Neokapi's Current Architecture
 
 ### 3.1 The Content Model
 
-Gokapi's model is a well-designed streaming pipeline:
+Neokapi's model is a well-designed streaming pipeline:
 
 ```
 Part (Type + Resource)
@@ -174,7 +174,7 @@ HashiCorp go-plugin + gRPC for external format readers/writers and tools, includ
 
 ## 4. Architectural Comparison
 
-| Concept | Speckle (AEC) | Gokapi (Localization) | Gap? |
+| Concept | Speckle (AEC) | Neokapi (Localization) | Gap? |
 |---------|--------------|----------------------|------|
 | **Fundamental unit** | Base object (dynamic + typed) | Part (typed enum + Resource interface) | Moderate |
 | **Schema/model** | Kit (hot-swappable, BYO) | Fixed model (Part/Block/Fragment) | **Significant** |
@@ -191,13 +191,13 @@ HashiCorp go-plugin + gRPC for external format readers/writers and tools, includ
 
 ---
 
-## 5. What Gokapi Can Learn: The Gaps
+## 5. What Neokapi Can Learn: The Gaps
 
 ### Gap 1: From File Formats to Application Connectors
 
 **Speckle's insight**: The real interoperability problem isn't converting between file formats — it's connecting to the **systems where content lives**. A Revit connector doesn't export to a file; it reaches into Revit's live object model, extracts what's needed, and pushes it to the data platform.
 
-**For Gokapi**: The current format system (DataFormatReader/Writer) is file-centric. But much of the world's translatable content doesn't live in files:
+**For Neokapi**: The current format system (DataFormatReader/Writer) is file-centric. But much of the world's translatable content doesn't live in files:
 
 | System Category | Examples | Integration Model |
 |----------------|----------|-------------------|
@@ -241,7 +241,7 @@ The existing file-based formats remain as-is — they're the equivalent of Speck
 
 **Speckle's insight**: Data should live in a **versioned object graph**, not just flow through a pipeline. Every change is tracked, every version is immutable, and the full history is queryable.
 
-**For Gokapi**: The current architecture is purely streaming — Parts flow from reader through tools to writer. There's no persistence layer, no version history, no ability to compare what changed between processing runs.
+**For Neokapi**: The current architecture is purely streaming — Parts flow from reader through tools to writer. There's no persistence layer, no version history, no ability to compare what changed between processing runs.
 
 **Recommendation**: Introduce an abstracted **Store** layer (analogous to Speckle's Transport):
 
@@ -273,7 +273,7 @@ This enables **incremental processing** — only re-translate what changed — w
 
 **Speckle's insight**: The `Base` class is both typed and dynamic. You can define strongly-typed properties for known schemas, but any additional data passes through as dynamic properties. This means the system never loses data it doesn't understand.
 
-**For Gokapi**: The current model is entirely statically typed. When an HTML reader encounters a `<div class="product-card" data-sku="ABC123">`, the class and data-sku attributes are preserved in the Skeleton but aren't semantically accessible to tools. If a Figma connector encounters component metadata, there's no natural place to put it in the Part model.
+**For Neokapi**: The current model is entirely statically typed. When an HTML reader encounters a `<div class="product-card" data-sku="ABC123">`, the class and data-sku attributes are preserved in the Skeleton but aren't semantically accessible to tools. If a Figma connector encounters component metadata, there's no natural place to put it in the Part model.
 
 **Recommendation**: Extend the model with **open-ended metadata** inspired by Speckle's Base:
 
@@ -295,7 +295,7 @@ Additionally, consider a concept like Speckle's `displayValue` — a **canonical
 
 **Speckle's insight**: Kits bundle a **schema** with its **converters**. The default Objects Kit defines geometry + BIM elements and includes converters for every supported application. Custom kits can replace the entire schema.
 
-**For Gokapi**: Format readers/writers are tightly coupled — each format has its own reader and writer that understand the format's specific structure. There's no intermediate "schema" layer that multiple formats could share.
+**For Neokapi**: Format readers/writers are tightly coupled — each format has its own reader and writer that understand the format's specific structure. There's no intermediate "schema" layer that multiple formats could share.
 
 **Recommendation**: Consider introducing **Format Families** — groups of formats that share common patterns:
 
@@ -314,7 +314,7 @@ Within a family, a shared **base converter** could handle common patterns (e.g.,
 
 **Speckle's insight**: Speckle Automate turns the data platform into a CI/CD system — functions trigger automatically on data changes, running quality checks, generating reports, and transforming data.
 
-**For Gokapi**: The FlowExecutor is a powerful pipeline engine, but it's invoked explicitly. There's no concept of automated triggers, quality gates, or continuous processing.
+**For Neokapi**: The FlowExecutor is a powerful pipeline engine, but it's invoked explicitly. There's no concept of automated triggers, quality gates, or continuous processing.
 
 **Recommendation**: Build on the existing Flow system to add **automation triggers**:
 
@@ -323,7 +323,7 @@ Within a family, a shared **base converter** could handle common patterns (e.g.,
 - **Continuous sync**: Background processes that keep external systems synchronized
 - **Webhook integration**: Trigger Flows from external events (CMS publish, Git push, etc.)
 
-This would position Gokapi as a **localization automation platform**, not just a format conversion toolkit.
+This would position Neokapi as a **localization automation platform**, not just a format conversion toolkit.
 
 ---
 
@@ -372,20 +372,20 @@ Some systems would benefit from both a file format reader AND a live connector:
 
 ---
 
-## 7. The Internal Model: Should Gokapi Adopt Speckle's Approach?
+## 7. The Internal Model: Should Neokapi Adopt Speckle's Approach?
 
-### What Works Well in Gokapi Today
+### What Works Well in Neokapi Today
 
-Gokapi's current model has genuine strengths:
+Neokapi's current model has genuine strengths:
 
 1. **Streaming architecture**: Channel-based pipeline with backpressure is elegant and memory-efficient
 2. **Coded text**: The Unicode PUA marker system for inline formatting is clever and battle-tested (inherited from Okapi's TextFragment)
 3. **Layer nesting**: Embedded content support (HTML inside JSON) is clean
 4. **Type discrimination**: The PartType enum is simple and efficient for dispatch
 
-### Where Speckle's Model Could Improve Gokapi
+### Where Speckle's Model Could Improve Neokapi
 
-1. **Richer metadata preservation**: Speckle's dynamic properties ensure no data loss during round-trips. Gokapi could lose format-specific metadata that doesn't map to Block fields.
+1. **Richer metadata preservation**: Speckle's dynamic properties ensure no data loss during round-trips. Neokapi could lose format-specific metadata that doesn't map to Block fields.
 
 2. **Content-addressable storage**: Speckle's hash-based IDs enable deduplication. In localization, this means identical segments across documents are stored once — critical for TM leverage.
 
@@ -395,7 +395,7 @@ Gokapi's current model has genuine strengths:
 
 ### Proposed Evolution: Keep the Stream, Add the Graph
 
-Rather than replacing Gokapi's streaming model with Speckle's object graph, **layer the graph on top of the stream**:
+Rather than replacing Neokapi's streaming model with Speckle's object graph, **layer the graph on top of the stream**:
 
 ```
 Streaming Layer (existing):
@@ -501,7 +501,7 @@ htmlConverter := &MarkupConverter{
 
 ## 9. The "Speckle of Localization" Vision
 
-Putting it all together, here's what Gokapi becomes:
+Putting it all together, here's what Neokapi becomes:
 
 ### Open Source Platform Layer
 - **Format readers/writers** (15+ built-in, extensible via plugins) — like Speckle's IFC import
@@ -526,7 +526,7 @@ Putting it all together, here's what Gokapi becomes:
 
 ### The Positioning
 
-| | XLIFF | Okapi | Gokapi (Today) | Gokapi (Vision) | Speckle (Analogy) |
+| | XLIFF | Okapi | Neokapi (Today) | Neokapi (Vision) | Speckle (Analogy) |
 |---|---|---|---|---|---|
 | **Model** | Exchange format | Streaming events | Streaming Parts | Versioned Part graph | Versioned object graph |
 | **Formats** | Is itself a format | 20+ file filters | 15+ file formats | Formats + Connectors | Kit converters + Connectors |

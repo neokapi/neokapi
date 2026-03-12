@@ -5,7 +5,7 @@ title: Content Model & Interfaces
 
 # Key Interface Definitions
 
-This document defines the concrete Go interfaces and types that form the foundation of gokapi. These definitions serve as the contract for all implementations.
+This document defines the concrete Go interfaces and types that form the foundation of neokapi. These definitions serve as the contract for all implementations.
 
 ## Table of Contents
 - [Content Model](#content-model)

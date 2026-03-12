@@ -3,11 +3,11 @@ package server
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/auth"
-	"github.com/gokapi/gokapi/bowrain/service"
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/sievepen"
-	"github.com/gokapi/gokapi/termbase"
+	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/service"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/require"
 )
 

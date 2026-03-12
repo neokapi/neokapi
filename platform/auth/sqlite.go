@@ -6,9 +6,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/gokapi/gokapi/bowrain/storage"
-	"github.com/gokapi/gokapi/core/id"
-	platauth "github.com/gokapi/gokapi/platform/auth"
+	"github.com/neokapi/neokapi/bowrain/storage"
+	"github.com/neokapi/neokapi/core/id"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
 var authMigrations = []storage.Migration{

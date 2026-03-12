@@ -21,7 +21,7 @@ docker run -d \
   -e BOWRAIN_OIDC_ISSUER_URL=https://keycloak.example.com/realms/bowrain \
   -e BOWRAIN_OIDC_CLIENT_ID=bowrain \
   -e BOWRAIN_OIDC_CLIENT_SECRET=your-client-secret \
-  ghcr.io/gokapi/bowrain-server:latest
+  ghcr.io/neokapi/bowrain-server:latest
 ```
 
 ### Docker Compose
@@ -54,7 +54,7 @@ services:
       - "1025:1025"   # SMTP
 
   bowrain:
-    image: ghcr.io/gokapi/bowrain-server:latest
+    image: ghcr.io/neokapi/bowrain-server:latest
     ports:
       - "8080:8080"
     environment:
@@ -92,21 +92,21 @@ When Keycloak runs in Docker, it has a different internal hostname (`keycloak:80
 
 ### Download
 
-Download the latest release from [GitHub Releases](https://github.com/gokapi/gokapi/releases):
+Download the latest release from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
 
 ```bash
 # Linux (x86_64)
-curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-server-linux-amd64.tar.gz
+curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-linux-amd64.tar.gz
 tar xzf bowrain-server-linux-amd64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
 
 # Linux (ARM64)
-curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-server-linux-arm64.tar.gz
+curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-linux-arm64.tar.gz
 tar xzf bowrain-server-linux-arm64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -LO https://github.com/gokapi/gokapi/releases/latest/download/bowrain-server-darwin-arm64.tar.gz
+curl -LO https://github.com/neokapi/neokapi/releases/latest/download/bowrain-server-darwin-arm64.tar.gz
 tar xzf bowrain-server-darwin-arm64.tar.gz
 sudo mv bowrain-server /usr/local/bin/
 ```

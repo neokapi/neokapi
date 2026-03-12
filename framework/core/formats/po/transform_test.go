@@ -3,9 +3,9 @@ package po_test
 import (
 	"testing"
 
-	_ "github.com/gokapi/gokapi/core/formats/po"
+	_ "github.com/neokapi/neokapi/core/formats/po"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

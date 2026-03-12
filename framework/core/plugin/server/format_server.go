@@ -1,4 +1,4 @@
-// Package server provides helpers for implementing gokapi plugins.
+// Package server provides helpers for implementing neokapi plugins.
 // Plugin authors wrap their format reader/writer or tool implementations
 // using these server types, then call the Serve* helpers from main().
 package server
@@ -10,9 +10,9 @@ import (
 	"io"
 	"net/rpc"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/shared"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/shared"
 	goplugin "github.com/hashicorp/go-plugin"
 )
 

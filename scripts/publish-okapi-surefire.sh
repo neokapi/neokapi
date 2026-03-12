@@ -29,7 +29,7 @@ set -euo pipefail
 
 OKAPI_VERSION="${1:-1.48.0}"
 OKAPI_DIR="${OKAPI_DIR:-$HOME/src/okapi/Okapi}"
-GITHUB_REPO="gokapi/gokapi"
+GITHUB_REPO="neokapi/neokapi"
 RELEASE_TAG="okapi-surefire-${OKAPI_VERSION}"
 ASSET_NAME="okapi-surefire.tar.gz"
 

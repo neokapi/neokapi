@@ -2,7 +2,7 @@
 #
 # Traefik routes:
 #   /api/*     → bowrain-server:8080
-#   /gokapi.*  → bowrain-server:8080  (gRPC)
+#   /neokapi.*  → bowrain-server:8080  (gRPC)
 #   /*         → bowrain-web:80       (SPA)
 #
 # Usage:
@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   bowrain-server:
-    image: ghcr.io/gokapi/bowrain-server:latest
+    image: ghcr.io/neokapi/bowrain-server:latest
     volumes:
       - bowrain-data:/data
     environment:
@@ -33,7 +33,7 @@ services:
     restart: unless-stopped
 
   bowrain-web:
-    image: ghcr.io/gokapi/bowrain-web:latest
+    image: ghcr.io/neokapi/bowrain-web:latest
     expose:
       - "80"
     restart: unless-stopped

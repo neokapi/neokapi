@@ -3,7 +3,7 @@ package backend
 import (
 	"testing"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/stretchr/testify/assert"
 )
 

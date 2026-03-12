@@ -1,10 +1,10 @@
-module github.com/gokapi/gokapi/platform
+module github.com/neokapi/neokapi/platform
 
 go 1.26.0
 
 require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/gokapi/gokapi v0.0.0
+	github.com/neokapi/neokapi v0.0.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
@@ -30,4 +30,4 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 )
 
-replace github.com/gokapi/gokapi => ../../framework
+replace github.com/neokapi/neokapi => ../../framework

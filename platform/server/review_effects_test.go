@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/termbase"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

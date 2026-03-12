@@ -18,7 +18,7 @@ http:
     # gRPC requests → bowrain-server on host:8080 (via h2c)
     # gRPC paths follow /<package>.<service>/<method> convention.
     bowrain-grpc:
-      rule: "Host(`bowrain.mymac`) && PathPrefix(`/gokapi.`)"
+      rule: "Host(`bowrain.mymac`) && PathPrefix(`/neokapi.`)"
       service: bowrain
       tls: {}
       priority: 100

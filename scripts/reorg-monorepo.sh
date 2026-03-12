@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/reorg-monorepo.sh — Reorganize the gokapi monorepo
+# scripts/reorg-monorepo.sh — Reorganize the neokapi monorepo
 #
 # Creates two top-level directories: framework/ and bowrain/.
 # Framework code (core, cli, kapi, examples, bench) moves under framework/.
@@ -47,7 +47,7 @@
 #   - deploy/docker/compose.yaml Dockerfile paths
 #
 # What does NOT change:
-#   - Go module names (github.com/gokapi/gokapi/cli stays the same)
+#   - Go module names (github.com/neokapi/neokapi/cli stays the same)
 #   - Most Go import paths (only promoted packages change)
 #   - Website configuration (bowrain docs plugin already configured)
 #
@@ -236,15 +236,15 @@ echo "--- Rewriting Go import paths for promoted packages"
 # mt/provider: core/mt/provider → providers/mt   (reorganized)
 #
 # These find/replace operate on all .go files across every module.
-# The module name (github.com/gokapi/gokapi) stays the same — only the
+# The module name (github.com/neokapi/neokapi) stays the same — only the
 # package path suffix changes.  We match the partial path (without leading
 # quote) to also catch aliased imports like:  fw "github.com/…/core/sievepen"
 
 find framework/ bowrain/ -name '*.go' -exec sed "${_SED_I_ARGS[@]}" \
-  -e 's|gokapi/gokapi/core/sievepen"|gokapi/gokapi/sievepen"|g' \
-  -e 's|gokapi/gokapi/core/termbase"|gokapi/gokapi/termbase"|g' \
-  -e 's|gokapi/gokapi/core/ai/provider"|gokapi/gokapi/providers/ai"|g' \
-  -e 's|gokapi/gokapi/core/mt/provider"|gokapi/gokapi/providers/mt"|g' \
+  -e 's|neokapi/neokapi/core/sievepen"|neokapi/neokapi/sievepen"|g' \
+  -e 's|neokapi/neokapi/core/termbase"|neokapi/neokapi/termbase"|g' \
+  -e 's|neokapi/neokapi/core/ai/provider"|neokapi/neokapi/providers/ai"|g' \
+  -e 's|neokapi/neokapi/core/mt/provider"|neokapi/neokapi/providers/mt"|g' \
   {} +
 
 # ─── 15. Update replace directives in go.mod files ──────────────────────────
@@ -262,22 +262,22 @@ echo "--- Updating go.mod replace directives"
 # No change needed — relative paths are identical.
 
 # bowrain/cli/go.mod: was bowrain-cli/go.mod (moved 1 level deeper)
-# gokapi root: => ../ → => ../../framework
+# neokapi root: => ../ → => ../../framework
 # cli: => ../cli → => ../../framework/cli
 # platform: => ../platform → => ../platform (stays — sibling under bowrain/)
-sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/cli/go.mod
-sed "${_SED_I_ARGS[@]}" 's|gokapi/cli => \.\./cli|gokapi/cli => ../../framework/cli|' bowrain/cli/go.mod
+sed "${_SED_I_ARGS[@]}" 's|neokapi/neokapi => \.\./|neokapi/neokapi => ../../framework|' bowrain/cli/go.mod
+sed "${_SED_I_ARGS[@]}" 's|neokapi/cli => \.\./cli|neokapi/cli => ../../framework/cli|' bowrain/cli/go.mod
 
 # bowrain/platform/go.mod: was platform/go.mod (moved 1 level deeper)
-# gokapi root: => ../ → => ../../framework
-sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/platform/go.mod
+# neokapi root: => ../ → => ../../framework
+sed "${_SED_I_ARGS[@]}" 's|neokapi/neokapi => \.\./|neokapi/neokapi => ../../framework|' bowrain/platform/go.mod
 
 # bowrain/go.mod: stays at bowrain/ (not moved)
-# gokapi root: => ../ → => ../framework
+# neokapi root: => ../ → => ../framework
 # platform: => ../platform → => ./platform (now a sibling under bowrain/)
 # Important: process platform first (more specific) before the root pattern
-sed "${_SED_I_ARGS[@]}" 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
-sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
+sed "${_SED_I_ARGS[@]}" 's|neokapi/platform => \.\./platform|neokapi/platform => ./platform|' bowrain/go.mod
+sed "${_SED_I_ARGS[@]}" 's|neokapi/neokapi => \.\./|neokapi/neokapi => ../framework|' bowrain/go.mod
 
 # ─── 16. Update Makefile ────────────────────────────────────────────────────
 

@@ -115,7 +115,7 @@ jobs:
           file: docker/${{ matrix.image }}/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
-          tags: ghcr.io/gokapi/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
+          tags: ghcr.io/neokapi/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
             COMMIT=${{ steps.version.outputs.COMMIT }}
@@ -145,10 +145,10 @@ jobs:
         run: |
           for IMAGE in bowrain-server bowrain-worker bowrain-web; do
             docker buildx imagetools create \
-              -t "ghcr.io/gokapi/$IMAGE:$VERSION" \
-              -t "ghcr.io/gokapi/$IMAGE:latest" \
-              "ghcr.io/gokapi/$IMAGE:$VERSION-amd64" \
-              "ghcr.io/gokapi/$IMAGE:$VERSION-arm64"
+              -t "ghcr.io/neokapi/$IMAGE:$VERSION" \
+              -t "ghcr.io/neokapi/$IMAGE:latest" \
+              "ghcr.io/neokapi/$IMAGE:$VERSION-amd64" \
+              "ghcr.io/neokapi/$IMAGE:$VERSION-arm64"
           done
 
   docker-keycloak:
@@ -189,9 +189,9 @@ jobs:
           file: docker/keycloak/Dockerfile
           push: true
           tags: |
-            ghcr.io/gokapi/bowrain-keycloak:${{ steps.version.outputs.VERSION }}
-            ghcr.io/gokapi/bowrain-keycloak:${{ github.sha }}
-            ghcr.io/gokapi/bowrain-keycloak:latest
+            ghcr.io/neokapi/bowrain-keycloak:${{ steps.version.outputs.VERSION }}
+            ghcr.io/neokapi/bowrain-keycloak:${{ github.sha }}
+            ghcr.io/neokapi/bowrain-keycloak:latest
           cache-from: type=gha,scope=bowrain-keycloak
           cache-to: type=gha,mode=max,scope=bowrain-keycloak
 
@@ -228,7 +228,7 @@ jobs:
             echo "VERSION=${GITHUB_REF_NAME#v}"
             echo "COMMIT=${GH_SHA::7}"
             echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "LDFLAGS=-w -s -X github.com/gokapi/gokapi/core/version.Version=${GITHUB_REF_NAME#v} -X github.com/gokapi/gokapi/core/version.Commit=${GH_SHA::7} -X github.com/gokapi/gokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Install Linux dependencies
@@ -256,8 +256,8 @@ jobs:
           go mod tidy
           wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
           # shellcheck disable=SC2016
-          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/gokapi/gokapi/platform/apps/platform/backend/app.js
-          rm -f frontend/bindings/github.com/gokapi/gokapi/platform/apps/platform/backend/app.js.bak
+          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/platform/apps/platform/backend/app.js
+          rm -f frontend/bindings/github.com/neokapi/neokapi/platform/apps/platform/backend/app.js.bak
 
       - name: Build Bowrain frontend
         working-directory: platform/apps/platform/frontend
@@ -495,7 +495,7 @@ jobs:
       - name: Checkout homebrew-tap
         uses: actions/checkout@v4
         with:
-          repository: gokapi/homebrew-tap
+          repository: neokapi/homebrew-tap
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
 
@@ -508,19 +508,19 @@ jobs:
           cat > homebrew-tap/Casks/bowrain.rb << CASK
           # Use absolute tap path so the require works even when Homebrew loads
           # the cask from its metadata cache during upgrades.
-          require "#{Tap.fetch("gokapi", "tap").path}/lib/private_download_strategy"
+          require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
 
           cask "bowrain" do
             version "${VERSION}"
             sha256 "${SHA_BOWRAIN}"
 
-            url "https://github.com/gokapi/gokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg",
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/bowrain-#{version}-macOS-universal.dmg",
                 using: GitHubPrivateRepositoryReleaseDownloadStrategy
             name "Bowrain"
             desc "AI-native translation editor"
-            homepage "https://github.com/gokapi/gokapi"
+            homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "gokapi/tap/bowrain-cli"
+            depends_on formula: "neokapi/tap/bowrain-cli"
 
             app "Bowrain.app"
 

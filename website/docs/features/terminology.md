@@ -5,11 +5,11 @@ title: Terminology Management
 
 # Terminology Management
 
-gokapi includes a built-in terminology management system inspired by the TBX (TermBase eXchange) standard. It supports concept-oriented term management with multi-locale terms, lifecycle statuses, and domain classification.
+neokapi includes a built-in terminology management system inspired by the TBX (TermBase eXchange) standard. It supports concept-oriented term management with multi-locale terms, lifecycle statuses, and domain classification.
 
 ## Data Model
 
-Terminology in gokapi follows a **concept-oriented** model:
+Terminology in neokapi follows a **concept-oriented** model:
 
 ```
 Concept (e.g., "cloud storage")
@@ -178,7 +178,7 @@ Full concept-oriented format preserving all metadata:
 
 ### Concept-Oriented vs. Flat Glossary
 
-gokapi uses a concept-oriented model (inspired by TBX) rather than flat source→target pairs. This enables:
+neokapi uses a concept-oriented model (inspired by TBX) rather than flat source→target pairs. This enables:
 
 - **Multiple terms per locale**: A concept can have preferred and admitted terms in the same language
 - **Lifecycle management**: Terms go through statuses (proposed → approved → preferred → deprecated)

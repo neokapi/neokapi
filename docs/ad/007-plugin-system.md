@@ -53,13 +53,13 @@ JVM startup cost is only paid when processing files.
 | Type | What it adds | Example |
 |------|-------------|---------|
 | **Bundle** | Collection of formats and/or tools | Okapi bridge (40+ formats) |
-| **Format** | Reader + Writer for a file format | `gokapi-plugin-docx` |
-| **Tool** | Processing step in a flow | `gokapi-plugin-terminology` |
-| **Connector** | Bidirectional system integration | `gokapi-plugin-contentful` |
-| **Provider** | AI/LLM or MT backend | `gokapi-plugin-deepl-v2` |
+| **Format** | Reader + Writer for a file format | `neokapi-plugin-docx` |
+| **Tool** | Processing step in a flow | `neokapi-plugin-terminology` |
+| **Connector** | Bidirectional system integration | `neokapi-plugin-contentful` |
+| **Provider** | AI/LLM or MT backend | `neokapi-plugin-deepl-v2` |
 
 Go binary plugins are discovered by scanning for executables named
-`gokapi-plugin-*` in versioned directories. Bridge plugins are discovered
+`neokapi-plugin-*` in versioned directories. Bridge plugins are discovered
 via `manifest.json` files in their version directories.
 
 ### Bundles
@@ -85,7 +85,7 @@ The `--bundle`, `--format`, and `--tool` flags are combined with AND logic
 alongside existing `--type`, `--mime`, and `--ext` filters.
 
 The **connector** type enables community-built connectors for CMS platforms,
-design tools, and other systems that integrate with gokapi's connector-first
+design tools, and other systems that integrate with neokapi's connector-first
 architecture ([AD-005](./005-connector-system.md)). Connector plugins implement
 the same bidirectional sync interface as built-in connectors, pulling content into
 the store and pushing translations back.
@@ -102,12 +102,12 @@ versioned directory layout:
       version.json
       manifest.json
       schemas/
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
     1.47.0/
       version.json
       manifest.json
       schemas/
-      gokapi-okapi-bridge.jar
+      neokapi-okapi-bridge.jar
 ```
 
 Each version directory contains a `version.json` with name, version, and
@@ -140,12 +140,12 @@ The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
 The **Okapi bridge** is a gRPC-based subprocess that hosts Okapi Framework filters.
 The Go side launches a JVM (or any process implementing the `BridgeService` gRPC
-contract), connects as a gRPC client, and translates between gokapi's Part model
+contract), connects as a gRPC client, and translates between neokapi's Part model
 and Okapi's Event model. The adapter layer wraps the bridge behind standard
 `DataFormatReader` / `DataFormatWriter` interfaces — bridge-backed formats are
 indistinguishable from native Go formats at the registry level.
 
-The bridge protocol (`core/plugin/proto/v2/gokapi_bridge.proto`) defines eight RPCs:
+The bridge protocol (`core/plugin/proto/v2/neokapi_bridge.proto`) defines eight RPCs:
 
 | RPC | Direction | Purpose |
 |-----|-----------|---------|
@@ -278,7 +278,7 @@ official registry.
 # ~/.config/kapi/kapi.yaml or .bowrain/config.yaml
 registries:
   - name: official
-    url: https://gokapi.github.io/registry/plugins.json
+    url: https://neokapi.github.io/registry/plugins.json
     channels: [default, snapshot]
   - name: company
     url: https://registry.example.com/plugins.json
@@ -304,7 +304,7 @@ kapi registry remove <name>                                 # Remove from global
 
 ### Plugin Governance
 
-**Protocol stability.** The v1 protocol (defined in `plugin/proto/v1/gokapi.proto`)
+**Protocol stability.** The v1 protocol (defined in `plugin/proto/v1/neokapi.proto`)
 is frozen. New fields can be added (protobuf is forward-compatible), but existing
 fields cannot be changed or removed. New capabilities require a new protocol
 version (v2, v3, etc.). The host supports at least two protocol versions
@@ -315,7 +315,7 @@ simultaneously, giving plugin authors time to migrate.
 | Tier | Source | Trust | Installation |
 |------|--------|-------|-------------|
 | **Built-in** | `formats/`, `tools/` | Full | Ships with binary |
-| **Official** | gokapi org registry | High | `kapi plugins install` |
+| **Official** | neokapi org registry | High | `kapi plugins install` |
 | **Community** | Third-party registry | Medium | `kapi plugins install --registry <name>` |
 | **Local** | User-built | User's risk | Copy to plugin directory |
 
@@ -326,7 +326,7 @@ QA check, word count, segmentation, TM leverage) are built-in. Integration tools
 (specific TMS connectors, custom MT engines) are plugins. AI providers (Anthropic,
 OpenAI, Ollama) are built-in because AI translation is a core value proposition.
 
-The test: if removing it makes gokapi feel incomplete for the common case, it
+The test: if removing it makes neokapi feel incomplete for the common case, it
 should be built-in.
 
 ## Alternatives Considered
@@ -362,7 +362,7 @@ should be built-in.
   registries; project-level registries override global ones entirely
 - The CLI searches both standalone plugins and bundles; `--bundle`, `--format`,
   and `--tool` flags allow users to narrow results by plugin kind
-- Connector plugins extend gokapi's integration capabilities, enabling
+- Connector plugins extend neokapi's integration capabilities, enabling
   community-built connectors for CMS platforms and design tools
   ([AD-005](./005-connector-system.md))
 - Plugin configuration integrates cleanly with the Viper config system

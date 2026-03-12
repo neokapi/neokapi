@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	platev "github.com/gokapi/gokapi/platform/event"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // RuleStore implements AutomationRuleStore and AutomationHistoryStore.

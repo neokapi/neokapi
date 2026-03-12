@@ -8,7 +8,7 @@ title: "AD-012: Bowrain Desktop App"
 ## Context
 
 A desktop GUI is needed for translators who prefer visual editing over CLI
-workflows. The app must access all gokapi functionality: connectors, content
+workflows. The app must access all neokapi functionality: connectors, content
 store, tools, flows, plugins, TM, terminology, and AI providers.
 
 Key requirements:
@@ -124,7 +124,7 @@ Bowrain uses a Slack-inspired two-panel sidebar layout: a 60px workspace rail an
 
 ### Shared Component Library (`packages/ui/`)
 
-Core UI components are extracted to `packages/ui/` (`@gokapi/ui`) for reuse across Bowrain (desktop) and the web app, with platform-specific API adapters.
+Core UI components are extracted to `packages/ui/` (`@neokapi/ui`) for reuse across Bowrain (desktop) and the web app, with platform-specific API adapters.
 
 See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for workspace rail layout, shared component library details, and API adapter architecture.
 

@@ -11,8 +11,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/model"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Reader implements DataFormatReader for EPUB e-book files.
@@ -75,7 +75,7 @@ func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	r.Doc = doc
 
 	// Write content to a temp file so zip.OpenReader can use it
-	f, err := os.CreateTemp("", "gokapi-epub-*.zip")
+	f, err := os.CreateTemp("", "neokapi-epub-*.zip")
 	if err != nil {
 		return fmt.Errorf("epub: creating temp file: %w", err)
 	}

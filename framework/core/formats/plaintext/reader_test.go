@@ -8,9 +8,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/formats/plaintext"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/formats/plaintext"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

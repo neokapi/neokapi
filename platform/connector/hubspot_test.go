@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	platconn "github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/core/model"
+	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

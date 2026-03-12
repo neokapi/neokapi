@@ -5,7 +5,7 @@ sidebar_position: 11
 
 # Content Store
 
-The Content Store provides versioned, content-addressable persistence for localization content. It serves as the central persistence layer for gokapi projects.
+The Content Store provides versioned, content-addressable persistence for localization content. It serves as the central persistence layer for neokapi projects.
 
 ## Architecture
 

@@ -4,7 +4,7 @@ import {
   Button,
   useApi, useAuth, useWorkspace,
   type AcceptInviteResponse,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 
 interface JoinPageProps {
   code: string;

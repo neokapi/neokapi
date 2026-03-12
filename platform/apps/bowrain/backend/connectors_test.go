@@ -3,7 +3,7 @@ package backend
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/platform/connector"
+	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

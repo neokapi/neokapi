@@ -1,4 +1,4 @@
-import type { View } from "@gokapi/ui";
+import type { View } from "@neokapi/ui";
 
 /** Map a URL sub-path to a sidebar View id. */
 export function viewFromPath(pathname: string, workspace: string): View {

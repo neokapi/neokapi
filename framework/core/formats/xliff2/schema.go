@@ -1,6 +1,6 @@
 package xliff2
 
-import "github.com/gokapi/gokapi/core/format/schema"
+import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the XLIFF 2.0 format.
 func (c *Config) Schema() *schema.FilterSchema {

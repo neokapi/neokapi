@@ -32,16 +32,16 @@ func launchDesktopApp() error {
 				return launchOrError(exec.Command(path))
 			}
 		}
-		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/gokapi/gokapi/releases")
+		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
 	case "windows":
 		for _, name := range []string{"Bowrain.exe", "bowrain.exe"} {
 			if path, err := exec.LookPath(name); err == nil {
 				return launchOrError(exec.Command(path))
 			}
 		}
-		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/gokapi/gokapi/releases")
+		return fmt.Errorf("bowrain desktop app not found in PATH; install it from https://github.com/neokapi/neokapi/releases")
 	default:
-		return fmt.Errorf("unsupported platform %s; download Bowrain from https://github.com/gokapi/gokapi/releases", runtime.GOOS)
+		return fmt.Errorf("unsupported platform %s; download Bowrain from https://github.com/neokapi/neokapi/releases", runtime.GOOS)
 	}
 }
 

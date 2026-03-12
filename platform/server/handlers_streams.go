@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

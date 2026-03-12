@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gokapi/gokapi/bowrain/event"
-	"github.com/gokapi/gokapi/core/id"
-	platev "github.com/gokapi/gokapi/platform/event"
+	"github.com/neokapi/neokapi/bowrain/event"
+	"github.com/neokapi/neokapi/core/id"
+	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/labstack/echo/v4"
 )
 

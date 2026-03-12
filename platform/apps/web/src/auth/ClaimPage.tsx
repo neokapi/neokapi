@@ -4,7 +4,7 @@ import {
   Button,
   useApi, useAuth, useWorkspace,
   type ClaimProjectResponse,
-} from "@gokapi/ui";
+} from "@neokapi/ui";
 
 interface ClaimPageProps {
   token: string;

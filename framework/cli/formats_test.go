@@ -3,8 +3,8 @@ package cli
 import (
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format/schema"
-	"github.com/gokapi/gokapi/core/registry"
+	"github.com/neokapi/neokapi/core/format/schema"
+	"github.com/neokapi/neokapi/core/registry"
 	"github.com/stretchr/testify/assert"
 )
 

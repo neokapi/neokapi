@@ -1,16 +1,16 @@
 package server
 
 import (
-	"github.com/gokapi/gokapi/core/format"
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/tool"
 	goplugin "github.com/hashicorp/go-plugin"
 )
 
 // handshakeConfig must match the host side.
 var handshakeConfig = goplugin.HandshakeConfig{
 	ProtocolVersion:  1,
-	MagicCookieKey:   "GOKAPI_PLUGIN",
-	MagicCookieValue: "gokapi-v1",
+	MagicCookieKey:   "NEOKAPI_PLUGIN",
+	MagicCookieValue: "neokapi-v1",
 }
 
 // ServeFormatReader starts serving a DataFormatReader as a plugin.

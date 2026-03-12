@@ -53,6 +53,6 @@ scenes:
 
   - type: title-card
     duration: 2.5
-    heading: gokapi
+    heading: neokapi
     subheading: Open, AI-native localization platform
     style: branded

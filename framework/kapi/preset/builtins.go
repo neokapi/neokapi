@@ -1,7 +1,7 @@
 package preset
 
 import (
-	"github.com/gokapi/gokapi/core/preset"
+	"github.com/neokapi/neokapi/core/preset"
 )
 
 // RegisterBuiltins registers built-in framework presets into the given registry.

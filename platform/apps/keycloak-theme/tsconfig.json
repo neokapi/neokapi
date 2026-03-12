@@ -12,8 +12,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "paths": {
-      "@gokapi/ui": ["../../../packages/ui/src"],
-      "@gokapi/ui/*": ["../../../packages/ui/src/*"]
+      "@neokapi/ui": ["../../../packages/ui/src"],
+      "@neokapi/ui/*": ["../../../packages/ui/src/*"]
     }
   },
   "include": ["src"],

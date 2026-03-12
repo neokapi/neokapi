@@ -3,12 +3,12 @@ package rtf
 import (
 	"fmt"
 
-	"github.com/gokapi/gokapi/core/config"
+	"github.com/neokapi/neokapi/core/config"
 )
 
 // Config holds configuration for the RTF format.
 // The Okapi RTF filter uses DefaultParameters (no configurable options),
-// but gokapi adds commonly-needed extraction controls for RTF content.
+// but neokapi adds commonly-needed extraction controls for RTF content.
 type Config struct {
 	// ExtractHeadersFooters controls whether text in RTF headers and footers
 	// is extracted as translatable content. When false, header/footer

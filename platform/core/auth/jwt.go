@@ -9,7 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims are the JWT claims carried in gokapi access tokens.
+// Claims are the JWT claims carried in neokapi access tokens.
 type Claims struct {
 	jwt.RegisteredClaims
 	Email string `json:"email"`

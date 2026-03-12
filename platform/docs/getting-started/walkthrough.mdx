@@ -17,7 +17,7 @@ in under 10 minutes. You will:
 5. Automate the entire pipeline with GitHub Actions
 
 We use a real Docusaurus site as the example project:
-[github.com/gokapi/bowrain-example-docusaurus](https://github.com/gokapi/bowrain-example-docusaurus).
+[github.com/neokapi/bowrain-example-docusaurus](https://github.com/neokapi/bowrain-example-docusaurus).
 This project is connected to [Bowrain Cloud](https://dev.bowrain.cloud) with live
 badges showing real translation progress.
 
@@ -39,7 +39,7 @@ bowrain --version
 Clone the example project and create a Bowrain project:
 
 ```bash
-git clone https://github.com/gokapi/bowrain-example-docusaurus.git
+git clone https://github.com/neokapi/bowrain-example-docusaurus.git
 cd bowrain-example-docusaurus
 
 bowrain init --anonymous --name "Acme Docs" --source en --server https://dev.bowrain.cloud
@@ -361,8 +361,8 @@ The final piece: run `bowrain sync` in CI so translations stay up to date
 whenever source content changes.
 
 Two actions work together:
-- [`gokapi/setup-bowrain`](https://github.com/gokapi/setup-bowrain) — installs the Bowrain CLI
-- [`gokapi/bowrain-action`](https://github.com/gokapi/bowrain-action) — runs sync and commits translations
+- [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs the Bowrain CLI
+- [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs sync and commits translations
 
 ```yaml
 name: Bowrain Sync
@@ -382,13 +382,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: $\{{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: $\{{ secrets.NEOKAPI_REGISTRY_TOKEN }}
           auth-token: $\{{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
-      - uses: gokapi/bowrain-action@v1
+      - uses: neokapi/bowrain-action@v1
         id: sync
 
       - name: Summary
@@ -411,8 +411,8 @@ Developer pushes code
 </video>
 
 :::tip
-The `GOKAPI_REGISTRY_TOKEN` secret is needed to download the Bowrain CLI from
-private releases. If you're in the `gokapi` GitHub organization, this is
+The `NEOKAPI_REGISTRY_TOKEN` secret is needed to download the Bowrain CLI from
+private releases. If you're in the `neokapi` GitHub organization, this is
 available as an organization secret.
 :::
 

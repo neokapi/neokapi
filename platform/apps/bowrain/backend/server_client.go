@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	pb "github.com/gokapi/gokapi/bowrain/proto/v1"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"

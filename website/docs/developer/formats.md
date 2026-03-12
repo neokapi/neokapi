@@ -5,7 +5,7 @@ title: Implementing a Format
 
 # Implementing a New Format
 
-This guide explains how to add a new document format to gokapi, from basic
+This guide explains how to add a new document format to neokapi, from basic
 readers and writers to full inline code support with roundtrip fidelity.
 
 ## Structure
@@ -31,8 +31,8 @@ package myformat
 
 import (
     "context"
-    "github.com/gokapi/gokapi/core/format"
-    "github.com/gokapi/gokapi/core/model"
+    "github.com/neokapi/neokapi/core/format"
+    "github.com/neokapi/neokapi/core/model"
 )
 
 type Reader struct {
@@ -152,7 +152,7 @@ line breaks, variables, placeholders. A localization framework must preserve
 this markup through the entire pipeline (extraction, TM lookup, MT, AI
 translation, QA, reconstruction) without corruption.
 
-gokapi solves this with **coded text**: inline markup is replaced by Unicode
+neokapi solves this with **coded text**: inline markup is replaced by Unicode
 Private Use Area (PUA) marker characters in the text string, while the original
 markup is stored in a parallel `Spans` slice. This lets tools, translation
 engines, and TM matching operate on plain text with positional markers, and the

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/bowrain/store"
+	"github.com/neokapi/neokapi/bowrain/store"
 )
 
 func TestMain(m *testing.M) {

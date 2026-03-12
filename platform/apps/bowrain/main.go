@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/gokapi/gokapi/bowrain/apps/bowrain/backend"
+	"github.com/neokapi/neokapi/bowrain/apps/bowrain/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

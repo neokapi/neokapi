@@ -9,19 +9,19 @@ This guide shows how to use the Bowrain CLI in GitHub Actions workflows for auto
 
 ## Overview
 
-The [`setup-bowrain`](https://github.com/gokapi/setup-bowrain) GitHub Action installs the Bowrain CLI on any runner. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
+The [`setup-bowrain`](https://github.com/neokapi/setup-bowrain) GitHub Action installs the Bowrain CLI on any runner. It handles platform detection, checksum verification, binary caching, and optional server authentication — so your workflow steps can focus on localization tasks.
 
 ## Setup
 
-Add `gokapi/setup-bowrain@v1` to your workflow:
+Add `neokapi/setup-bowrain@v1` to your workflow:
 
 ```yaml
 steps:
   - uses: actions/checkout@v4
 
-  - uses: gokapi/setup-bowrain@v1
+  - uses: neokapi/setup-bowrain@v1
     with:
-      token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+      token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 ```
 
 The action downloads the correct binary for the runner platform (Linux, macOS, or Windows), verifies its SHA-256 checksum, and adds it to `PATH`. On subsequent runs, the binary is restored from cache.
@@ -31,7 +31,7 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 | Input | Description | Default |
 |-------|-------------|---------|
 | `version` | CLI version (e.g. `0.5.0` or `latest`) | `latest` |
-| `token` | GitHub token with read access to `gokapi/gokapi` releases | — |
+| `token` | GitHub token with read access to `neokapi/neokapi` releases | — |
 | `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`) | `""` |
 | `server` | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`) | `""` |
 | `plugins` | Comma or newline-separated plugin refs to install | `""` |
@@ -47,8 +47,8 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 The simplest CI pattern uses two actions together:
 
-- [`gokapi/setup-bowrain`](https://github.com/gokapi/setup-bowrain) — installs the Bowrain CLI
-- [`gokapi/bowrain-action`](https://github.com/gokapi/bowrain-action) — runs `bowrain sync` and commits translations
+- [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs the Bowrain CLI
+- [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs `bowrain sync` and commits translations
 
 ```yaml
 name: Sync Translations
@@ -69,13 +69,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
-      - uses: gokapi/bowrain-action@v1
+      - uses: neokapi/bowrain-action@v1
         id: sync
 
       - name: Summary
@@ -126,9 +126,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Run translation flow
         env:
@@ -158,9 +158,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -187,9 +187,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Run translation flow
         env:
@@ -223,9 +223,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: gokapi/setup-bowrain@v1
+      - uses: neokapi/setup-bowrain@v1
         with:
-          token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+          token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
           auth-token: ${{ secrets.BOWRAIN_AUTH_TOKEN }}
           server: https://dev.bowrain.cloud
 
@@ -282,9 +282,9 @@ You can list and revoke tokens with `bowrain auth token list` and `bowrain auth 
 Install plugins by listing them in the `plugins` input:
 
 ```yaml
-- uses: gokapi/setup-bowrain@v1
+- uses: neokapi/setup-bowrain@v1
   with:
-    token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+    token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
     plugins: |
       okapi-filters
       custom-tool
@@ -297,9 +297,9 @@ Plugins are cached between runs. The cache key includes a hash of the plugin lis
 Pin the CLI version to avoid surprises from new releases:
 
 ```yaml
-- uses: gokapi/setup-bowrain@v1
+- uses: neokapi/setup-bowrain@v1
   with:
-    token: ${{ secrets.GOKAPI_REGISTRY_TOKEN }}
+    token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
     version: "0.5.0"
 ```
 

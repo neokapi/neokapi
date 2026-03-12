@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	apiclient "github.com/gokapi/gokapi/platform/client"
-	"github.com/gokapi/gokapi/platform/store"
+	apiclient "github.com/neokapi/neokapi/platform/client"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

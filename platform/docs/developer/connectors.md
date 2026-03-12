@@ -5,7 +5,7 @@ sidebar_position: 12
 
 # Connector System
 
-Connectors provide bidirectional sync between gokapi and external content sources. They pull content into the Content Store and push translations back.
+Connectors provide bidirectional sync between neokapi and external content sources. They pull content into the Content Store and push translations back.
 
 ## Connector Interface
 

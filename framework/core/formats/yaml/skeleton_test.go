@@ -5,10 +5,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/format"
-	yamlfmt "github.com/gokapi/gokapi/core/formats/yaml"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/testutil"
+	"github.com/neokapi/neokapi/core/format"
+	yamlfmt "github.com/neokapi/neokapi/core/formats/yaml"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

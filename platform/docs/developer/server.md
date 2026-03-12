@@ -5,7 +5,7 @@ sidebar_position: 14
 
 # Server API
 
-gokapi provides both REST and gRPC APIs for programmatic access to the platform.
+neokapi provides both REST and gRPC APIs for programmatic access to the platform.
 
 ## REST API
 
@@ -96,10 +96,10 @@ When TLS is enabled, the server enforces TLS 1.2+ with AEAD cipher suites only. 
 
 ### Service Definition
 
-The `GokapiService` provides these RPCs:
+The `NeokapiService` provides these RPCs:
 
 ```protobuf
-service GokapiService {
+service NeokapiService {
   rpc CreateProject(CreateProjectRequest) returns (ProjectResponse);
   rpc GetProject(GetProjectRequest) returns (ProjectResponse);
   rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
@@ -135,7 +135,7 @@ conn, err := grpc.NewClient("bowrain.mymac:1443",
 //     grpc.WithTransportCredentials(insecure.NewCredentials()),
 // )
 
-client := serverv1.NewGokapiServiceClient(conn)
+client := serverv1.NewNeokapiServiceClient(conn)
 
 // Stream blocks
 stream, _ := client.StreamBlocks(ctx, &serverv1.StreamBlocksRequest{
@@ -152,7 +152,7 @@ for {
 
 ### Proto File Location
 
-The proto definitions are at `proto/v1/gokapi_service.proto`. Generate Go code with:
+The proto definitions are at `proto/v1/neokapi_service.proto`. Generate Go code with:
 
 ```bash
 make proto

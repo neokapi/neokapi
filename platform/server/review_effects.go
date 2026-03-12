@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	bstore "github.com/gokapi/gokapi/bowrain/store"
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/id"
-	"github.com/gokapi/gokapi/termbase"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // processDecisionSideEffects handles the downstream effects of a review decision.

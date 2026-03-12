@@ -5,14 +5,14 @@
 #   eval "$(scripts/start-bridge-pool.sh [N] [jar-path])"
 #
 # This exports:
-#   GOKAPI_BRIDGE_ADDRS  — comma-separated list of gRPC addresses
+#   NEOKAPI_BRIDGE_ADDRS  — comma-separated list of gRPC addresses
 #   BRIDGE_PIDS          — space-separated list of JVM PIDs
 #
 # Each JVM prints its gRPC address as the first line of stdout.
 set -euo pipefail
 
 N="${1:-4}"
-JAR="${2:-${GOKAPI_BRIDGE_JAR:?Set GOKAPI_BRIDGE_JAR or pass JAR path as second argument}}"
+JAR="${2:-${NEOKAPI_BRIDGE_JAR:?Set NEOKAPI_BRIDGE_JAR or pass JAR path as second argument}}"
 
 if [[ -n "${JAVA_HOME:-}" ]]; then
     JAVA="$JAVA_HOME/bin/java"
@@ -65,5 +65,5 @@ done
 # Join addresses with commas.
 ADDR_STR=$(IFS=,; echo "${ADDRS[*]}")
 
-echo "export GOKAPI_BRIDGE_ADDRS='$ADDR_STR'"
+echo "export NEOKAPI_BRIDGE_ADDRS='$ADDR_STR'"
 echo "export BRIDGE_PIDS='${PIDS[*]}'"

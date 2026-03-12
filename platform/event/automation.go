@@ -7,7 +7,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	platev "github.com/gokapi/gokapi/platform/event"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // MaxChainDepth is the default maximum causation chain depth before

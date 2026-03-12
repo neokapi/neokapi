@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

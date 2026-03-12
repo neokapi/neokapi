@@ -33,7 +33,7 @@ while IFS= read -r line; do
     pkg="${line#*\"Package\":\"}"
     pkg="${pkg%%\"*}"
     # Strip common prefix.
-    short="${pkg#github.com/gokapi/gokapi/}"
+    short="${pkg#github.com/neokapi/neokapi/}"
 
     # Extract elapsed time (between "Elapsed": and }).
     elapsed="${line#*\"Elapsed\":}"

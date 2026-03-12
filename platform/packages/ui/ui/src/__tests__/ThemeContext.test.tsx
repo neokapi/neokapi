@@ -15,9 +15,9 @@ function ThemeDisplay() {
   );
 }
 
-/** Clear the gokapi-theme cookie (set max-age=0). */
+/** Clear the neokapi-theme cookie (set max-age=0). */
 function clearThemeCookie() {
-  document.cookie = "gokapi-theme=;path=/;max-age=0";
+  document.cookie = "neokapi-theme=;path=/;max-age=0";
 }
 
 describe("ThemeContext", () => {
@@ -37,7 +37,7 @@ describe("ThemeContext", () => {
   });
 
   it("reads initial theme from localStorage", () => {
-    localStorage.setItem("gokapi-theme", "dark");
+    localStorage.setItem("neokapi-theme", "dark");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -48,7 +48,7 @@ describe("ThemeContext", () => {
   });
 
   it("toggles from dark to light", () => {
-    localStorage.setItem("gokapi-theme", "dark");
+    localStorage.setItem("neokapi-theme", "dark");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -59,11 +59,11 @@ describe("ThemeContext", () => {
 
     expect(screen.getByTestId("theme").textContent).toBe("light");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
-    expect(localStorage.getItem("gokapi-theme")).toBe("light");
+    expect(localStorage.getItem("neokapi-theme")).toBe("light");
   });
 
   it("toggles from light to dark", () => {
-    localStorage.setItem("gokapi-theme", "light");
+    localStorage.setItem("neokapi-theme", "light");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -74,7 +74,7 @@ describe("ThemeContext", () => {
 
     expect(screen.getByTestId("theme").textContent).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+    expect(localStorage.getItem("neokapi-theme")).toBe("dark");
   });
 
   it("persists theme preference to localStorage", () => {
@@ -85,17 +85,17 @@ describe("ThemeContext", () => {
     );
 
     act(() => screen.getByTestId("set-light").click());
-    expect(localStorage.getItem("gokapi-theme")).toBe("light");
+    expect(localStorage.getItem("neokapi-theme")).toBe("light");
 
     act(() => screen.getByTestId("set-dark").click());
-    expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+    expect(localStorage.getItem("neokapi-theme")).toBe("dark");
 
     act(() => screen.getByTestId("set-system").click());
-    expect(localStorage.getItem("gokapi-theme")).toBe("system");
+    expect(localStorage.getItem("neokapi-theme")).toBe("system");
   });
 
   it("dark sets dark class, light does not", () => {
-    localStorage.setItem("gokapi-theme", "dark");
+    localStorage.setItem("neokapi-theme", "dark");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -112,7 +112,7 @@ describe("ThemeContext", () => {
   });
 
   it("migrates legacy glass value to dark", () => {
-    localStorage.setItem("gokapi-theme", "glass");
+    localStorage.setItem("neokapi-theme", "glass");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -122,7 +122,7 @@ describe("ThemeContext", () => {
   });
 
   it("migrates legacy aurora value to dark", () => {
-    localStorage.setItem("gokapi-theme", "aurora");
+    localStorage.setItem("neokapi-theme", "aurora");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -132,7 +132,7 @@ describe("ThemeContext", () => {
   });
 
   it("ignores invalid localStorage values and defaults to system", () => {
-    localStorage.setItem("gokapi-theme", "purple");
+    localStorage.setItem("neokapi-theme", "purple");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -150,7 +150,7 @@ describe("ThemeContext", () => {
   // -- Cookie sync --
 
   it("reads initial theme from cookie when localStorage is empty", () => {
-    document.cookie = "gokapi-theme=dark;path=/";
+    document.cookie = "neokapi-theme=dark;path=/";
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -161,8 +161,8 @@ describe("ThemeContext", () => {
   });
 
   it("prefers cookie over localStorage", () => {
-    document.cookie = "gokapi-theme=light;path=/";
-    localStorage.setItem("gokapi-theme", "dark");
+    document.cookie = "neokapi-theme=light;path=/";
+    localStorage.setItem("neokapi-theme", "dark");
     render(
       <ThemeProvider>
         <ThemeDisplay />
@@ -186,17 +186,17 @@ describe("ThemeContext", () => {
   });
 
   it("syncs cookie value to localStorage on mount", () => {
-    document.cookie = "gokapi-theme=dark;path=/";
+    document.cookie = "neokapi-theme=dark;path=/";
     render(
       <ThemeProvider>
         <ThemeDisplay />
       </ThemeProvider>,
     );
-    expect(localStorage.getItem("gokapi-theme")).toBe("dark");
+    expect(localStorage.getItem("neokapi-theme")).toBe("dark");
   });
 
   it("migrates legacy cookie value", () => {
-    document.cookie = "gokapi-theme=glass;path=/";
+    document.cookie = "neokapi-theme=glass;path=/";
     render(
       <ThemeProvider>
         <ThemeDisplay />

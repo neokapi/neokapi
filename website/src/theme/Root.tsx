@@ -1,6 +1,6 @@
 import React, {useState, useEffect} from 'react';
 
-const STORAGE_KEY = 'gokapi-banner-dismissed';
+const STORAGE_KEY = 'neokapi-banner-dismissed';
 
 function ExperimentalBanner() {
   const [dismissed, setDismissed] = useState(true); // Start hidden to avoid flash
@@ -32,7 +32,7 @@ function ExperimentalBanner() {
       }}
     >
       <span>
-        <strong>Experimental:</strong> Gokapi is, like some current government
+        <strong>Experimental:</strong> Neokapi is, like some current government
         administrations, an ongoing experiment and should not be used in
         production.
       </span>

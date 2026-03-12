@@ -4831,7 +4831,7 @@ var File_bowrain_proto_v1_editor_service_proto protoreflect.FileDescriptor
 
 const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
-	"%bowrain/proto/v1/editor_service.proto\x12\x10gokapi.server.v1\x1a\x1bgoogle/protobuf/empty.proto\"\x17\n" +
+	"%bowrain/proto/v1/editor_service.proto\x12\x10neokapi.server.v1\x1a\x1bgoogle/protobuf/empty.proto\"\x17\n" +
 	"\x15GetCurrentUserRequest\"g\n" +
 	"\fUserResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -4849,7 +4849,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x04role\x18\x06 \x01(\tR\x04role\"Y\n" +
 	"\x16ListWorkspacesResponse\x12?\n" +
 	"\n" +
-	"workspaces\x18\x01 \x03(\v2\x1f.gokapi.server.v1.WorkspaceInfoR\n" +
+	"workspaces\x18\x01 \x03(\v2\x1f.neokapi.server.v1.WorkspaceInfoR\n" +
 	"workspaces\"B\n" +
 	"\x19ListEditorProjectsRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"\xdb\x02\n" +
@@ -4858,12 +4858,12 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12%\n" +
 	"\x0etarget_locales\x18\x04 \x03(\tR\rtargetLocales\x129\n" +
-	"\x05items\x18\x05 \x03(\v2#.gokapi.server.v1.EditorProjectItemR\x05items\x12\x1d\n" +
+	"\x05items\x18\x05 \x03(\v2#.neokapi.server.v1.EditorProjectItemR\x05items\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1f\n" +
 	"\vmodified_at\x18\a \x01(\tR\n" +
 	"modifiedAt\x126\n" +
-	"\astreams\x18\b \x03(\v2\x1c.gokapi.server.v1.StreamInfoR\astreams\x12#\n" +
+	"\astreams\x18\b \x03(\v2\x1c.neokapi.server.v1.StreamInfoR\astreams\x12#\n" +
 	"\ractive_stream\x18\t \x01(\tR\factiveStream\"\xa7\x01\n" +
 	"\x11EditorProjectItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
@@ -4875,14 +4875,14 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"word_count\x18\x06 \x01(\x05R\twordCount\"]\n" +
 	"\x1aListEditorProjectsResponse\x12?\n" +
-	"\bprojects\x18\x01 \x03(\v2#.gokapi.server.v1.EditorProjectInfoR\bprojects\"w\n" +
+	"\bprojects\x18\x01 \x03(\v2#.neokapi.server.v1.EditorProjectInfoR\bprojects\"w\n" +
 	"\x17GetEditorProjectRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06stream\x18\x03 \x01(\tR\x06stream\"V\n" +
 	"\x15EditorProjectResponse\x12=\n" +
-	"\aproject\x18\x01 \x01(\v2#.gokapi.server.v1.EditorProjectInfoR\aproject\"\x96\x02\n" +
+	"\aproject\x18\x01 \x01(\v2#.neokapi.server.v1.EditorProjectInfoR\aproject\"\x96\x02\n" +
 	"\n" +
 	"StreamInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
@@ -4906,7 +4906,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12)\n" +
 	"\x10include_archived\x18\x03 \x01(\bR\x0fincludeArchived\"M\n" +
 	"\x13ListStreamsResponse\x126\n" +
-	"\astreams\x18\x01 \x03(\v2\x1c.gokapi.server.v1.StreamInfoR\astreams\"\xc9\x01\n" +
+	"\astreams\x18\x01 \x03(\v2\x1c.neokapi.server.v1.StreamInfoR\astreams\"\xc9\x01\n" +
 	"\x13CreateStreamRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -4918,7 +4918,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"visibility\x12 \n" +
 	"\vdescription\x18\x06 \x01(\tR\vdescription\"J\n" +
 	"\x12StreamInfoResponse\x124\n" +
-	"\x06stream\x18\x01 \x01(\v2\x1c.gokapi.server.v1.StreamInfoR\x06stream\"t\n" +
+	"\x06stream\x18\x01 \x01(\v2\x1c.neokapi.server.v1.StreamInfoR\x06stream\"t\n" +
 	"\x14GetStreamInfoRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -4956,7 +4956,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"streamName\x12\x1f\n" +
 	"\vparent_name\x18\x02 \x01(\tR\n" +
 	"parentName\x12;\n" +
-	"\achanges\x18\x03 \x03(\v2!.gokapi.server.v1.BlockChangeInfoR\achanges\"\x99\x02\n" +
+	"\achanges\x18\x03 \x03(\v2!.neokapi.server.v1.BlockChangeInfoR\achanges\"\x99\x02\n" +
 	"\bSpanInfo\x12\x1b\n" +
 	"\tspan_type\x18\x01 \x01(\tR\bspanType\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -4975,13 +4975,13 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12!\n" +
 	"\fsource_coded\x18\x03 \x01(\tR\vsourceCoded\x12=\n" +
-	"\fsource_spans\x18\x04 \x03(\v2\x1a.gokapi.server.v1.SpanInfoR\vsourceSpans\x12B\n" +
-	"\atargets\x18\x05 \x03(\v2(.gokapi.server.v1.BlockInfo.TargetsEntryR\atargets\x12R\n" +
-	"\rtargets_coded\x18\x06 \x03(\v2-.gokapi.server.v1.BlockInfo.TargetsCodedEntryR\ftargetsCoded\x12\"\n" +
+	"\fsource_spans\x18\x04 \x03(\v2\x1a.neokapi.server.v1.SpanInfoR\vsourceSpans\x12B\n" +
+	"\atargets\x18\x05 \x03(\v2(.neokapi.server.v1.BlockInfo.TargetsEntryR\atargets\x12R\n" +
+	"\rtargets_coded\x18\x06 \x03(\v2-.neokapi.server.v1.BlockInfo.TargetsCodedEntryR\ftargetsCoded\x12\"\n" +
 	"\ftranslatable\x18\a \x01(\bR\ftranslatable\x12\x1b\n" +
 	"\thas_spans\x18\b \x01(\bR\bhasSpans\x12K\n" +
 	"\n" +
-	"properties\x18\t \x03(\v2+.gokapi.server.v1.BlockInfo.PropertiesEntryR\n" +
+	"properties\x18\t \x03(\v2+.neokapi.server.v1.BlockInfo.PropertiesEntryR\n" +
 	"properties\x1a:\n" +
 	"\fTargetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -4999,7 +4999,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\titem_name\x18\x03 \x01(\tR\bitemName\x12\x16\n" +
 	"\x06stream\x18\x04 \x01(\tR\x06stream\"H\n" +
 	"\x11GetBlocksResponse\x123\n" +
-	"\x06blocks\x18\x01 \x03(\v2\x1b.gokapi.server.v1.BlockInfoR\x06blocks\"\x9d\x02\n" +
+	"\x06blocks\x18\x01 \x03(\v2\x1b.neokapi.server.v1.BlockInfoR\x06blocks\"\x9d\x02\n" +
 	"\x18UpdateBlockTargetRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -5009,7 +5009,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x04text\x18\x05 \x01(\tR\x04text\x12\x1d\n" +
 	"\n" +
 	"coded_text\x18\x06 \x01(\tR\tcodedText\x120\n" +
-	"\x05spans\x18\a \x03(\v2\x1a.gokapi.server.v1.SpanInfoR\x05spans\x12\x16\n" +
+	"\x05spans\x18\a \x03(\v2\x1a.neokapi.server.v1.SpanInfoR\x05spans\x12\x16\n" +
 	"\x06stream\x18\b \x01(\tR\x06stream\"\xeb\x01\n" +
 	"\x12ReviewBlockRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
@@ -5035,7 +5035,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"match_type\x18\x04 \x01(\tR\tmatchType\x12\x16\n" +
 	"\x06stream\x18\x05 \x01(\tR\x06stream\"M\n" +
 	"\x10TMLookupResponse\x129\n" +
-	"\amatches\x18\x01 \x03(\v2\x1f.gokapi.server.v1.TMLookupMatchR\amatches\"\xb1\x01\n" +
+	"\amatches\x18\x01 \x03(\v2\x1f.neokapi.server.v1.TMLookupMatchR\amatches\"\xb1\x01\n" +
 	"\x11TermLookupRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -5053,7 +5053,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x03end\x18\x06 \x01(\x05R\x03end\x12\x16\n" +
 	"\x06stream\x18\a \x01(\tR\x06stream\"P\n" +
 	"\x12TermLookupResponse\x12:\n" +
-	"\amatches\x18\x01 \x03(\v2 .gokapi.server.v1.BlockTermMatchR\amatches\"\xdf\x01\n" +
+	"\amatches\x18\x01 \x03(\v2 .neokapi.server.v1.BlockTermMatchR\amatches\"\xdf\x01\n" +
 	"\x10TMEntriesRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12#\n" +
@@ -5072,7 +5072,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"updated_at\x18\x06 \x01(\tR\tupdatedAt\x12\x16\n" +
 	"\x06stream\x18\a \x01(\tR\x06stream\"m\n" +
 	"\x11TMEntriesResponse\x127\n" +
-	"\aentries\x18\x01 \x03(\v2\x1d.gokapi.server.v1.TMEntryInfoR\aentries\x12\x1f\n" +
+	"\aentries\x18\x01 \x03(\v2\x1d.neokapi.server.v1.TMEntryInfoR\aentries\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x05R\n" +
 	"totalCount\"O\n" +
 	"\x0eTMCountRequest\x12%\n" +
@@ -5090,7 +5090,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"project_id\x18\x06 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06stream\x18\a \x01(\tR\x06stream\"F\n" +
 	"\x0fTMEntryResponse\x123\n" +
-	"\x05entry\x18\x01 \x01(\v2\x1d.gokapi.server.v1.TMEntryInfoR\x05entry\"\xd2\x01\n" +
+	"\x05entry\x18\x01 \x01(\v2\x1d.neokapi.server.v1.TMEntryInfoR\x05entry\"\xd2\x01\n" +
 	"\x14UpdateTMEntryRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x19\n" +
 	"\bentry_id\x18\x02 \x01(\tR\aentryId\x12\x16\n" +
@@ -5114,9 +5114,9 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"definition\x18\x03 \x01(\tR\n" +
 	"definition\x120\n" +
-	"\x05terms\x18\x04 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12M\n" +
+	"\x05terms\x18\x04 \x03(\v2\x1a.neokapi.server.v1.TermInfoR\x05terms\x12M\n" +
 	"\n" +
-	"properties\x18\x05 \x03(\v2-.gokapi.server.v1.ConceptInfo.PropertiesEntryR\n" +
+	"properties\x18\x05 \x03(\v2-.neokapi.server.v1.ConceptInfo.PropertiesEntryR\n" +
 	"properties\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
@@ -5135,7 +5135,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x05limit\x18\x06 \x01(\x05R\x05limit\x12\x16\n" +
 	"\x06stream\x18\a \x01(\tR\x06stream\"k\n" +
 	"\rTermsResponse\x129\n" +
-	"\bconcepts\x18\x01 \x03(\v2\x1d.gokapi.server.v1.ConceptInfoR\bconcepts\x12\x1f\n" +
+	"\bconcepts\x18\x01 \x03(\v2\x1d.neokapi.server.v1.ConceptInfoR\bconcepts\x12\x1f\n" +
 	"\vtotal_count\x18\x02 \x01(\x05R\n" +
 	"totalCount\"Q\n" +
 	"\x10TermCountRequest\x12%\n" +
@@ -5149,12 +5149,12 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"definition\x18\x03 \x01(\tR\n" +
 	"definition\x120\n" +
-	"\x05terms\x18\x04 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
+	"\x05terms\x18\x04 \x03(\v2\x1a.neokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x05 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06stream\x18\x06 \x01(\tR\x06stream\"J\n" +
 	"\x0fConceptResponse\x127\n" +
-	"\aconcept\x18\x01 \x01(\v2\x1d.gokapi.server.v1.ConceptInfoR\aconcept\"\xfd\x01\n" +
+	"\aconcept\x18\x01 \x01(\v2\x1d.neokapi.server.v1.ConceptInfoR\aconcept\"\xfd\x01\n" +
 	"\x14UpdateConceptRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x1d\n" +
 	"\n" +
@@ -5163,7 +5163,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\n" +
 	"definition\x18\x04 \x01(\tR\n" +
 	"definition\x120\n" +
-	"\x05terms\x18\x05 \x03(\v2\x1a.gokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
+	"\x05terms\x18\x05 \x03(\v2\x1a.neokapi.server.v1.TermInfoR\x05terms\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x06 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06stream\x18\a \x01(\tR\x06stream\"\\\n" +
@@ -5202,7 +5202,7 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x1aListProviderConfigsRequest\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\"]\n" +
 	"\x1bListProviderConfigsResponse\x12>\n" +
-	"\aconfigs\x18\x01 \x03(\v2$.gokapi.server.v1.ProviderConfigInfoR\aconfigs\"\xd1\x01\n" +
+	"\aconfigs\x18\x01 \x03(\v2$.neokapi.server.v1.ProviderConfigInfoR\aconfigs\"\xd1\x01\n" +
 	"\x15SaveProviderConfigRPC\x12%\n" +
 	"\x0eworkspace_slug\x18\x01 \x01(\tR\rworkspaceSlug\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
@@ -5243,8 +5243,8 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x16\n" +
 	"\x06stream\x18\x03 \x01(\tR\x06stream\"\xb2\x01\n" +
 	"\fProjectEvent\x12G\n" +
-	"\fblock_change\x18\x01 \x01(\v2\".gokapi.server.v1.BlockChangeEventH\x00R\vblockChange\x12P\n" +
-	"\x0fpresence_change\x18\x02 \x01(\v2%.gokapi.server.v1.PresenceChangeEventH\x00R\x0epresenceChangeB\a\n" +
+	"\fblock_change\x18\x01 \x01(\v2\".neokapi.server.v1.BlockChangeEventH\x00R\vblockChange\x12P\n" +
+	"\x0fpresence_change\x18\x02 \x01(\v2%.neokapi.server.v1.PresenceChangeEventH\x00R\x0epresenceChangeB\a\n" +
 	"\x05event\"\xa2\x01\n" +
 	"\x10BlockChangeEvent\x12\x19\n" +
 	"\bblock_id\x18\x01 \x01(\tR\ablockId\x12\x1b\n" +
@@ -5257,46 +5257,46 @@ const file_bowrain_proto_v1_editor_service_proto_rawDesc = "" +
 	"\x13PresenceChangeEvent\x12\x1f\n" +
 	"\vchange_type\x18\x01 \x01(\tR\n" +
 	"changeType\x122\n" +
-	"\x04user\x18\x02 \x01(\v2\x1e.gokapi.server.v1.PresenceInfoR\x04user2\xaa\x18\n" +
+	"\x04user\x18\x02 \x01(\v2\x1e.neokapi.server.v1.PresenceInfoR\x04user2\xaa\x18\n" +
 	"\rEditorService\x12Y\n" +
-	"\x0eGetCurrentUser\x12'.gokapi.server.v1.GetCurrentUserRequest\x1a\x1e.gokapi.server.v1.UserResponse\x12c\n" +
-	"\x0eListWorkspaces\x12'.gokapi.server.v1.ListWorkspacesRequest\x1a(.gokapi.server.v1.ListWorkspacesResponse\x12o\n" +
-	"\x12ListEditorProjects\x12+.gokapi.server.v1.ListEditorProjectsRequest\x1a,.gokapi.server.v1.ListEditorProjectsResponse\x12f\n" +
-	"\x10GetEditorProject\x12).gokapi.server.v1.GetEditorProjectRequest\x1a'.gokapi.server.v1.EditorProjectResponse\x12Z\n" +
-	"\vListStreams\x12$.gokapi.server.v1.ListStreamsRequest\x1a%.gokapi.server.v1.ListStreamsResponse\x12[\n" +
-	"\fCreateStream\x12%.gokapi.server.v1.CreateStreamRequest\x1a$.gokapi.server.v1.StreamInfoResponse\x12]\n" +
-	"\rGetStreamInfo\x12&.gokapi.server.v1.GetStreamInfoRequest\x1a$.gokapi.server.v1.StreamInfoResponse\x12O\n" +
-	"\rArchiveStream\x12&.gokapi.server.v1.ArchiveStreamRequest\x1a\x16.google.protobuf.Empty\x12Z\n" +
-	"\vMergeStream\x12$.gokapi.server.v1.MergeStreamRequest\x1a%.gokapi.server.v1.MergeStreamResponse\x12W\n" +
+	"\x0eGetCurrentUser\x12'.neokapi.server.v1.GetCurrentUserRequest\x1a\x1e.neokapi.server.v1.UserResponse\x12c\n" +
+	"\x0eListWorkspaces\x12'.neokapi.server.v1.ListWorkspacesRequest\x1a(.neokapi.server.v1.ListWorkspacesResponse\x12o\n" +
+	"\x12ListEditorProjects\x12+.neokapi.server.v1.ListEditorProjectsRequest\x1a,.neokapi.server.v1.ListEditorProjectsResponse\x12f\n" +
+	"\x10GetEditorProject\x12).neokapi.server.v1.GetEditorProjectRequest\x1a'.neokapi.server.v1.EditorProjectResponse\x12Z\n" +
+	"\vListStreams\x12$.neokapi.server.v1.ListStreamsRequest\x1a%.neokapi.server.v1.ListStreamsResponse\x12[\n" +
+	"\fCreateStream\x12%.neokapi.server.v1.CreateStreamRequest\x1a$.neokapi.server.v1.StreamInfoResponse\x12]\n" +
+	"\rGetStreamInfo\x12&.neokapi.server.v1.GetStreamInfoRequest\x1a$.neokapi.server.v1.StreamInfoResponse\x12O\n" +
+	"\rArchiveStream\x12&.neokapi.server.v1.ArchiveStreamRequest\x1a\x16.google.protobuf.Empty\x12Z\n" +
+	"\vMergeStream\x12$.neokapi.server.v1.MergeStreamRequest\x1a%.neokapi.server.v1.MergeStreamResponse\x12W\n" +
 	"\n" +
-	"DiffStream\x12#.gokapi.server.v1.DiffStreamRequest\x1a$.gokapi.server.v1.DiffStreamResponse\x12T\n" +
-	"\tGetBlocks\x12\".gokapi.server.v1.GetBlocksRequest\x1a#.gokapi.server.v1.GetBlocksResponse\x12W\n" +
-	"\x11UpdateBlockTarget\x12*.gokapi.server.v1.UpdateBlockTargetRequest\x1a\x16.google.protobuf.Empty\x12K\n" +
-	"\vReviewBlock\x12$.gokapi.server.v1.ReviewBlockRequest\x1a\x16.google.protobuf.Empty\x12Y\n" +
-	"\x10LookupTMForBlock\x12!.gokapi.server.v1.TMLookupRequest\x1a\".gokapi.server.v1.TMLookupResponse\x12`\n" +
-	"\x13LookupTermsForBlock\x12#.gokapi.server.v1.TermLookupRequest\x1a$.gokapi.server.v1.TermLookupResponse\x12W\n" +
-	"\fGetTMEntries\x12\".gokapi.server.v1.TMEntriesRequest\x1a#.gokapi.server.v1.TMEntriesResponse\x12Q\n" +
+	"DiffStream\x12#.neokapi.server.v1.DiffStreamRequest\x1a$.neokapi.server.v1.DiffStreamResponse\x12T\n" +
+	"\tGetBlocks\x12\".neokapi.server.v1.GetBlocksRequest\x1a#.neokapi.server.v1.GetBlocksResponse\x12W\n" +
+	"\x11UpdateBlockTarget\x12*.neokapi.server.v1.UpdateBlockTargetRequest\x1a\x16.google.protobuf.Empty\x12K\n" +
+	"\vReviewBlock\x12$.neokapi.server.v1.ReviewBlockRequest\x1a\x16.google.protobuf.Empty\x12Y\n" +
+	"\x10LookupTMForBlock\x12!.neokapi.server.v1.TMLookupRequest\x1a\".neokapi.server.v1.TMLookupResponse\x12`\n" +
+	"\x13LookupTermsForBlock\x12#.neokapi.server.v1.TermLookupRequest\x1a$.neokapi.server.v1.TermLookupResponse\x12W\n" +
+	"\fGetTMEntries\x12\".neokapi.server.v1.TMEntriesRequest\x1a#.neokapi.server.v1.TMEntriesResponse\x12Q\n" +
 	"\n" +
-	"GetTMCount\x12 .gokapi.server.v1.TMCountRequest\x1a!.gokapi.server.v1.TMCountResponse\x12T\n" +
+	"GetTMCount\x12 .neokapi.server.v1.TMCountRequest\x1a!.neokapi.server.v1.TMCountResponse\x12T\n" +
 	"\n" +
-	"AddTMEntry\x12#.gokapi.server.v1.AddTMEntryRequest\x1a!.gokapi.server.v1.TMEntryResponse\x12O\n" +
-	"\rUpdateTMEntry\x12&.gokapi.server.v1.UpdateTMEntryRequest\x1a\x16.google.protobuf.Empty\x12O\n" +
-	"\rDeleteTMEntry\x12&.gokapi.server.v1.DeleteTMEntryRequest\x1a\x16.google.protobuf.Empty\x12K\n" +
-	"\bGetTerms\x12\x1e.gokapi.server.v1.TermsRequest\x1a\x1f.gokapi.server.v1.TermsResponse\x12W\n" +
-	"\fGetTermCount\x12\".gokapi.server.v1.TermCountRequest\x1a#.gokapi.server.v1.TermCountResponse\x12T\n" +
+	"AddTMEntry\x12#.neokapi.server.v1.AddTMEntryRequest\x1a!.neokapi.server.v1.TMEntryResponse\x12O\n" +
+	"\rUpdateTMEntry\x12&.neokapi.server.v1.UpdateTMEntryRequest\x1a\x16.google.protobuf.Empty\x12O\n" +
+	"\rDeleteTMEntry\x12&.neokapi.server.v1.DeleteTMEntryRequest\x1a\x16.google.protobuf.Empty\x12K\n" +
+	"\bGetTerms\x12\x1e.neokapi.server.v1.TermsRequest\x1a\x1f.neokapi.server.v1.TermsResponse\x12W\n" +
+	"\fGetTermCount\x12\".neokapi.server.v1.TermCountRequest\x1a#.neokapi.server.v1.TermCountResponse\x12T\n" +
 	"\n" +
-	"AddConcept\x12#.gokapi.server.v1.AddConceptRequest\x1a!.gokapi.server.v1.ConceptResponse\x12O\n" +
-	"\rUpdateConcept\x12&.gokapi.server.v1.UpdateConceptRequest\x1a\x16.google.protobuf.Empty\x12O\n" +
-	"\rDeleteConcept\x12&.gokapi.server.v1.DeleteConceptRequest\x1a\x16.google.protobuf.Empty\x12`\n" +
-	"\x0eImportTermsCSV\x12'.gokapi.server.v1.ImportTermsCSVRequest\x1a%.gokapi.server.v1.ImportCountResponse\x12b\n" +
-	"\x0fImportTermsJSON\x12(.gokapi.server.v1.ImportTermsJSONRequest\x1a%.gokapi.server.v1.ImportCountResponse\x12f\n" +
-	"\x0fExportTermsJSON\x12(.gokapi.server.v1.ExportTermsJSONRequest\x1a).gokapi.server.v1.ExportTermsJSONResponse\x12r\n" +
-	"\x13ListProviderConfigs\x12,.gokapi.server.v1.ListProviderConfigsRequest\x1a-.gokapi.server.v1.ListProviderConfigsResponse\x12c\n" +
-	"\x12SaveProviderConfig\x12'.gokapi.server.v1.SaveProviderConfigRPC\x1a$.gokapi.server.v1.ProviderConfigInfo\x12]\n" +
-	"\x14DeleteProviderConfig\x12-.gokapi.server.v1.DeleteProviderConfigRequest\x1a\x16.google.protobuf.Empty\x12U\n" +
-	"\x12TestProviderConfig\x12'.gokapi.server.v1.TestProviderConfigRPC\x1a\x16.google.protobuf.Empty\x12Q\n" +
-	"\x0eUpdatePresence\x12'.gokapi.server.v1.UpdatePresenceRequest\x1a\x16.google.protobuf.Empty\x12W\n" +
-	"\fWatchProject\x12%.gokapi.server.v1.WatchProjectRequest\x1a\x1e.gokapi.server.v1.ProjectEvent0\x01B4Z2github.com/gokapi/gokapi/bowrain/proto/v1;serverv1b\x06proto3"
+	"AddConcept\x12#.neokapi.server.v1.AddConceptRequest\x1a!.neokapi.server.v1.ConceptResponse\x12O\n" +
+	"\rUpdateConcept\x12&.neokapi.server.v1.UpdateConceptRequest\x1a\x16.google.protobuf.Empty\x12O\n" +
+	"\rDeleteConcept\x12&.neokapi.server.v1.DeleteConceptRequest\x1a\x16.google.protobuf.Empty\x12`\n" +
+	"\x0eImportTermsCSV\x12'.neokapi.server.v1.ImportTermsCSVRequest\x1a%.neokapi.server.v1.ImportCountResponse\x12b\n" +
+	"\x0fImportTermsJSON\x12(.neokapi.server.v1.ImportTermsJSONRequest\x1a%.neokapi.server.v1.ImportCountResponse\x12f\n" +
+	"\x0fExportTermsJSON\x12(.neokapi.server.v1.ExportTermsJSONRequest\x1a).neokapi.server.v1.ExportTermsJSONResponse\x12r\n" +
+	"\x13ListProviderConfigs\x12,.neokapi.server.v1.ListProviderConfigsRequest\x1a-.neokapi.server.v1.ListProviderConfigsResponse\x12c\n" +
+	"\x12SaveProviderConfig\x12'.neokapi.server.v1.SaveProviderConfigRPC\x1a$.neokapi.server.v1.ProviderConfigInfo\x12]\n" +
+	"\x14DeleteProviderConfig\x12-.neokapi.server.v1.DeleteProviderConfigRequest\x1a\x16.google.protobuf.Empty\x12U\n" +
+	"\x12TestProviderConfig\x12'.neokapi.server.v1.TestProviderConfigRPC\x1a\x16.google.protobuf.Empty\x12Q\n" +
+	"\x0eUpdatePresence\x12'.neokapi.server.v1.UpdatePresenceRequest\x1a\x16.google.protobuf.Empty\x12W\n" +
+	"\fWatchProject\x12%.neokapi.server.v1.WatchProjectRequest\x1a\x1e.neokapi.server.v1.ProjectEvent0\x01B4Z2github.com/neokapi/neokapi/bowrain/proto/v1;serverv1b\x06proto3"
 
 var (
 	file_bowrain_proto_v1_editor_service_proto_rawDescOnce sync.Once
@@ -5312,180 +5312,180 @@ func file_bowrain_proto_v1_editor_service_proto_rawDescGZIP() []byte {
 
 var file_bowrain_proto_v1_editor_service_proto_msgTypes = make([]protoimpl.MessageInfo, 75)
 var file_bowrain_proto_v1_editor_service_proto_goTypes = []any{
-	(*GetCurrentUserRequest)(nil),       // 0: gokapi.server.v1.GetCurrentUserRequest
-	(*UserResponse)(nil),                // 1: gokapi.server.v1.UserResponse
-	(*ListWorkspacesRequest)(nil),       // 2: gokapi.server.v1.ListWorkspacesRequest
-	(*WorkspaceInfo)(nil),               // 3: gokapi.server.v1.WorkspaceInfo
-	(*ListWorkspacesResponse)(nil),      // 4: gokapi.server.v1.ListWorkspacesResponse
-	(*ListEditorProjectsRequest)(nil),   // 5: gokapi.server.v1.ListEditorProjectsRequest
-	(*EditorProjectInfo)(nil),           // 6: gokapi.server.v1.EditorProjectInfo
-	(*EditorProjectItem)(nil),           // 7: gokapi.server.v1.EditorProjectItem
-	(*ListEditorProjectsResponse)(nil),  // 8: gokapi.server.v1.ListEditorProjectsResponse
-	(*GetEditorProjectRequest)(nil),     // 9: gokapi.server.v1.GetEditorProjectRequest
-	(*EditorProjectResponse)(nil),       // 10: gokapi.server.v1.EditorProjectResponse
-	(*StreamInfo)(nil),                  // 11: gokapi.server.v1.StreamInfo
-	(*ListStreamsRequest)(nil),          // 12: gokapi.server.v1.ListStreamsRequest
-	(*ListStreamsResponse)(nil),         // 13: gokapi.server.v1.ListStreamsResponse
-	(*CreateStreamRequest)(nil),         // 14: gokapi.server.v1.CreateStreamRequest
-	(*StreamInfoResponse)(nil),          // 15: gokapi.server.v1.StreamInfoResponse
-	(*GetStreamInfoRequest)(nil),        // 16: gokapi.server.v1.GetStreamInfoRequest
-	(*ArchiveStreamRequest)(nil),        // 17: gokapi.server.v1.ArchiveStreamRequest
-	(*MergeStreamRequest)(nil),          // 18: gokapi.server.v1.MergeStreamRequest
-	(*MergeStreamResponse)(nil),         // 19: gokapi.server.v1.MergeStreamResponse
-	(*DiffStreamRequest)(nil),           // 20: gokapi.server.v1.DiffStreamRequest
-	(*BlockChangeInfo)(nil),             // 21: gokapi.server.v1.BlockChangeInfo
-	(*DiffStreamResponse)(nil),          // 22: gokapi.server.v1.DiffStreamResponse
-	(*SpanInfo)(nil),                    // 23: gokapi.server.v1.SpanInfo
-	(*BlockInfo)(nil),                   // 24: gokapi.server.v1.BlockInfo
-	(*GetBlocksRequest)(nil),            // 25: gokapi.server.v1.GetBlocksRequest
-	(*GetBlocksResponse)(nil),           // 26: gokapi.server.v1.GetBlocksResponse
-	(*UpdateBlockTargetRequest)(nil),    // 27: gokapi.server.v1.UpdateBlockTargetRequest
-	(*ReviewBlockRequest)(nil),          // 28: gokapi.server.v1.ReviewBlockRequest
-	(*TMLookupRequest)(nil),             // 29: gokapi.server.v1.TMLookupRequest
-	(*TMLookupMatch)(nil),               // 30: gokapi.server.v1.TMLookupMatch
-	(*TMLookupResponse)(nil),            // 31: gokapi.server.v1.TMLookupResponse
-	(*TermLookupRequest)(nil),           // 32: gokapi.server.v1.TermLookupRequest
-	(*BlockTermMatch)(nil),              // 33: gokapi.server.v1.BlockTermMatch
-	(*TermLookupResponse)(nil),          // 34: gokapi.server.v1.TermLookupResponse
-	(*TMEntriesRequest)(nil),            // 35: gokapi.server.v1.TMEntriesRequest
-	(*TMEntryInfo)(nil),                 // 36: gokapi.server.v1.TMEntryInfo
-	(*TMEntriesResponse)(nil),           // 37: gokapi.server.v1.TMEntriesResponse
-	(*TMCountRequest)(nil),              // 38: gokapi.server.v1.TMCountRequest
-	(*TMCountResponse)(nil),             // 39: gokapi.server.v1.TMCountResponse
-	(*AddTMEntryRequest)(nil),           // 40: gokapi.server.v1.AddTMEntryRequest
-	(*TMEntryResponse)(nil),             // 41: gokapi.server.v1.TMEntryResponse
-	(*UpdateTMEntryRequest)(nil),        // 42: gokapi.server.v1.UpdateTMEntryRequest
-	(*DeleteTMEntryRequest)(nil),        // 43: gokapi.server.v1.DeleteTMEntryRequest
-	(*TermInfo)(nil),                    // 44: gokapi.server.v1.TermInfo
-	(*ConceptInfo)(nil),                 // 45: gokapi.server.v1.ConceptInfo
-	(*TermsRequest)(nil),                // 46: gokapi.server.v1.TermsRequest
-	(*TermsResponse)(nil),               // 47: gokapi.server.v1.TermsResponse
-	(*TermCountRequest)(nil),            // 48: gokapi.server.v1.TermCountRequest
-	(*TermCountResponse)(nil),           // 49: gokapi.server.v1.TermCountResponse
-	(*AddConceptRequest)(nil),           // 50: gokapi.server.v1.AddConceptRequest
-	(*ConceptResponse)(nil),             // 51: gokapi.server.v1.ConceptResponse
-	(*UpdateConceptRequest)(nil),        // 52: gokapi.server.v1.UpdateConceptRequest
-	(*DeleteConceptRequest)(nil),        // 53: gokapi.server.v1.DeleteConceptRequest
-	(*ImportTermsCSVRequest)(nil),       // 54: gokapi.server.v1.ImportTermsCSVRequest
-	(*ImportTermsJSONRequest)(nil),      // 55: gokapi.server.v1.ImportTermsJSONRequest
-	(*ImportCountResponse)(nil),         // 56: gokapi.server.v1.ImportCountResponse
-	(*ExportTermsJSONRequest)(nil),      // 57: gokapi.server.v1.ExportTermsJSONRequest
-	(*ExportTermsJSONResponse)(nil),     // 58: gokapi.server.v1.ExportTermsJSONResponse
-	(*ProviderConfigInfo)(nil),          // 59: gokapi.server.v1.ProviderConfigInfo
-	(*ListProviderConfigsRequest)(nil),  // 60: gokapi.server.v1.ListProviderConfigsRequest
-	(*ListProviderConfigsResponse)(nil), // 61: gokapi.server.v1.ListProviderConfigsResponse
-	(*SaveProviderConfigRPC)(nil),       // 62: gokapi.server.v1.SaveProviderConfigRPC
-	(*DeleteProviderConfigRequest)(nil), // 63: gokapi.server.v1.DeleteProviderConfigRequest
-	(*TestProviderConfigRPC)(nil),       // 64: gokapi.server.v1.TestProviderConfigRPC
-	(*UpdatePresenceRequest)(nil),       // 65: gokapi.server.v1.UpdatePresenceRequest
-	(*PresenceInfo)(nil),                // 66: gokapi.server.v1.PresenceInfo
-	(*WatchProjectRequest)(nil),         // 67: gokapi.server.v1.WatchProjectRequest
-	(*ProjectEvent)(nil),                // 68: gokapi.server.v1.ProjectEvent
-	(*BlockChangeEvent)(nil),            // 69: gokapi.server.v1.BlockChangeEvent
-	(*PresenceChangeEvent)(nil),         // 70: gokapi.server.v1.PresenceChangeEvent
-	nil,                                 // 71: gokapi.server.v1.BlockInfo.TargetsEntry
-	nil,                                 // 72: gokapi.server.v1.BlockInfo.TargetsCodedEntry
-	nil,                                 // 73: gokapi.server.v1.BlockInfo.PropertiesEntry
-	nil,                                 // 74: gokapi.server.v1.ConceptInfo.PropertiesEntry
+	(*GetCurrentUserRequest)(nil),       // 0: neokapi.server.v1.GetCurrentUserRequest
+	(*UserResponse)(nil),                // 1: neokapi.server.v1.UserResponse
+	(*ListWorkspacesRequest)(nil),       // 2: neokapi.server.v1.ListWorkspacesRequest
+	(*WorkspaceInfo)(nil),               // 3: neokapi.server.v1.WorkspaceInfo
+	(*ListWorkspacesResponse)(nil),      // 4: neokapi.server.v1.ListWorkspacesResponse
+	(*ListEditorProjectsRequest)(nil),   // 5: neokapi.server.v1.ListEditorProjectsRequest
+	(*EditorProjectInfo)(nil),           // 6: neokapi.server.v1.EditorProjectInfo
+	(*EditorProjectItem)(nil),           // 7: neokapi.server.v1.EditorProjectItem
+	(*ListEditorProjectsResponse)(nil),  // 8: neokapi.server.v1.ListEditorProjectsResponse
+	(*GetEditorProjectRequest)(nil),     // 9: neokapi.server.v1.GetEditorProjectRequest
+	(*EditorProjectResponse)(nil),       // 10: neokapi.server.v1.EditorProjectResponse
+	(*StreamInfo)(nil),                  // 11: neokapi.server.v1.StreamInfo
+	(*ListStreamsRequest)(nil),          // 12: neokapi.server.v1.ListStreamsRequest
+	(*ListStreamsResponse)(nil),         // 13: neokapi.server.v1.ListStreamsResponse
+	(*CreateStreamRequest)(nil),         // 14: neokapi.server.v1.CreateStreamRequest
+	(*StreamInfoResponse)(nil),          // 15: neokapi.server.v1.StreamInfoResponse
+	(*GetStreamInfoRequest)(nil),        // 16: neokapi.server.v1.GetStreamInfoRequest
+	(*ArchiveStreamRequest)(nil),        // 17: neokapi.server.v1.ArchiveStreamRequest
+	(*MergeStreamRequest)(nil),          // 18: neokapi.server.v1.MergeStreamRequest
+	(*MergeStreamResponse)(nil),         // 19: neokapi.server.v1.MergeStreamResponse
+	(*DiffStreamRequest)(nil),           // 20: neokapi.server.v1.DiffStreamRequest
+	(*BlockChangeInfo)(nil),             // 21: neokapi.server.v1.BlockChangeInfo
+	(*DiffStreamResponse)(nil),          // 22: neokapi.server.v1.DiffStreamResponse
+	(*SpanInfo)(nil),                    // 23: neokapi.server.v1.SpanInfo
+	(*BlockInfo)(nil),                   // 24: neokapi.server.v1.BlockInfo
+	(*GetBlocksRequest)(nil),            // 25: neokapi.server.v1.GetBlocksRequest
+	(*GetBlocksResponse)(nil),           // 26: neokapi.server.v1.GetBlocksResponse
+	(*UpdateBlockTargetRequest)(nil),    // 27: neokapi.server.v1.UpdateBlockTargetRequest
+	(*ReviewBlockRequest)(nil),          // 28: neokapi.server.v1.ReviewBlockRequest
+	(*TMLookupRequest)(nil),             // 29: neokapi.server.v1.TMLookupRequest
+	(*TMLookupMatch)(nil),               // 30: neokapi.server.v1.TMLookupMatch
+	(*TMLookupResponse)(nil),            // 31: neokapi.server.v1.TMLookupResponse
+	(*TermLookupRequest)(nil),           // 32: neokapi.server.v1.TermLookupRequest
+	(*BlockTermMatch)(nil),              // 33: neokapi.server.v1.BlockTermMatch
+	(*TermLookupResponse)(nil),          // 34: neokapi.server.v1.TermLookupResponse
+	(*TMEntriesRequest)(nil),            // 35: neokapi.server.v1.TMEntriesRequest
+	(*TMEntryInfo)(nil),                 // 36: neokapi.server.v1.TMEntryInfo
+	(*TMEntriesResponse)(nil),           // 37: neokapi.server.v1.TMEntriesResponse
+	(*TMCountRequest)(nil),              // 38: neokapi.server.v1.TMCountRequest
+	(*TMCountResponse)(nil),             // 39: neokapi.server.v1.TMCountResponse
+	(*AddTMEntryRequest)(nil),           // 40: neokapi.server.v1.AddTMEntryRequest
+	(*TMEntryResponse)(nil),             // 41: neokapi.server.v1.TMEntryResponse
+	(*UpdateTMEntryRequest)(nil),        // 42: neokapi.server.v1.UpdateTMEntryRequest
+	(*DeleteTMEntryRequest)(nil),        // 43: neokapi.server.v1.DeleteTMEntryRequest
+	(*TermInfo)(nil),                    // 44: neokapi.server.v1.TermInfo
+	(*ConceptInfo)(nil),                 // 45: neokapi.server.v1.ConceptInfo
+	(*TermsRequest)(nil),                // 46: neokapi.server.v1.TermsRequest
+	(*TermsResponse)(nil),               // 47: neokapi.server.v1.TermsResponse
+	(*TermCountRequest)(nil),            // 48: neokapi.server.v1.TermCountRequest
+	(*TermCountResponse)(nil),           // 49: neokapi.server.v1.TermCountResponse
+	(*AddConceptRequest)(nil),           // 50: neokapi.server.v1.AddConceptRequest
+	(*ConceptResponse)(nil),             // 51: neokapi.server.v1.ConceptResponse
+	(*UpdateConceptRequest)(nil),        // 52: neokapi.server.v1.UpdateConceptRequest
+	(*DeleteConceptRequest)(nil),        // 53: neokapi.server.v1.DeleteConceptRequest
+	(*ImportTermsCSVRequest)(nil),       // 54: neokapi.server.v1.ImportTermsCSVRequest
+	(*ImportTermsJSONRequest)(nil),      // 55: neokapi.server.v1.ImportTermsJSONRequest
+	(*ImportCountResponse)(nil),         // 56: neokapi.server.v1.ImportCountResponse
+	(*ExportTermsJSONRequest)(nil),      // 57: neokapi.server.v1.ExportTermsJSONRequest
+	(*ExportTermsJSONResponse)(nil),     // 58: neokapi.server.v1.ExportTermsJSONResponse
+	(*ProviderConfigInfo)(nil),          // 59: neokapi.server.v1.ProviderConfigInfo
+	(*ListProviderConfigsRequest)(nil),  // 60: neokapi.server.v1.ListProviderConfigsRequest
+	(*ListProviderConfigsResponse)(nil), // 61: neokapi.server.v1.ListProviderConfigsResponse
+	(*SaveProviderConfigRPC)(nil),       // 62: neokapi.server.v1.SaveProviderConfigRPC
+	(*DeleteProviderConfigRequest)(nil), // 63: neokapi.server.v1.DeleteProviderConfigRequest
+	(*TestProviderConfigRPC)(nil),       // 64: neokapi.server.v1.TestProviderConfigRPC
+	(*UpdatePresenceRequest)(nil),       // 65: neokapi.server.v1.UpdatePresenceRequest
+	(*PresenceInfo)(nil),                // 66: neokapi.server.v1.PresenceInfo
+	(*WatchProjectRequest)(nil),         // 67: neokapi.server.v1.WatchProjectRequest
+	(*ProjectEvent)(nil),                // 68: neokapi.server.v1.ProjectEvent
+	(*BlockChangeEvent)(nil),            // 69: neokapi.server.v1.BlockChangeEvent
+	(*PresenceChangeEvent)(nil),         // 70: neokapi.server.v1.PresenceChangeEvent
+	nil,                                 // 71: neokapi.server.v1.BlockInfo.TargetsEntry
+	nil,                                 // 72: neokapi.server.v1.BlockInfo.TargetsCodedEntry
+	nil,                                 // 73: neokapi.server.v1.BlockInfo.PropertiesEntry
+	nil,                                 // 74: neokapi.server.v1.ConceptInfo.PropertiesEntry
 	(*emptypb.Empty)(nil),               // 75: google.protobuf.Empty
 }
 var file_bowrain_proto_v1_editor_service_proto_depIdxs = []int32{
-	3,  // 0: gokapi.server.v1.ListWorkspacesResponse.workspaces:type_name -> gokapi.server.v1.WorkspaceInfo
-	7,  // 1: gokapi.server.v1.EditorProjectInfo.items:type_name -> gokapi.server.v1.EditorProjectItem
-	11, // 2: gokapi.server.v1.EditorProjectInfo.streams:type_name -> gokapi.server.v1.StreamInfo
-	6,  // 3: gokapi.server.v1.ListEditorProjectsResponse.projects:type_name -> gokapi.server.v1.EditorProjectInfo
-	6,  // 4: gokapi.server.v1.EditorProjectResponse.project:type_name -> gokapi.server.v1.EditorProjectInfo
-	11, // 5: gokapi.server.v1.ListStreamsResponse.streams:type_name -> gokapi.server.v1.StreamInfo
-	11, // 6: gokapi.server.v1.StreamInfoResponse.stream:type_name -> gokapi.server.v1.StreamInfo
-	21, // 7: gokapi.server.v1.DiffStreamResponse.changes:type_name -> gokapi.server.v1.BlockChangeInfo
-	23, // 8: gokapi.server.v1.BlockInfo.source_spans:type_name -> gokapi.server.v1.SpanInfo
-	71, // 9: gokapi.server.v1.BlockInfo.targets:type_name -> gokapi.server.v1.BlockInfo.TargetsEntry
-	72, // 10: gokapi.server.v1.BlockInfo.targets_coded:type_name -> gokapi.server.v1.BlockInfo.TargetsCodedEntry
-	73, // 11: gokapi.server.v1.BlockInfo.properties:type_name -> gokapi.server.v1.BlockInfo.PropertiesEntry
-	24, // 12: gokapi.server.v1.GetBlocksResponse.blocks:type_name -> gokapi.server.v1.BlockInfo
-	23, // 13: gokapi.server.v1.UpdateBlockTargetRequest.spans:type_name -> gokapi.server.v1.SpanInfo
-	30, // 14: gokapi.server.v1.TMLookupResponse.matches:type_name -> gokapi.server.v1.TMLookupMatch
-	33, // 15: gokapi.server.v1.TermLookupResponse.matches:type_name -> gokapi.server.v1.BlockTermMatch
-	36, // 16: gokapi.server.v1.TMEntriesResponse.entries:type_name -> gokapi.server.v1.TMEntryInfo
-	36, // 17: gokapi.server.v1.TMEntryResponse.entry:type_name -> gokapi.server.v1.TMEntryInfo
-	44, // 18: gokapi.server.v1.ConceptInfo.terms:type_name -> gokapi.server.v1.TermInfo
-	74, // 19: gokapi.server.v1.ConceptInfo.properties:type_name -> gokapi.server.v1.ConceptInfo.PropertiesEntry
-	45, // 20: gokapi.server.v1.TermsResponse.concepts:type_name -> gokapi.server.v1.ConceptInfo
-	44, // 21: gokapi.server.v1.AddConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
-	45, // 22: gokapi.server.v1.ConceptResponse.concept:type_name -> gokapi.server.v1.ConceptInfo
-	44, // 23: gokapi.server.v1.UpdateConceptRequest.terms:type_name -> gokapi.server.v1.TermInfo
-	59, // 24: gokapi.server.v1.ListProviderConfigsResponse.configs:type_name -> gokapi.server.v1.ProviderConfigInfo
-	69, // 25: gokapi.server.v1.ProjectEvent.block_change:type_name -> gokapi.server.v1.BlockChangeEvent
-	70, // 26: gokapi.server.v1.ProjectEvent.presence_change:type_name -> gokapi.server.v1.PresenceChangeEvent
-	66, // 27: gokapi.server.v1.PresenceChangeEvent.user:type_name -> gokapi.server.v1.PresenceInfo
-	0,  // 28: gokapi.server.v1.EditorService.GetCurrentUser:input_type -> gokapi.server.v1.GetCurrentUserRequest
-	2,  // 29: gokapi.server.v1.EditorService.ListWorkspaces:input_type -> gokapi.server.v1.ListWorkspacesRequest
-	5,  // 30: gokapi.server.v1.EditorService.ListEditorProjects:input_type -> gokapi.server.v1.ListEditorProjectsRequest
-	9,  // 31: gokapi.server.v1.EditorService.GetEditorProject:input_type -> gokapi.server.v1.GetEditorProjectRequest
-	12, // 32: gokapi.server.v1.EditorService.ListStreams:input_type -> gokapi.server.v1.ListStreamsRequest
-	14, // 33: gokapi.server.v1.EditorService.CreateStream:input_type -> gokapi.server.v1.CreateStreamRequest
-	16, // 34: gokapi.server.v1.EditorService.GetStreamInfo:input_type -> gokapi.server.v1.GetStreamInfoRequest
-	17, // 35: gokapi.server.v1.EditorService.ArchiveStream:input_type -> gokapi.server.v1.ArchiveStreamRequest
-	18, // 36: gokapi.server.v1.EditorService.MergeStream:input_type -> gokapi.server.v1.MergeStreamRequest
-	20, // 37: gokapi.server.v1.EditorService.DiffStream:input_type -> gokapi.server.v1.DiffStreamRequest
-	25, // 38: gokapi.server.v1.EditorService.GetBlocks:input_type -> gokapi.server.v1.GetBlocksRequest
-	27, // 39: gokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> gokapi.server.v1.UpdateBlockTargetRequest
-	28, // 40: gokapi.server.v1.EditorService.ReviewBlock:input_type -> gokapi.server.v1.ReviewBlockRequest
-	29, // 41: gokapi.server.v1.EditorService.LookupTMForBlock:input_type -> gokapi.server.v1.TMLookupRequest
-	32, // 42: gokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> gokapi.server.v1.TermLookupRequest
-	35, // 43: gokapi.server.v1.EditorService.GetTMEntries:input_type -> gokapi.server.v1.TMEntriesRequest
-	38, // 44: gokapi.server.v1.EditorService.GetTMCount:input_type -> gokapi.server.v1.TMCountRequest
-	40, // 45: gokapi.server.v1.EditorService.AddTMEntry:input_type -> gokapi.server.v1.AddTMEntryRequest
-	42, // 46: gokapi.server.v1.EditorService.UpdateTMEntry:input_type -> gokapi.server.v1.UpdateTMEntryRequest
-	43, // 47: gokapi.server.v1.EditorService.DeleteTMEntry:input_type -> gokapi.server.v1.DeleteTMEntryRequest
-	46, // 48: gokapi.server.v1.EditorService.GetTerms:input_type -> gokapi.server.v1.TermsRequest
-	48, // 49: gokapi.server.v1.EditorService.GetTermCount:input_type -> gokapi.server.v1.TermCountRequest
-	50, // 50: gokapi.server.v1.EditorService.AddConcept:input_type -> gokapi.server.v1.AddConceptRequest
-	52, // 51: gokapi.server.v1.EditorService.UpdateConcept:input_type -> gokapi.server.v1.UpdateConceptRequest
-	53, // 52: gokapi.server.v1.EditorService.DeleteConcept:input_type -> gokapi.server.v1.DeleteConceptRequest
-	54, // 53: gokapi.server.v1.EditorService.ImportTermsCSV:input_type -> gokapi.server.v1.ImportTermsCSVRequest
-	55, // 54: gokapi.server.v1.EditorService.ImportTermsJSON:input_type -> gokapi.server.v1.ImportTermsJSONRequest
-	57, // 55: gokapi.server.v1.EditorService.ExportTermsJSON:input_type -> gokapi.server.v1.ExportTermsJSONRequest
-	60, // 56: gokapi.server.v1.EditorService.ListProviderConfigs:input_type -> gokapi.server.v1.ListProviderConfigsRequest
-	62, // 57: gokapi.server.v1.EditorService.SaveProviderConfig:input_type -> gokapi.server.v1.SaveProviderConfigRPC
-	63, // 58: gokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> gokapi.server.v1.DeleteProviderConfigRequest
-	64, // 59: gokapi.server.v1.EditorService.TestProviderConfig:input_type -> gokapi.server.v1.TestProviderConfigRPC
-	65, // 60: gokapi.server.v1.EditorService.UpdatePresence:input_type -> gokapi.server.v1.UpdatePresenceRequest
-	67, // 61: gokapi.server.v1.EditorService.WatchProject:input_type -> gokapi.server.v1.WatchProjectRequest
-	1,  // 62: gokapi.server.v1.EditorService.GetCurrentUser:output_type -> gokapi.server.v1.UserResponse
-	4,  // 63: gokapi.server.v1.EditorService.ListWorkspaces:output_type -> gokapi.server.v1.ListWorkspacesResponse
-	8,  // 64: gokapi.server.v1.EditorService.ListEditorProjects:output_type -> gokapi.server.v1.ListEditorProjectsResponse
-	10, // 65: gokapi.server.v1.EditorService.GetEditorProject:output_type -> gokapi.server.v1.EditorProjectResponse
-	13, // 66: gokapi.server.v1.EditorService.ListStreams:output_type -> gokapi.server.v1.ListStreamsResponse
-	15, // 67: gokapi.server.v1.EditorService.CreateStream:output_type -> gokapi.server.v1.StreamInfoResponse
-	15, // 68: gokapi.server.v1.EditorService.GetStreamInfo:output_type -> gokapi.server.v1.StreamInfoResponse
-	75, // 69: gokapi.server.v1.EditorService.ArchiveStream:output_type -> google.protobuf.Empty
-	19, // 70: gokapi.server.v1.EditorService.MergeStream:output_type -> gokapi.server.v1.MergeStreamResponse
-	22, // 71: gokapi.server.v1.EditorService.DiffStream:output_type -> gokapi.server.v1.DiffStreamResponse
-	26, // 72: gokapi.server.v1.EditorService.GetBlocks:output_type -> gokapi.server.v1.GetBlocksResponse
-	75, // 73: gokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
-	75, // 74: gokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
-	31, // 75: gokapi.server.v1.EditorService.LookupTMForBlock:output_type -> gokapi.server.v1.TMLookupResponse
-	34, // 76: gokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> gokapi.server.v1.TermLookupResponse
-	37, // 77: gokapi.server.v1.EditorService.GetTMEntries:output_type -> gokapi.server.v1.TMEntriesResponse
-	39, // 78: gokapi.server.v1.EditorService.GetTMCount:output_type -> gokapi.server.v1.TMCountResponse
-	41, // 79: gokapi.server.v1.EditorService.AddTMEntry:output_type -> gokapi.server.v1.TMEntryResponse
-	75, // 80: gokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
-	75, // 81: gokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
-	47, // 82: gokapi.server.v1.EditorService.GetTerms:output_type -> gokapi.server.v1.TermsResponse
-	49, // 83: gokapi.server.v1.EditorService.GetTermCount:output_type -> gokapi.server.v1.TermCountResponse
-	51, // 84: gokapi.server.v1.EditorService.AddConcept:output_type -> gokapi.server.v1.ConceptResponse
-	75, // 85: gokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
-	75, // 86: gokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
-	56, // 87: gokapi.server.v1.EditorService.ImportTermsCSV:output_type -> gokapi.server.v1.ImportCountResponse
-	56, // 88: gokapi.server.v1.EditorService.ImportTermsJSON:output_type -> gokapi.server.v1.ImportCountResponse
-	58, // 89: gokapi.server.v1.EditorService.ExportTermsJSON:output_type -> gokapi.server.v1.ExportTermsJSONResponse
-	61, // 90: gokapi.server.v1.EditorService.ListProviderConfigs:output_type -> gokapi.server.v1.ListProviderConfigsResponse
-	59, // 91: gokapi.server.v1.EditorService.SaveProviderConfig:output_type -> gokapi.server.v1.ProviderConfigInfo
-	75, // 92: gokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
-	75, // 93: gokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
-	75, // 94: gokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
-	68, // 95: gokapi.server.v1.EditorService.WatchProject:output_type -> gokapi.server.v1.ProjectEvent
+	3,  // 0: neokapi.server.v1.ListWorkspacesResponse.workspaces:type_name -> neokapi.server.v1.WorkspaceInfo
+	7,  // 1: neokapi.server.v1.EditorProjectInfo.items:type_name -> neokapi.server.v1.EditorProjectItem
+	11, // 2: neokapi.server.v1.EditorProjectInfo.streams:type_name -> neokapi.server.v1.StreamInfo
+	6,  // 3: neokapi.server.v1.ListEditorProjectsResponse.projects:type_name -> neokapi.server.v1.EditorProjectInfo
+	6,  // 4: neokapi.server.v1.EditorProjectResponse.project:type_name -> neokapi.server.v1.EditorProjectInfo
+	11, // 5: neokapi.server.v1.ListStreamsResponse.streams:type_name -> neokapi.server.v1.StreamInfo
+	11, // 6: neokapi.server.v1.StreamInfoResponse.stream:type_name -> neokapi.server.v1.StreamInfo
+	21, // 7: neokapi.server.v1.DiffStreamResponse.changes:type_name -> neokapi.server.v1.BlockChangeInfo
+	23, // 8: neokapi.server.v1.BlockInfo.source_spans:type_name -> neokapi.server.v1.SpanInfo
+	71, // 9: neokapi.server.v1.BlockInfo.targets:type_name -> neokapi.server.v1.BlockInfo.TargetsEntry
+	72, // 10: neokapi.server.v1.BlockInfo.targets_coded:type_name -> neokapi.server.v1.BlockInfo.TargetsCodedEntry
+	73, // 11: neokapi.server.v1.BlockInfo.properties:type_name -> neokapi.server.v1.BlockInfo.PropertiesEntry
+	24, // 12: neokapi.server.v1.GetBlocksResponse.blocks:type_name -> neokapi.server.v1.BlockInfo
+	23, // 13: neokapi.server.v1.UpdateBlockTargetRequest.spans:type_name -> neokapi.server.v1.SpanInfo
+	30, // 14: neokapi.server.v1.TMLookupResponse.matches:type_name -> neokapi.server.v1.TMLookupMatch
+	33, // 15: neokapi.server.v1.TermLookupResponse.matches:type_name -> neokapi.server.v1.BlockTermMatch
+	36, // 16: neokapi.server.v1.TMEntriesResponse.entries:type_name -> neokapi.server.v1.TMEntryInfo
+	36, // 17: neokapi.server.v1.TMEntryResponse.entry:type_name -> neokapi.server.v1.TMEntryInfo
+	44, // 18: neokapi.server.v1.ConceptInfo.terms:type_name -> neokapi.server.v1.TermInfo
+	74, // 19: neokapi.server.v1.ConceptInfo.properties:type_name -> neokapi.server.v1.ConceptInfo.PropertiesEntry
+	45, // 20: neokapi.server.v1.TermsResponse.concepts:type_name -> neokapi.server.v1.ConceptInfo
+	44, // 21: neokapi.server.v1.AddConceptRequest.terms:type_name -> neokapi.server.v1.TermInfo
+	45, // 22: neokapi.server.v1.ConceptResponse.concept:type_name -> neokapi.server.v1.ConceptInfo
+	44, // 23: neokapi.server.v1.UpdateConceptRequest.terms:type_name -> neokapi.server.v1.TermInfo
+	59, // 24: neokapi.server.v1.ListProviderConfigsResponse.configs:type_name -> neokapi.server.v1.ProviderConfigInfo
+	69, // 25: neokapi.server.v1.ProjectEvent.block_change:type_name -> neokapi.server.v1.BlockChangeEvent
+	70, // 26: neokapi.server.v1.ProjectEvent.presence_change:type_name -> neokapi.server.v1.PresenceChangeEvent
+	66, // 27: neokapi.server.v1.PresenceChangeEvent.user:type_name -> neokapi.server.v1.PresenceInfo
+	0,  // 28: neokapi.server.v1.EditorService.GetCurrentUser:input_type -> neokapi.server.v1.GetCurrentUserRequest
+	2,  // 29: neokapi.server.v1.EditorService.ListWorkspaces:input_type -> neokapi.server.v1.ListWorkspacesRequest
+	5,  // 30: neokapi.server.v1.EditorService.ListEditorProjects:input_type -> neokapi.server.v1.ListEditorProjectsRequest
+	9,  // 31: neokapi.server.v1.EditorService.GetEditorProject:input_type -> neokapi.server.v1.GetEditorProjectRequest
+	12, // 32: neokapi.server.v1.EditorService.ListStreams:input_type -> neokapi.server.v1.ListStreamsRequest
+	14, // 33: neokapi.server.v1.EditorService.CreateStream:input_type -> neokapi.server.v1.CreateStreamRequest
+	16, // 34: neokapi.server.v1.EditorService.GetStreamInfo:input_type -> neokapi.server.v1.GetStreamInfoRequest
+	17, // 35: neokapi.server.v1.EditorService.ArchiveStream:input_type -> neokapi.server.v1.ArchiveStreamRequest
+	18, // 36: neokapi.server.v1.EditorService.MergeStream:input_type -> neokapi.server.v1.MergeStreamRequest
+	20, // 37: neokapi.server.v1.EditorService.DiffStream:input_type -> neokapi.server.v1.DiffStreamRequest
+	25, // 38: neokapi.server.v1.EditorService.GetBlocks:input_type -> neokapi.server.v1.GetBlocksRequest
+	27, // 39: neokapi.server.v1.EditorService.UpdateBlockTarget:input_type -> neokapi.server.v1.UpdateBlockTargetRequest
+	28, // 40: neokapi.server.v1.EditorService.ReviewBlock:input_type -> neokapi.server.v1.ReviewBlockRequest
+	29, // 41: neokapi.server.v1.EditorService.LookupTMForBlock:input_type -> neokapi.server.v1.TMLookupRequest
+	32, // 42: neokapi.server.v1.EditorService.LookupTermsForBlock:input_type -> neokapi.server.v1.TermLookupRequest
+	35, // 43: neokapi.server.v1.EditorService.GetTMEntries:input_type -> neokapi.server.v1.TMEntriesRequest
+	38, // 44: neokapi.server.v1.EditorService.GetTMCount:input_type -> neokapi.server.v1.TMCountRequest
+	40, // 45: neokapi.server.v1.EditorService.AddTMEntry:input_type -> neokapi.server.v1.AddTMEntryRequest
+	42, // 46: neokapi.server.v1.EditorService.UpdateTMEntry:input_type -> neokapi.server.v1.UpdateTMEntryRequest
+	43, // 47: neokapi.server.v1.EditorService.DeleteTMEntry:input_type -> neokapi.server.v1.DeleteTMEntryRequest
+	46, // 48: neokapi.server.v1.EditorService.GetTerms:input_type -> neokapi.server.v1.TermsRequest
+	48, // 49: neokapi.server.v1.EditorService.GetTermCount:input_type -> neokapi.server.v1.TermCountRequest
+	50, // 50: neokapi.server.v1.EditorService.AddConcept:input_type -> neokapi.server.v1.AddConceptRequest
+	52, // 51: neokapi.server.v1.EditorService.UpdateConcept:input_type -> neokapi.server.v1.UpdateConceptRequest
+	53, // 52: neokapi.server.v1.EditorService.DeleteConcept:input_type -> neokapi.server.v1.DeleteConceptRequest
+	54, // 53: neokapi.server.v1.EditorService.ImportTermsCSV:input_type -> neokapi.server.v1.ImportTermsCSVRequest
+	55, // 54: neokapi.server.v1.EditorService.ImportTermsJSON:input_type -> neokapi.server.v1.ImportTermsJSONRequest
+	57, // 55: neokapi.server.v1.EditorService.ExportTermsJSON:input_type -> neokapi.server.v1.ExportTermsJSONRequest
+	60, // 56: neokapi.server.v1.EditorService.ListProviderConfigs:input_type -> neokapi.server.v1.ListProviderConfigsRequest
+	62, // 57: neokapi.server.v1.EditorService.SaveProviderConfig:input_type -> neokapi.server.v1.SaveProviderConfigRPC
+	63, // 58: neokapi.server.v1.EditorService.DeleteProviderConfig:input_type -> neokapi.server.v1.DeleteProviderConfigRequest
+	64, // 59: neokapi.server.v1.EditorService.TestProviderConfig:input_type -> neokapi.server.v1.TestProviderConfigRPC
+	65, // 60: neokapi.server.v1.EditorService.UpdatePresence:input_type -> neokapi.server.v1.UpdatePresenceRequest
+	67, // 61: neokapi.server.v1.EditorService.WatchProject:input_type -> neokapi.server.v1.WatchProjectRequest
+	1,  // 62: neokapi.server.v1.EditorService.GetCurrentUser:output_type -> neokapi.server.v1.UserResponse
+	4,  // 63: neokapi.server.v1.EditorService.ListWorkspaces:output_type -> neokapi.server.v1.ListWorkspacesResponse
+	8,  // 64: neokapi.server.v1.EditorService.ListEditorProjects:output_type -> neokapi.server.v1.ListEditorProjectsResponse
+	10, // 65: neokapi.server.v1.EditorService.GetEditorProject:output_type -> neokapi.server.v1.EditorProjectResponse
+	13, // 66: neokapi.server.v1.EditorService.ListStreams:output_type -> neokapi.server.v1.ListStreamsResponse
+	15, // 67: neokapi.server.v1.EditorService.CreateStream:output_type -> neokapi.server.v1.StreamInfoResponse
+	15, // 68: neokapi.server.v1.EditorService.GetStreamInfo:output_type -> neokapi.server.v1.StreamInfoResponse
+	75, // 69: neokapi.server.v1.EditorService.ArchiveStream:output_type -> google.protobuf.Empty
+	19, // 70: neokapi.server.v1.EditorService.MergeStream:output_type -> neokapi.server.v1.MergeStreamResponse
+	22, // 71: neokapi.server.v1.EditorService.DiffStream:output_type -> neokapi.server.v1.DiffStreamResponse
+	26, // 72: neokapi.server.v1.EditorService.GetBlocks:output_type -> neokapi.server.v1.GetBlocksResponse
+	75, // 73: neokapi.server.v1.EditorService.UpdateBlockTarget:output_type -> google.protobuf.Empty
+	75, // 74: neokapi.server.v1.EditorService.ReviewBlock:output_type -> google.protobuf.Empty
+	31, // 75: neokapi.server.v1.EditorService.LookupTMForBlock:output_type -> neokapi.server.v1.TMLookupResponse
+	34, // 76: neokapi.server.v1.EditorService.LookupTermsForBlock:output_type -> neokapi.server.v1.TermLookupResponse
+	37, // 77: neokapi.server.v1.EditorService.GetTMEntries:output_type -> neokapi.server.v1.TMEntriesResponse
+	39, // 78: neokapi.server.v1.EditorService.GetTMCount:output_type -> neokapi.server.v1.TMCountResponse
+	41, // 79: neokapi.server.v1.EditorService.AddTMEntry:output_type -> neokapi.server.v1.TMEntryResponse
+	75, // 80: neokapi.server.v1.EditorService.UpdateTMEntry:output_type -> google.protobuf.Empty
+	75, // 81: neokapi.server.v1.EditorService.DeleteTMEntry:output_type -> google.protobuf.Empty
+	47, // 82: neokapi.server.v1.EditorService.GetTerms:output_type -> neokapi.server.v1.TermsResponse
+	49, // 83: neokapi.server.v1.EditorService.GetTermCount:output_type -> neokapi.server.v1.TermCountResponse
+	51, // 84: neokapi.server.v1.EditorService.AddConcept:output_type -> neokapi.server.v1.ConceptResponse
+	75, // 85: neokapi.server.v1.EditorService.UpdateConcept:output_type -> google.protobuf.Empty
+	75, // 86: neokapi.server.v1.EditorService.DeleteConcept:output_type -> google.protobuf.Empty
+	56, // 87: neokapi.server.v1.EditorService.ImportTermsCSV:output_type -> neokapi.server.v1.ImportCountResponse
+	56, // 88: neokapi.server.v1.EditorService.ImportTermsJSON:output_type -> neokapi.server.v1.ImportCountResponse
+	58, // 89: neokapi.server.v1.EditorService.ExportTermsJSON:output_type -> neokapi.server.v1.ExportTermsJSONResponse
+	61, // 90: neokapi.server.v1.EditorService.ListProviderConfigs:output_type -> neokapi.server.v1.ListProviderConfigsResponse
+	59, // 91: neokapi.server.v1.EditorService.SaveProviderConfig:output_type -> neokapi.server.v1.ProviderConfigInfo
+	75, // 92: neokapi.server.v1.EditorService.DeleteProviderConfig:output_type -> google.protobuf.Empty
+	75, // 93: neokapi.server.v1.EditorService.TestProviderConfig:output_type -> google.protobuf.Empty
+	75, // 94: neokapi.server.v1.EditorService.UpdatePresence:output_type -> google.protobuf.Empty
+	68, // 95: neokapi.server.v1.EditorService.WatchProject:output_type -> neokapi.server.v1.ProjectEvent
 	62, // [62:96] is the sub-list for method output_type
 	28, // [28:62] is the sub-list for method input_type
 	28, // [28:28] is the sub-list for extension type_name

@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/platform/store"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/labstack/echo/v4"
 )
 

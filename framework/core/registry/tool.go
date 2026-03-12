@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/gokapi/gokapi/core/tool"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // ToolFactory creates a new Tool instance.

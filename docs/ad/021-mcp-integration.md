@@ -127,7 +127,7 @@ See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool
 
 ## Consequences
 
-- **AI agents gain structured access** to gokapi's format parsing, content extraction, flow execution, and project management capabilities.
+- **AI agents gain structured access** to neokapi's format parsing, content extraction, flow execution, and project management capabilities.
 
 - **Tool discovery is automatic** — agents call `tools/list` to see available tools with schemas, enabling self-directed workflows.
 

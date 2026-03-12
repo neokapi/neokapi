@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/text/unicode/norm"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/sievepen"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/sievepen"
 )
 
 // DefaultMaxConcepts is the default maximum number of concepts in an InMemoryTermBase.

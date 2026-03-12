@@ -1,6 +1,6 @@
 package markdown
 
-import "github.com/gokapi/gokapi/core/config"
+import "github.com/neokapi/neokapi/core/config"
 
 // okapiMarkdownTransformer converts OkfMarkdownFilterConfig specs to
 // MarkdownFormatConfig. Most parameters pass through with key mapping

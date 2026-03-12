@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	platauth "github.com/gokapi/gokapi/platform/auth"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/zalando/go-keyring"
 )
 

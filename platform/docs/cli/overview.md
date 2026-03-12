@@ -87,10 +87,10 @@ Use Bowrain Desktop/Web when you:
 
 ```bash
 # macOS
-brew install gokapi/tap/bowrain-cli
+brew install neokapi/tap/bowrain-cli
 
 # Download binary
-# Visit https://github.com/gokapi/gokapi/releases
+# Visit https://github.com/neokapi/neokapi/releases
 ```
 
 ## Quick Start

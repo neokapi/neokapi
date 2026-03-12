@@ -16,8 +16,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gokapi/gokapi/core/model"
-	"github.com/gokapi/gokapi/core/plugin/bridge"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/stretchr/testify/require"
 )
 
@@ -59,13 +59,13 @@ func Cleanup() {
 // If Java or the bridge JAR is unavailable, it fails the test.
 //
 // The pool size defaults to 2 but can be overridden with the
-// GOKAPI_BRIDGE_POOL_SIZE environment variable.
+// NEOKAPI_BRIDGE_POOL_SIZE environment variable.
 func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 	t.Helper()
 
 	sharedOnce.Do(func() {
 		// External bridge mode: connect to pre-started JVM(s).
-		if addrs := os.Getenv("GOKAPI_BRIDGE_ADDRS"); addrs != "" {
+		if addrs := os.Getenv("NEOKAPI_BRIDGE_ADDRS"); addrs != "" {
 			addrList := strings.Split(addrs, ",")
 			var trimmed []string
 			for _, a := range addrList {
@@ -75,7 +75,7 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 				}
 			}
 			if len(trimmed) == 0 {
-				sharedErr = errFatal("GOKAPI_BRIDGE_ADDRS is set but contains no valid addresses")
+				sharedErr = errFatal("NEOKAPI_BRIDGE_ADDRS is set but contains no valid addresses")
 				return
 			}
 
@@ -95,9 +95,9 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 		}
 
 		// Subprocess mode: start a JVM per binary.
-		jar := os.Getenv("GOKAPI_BRIDGE_JAR")
+		jar := os.Getenv("NEOKAPI_BRIDGE_JAR")
 		if jar == "" {
-			sharedErr = errFatal("GOKAPI_BRIDGE_JAR not set — run scripts/fetch-okapi-bridge.sh")
+			sharedErr = errFatal("NEOKAPI_BRIDGE_JAR not set — run scripts/fetch-okapi-bridge.sh")
 			return
 		}
 		if _, err := os.Stat(jar); os.IsNotExist(err) {
@@ -119,7 +119,7 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 		}
 
 		poolSize := 2
-		if s := os.Getenv("GOKAPI_BRIDGE_POOL_SIZE"); s != "" {
+		if s := os.Getenv("NEOKAPI_BRIDGE_POOL_SIZE"); s != "" {
 			if n, err := strconv.Atoi(s); err == nil && n > 0 {
 				poolSize = n
 			}
