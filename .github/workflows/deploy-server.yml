@@ -14,12 +14,12 @@ on:
     branches: [main]
     paths:
       - 'framework/core/**'
-      - 'bowrain/platform/**'
-      - 'bowrain/**'
-      - '!bowrain/apps/web/**'
-      - '!bowrain/apps/keycloak-theme/**'
-      - 'bowrain/docker/bowrain-server/**'
-      - 'bowrain/docker/bowrain-worker/**'
+      - 'platform/core/**'
+      - 'platform/**'
+      - '!platform/apps/web/**'
+      - '!platform/apps/keycloak-theme/**'
+      - 'platform/docker/bowrain-server/**'
+      - 'platform/docker/bowrain-worker/**'
       - 'go.mod'
       - 'go.sum'
       - 'go.work'

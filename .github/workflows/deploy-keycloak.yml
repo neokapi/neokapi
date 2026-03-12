@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bowrain/apps/keycloak-theme/**'
-      - 'bowrain/docker/keycloak/**'
+      - 'platform/apps/keycloak-theme/**'
+      - 'platform/docker/keycloak/**'
 
 permissions:
   packages: write

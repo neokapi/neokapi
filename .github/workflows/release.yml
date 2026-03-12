@@ -40,14 +40,14 @@ jobs:
         run: npm test
 
       - name: Build SaaS web UI
-        working-directory: bowrain/apps/web
+        working-directory: platform/apps/web
         run: npm run build
 
       - name: Build kapi web UI
         run: npm run build
 
       - name: Create Bowrain frontend placeholder
-        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+        run: mkdir -p platform/apps/platform/frontend/dist && echo placeholder > platform/apps/platform/frontend/dist/index.html
 
       - name: Download modules
         run: |
@@ -248,7 +248,7 @@ jobs:
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.
       - name: Generate Wails bindings
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         shell: bash
         env:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
@@ -256,26 +256,26 @@ jobs:
           go mod tidy
           wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
           # shellcheck disable=SC2016
-          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js
-          rm -f frontend/bindings/github.com/gokapi/gokapi/bowrain/apps/bowrain/backend/app.js.bak
+          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/gokapi/gokapi/platform/apps/platform/backend/app.js
+          rm -f frontend/bindings/github.com/gokapi/gokapi/platform/apps/platform/backend/app.js.bak
 
       - name: Build Bowrain frontend
-        working-directory: bowrain/apps/bowrain/frontend
+        working-directory: platform/apps/platform/frontend
         run: npm run build
 
       - name: Generate icons
-        working-directory: bowrain/apps/bowrain/build
+        working-directory: platform/apps/platform/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
 
       - name: Generate Windows resources
         if: runner.os == 'Windows'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         shell: bash
         run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
 
       - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         env:
           GOOS: linux
           CGO_ENABLED: "1"
@@ -284,7 +284,7 @@ jobs:
 
       - name: Build Bowrain (Windows)
         if: runner.os == 'Windows'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         shell: bash
         env:
           GOOS: windows
@@ -297,7 +297,7 @@ jobs:
 
       - name: Build Bowrain (macOS universal)
         if: runner.os == 'macOS'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         env:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-mmacosx-version-min=10.15"
@@ -312,7 +312,7 @@ jobs:
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         run: |
           mkdir -p bin/Bowrain.app/Contents/MacOS
           mkdir -p bin/Bowrain.app/Contents/Resources
@@ -360,7 +360,7 @@ jobs:
       # macOS: Sign with Developer ID or ad-hoc fallback
       - name: Sign macOS app bundle
         if: runner.os == 'macOS'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         env:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
         run: |
@@ -378,7 +378,7 @@ jobs:
       # macOS: Create DMG (output to repo root for upload step)
       - name: Create DMG
         if: runner.os == 'macOS'
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
@@ -448,7 +448,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "platform/apps/platform/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -461,7 +461,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
-            -C bowrain/apps/bowrain/bin Bowrain
+            -C platform/apps/platform/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
