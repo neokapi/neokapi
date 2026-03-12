@@ -57,6 +57,13 @@
 #
 set -euo pipefail
 
+# Portable in-place sed: macOS BSD sed requires `-i ''`, GNU sed uses just `-i`
+if sed --version 2>/dev/null | grep -q GNU; then
+  _SED_I_ARGS=(-i)
+else
+  _SED_I_ARGS=(-i '')
+fi
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
@@ -220,7 +227,7 @@ echo "--- Rewriting Go import paths for promoted packages"
 # package path suffix changes.  We match the partial path (without leading
 # quote) to also catch aliased imports like:  fw "github.com/…/core/sievepen"
 
-find framework/ bowrain/ -name '*.go' -exec sed -i \
+find framework/ bowrain/ -name '*.go' -exec sed "${_SED_I_ARGS[@]}" \
   -e 's|gokapi/gokapi/core/sievepen"|gokapi/gokapi/sievepen"|g' \
   -e 's|gokapi/gokapi/core/termbase"|gokapi/gokapi/termbase"|g' \
   -e 's|gokapi/gokapi/core/ai/provider"|gokapi/gokapi/providers/ai"|g' \
@@ -245,70 +252,70 @@ echo "--- Updating go.mod replace directives"
 # gokapi root: => ../ → => ../../framework
 # cli: => ../cli → => ../../framework/cli
 # platform: => ../platform → => ../platform (stays — sibling under bowrain/)
-sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/cli/go.mod
-sed -i 's|gokapi/cli => \.\./cli|gokapi/cli => ../../framework/cli|' bowrain/cli/go.mod
+sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/cli/go.mod
+sed "${_SED_I_ARGS[@]}" 's|gokapi/cli => \.\./cli|gokapi/cli => ../../framework/cli|' bowrain/cli/go.mod
 
 # bowrain/platform/go.mod: was platform/go.mod (moved 1 level deeper)
 # gokapi root: => ../ → => ../../framework
-sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/platform/go.mod
+sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../../framework|' bowrain/platform/go.mod
 
 # bowrain/go.mod: stays at bowrain/ (not moved)
 # gokapi root: => ../ → => ../framework
 # platform: => ../platform → => ./platform (now a sibling under bowrain/)
 # Important: process platform first (more specific) before the root pattern
-sed -i 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
-sed -i 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
+sed "${_SED_I_ARGS[@]}" 's|gokapi/platform => \.\./platform|gokapi/platform => ./platform|' bowrain/go.mod
+sed "${_SED_I_ARGS[@]}" 's|gokapi/gokapi => \.\./|gokapi/gokapi => ../framework|' bowrain/go.mod
 
 # ─── 15. Update Makefile ────────────────────────────────────────────────────
 
 echo "--- Updating Makefile path references"
 
 # Module directory variables
-sed -i 's|^CLI_DIR  *:=.*|CLI_DIR         := framework/cli|' Makefile
-sed -i 's|^PLATFORM_DIR  *:=.*|PLATFORM_DIR    := bowrain/platform|' Makefile
-sed -i 's|^BOWRAIN_CLI_DIR  *:=.*|BOWRAIN_CLI_DIR := bowrain/cli|' Makefile
-sed -i 's|^KAPI_DIR  *:=.*|KAPI_DIR        := framework/kapi|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|^CLI_DIR  *:=.*|CLI_DIR         := framework/cli|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|^PLATFORM_DIR  *:=.*|PLATFORM_DIR    := bowrain/platform|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|^BOWRAIN_CLI_DIR  *:=.*|BOWRAIN_CLI_DIR := bowrain/cli|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|^KAPI_DIR  *:=.*|KAPI_DIR        := framework/kapi|' Makefile
 
 # Path variables
-sed -i 's|CERT_DIR  *:= docker/traefik/certs|CERT_DIR     := bowrain/docker/traefik/certs|' Makefile
-sed -i 's|KAPI_WEB_DIR  *:= kapi/apps/kapi-web|# KAPI_WEB_DIR removed (kapi-web decoupled)|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|CERT_DIR  *:= docker/traefik/certs|CERT_DIR     := bowrain/docker/traefik/certs|' Makefile
+sed "${_SED_I_ARGS[@]}" 's|KAPI_WEB_DIR  *:= kapi/apps/kapi-web|# KAPI_WEB_DIR removed (kapi-web decoupled)|' Makefile
 
 # cd commands for module operations
-sed -i 's|cd cli \&\&|cd framework/cli \&\&|g' Makefile
-sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' Makefile
-sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' Makefile
-sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|cd cli \&\&|cd framework/cli \&\&|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|cd platform \&\&|cd bowrain/platform \&\&|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|cd kapi \&\&|cd framework/kapi \&\&|g' Makefile
 
 # Docker compose references
-sed -i 's|-f compose\.yaml|-f bowrain/compose.yaml|g' Makefile
-sed -i 's|-f compose\.override\.yaml|-f bowrain/compose.override.yaml|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|-f compose\.yaml|-f bowrain/compose.yaml|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|-f compose\.override\.yaml|-f bowrain/compose.override.yaml|g' Makefile
 
 # Docker build context paths
-sed -i 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' Makefile
-sed -i 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' Makefile
-sed -i 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' Makefile
-sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' Makefile
-sed -i 's|docker/traefik|bowrain/docker/traefik|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|docker/keycloak|bowrain/docker/keycloak|g' Makefile
+sed "${_SED_I_ARGS[@]}" 's|docker/traefik|bowrain/docker/traefik|g' Makefile
 
 # Remove kapi-web references from Makefile (kapi-web was removed)
-sed -i '/KAPI_WEB_DIR/d' Makefile
-sed -i '/kapi-web-deps/d' Makefile
-sed -i '/kapi-web-build/d' Makefile
-sed -i '/kapi\/apps\/kapi-web/d' Makefile
+sed "${_SED_I_ARGS[@]}" '/KAPI_WEB_DIR/d' Makefile
+sed "${_SED_I_ARGS[@]}" '/kapi-web-deps/d' Makefile
+sed "${_SED_I_ARGS[@]}" '/kapi-web-build/d' Makefile
+sed "${_SED_I_ARGS[@]}" '/kapi\/apps\/kapi-web/d' Makefile
 
 # ─── 16. Update .goreleaser.yaml ────────────────────────────────────────────
 
 echo "--- Updating .goreleaser.yaml"
 
 # Before hooks: update cd paths for module tidy
-sed -i 's|cd cli \&\&|cd framework/cli \&\&|g' .goreleaser.yaml
-sed -i 's|cd platform \&\&|cd bowrain/platform \&\&|g' .goreleaser.yaml
-sed -i 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' .goreleaser.yaml
-sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|cd cli \&\&|cd framework/cli \&\&|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|cd platform \&\&|cd bowrain/platform \&\&|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|cd bowrain-cli \&\&|cd bowrain/cli \&\&|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.yaml
 
 # Build dirs
-sed -i 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
-sed -i 's|dir: kapi$|dir: framework/kapi|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
+sed "${_SED_I_ARGS[@]}" 's|dir: kapi$|dir: framework/kapi|g' .goreleaser.yaml
 
 # ─── 17. Update .dockerignore ───────────────────────────────────────────────
 
@@ -316,9 +323,9 @@ echo "--- Updating .dockerignore"
 
 # The Dockerfiles now live under bowrain/docker/ and the build context
 # is likely bowrain/. Adjust relative paths accordingly.
-sed -i 's|apps/web/dist/|bowrain/apps/web/dist/|g' .dockerignore
-sed -i 's|apps/bowrain/frontend/dist/|bowrain/apps/bowrain/frontend/dist/|g' .dockerignore
-sed -i 's|apps/bowrain/|bowrain/apps/bowrain/|g' .dockerignore
+sed "${_SED_I_ARGS[@]}" 's|apps/web/dist/|bowrain/apps/web/dist/|g' .dockerignore
+sed "${_SED_I_ARGS[@]}" 's|apps/bowrain/frontend/dist/|bowrain/apps/bowrain/frontend/dist/|g' .dockerignore
+sed "${_SED_I_ARGS[@]}" 's|apps/bowrain/|bowrain/apps/bowrain/|g' .dockerignore
 
 # ─── 18. Update CI workflows ────────────────────────────────────────────────
 
@@ -327,35 +334,35 @@ echo "--- Updating CI workflow path triggers"
 update_workflow_paths() {
   local file="$1"
   # Update path triggers in workflow files
-  sed -i "s|'core/\*\*'|'framework/core/**'|g" "$file"
-  sed -i "s|'cli/\*\*'|'framework/cli/**'|g" "$file"
-  sed -i "s|'kapi/\*\*'|'framework/kapi/**'|g" "$file"
-  sed -i "s|'platform/\*\*'|'bowrain/platform/**'|g" "$file"
-  sed -i "s|'bowrain-cli/\*\*'|'bowrain/cli/**'|g" "$file"
-  sed -i "s|'packages/ui/\*\*'|'bowrain/packages/ui/**'|g" "$file"
-  sed -i "s|'docker/bowrain-server/\*\*'|'bowrain/docker/bowrain-server/**'|g" "$file"
-  sed -i "s|'docker/bowrain-web/\*\*'|'bowrain/docker/bowrain-web/**'|g" "$file"
-  sed -i "s|'docker/bowrain-worker/\*\*'|'bowrain/docker/bowrain-worker/**'|g" "$file"
-  sed -i "s|'docker/keycloak/\*\*'|'bowrain/docker/keycloak/**'|g" "$file"
-  sed -i "s|'kapi/apps/kapi-web/\*\*'||g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'core/\*\*'|'framework/core/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'cli/\*\*'|'framework/cli/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'kapi/\*\*'|'framework/kapi/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'platform/\*\*'|'bowrain/platform/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'bowrain-cli/\*\*'|'bowrain/cli/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'packages/ui/\*\*'|'bowrain/packages/ui/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'docker/bowrain-server/\*\*'|'bowrain/docker/bowrain-server/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'docker/bowrain-web/\*\*'|'bowrain/docker/bowrain-web/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'docker/bowrain-worker/\*\*'|'bowrain/docker/bowrain-worker/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'docker/keycloak/\*\*'|'bowrain/docker/keycloak/**'|g" "$file"
+  sed "${_SED_I_ARGS[@]}" "s|'kapi/apps/kapi-web/\*\*'||g" "$file"
   # Also handle double-quoted variants
-  sed -i 's|"core/\*\*"|"framework/core/**"|g' "$file"
-  sed -i 's|"cli/\*\*"|"framework/cli/**"|g' "$file"
-  sed -i 's|"kapi/\*\*"|"framework/kapi/**"|g' "$file"
-  sed -i 's|"platform/\*\*"|"bowrain/platform/**"|g' "$file"
-  sed -i 's|"bowrain-cli/\*\*"|"bowrain/cli/**"|g' "$file"
-  sed -i 's|"packages/ui/\*\*"|"bowrain/packages/ui/**"|g' "$file"
-  sed -i 's|"docker/bowrain-server/\*\*"|"bowrain/docker/bowrain-server/**"|g' "$file"
-  sed -i 's|"docker/bowrain-web/\*\*"|"bowrain/docker/bowrain-web/**"|g' "$file"
-  sed -i 's|"docker/bowrain-worker/\*\*"|"bowrain/docker/bowrain-worker/**"|g' "$file"
-  sed -i 's|"docker/keycloak/\*\*"|"bowrain/docker/keycloak/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"core/\*\*"|"framework/core/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"cli/\*\*"|"framework/cli/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"kapi/\*\*"|"framework/kapi/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"platform/\*\*"|"bowrain/platform/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"bowrain-cli/\*\*"|"bowrain/cli/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"packages/ui/\*\*"|"bowrain/packages/ui/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"docker/bowrain-server/\*\*"|"bowrain/docker/bowrain-server/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"docker/bowrain-web/\*\*"|"bowrain/docker/bowrain-web/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"docker/bowrain-worker/\*\*"|"bowrain/docker/bowrain-worker/**"|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|"docker/keycloak/\*\*"|"bowrain/docker/keycloak/**"|g' "$file"
   # Remove kapi-web path entries entirely
-  sed -i "/kapi\/apps\/kapi-web/d" "$file"
+  sed "${_SED_I_ARGS[@]}" "/kapi\/apps\/kapi-web/d" "$file"
   # cd commands in workflow steps
-  sed -i 's|cd cli|cd framework/cli|g' "$file"
-  sed -i 's|cd platform|cd bowrain/platform|g' "$file"
-  sed -i 's|cd bowrain-cli|cd bowrain/cli|g' "$file"
-  sed -i 's|cd kapi|cd framework/kapi|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|cd cli|cd framework/cli|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|cd platform|cd bowrain/platform|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|cd bowrain-cli|cd bowrain/cli|g' "$file"
+  sed "${_SED_I_ARGS[@]}" 's|cd kapi|cd framework/kapi|g' "$file"
 }
 
 for wf in .github/workflows/*.yml; do
@@ -366,10 +373,10 @@ done
 
 echo "--- Updating bowrain/deploy/docker/compose.yaml"
 if [[ -f bowrain/deploy/docker/compose.yaml ]]; then
-  sed -i 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' bowrain/deploy/docker/compose.yaml
-  sed -i 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' bowrain/deploy/docker/compose.yaml
-  sed -i 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' bowrain/deploy/docker/compose.yaml
-  sed -i 's|docker/keycloak|bowrain/docker/keycloak|g' bowrain/deploy/docker/compose.yaml
+  sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-server|bowrain/docker/bowrain-server|g' bowrain/deploy/docker/compose.yaml
+  sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-web|bowrain/docker/bowrain-web|g' bowrain/deploy/docker/compose.yaml
+  sed "${_SED_I_ARGS[@]}" 's|docker/bowrain-worker|bowrain/docker/bowrain-worker|g' bowrain/deploy/docker/compose.yaml
+  sed "${_SED_I_ARGS[@]}" 's|docker/keycloak|bowrain/docker/keycloak|g' bowrain/deploy/docker/compose.yaml
 fi
 
 # ─── 20. Move .dockerignore into bowrain/ (build context is bowrain/) ────────
