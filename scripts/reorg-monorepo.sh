@@ -225,10 +225,6 @@ sed -i 's|^PLATFORM_DIR  *:=.*|PLATFORM_DIR    := bowrain/platform|' Makefile
 sed -i 's|^BOWRAIN_CLI_DIR  *:=.*|BOWRAIN_CLI_DIR := bowrain/cli|' Makefile
 sed -i 's|^KAPI_DIR  *:=.*|KAPI_DIR        := framework/kapi|' Makefile
 
-# Framework root (go.mod is now in framework/)
-sed -i 's|go build \./\.\.\.|cd framework \&\& go build ./...|g' Makefile
-sed -i 's|go test \./core/|cd framework \&\& go test ./core/|g' Makefile
-
 # Path variables
 sed -i 's|CERT_DIR  *:= docker/traefik/certs|CERT_DIR     := bowrain/docker/traefik/certs|' Makefile
 sed -i 's|KAPI_WEB_DIR  *:= kapi/apps/kapi-web|# KAPI_WEB_DIR removed (kapi-web decoupled)|' Makefile
@@ -268,7 +264,7 @@ sed -i 's|cd kapi \&\&|cd framework/kapi \&\&|g' .goreleaser.yaml
 
 # Build dirs
 sed -i 's|dir: bowrain-cli|dir: bowrain/cli|g' .goreleaser.yaml
-sed -i 's|dir: kapi\b|dir: framework/kapi|g' .goreleaser.yaml
+sed -i 's|dir: kapi$|dir: framework/kapi|g' .goreleaser.yaml
 
 # ─── 16. Update .dockerignore ───────────────────────────────────────────────
 
