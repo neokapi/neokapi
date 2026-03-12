@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/labstack/echo/v4"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // HandleListNotifications returns notifications for the authenticated user.

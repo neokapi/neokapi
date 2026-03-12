@@ -10,23 +10,23 @@ import (
 type nodeType int
 
 const (
-	nodeText        nodeType = iota // Plain text
-	nodeArg                        // Simple argument: {name} or {name, type} or {name, type, style}
-	nodePlural                     // {name, plural, ...}
-	nodeSelect                     // {name, select, ...}
-	nodeSelectOrd                  // {name, selectordinal, ...}
-	nodeHash                       // # (number placeholder in plural/selectordinal)
+	nodeText      nodeType = iota // Plain text
+	nodeArg                       // Simple argument: {name} or {name, type} or {name, type, style}
+	nodePlural                    // {name, plural, ...}
+	nodeSelect                    // {name, select, ...}
+	nodeSelectOrd                 // {name, selectordinal, ...}
+	nodeHash                      // # (number placeholder in plural/selectordinal)
 )
 
 // node represents a parsed element in a MessageFormat pattern.
 type node struct {
 	typ      nodeType
-	text     string     // For nodeText: the text content; for nodeArg: the full argument expression
-	argName  string     // The argument name (e.g., "count", "0", "name")
-	argType  string     // "plural", "select", "selectordinal", or format type
-	argStyle string     // Style for simple arguments (e.g., "short", "integer")
-	offset   string     // Offset value for plural (e.g., "1")
-	branches []branch   // For plural/select: the branches
+	text     string   // For nodeText: the text content; for nodeArg: the full argument expression
+	argName  string   // The argument name (e.g., "count", "0", "name")
+	argType  string   // "plural", "select", "selectordinal", or format type
+	argStyle string   // Style for simple arguments (e.g., "short", "integer")
+	offset   string   // Offset value for plural (e.g., "1")
+	branches []branch // For plural/select: the branches
 }
 
 // branch represents one branch in a plural/select pattern.
@@ -216,10 +216,10 @@ func (p *parser) parseArgument(depth int) (node, error) {
 		if r == '}' {
 			p.pos += size
 			return node{
-				typ:      nodeArg,
-				argName:  argName,
-				argType:  argType,
-				text:     "{" + argName + ", " + argType + "}",
+				typ:     nodeArg,
+				argName: argName,
+				argType: argType,
+				text:    "{" + argName + ", " + argType + "}",
 			}, nil
 		}
 		// Has style: {name, type, style}

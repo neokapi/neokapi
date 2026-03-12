@@ -340,7 +340,7 @@ func TestReaderConfig(t *testing.T) {
 
 	err := cfg.ApplyMap(map[string]any{
 		"translateDocProperties": false,
-		"aggressiveCleanup":     false,
+		"aggressiveCleanup":      false,
 	})
 	assert.NoError(t, err)
 
@@ -354,16 +354,16 @@ func TestReaderConfigListParams(t *testing.T) {
 	cfg.Reset()
 
 	err := cfg.ApplyMap(map[string]any{
-		"excludeColors":          []any{"FF0000", "00FF00"},
-		"excludeStyles":          []string{"CodeBlock", "Quote"},
-		"excludedColumns":        []any{"A", "C"},
-		"excludedSheets":         []any{"Sheet2"},
-		"includedSlides":         []any{float64(1), float64(3)},
+		"excludeColors":            []any{"FF0000", "00FF00"},
+		"excludeStyles":            []string{"CodeBlock", "Quote"},
+		"excludedColumns":          []any{"A", "C"},
+		"excludedSheets":           []any{"Sheet2"},
+		"includedSlides":           []any{float64(1), float64(3)},
 		"lineSeparatorReplacement": "\\n",
-		"replaceLineSeparator":   true,
-		"translateCharts":        true,
-		"translateDiagrams":      true,
-		"translateHiddenSlides":  true,
+		"replaceLineSeparator":     true,
+		"translateCharts":          true,
+		"translateDiagrams":        true,
+		"translateHiddenSlides":    true,
 	})
 	require.NoError(t, err)
 
@@ -391,16 +391,16 @@ func TestReaderConfigAllBoolKeys(t *testing.T) {
 		"translateFootnotes":      false,
 		"translateComments":       true,
 		"translateHyperlinks":     false,
-		"aggressiveCleanup":      false,
-		"tabAsCharacter":         true,
-		"translateSlideNotes":    false,
-		"translateSlideMasters":  true,
-		"translateHiddenSlides":  true,
-		"translateCharts":        true,
-		"translateDiagrams":      true,
-		"translateSheetNames":    true,
-		"translateSharedStrings": false,
-		"replaceLineSeparator":   true,
+		"aggressiveCleanup":       false,
+		"tabAsCharacter":          true,
+		"translateSlideNotes":     false,
+		"translateSlideMasters":   true,
+		"translateHiddenSlides":   true,
+		"translateCharts":         true,
+		"translateDiagrams":       true,
+		"translateSheetNames":     true,
+		"translateSharedStrings":  false,
+		"replaceLineSeparator":    true,
 	})
 	require.NoError(t, err)
 
@@ -456,7 +456,7 @@ func TestReaderConfigToBoolStringValues(t *testing.T) {
 		"translateDocProperties": "true",
 		"translateHiddenText":    "yes",
 		"translateComments":      "1",
-		"aggressiveCleanup":     "false",
+		"aggressiveCleanup":      "false",
 	})
 	require.NoError(t, err)
 

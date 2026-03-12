@@ -142,7 +142,6 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 	return t
 }
 
-
 // storeLengthCheckIssues writes length check findings to Block.Properties.
 func storeLengthCheckIssues(block *model.Block, issues []QAIssue) {
 	if block.Properties == nil {

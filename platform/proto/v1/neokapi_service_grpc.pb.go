@@ -272,7 +272,7 @@ func (UnimplementedNeokapiServiceServer) Subscribe(*SubscribeRequest, grpc.Serve
 	return status.Error(codes.Unimplemented, "method Subscribe not implemented")
 }
 func (UnimplementedNeokapiServiceServer) mustEmbedUnimplementedNeokapiServiceServer() {}
-func (UnimplementedNeokapiServiceServer) testEmbeddedByValue()                       {}
+func (UnimplementedNeokapiServiceServer) testEmbeddedByValue()                        {}
 
 // UnsafeNeokapiServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to NeokapiServiceServer will

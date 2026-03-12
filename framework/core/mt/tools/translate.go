@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/providers/mt"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/mt"
 )
 
 // MTTranslateTool translates Blocks using an MT provider.

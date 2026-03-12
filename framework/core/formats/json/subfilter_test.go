@@ -33,9 +33,9 @@ type fakeHTMLReader struct {
 	doc *model.RawDocument
 }
 
-func (f *fakeHTMLReader) Name() string        { return "html" }
-func (f *fakeHTMLReader) DisplayName() string  { return "HTML" }
-func (f *fakeHTMLReader) Config() format.DataFormatConfig { return nil }
+func (f *fakeHTMLReader) Name() string                              { return "html" }
+func (f *fakeHTMLReader) DisplayName() string                       { return "HTML" }
+func (f *fakeHTMLReader) Config() format.DataFormatConfig           { return nil }
 func (f *fakeHTMLReader) SetConfig(_ format.DataFormatConfig) error { return nil }
 func (f *fakeHTMLReader) Signature() format.FormatSignature {
 	return format.FormatSignature{MIMETypes: []string{"text/html"}}

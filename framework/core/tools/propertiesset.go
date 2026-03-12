@@ -11,7 +11,7 @@ import (
 type PropertiesSetConfig struct {
 	Properties       map[string]string // Key-value pairs to set on each block
 	Overwrite        bool              // Overwrite existing properties (default: true)
-	OnlyTranslatable bool             // Only set on translatable blocks (default: true)
+	OnlyTranslatable bool              // Only set on translatable blocks (default: true)
 }
 
 // ToolName returns the tool name this config applies to.

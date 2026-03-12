@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/labstack/echo/v4"
 )
 
 // BlockNoteResponse is the API response for a block note.

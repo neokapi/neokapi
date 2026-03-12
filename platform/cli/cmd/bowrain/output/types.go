@@ -579,8 +579,8 @@ type DiffChangeEntry struct {
 
 // StreamDiffOutput represents the result of bowrain stream diff.
 type StreamDiffOutput struct {
-	Stream  string           `json:"stream"`
-	Parent  string           `json:"parent"`
+	Stream  string            `json:"stream"`
+	Parent  string            `json:"parent"`
 	Changes []DiffChangeEntry `json:"changes"`
 }
 

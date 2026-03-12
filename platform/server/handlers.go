@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"sort"
 
-	"github.com/neokapi/neokapi/core/version"
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/core/version"
 )
 
 // HealthResponse is the response for the health check endpoint.

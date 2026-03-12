@@ -152,23 +152,23 @@ func TestOpenOffice_MetadataExtraction(t *testing.T) {
 // okapi: OpenOfficeFilterTest#testNumberTag
 func TestOpenOffice_NumberTag(t *testing.T) {
 	tests := []struct {
-		name                                string
+		name                                 string
 		encodeCharacterEntityReferenceGlyphs bool
 		// Only check the first text and a distinctive text to validate encoding behavior.
-		firstText     string
-		containsLtGt  bool // whether <number> should be &lt;number&gt;
+		firstText    string
+		containsLtGt bool // whether <number> should be &lt;number&gt;
 	}{
 		{
-			name:                                "encode_entities",
+			name:                                 "encode_entities",
 			encodeCharacterEntityReferenceGlyphs: true,
-			firstText:                           "There will be a lot of them",
-			containsLtGt:                        true,
+			firstText:                            "There will be a lot of them",
+			containsLtGt:                         true,
 		},
 		{
-			name:                                "no_encode_entities",
+			name:                                 "no_encode_entities",
 			encodeCharacterEntityReferenceGlyphs: false,
-			firstText:                           "There will be a lot of them",
-			containsLtGt:                        false,
+			firstText:                            "There will be a lot of them",
+			containsLtGt:                         false,
 		},
 	}
 
@@ -200,8 +200,8 @@ func TestOpenOffice_NumberTag(t *testing.T) {
 // okapi: OpenOfficeFilterTest#testBookmarkReferencesHandling
 func TestOpenOffice_BookmarkReferencesHandling(t *testing.T) {
 	tests := []struct {
-		name              string
-		params            map[string]any
+		name               string
+		params             map[string]any
 		expectedBlockCount int
 	}{
 		{

@@ -25,15 +25,15 @@ func TestConfig_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 	path := bridgetest.TestdataFile(t, "okf_json/metadata.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
-		"extractAllPairs":            false,
-		"useFullKeyPath":             true,
-		"useLeadingSlashOnKeyPath":   true,
-		"useKeyAsName":               false,
-		"subfilter":                  "okf_html",
-		"extractionRules":            `/widgets/body.*`,
-		"noteRules":                  `/widgets/name.*`,
-		"idRules":                    `/widgets/id.*`,
-		"genericMetaRules":           `/widgets/image.*`,
+		"extractAllPairs":          false,
+		"useFullKeyPath":           true,
+		"useLeadingSlashOnKeyPath": true,
+		"useKeyAsName":             false,
+		"subfilter":                "okf_html",
+		"extractionRules":          `/widgets/body.*`,
+		"noteRules":                `/widgets/name.*`,
+		"idRules":                  `/widgets/id.*`,
+		"genericMetaRules":         `/widgets/image.*`,
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -68,15 +68,15 @@ func TestConfig_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
 	path := bridgetest.TestdataFile(t, "okf_json/metadata-nested.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
-		"extractAllPairs":            false,
-		"useFullKeyPath":             true,
-		"useLeadingSlashOnKeyPath":   true,
-		"useKeyAsName":               false,
-		"subfilter":                  "okf_html",
-		"extractionRules":            `/widgets/body.*`,
-		"noteRules":                  `/widgets/name.*`,
-		"idRules":                    `/widgets/id.*`,
-		"genericMetaRules":           `/widgets/image.*`,
+		"extractAllPairs":          false,
+		"useFullKeyPath":           true,
+		"useLeadingSlashOnKeyPath": true,
+		"useKeyAsName":             false,
+		"subfilter":                "okf_html",
+		"extractionRules":          `/widgets/body.*`,
+		"noteRules":                `/widgets/name.*`,
+		"idRules":                  `/widgets/id.*`,
+		"genericMetaRules":         `/widgets/image.*`,
 	})
 
 	blocks := bridgetest.TranslatableBlocks(parts)

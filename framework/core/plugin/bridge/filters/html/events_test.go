@@ -222,10 +222,10 @@ func TestEvents_ComplexEmptyElement(t *testing.T) {
 	params := map[string]any{
 		"elements": map[string]any{
 			"dummy": map[string]any{
-				"ruleTypes":                      []string{"ATTRIBUTES_ONLY"},
-				"translatableAttributes":         []string{"trans"},
-				"writableLocalizableAttributes":  []string{"write"},
-				"readOnlyLocalizableAttributes":  []string{"readonly"},
+				"ruleTypes":                     []string{"ATTRIBUTES_ONLY"},
+				"translatableAttributes":        []string{"trans"},
+				"writableLocalizableAttributes": []string{"write"},
+				"readOnlyLocalizableAttributes": []string{"readonly"},
 			},
 		},
 	}

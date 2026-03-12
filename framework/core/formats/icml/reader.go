@@ -256,10 +256,10 @@ func (r *Reader) writeSkeletonEntries(content []byte, ranges []icmlContentRange)
 
 // nonTranslatableElements lists ICML elements whose content is not translatable.
 var nonTranslatableElements = map[string]bool{
-	"Properties":     true,
-	"PathPointArray": true,
-	"PathPointType":  true,
-	"PathGeometry":   true,
+	"Properties":       true,
+	"PathPointArray":   true,
+	"PathPointType":    true,
+	"PathGeometry":     true,
 	"GeometryPathType": true,
 }
 

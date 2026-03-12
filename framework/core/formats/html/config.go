@@ -9,12 +9,12 @@ import (
 
 // ElementRule defines how an element should be treated during extraction.
 type ElementRule struct {
-	RuleTypes                []string            // TEXTUNIT, INLINE, EXCLUDE, INCLUDE, ATTRIBUTES_ONLY, PRESERVE_WHITESPACE, GROUP
-	Conditions               []string            // [attr, operator, value] triplet
-	IDAttributes             []string            // attributes used as block name/ID
-	TranslatableAttributes   map[string]any      // attr name → condition or []condition
-	WritableAttributes       []string            // writable localizable attributes
-	ReadOnlyAttributes       []string            // read-only localizable attributes
+	RuleTypes              []string       // TEXTUNIT, INLINE, EXCLUDE, INCLUDE, ATTRIBUTES_ONLY, PRESERVE_WHITESPACE, GROUP
+	Conditions             []string       // [attr, operator, value] triplet
+	IDAttributes           []string       // attributes used as block name/ID
+	TranslatableAttributes map[string]any // attr name → condition or []condition
+	WritableAttributes     []string       // writable localizable attributes
+	ReadOnlyAttributes     []string       // read-only localizable attributes
 }
 
 // AttributeRule defines how an attribute should be treated during extraction.

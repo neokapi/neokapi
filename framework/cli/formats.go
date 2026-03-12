@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
 )
 

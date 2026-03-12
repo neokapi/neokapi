@@ -10,10 +10,10 @@ import (
 
 // Zero-width characters that can be removed.
 const (
-	zeroWidthSpace      = '\u200B'
-	zeroWidthNonJoiner  = '\u200C'
-	zeroWidthJoiner     = '\u200D'
-	zeroWidthNoBreak    = '\uFEFF' // BOM / zero-width no-break space
+	zeroWidthSpace     = '\u200B'
+	zeroWidthNonJoiner = '\u200C'
+	zeroWidthJoiner    = '\u200D'
+	zeroWidthNoBreak   = '\uFEFF' // BOM / zero-width no-break space
 )
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.

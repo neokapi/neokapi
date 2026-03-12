@@ -10,10 +10,10 @@ import (
 	"io"
 	"net/rpc"
 
+	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/shared"
-	goplugin "github.com/hashicorp/go-plugin"
 )
 
 // FormatReaderRPCServer wraps a format.DataFormatReader for serving over net/rpc.

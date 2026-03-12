@@ -78,8 +78,8 @@ type APIToken struct {
 	UserID      string     `json:"user_id"`
 	WorkspaceID string     `json:"workspace_id"`
 	Name        string     `json:"name"`
-	TokenPrefix string     `json:"token_prefix"`          // first 8 chars for display
-	Scopes      string     `json:"scopes"`                // JSON array, default '["*"]'
+	TokenPrefix string     `json:"token_prefix"` // first 8 chars for display
+	Scopes      string     `json:"scopes"`       // JSON array, default '["*"]'
 	LastUsedAt  *time.Time `json:"last_used_at"`
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`
 	CreatedAt   time.Time  `json:"created_at"`

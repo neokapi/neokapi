@@ -120,11 +120,11 @@ const (
 type Stream struct {
 	ProjectID   string           `json:"project_id"`
 	Name        string           `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
-	Parent      string           `json:"parent"`       // parent stream name; empty for "main"
-	BaseCursor  int64            `json:"base_cursor"`  // cursor in parent at branch point
+	Parent      string           `json:"parent"`      // parent stream name; empty for "main"
+	BaseCursor  int64            `json:"base_cursor"` // cursor in parent at branch point
 	Archived    bool             `json:"archived"`
-	Visibility  StreamVisibility `json:"visibility"`   // "public", "private", "shared"
-	Description string           `json:"description"`  // human-readable purpose
+	Visibility  StreamVisibility `json:"visibility"`            // "public", "private", "shared"
+	Description string           `json:"description"`           // human-readable purpose
 	SharedWith  []string         `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
 	CreatedAt   time.Time        `json:"created_at"`
 	CreatedBy   string           `json:"created_by"`
@@ -138,11 +138,11 @@ type MergeOptions struct {
 
 // MergeResult describes the outcome of a stream merge.
 type MergeResult struct {
-	MergedBlocks  int           `json:"merged_blocks"`
-	AddedBlocks   int           `json:"added_blocks"`
-	ModifiedBlocks int          `json:"modified_blocks"`
-	RemovedBlocks int           `json:"removed_blocks"`
-	Changes       []BlockChange `json:"changes,omitempty"`
+	MergedBlocks   int           `json:"merged_blocks"`
+	AddedBlocks    int           `json:"added_blocks"`
+	ModifiedBlocks int           `json:"modified_blocks"`
+	RemovedBlocks  int           `json:"removed_blocks"`
+	Changes        []BlockChange `json:"changes,omitempty"`
 }
 
 // StreamDiff describes the differences between a stream and its parent.

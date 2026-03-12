@@ -95,8 +95,8 @@ type LookupOptions struct {
 	MatchModes    []model.MatchStrategy
 	Domains       []string           // restrict to specific domains
 	StatusFilter  []model.TermStatus // only return terms with these statuses
-	ProjectID    string              // project context for scope filtering
-	ProjectScope ProjectScope        // project filtering mode (default: all)
+	ProjectID     string             // project context for scope filtering
+	ProjectScope  ProjectScope       // project filtering mode (default: all)
 }
 
 // TermBase defines the interface for a terminology database.

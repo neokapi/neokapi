@@ -1,9 +1,9 @@
 package server
 
 import (
+	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/tool"
-	goplugin "github.com/hashicorp/go-plugin"
 )
 
 // handshakeConfig must match the host side.

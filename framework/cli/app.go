@@ -9,13 +9,13 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/output"
 	neokapiconfig "github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/cli/output"
-	"github.com/neokapi/neokapi/cli/config"
 	"github.com/spf13/cobra"
 )
 

@@ -28,7 +28,7 @@ type BridgePool struct {
 	closed  bool
 	logger  *log.Logger
 	idle    map[string][]*JavaBridge // keyed by PoolKey
-	shared  map[string]*sharedEntry // keyed by PoolKey — one shared bridge per config
+	shared  map[string]*sharedEntry  // keyed by PoolKey — one shared bridge per config
 }
 
 // sharedEntry tracks a bridge with active concurrent sessions.

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/ai"
 )
 
 // AITranslateTool translates untranslated Blocks using an LLM provider.

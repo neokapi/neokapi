@@ -701,4 +701,3 @@ func TestExtract_CRLineEndings(t *testing.T) {
 	assert.Contains(t, texts, "Line 2")
 	assert.Contains(t, texts, "Line 3")
 }
-

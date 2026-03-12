@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/platform/store"
-	"github.com/labstack/echo/v4"
 )
 
 // CreateEntityRequest creates a new entity annotation on a block.

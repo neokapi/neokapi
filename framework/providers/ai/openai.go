@@ -197,9 +197,9 @@ type openaiMessage struct {
 }
 
 type openaiRequest struct {
-	Model          string               `json:"model"`
-	Messages       []openaiMessage      `json:"messages"`
-	MaxTokens      *int                 `json:"max_tokens,omitempty"`
+	Model          string                `json:"model"`
+	Messages       []openaiMessage       `json:"messages"`
+	MaxTokens      *int                  `json:"max_tokens,omitempty"`
 	ResponseFormat *openaiResponseFormat `json:"response_format,omitempty"`
 }
 

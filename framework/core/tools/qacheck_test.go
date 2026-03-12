@@ -248,12 +248,12 @@ func TestQACheckToolNonDeletableSpanMissing(t *testing.T) {
 		{SpanType: model.SpanPlaceholder, Type: "struct:break", ID: "1", Data: "<br/>", Deletable: false},
 	}
 	block := &model.Block{
-		ID:          "tu1",
+		ID:           "tu1",
 		Translatable: true,
-		Source:      []*model.Segment{{ID: "s1", Content: sourceFrag}},
-		Targets:     make(map[model.LocaleID][]*model.Segment),
-		Properties:  make(map[string]string),
-		Annotations: make(map[string]model.Annotation),
+		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the break span.
 	block.SetTargetText(model.LocaleFrench, "Hello world")
@@ -287,12 +287,12 @@ func TestQACheckToolNonCloneableSpanDuplicated(t *testing.T) {
 		{SpanType: model.SpanPlaceholder, Type: "code:variable", ID: "1", Data: "{name}", Cloneable: false},
 	}
 	block := &model.Block{
-		ID:          "tu1",
+		ID:           "tu1",
 		Translatable: true,
-		Source:      []*model.Segment{{ID: "s1", Content: sourceFrag}},
-		Targets:     make(map[model.LocaleID][]*model.Segment),
-		Properties:  make(map[string]string),
-		Annotations: make(map[string]model.Annotation),
+		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target duplicates the variable span.
 	targetFrag := model.NewFragment("Bonjour \uE003 le \uE003 monde")
@@ -332,12 +332,12 @@ func TestQACheckToolDeletableSpanMissingNoConstraintError(t *testing.T) {
 		{SpanType: model.SpanClosing, Type: "fmt:bold", ID: "1", Data: "</b>", Deletable: true},
 	}
 	block := &model.Block{
-		ID:          "tu1",
+		ID:           "tu1",
 		Translatable: true,
-		Source:      []*model.Segment{{ID: "s1", Content: sourceFrag}},
-		Targets:     make(map[model.LocaleID][]*model.Segment),
-		Properties:  make(map[string]string),
-		Annotations: make(map[string]model.Annotation),
+		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the bold spans (which are deletable).
 	block.SetTargetText(model.LocaleFrench, "Bonjour")
@@ -364,12 +364,12 @@ func TestQACheckToolSpanConstraintsDisabled(t *testing.T) {
 		{SpanType: model.SpanPlaceholder, Type: "struct:break", ID: "1", Data: "<br/>", Deletable: false},
 	}
 	block := &model.Block{
-		ID:          "tu1",
+		ID:           "tu1",
 		Translatable: true,
-		Source:      []*model.Segment{{ID: "s1", Content: sourceFrag}},
-		Targets:     make(map[model.LocaleID][]*model.Segment),
-		Properties:  make(map[string]string),
-		Annotations: make(map[string]model.Annotation),
+		Source:       []*model.Segment{{ID: "s1", Content: sourceFrag}},
+		Targets:      make(map[model.LocaleID][]*model.Segment),
+		Properties:   make(map[string]string),
+		Annotations:  make(map[string]model.Annotation),
 	}
 	// Target is missing the break span, but check is disabled.
 	block.SetTargetText(model.LocaleFrench, "Hello world")

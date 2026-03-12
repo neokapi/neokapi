@@ -10,12 +10,12 @@ import (
 
 // MockProvider implements LLMProvider for testing.
 type MockProvider struct {
-	ProviderName       string
-	TranslateFunc      func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
-	ChatFunc           func(ctx context.Context, messages []Message) (*ChatResponse, error)
-	ChatStructuredFunc func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
-	TranslateCalls     []TranslateRequest
-	ChatCalls          [][]Message
+	ProviderName        string
+	TranslateFunc       func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
+	ChatFunc            func(ctx context.Context, messages []Message) (*ChatResponse, error)
+	ChatStructuredFunc  func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
+	TranslateCalls      []TranslateRequest
+	ChatCalls           [][]Message
 	ChatStructuredCalls []struct {
 		Messages []Message
 		Schema   JSONSchema

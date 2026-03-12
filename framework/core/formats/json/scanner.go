@@ -11,18 +11,18 @@ import (
 type tokenType int
 
 const (
-	tokenObjectStart  tokenType = iota // {
-	tokenObjectEnd                     // }
-	tokenArrayStart                    // [
-	tokenArrayEnd                      // ]
-	tokenColon                         // :
-	tokenComma                         // ,
-	tokenString                        // "..."
-	tokenNumber                        // 123, 1.5, -3e10
-	tokenTrue                          // true
-	tokenFalse                         // false
-	tokenNull                          // null
-	tokenEOF                           // end of input
+	tokenObjectStart tokenType = iota // {
+	tokenObjectEnd                    // }
+	tokenArrayStart                   // [
+	tokenArrayEnd                     // ]
+	tokenColon                        // :
+	tokenComma                        // ,
+	tokenString                       // "..."
+	tokenNumber                       // 123, 1.5, -3e10
+	tokenTrue                         // true
+	tokenFalse                        // false
+	tokenNull                         // null
+	tokenEOF                          // end of input
 )
 
 // token represents a single JSON token with its surrounding whitespace/comments.

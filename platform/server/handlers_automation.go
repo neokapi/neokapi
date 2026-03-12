@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/core/id"
 	platev "github.com/neokapi/neokapi/platform/event"
-	"github.com/labstack/echo/v4"
 )
 
 // HandleListAutomationRules returns all automation rules for a project.
@@ -35,11 +35,11 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 	}
 
 	var req struct {
-		Name       string                     `json:"name"`
-		Trigger    string                     `json:"trigger"`
+		Name       string                      `json:"name"`
+		Trigger    string                      `json:"trigger"`
 		Conditions []event.AutomationCondition `json:"conditions"`
 		Actions    []event.AutomationAction    `json:"actions"`
-		Enabled    bool                       `json:"enabled"`
+		Enabled    bool                        `json:"enabled"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})
@@ -70,11 +70,11 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 	}
 
 	var req struct {
-		Name       string                     `json:"name"`
-		Trigger    string                     `json:"trigger"`
+		Name       string                      `json:"name"`
+		Trigger    string                      `json:"trigger"`
 		Conditions []event.AutomationCondition `json:"conditions"`
 		Actions    []event.AutomationAction    `json:"actions"`
-		Enabled    bool                       `json:"enabled"`
+		Enabled    bool                        `json:"enabled"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": err.Error()})

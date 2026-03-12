@@ -9,13 +9,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neokapi/neokapi/providers/ai"
+	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/termbase"
-	"github.com/labstack/echo/v4"
 )
 
 // HandleCreateEditorProject creates a new translation project in the ContentStore.
@@ -671,8 +671,8 @@ func (s *Server) HandleAddConcept(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: err.Error()})
 	}
 	concept := termbase.Concept{
-		ID:        id.New(),
-		ProjectID: req.ProjectID,
+		ID:         id.New(),
+		ProjectID:  req.ProjectID,
 		Domain:     req.Domain,
 		Definition: req.Definition,
 		Terms:      editorTermsFromInfo(req.Terms),

@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/neokapi/neokapi/cli"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
@@ -16,8 +18,6 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
-	"github.com/neokapi/neokapi/cli"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // registerKapiTools registers all kapi MCP tools on the given server.

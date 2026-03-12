@@ -3,9 +3,9 @@ package server
 import (
 	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/labstack/echo/v4"
 )
 
 // HandleCreateTranslationJob creates a new async translation job and enqueues it.

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/hashicorp/go-plugin"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/hashicorp/go-plugin"
 )
 
 // PluginManager discovers, launches, and manages plugin processes.

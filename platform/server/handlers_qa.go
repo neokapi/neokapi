@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/platform/store"
-	"github.com/labstack/echo/v4"
 )
 
 // QAIssueResponse is a single QA finding returned by the API.

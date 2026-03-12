@@ -10,10 +10,10 @@ import (
 	"runtime"
 
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // GetItemBlocks returns all blocks for an item in the project.

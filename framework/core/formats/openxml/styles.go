@@ -16,9 +16,9 @@ type styleMap struct {
 
 // styleEntry holds a single style definition.
 type styleEntry struct {
-	id       string
-	basedOn  string   // parent style ID
-	props    runProps // run properties defined directly on this style
+	id      string
+	basedOn string   // parent style ID
+	props   runProps // run properties defined directly on this style
 }
 
 // resolveProps returns the effective run properties for a style,

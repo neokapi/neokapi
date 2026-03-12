@@ -11,16 +11,16 @@ import (
 
 // runProps holds normalized run properties extracted from <w:rPr>.
 type runProps struct {
-	bold          bool
-	italic        bool
-	underline     string // "single", "double", etc. — empty means none
-	strike        bool
-	vertAlign     string // "superscript", "subscript", or ""
-	vanish        bool   // hidden text
-	fontName      string // primary font name from <w:rFonts> (ascii or hAnsi)
-	fontNameCS    string // complex script font name
-	fontNameEA    string // East Asian font name
-	otherXML      string // serialized non-formatting properties we preserve but don't compare
+	bold       bool
+	italic     bool
+	underline  string // "single", "double", etc. — empty means none
+	strike     bool
+	vertAlign  string // "superscript", "subscript", or ""
+	vanish     bool   // hidden text
+	fontName   string // primary font name from <w:rFonts> (ascii or hAnsi)
+	fontNameCS string // complex script font name
+	fontNameEA string // East Asian font name
+	otherXML   string // serialized non-formatting properties we preserve but don't compare
 }
 
 // equal returns true if two runProps produce the same visual formatting.
@@ -47,13 +47,13 @@ func (rp runProps) openingSpans(idCounter *int) []*model.Span {
 	add := func(typ, subType, data string) {
 		*idCounter++
 		spans = append(spans, &model.Span{
-			SpanType:  model.SpanOpening,
-			Type:      typ,
-			SubType:   subType,
-			ID:        idStr(*idCounter),
-			Data:      data,
-			Deletable: true,
-			Cloneable: true,
+			SpanType:   model.SpanOpening,
+			Type:       typ,
+			SubType:    subType,
+			ID:         idStr(*idCounter),
+			Data:       data,
+			Deletable:  true,
+			Cloneable:  true,
 			CanReorder: true,
 		})
 	}
@@ -85,13 +85,13 @@ func (rp runProps) closingSpans(idCounter *int) []*model.Span {
 	add := func(typ, subType, data string) {
 		*idCounter++
 		spans = append(spans, &model.Span{
-			SpanType:  model.SpanClosing,
-			Type:      typ,
-			SubType:   subType,
-			ID:        idStr(*idCounter),
-			Data:      data,
-			Deletable: true,
-			Cloneable: true,
+			SpanType:   model.SpanClosing,
+			Type:       typ,
+			SubType:    subType,
+			ID:         idStr(*idCounter),
+			Data:       data,
+			Deletable:  true,
+			Cloneable:  true,
 			CanReorder: true,
 		})
 	}

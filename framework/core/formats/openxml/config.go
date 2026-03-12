@@ -17,11 +17,11 @@ type Config struct {
 	TabAsCharacter    bool // Treat <w:tab/> as a tab character instead of a placeholder span
 
 	// --- PPTX options ---
-	TranslateSlideNotes   bool // Extract slide notes
-	TranslateSlideMasters bool // Extract slide master text
-	TranslateHiddenSlides bool // Extract hidden slides
-	TranslateCharts       bool // Extract chart strings
-	TranslateDiagrams     bool // Extract diagram data text
+	TranslateSlideNotes   bool  // Extract slide notes
+	TranslateSlideMasters bool  // Extract slide master text
+	TranslateHiddenSlides bool  // Extract hidden slides
+	TranslateCharts       bool  // Extract chart strings
+	TranslateDiagrams     bool  // Extract diagram data text
 	IncludedSlides        []int // If non-empty, only extract these slide numbers (1-based)
 
 	// --- XLSX options ---

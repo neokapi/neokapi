@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/credentials"
@@ -21,8 +23,6 @@ import (
 	libtools "github.com/neokapi/neokapi/core/tools"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -109,12 +109,12 @@ func NewServer(cfg ServerConfig) *Server {
 	connector.RegisterAll(connReg, formatReg)
 
 	s := &Server{
-		Config:         cfg,
-		FormatRegistry: formatReg,
-		ToolRegistry:   toolReg,
-		ConnectorReg:   connReg,
-		EventBus:       event.NewChannelEventBus(),
-		wsStores:       newWorkspaceStores(),
+		Config:          cfg,
+		FormatRegistry:  formatReg,
+		ToolRegistry:    toolReg,
+		ConnectorReg:    connReg,
+		EventBus:        event.NewChannelEventBus(),
+		wsStores:        newWorkspaceStores(),
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
 	}

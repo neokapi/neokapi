@@ -52,10 +52,10 @@ type sequencedPart struct {
 // orderedBuffer is a min-heap that emits parts in sequence order.
 type orderedBuffer []sequencedPart
 
-func (h orderedBuffer) Len() int            { return len(h) }
-func (h orderedBuffer) Less(i, j int) bool  { return h[i].seq < h[j].seq }
-func (h orderedBuffer) Swap(i, j int)       { h[i], h[j] = h[j], h[i] }
-func (h *orderedBuffer) Push(x any)         { *h = append(*h, x.(sequencedPart)) }
+func (h orderedBuffer) Len() int           { return len(h) }
+func (h orderedBuffer) Less(i, j int) bool { return h[i].seq < h[j].seq }
+func (h orderedBuffer) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
+func (h *orderedBuffer) Push(x any)        { *h = append(*h, x.(sequencedPart)) }
 func (h *orderedBuffer) Pop() any {
 	old := *h
 	n := len(old)

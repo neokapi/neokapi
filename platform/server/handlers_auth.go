@@ -15,9 +15,9 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platformAuth "github.com/neokapi/neokapi/platform/auth"
-	"github.com/labstack/echo/v4"
 	"golang.org/x/oauth2"
 )
 
@@ -40,7 +40,7 @@ type webAuthEntry struct {
 
 // desktopAuthEntry stores the state of a pending desktop PKCE authorization.
 type desktopAuthEntry struct {
-	RedirectURI   string `json:"redirect_uri"`  // desktop's localhost callback URL
+	RedirectURI   string `json:"redirect_uri"`   // desktop's localhost callback URL
 	CodeChallenge string `json:"code_challenge"` // PKCE code_challenge from the desktop
 	CodeVerifier  string `json:"code_verifier"`  // server-side PKCE verifier for OIDC exchange
 	Nonce         string `json:"nonce"`          // OIDC nonce for ID token replay protection

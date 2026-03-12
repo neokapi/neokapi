@@ -11,8 +11,8 @@ import (
 
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/termbase"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 // TermInfo is the frontend-facing representation of a term.

@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/plugin/registry"
-	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/cli/config"
+	"github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
@@ -602,4 +602,3 @@ func (a *App) newProgressRegistryForURL(url string) (reg *registry.RemoteRegistr
 
 	return reg, cleanup
 }
-

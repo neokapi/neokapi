@@ -17,8 +17,8 @@ type Writer struct {
 	separator     rune
 	headers       []string
 	preambleRows  [][]string              // rows before data (header, preamble)
-	blocks        map[string]*model.Block  // keyed by "col.row"
-	dataCells     map[string]string        // keyed by "col.row"
+	blocks        map[string]*model.Block // keyed by "col.row"
+	dataCells     map[string]string       // keyed by "col.row"
 	maxCol        int
 	maxRow        int
 	skeletonStore *format.SkeletonStore

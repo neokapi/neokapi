@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/credentials"
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
 )
 
@@ -29,7 +29,7 @@ type WorkerDeps struct {
 	ContentStore store.ContentStore
 	CredStore    *credentials.Store
 	Queue        Queue
-	QuotaStore   QuotaStore             // optional; nil disables quota enforcement
+	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
 	Platform     *PlatformProviderConfig // optional; nil disables platform provider
 }
 

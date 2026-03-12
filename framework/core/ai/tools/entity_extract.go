@@ -8,9 +8,9 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/ai/ner"
-	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/providers/ai"
 )
 
 // AIEntityExtractTool extracts named entities and term candidates from Blocks
@@ -181,9 +181,9 @@ func (t *AIEntityExtractTool) processBatched(ctx context.Context, in <-chan *mod
 	}
 
 	var (
-		mu           sync.Mutex
-		llmResults   []batchLLMResult
-		wg           sync.WaitGroup
+		mu         sync.Mutex
+		llmResults []batchLLMResult
+		wg         sync.WaitGroup
 	)
 	sem := make(chan struct{}, t.concurrency)
 

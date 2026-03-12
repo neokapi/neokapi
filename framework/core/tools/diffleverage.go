@@ -23,10 +23,10 @@ type PreviousBlock struct {
 
 // DiffLeverageConfig holds configuration for the diff leverage tool.
 type DiffLeverageConfig struct {
-	TargetLocale  model.LocaleID          // Required
+	TargetLocale  model.LocaleID           // Required
 	PreviousTexts map[string]PreviousBlock // Map of block ID → previous source text + translation
-	CaseSensitive bool                    // Whether comparison is case-sensitive (default: true)
-	FuzzyMatch    bool                    // Enable fuzzy matching for similar texts (default: false)
+	CaseSensitive bool                     // Whether comparison is case-sensitive (default: true)
+	FuzzyMatch    bool                     // Enable fuzzy matching for similar texts (default: false)
 }
 
 // ToolName returns the tool name this config applies to.

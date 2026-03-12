@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"net/rpc"
 
+	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/shared"
 	"github.com/neokapi/neokapi/core/tool"
-	goplugin "github.com/hashicorp/go-plugin"
 )
 
 // ToolRPCServer wraps a tool.Tool for serving over net/rpc.

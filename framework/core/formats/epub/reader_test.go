@@ -72,10 +72,10 @@ func makeEPUB(t *testing.T) []byte {
 
 	entries := map[string]string{
 		"META-INF/container.xml": containerXML,
-		"OEBPS/content.opf":     contentOPF,
-		"OEBPS/chapter1.xhtml":  chapter1XHTML,
-		"OEBPS/chapter2.xhtml":  chapter2XHTML,
-		"OEBPS/style.css":       "body { font-family: serif; }",
+		"OEBPS/content.opf":      contentOPF,
+		"OEBPS/chapter1.xhtml":   chapter1XHTML,
+		"OEBPS/chapter2.xhtml":   chapter2XHTML,
+		"OEBPS/style.css":        "body { font-family: serif; }",
 	}
 
 	for name, content := range entries {

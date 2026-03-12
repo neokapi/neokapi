@@ -343,7 +343,7 @@ func TestStyleOptimization(t *testing.T) {
 
 func TestStyleOptimizationWithInheritance(t *testing.T) {
 	styles := &styleMap{styles: map[string]*styleEntry{
-		"BaseStyle": {id: "BaseStyle", props: runProps{bold: true}},
+		"BaseStyle":  {id: "BaseStyle", props: runProps{bold: true}},
 		"ChildStyle": {id: "ChildStyle", basedOn: "BaseStyle", props: runProps{italic: true}},
 	}}
 
@@ -475,7 +475,7 @@ func TestExtractRunFontsInfoDisabled(t *testing.T) {
 func TestCollectFonts(t *testing.T) {
 	runs := []textRun{
 		{props: runProps{fontName: "Arial", fontNameCS: "Arial", fontNameEA: "MS Mincho"}},
-		{props: runProps{fontName: "Arial"}},                                    // duplicate
+		{props: runProps{fontName: "Arial"}}, // duplicate
 		{props: runProps{fontName: "Times New Roman", fontNameCS: "Simplified Arabic"}},
 	}
 	result := collectFonts(runs)

@@ -41,7 +41,7 @@ type WriteStreamParams struct {
 	FilterClass     string
 	Locale          string
 	Encoding        string
-	OriginalContent []byte         // Legacy: inline original document bytes
+	OriginalContent []byte // Legacy: inline original document bytes
 	FilterParams    map[string]any
 	SourcePath      string // Optional absolute file path; Java reads from disk when set
 	OutputPath      string // When set, Java writes output directly to this path

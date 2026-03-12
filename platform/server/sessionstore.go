@@ -118,11 +118,11 @@ func (s *MemorySessionStore) cleanup() {
 
 // Key prefixes for the four auth state stores.
 const (
-	prefixDeviceCode    = "device:"
-	prefixWebAuth       = "webauth:"
-	prefixDesktopAuth   = "desktop:"
-	prefixDeviceVerify  = "deviceverify:"
-	prefixUserCode      = "usercode:" // secondary index: userCode → deviceCode
+	prefixDeviceCode   = "device:"
+	prefixWebAuth      = "webauth:"
+	prefixDesktopAuth  = "desktop:"
+	prefixDeviceVerify = "deviceverify:"
+	prefixUserCode     = "usercode:" // secondary index: userCode → deviceCode
 )
 
 // Typed helper functions for storing/retrieving auth states via the SessionStateStore.

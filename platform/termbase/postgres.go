@@ -875,4 +875,3 @@ func nullableString(b []byte) *string {
 	s := string(b)
 	return &s
 }
-

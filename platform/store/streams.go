@@ -343,4 +343,3 @@ func scanStream(row scanner) (*platstore.Stream, error) {
 	st.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	return &st, nil
 }
-

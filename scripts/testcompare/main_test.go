@@ -454,7 +454,6 @@ func TestMerge_SubtestCounts(t *testing.T) {
 	assert.Equal(t, 0, tcs[0].NativeSubtests)
 }
 
-
 func TestFilterFromPath(t *testing.T) {
 	tests := []struct {
 		path string

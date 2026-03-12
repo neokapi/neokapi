@@ -100,7 +100,6 @@ func (r FormatRef) IsPreset() bool {
 	return r.Preset != ""
 }
 
-
 // CompareSemver compares two semantic version strings (major.minor.patch).
 // Returns -1 if a < b, 0 if a == b, +1 if a > b.
 // Malformed versions sort before well-formed ones.

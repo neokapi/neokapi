@@ -14,12 +14,12 @@ type ReviewQueueStoreAdapter struct {
 
 func (a *ReviewQueueStoreAdapter) CreateReviewItem(ctx context.Context, item *ReviewQueueItem) error {
 	ri := &bstore.ReviewItem{
-		ProjectID:   item.ProjectID,
-		Type:        bstore.ReviewItemType(item.Type),
-		PushID:      item.PushID,
-		Data:        item.Data,
-		Confidence:  item.Confidence,
-		Locale:      item.Locale,
+		ProjectID:  item.ProjectID,
+		Type:       bstore.ReviewItemType(item.Type),
+		PushID:     item.PushID,
+		Data:       item.Data,
+		Confidence: item.Confidence,
+		Locale:     item.Locale,
 	}
 
 	// Parse occurrences from JSON.

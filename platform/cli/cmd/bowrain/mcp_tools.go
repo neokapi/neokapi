@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
 	clioutput "github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/project"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // registerBowrainTools registers all Bowrain CLI MCP tools on the given server.
@@ -129,13 +129,13 @@ type MCPLsOutput struct {
 }
 
 type MCPConfigOutput struct {
-	Root             string   `json:"root"`
-	ConfigPath       string   `json:"config_path"`
-	SourceLanguage   string   `json:"source_language"`
-	TargetLanguages  []string `json:"target_languages,omitempty"`
-	ServerURL        string   `json:"server_url,omitempty"`
-	ProjectID        string   `json:"project_id,omitempty"`
-	ContentCount     int      `json:"content_count"`
+	Root            string   `json:"root"`
+	ConfigPath      string   `json:"config_path"`
+	SourceLanguage  string   `json:"source_language"`
+	TargetLanguages []string `json:"target_languages,omitempty"`
+	ServerURL       string   `json:"server_url,omitempty"`
+	ProjectID       string   `json:"project_id,omitempty"`
+	ContentCount    int      `json:"content_count"`
 }
 
 type MCPFlowEntry struct {

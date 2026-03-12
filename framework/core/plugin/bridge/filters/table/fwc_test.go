@@ -191,4 +191,3 @@ func TestFWC_ListedColumns5(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
-

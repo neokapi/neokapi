@@ -159,4 +159,3 @@ func TestStreamingWordCountCollector_Interface(t *testing.T) {
 	_, ok := c.(flow.StreamingCollector)
 	assert.True(t, ok)
 }
-

@@ -6,7 +6,7 @@ import "strconv"
 type Dialect int
 
 const (
-	DialectSQLite   Dialect = iota
+	DialectSQLite Dialect = iota
 	DialectPostgres
 )
 

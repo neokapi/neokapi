@@ -231,7 +231,7 @@ func (r *Reader) readByParagraphSkeleton(ctx context.Context, ch chan<- model.Pa
 	// Between paragraphs we track the exact separator bytes (line endings of
 	// the last content line + empty line endings).
 	type paragraph struct {
-		text          string // joined content (internal newlines use \n)
+		text           string // joined content (internal newlines use \n)
 		lastLineEnding string // line ending after the last line of the paragraph
 	}
 

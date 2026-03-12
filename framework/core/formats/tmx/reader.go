@@ -105,11 +105,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	decoder.Entity = xml.HTMLEntity
 
 	var (
-		version     string
-		headerProps = map[string]string{}
-		srcLang     string
-		blockCount  int
-		headerNotes []string
+		version        string
+		headerProps    = map[string]string{}
+		srcLang        string
+		blockCount     int
+		headerNotes    []string
 		headerPropList []headerProp // header-level <prop> and <note> elements
 	)
 
@@ -136,8 +136,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		segBuilder     *segContentBuilder
 		noteBuilder    strings.Builder
 		propBuilder    strings.Builder
-		segStartOff    int64  // byte offset after <seg> start tag
-		tuCount        int    // track TU index for skeleton
+		segStartOff    int64 // byte offset after <seg> start tag
+		tuCount        int   // track TU index for skeleton
 	)
 
 	for {

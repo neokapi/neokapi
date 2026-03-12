@@ -15,12 +15,12 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/sievepen"
-	"github.com/neokapi/neokapi/termbase"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -30,9 +30,9 @@ type App struct {
 	app          *application.App
 	formatReg    *registry.FormatRegistry
 	toolReg      *registry.ToolRegistry
-	store        store.ContentStore         // persistent SQLite
-	tm           *sievepen.SQLiteTM          // lazily initialized
-	tb           *termbase.SQLiteTermBase   // lazily initialized
+	store        store.ContentStore       // persistent SQLite
+	tm           *sievepen.SQLiteTM       // lazily initialized
+	tb           *termbase.SQLiteTermBase // lazily initialized
 	pluginMu     sync.Mutex
 	pluginLoader *loader.PluginLoader
 	connectorReg *platconn.Registry
@@ -233,9 +233,9 @@ var toolCategory = map[string]string{
 	"qa-check":       "validate",
 	"term-check":     "validate",
 	// enrich tools
-	"tag-protect":      "enrich",
-	"tm-leverage":      "enrich",
-	"layer-processor":  "transform",
+	"tag-protect":     "enrich",
+	"tm-leverage":     "enrich",
+	"layer-processor": "transform",
 	// AI tools
 	"ai-translate":   "transform",
 	"ai-qa":          "validate",
@@ -376,4 +376,3 @@ func (a *App) DetectFormat(filePath string) (string, error) {
 	ext := filepath.Ext(filePath)
 	return a.formatReg.Detector().DetectByExtension(ext)
 }
-

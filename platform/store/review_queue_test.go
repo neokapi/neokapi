@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	platstore "github.com/neokapi/neokapi/platform/store"
 	"github.com/neokapi/neokapi/core/model"
+	platstore "github.com/neokapi/neokapi/platform/store"
 )
 
 func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *SQLiteStore) {
@@ -40,9 +40,9 @@ func TestReviewQueueStore_CreateAndGet(t *testing.T) {
 	ctx := context.Background()
 
 	item := &ReviewItem{
-		ProjectID:  proj.ID,
-		Type:       ReviewItemTermCandidate,
-		Data:       json.RawMessage(`{"text":"Dashboard","definition":"Main screen"}`),
+		ProjectID: proj.ID,
+		Type:      ReviewItemTermCandidate,
+		Data:      json.RawMessage(`{"text":"Dashboard","definition":"Main screen"}`),
 		Occurrences: []Occurrence{
 			{BlockID: "b1", FilePath: "en.json", Start: 5, End: 14, Context: "The Dashboard shows..."},
 		},
@@ -233,9 +233,9 @@ func TestReviewQueueStore_SplitItem_InvalidSplit(t *testing.T) {
 
 	item := &ReviewItem{
 		ProjectID: proj.ID, Type: ReviewItemTermCandidate,
-		Data: json.RawMessage(`{"text":"term"}`),
+		Data:        json.RawMessage(`{"text":"term"}`),
 		Occurrences: []Occurrence{{BlockID: "b1"}},
-		Confidence: 0.8, Locale: "en-US",
+		Confidence:  0.8, Locale: "en-US",
 	}
 	require.NoError(t, rq.CreateItem(ctx, item))
 

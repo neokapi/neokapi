@@ -83,7 +83,7 @@ func (f *fakeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) 
 func TestSubfilter_ReadHTMLInArchive(t *testing.T) {
 	ctx := context.Background()
 	data := makeZip(t, map[string]string{
-		"page.html": "<p>Hello <b>World</b></p>",
+		"page.html":  "<p>Hello <b>World</b></p>",
 		"readme.txt": "Plain text",
 		"image.png":  "binary data",
 	})
