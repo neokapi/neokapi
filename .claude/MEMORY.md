@@ -1,4 +1,4 @@
-# gokapi Project Memory
+# neokapi Project Memory
 
 ## AD Conventions
 - Files named `NNN-topic.md` in `docs/ad/`
