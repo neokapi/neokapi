@@ -5,11 +5,13 @@
 #
 #   1. neokapi  (github.com/neokapi/neokapi)
 #      - framework core, shared CLI base, kapi CLI, examples, benchmarks,
-#        shared UI packages, website, docs, scripts, assets
+#        website, docs, scripts, neokapi assets
+#      - UI-less to start with (no packages/ui, no root package.json)
 #
 #   2. bowrain  (github.com/neokapi/bowrain)
 #      - Bowrain platform (server, desktop, connectors), Bowrain CLI,
 #        platform module, infrastructure (compose, deploy, docker, e2e)
+#      - Shared UI library (packages/ui), npm workspace config, bowrain assets
 #
 # Both repos get the full relevant git history.  All "gokapi" references are
 # renamed to "neokapi" (casing preserved).  Module paths are updated
@@ -119,6 +121,20 @@ clone_source() {
     run git clone "$clone_src" "$dest"
     # Ensure full history (in case source was a shallow clone)
     run git -C "$dest" fetch --unshallow origin 2>/dev/null || true
+
+    # Strip all tags — migrated repos start with a clean slate
+    if [[ "$DRY_RUN" != true ]]; then
+        local tag_count
+        tag_count=$(git -C "$dest" tag -l | wc -l | tr -d ' ')
+        if [[ "$tag_count" -gt 0 ]]; then
+            info "Removing all $tag_count tags (clean slate)"
+            git -C "$dest" tag -l | xargs git -C "$dest" tag -d >/dev/null
+        else
+            info "No tags to remove"
+        fi
+    else
+        info "[dry-run] Would remove all tags"
+    fi
 }
 
 # write_replacements_file <file> <neokapi|bowrain>
@@ -159,7 +175,8 @@ filter_repo_paths() {
     local work="$1"
     local mode="$2"
 
-    # Paths that belong exclusively to the bowrain platform repo
+    # Paths that belong exclusively to the bowrain platform repo.
+    # These are REMOVED from neokapi (--invert-paths) and KEPT in bowrain.
     local bowrain_paths=(
         "bowrain/"
         "bowrain-cli/"
@@ -169,6 +186,12 @@ filter_repo_paths() {
         "deploy/"
         "e2e/"
         "docker/"
+        # UI library + npm workspace config → bowrain (neokapi is UI-less)
+        "packages/"
+        "package.json"
+        "package-lock.json"
+        # bowrain-specific assets (neokapi keeps the gokapi/neokapi logos)
+        "assets/bowrain-logo.png"
     )
 
     local path_args=()
@@ -247,6 +270,27 @@ GO_WORK_EOF
 #
 # The bowrain repo has no root-level go.mod; the three modules sit in
 # sub-directories, so the go.work `use` directives reference sub-paths.
+
+# write_bowrain_package_json <work-dir>
+#   After path-filtering and renaming, the inherited package.json still
+#   references the kapi workspace that lives in neokapi.  Write a fresh
+#   one that only lists bowrain-owned frontend workspaces.
+write_bowrain_package_json() {
+    local work="$1"
+    cat > "$work/package.json" << 'PKG_EOF'
+{
+  "private": true,
+  "workspaces": [
+    "packages/ui",
+    "bowrain/apps/web",
+    "bowrain/apps/bowrain/frontend"
+  ],
+  "devDependencies": {
+    "storybook": "^10.2.13"
+  }
+}
+PKG_EOF
+}
 
 # write_bowrain_gitignore <work-dir>
 write_bowrain_gitignore() {
@@ -508,9 +552,10 @@ build_bowrain() {
     if [[ "$DRY_RUN" != true ]]; then
         write_bowrain_go_work "$work"
         write_bowrain_gitignore "$work"
+        write_bowrain_package_json "$work"
         remove_cross_repo_replace_directives "$work"
         commit_post_processing "$work" \
-            "chore: add go.work/.gitignore, remove cross-repo replace directives for bowrain standalone repo"
+            "chore: add go.work/.gitignore/package.json, remove cross-repo replace directives for bowrain standalone repo"
     fi
 
     # Always write a fresh bowrain README (the inherited one is neokapi-centric)
