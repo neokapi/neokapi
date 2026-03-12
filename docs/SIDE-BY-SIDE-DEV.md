@@ -4,75 +4,76 @@ After the repository split, **neokapi** (the framework) and **bowrain** (the
 platform) live in separate Git repositories.  Bowrain depends on neokapi but
 not the other way around.
 
-This guide explains how to work across both repositories efficiently using
-standard Go tooling.
+This guide explains how to work across both repositories efficiently using a
+**parent Go workspace** — a single `go.work` file that spans both repos so
+you never need `replace` directives or manual module-proxy hacks.
 
 ---
 
 ## Directory Layout
 
-Check out both repos under a common parent directory:
+Check out both repos under a common parent directory, and create a parent
+`go.work` alongside them:
 
 ```
 ~/src/
+├── go.work           # Parent workspace (spans both repos)
 ├── neokapi/          # github.com/neokapi/neokapi  (framework + cli + kapi)
 └── bowrain/          # github.com/neokapi/bowrain   (bowrain + bowrain-cli + platform)
 ```
 
-Each repo has its own `go.work` that coordinates its internal modules:
-
-```
-# neokapi/go.work
-use (
-    .
-    ./cli
-    ./kapi
-)
-
-# bowrain/go.work
-use (
-    ./bowrain
-    ./bowrain-cli
-    ./platform
-)
-```
-
 ---
 
-## Pointing bowrain at a Local neokapi Checkout
+## Parent Workspace Setup (one-time)
 
-When you change neokapi and want bowrain to pick up those changes without
-publishing a release, add `replace` directives to bowrain's `go.work`:
-
-```go
-// bowrain/go.work
-go 1.26.0
-
-use (
-    ./bowrain
-    ./bowrain-cli
-    ./platform
-)
-
-replace (
-    github.com/neokapi/neokapi     => ../neokapi
-    github.com/neokapi/neokapi/cli => ../neokapi/cli
-)
-```
-
-> **Why `go.work` and not `go.mod`?**  Workspace-level replacements keep
-> `go.mod` files clean for CI and release.  The `go.work` file is typically
-> gitignored in bowrain (or committed on a dev branch only).
-
-After adding the replacements, run:
+Create a single `go.work` at the parent directory that references every
+module from both repos:
 
 ```bash
-cd ~/src/bowrain
-go work sync
+cd ~/src
+go work init \
+    ./neokapi \
+    ./neokapi/cli \
+    ./neokapi/kapi \
+    ./bowrain/bowrain \
+    ./bowrain/bowrain-cli \
+    ./bowrain/platform
 ```
 
-Go will now resolve `github.com/neokapi/neokapi` imports from your local
-`../neokapi` directory instead of the module proxy.
+This produces:
+
+```go
+// ~/src/go.work
+go 1.24.0
+
+use (
+    ./neokapi
+    ./neokapi/cli
+    ./neokapi/kapi
+    ./bowrain/bowrain
+    ./bowrain/bowrain-cli
+    ./bowrain/platform
+)
+```
+
+That's it.  Go now resolves **all** cross-repo imports from local source
+automatically — no `replace` directives, no `go work sync` after every edit.
+Change a type in `neokapi/core/model/` and bowrain sees it instantly.
+
+> **The parent `go.work` is not committed** — it lives only on your machine.
+> Each repo keeps its own `go.work` for CI and standalone use; the parent
+> workspace overlays them for local cross-repo development.
+
+Each repo still has its own internal `go.work` for CI and single-repo work:
+
+```
+# neokapi/go.work              # bowrain/go.work
+use (                           use (
+    .                               ./bowrain
+    ./cli                           ./bowrain-cli
+    ./kapi                          ./platform
+)                               )
+```
 
 ---
 
@@ -86,14 +87,16 @@ cd ~/src/neokapi
 go test ./core/model/...       # verify in isolation
 ```
 
-### 2. Test the change from bowrain
+### 2. Test the change from bowrain (instantly — no extra steps)
 
 ```bash
 cd ~/src/bowrain
-# Ensure go.work has the replace directives above
 go test ./bowrain/...          # bowrain sees the local neokapi changes
 go test ./platform/...
 ```
+
+Because the parent `go.work` is active, bowrain resolves neokapi from
+`../neokapi` automatically.  No `replace` directives to add or remove.
 
 ### 3. Commit and push independently
 
@@ -105,13 +108,15 @@ git push
 
 # bowrain (after neokapi is merged and tagged)
 cd ~/src/bowrain
-# Update go.mod to point at the published neokapi version:
-#   go get github.com/neokapi/neokapi@v0.5.0
-# Remove the replace directive from go.work
-go work sync && go mod tidy
+go get github.com/neokapi/neokapi@v0.5.0
+go mod tidy
 git add -A && git commit -m "chore: bump neokapi to v0.5.0"
 git push
 ```
+
+> **Tip:** The parent workspace is transparent to git.  Each repo's
+> `go.mod` files always point at published versions, so CI works without
+> any workspace tricks.
 
 ---
 
@@ -133,14 +138,16 @@ require github.com/neokapi/neokapi/cli v0.5.0
 ```
 
 **Best practice:** Tag and release neokapi first, then update bowrain's
-`go.mod` to point at the new tag.  Avoid long-lived `replace` directives
-in committed code.
+`go.mod` to point at the new tag.
 
 ---
 
 ## Running Tests Across Both Repos
 
-### neokapi (self-contained)
+When running from within either repo directory, the parent `go.work`
+ensures cross-repo imports resolve locally.
+
+### neokapi
 
 ```bash
 cd ~/src/neokapi
@@ -150,11 +157,10 @@ make test-cli          # cli module only
 make test-kapi         # kapi CLI only
 ```
 
-### bowrain (with local neokapi)
+### bowrain
 
 ```bash
 cd ~/src/bowrain
-# With replace directives in go.work:
 make test              # all bowrain + bowrain-cli + platform tests
 make test-bowrain      # bowrain module only
 make test-bowrain-cli  # bowrain CLI only
@@ -163,8 +169,12 @@ make test-platform     # platform module only
 
 ### Full integration (both repos)
 
-There is no single `make` target that tests both repos together.  Use a
-simple shell script if needed:
+```bash
+cd ~/src
+go test ./neokapi/... ./bowrain/...    # test everything via parent workspace
+```
+
+Or use a simple script:
 
 ```bash
 #!/usr/bin/env bash
@@ -181,7 +191,9 @@ echo "=== bowrain ==="
 
 ### VS Code
 
-Open a **multi-root workspace** so that gopls resolves both repos:
+Open the **parent directory** (`~/src/`) so gopls picks up the parent
+`go.work` and resolves all modules from both repos.  Alternatively, use a
+multi-root workspace:
 
 ```jsonc
 // ~/src/gokapi.code-workspace
@@ -191,18 +203,25 @@ Open a **multi-root workspace** so that gopls resolves both repos:
     { "path": "bowrain", "name": "bowrain" }
   ],
   "settings": {
+    "gopls": {
+      "experimentalWorkspaceModule": true
+    },
+    "go.goroot": "",
     "go.toolsEnvVars": {
-      "GOWORK": "auto"
+      "GOWORK": "${workspaceFolder}/../go.work"
     }
   }
 }
 ```
 
+The `GOWORK` env var points gopls at the parent workspace so cross-repo
+navigation, autocompletion, and refactoring all work seamlessly.
+
 ### GoLand / IntelliJ
 
-Open each repo as a separate project.  GoLand automatically detects `go.work`
-files.  For cross-repo navigation, add the neokapi directory as an
-**external library** in the bowrain project.
+Open the **parent directory** (`~/src/`) as the project root.  GoLand
+detects the `go.work` file automatically and resolves all modules.
+Cross-repo "Go to Definition" and "Find Usages" work out of the box.
 
 ---
 
@@ -211,9 +230,9 @@ files.  For cross-repo navigation, add the neokapi directory as an
 | Pitfall | Solution |
 |---------|----------|
 | bowrain CI fails because neokapi change isn't published | Always publish neokapi first, then update bowrain `go.mod` |
-| `go.sum` mismatches after local development | Run `go work sync && go mod tidy` in bowrain before committing |
-| IDE can't resolve neokapi types in bowrain | Ensure `go.work` has `replace` directives pointing at the local checkout |
-| Accidentally committing `replace` directives | Add a CI check: `grep -r 'replace.*\.\./neokapi' go.work && exit 1` |
+| `go.sum` mismatches after local development | Run `go mod tidy` in the affected repo before committing |
+| IDE can't resolve neokapi types in bowrain | Ensure `GOWORK` points at the parent `go.work`, or open `~/src/` as root |
+| Parent `go.work` gets stale after adding a module | Run `go work use ./path/to/new/module` from `~/src/` |
 | Import cycle between repos | By design this is impossible — neokapi has zero bowrain imports |
 
 ---
@@ -223,26 +242,20 @@ files.  For cross-repo navigation, add the neokapi directory as an
 ```bash
 # Clone both repos
 git clone https://github.com/neokapi/neokapi.git ~/src/neokapi
-git clone https://github.com/neokapi/bowrain.git ~/src/bowrain
+git clone https://github.com/neokapi/bowrain.git  ~/src/bowrain
 
-# Set up local development (one-time)
-cd ~/src/bowrain
-cat >> go.work << 'EOF'
+# Create the parent workspace (one-time)
+cd ~/src
+go work init \
+    ./neokapi ./neokapi/cli ./neokapi/kapi \
+    ./bowrain/bowrain ./bowrain/bowrain-cli ./bowrain/platform
 
-replace (
-    github.com/neokapi/neokapi     => ../neokapi
-    github.com/neokapi/neokapi/cli => ../neokapi/cli
-)
-EOF
-go work sync
-
-# Daily workflow
+# Daily workflow — no replace directives, no sync steps
 cd ~/src/neokapi && go test ./...    # test framework changes
-cd ~/src/bowrain && go test ./...    # test with local framework
+cd ~/src/bowrain && go test ./...    # bowrain sees local neokapi instantly
 
-# Before pushing bowrain
+# Before pushing bowrain (after neokapi is tagged)
 cd ~/src/bowrain
-# Remove replace directives from go.work
-go get github.com/neokapi/neokapi@latest
-go work sync && go mod tidy
+go get github.com/neokapi/neokapi@v0.5.0
+go mod tidy
 ```
