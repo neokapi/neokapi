@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'bowrain/apps/web/**'
-      - 'bowrain/packages/ui/**'
+      - 'platform/apps/web/**'
+      - 'platform/packages/ui/**'
 
 permissions:
   contents: read

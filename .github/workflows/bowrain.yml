@@ -42,9 +42,9 @@ jobs:
         run: npx tsc
 
       - name: Install frontend dependencies
-        working-directory: bowrain/apps/bowrain/frontend
+        working-directory: platform/apps/platform/frontend
         run: npm install
 
       - name: Build Bowrain
-        working-directory: bowrain/apps/bowrain
+        working-directory: platform/apps/bowrain
         run: wails3 build

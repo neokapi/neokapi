@@ -26,7 +26,7 @@ services:
       OIDC_CLIENT_SECRET: bowrain-secret
     volumes:
       - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
-      - ./bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
+      - ./platform/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
     ports:
       - "8180:8080"
     healthcheck:

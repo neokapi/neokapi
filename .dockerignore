@@ -15,11 +15,11 @@ coverage/
 node_modules/
 
 # Frontend dist (built in container)
-bowrain/apps/web/dist/
-bowrain/bowrain/apps/bowrain/frontend/dist/
+platform/apps/web/dist/
+platform/platform/apps/platform/frontend/dist/
 
 # Bowrain desktop app (not needed for server)
-bowrain/apps/bowrain/
+platform/apps/platform/
 
 # Website / docs
 website/

@@ -4,15 +4,15 @@ project_name: kapi
 
 before:
   hooks:
-    # Create placeholder so bowrain/apps/bowrain/main.go's //go:embed all:frontend/dist succeeds
+    # Create placeholder so platform/apps/platform/main.go's //go:embed all:frontend/dist succeeds
     # without a real frontend build (bowrain is built separately in the release workflow).
-    - mkdir -p bowrain/apps/bowrain/frontend/dist && touch bowrain/apps/bowrain/frontend/dist/placeholder
+    - mkdir -p platform/apps/platform/frontend/dist && touch platform/apps/platform/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
     - go mod tidy
     - bash -c "cd framework/cli && go mod tidy"
-    - bash -c "cd bowrain/platform && go mod tidy"
+    - bash -c "cd platform/core && go mod tidy"
     - bash -c "cd framework/kapi && go mod tidy"
-    - bash -c "cd bowrain/cli && go mod tidy"
+    - bash -c "cd platform/cli && go mod tidy"
     - bash -c "cd bowrain && go mod tidy"
 
 builds:
@@ -36,7 +36,7 @@ builds:
       - -X github.com/gokapi/gokapi/core/version.BuildDate={{.Date}}
 
   - id: bowrain-cli
-    dir: bowrain/cli
+    dir: platform/cli
     main: ./cmd/bowrain
     binary: bowrain
     env:

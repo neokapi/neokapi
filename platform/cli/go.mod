@@ -92,5 +92,5 @@ require (
 replace (
 	github.com/gokapi/gokapi => ../../framework
 	github.com/gokapi/gokapi/cli => ../../framework/cli
-	github.com/gokapi/gokapi/platform => ../platform
+	github.com/gokapi/gokapi/platform => ../core
 )
