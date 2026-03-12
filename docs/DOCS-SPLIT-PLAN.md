@@ -19,9 +19,9 @@ automatically.
 2. **bowrain links back to neokapi.**  Bowrain docs reference the framework
    (`github.com/neokapi/neokapi`) for concepts like content model, pipelines,
    and tools — they do not duplicate that content.
-3. **Shared ADs are duplicated initially.**  Cross-cutting ADs live in both
-   repos with a note at the top indicating they are shared.  Each repo can
-   evolve its copy independently over time.
+3. **No duplication.**  Every document lives in exactly one repo.
+   Cross-cutting ADs are assigned to the repo that owns the majority of the
+   content.  The other repo links to it via URL when needed.
 4. **The website stays with neokapi** for now.  Bowrain gets its own minimal
    docs site later (or a subdirectory-based Docusaurus plugin when ready).
 
@@ -56,21 +56,21 @@ automatically.
 | 023 | Identity System | Short IDs, dual block identity |
 | 024 | Streams | Git-like translation branching |
 
-### → both repos (shared, duplicate with cross-reference header)
+### Previously cross-cutting — assigned to one repo (no duplication)
 
-| AD | Title | Reason |
-|----|-------|--------|
-| 001 | Vision | Defines both framework and platform roles |
-| 013 | CLI and Server | Covers kapi, bowrain CLI, and bowrain server |
-| 014 | Testing and Documentation | Testing strategy for both |
-| 017 | CLI Output Format | Shared CLI base used by both CLIs |
-| 018 | Multi-Module Architecture | Needs rewriting per-repo post-split |
-| 021 | MCP Integration | Both CLIs expose MCP servers |
-| 022 | Entity & Term Extraction | Hybrid feature used in both |
+| AD | Title | Destination | Reason |
+|----|-------|-------------|--------|
+| 001 | Vision | neokapi | Defines the framework mission; bowrain links back |
+| 013 | CLI and Server | neokapi | Shared CLI base lives in neokapi; bowrain-specific server content moves to AD-012 |
+| 014 | Testing and Documentation | neokapi | Testing strategy originates in the framework |
+| 017 | CLI Output Format | neokapi | Shared CLI base owned by neokapi |
+| 018 | Multi-Module Architecture | neokapi | Rewritten post-split to describe neokapi's module layout only |
+| 021 | MCP Integration | neokapi | MCP tooling is a framework/kapi feature |
+| 022 | Entity & Term Extraction | bowrain | Extraction pipeline is server-side orchestration |
 
-**Action:** AD-018 should be rewritten after the split.  The neokapi version
-describes the `framework + cli + kapi` module layout; the bowrain version
-describes the `bowrain + bowrain-cli + platform` layout.
+**Action:** AD-018 should be rewritten after the split to describe the
+`framework + cli + kapi` module layout.  Bowrain documents its own
+`bowrain + bowrain-cli + platform` layout in its README or a new AD.
 
 ---
 
@@ -111,8 +111,8 @@ describes the `bowrain + bowrain-cli + platform` layout.
 |------|-------------|--------|
 | ARCHITECTURE.md | neokapi | Keep as-is (describes framework architecture) |
 | INTERFACES.md | neokapi | Keep (Go interface definitions) |
-| RELEASE.md | both | Each repo needs its own release process |
-| TESTING.md | both | Each repo needs its own testing guide |
+| RELEASE.md | neokapi | Bowrain writes its own release process post-split |
+| TESTING.md | neokapi | Bowrain writes its own testing guide post-split |
 | okapi-filter-frameworks.md | neokapi | Reference material for format porting |
 | azure-deployment.md | bowrain | Server deployment guide |
 | research/ | neokapi | Framework research |
@@ -184,5 +184,6 @@ After the split:
 
 - [ ] In neokapi: verify website builds (`cd website && npm run build`)
 - [ ] In neokapi: verify all doc links resolve
+- [ ] In neokapi: rewrite AD-018 for the `framework + cli + kapi` layout
 - [ ] In bowrain: create a minimal docs structure from the extracted content
-- [ ] In both: rewrite AD-018 for the new single-repo module layout
+- [ ] In bowrain: document the `bowrain + bowrain-cli + platform` layout in README or new AD
