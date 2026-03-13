@@ -33,20 +33,21 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: platform/package-lock.json
 
       - name: Install GTK/WebKit dev packages (needed for Wails CGO)
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Install workspace dependencies
+        working-directory: platform
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Build frontend
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npm run build
 
       - name: Build headless binary
@@ -60,17 +61,17 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Generate screenshots
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
         env:
           WAILS_SERVER_MODE: "true"
 
       - name: Generate recordings
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
@@ -78,7 +79,7 @@ jobs:
           WAILS_SERVER_MODE: "true"
 
       - name: Copy recordings to static assets
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload Bowrain assets
@@ -108,13 +109,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: platform/package-lock.json
 
       - name: Install workspace dependencies
+        working-directory: platform
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Build web UI
@@ -122,7 +124,7 @@ jobs:
         run: npm run build
 
       - name: Build bowrain-server
-        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+        run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Build Keycloak theme
         run: make keycloak-theme

@@ -26,37 +26,35 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: platform/package-lock.json
 
       - name: Install workspace dependencies
+        working-directory: platform
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Run UI unit tests
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npm test
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
         run: npm run build
 
-      - name: Build kapi web UI
-        run: npm run build
-
       - name: Create Bowrain frontend placeholder
-        run: mkdir -p platform/apps/platform/frontend/dist && echo placeholder > platform/apps/platform/frontend/dist/index.html
+        run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
 
       - name: Download modules
         run: |
-          go mod download && go mod verify
-          cd framework/cli && go mod download && go mod verify
-          cd ../platform && go mod download && go mod verify
+          cd framework && go mod download && go mod verify
+          cd cli && go mod download && go mod verify
           cd ../kapi && go mod download && go mod verify
-          cd ../bowrain-cli && go mod download && go mod verify
-          cd ../bowrain && go mod download && go mod verify
+          cd ../../platform/core && go mod download && go mod verify
+          cd ../cli && go mod download && go mod verify
+          cd .. && go mod download && go mod verify
 
       - name: Reset go.work.sum
         run: git checkout -- go.work.sum
@@ -239,10 +237,11 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Install workspace dependencies
+        working-directory: platform
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       # Build frontend and assets manually to avoid Wails Taskfile running
@@ -256,15 +255,15 @@ jobs:
           go mod tidy
           wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
           # shellcheck disable=SC2016
-          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/platform/apps/platform/backend/app.js
-          rm -f frontend/bindings/github.com/neokapi/neokapi/platform/apps/platform/backend/app.js.bak
+          sed -i.bak 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
+          rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
       - name: Build Bowrain frontend
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npm run build
 
       - name: Generate icons
-        working-directory: platform/apps/platform/build
+        working-directory: platform/apps/bowrain/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
 
       - name: Generate Windows resources
@@ -448,7 +447,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "platform/apps/platform/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "platform/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -461,7 +460,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
-            -C platform/apps/platform/bin Bowrain
+            -C platform/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'

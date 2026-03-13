@@ -50,22 +50,23 @@ jobs:
             echo "${label}=false" >> "$GITHUB_OUTPUT"
           }
 
-          check_paths framework '^core/' '^go\.(mod|sum|work)$' '^\.github/workflows/ci\.yml$'
-          check_paths cli       '^cli/'
-          check_paths platform  '^platform/'
-          # kapi: anything under kapi/ except the frontend app dir
-          if echo "$CHANGED" | grep -E '^kapi/' | grep -vE '^kapi/apps/' | grep -q .; then
+          check_paths framework '^framework/core/' '^framework/go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
+          check_paths cli       '^framework/cli/'
+          check_paths platform  '^platform/core/'
+          # kapi: anything under framework/kapi/
+          if echo "$CHANGED" | grep -E '^framework/kapi/' | grep -q .; then
             echo "kapi=true" >> "$GITHUB_OUTPUT"
           else
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths bowrain_cli '^bowrain-cli/'
+          check_paths bowrain_cli '^platform/cli/'
           # bowrain: anything under platform/ except the frontend app dirs
-          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/apps/(web|platform/frontend)/' | grep -q .; then
+          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/apps/(web|bowrain/frontend)/' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
+          check_paths frontend  '^platform/apps/(web|bowrain/frontend)/' '^platform/packages/ui/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend builds ───────────────────────────────────────────────────────
@@ -79,14 +80,11 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Run UI unit tests
-        working-directory: packages/ui
+        working-directory: platform/packages/ui
         run: npm test
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
-        run: npm run build
-
-      - name: Build kapi web UI
         run: npm run build
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
@@ -103,11 +101,12 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run framework tests
+        working-directory: framework
         run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1 || true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-framework.json -out junit-framework.xml
+        run: go-junit-report -in framework/test-results-framework.json -out junit-framework.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
@@ -120,7 +119,7 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-framework.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' framework/test-results-framework.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -130,14 +129,14 @@ jobs:
         if: always()
         with:
           name: coverage-framework
-          path: framework.out
+          path: framework/framework.out
 
       - name: Upload native test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-results-native
-          path: test-results-framework.json
+          path: framework/test-results-framework.json
           retention-days: 1
 
   test-platform:
@@ -159,7 +158,7 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-platform.json -out junit-platform.xml
+        run: go-junit-report -in platform/test-results-platform.json -out junit-platform.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
@@ -172,7 +171,7 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-platform.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' platform/test-results-platform.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -182,7 +181,7 @@ jobs:
         if: always()
         with:
           name: coverage-platform
-          path: platform/platform.out
+          path: platform/core/platform.out
           retention-days: 1
 
   test-cli:
@@ -204,7 +203,7 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-cli.json -out junit-cli.xml
+        run: go-junit-report -in framework/test-results-cli.json -out junit-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
@@ -217,7 +216,7 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-cli.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' framework/test-results-cli.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -227,7 +226,7 @@ jobs:
         if: always()
         with:
           name: coverage-cli
-          path: cli/cli.out
+          path: framework/cli/cli.out
           retention-days: 1
 
   test-kapi:
@@ -249,7 +248,7 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-kapi.json -out junit-kapi.xml
+        run: go-junit-report -in framework/test-results-kapi.json -out junit-kapi.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
@@ -262,7 +261,7 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-kapi.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' framework/test-results-kapi.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -272,7 +271,7 @@ jobs:
         if: always()
         with:
           name: coverage-kapi
-          path: kapi/kapi.out
+          path: framework/kapi/kapi.out
           retention-days: 1
 
   test-bowrain-cli:
@@ -294,7 +293,7 @@ jobs:
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in test-results-bowrain-cli.json -out junit-bowrain-cli.xml
+        run: go-junit-report -in platform/test-results-bowrain-cli.json -out junit-bowrain-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v1
@@ -307,7 +306,7 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-bowrain-cli.json 2>/dev/null; then
+          if grep -q '"Action":"fail"' platform/test-results-bowrain-cli.json 2>/dev/null; then
             echo "Tests failed"
             exit 1
           fi
@@ -317,7 +316,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain-cli
-          path: bowrain-cli/bowrain-cli.out
+          path: platform/cli/bowrain-cli.out
           retention-days: 1
 
   test-bowrain:
@@ -425,6 +424,7 @@ jobs:
         with:
           install-mode: binary
           version: latest
+          working-directory: framework
           args: --timeout=5m ./...
 
       - name: Lint cli
@@ -432,7 +432,7 @@ jobs:
         with:
           install-mode: binary
           version: latest
-          working-directory: cli
+          working-directory: framework/cli
           args: --timeout=5m ./...
 
       - name: Lint platform
@@ -440,7 +440,7 @@ jobs:
         with:
           install-mode: binary
           version: latest
-          working-directory: platform
+          working-directory: platform/core
           args: --timeout=5m ./...
 
       - name: Lint kapi
@@ -448,7 +448,7 @@ jobs:
         with:
           install-mode: binary
           version: latest
-          working-directory: kapi
+          working-directory: framework/kapi
           args: --timeout=5m ./...
 
       - name: Lint Bowrain CLI
@@ -456,21 +456,21 @@ jobs:
         with:
           install-mode: binary
           version: latest
-          working-directory: bowrain-cli
+          working-directory: platform/cli
           args: --timeout=5m ./...
 
       - name: Install Linux dependencies for Wails
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Create Bowrain frontend placeholder
-        run: mkdir -p platform/apps/platform/frontend/dist && echo placeholder > platform/apps/platform/frontend/dist/index.html
+        run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
 
       - name: Lint bowrain
         uses: golangci/golangci-lint-action@v7
         with:
           install-mode: binary
           version: latest
-          working-directory: bowrain
+          working-directory: platform
           args: --timeout=5m ./...
 
   # ── GitHub Actions Lint ──────────────────────────────────────────────────
@@ -503,20 +503,17 @@ jobs:
         working-directory: platform/apps/web
         run: npm run build
 
-      - name: Build kapi web UI
-        run: npm run build
-
       - name: Build kapi CLI
-        run: cd framework/kapi && go build -o ../bin/kapi ./cmd/kapi
+        run: cd framework/kapi && go build -o ../../bin/kapi ./cmd/kapi
 
       - name: Build Bowrain CLI
-        run: cd platform/cli && go build -o ../bin/bowrain ./cmd/bowrain
+        run: cd platform/cli && go build -o ../../bin/bowrain ./cmd/bowrain
 
       - name: Build bowrain-server
-        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+        run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Verify framework module isolation
-        run: GOWORK=off go build ./...
+        run: GOWORK=off bash -c "cd framework && go build ./..."
 
       - name: Verify cli module isolation
         run: GOWORK=off bash -c "cd framework/cli && go build ./..."
@@ -539,7 +536,7 @@ jobs:
 
       - name: Verify bowrain has no cli dep
         run: |
-          if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
+          if cd platform && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
             echo "bowrain should not depend on cli"
             exit 1
           fi
@@ -604,7 +601,8 @@ jobs:
           echo "Started 4 bridge JVMs: $NEOKAPI_BRIDGE_ADDRS"
 
       - name: Run bridge filter integration tests
-        run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash scripts/go-test-progress.sh > test-results-bridge.json || true
+        working-directory: framework
+        run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash ../scripts/go-test-progress.sh > ../test-results-bridge.json || true
         timeout-minutes: 30
 
       - name: Stop bridge JVM pool
@@ -676,8 +674,8 @@ jobs:
             -okapi-dir okapi-surefire/1.48.0-v1 \
             -gotest-bridge-json test-results-bridge.json \
             -gotest-native-json test-results-framework.json \
-            -bridge-src core/plugin/bridge/filters \
-            -native-src core/formats \
+            -bridge-src framework/core/plugin/bridge/filters \
+            -native-src framework/core/formats \
             -go-commit ${{ github.sha }} \
             -okapi-tag v1.48.0 \
             -out website/static/data/test-comparison.json
