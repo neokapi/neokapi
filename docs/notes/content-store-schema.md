@@ -6,9 +6,9 @@ title: "Content Store Schema"
 
 This note provides implementation details for [AD-003](/docs/ad/003-content-store).
 
-## SQLite Schema
+## Database Schema
 
-The default backend uses SQLite via `modernc.org/sqlite` (pure Go, no CGO). This shares the `bowrain/storage/` infrastructure layer with the Sievepen TM system ([AD-009](/docs/ad/009-translation-memory)) and the TermBase ([AD-010](/docs/ad/010-terminology)).
+Bowrain Server uses PostgreSQL as its storage backend, sharing the `bowrain/storage/` infrastructure layer with the Sievepen TM system ([AD-009](/docs/ad/009-translation-memory)) and the TermBase ([AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions (using SQLite syntax for readability; the PostgreSQL schema uses equivalent types with `$N` parameter placeholders instead of `?`).
 
 ```sql
 CREATE TABLE projects (
@@ -101,7 +101,7 @@ CREATE INDEX idx_changelog_stream ON change_log(project_id, stream, seq);
 
 Blocks are scoped to projects with a composite primary key `(project_id, id)`. The `source_id` column tracks the format-reader-assigned ID (e.g., "tu1" from PO format), with a unique index ensuring no duplicates within an item. The `version_blocks` join table associates blocks with version snapshots. The `streams` table tracks content branches within a project ([AD-024](/docs/ad/024-streams)). The append-only `change_log` enables cursor-based incremental sync, with a `stream` column scoping changes to their branch.
 
-SQLite provides zero-deployment overhead for local development and single-instance deployments. A PostgreSQL backend serves the multi-instance team server scenario where multiple server replicas share a central database.
+PostgreSQL is the server's storage backend, supporting connection pooling, concurrent writes, and multi-instance deployments where multiple server replicas share a central database.
 
 ## REST API Routes
 

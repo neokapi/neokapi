@@ -44,8 +44,7 @@ avatar URL. Roles within a workspace are hierarchical:
 
 ### Authentication: OIDC
 
-Authentication uses a federated OpenID Connect identity provider —
-[Keycloak](https://www.keycloak.org/) in production.
+Authentication uses a federated OpenID Connect identity provider.
 OIDC providers support multiple upstream identity sources (GitHub,
 Google, LDAP, SAML, etc.) while presenting a single OIDC interface to neokapi.
 
@@ -95,7 +94,7 @@ The Bowrain Desktop app uses OAuth 2.0 Authorization Code with PKCE
 
 1. App generates a PKCE code verifier and challenge
 2. Opens system browser to `{server}/api/v1/auth/desktop/login` with the challenge
-3. User authenticates via Keycloak OIDC in the browser
+3. User authenticates via the OIDC provider in the browser
 4. Server redirects to `bowrain://auth/callback` with tokens
 5. OS routes the URL protocol to the app's handler
 6. Tokens are split: secrets in OS keyring (macOS Keychain, Windows Credential
@@ -112,8 +111,8 @@ visual experience across all authentication flows.
 
 ### Database Schema
 
-Auth data lives in the same database as the content store (SQLite or
-PostgreSQL, selected by `DATABASE_URL` — see [AD-003](./003-content-store.md)).
+Auth data lives in the same database as the content store (PostgreSQL,
+selected by `DATABASE_URL` — see [AD-003](./003-content-store.md)).
 Three tables:
 
 ```sql
@@ -167,7 +166,7 @@ lazy expiry and periodic background cleanup. The Redis backend also accepts
 separately from the URL (e.g. Azure Key Vault references).
 
 Durable auth data (refresh tokens, API tokens) remains in the database
-(SQLite/PostgreSQL). Only ephemeral handshake states go through Redis.
+(PostgreSQL). Only ephemeral handshake states go through Redis.
 
 ### Server Modes
 
@@ -202,7 +201,6 @@ The server reports its mode via `GET /api/v1/config` so the web UI can adapt.
 - HttpOnly cookies protect web app tokens from JavaScript access. API clients
   use Bearer tokens in headers.
 - Refresh token rotation with server-side hashing prevents token reuse attacks.
-- Keycloak is the primary OIDC provider in production, with custom-themed
-  login pages matching the neokapi visual style.
 - An OIDC provider is a deployment dependency for multi-user mode but not
-  required for standalone or local use.
+  required for standalone or local use. The OIDC login pages are custom-themed
+  to match the neokapi visual style.

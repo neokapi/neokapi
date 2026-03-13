@@ -101,17 +101,13 @@ type VersionDiff struct {
 
 The `Diff` operation compares two versions by their block hash sets. Blocks with the same `ContextHash` but different `ContentHash` appear as modifications — the content at that position in the document changed. This is more meaningful than line-level diffs for localization, where the unit of work is the translatable segment.
 
-### Storage Backends
+### Storage Backend
 
-Two storage backends are available, selected by the `DATABASE_URL` connection string:
+Bowrain Server uses **PostgreSQL** via `pgx` (pure Go) with connection pooling. All modules (ContentStore, AuthStore, TM, TermBase, JobStore, QuotaStore) share a single connection pool, with each module managing its own schema namespace via independent migration tables. PostgreSQL supports Azure Managed Identity authentication for passwordless production deployments — the server acquires Entra ID tokens automatically when `DATABASE_AUTH=azure` is set.
 
-**SQLite** (default) uses `modernc.org/sqlite` (pure Go, no CGO), sharing the `bowrain/storage/` infrastructure layer with the Sievepen TM system and TermBase. The schema includes tables for projects, blocks, versions, and a project-blocks join table for content-addressed deduplication across projects. SQLite is the default for local development, single-instance deployments, and the desktop app.
+The server requires a `DATABASE_URL` connection string (`postgres://` or `postgresql://`). All six persistence modules (content, auth, TM, termbase, jobs, quotas) share the same PostgreSQL connection pool.
 
-**PostgreSQL** uses `pgx` (pure Go) with connection pooling. All modules (ContentStore, AuthStore, TM, TermBase, JobStore, QuotaStore) share a single connection pool, with each module managing its own schema namespace via independent migration tables. PostgreSQL supports Azure Managed Identity authentication for passwordless production deployments — the server acquires Entra ID tokens automatically when `DATABASE_AUTH=azure` is set.
-
-Both backends implement the same `ContentStore` interface. The `Rebind()` function converts SQLite's `?` placeholders to PostgreSQL's `$N` placeholders, allowing shared query logic where possible. Each backend has independent migration sequences: SQLite uses incremental migrations (one per schema change), while PostgreSQL uses consolidated migrations (all SQLite migrations merged into a single CREATE statement per module).
-
-The server selects the backend at startup based on the connection string prefix (`postgres://` or `postgresql://` for PostgreSQL, anything else for SQLite). All six persistence modules (content, auth, TM, termbase, jobs, quotas) use the same backend within a deployment.
+The Bowrain desktop app uses a local SQLite database for its offline cache and local-only mode ([AD-020](./020-collaborative-editor.md)).
 
 See [Content Store Schema](/docs/notes/content-store-schema) for the full SQL CREATE TABLE statements and migration details.
 
@@ -159,7 +155,7 @@ Source System (CMS, Design Tool, Code Repo)
 
 - **Git for versioning**: Too granular — line-level diffs are not meaningful for localization where the unit of work is the translatable block. Git also adds complexity for non-technical users.
 
-- **PostgreSQL only**: Requires an external service; SQLite provides zero-deployment overhead for local, single-instance, and desktop use. Both backends are now production-ready, with PostgreSQL recommended for SaaS and multi-instance deployments.
+- **SQLite for server**: Zero-deployment overhead but lacks connection pooling, concurrent write performance, and multi-instance support needed for a team server. SQLite remains the right choice for the desktop app's local cache and CLI workflows.
 
 - **XLIFF as container**: XLIFF is an interchange format for translatable content, not a project container. It has no support for bundling previews, original source files, or project-level metadata alongside translation data.
 
@@ -179,12 +175,12 @@ Source System (CMS, Design Tool, Code Repo)
 
 - The store sits between connectors and the pipeline — connectors write to the store, flows process store content. This decouples extraction from processing.
 
-- SQLite backend works without external dependencies. PostgreSQL backend supports production SaaS deployments with connection pooling and Azure Managed Identity. TM, terminology, jobs, and quotas are co-located in the same storage infrastructure, sharing the connection pool and migration tooling ([AD-009](./009-translation-memory.md), [AD-010](./010-terminology.md)).
+- PostgreSQL provides connection pooling, concurrent writes, and Azure Managed Identity for production SaaS deployments. TM, terminology, jobs, and quotas are co-located in the same storage infrastructure, sharing the connection pool and migration tooling ([AD-009](./009-translation-memory.md), [AD-010](./010-terminology.md)).
 
 - Block-level granularity is the right level for localization — not too fine (characters or words) and not too coarse (documents or pages). This aligns with the content model's `Block` as the fundamental translatable unit ([AD-002](./002-content-model.md)).
 
 - Projects are scoped to workspaces ([AD-015](./015-auth-and-workspaces.md)). The `workspace_id` column links each project to its owning workspace.
 
-- The ContentStore interface abstracts the storage layer — SQLite and PostgreSQL are both production-ready, and additional backends require only a new implementation.
+- The ContentStore interface abstracts the storage layer, and additional backends require only a new implementation.
 
 - Bowrain CLI and Bowrain Server share the same block hashing algorithm (`BlockIdentity`), enabling efficient sync without re-parsing or re-processing unchanged content.
