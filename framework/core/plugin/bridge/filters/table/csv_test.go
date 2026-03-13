@@ -483,8 +483,8 @@ func TestCSV_EscapeQualifiersDoubleQuotes(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEscapeQualifiersBackslash
 func TestCSV_EscapeQualifiersBackslash(t *testing.T) {
-	dir := tdDir(t)
-	params := configParams(dir + "/Issue404/okf_table@csv_backslash.fprm")
+	intDir := bridgetest.IntegrationTestResourceDir(t) + "/table"
+	params := configParams(intDir + "/Issue404/okf_table@csv_backslash.fprm")
 
 	parts := readCSVFile(t, "integration-tests/okapi/src/test/resources/table/Issue404/Issue_404 .csv", params)
 	require.NotEmpty(t, parts)
