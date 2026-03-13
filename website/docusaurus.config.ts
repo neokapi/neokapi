@@ -133,7 +133,7 @@ const config: Config = {
           items: [
             {
               label: 'Getting Started',
-              to: '/bowrain/getting-started/introduction',
+              to: '/bowrain/introduction',
             },
             {
               label: 'Bowrain CLI',
