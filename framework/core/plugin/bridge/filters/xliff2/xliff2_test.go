@@ -296,11 +296,12 @@ func TestExtract_FromFile2(t *testing.T) {
 	blocks := bridgetest.TranslatableBlocks(parts)
 	// test02.xlf has tu1 (2 segments), tu3 (subflow), tu3end (subflow), tu2 (with subflow refs).
 	// The bridge emits each unit as a separate block.
-	require.NotEmpty(t, blocks, "test02.xlf should have translatable units")
+	require.Len(t, blocks, 4, "test02.xlf should have 4 translatable units")
 
 	texts := bridgetest.BlockTexts(blocks)
-	assert.Contains(t, texts, "Sample segment.")
+	assert.Contains(t, texts, "Sample segment.Segment's content.")
 	assert.Contains(t, texts, "Bolded text")
+	assert.Contains(t, texts, "Extra stuff")
 }
 
 // okapi: XLIFF2FilterTest#testFromEscapedFile
