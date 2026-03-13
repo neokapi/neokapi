@@ -35,12 +35,12 @@ dist/
 # Wails
 **/build/bin/
 **/build/darwin/
-!bowrain/apps/bowrain/build/darwin/
+!platform/apps/bowrain/build/darwin/
 **/build/appicon.png
-!bowrain/apps/bowrain/build/appicon.png
+!platform/apps/bowrain/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/bindings/
-!bowrain/apps/bowrain/frontend/bindings/
+!platform/apps/bowrain/frontend/bindings/
 **/frontend/package.json.md5
 **/.task/
 
