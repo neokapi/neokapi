@@ -816,7 +816,7 @@ func TestExtract_SampleFile(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/tex/src/test/resources/sample.tex"
+	path := tdDir + "/integration-tests/okapi/src/test/resources/tex/sample.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -838,7 +838,7 @@ func TestExtract_Sample1File(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/tex/src/test/resources/sample1.tex"
+	path := tdDir + "/integration-tests/okapi/src/test/resources/tex/sample1.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)

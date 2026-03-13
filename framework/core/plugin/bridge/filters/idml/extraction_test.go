@@ -161,7 +161,9 @@ func TestExtraction_SpecialCharacterPatternApplied(t *testing.T) {
 
 // okapi: ExtractionTest#indexTopicsExtracted
 func TestExtraction_IndexTopicsExtracted(t *testing.T) {
-	parts := readIDML(t, "links_crossreferences.idml", nil)
+	pool, cfg := bridgetest.SharedBridge(t)
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/idml/links_crossreferences.idml")
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "links/crossreferences file should produce translatable blocks")
@@ -193,7 +195,9 @@ func TestExtraction_ExternalHyperlinksExtracted(t *testing.T) {
 
 // okapi: ExtractionTest#hiddenPasteboardItemsExtracted
 func TestExtraction_HiddenPasteboardItemsExtracted(t *testing.T) {
-	parts := readIDML(t, "large_sample_newspaper1.idml", nil)
+	pool, cfg := bridgetest.SharedBridge(t)
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/idml/large_sample_newspaper1.idml")
+	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "newspaper sample should produce translatable blocks")

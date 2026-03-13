@@ -239,7 +239,7 @@ func TestTable_Issue1128(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/issue1128/okf_table@strong.fprm")
 
-	parts := readTableFile(t, "okapi/filters/table/src/test/resources/issue1128/strong.csv", params)
+	parts := readTableFile(t, "integration-tests/okapi/src/test/resources/table/issue1128/strong.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -257,7 +257,7 @@ func TestTable_Issue1128(t *testing.T) {
 
 	// Roundtrip and check output matches golden.
 	pool, cfg := sharedPool(t)
-	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/issue1128/strong.csv")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/table/issue1128/strong.csv")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 

@@ -271,9 +271,9 @@ func TestConfig_Issue591(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/okf_xml@ibxlf1.fprm",
+		"configFile": tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/591/okf_xml@ibxlf1.fprm",
 	}
-	path := tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/simple_with_simple_codes.xml"
+	path := tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/591/simple_with_simple_codes.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "issue 591 file should produce parts")
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -285,9 +285,9 @@ func TestConfig_Issue1384(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
+		"configFile": tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
 	}
-	path := tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/translatable-and-untranslatable.xml"
+	path := tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/1384/translatable-and-untranslatable.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "issue 1384 file should produce parts")
 }

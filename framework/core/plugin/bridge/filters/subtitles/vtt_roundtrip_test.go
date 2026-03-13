@@ -59,7 +59,7 @@ func TestRoundTrip_VTT_TestFiles(t *testing.T) {
 	// The Java RoundTripVttIT iterates over .vtt files in the vtt/
 	// test resource directory using EventComparator for semantic comparison.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
-		tdDir+"/okapi/filters/subtitles/src/test/resources/*.vtt", vttMimeType, nil)
+		tdDir+"/integration-tests/okapi/src/test/resources/vtt/*.vtt", vttMimeType, nil)
 }
 
 // okapi: RoundTripVttIT#vttSerializedFiles
@@ -72,7 +72,7 @@ func TestRoundTrip_TestFilesSerialized(t *testing.T) {
 	// handled transparently, so we run the same roundtrip with event
 	// comparison on the full set.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
-		tdDir+"/okapi/filters/subtitles/src/test/resources/*.vtt", vttMimeType, nil)
+		tdDir+"/integration-tests/okapi/src/test/resources/vtt/*.vtt", vttMimeType, nil)
 }
 
 // okapi: VttXliffCompareIT#vttXliffCompareFiles
@@ -83,13 +83,13 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Re-read the output from a roundtrip and compare event-level.
 	// This is the event-based equivalent of the XLIFF compare IT.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, vttFilterClass,
-		tdDir+"/okapi/filters/subtitles/src/test/resources/*.vtt", vttMimeType, nil)
+		tdDir+"/integration-tests/okapi/src/test/resources/vtt/*.vtt", vttMimeType, nil)
 }
 
 func TestRoundTrip_FullFile_Example1(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/subtitles/src/test/resources/example1.vtt")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/vtt/example1.vtt")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -112,7 +112,7 @@ func TestRoundTrip_FullFile_Example1(t *testing.T) {
 func TestRoundTrip_FullFile_Example2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/subtitles/src/test/resources/example2.vtt")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/vtt/example2.vtt")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

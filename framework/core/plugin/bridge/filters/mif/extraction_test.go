@@ -410,7 +410,6 @@ func TestExtraction_ProcessesSupportedVersions(t *testing.T) {
 		{"Test01-v8.mif", "v8"},
 		{"Test01.mif", "v9"},
 		{"TestEncoding-v10.mif", "v10"},
-		{"991.mif", "2019"},
 	}
 
 	for _, sf := range supportedFiles {
@@ -419,6 +418,14 @@ func TestExtraction_ProcessesSupportedVersions(t *testing.T) {
 			require.NotEmpty(t, parts, "should process supported MIF version %s (%s)", sf.version, sf.name)
 		})
 	}
+
+	// 991.mif lives in integration-tests, not in the filter module.
+	t.Run("2019", func(t *testing.T) {
+		pool, cfg := bridgetest.SharedBridge(t)
+		path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/mif/991.mif")
+		parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
+		require.NotEmpty(t, parts, "should process supported MIF version 2019 (991.mif)")
+	})
 }
 
 // okapi: ExtractionTest#doesNotProcessUnsupportedVersions

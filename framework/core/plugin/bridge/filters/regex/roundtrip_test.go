@@ -16,7 +16,7 @@ func TestRoundTrip_DummyFoo(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	filePath := tdDir + "/okapi/filters/regex/src/test/resources/dummy.foo"
+	filePath := tdDir + "/integration-tests/okapi/src/test/resources/regex/dummy.foo"
 	content, err := os.ReadFile(filePath)
 	if os.IsNotExist(err) {
 		t.Fatalf("testdata file not found: %s", filePath)
@@ -31,8 +31,8 @@ func TestRoundTrip_Meta(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	filePath := tdDir + "/okapi/filters/regex/src/test/resources/meta/test.txt"
-	configPath := tdDir + "/okapi/filters/regex/src/test/resources/meta/okf_regex@meta.fprm"
+	filePath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta/test.txt"
+	configPath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta/okf_regex@meta.fprm"
 	content, err := os.ReadFile(filePath)
 	if os.IsNotExist(err) {
 		t.Fatalf("testdata file not found: %s", filePath)
@@ -50,8 +50,8 @@ func TestRoundTrip_Meta2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	filePath := tdDir + "/okapi/filters/regex/src/test/resources/meta2/TestRules05.txt"
-	configPath := tdDir + "/okapi/filters/regex/src/test/resources/meta2/okf_regex@TestRules05.fprm"
+	filePath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta2/TestRules05.txt"
+	configPath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta2/okf_regex@TestRules05.fprm"
 	content, err := os.ReadFile(filePath)
 	if os.IsNotExist(err) {
 		t.Fatalf("testdata file not found: %s", filePath)
@@ -69,8 +69,8 @@ func TestRoundTrip_StringInfo(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	filePath := tdDir + "/okapi/filters/regex/src/test/resources/stringInfo/Test01_stringinfo_en.regex"
-	configPath := tdDir + "/okapi/filters/regex/src/test/resources/stringInfo/okf_regex@StringInfo.fprm"
+	filePath := tdDir + "/integration-tests/okapi/src/test/resources/regex/stringInfo/Test01_stringinfo_en.regex"
+	configPath := tdDir + "/integration-tests/okapi/src/test/resources/regex/stringInfo/okf_regex@StringInfo.fprm"
 	content, err := os.ReadFile(filePath)
 	if os.IsNotExist(err) {
 		t.Fatalf("testdata file not found: %s", filePath)
