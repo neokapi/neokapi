@@ -81,27 +81,27 @@ jobs:
 
       - name: Check shared UI (oxlint + oxfmt)
         working-directory: platform/packages/ui
-        run: npx vp check
+        run: vp check
 
       - name: Run UI unit tests
         working-directory: platform/packages/ui
-        run: npm test
+        run: vp test
 
       - name: Check web app (oxlint + oxfmt)
         working-directory: platform/apps/web
-        run: npx vp check
+        run: vp check
 
       - name: Run web unit tests
         working-directory: platform/apps/web
-        run: npm test
+        run: vp test
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
-        run: npx vp build
+        run: vp build
 
       - name: Check Bowrain frontend (oxlint + oxfmt)
         working-directory: platform/apps/bowrain/frontend
-        run: npx vp check
+        run: vp check
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:
@@ -497,7 +497,7 @@ jobs:
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
-        run: npx vp build
+        run: vp build
 
       - name: Build kapi CLI
         run: cd framework/kapi && go build -o ../../bin/kapi ./cmd/kapi
