@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/keycloak/Dockerfile
+          file: platform/docker/keycloak/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ inputs.image-tag }}

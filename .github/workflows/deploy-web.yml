@@ -58,7 +58,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/bowrain-web/Dockerfile
+          file: platform/docker/bowrain-web/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-web:${{ github.sha }}
