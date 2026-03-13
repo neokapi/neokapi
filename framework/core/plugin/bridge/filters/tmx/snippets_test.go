@@ -1317,11 +1317,6 @@ func TestParametersFromString(t *testing.T) {
 // Skipped: sampleTMX2.tmx has srclang="en-us" but bridge sends "en".
 func TestExtract_SampleTMX2(t *testing.T) {
 	t.Skip("skipped: sampleTMX2.tmx uses srclang=en-us; bridge sends en")
-
-	// sampleTMX2.tmx has 2 TUs:
-	// 1. "data (with a non-standard character: ...)."
-	// 2. "menu"
-	require.GreaterOrEqual(t, len(blocks), 2)
 }
 
 // okapi: TmxFilterTest (file-based extraction of Paragraph_TM.tmx)
