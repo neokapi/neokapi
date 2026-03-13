@@ -60,8 +60,8 @@ jobs:
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths bowrain_cli '^platform/cli/'
-          # bowrain: anything under platform/ except frontend app dirs, platform/core/, and platform/cli/
-          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/(apps/(web|bowrain/frontend|keycloak-theme)|core/|cli/)' | grep -q .; then
+          # bowrain: anything under platform/ except frontend app dirs, packages/, platform/core/, and platform/cli/
+          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
