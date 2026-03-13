@@ -3,22 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationCondition, AutomationAction, AutomationRule } from "../types/api";
 import { Button } from "./ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Switch } from "./ui/switch";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
@@ -113,10 +101,7 @@ function ActionRow({
   return (
     <div className="border rounded-md p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <Select
-          value={action.Type}
-          onValueChange={(v: string) => onChange({ ...action, Type: v })}
-        >
+        <Select value={action.Type} onValueChange={(v: string) => onChange({ ...action, Type: v })}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Action type" />
           </SelectTrigger>

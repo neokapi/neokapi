@@ -33,7 +33,14 @@ export const SingleMatch: Story = {
   args: {
     text: "The localization process requires careful attention.",
     termMatches: [
-      { source_term: "localization", target_terms: ["localisation"], domain: "i18n", status: "preferred", start: 4, end: 16 },
+      {
+        source_term: "localization",
+        target_terms: ["localisation"],
+        domain: "i18n",
+        status: "preferred",
+        start: 4,
+        end: 16,
+      },
     ],
   },
 };
@@ -59,8 +66,22 @@ export const AdjacentMatches: Story = {
   args: {
     text: "Use localization and translation tools.",
     termMatches: [
-      { source_term: "localization", target_terms: ["localisation"], domain: "i18n", status: "preferred", start: 4, end: 16 },
-      { source_term: "translation", target_terms: ["traduction"], domain: "i18n", status: "approved", start: 21, end: 32 },
+      {
+        source_term: "localization",
+        target_terms: ["localisation"],
+        domain: "i18n",
+        status: "preferred",
+        start: 4,
+        end: 16,
+      },
+      {
+        source_term: "translation",
+        target_terms: ["traduction"],
+        domain: "i18n",
+        status: "approved",
+        start: 21,
+        end: 32,
+      },
     ],
   },
 };

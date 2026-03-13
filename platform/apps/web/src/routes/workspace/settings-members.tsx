@@ -5,7 +5,10 @@ export function SettingsMembersRoute() {
 
   if (!activeWorkspace) {
     return (
-      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
+      <GlassCard
+        intensity="subtle"
+        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
+      >
         Select a workspace
       </GlassCard>
     );

@@ -15,7 +15,15 @@ interface LocaleSelectProps {
 }
 
 /** Single-locale selector with search. Shows "French (fr)" in options, stores "fr". */
-export function LocaleSelect({ value, onChange, codes, placeholder, className, style, ...rest }: LocaleSelectProps) {
+export function LocaleSelect({
+  value,
+  onChange,
+  codes,
+  placeholder,
+  className,
+  style,
+  ...rest
+}: LocaleSelectProps) {
   const { locales, getDisplayName, loading } = useLocales();
 
   const options = useMemo(() => {
@@ -30,7 +38,9 @@ export function LocaleSelect({ value, onChange, codes, placeholder, className, s
       <ComboBoxGlass
         options={options}
         value={value}
-        onValueChange={(v: string | undefined) => { if (v !== undefined) onChange(v); }}
+        onValueChange={(v: string | undefined) => {
+          if (v !== undefined) onChange(v);
+        }}
         placeholder={loading ? "Loading..." : placeholder || "Select locale..."}
         searchPlaceholder="Search locales..."
         emptyText="No matching locales"
@@ -60,9 +70,7 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
-        (l) =>
-          l.display_name.toLowerCase().includes(q) ||
-          l.code.toLowerCase().includes(q),
+        (l) => l.display_name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q),
       );
     }
     return list;
@@ -91,12 +99,15 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
     onChange(value.filter((v) => v !== code));
   };
 
-  const addLocale = useCallback((code: string) => {
-    onChange([...value, code]);
-    setSearch("");
-    // Re-focus search after adding
-    requestAnimationFrame(() => searchRef.current?.focus());
-  }, [value, onChange]);
+  const addLocale = useCallback(
+    (code: string) => {
+      onChange([...value, code]);
+      setSearch("");
+      // Re-focus search after adding
+      requestAnimationFrame(() => searchRef.current?.focus());
+    },
+    [value, onChange],
+  );
 
   return (
     <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
@@ -114,7 +125,10 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
           <span className="text-sm opacity-50">{loading ? "Loading..." : "Select locales..."}</span>
         )}
         {value.map((code) => (
-          <span key={code} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary text-primary-foreground rounded-md text-xs font-medium">
+          <span
+            key={code}
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary text-primary-foreground rounded-md text-xs font-medium"
+          >
             {getDisplayName(code)} ({code})
             <span
               role="button"
@@ -123,9 +137,16 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
                 e.stopPropagation();
                 removeLocale(code);
               }}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); removeLocale(code); } }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  removeLocale(code);
+                }
+              }}
               className="cursor-pointer text-sm opacity-80 hover:opacity-100"
-              data-testid={rest["data-testid"] ? `${rest["data-testid"]}-remove-${code}` : undefined}
+              data-testid={
+                rest["data-testid"] ? `${rest["data-testid"]}-remove-${code}` : undefined
+              }
             >
               {"\u00D7"}
             </span>
@@ -142,8 +163,14 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
           }}
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div className="flex items-center gap-2 px-3 py-2" style={{ borderBottom: "1px solid var(--dropdown-border)" }}>
-            <Search className="h-4 w-4 shrink-0" style={{ color: "var(--text-muted)", opacity: 0.8 }} />
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{ borderBottom: "1px solid var(--dropdown-border)" }}
+          >
+            <Search
+              className="h-4 w-4 shrink-0"
+              style={{ color: "var(--text-muted)", opacity: 0.8 }}
+            />
             <input
               ref={searchRef}
               type="text"
@@ -160,12 +187,21 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
               <button
                 key={l.code}
                 type="button"
-                onClick={(e) => { e.stopPropagation(); addLocale(l.code); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addLocale(l.code);
+                }}
                 className="block w-full px-3 py-1.5 border-none bg-transparent text-sm cursor-pointer text-left rounded-lg"
                 style={{ color: "var(--dropdown-item-text)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "var(--dropdown-item-hover)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                data-testid={rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--dropdown-item-hover)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                }}
+                data-testid={
+                  rest["data-testid"] ? `${rest["data-testid"]}-option-${l.code}` : undefined
+                }
               >
                 {l.display_name} <span className="opacity-60 text-xs">({l.code})</span>
               </button>

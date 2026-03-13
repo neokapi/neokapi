@@ -130,20 +130,20 @@
 
 /* Shared copper OKLCH primitives */
 :root {
-  --oklch-copper-300: oklch(78% .10 48);
-  --oklch-copper-400: oklch(70% .14 48);
-  --oklch-copper-500: oklch(62% .16 48);
-  --oklch-copper-500-10: oklch(62% .16 48 / 0.10);
-  --oklch-copper-500-15: oklch(62% .16 48 / 0.15);
-  --oklch-copper-500-20: oklch(62% .16 48 / 0.20);
-  --oklch-copper-500-25: oklch(62% .16 48 / 0.25);
-  --oklch-copper-500-30: oklch(62% .16 48 / 0.30);
-  --oklch-copper-500-40: oklch(62% .16 48 / 0.40);
-  --oklch-copper-500-60: oklch(62% .16 48 / 0.60);
-  --oklch-copper-600-15: oklch(54% .16 46 / 0.15);
-  --oklch-copper-600-20: oklch(54% .16 46 / 0.20);
-  --oklch-bronze-500: oklch(58% .14 35);
-  --oklch-bronze-500-20: oklch(58% .14 35 / 0.20);
+  --oklch-copper-300: oklch(78% 0.1 48);
+  --oklch-copper-400: oklch(70% 0.14 48);
+  --oklch-copper-500: oklch(62% 0.16 48);
+  --oklch-copper-500-10: oklch(62% 0.16 48 / 0.1);
+  --oklch-copper-500-15: oklch(62% 0.16 48 / 0.15);
+  --oklch-copper-500-20: oklch(62% 0.16 48 / 0.2);
+  --oklch-copper-500-25: oklch(62% 0.16 48 / 0.25);
+  --oklch-copper-500-30: oklch(62% 0.16 48 / 0.3);
+  --oklch-copper-500-40: oklch(62% 0.16 48 / 0.4);
+  --oklch-copper-500-60: oklch(62% 0.16 48 / 0.6);
+  --oklch-copper-600-15: oklch(54% 0.16 46 / 0.15);
+  --oklch-copper-600-20: oklch(54% 0.16 46 / 0.2);
+  --oklch-bronze-500: oklch(58% 0.14 35);
+  --oklch-bronze-500-20: oklch(58% 0.14 35 / 0.2);
 }
 
 /* Aurora (dark) semantic overrides */
@@ -165,34 +165,34 @@
 
 /* Entity highlight colors — per-type, light theme */
 :root {
-  --entity-person-bg: oklch(85% .08 25 / 0.25);
-  --entity-person-border: oklch(65% .12 25);
-  --entity-org-bg: oklch(85% .08 260 / 0.25);
-  --entity-org-border: oklch(55% .12 260);
-  --entity-location-bg: oklch(85% .08 145 / 0.25);
-  --entity-location-border: oklch(55% .12 145);
-  --entity-date-bg: oklch(85% .08 80 / 0.25);
-  --entity-date-border: oklch(60% .12 80);
-  --entity-product-bg: oklch(85% .08 310 / 0.25);
-  --entity-product-border: oklch(55% .12 310);
-  --entity-default-bg: oklch(85% .06 220 / 0.20);
-  --entity-default-border: oklch(60% .08 220);
+  --entity-person-bg: oklch(85% 0.08 25 / 0.25);
+  --entity-person-border: oklch(65% 0.12 25);
+  --entity-org-bg: oklch(85% 0.08 260 / 0.25);
+  --entity-org-border: oklch(55% 0.12 260);
+  --entity-location-bg: oklch(85% 0.08 145 / 0.25);
+  --entity-location-border: oklch(55% 0.12 145);
+  --entity-date-bg: oklch(85% 0.08 80 / 0.25);
+  --entity-date-border: oklch(60% 0.12 80);
+  --entity-product-bg: oklch(85% 0.08 310 / 0.25);
+  --entity-product-border: oklch(55% 0.12 310);
+  --entity-default-bg: oklch(85% 0.06 220 / 0.2);
+  --entity-default-border: oklch(60% 0.08 220);
 }
 
 /* Entity highlight colors — dark theme */
 .dark {
-  --entity-person-bg: oklch(45% .08 25 / 0.30);
-  --entity-person-border: oklch(70% .10 25);
-  --entity-org-bg: oklch(40% .08 260 / 0.30);
-  --entity-org-border: oklch(72% .10 260);
-  --entity-location-bg: oklch(40% .08 145 / 0.30);
-  --entity-location-border: oklch(72% .10 145);
-  --entity-date-bg: oklch(45% .08 80 / 0.30);
-  --entity-date-border: oklch(72% .10 80);
-  --entity-product-bg: oklch(40% .08 310 / 0.30);
-  --entity-product-border: oklch(72% .10 310);
-  --entity-default-bg: oklch(40% .06 220 / 0.25);
-  --entity-default-border: oklch(68% .08 220);
+  --entity-person-bg: oklch(45% 0.08 25 / 0.3);
+  --entity-person-border: oklch(70% 0.1 25);
+  --entity-org-bg: oklch(40% 0.08 260 / 0.3);
+  --entity-org-border: oklch(72% 0.1 260);
+  --entity-location-bg: oklch(40% 0.08 145 / 0.3);
+  --entity-location-border: oklch(72% 0.1 145);
+  --entity-date-bg: oklch(45% 0.08 80 / 0.3);
+  --entity-date-border: oklch(72% 0.1 80);
+  --entity-product-bg: oklch(40% 0.08 310 / 0.3);
+  --entity-product-border: oklch(72% 0.1 310);
+  --entity-default-bg: oklch(40% 0.06 220 / 0.25);
+  --entity-default-border: oklch(68% 0.08 220);
 }
 
 /* Light theme semantic overrides */

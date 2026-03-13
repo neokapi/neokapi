@@ -20,14 +20,12 @@ export function useTermsApi() {
       targetLocale: string,
       offset: number,
       limit: number,
-    ): Promise<TermSearchResult> => api.getTerms(ws, query, sourceLocale, targetLocale, offset, limit),
+    ): Promise<TermSearchResult> =>
+      api.getTerms(ws, query, sourceLocale, targetLocale, offset, limit),
     [api, ws],
   );
 
-  const getTermCount = useCallback(
-    async (): Promise<number> => api.getTermCount(ws),
-    [api, ws],
-  );
+  const getTermCount = useCallback(async (): Promise<number> => api.getTermCount(ws), [api, ws]);
 
   const addConcept = useCallback(
     async (req: AddConceptRequest): Promise<ConceptInfo> => api.addConcept(ws, req),
@@ -51,7 +49,8 @@ export function useTermsApi() {
       targetLocale: string,
       domain: string,
       hasHeader: boolean,
-    ): Promise<number> => api.importTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader),
+    ): Promise<number> =>
+      api.importTermsCSV(ws, csvContent, sourceLocale, targetLocale, domain, hasHeader),
     [api, ws],
   );
 
@@ -66,8 +65,13 @@ export function useTermsApi() {
   );
 
   return {
-    getTerms, getTermCount,
-    addConcept, updateConcept, deleteConcept,
-    importTermsCSV, importTermsJSON, exportTermsJSON,
+    getTerms,
+    getTermCount,
+    addConcept,
+    updateConcept,
+    deleteConcept,
+    importTermsCSV,
+    importTermsJSON,
+    exportTermsJSON,
   };
 }

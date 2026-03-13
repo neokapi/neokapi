@@ -1,10 +1,19 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, act } from "@testing-library/react";
 import { WorkspaceIcon } from "../components/WorkspaceIcon";
 import type { Workspace } from "../types/api";
 
 function ws(overrides: Partial<Workspace> = {}): Workspace {
-  return { id: "1", name: "Acme", slug: "acme", description: "", logo_url: "", type: "team", role: "owner", ...overrides };
+  return {
+    id: "1",
+    name: "Acme",
+    slug: "acme",
+    description: "",
+    logo_url: "",
+    type: "team",
+    role: "owner",
+    ...overrides,
+  };
 }
 
 describe("WorkspaceIcon", () => {
@@ -44,14 +53,22 @@ describe("WorkspaceIcon", () => {
 
   it("hides letter when logo_url is set", () => {
     render(
-      <WorkspaceIcon workspace={ws({ logo_url: "https://example.com/logo.png" })} active={false} onClick={() => {}} />,
+      <WorkspaceIcon
+        workspace={ws({ logo_url: "https://example.com/logo.png" })}
+        active={false}
+        onClick={() => {}}
+      />,
     );
     expect(screen.getByRole("button").textContent).toBe("");
   });
 
   it("sets background-image when logo_url is set", () => {
     render(
-      <WorkspaceIcon workspace={ws({ logo_url: "https://example.com/logo.png" })} active={false} onClick={() => {}} />,
+      <WorkspaceIcon
+        workspace={ws({ logo_url: "https://example.com/logo.png" })}
+        active={false}
+        onClick={() => {}}
+      />,
     );
     const btn = screen.getByRole("button");
     expect(btn.style.backgroundImage).toContain("https://example.com/logo.png");
@@ -69,9 +86,7 @@ describe("WorkspaceIcon", () => {
     const color1 = screen.getByRole("button").style.backgroundColor;
     unmount();
 
-    render(
-      <WorkspaceIcon workspace={ws({ name: "test" })} active={false} onClick={() => {}} />,
-    );
+    render(<WorkspaceIcon workspace={ws({ name: "test" })} active={false} onClick={() => {}} />);
     const color2 = screen.getByRole("button").style.backgroundColor;
     expect(color1).toBe(color2);
   });
@@ -80,12 +95,10 @@ describe("WorkspaceIcon", () => {
     const { unmount } = render(
       <WorkspaceIcon workspace={ws({ name: "alpha" })} active={false} onClick={() => {}} />,
     );
-    const color1 = screen.getByRole("button").style.backgroundColor;
+    const _color1 = screen.getByRole("button").style.backgroundColor;
     unmount();
 
-    render(
-      <WorkspaceIcon workspace={ws({ name: "zeta" })} active={false} onClick={() => {}} />,
-    );
+    render(<WorkspaceIcon workspace={ws({ name: "zeta" })} active={false} onClick={() => {}} />);
     const color2 = screen.getByRole("button").style.backgroundColor;
     // Statistically unlikely to be the same, but we just check it works
     expect(typeof color2).toBe("string");

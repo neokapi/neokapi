@@ -14,16 +14,26 @@ import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyB
 import { InlineCodeLegend } from "../../components/editor/InlineCodeLegend";
 import type { SpanInfo } from "../../types/api";
 import {
-  simpleBoldCodedText, simpleBoldSpans,
-  linkAndItalicCodedText, linkAndItalicSpans,
-  codeInlineCodedText, codeInlineSpans,
-  lineBreakCodedText, lineBreakSpans,
-  richCodedText, richSpans,
-  mdFormattingCodedText, mdFormattingSpans,
-  mdRichCodedText, mdRichSpans,
-  underlineOpen, underlineClose,
-  strikeOpen, strikeClose,
-  supOpen, supClose,
+  simpleBoldCodedText,
+  simpleBoldSpans,
+  linkAndItalicCodedText,
+  linkAndItalicSpans,
+  codeInlineCodedText,
+  codeInlineSpans,
+  lineBreakCodedText,
+  lineBreakSpans,
+  richCodedText,
+  richSpans,
+  mdFormattingCodedText,
+  mdFormattingSpans,
+  mdRichCodedText,
+  mdRichSpans,
+  underlineOpen,
+  underlineClose,
+  strikeOpen,
+  strikeClose,
+  supOpen,
+  supClose,
   imgTag,
 } from "../fixtures";
 
@@ -72,9 +82,7 @@ function Comparison({
 }) {
   return (
     <div style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
-        {label}
-      </div>
+      <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 14, lineHeight: 1.6 }}>
         <FormattedSourceDisplay codedText={codedText} spans={spans} />
       </div>
@@ -116,7 +124,11 @@ export const HTMLFormat: Story = {
     <div style={{ maxWidth: 640, padding: 16 }}>
       <Section title="HTML Spans — Formatted View">
         <Comparison label="Bold" codedText={simpleBoldCodedText} spans={simpleBoldSpans} />
-        <Comparison label="Link + Italic" codedText={linkAndItalicCodedText} spans={linkAndItalicSpans} />
+        <Comparison
+          label="Link + Italic"
+          codedText={linkAndItalicCodedText}
+          spans={linkAndItalicSpans}
+        />
         <Comparison label="Inline Code" codedText={codeInlineCodedText} spans={codeInlineSpans} />
         <Comparison label="Line Break" codedText={lineBreakCodedText} spans={lineBreakSpans} />
       </Section>
@@ -174,9 +186,8 @@ export const SemanticEquivalence: Story = {
       <div style={{ maxWidth: 640, padding: 16 }}>
         <Section title="Semantic Equivalence — HTML vs Markdown">
           <p style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>
-            Same sentence with HTML tags vs Markdown delimiters. Both produce
-            identical visual rendering because they map to the same semantic
-            categories (bold, italic).
+            Same sentence with HTML tags vs Markdown delimiters. Both produce identical visual
+            rendering because they map to the same semantic categories (bold, italic).
           </p>
           <div style={{ display: "flex", gap: 32 }}>
             <div style={{ flex: 1 }}>
@@ -211,9 +222,8 @@ export const CodeView: Story = {
     <div style={{ maxWidth: 640, padding: 16 }}>
       <Section title="Code View — Tag Chips (Opt-in)">
         <p style={{ fontSize: 12, color: "#999", marginBottom: 12 }}>
-          The same content shown with tag chip rendering. This is the advanced
-          view that translators can toggle to when they need to see the raw
-          inline code structure.
+          The same content shown with tag chip rendering. This is the advanced view that translators
+          can toggle to when they need to see the raw inline code structure.
         </p>
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4 }}>
@@ -333,11 +343,25 @@ export const VocabularyDrivenExperience: Story = {
     const allSpans: SpanInfo[] = [
       { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>" },
       { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-      { span_type: "opening", type: "link:hyperlink", id: "2", data: '<a href="https://example.com">' },
+      {
+        span_type: "opening",
+        type: "link:hyperlink",
+        id: "2",
+        data: '<a href="https://example.com">',
+      },
       { span_type: "closing", type: "link:hyperlink", id: "2", data: "</a>" },
       { span_type: "opening", type: "fmt:code", id: "3", data: "<code>" },
       { span_type: "closing", type: "fmt:code", id: "3", data: "</code>" },
-      { span_type: "placeholder", type: "code:variable", id: "4", data: "{version}", display_text: "{version}", deletable: false, cloneable: false, can_reorder: true },
+      {
+        span_type: "placeholder",
+        type: "code:variable",
+        id: "4",
+        data: "{version}",
+        display_text: "{version}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: true,
+      },
       { span_type: "placeholder", type: "struct:break", id: "5", data: "<br/>" },
     ];
 
@@ -347,9 +371,9 @@ export const VocabularyDrivenExperience: Story = {
       <div style={{ maxWidth: 640, padding: 16 }}>
         <Section title="Vocabulary-Driven Experience">
           <p style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>
-            The complete translator workflow: vocabulary badge summarizes tag
-            categories at a glance, the formatted view shows text naturally,
-            and the legend explains each tag type with its constraints.
+            The complete translator workflow: vocabulary badge summarizes tag categories at a
+            glance, the formatted view shows text naturally, and the legend explains each tag type
+            with its constraints.
           </p>
 
           {/* Badge */}

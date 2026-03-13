@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend, setupLocalApp } from "./mock-backend";
+import { injectMockBackend } from "./mock-backend";
 
 test.beforeEach(async ({ page }) => {
   await injectMockBackend(page);
@@ -36,6 +36,9 @@ test("should bypass connection screen via skipConnectionScreen helper", async ({
   });
   await newPage.goto("/");
   // Should be in connected mode with sidebar visible.
-  await newPage.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
+  await newPage
+    .locator("aside[data-sidebar]")
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
   await newPage.close();
 });

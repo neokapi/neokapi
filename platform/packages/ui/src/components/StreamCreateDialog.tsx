@@ -3,26 +3,19 @@ import type { StreamInfo, StreamVisibility } from "../types/api";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "./ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 
 export interface StreamCreateDialogProps {
   /** Existing streams for parent selection. */
   streams: StreamInfo[];
   /** Called when the user submits the form. */
-  onSubmit: (data: { name: string; parent: string; visibility: StreamVisibility; description: string }) => void;
+  onSubmit: (data: {
+    name: string;
+    parent: string;
+    visibility: StreamVisibility;
+    description: string;
+  }) => void;
   /** Called to close the dialog. */
   onClose: () => void;
   /** Whether the dialog is open. */
@@ -30,12 +23,7 @@ export interface StreamCreateDialogProps {
 }
 
 /** Modal dialog for creating a new stream. */
-export function StreamCreateDialog({
-  streams,
-  onSubmit,
-  onClose,
-  open,
-}: StreamCreateDialogProps) {
+export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamCreateDialogProps) {
   const [name, setName] = useState("");
   const [parent, setParent] = useState(streams[0]?.name ?? "");
   const [visibility, setVisibility] = useState<StreamVisibility>("private");
@@ -105,7 +93,10 @@ export function StreamCreateDialog({
 
           <div>
             <Label className="text-muted-foreground">Visibility</Label>
-            <Select value={visibility} onValueChange={(v: string) => setVisibility(v as StreamVisibility)}>
+            <Select
+              value={visibility}
+              onValueChange={(v: string) => setVisibility(v as StreamVisibility)}
+            >
               <SelectTrigger className="mt-1">
                 <SelectValue />
               </SelectTrigger>

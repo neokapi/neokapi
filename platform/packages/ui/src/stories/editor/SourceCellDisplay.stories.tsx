@@ -1,11 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import {
-  simpleBoldCodedText, simpleBoldSpans,
-  linkAndItalicCodedText, linkAndItalicSpans,
-  codeInlineCodedText, codeInlineSpans,
-  lineBreakCodedText, lineBreakSpans,
-  richCodedText, richSpans,
+  simpleBoldCodedText,
+  simpleBoldSpans,
+  linkAndItalicCodedText,
+  linkAndItalicSpans,
+  codeInlineCodedText,
+  codeInlineSpans,
+  lineBreakCodedText,
+  lineBreakSpans,
+  richCodedText,
+  richSpans,
 } from "../fixtures";
 
 const meta: Meta<typeof SourceCellDisplay> = {

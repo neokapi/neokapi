@@ -1,12 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceDisplay";
 import {
-  simpleBoldCodedText, simpleBoldSpans,
-  linkAndItalicCodedText, linkAndItalicSpans,
-  codeInlineCodedText, codeInlineSpans,
-  lineBreakCodedText, lineBreakSpans,
-  richCodedText, richSpans,
-  mdFormattingCodedText, mdFormattingSpans,
+  simpleBoldCodedText,
+  simpleBoldSpans,
+  linkAndItalicCodedText,
+  linkAndItalicSpans,
+  codeInlineCodedText,
+  codeInlineSpans,
+  lineBreakCodedText,
+  lineBreakSpans,
+  richCodedText,
+  richSpans,
+  mdFormattingCodedText,
+  mdFormattingSpans,
 } from "../fixtures";
 
 const meta: Meta<typeof FormattedSourceDisplay> = {

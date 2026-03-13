@@ -9,7 +9,10 @@ export function useNotificationApi() {
   const ws = activeWorkspace?.slug ?? "";
 
   const listNotifications = useCallback(
-    async (limit?: number, unreadOnly?: boolean): Promise<{ notifications: NotificationInfo[]; unread_count: number }> =>
+    async (
+      limit?: number,
+      unreadOnly?: boolean,
+    ): Promise<{ notifications: NotificationInfo[]; unread_count: number }> =>
       api.listNotifications(ws, limit, unreadOnly),
     [api, ws],
   );
@@ -29,10 +32,13 @@ export function useNotificationApi() {
     [api, ws],
   );
 
-  return useMemo(() => ({
-    listNotifications,
-    markRead,
-    markAllRead,
-    deleteNotification,
-  }), [listNotifications, markRead, markAllRead, deleteNotification]);
+  return useMemo(
+    () => ({
+      listNotifications,
+      markRead,
+      markAllRead,
+      deleteNotification,
+    }),
+    [listNotifications, markRead, markAllRead, deleteNotification],
+  );
 }

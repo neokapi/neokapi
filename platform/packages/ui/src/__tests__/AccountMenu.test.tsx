@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AccountMenu } from "../components/AccountMenu";
@@ -53,7 +53,12 @@ describe("AccountMenu", () => {
   });
 
   it("hides avatar letter when avatar_url is set", () => {
-    const withAvatar: User = { id: "3", name: "Carol", email: "carol@example.com", avatar_url: "https://example.com/avatar.png" };
+    const withAvatar: User = {
+      id: "3",
+      name: "Carol",
+      email: "carol@example.com",
+      avatar_url: "https://example.com/avatar.png",
+    };
     render(<AccountMenu user={withAvatar} onSignOut={() => {}} />);
     const trigger = screen.getAllByRole("button")[0];
     expect(trigger.textContent).toContain("Carol");

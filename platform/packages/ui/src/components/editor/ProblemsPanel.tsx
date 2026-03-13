@@ -20,12 +20,7 @@ interface FlatIssue {
  * ProblemsPanel slides up from the bottom to display QA check results,
  * similar to VS Code's problems panel.
  */
-export function ProblemsPanel({
-  issues,
-  loading,
-  onNavigateToBlock,
-  onClose,
-}: ProblemsPanelProps) {
+export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: ProblemsPanelProps) {
   const [filter, setFilter] = useState<FilterMode>("all");
 
   const flatIssues = useMemo(() => {
@@ -61,7 +56,10 @@ export function ProblemsPanel({
   const totalCount = flatIssues.length;
 
   return (
-    <div className="glass-surface fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 dark:bg-card/90 shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col" style={{ maxHeight: "40vh" }}>
+    <div
+      className="glass-surface fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 dark:bg-card/90 shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col"
+      style={{ maxHeight: "40vh" }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 shrink-0">
         <div className="flex items-center gap-3">
@@ -145,7 +143,10 @@ export function ProblemsPanel({
                   onClick={() => onNavigateToBlock(item.blockId)}
                   className="border-b border-border/20 cursor-pointer hover:bg-muted/30 transition-colors"
                 >
-                  <td className="px-4 py-1.5 font-mono text-xs text-muted-foreground truncate" title={item.blockId}>
+                  <td
+                    className="px-4 py-1.5 font-mono text-xs text-muted-foreground truncate"
+                    title={item.blockId}
+                  >
                     {item.blockId.length > 12 ? `${item.blockId.slice(0, 12)}...` : item.blockId}
                   </td>
                   <td className="px-4 py-1.5">
@@ -161,12 +162,8 @@ export function ProblemsPanel({
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-1.5 text-xs text-muted-foreground">
-                    {item.issue.type}
-                  </td>
-                  <td className="px-4 py-1.5 text-xs text-foreground">
-                    {item.issue.message}
-                  </td>
+                  <td className="px-4 py-1.5 text-xs text-muted-foreground">{item.issue.type}</td>
+                  <td className="px-4 py-1.5 text-xs text-foreground">{item.issue.message}</td>
                 </tr>
               ))}
             </tbody>

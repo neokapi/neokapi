@@ -19,7 +19,13 @@ interface EntityPopoverProps {
   onPromote?: (entityKey: string) => void;
 }
 
-export function EntityPopover({ entity, onClose, onUpdate, onDelete, onPromote }: EntityPopoverProps) {
+export function EntityPopover({
+  entity,
+  onClose,
+  onUpdate,
+  onDelete,
+  onPromote,
+}: EntityPopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [selectedType, setSelectedType] = useState(entity.type);
   const [dnt, setDnt] = useState(entity.dnt);
@@ -109,7 +115,10 @@ export function EntityPopover({ entity, onClose, onUpdate, onDelete, onPromote }
         {onPromote && (
           <button
             className="flex-1 rounded border border-border px-2 py-1 text-xs hover:bg-accent"
-            onClick={() => { onPromote(entity.key); onClose(); }}
+            onClick={() => {
+              onPromote(entity.key);
+              onClose();
+            }}
             title="Promote to terminology candidate"
           >
             Promote
@@ -118,7 +127,10 @@ export function EntityPopover({ entity, onClose, onUpdate, onDelete, onPromote }
         {onDelete && (
           <button
             className="rounded border border-border px-2 py-1 text-xs text-destructive hover:bg-destructive/10"
-            onClick={() => { onDelete(entity.key); onClose(); }}
+            onClick={() => {
+              onDelete(entity.key);
+              onClose();
+            }}
             title="Remove entity annotation"
           >
             Delete

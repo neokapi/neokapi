@@ -9,7 +9,8 @@ export function useFormats() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listFormats()
+    api
+      .listFormats()
       .then((r) => setFormats(r))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));

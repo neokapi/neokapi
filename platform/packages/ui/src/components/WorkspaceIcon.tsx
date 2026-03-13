@@ -8,8 +8,14 @@ interface WorkspaceIconProps {
 }
 
 const COLORS = [
-  "#4A90D9", "#D94A4A", "#4AD9A7", "#D9A74A",
-  "#9B59B6", "#E67E22", "#1ABC9C", "#E74C3C",
+  "#4A90D9",
+  "#D94A4A",
+  "#4AD9A7",
+  "#D9A74A",
+  "#9B59B6",
+  "#E67E22",
+  "#1ABC9C",
+  "#E74C3C",
 ];
 
 function hashColor(name: string): string {
@@ -29,7 +35,9 @@ export function WorkspaceIcon({ workspace, active, onClick, size = 40 }: Workspa
       role="button"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(); }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick();
+      }}
       title={workspace.name}
       style={{
         width: size,

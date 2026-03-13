@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { parseCodedSegments, segmentsToCodedText, spanLabel } from "../components/editor/codedText";
 import type { SpanInfo } from "../types/api";
 
@@ -7,7 +7,11 @@ const OPENING = "\uE001";
 const CLOSING = "\uE002";
 const PLACEHOLDER = "\uE003";
 
-function span(spanType: "opening" | "closing" | "placeholder", type: string, data: string): SpanInfo {
+function span(
+  spanType: "opening" | "closing" | "placeholder",
+  type: string,
+  data: string,
+): SpanInfo {
   return { span_type: spanType, type, id: "1", data };
 }
 
@@ -22,10 +26,7 @@ describe("parseCodedSegments", () => {
   });
 
   it("parses opening and closing tags around text", () => {
-    const spans: SpanInfo[] = [
-      span("opening", "b", "<b>"),
-      span("closing", "b", "</b>"),
-    ];
+    const spans: SpanInfo[] = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
     const coded = `${OPENING}bold${CLOSING}`;
     const result = parseCodedSegments(coded, spans);
 
@@ -67,10 +68,7 @@ describe("parseCodedSegments", () => {
   });
 
   it("handles text before and after tags", () => {
-    const spans: SpanInfo[] = [
-      span("opening", "b", "<b>"),
-      span("closing", "b", "</b>"),
-    ];
+    const spans: SpanInfo[] = [span("opening", "b", "<b>"), span("closing", "b", "</b>")];
     const coded = `before ${OPENING}middle${CLOSING} after`;
     const result = parseCodedSegments(coded, spans);
 
@@ -98,9 +96,7 @@ describe("parseCodedSegments", () => {
 
 describe("segmentsToCodedText", () => {
   it("roundtrips plain text", () => {
-    const { codedText, spans } = segmentsToCodedText([
-      { type: "text", value: "Hello world" },
-    ]);
+    const { codedText, spans } = segmentsToCodedText([{ type: "text", value: "Hello world" }]);
     expect(codedText).toBe("Hello world");
     expect(spans).toEqual([]);
   });

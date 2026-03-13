@@ -29,7 +29,12 @@ export const projectsQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
     staleTime: 30_000,
   });
 
-export const projectQueryOptions = (api: ApiAdapter, workspaceSlug: string, projectId: string, stream?: string) =>
+export const projectQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+  stream?: string,
+) =>
   queryOptions({
     queryKey: ["project", workspaceSlug, projectId, stream ?? "main"],
     queryFn: () => api.getProject(workspaceSlug, projectId, stream),

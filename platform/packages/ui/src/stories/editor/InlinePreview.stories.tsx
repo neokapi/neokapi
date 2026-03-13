@@ -1,11 +1,16 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { InlinePreview } from "../../components/editor/InlinePreview";
 import {
-  simpleBoldCodedText, simpleBoldSpans,
-  linkAndItalicCodedText, linkAndItalicSpans,
-  codeInlineCodedText, codeInlineSpans,
-  lineBreakCodedText, lineBreakSpans,
-  richCodedText, richSpans,
+  simpleBoldCodedText,
+  simpleBoldSpans,
+  linkAndItalicCodedText,
+  linkAndItalicSpans,
+  codeInlineCodedText,
+  codeInlineSpans,
+  lineBreakCodedText,
+  lineBreakSpans,
+  richCodedText,
+  richSpans,
 } from "../fixtures";
 
 const meta: Meta<typeof InlinePreview> = {

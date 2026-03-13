@@ -8,7 +8,6 @@ import {
   StreamProvider,
   CreateWorkspaceDialog,
   AnimatedBackgroundGlass,
-  cn,
   Button,
   Card,
   CardContent,
@@ -32,8 +31,9 @@ export function WorkspaceLayout() {
   const queryClient = useQueryClient();
 
   // Data from route beforeLoad — already fetched, no loading state needed.
-  const { serverMode, user, workspaces, activeWorkspace } =
-    useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
+    strict: false,
+  }) as WorkspaceRouteContext;
 
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
@@ -46,12 +46,11 @@ export function WorkspaceLayout() {
   const handleStreamChange = useCallback(
     (newStream: string) => {
       // Replace the stream segment in the current URL.
-      const ws = workspaceSlug ?? "";
       const path = window.location.pathname;
       const streamPattern = /\/stream\/[^/]+/;
       if (streamPattern.test(path)) {
         const newPath = path.replace(streamPattern, `/stream/${encodeURIComponent(newStream)}`);
-        navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
+        void navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
       }
     },
     [navigate, workspaceSlug],
@@ -61,10 +60,7 @@ export function WorkspaceLayout() {
   const [signedOut, setSignedOut] = useState(false);
 
   // Derive activeView from current URL for sidebar highlighting.
-  const activeView = viewFromPath(
-    window.location.pathname,
-    workspaceSlug ?? "",
-  );
+  const activeView = viewFromPath(window.location.pathname, workspaceSlug ?? "");
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -72,7 +68,10 @@ export function WorkspaceLayout() {
 
   const handleSignOut = useCallback(async () => {
     try {
-      const resp = await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+      const resp = await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
       if (resp.ok) {
         const data = await resp.json();
         // If the server returned an OIDC end_session_url, redirect the browser
@@ -98,16 +97,16 @@ export function WorkspaceLayout() {
       const ws = workspaceSlug ?? "";
       switch (view) {
         case "translate":
-          navigate({ to: "/$workspace", params: { workspace: ws } });
+          void navigate({ to: "/$workspace", params: { workspace: ws } });
           break;
         case "termbase":
-          navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
           break;
         case "memory":
-          navigate({ to: "/$workspace/memory", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/memory", params: { workspace: ws } });
           break;
         case "settings":
-          navigate({ to: "/$workspace/settings", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/settings", params: { workspace: ws } });
           break;
       }
     },
@@ -117,7 +116,7 @@ export function WorkspaceLayout() {
   const handleSelectWorkspace = useCallback(
     (ws: Workspace) => {
       setLastWorkspaceSlug(ws.slug);
-      navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
     [navigate, setLastWorkspaceSlug],
   );
@@ -127,7 +126,7 @@ export function WorkspaceLayout() {
       setLastWorkspaceSlug(ws.slug);
       setShowCreateWs(false);
       await queryClient.refetchQueries({ queryKey: ["workspaces"] });
-      navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
     [setLastWorkspaceSlug, navigate, queryClient],
   );
@@ -152,7 +151,9 @@ export function WorkspaceLayout() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <Button
-                  onClick={() => { window.location.href = "/api/v1/auth/login"; }}
+                  onClick={() => {
+                    window.location.href = "/api/v1/auth/login";
+                  }}
                   className="w-full"
                   size="lg"
                 >
@@ -190,7 +191,9 @@ export function WorkspaceLayout() {
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
           showThemeToggle={false}
-          headerSlot={<TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />}
+          headerSlot={
+            <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
+          }
           contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
         >
           <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>

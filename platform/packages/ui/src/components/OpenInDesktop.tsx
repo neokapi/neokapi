@@ -100,7 +100,13 @@ export function OpenInDesktop({ projectId, serverURL, workspaceSlug }: OpenInDes
             </a>
           </Button>
         ) : (
-          <Button variant="outline" size="sm" onClick={handleOpen} data-testid="open-in-desktop-btn" data-href={deepLink}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpen}
+            data-testid="open-in-desktop-btn"
+            data-href={deepLink}
+          >
             Open in Bowrain{osLabel}
           </Button>
         )}

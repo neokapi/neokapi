@@ -21,10 +21,10 @@ import { cn } from "../../lib/utils";
 type DialogSize = "sm" | "md" | "lg" | "xl" | "full";
 
 const sizeClasses: Record<DialogSize, string> = {
-  sm:   "sm:max-w-[480px]",
-  md:   "sm:max-w-[640px]",
-  lg:   "sm:max-w-[800px]",
-  xl:   "sm:max-w-xl",
+  sm: "sm:max-w-[480px]",
+  md: "sm:max-w-[640px]",
+  lg: "sm:max-w-[800px]",
+  xl: "sm:max-w-xl",
   full: "sm:max-w-4xl",
 };
 

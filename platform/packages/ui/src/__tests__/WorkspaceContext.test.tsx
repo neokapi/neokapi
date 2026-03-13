@@ -1,10 +1,26 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { render, screen, act } from "@testing-library/react";
 import { WorkspaceProvider, useWorkspace } from "../context/WorkspaceContext";
 import type { Workspace } from "../types/api";
 
-const ws1: Workspace = { id: "1", name: "Acme", slug: "acme", description: "", logo_url: "", type: "team", role: "owner" };
-const ws2: Workspace = { id: "2", name: "Beta", slug: "beta", description: "", logo_url: "", type: "team", role: "member" };
+const ws1: Workspace = {
+  id: "1",
+  name: "Acme",
+  slug: "acme",
+  description: "",
+  logo_url: "",
+  type: "team",
+  role: "owner",
+};
+const ws2: Workspace = {
+  id: "2",
+  name: "Beta",
+  slug: "beta",
+  description: "",
+  logo_url: "",
+  type: "team",
+  role: "member",
+};
 
 function WorkspaceDisplay() {
   const { workspaces, activeWorkspace, setWorkspaces, setActiveWorkspace } = useWorkspace();

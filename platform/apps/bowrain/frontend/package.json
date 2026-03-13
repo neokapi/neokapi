@@ -1,14 +1,16 @@
 {
   "name": "bowrain",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "build:dev": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "dev": "vp dev",
+    "build": "tsc && vp build",
+    "build:dev": "vp build",
+    "preview": "vp preview",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
     "test:e2e": "npx playwright test",
     "test:e2e:headed": "npx playwright test --headed",
     "screenshots": "npx playwright test e2e/screenshots.spec.ts",
@@ -34,6 +36,6 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "^5.8.0",
-    "vite": "^8.0.0"
+    "vite-plus": "^0.1.11"
   }
 }

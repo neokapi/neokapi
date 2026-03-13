@@ -13,14 +13,16 @@ const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
   const url = new URL(BASE_URL);
-  await page.context().addCookies([{
-    name: "bowrain_session",
-    value: authToken,
-    domain: url.hostname,
-    path: "/api/",
-    httpOnly: true,
-    sameSite: "Lax" as const,
-  }]);
+  await page.context().addCookies([
+    {
+      name: "bowrain_session",
+      value: authToken,
+      domain: url.hostname,
+      path: "/api/",
+      httpOnly: true,
+      sameSite: "Lax" as const,
+    },
+  ]);
 }
 
 /**
@@ -34,7 +36,8 @@ async function interceptDeepLinks(page: Page) {
     const proto = Object.getPrototypeOf(window.location);
     const desc = Object.getOwnPropertyDescriptor(proto, "href");
     if (desc?.set) {
-      const origSet = desc.set;
+      const origSet = desc.set.bind(proto);
+      const origGet = desc.get?.bind(proto);
       Object.defineProperty(proto, "href", {
         set(val: string) {
           if (typeof val === "string" && val.startsWith("bowrain://")) {
@@ -43,16 +46,18 @@ async function interceptDeepLinks(page: Page) {
           }
           origSet.call(this, val);
         },
-        get: desc.get,
+        get: origGet
+          ? function (this: Location) {
+              return origGet.call(this);
+            }
+          : desc.get?.bind(proto),
         configurable: true,
       });
     }
   });
 
   return async () => {
-    return page.evaluate(
-      () => (window as Record<string, unknown>).__capturedDeepLinks as string[],
-    );
+    return page.evaluate(() => (window as Record<string, unknown>).__capturedDeepLinks as string[]);
   };
 }
 

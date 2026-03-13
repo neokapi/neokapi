@@ -147,10 +147,17 @@ const workspaceRoute = createRoute({
     if (config.mode === "standalone") {
       serverMode = "standalone";
       user = { id: "local", email: "", name: "Local User", avatar_url: "" };
-      workspaces = [{
-        id: "local", name: "Local", slug: "local",
-        description: "", logo_url: "", type: "personal", role: "owner",
-      }];
+      workspaces = [
+        {
+          id: "local",
+          name: "Local",
+          slug: "local",
+          description: "",
+          logo_url: "",
+          type: "personal",
+          role: "owner",
+        },
+      ];
     } else {
       serverMode = "server";
       const [fetchedUser, fetchedWorkspaces] = await Promise.all([
@@ -199,7 +206,9 @@ const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "project/$projectId/stream/$stream",
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
   },
   component: ProjectDetailRoute,
 });
@@ -207,12 +216,11 @@ const projectRoute = createRoute({
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "project/$projectId/stream/$stream/translate/$fileName",
-  component: lazyRouteComponent(
-    () => import("./workspace/translate"),
-    "TranslateRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
   },
   validateSearch: (
     search: Record<string, unknown>,
@@ -226,31 +234,24 @@ const translateRoute = createRoute({
 const automationsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "project/$projectId/stream/$stream/automations",
-  component: lazyRouteComponent(
-    () => import("./workspace/automations"),
-    "AutomationsRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/automations"), "AutomationsRoute"),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
-    await queryClient.ensureQueryData(projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream));
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
   },
 });
 
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
-  component: lazyRouteComponent(
-    () => import("./workspace/termbase"),
-    "TermbaseRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/termbase"), "TermbaseRoute"),
 });
 
 const memoryRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "memory",
-  component: lazyRouteComponent(
-    () => import("./workspace/memory"),
-    "MemoryRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
 const settingsRoute = createRoute({
@@ -262,10 +263,7 @@ const settingsRoute = createRoute({
 const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
-  component: lazyRouteComponent(
-    () => import("./workspace/settings"),
-    "SettingsIndexRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings"), "SettingsIndexRoute"),
 });
 
 const settingsMembersRoute = createRoute({
@@ -292,12 +290,7 @@ const settingsProvidersRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  authLayout.addChildren([
-    joinRoute,
-    claimRoute,
-    deviceVerifyRoute,
-    deviceAuthorizedRoute,
-  ]),
+  authLayout.addChildren([joinRoute, claimRoute, deviceVerifyRoute, deviceAuthorizedRoute]),
   workspaceRoute.addChildren([
     dashboardRoute,
     projectRoute,
@@ -305,11 +298,7 @@ const routeTree = rootRoute.addChildren([
     automationsRoute,
     termbaseRoute,
     memoryRoute,
-    settingsRoute.addChildren([
-      settingsIndexRoute,
-      settingsMembersRoute,
-      settingsProvidersRoute,
-    ]),
+    settingsRoute.addChildren([settingsIndexRoute, settingsMembersRoute, settingsProvidersRoute]),
   ]),
 ]);
 

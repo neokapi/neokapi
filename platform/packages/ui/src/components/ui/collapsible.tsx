@@ -8,9 +8,7 @@ interface CollapsibleContextValue {
   toggle: () => void;
 }
 
-const CollapsibleContext = React.createContext<CollapsibleContextValue | undefined>(
-  undefined
-);
+const CollapsibleContext = React.createContext<CollapsibleContextValue | undefined>(undefined);
 
 interface CollapsibleProps {
   open?: boolean;
@@ -62,11 +60,7 @@ interface CollapsibleTriggerProps {
   className?: string;
 }
 
-function CollapsibleTrigger({
-  asChild,
-  children,
-  className,
-}: CollapsibleTriggerProps) {
+function CollapsibleTrigger({ asChild, children, className }: CollapsibleTriggerProps) {
   const { open, toggle } = useCollapsible();
 
   if (asChild && React.isValidElement(children)) {
@@ -78,7 +72,7 @@ function CollapsibleTrigger({
       {
         onClick: toggle,
         "data-state": open ? "open" : "closed",
-      }
+      },
     );
   }
 
@@ -105,10 +99,7 @@ function CollapsibleContent({ children, className }: CollapsibleContentProps) {
   if (!open) return null;
 
   return (
-    <div
-      data-state={open ? "open" : "closed"}
-      className={cn("", className)}
-    >
+    <div data-state={open ? "open" : "closed"} className={cn("", className)}>
       {children}
     </div>
   );

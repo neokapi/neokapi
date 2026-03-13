@@ -2,10 +2,7 @@ import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry } from "../../vocabularies";
 import { parseCodedSegments } from "./codedText";
-import {
-  semanticTooltip, tagColors,
-  type TagColorScheme,
-} from "./tagSemantics";
+import { semanticTooltip, tagColors, type TagColorScheme } from "./tagSemantics";
 
 interface FormattedSourceDisplayProps {
   codedText: string;
@@ -98,18 +95,15 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
         if (stack.length > 0) {
           const inner = stack[stack.length - 1];
           const isCode = inner.style.fontFamily === "monospace";
-          const bg = isCode
-            ? codeBg(inner.colors)
-            : tintBg(inner.colors);
+          const bg = isCode ? codeBg(inner.colors) : tintBg(inner.colors);
           mergedStyle.backgroundColor = bg;
           mergedStyle.borderRadius = 2;
           mergedStyle.padding = "0 1px";
         }
 
         // Tooltip from innermost span
-        const tooltip = stack.length > 0
-          ? semanticTooltip(stack[stack.length - 1].span)
-          : undefined;
+        const tooltip =
+          stack.length > 0 ? semanticTooltip(stack[stack.length - 1].span) : undefined;
 
         elements.push(
           <span key={i} style={mergedStyle} title={tooltip}>

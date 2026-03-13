@@ -12,7 +12,12 @@ const entityColors: Record<string, { bg: string; border: string }> = {
 };
 
 function getEntityColors(entityType: string) {
-  return entityColors[entityType] ?? { bg: "var(--entity-default-bg)", border: "var(--entity-default-border)" };
+  return (
+    entityColors[entityType] ?? {
+      bg: "var(--entity-default-bg)",
+      border: "var(--entity-default-border)",
+    }
+  );
 }
 
 /** Short label for an entity type. */
@@ -51,7 +56,7 @@ export function HighlightedSource({
   const [activePopover, setActivePopover] = useState<string | null>(null);
 
   const handleEntityClick = useCallback((key: string) => {
-    setActivePopover(prev => (prev === key ? null : key));
+    setActivePopover((prev) => (prev === key ? null : key));
   }, []);
 
   if (termMatches.length === 0 && entities.length === 0) return <>{text}</>;

@@ -27,7 +27,13 @@ const visibilityLabel: Record<StreamVisibility, string> = {
   shared: "Shared",
 };
 
-const VisibilityIcon = ({ visibility, className }: { visibility: StreamVisibility; className?: string }) => {
+const VisibilityIcon = ({
+  visibility,
+  className,
+}: {
+  visibility: StreamVisibility;
+  className?: string;
+}) => {
   switch (visibility) {
     case "public":
       return <Globe className={className} />;
@@ -39,7 +45,9 @@ const VisibilityIcon = ({ visibility, className }: { visibility: StreamVisibilit
 };
 
 /** Group streams by visibility for display. */
-function groupStreams(streams: StreamInfo[]): { visibility: StreamVisibility; streams: StreamInfo[] }[] {
+function groupStreams(
+  streams: StreamInfo[],
+): { visibility: StreamVisibility; streams: StreamInfo[] }[] {
   const order: StreamVisibility[] = ["public", "shared", "private"];
   const groups: { visibility: StreamVisibility; streams: StreamInfo[] }[] = [];
   for (const vis of order) {
@@ -62,15 +70,13 @@ export function StreamSelector({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        className="flex items-center gap-2 px-3 py-1.5 bg-transparent border border-border/50 cursor-pointer transition-colors outline-none text-foreground hover:bg-accent rounded-md text-sm"
-      >
+      <DropdownMenuTrigger className="flex items-center gap-2 px-3 py-1.5 bg-transparent border border-border/50 cursor-pointer transition-colors outline-none text-foreground hover:bg-accent rounded-md text-sm">
         {activeStream && (
-          <span className={`inline-block h-2 w-2 rounded-full ${visibilityColor[activeStream.visibility]}`} />
+          <span
+            className={`inline-block h-2 w-2 rounded-full ${visibilityColor[activeStream.visibility]}`}
+          />
         )}
-        <span className="truncate max-w-[160px]">
-          {activeStream?.name || "Select stream"}
-        </span>
+        <span className="truncate max-w-[160px]">{activeStream?.name || "Select stream"}</span>
         <ChevronsUpDown className="w-3.5 h-3.5 shrink-0 opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[240px]">
@@ -78,7 +84,10 @@ export function StreamSelector({
           <div key={group.visibility}>
             {gi > 0 && <DropdownMenuSeparator />}
             <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <VisibilityIcon visibility={group.visibility} className="inline h-3 w-3 mr-1 align-text-bottom" />
+              <VisibilityIcon
+                visibility={group.visibility}
+                className="inline h-3 w-3 mr-1 align-text-bottom"
+              />
               {visibilityLabel[group.visibility]}
             </div>
             {group.streams.map((stream) => (
@@ -87,7 +96,9 @@ export function StreamSelector({
                 onClick={() => onStreamChange(stream)}
                 className="flex items-center gap-2"
               >
-                <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${visibilityColor[stream.visibility]}`} />
+                <span
+                  className={`inline-block h-2 w-2 rounded-full shrink-0 ${visibilityColor[stream.visibility]}`}
+                />
                 <span className="flex-1 truncate text-sm">{stream.name}</span>
                 {stream.name === activeStream?.name && (
                   <span className="text-[10px] text-muted-foreground">current</span>

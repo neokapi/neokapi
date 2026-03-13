@@ -1,9 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { TagChipComponent } from "../../components/editor/TagChipComponent";
 import {
-  boldOpen, boldClose, italicOpen, italicClose,
-  linkOpen, linkClose, codeOpen, codeClose,
-  lineBreak, imgTag, underlineOpen, strikeOpen, supOpen,
+  boldOpen,
+  boldClose,
+  italicOpen,
+  italicClose,
+  linkOpen,
+  linkClose,
+  codeOpen,
+  codeClose,
+  lineBreak,
+  imgTag,
+  underlineOpen,
+  strikeOpen,
+  supOpen,
 } from "../fixtures";
 
 const meta: Meta<typeof TagChipComponent> = {

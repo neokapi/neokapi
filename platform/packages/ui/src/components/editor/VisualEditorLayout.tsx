@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import type {
-  ProjectInfo, BlockInfo, TMMatchInfo, BlockTermMatch, SpanInfo,
-  BlockNote, QAIssue, BlockHistoryEntry, FileQAResult, AddConceptRequest,
+  ProjectInfo,
+  BlockInfo,
+  TMMatchInfo,
+  BlockTermMatch,
+  SpanInfo,
+  BlockNote,
+  QAIssue,
+  BlockHistoryEntry,
+  FileQAResult,
+  AddConceptRequest,
 } from "../../types/api";
 import type { VisualEditorMode, PreviewContentMode } from "./visual-editor-types";
 import { DocumentPreview } from "./DocumentPreview";
@@ -157,14 +165,11 @@ export function VisualEditorLayout({
   // Available reference locales = target locales minus the active target locale
   const availableRefLocales = project.target_locales.filter((l) => l !== targetLocale);
 
-  const toggleRefLocale = useCallback(
-    (locale: string) => {
-      setReferenceLocales((prev) =>
-        prev.includes(locale) ? prev.filter((l) => l !== locale) : [...prev, locale].slice(0, 2),
-      );
-    },
-    [],
-  );
+  const toggleRefLocale = useCallback((locale: string) => {
+    setReferenceLocales((prev) =>
+      prev.includes(locale) ? prev.filter((l) => l !== locale) : [...prev, locale].slice(0, 2),
+    );
+  }, []);
 
   // Total file QA issue count for badge
   const fileQAIssueCount = fileQAResults
@@ -229,7 +234,11 @@ export function VisualEditorLayout({
   }
 
   return (
-    <div ref={scrollRef} className="relative w-full h-full overflow-y-auto flex flex-col" data-testid="visual-editor-layout">
+    <div
+      ref={scrollRef}
+      className="relative w-full h-full overflow-y-auto flex flex-col"
+      data-testid="visual-editor-layout"
+    >
       {/* ── Sticky toolbar ───────────────────────────────────────── */}
       <div
         className={cn(
@@ -238,11 +247,7 @@ export function VisualEditorLayout({
         )}
       >
         {/* Presence avatars (left) */}
-        {presenceSlot && (
-          <div className="mr-auto">
-            {presenceSlot}
-          </div>
-        )}
+        {presenceSlot && <div className="mr-auto">{presenceSlot}</div>}
 
         {!presenceSlot && <div className="flex-1" />}
 
@@ -317,9 +322,7 @@ export function VisualEditorLayout({
         {/* Preview content mode toggle */}
         <Tabs
           value={previewContentMode}
-          onValueChange={(v: string) =>
-            onPreviewContentModeChange(v as PreviewContentMode)
-          }
+          onValueChange={(v: string) => onPreviewContentModeChange(v as PreviewContentMode)}
         >
           <TabsList className="h-7 glass-surface">
             <TabsTrigger value="source" className="text-[11px] px-2 h-6">
@@ -359,7 +362,7 @@ export function VisualEditorLayout({
         <div
           ref={cardRef}
           className="absolute z-10 left-0 right-0 px-4"
-          style={{ top: spacerY + 32, transition: 'top 0.25s ease' }}
+          style={{ top: spacerY + 32, transition: "top 0.25s ease" }}
         >
           <VisualEditorCard
             block={currentBlock}
@@ -388,7 +391,9 @@ export function VisualEditorLayout({
             onDeleteNote={onDeleteNote}
             onTermCreate={onTermCreate}
             onPrev={selectedIndex > 0 ? () => onNavigate(selectedIndex - 1) : undefined}
-            onNext={selectedIndex < blocks.length - 1 ? () => onNavigate(selectedIndex + 1) : undefined}
+            onNext={
+              selectedIndex < blocks.length - 1 ? () => onNavigate(selectedIndex + 1) : undefined
+            }
           />
         </div>
       </div>

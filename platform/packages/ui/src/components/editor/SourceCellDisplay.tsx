@@ -14,7 +14,12 @@ const entityColors: Record<string, { bg: string; border: string }> = {
 };
 
 function getEntityColors(entityType: string) {
-  return entityColors[entityType] ?? { bg: "var(--entity-default-bg)", border: "var(--entity-default-border)" };
+  return (
+    entityColors[entityType] ?? {
+      bg: "var(--entity-default-bg)",
+      border: "var(--entity-default-border)",
+    }
+  );
 }
 
 interface SourceCellDisplayProps {
@@ -35,7 +40,10 @@ export function SourceCellDisplay({ codedText, spans, entities = [] }: SourceCel
 
   // Build a set of sorted entity ranges for quick lookup.
   const sortedEntities = useMemo(
-    () => [...entities].filter(e => e.start >= 0 && e.end > e.start).sort((a, b) => a.start - b.start),
+    () =>
+      [...entities]
+        .filter((e) => e.start >= 0 && e.end > e.start)
+        .sort((a, b) => a.start - b.start),
     [entities],
   );
 
@@ -66,7 +74,11 @@ export function SourceCellDisplay({ codedText, spans, entities = [] }: SourceCel
 
             // Pre-entity text.
             if (overlapStart > cursor) {
-              parts.push(<span key={`t-${cursor}`}>{seg.value.slice(cursor - segStart, overlapStart - segStart)}</span>);
+              parts.push(
+                <span key={`t-${cursor}`}>
+                  {seg.value.slice(cursor - segStart, overlapStart - segStart)}
+                </span>,
+              );
             }
 
             // Entity-highlighted text.

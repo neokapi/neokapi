@@ -51,7 +51,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   // Initial load + polling.
   useEffect(() => {
     if (!ws) return;
-    refresh();
+    void refresh();
     if (pollInterval > 0) {
       const timer = setInterval(refresh, pollInterval);
       return () => clearInterval(timer);
@@ -96,12 +96,15 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     };
   }, [enableWebSocket, ws]);
 
-  const markRead = useCallback(async (id: string) => {
-    if (!ws) return;
-    await api.markNotificationRead(ws, id);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-  }, [api, ws]);
+  const markRead = useCallback(
+    async (id: string) => {
+      if (!ws) return;
+      await api.markNotificationRead(ws, id);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    },
+    [api, ws],
+  );
 
   const markAllRead = useCallback(async () => {
     if (!ws) return;
@@ -110,15 +113,26 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     setUnreadCount(0);
   }, [api, ws]);
 
-  const deleteNotification = useCallback(async (id: string) => {
-    if (!ws) return;
-    const n = notifications.find((x) => x.id === id);
-    await api.deleteNotification(ws, id);
-    setNotifications((prev) => prev.filter((x) => x.id !== id));
-    if (n && !n.read) {
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    }
-  }, [api, ws, notifications]);
+  const deleteNotification = useCallback(
+    async (id: string) => {
+      if (!ws) return;
+      const n = notifications.find((x) => x.id === id);
+      await api.deleteNotification(ws, id);
+      setNotifications((prev) => prev.filter((x) => x.id !== id));
+      if (n && !n.read) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    },
+    [api, ws, notifications],
+  );
 
-  return { notifications, unreadCount, loading, markRead, markAllRead, deleteNotification, refresh };
+  return {
+    notifications,
+    unreadCount,
+    loading,
+    markRead,
+    markAllRead,
+    deleteNotification,
+    refresh,
+  };
 }

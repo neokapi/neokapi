@@ -14,15 +14,9 @@ export interface PresenceAvatarsProps {
  * Displays a row of overlapping user avatars showing who else is
  * currently editing the same document.
  */
-export function PresenceAvatars({
-  users,
-  currentUserId,
-  maxVisible = 5,
-}: PresenceAvatarsProps) {
+export function PresenceAvatars({ users, currentUserId, maxVisible = 5 }: PresenceAvatarsProps) {
   // Exclude the current user from the display.
-  const others = currentUserId
-    ? users.filter((u) => u.userId !== currentUserId)
-    : users;
+  const others = currentUserId ? users.filter((u) => u.userId !== currentUserId) : users;
 
   if (others.length === 0) return null;
 
