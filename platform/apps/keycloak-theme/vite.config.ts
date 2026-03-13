@@ -23,6 +23,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["dist/**", "dist_keycloak/**"],
     options: {
+      typeAware: true,
       typeCheck: false,
     },
   },
