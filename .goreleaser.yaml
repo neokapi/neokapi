@@ -8,7 +8,7 @@ before:
     # without a real frontend build (bowrain is built separately in the release workflow).
     - mkdir -p platform/apps/bowrain/frontend/dist && touch platform/apps/bowrain/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
-    - go mod tidy
+    - bash -c "cd framework && go mod tidy"
     - bash -c "cd framework/cli && go mod tidy"
     - bash -c "cd platform/core && go mod tidy"
     - bash -c "cd framework/kapi && go mod tidy"
