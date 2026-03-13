@@ -13,11 +13,27 @@ services:
     volumes:
       - web-dist:/web
 
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: bowrain
+      POSTGRES_DB: bowrain
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bowrain"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   bowrain-server:
     image: ${BOWRAIN_SERVER_IMAGE:-ghcr.io/neokapi/bowrain-server:latest}
     depends_on:
       web-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       keycloak:
         condition: service_healthy
       mailpit:
@@ -26,13 +42,13 @@ services:
         condition: service_started
     environment:
       BOWRAIN_JWT_SECRET: dev-secret-change-in-production
+      BOWRAIN_DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain?sslmode=disable
       BOWRAIN_OIDC_ISSUER_URL: http://keycloak:8080/realms/bowrain
       BOWRAIN_OIDC_PUBLIC_URL: http://localhost:8180/realms/bowrain
       BOWRAIN_OIDC_CLIENT_ID: bowrain
       BOWRAIN_OIDC_CLIENT_SECRET: bowrain-secret
       BOWRAIN_SMTP_HOST: mailpit:1025
       BOWRAIN_SMTP_FROM: noreply@bowrain.cloud
-      BOWRAIN_STORE: /data/bowrain.db
       BOWRAIN_GRPC_PORT: "9080"
       BOWRAIN_WEB_UI_DIR: /web
       BOWRAIN_NATS_URL: nats://nats:4222
@@ -80,4 +96,5 @@ services:
 
 volumes:
   web-dist:
+  pgdata:
   nats-data:
