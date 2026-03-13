@@ -29,5 +29,6 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
+    ignorePatterns: ["dist/**", "dist_keycloak/**"],
   },
 });

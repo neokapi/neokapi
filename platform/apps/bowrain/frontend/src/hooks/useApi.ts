@@ -32,7 +32,6 @@ import type {
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
 
-
 export function useFormats() {
   const [formats, setFormats] = useState<FormatInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,17 +133,22 @@ export function useConnection() {
   const [info, setInfo] = useState<ConnectionInfo>({ state: "disconnected" });
 
   const refresh = useCallback(async () => {
-    const ci = await Backend.GetConnectionState() as ConnectionInfo;
+    const ci = (await Backend.GetConnectionState()) as ConnectionInfo;
     setInfo(ci);
     return ci;
   }, []);
 
-  useEffect(() => { void refresh(); }, [refresh]);
-
-  const connect = useCallback(async (serverURL: string) => {
-    await Backend.ConnectToServer(serverURL);
-    return refresh();
+  useEffect(() => {
+    void refresh();
   }, [refresh]);
+
+  const connect = useCallback(
+    async (serverURL: string) => {
+      await Backend.ConnectToServer(serverURL);
+      return refresh();
+    },
+    [refresh],
+  );
 
   const startLogin = useCallback(async (serverURL: string): Promise<void> => {
     await Backend.StartLogin(serverURL);
@@ -168,15 +172,24 @@ export function useConnection() {
     setInfo({ state: "disconnected" });
   }, []);
 
-  const selectWorkspace = useCallback(async (slug: string) => {
-    await Backend.SelectWorkspace(slug);
-    return refresh();
-  }, [refresh]);
+  const selectWorkspace = useCallback(
+    async (slug: string) => {
+      await Backend.SelectWorkspace(slug);
+      return refresh();
+    },
+    [refresh],
+  );
 
   const getServerWorkspaces = useCallback(async () => {
-    return Backend.GetServerWorkspaces() as Promise<Array<{
-      id: string; slug: string; name: string; description: string; role: string;
-    }>>;
+    return Backend.GetServerWorkspaces() as Promise<
+      Array<{
+        id: string;
+        slug: string;
+        name: string;
+        description: string;
+        role: string;
+      }>
+    >;
   }, []);
 
   const startWatching = useCallback(async (projectID: string) => {
@@ -187,12 +200,21 @@ export function useConnection() {
     await Backend.StopWatching();
   }, []);
 
-  const updatePresence = useCallback(async (projectID: string, itemName: string, blockID: string) => {
-    await Backend.UpdatePresence(projectID, itemName, blockID);
-  }, []);
+  const updatePresence = useCallback(
+    async (projectID: string, itemName: string, blockID: string) => {
+      await Backend.UpdatePresence(projectID, itemName, blockID);
+    },
+    [],
+  );
 
   const reviewBlock = useCallback(
-    async (projectID: string, itemName: string, blockID: string, targetLocale: string, reviewed: boolean): Promise<void> => {
+    async (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+      reviewed: boolean,
+    ): Promise<void> => {
       return Backend.ReviewBlock(projectID, itemName, blockID, targetLocale, reviewed);
     },
     [],
@@ -235,12 +257,9 @@ export function useProjectApi() {
     return Backend.ListProjects() as Promise<ProjectInfo[]>;
   }, []);
 
-  const closeProject = useCallback(
-    async (projectID: string): Promise<void> => {
-      return Backend.CloseProject(projectID);
-    },
-    [],
-  );
+  const closeProject = useCallback(async (projectID: string): Promise<void> => {
+    return Backend.CloseProject(projectID);
+  }, []);
 
   const addFiles = useCallback(
     async (projectID: string, filePaths: string[]): Promise<ProjectInfo> => {
@@ -273,12 +292,9 @@ export function useEditorApi() {
     [],
   );
 
-  const updateBlockTarget = useCallback(
-    async (req: UpdateBlockRequest): Promise<void> => {
-      return Backend.UpdateBlockTarget(req);
-    },
-    [],
-  );
+  const updateBlockTarget = useCallback(async (req: UpdateBlockRequest): Promise<void> => {
+    return Backend.UpdateBlockTarget(req);
+  }, []);
 
   const updateBlockTargetCoded = useCallback(
     async (req: UpdateBlockTargetCodedRequest): Promise<void> => {
@@ -288,15 +304,31 @@ export function useEditorApi() {
   );
 
   const pseudoTranslateFile = useCallback(
-    async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
-      return Backend.PseudoTranslateItem(projectID, fileName, targetLocale) as Promise<TranslationStats>;
+    async (
+      projectID: string,
+      fileName: string,
+      targetLocale: string,
+    ): Promise<TranslationStats> => {
+      return Backend.PseudoTranslateItem(
+        projectID,
+        fileName,
+        targetLocale,
+      ) as Promise<TranslationStats>;
     },
     [],
   );
 
   const tmTranslateFile = useCallback(
-    async (projectID: string, fileName: string, targetLocale: string): Promise<TranslationStats> => {
-      return Backend.TMTranslateItem(projectID, fileName, targetLocale) as Promise<TranslationStats>;
+    async (
+      projectID: string,
+      fileName: string,
+      targetLocale: string,
+    ): Promise<TranslationStats> => {
+      return Backend.TMTranslateItem(
+        projectID,
+        fileName,
+        targetLocale,
+      ) as Promise<TranslationStats>;
     },
     [],
   );
@@ -315,12 +347,9 @@ export function useEditorApi() {
     [],
   );
 
-  const openFileInOS = useCallback(
-    async (filePath: string): Promise<void> => {
-      return Backend.OpenFileInOS(filePath);
-    },
-    [],
-  );
+  const openFileInOS = useCallback(async (filePath: string): Promise<void> => {
+    return Backend.OpenFileInOS(filePath);
+  }, []);
 
   const renderDocumentPreview = useCallback(
     async (projectID: string, itemName: string, targetLocale: string): Promise<string> => {
@@ -330,53 +359,75 @@ export function useEditorApi() {
   );
 
   const renderBlockHTML = useCallback(
-    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<string> => {
+    async (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ): Promise<string> => {
       return Backend.RenderBlockHTML(projectID, itemName, blockID, targetLocale);
     },
     [],
   );
 
   const lookupTMForBlock = useCallback(
-    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<TMMatchInfo[]> => {
-      return Backend.LookupTMForBlock(projectID, itemName, blockID, targetLocale) as Promise<TMMatchInfo[]>;
+    async (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ): Promise<TMMatchInfo[]> => {
+      return Backend.LookupTMForBlock(projectID, itemName, blockID, targetLocale) as Promise<
+        TMMatchInfo[]
+      >;
     },
     [],
   );
 
   const lookupTermsForBlock = useCallback(
-    async (projectID: string, itemName: string, blockID: string, targetLocale: string): Promise<BlockTermMatch[]> => {
-      return Backend.LookupTermsForBlock(projectID, itemName, blockID, targetLocale) as Promise<BlockTermMatch[]>;
+    async (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ): Promise<BlockTermMatch[]> => {
+      return Backend.LookupTermsForBlock(projectID, itemName, blockID, targetLocale) as Promise<
+        BlockTermMatch[]
+      >;
     },
     [],
   );
 
-  return useMemo(() => ({
-    getFileBlocks,
-    updateBlockTarget,
-    updateBlockTargetCoded,
-    pseudoTranslateFile,
-    tmTranslateFile,
-    getWordCount,
-    exportTranslatedFile,
-    openFileInOS,
-    renderDocumentPreview,
-    renderBlockHTML,
-    lookupTMForBlock,
-    lookupTermsForBlock,
-  }), [
-    getFileBlocks,
-    updateBlockTarget,
-    updateBlockTargetCoded,
-    pseudoTranslateFile,
-    tmTranslateFile,
-    getWordCount,
-    exportTranslatedFile,
-    openFileInOS,
-    renderDocumentPreview,
-    renderBlockHTML,
-    lookupTMForBlock,
-    lookupTermsForBlock,
-  ]);
+  return useMemo(
+    () => ({
+      getFileBlocks,
+      updateBlockTarget,
+      updateBlockTargetCoded,
+      pseudoTranslateFile,
+      tmTranslateFile,
+      getWordCount,
+      exportTranslatedFile,
+      openFileInOS,
+      renderDocumentPreview,
+      renderBlockHTML,
+      lookupTMForBlock,
+      lookupTermsForBlock,
+    }),
+    [
+      getFileBlocks,
+      updateBlockTarget,
+      updateBlockTargetCoded,
+      pseudoTranslateFile,
+      tmTranslateFile,
+      getWordCount,
+      exportTranslatedFile,
+      openFileInOS,
+      renderDocumentPreview,
+      renderBlockHTML,
+      lookupTMForBlock,
+      lookupTermsForBlock,
+    ],
+  );
 }
 
 // Provider config hooks
@@ -413,31 +464,29 @@ export function useTMApi() {
       offset: number,
       limit: number,
     ): Promise<TMSearchResult> => {
-      return Backend.GetTMEntries(projectID, query, sourceLocale, targetLocale, offset, limit) as Promise<TMSearchResult>;
+      return Backend.GetTMEntries(
+        projectID,
+        query,
+        sourceLocale,
+        targetLocale,
+        offset,
+        limit,
+      ) as Promise<TMSearchResult>;
     },
     [],
   );
 
-  const getTMCount = useCallback(
-    async (projectID: string): Promise<number> => {
-      return Backend.GetTMCount(projectID) as Promise<number>;
-    },
-    [],
-  );
+  const getTMCount = useCallback(async (projectID: string): Promise<number> => {
+    return Backend.GetTMCount(projectID) as Promise<number>;
+  }, []);
 
-  const updateTMEntry = useCallback(
-    async (req: TMUpdateRequest): Promise<void> => {
-      return Backend.UpdateTMEntry(req);
-    },
-    [],
-  );
+  const updateTMEntry = useCallback(async (req: TMUpdateRequest): Promise<void> => {
+    return Backend.UpdateTMEntry(req);
+  }, []);
 
-  const deleteTMEntry = useCallback(
-    async (projectID: string, entryID: string): Promise<void> => {
-      return Backend.DeleteTMEntry(projectID, entryID);
-    },
-    [],
-  );
+  const deleteTMEntry = useCallback(async (projectID: string, entryID: string): Promise<void> => {
+    return Backend.DeleteTMEntry(projectID, entryID);
+  }, []);
 
   const addTMEntry = useCallback(
     async (
@@ -447,7 +496,13 @@ export function useTMApi() {
       sourceLocale: string,
       targetLocale: string,
     ): Promise<TMEntryInfo> => {
-      return Backend.AddTMEntry(projectID, source, target, sourceLocale, targetLocale) as Promise<TMEntryInfo>;
+      return Backend.AddTMEntry(
+        projectID,
+        source,
+        target,
+        sourceLocale,
+        targetLocale,
+      ) as Promise<TMEntryInfo>;
     },
     [],
   );
@@ -465,19 +520,13 @@ export function useProviderApi() {
     [],
   );
 
-  const deleteProviderConfig = useCallback(
-    async (id: string): Promise<void> => {
-      return Backend.DeleteProviderConfig(id);
-    },
-    [],
-  );
+  const deleteProviderConfig = useCallback(async (id: string): Promise<void> => {
+    return Backend.DeleteProviderConfig(id);
+  }, []);
 
-  const testProviderConfig = useCallback(
-    async (cfg: ProviderConfigWithKey): Promise<void> => {
-      return Backend.TestProviderConfig(cfg);
-    },
-    [],
-  );
+  const testProviderConfig = useCallback(async (cfg: ProviderConfigWithKey): Promise<void> => {
+    return Backend.TestProviderConfig(cfg);
+  }, []);
 
   return { saveProviderConfig, deleteProviderConfig, testProviderConfig };
 }
@@ -494,42 +543,47 @@ export function useTermsApi() {
       offset: number,
       limit: number,
     ): Promise<TermSearchResult> => {
-      return Backend.GetTerms(projectID, query, sourceLocale, targetLocale, offset, limit) as Promise<TermSearchResult>;
+      return Backend.GetTerms(
+        projectID,
+        query,
+        sourceLocale,
+        targetLocale,
+        offset,
+        limit,
+      ) as Promise<TermSearchResult>;
     },
     [],
   );
 
-  const getTermCount = useCallback(
-    async (projectID: string): Promise<number> => {
-      return Backend.GetTermCount(projectID) as Promise<number>;
-    },
-    [],
-  );
+  const getTermCount = useCallback(async (projectID: string): Promise<number> => {
+    return Backend.GetTermCount(projectID) as Promise<number>;
+  }, []);
 
-  const addConcept = useCallback(
-    async (req: AddConceptRequest): Promise<ConceptInfo> => {
-      return Backend.AddConcept(req) as Promise<ConceptInfo>;
-    },
-    [],
-  );
+  const addConcept = useCallback(async (req: AddConceptRequest): Promise<ConceptInfo> => {
+    return Backend.AddConcept(req) as Promise<ConceptInfo>;
+  }, []);
 
-  const updateConcept = useCallback(
-    async (req: UpdateConceptRequest): Promise<void> => {
-      return Backend.UpdateConcept(req);
-    },
-    [],
-  );
+  const updateConcept = useCallback(async (req: UpdateConceptRequest): Promise<void> => {
+    return Backend.UpdateConcept(req);
+  }, []);
 
-  const deleteConcept = useCallback(
-    async (projectID: string, conceptID: string): Promise<void> => {
-      return Backend.DeleteConcept(projectID, conceptID);
-    },
-    [],
-  );
+  const deleteConcept = useCallback(async (projectID: string, conceptID: string): Promise<void> => {
+    return Backend.DeleteConcept(projectID, conceptID);
+  }, []);
 
   const lookupTerms = useCallback(
-    async (projectID: string, text: string, sourceLocale: string, targetLocale: string): Promise<TermLookupResult> => {
-      return Backend.LookupTerms(projectID, text, sourceLocale, targetLocale) as Promise<TermLookupResult>;
+    async (
+      projectID: string,
+      text: string,
+      sourceLocale: string,
+      targetLocale: string,
+    ): Promise<TermLookupResult> => {
+      return Backend.LookupTerms(
+        projectID,
+        text,
+        sourceLocale,
+        targetLocale,
+      ) as Promise<TermLookupResult>;
     },
     [],
   );
@@ -543,7 +597,14 @@ export function useTermsApi() {
       domain: string,
       hasHeader: boolean,
     ): Promise<number> => {
-      return Backend.ImportTermsCSV(projectID, csvContent, sourceLocale, targetLocale, domain, hasHeader) as Promise<number>;
+      return Backend.ImportTermsCSV(
+        projectID,
+        csvContent,
+        sourceLocale,
+        targetLocale,
+        domain,
+        hasHeader,
+      ) as Promise<number>;
     },
     [],
   );
@@ -555,24 +616,33 @@ export function useTermsApi() {
     [],
   );
 
-  const exportTermsJSON = useCallback(
-    async (projectID: string, name: string): Promise<string> => {
-      return Backend.ExportTermsJSON(projectID, name) as Promise<string>;
-    },
-    [],
-  );
+  const exportTermsJSON = useCallback(async (projectID: string, name: string): Promise<string> => {
+    return Backend.ExportTermsJSON(projectID, name) as Promise<string>;
+  }, []);
 
   const termEnforceItem = useCallback(
-    async (projectID: string, itemName: string, targetLocale: string): Promise<TermEnforceResult[]> => {
-      return Backend.TermEnforceItem(projectID, itemName, targetLocale) as Promise<TermEnforceResult[]>;
+    async (
+      projectID: string,
+      itemName: string,
+      targetLocale: string,
+    ): Promise<TermEnforceResult[]> => {
+      return Backend.TermEnforceItem(projectID, itemName, targetLocale) as Promise<
+        TermEnforceResult[]
+      >;
     },
     [],
   );
 
   return {
-    getTerms, getTermCount,
-    addConcept, updateConcept, deleteConcept,
-    lookupTerms, importTermsCSV, importTermsJSON, exportTermsJSON,
+    getTerms,
+    getTermCount,
+    addConcept,
+    updateConcept,
+    deleteConcept,
+    lookupTerms,
+    importTermsCSV,
+    importTermsJSON,
+    exportTermsJSON,
     termEnforceItem,
   };
 }
@@ -600,12 +670,9 @@ export function useFlowDefinitions() {
 }
 
 export function useFlowDefinitionApi() {
-  const getFlowDefinition = useCallback(
-    async (id: string): Promise<FlowDefinitionInfo> => {
-      return Backend.GetFlowDefinition(id) as Promise<FlowDefinitionInfo>;
-    },
-    [],
-  );
+  const getFlowDefinition = useCallback(async (id: string): Promise<FlowDefinitionInfo> => {
+    return Backend.GetFlowDefinition(id) as Promise<FlowDefinitionInfo>;
+  }, []);
 
   const saveFlowDefinition = useCallback(
     async (def: FlowDefinitionInfo): Promise<FlowDefinitionInfo> => {
@@ -614,12 +681,9 @@ export function useFlowDefinitionApi() {
     [],
   );
 
-  const deleteFlowDefinition = useCallback(
-    async (id: string): Promise<void> => {
-      return Backend.DeleteFlowDefinition(id);
-    },
-    [],
-  );
+  const deleteFlowDefinition = useCallback(async (id: string): Promise<void> => {
+    return Backend.DeleteFlowDefinition(id);
+  }, []);
 
   return { getFlowDefinition, saveFlowDefinition, deleteFlowDefinition };
 }

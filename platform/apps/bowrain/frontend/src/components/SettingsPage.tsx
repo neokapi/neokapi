@@ -1,7 +1,46 @@
 import { useState } from "react";
-import { useTheme, type Theme, cn, Button, Input, Label, Badge, Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui";
-import { useFormats, useTools, useFlows, usePlugins, useVersion, useProviderConfigs, useProviderApi } from "../hooks/useApi";
-import type { FormatInfo, ToolInfo, FlowInfo, PluginInfo, ProviderConfig, ProviderConfigWithKey } from "../types/api";
+import {
+  useTheme,
+  type Theme,
+  cn,
+  Button,
+  Input,
+  Label,
+  Badge,
+  Card,
+  CardContent,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui";
+import {
+  useFormats,
+  useTools,
+  useFlows,
+  usePlugins,
+  useVersion,
+  useProviderConfigs,
+  useProviderApi,
+} from "../hooks/useApi";
+import type {
+  FormatInfo,
+  ToolInfo,
+  FlowInfo,
+  PluginInfo,
+  ProviderConfig,
+  ProviderConfigWithKey,
+} from "../types/api";
 
 type SettingsTab = "general" | "ai-providers" | "plugins" | "system-info";
 
@@ -25,10 +64,18 @@ export function SettingsPage() {
           ))}
         </TabsList>
         <div className="flex-1 overflow-y-auto">
-          <TabsContent value="general"><GeneralTab /></TabsContent>
-          <TabsContent value="ai-providers"><AIProvidersTab /></TabsContent>
-          <TabsContent value="plugins"><PluginsTab /></TabsContent>
-          <TabsContent value="system-info"><SystemInfoTab /></TabsContent>
+          <TabsContent value="general">
+            <GeneralTab />
+          </TabsContent>
+          <TabsContent value="ai-providers">
+            <AIProvidersTab />
+          </TabsContent>
+          <TabsContent value="plugins">
+            <PluginsTab />
+          </TabsContent>
+          <TabsContent value="system-info">
+            <SystemInfoTab />
+          </TabsContent>
         </div>
       </Tabs>
     </div>
@@ -49,9 +96,7 @@ function GeneralTab() {
     <div data-testid="settings-general" className="flex flex-col gap-6">
       <section>
         <h3 className="mb-2 text-[15px]">Appearance</h3>
-        <p className="text-muted-foreground text-[13px] mb-3">
-          Choose your preferred color theme.
-        </p>
+        <p className="text-muted-foreground text-[13px] mb-3">Choose your preferred color theme.</p>
         <div className="flex gap-2">
           {themeOptions.map((opt) => (
             <Button
@@ -87,17 +132,23 @@ function AIProvidersTab() {
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  if (loading) return <div data-testid="settings-ai-providers"><p className="text-muted-foreground">Loading providers...</p></div>;
-  if (error) return (
-    <div data-testid="settings-ai-providers">
-      <Card data-testid="providers-error">
-        <CardContent className="py-6 text-center text-muted-foreground">
-          <p className="mb-2">AI providers unavailable</p>
-          <p className="text-[13px]">{error}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  if (loading)
+    return (
+      <div data-testid="settings-ai-providers">
+        <p className="text-muted-foreground">Loading providers...</p>
+      </div>
+    );
+  if (error)
+    return (
+      <div data-testid="settings-ai-providers">
+        <Card data-testid="providers-error">
+          <CardContent className="py-6 text-center text-muted-foreground">
+            <p className="mb-2">AI providers unavailable</p>
+            <p className="text-[13px]">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
 
   const handleAdd = () => {
     setEditing({
@@ -172,12 +223,18 @@ function AIProvidersTab() {
     }
   };
 
-  const defaults = editing ? (providerTypeDefaults[editing.provider_type] || { model: "", baseUrl: "" }) : { model: "", baseUrl: "" };
+  const defaults = editing
+    ? providerTypeDefaults[editing.provider_type] || { model: "", baseUrl: "" }
+    : { model: "", baseUrl: "" };
 
   return (
     <div data-testid="settings-ai-providers">
       <Dialog open={!!editing} onOpenChange={handleDialogClose}>
-        <DialogContent size="md" data-testid="provider-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent
+          size="md"
+          data-testid="provider-form"
+          onInteractOutside={(e: Event) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editing?.id ? "Edit Provider" : "Add Provider"}</DialogTitle>
           </DialogHeader>
@@ -185,12 +242,17 @@ function AIProvidersTab() {
             <div className="flex flex-col gap-4 py-2">
               <div className="flex flex-col gap-1">
                 <Label className="text-muted-foreground">
-                  Name {submitted && missingName && <span className="text-destructive text-xs ml-1">Required</span>}
+                  Name{" "}
+                  {submitted && missingName && (
+                    <span className="text-destructive text-xs ml-1">Required</span>
+                  )}
                 </Label>
                 <Input
                   type="text"
                   value={editing.name}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, name: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditing({ ...editing, name: e.target.value })
+                  }
                   className={cn(submitted && missingName && "border-destructive")}
                   data-testid="provider-name"
                   placeholder="My Provider"
@@ -213,15 +275,22 @@ function AIProvidersTab() {
               </div>
               <div className="flex flex-col gap-1">
                 <Label className="text-muted-foreground">
-                  API Key {submitted && missingApiKey && <span className="text-destructive text-xs ml-1">Required</span>}
+                  API Key{" "}
+                  {submitted && missingApiKey && (
+                    <span className="text-destructive text-xs ml-1">Required</span>
+                  )}
                 </Label>
                 <Input
                   type="password"
                   value={editing.api_key}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, api_key: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditing({ ...editing, api_key: e.target.value })
+                  }
                   className={cn(submitted && missingApiKey && "border-destructive")}
                   data-testid="provider-api-key"
-                  placeholder={editing.id ? "Enter new key or leave blank to keep current" : "Enter API key"}
+                  placeholder={
+                    editing.id ? "Enter new key or leave blank to keep current" : "Enter API key"
+                  }
                 />
               </div>
               <div className="flex flex-col gap-1">
@@ -229,7 +298,9 @@ function AIProvidersTab() {
                 <Input
                   type="text"
                   value={editing.model}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, model: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditing({ ...editing, model: e.target.value })
+                  }
                   data-testid="provider-model"
                   placeholder={defaults.model}
                 />
@@ -239,7 +310,9 @@ function AIProvidersTab() {
                 <Input
                   type="text"
                   value={editing.base_url}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditing({ ...editing, base_url: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditing({ ...editing, base_url: e.target.value })
+                  }
                   data-testid="provider-base-url"
                   placeholder={defaults.baseUrl}
                 />
@@ -249,29 +322,51 @@ function AIProvidersTab() {
                   data-testid="provider-test-status"
                   className={cn(
                     "px-3 py-2 rounded-md text-[13px]",
-                    testStatus.includes("successful") && "bg-green-500/10 text-green-600 dark:text-green-400",
-                    testStatus === "Testing..." && "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-                    !testStatus.includes("successful") && testStatus !== "Testing..." && "bg-destructive/10 text-destructive",
+                    testStatus.includes("successful") &&
+                      "bg-green-500/10 text-green-600 dark:text-green-400",
+                    testStatus === "Testing..." &&
+                      "bg-blue-500/10 text-blue-600 dark:text-blue-400",
+                    !testStatus.includes("successful") &&
+                      testStatus !== "Testing..." &&
+                      "bg-destructive/10 text-destructive",
                   )}
                 >
                   {testStatus}
                 </div>
               )}
               {submitted && hasErrors && (
-                <div className="text-[13px] text-destructive" data-testid="provider-validation-error">
+                <div
+                  className="text-[13px] text-destructive"
+                  data-testid="provider-validation-error"
+                >
                   Please fill in all required fields.
                 </div>
               )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={handleTest} data-testid="provider-test-btn">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleTest}
+              data-testid="provider-test-btn"
+            >
               Test Connection
             </Button>
-            <Button variant="outline" size="sm" onClick={() => handleDialogClose(false)} data-testid="provider-cancel-btn">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleDialogClose(false)}
+              data-testid="provider-cancel-btn"
+            >
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSave} disabled={saving} data-testid="provider-save-btn">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving}
+              data-testid="provider-save-btn"
+            >
               {saving ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
@@ -298,15 +393,27 @@ function AIProvidersTab() {
         <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
           <thead>
             <tr>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Name</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Type</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Model</th>
-              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Actions</th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+                Name
+              </th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+                Model
+              </th>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
             {configs.map((cfg) => (
-              <tr key={cfg.id} data-testid={`provider-row-${cfg.id}`} className="border-b border-border transition-colors hover:bg-accent/50">
+              <tr
+                key={cfg.id}
+                data-testid={`provider-row-${cfg.id}`}
+                className="border-b border-border transition-colors hover:bg-accent/50"
+              >
                 <td className="px-3 py-2.5 text-sm">{cfg.name}</td>
                 <td className="px-3 py-2.5 text-sm">
                   <Badge variant="secondary">{cfg.provider_type}</Badge>
@@ -314,10 +421,21 @@ function AIProvidersTab() {
                 <td className="px-3 py-2.5 text-sm">{cfg.model || "-"}</td>
                 <td className="px-3 py-2.5 text-sm">
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(cfg)} data-testid={`edit-provider-${cfg.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(cfg)}
+                      data-testid={`edit-provider-${cfg.id}`}
+                    >
                       Edit
                     </Button>
-                    <Button variant="outline" size="sm" className="text-destructive" onClick={() => handleDelete(cfg.id)} data-testid={`delete-provider-${cfg.id}`}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-destructive"
+                      onClick={() => handleDelete(cfg.id)}
+                      data-testid={`delete-provider-${cfg.id}`}
+                    >
                       Delete
                     </Button>
                   </div>
@@ -355,8 +473,8 @@ function PluginsEmpty() {
       <CardContent className="py-6 text-center text-muted-foreground">
         <p className="mb-2">No plugins loaded.</p>
         <p className="text-[13px]">
-          Place plugin binaries or bridge descriptors in the plugin directory to extend
-          available formats and tools.
+          Place plugin binaries or bridge descriptors in the plugin directory to extend available
+          formats and tools.
         </p>
       </CardContent>
     </Card>
@@ -368,9 +486,15 @@ function PluginsTable({ plugins }: { plugins: PluginInfo[] }) {
     <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
       <thead>
         <tr>
-          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Name</th>
-          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Type</th>
-          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Formats</th>
+          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+            Name
+          </th>
+          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+            Type
+          </th>
+          <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+            Formats
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -380,7 +504,9 @@ function PluginsTable({ plugins }: { plugins: PluginInfo[] }) {
             <td className="px-3 py-2.5 text-sm">
               <Badge variant="secondary">{p.type}</Badge>
             </td>
-            <td className="px-3 py-2.5 text-sm">{p.formats.length > 0 ? p.formats.join(", ") : "-"}</td>
+            <td className="px-3 py-2.5 text-sm">
+              {p.formats.length > 0 ? p.formats.join(", ") : "-"}
+            </td>
           </tr>
         ))}
       </tbody>
@@ -428,23 +554,31 @@ function FormatsSection({ formats }: { formats: FormatInfo[] }) {
   return (
     <section>
       <h2 className="mb-2">Formats</h2>
-      <p className="text-muted-foreground mb-3">
-        {formats.length} format(s) registered
-      </p>
+      <p className="text-muted-foreground mb-3">{formats.length} format(s) registered</p>
       <table className="w-full border-collapse bg-card rounded-lg overflow-hidden">
         <thead>
           <tr>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Format</th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Read</th>
-            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">Write</th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+              Format
+            </th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+              Read
+            </th>
+            <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider">
+              Write
+            </th>
           </tr>
         </thead>
         <tbody>
           {formats.map((f) => (
             <tr key={f.name} className="border-b border-border">
               <td className="px-3 py-2.5 text-sm">{f.name}</td>
-              <td className="px-3 py-2.5 text-sm"><StatusBadge ok={f.has_reader} /></td>
-              <td className="px-3 py-2.5 text-sm"><StatusBadge ok={f.has_writer} /></td>
+              <td className="px-3 py-2.5 text-sm">
+                <StatusBadge ok={f.has_reader} />
+              </td>
+              <td className="px-3 py-2.5 text-sm">
+                <StatusBadge ok={f.has_writer} />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -457,9 +591,7 @@ function ToolsSection({ tools }: { tools: ToolInfo[] }) {
   return (
     <section>
       <h2 className="mb-2">Tools</h2>
-      <p className="text-muted-foreground mb-3">
-        {tools.length} tool(s) available
-      </p>
+      <p className="text-muted-foreground mb-3">{tools.length} tool(s) available</p>
       <div className="flex flex-col gap-2">
         {tools.map((t) => (
           <Card key={t.name}>
@@ -478,9 +610,7 @@ function FlowsSection({ flows }: { flows: FlowInfo[] }) {
   return (
     <section>
       <h2 className="mb-2">Flows</h2>
-      <p className="text-muted-foreground mb-3">
-        {flows.length} flow(s) available
-      </p>
+      <p className="text-muted-foreground mb-3">{flows.length} flow(s) available</p>
       <div className="flex flex-col gap-2">
         {flows.map((f) => (
           <Card key={f.name}>

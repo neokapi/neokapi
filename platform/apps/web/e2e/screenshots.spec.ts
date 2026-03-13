@@ -23,14 +23,16 @@ const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
   const url = new URL(BASE_URL);
-  await page.context().addCookies([{
-    name: "bowrain_session",
-    value: authToken,
-    domain: url.hostname,
-    path: "/api/",
-    httpOnly: true,
-    sameSite: "Lax",
-  }]);
+  await page.context().addCookies([
+    {
+      name: "bowrain_session",
+      value: authToken,
+      domain: url.hostname,
+      path: "/api/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 async function setTheme(page: Page, theme: "dark" | "light") {
@@ -66,7 +68,9 @@ test.describe("Web App Screenshots", () => {
       // Visit without token — server mode redirects to Keycloak login page
       await page.goto("/");
       // Wait for Keycloak login form to appear (standard theme)
-      await expect(page.locator("#kc-form-login, #username, input[name='username']").first()).toBeVisible({ timeout: 15000 });
+      await expect(
+        page.locator("#kc-form-login, #username, input[name='username']").first(),
+      ).toBeVisible({ timeout: 15000 });
       await page.screenshot({ path: path.join(dir, "login.png") });
     });
 
@@ -107,7 +111,11 @@ test.describe("Web App Screenshots", () => {
       // Clean up and create fresh project
       await deleteAllEditorProjects(token, wsSlug);
       const p = await createEditorProject(token, wsSlug, "Company Website", "en", ["fr", "de"]);
-      await uploadSeedFiles(token, wsSlug, p.id, ["about-us.html", "app-strings.json", "release-notes.md"]);
+      await uploadSeedFiles(token, wsSlug, p.id, [
+        "about-us.html",
+        "app-strings.json",
+        "release-notes.md",
+      ]);
 
       // Navigate directly to the project detail route
       await injectAuthCookie(page, token);

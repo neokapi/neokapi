@@ -14,7 +14,8 @@ export function useProviderConfigs() {
   const refresh = useCallback(() => {
     if (!ws) return;
     setLoading(true);
-    api.listProviderConfigs(ws)
+    api
+      .listProviderConfigs(ws)
       .then((c) => setConfigs(c || []))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -33,8 +34,7 @@ export function useProviderApi() {
   const ws = activeWorkspace?.slug ?? "";
 
   const saveProviderConfig = useCallback(
-    async (cfg: ProviderConfigWithKey): Promise<ProviderConfig> =>
-      api.saveProviderConfig(ws, cfg),
+    async (cfg: ProviderConfigWithKey): Promise<ProviderConfig> => api.saveProviderConfig(ws, cfg),
     [api, ws],
   );
 

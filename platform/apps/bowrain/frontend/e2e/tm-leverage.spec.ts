@@ -31,7 +31,13 @@ async function openEditorWithTM(page: any) {
 
     // These match the AddItems-generated block sources exactly
     backend.AddTMEntry(pid, "Hello from page.html", "Bonjour depuis page.html", "en", "fr");
-    backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+    backend.AddTMEntry(
+      pid,
+      "Welcome to our application",
+      "Bienvenue dans notre application",
+      "en",
+      "fr",
+    );
     backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
     // Add file
@@ -99,7 +105,9 @@ test.describe("TM Leverage", () => {
 
     // Verify translated text appears in target cells
     await expect(page.getByTestId("target-text-0")).toContainText("Bonjour depuis page.html");
-    await expect(page.getByTestId("target-text-1")).toContainText("Bienvenue dans notre application");
+    await expect(page.getByTestId("target-text-1")).toContainText(
+      "Bienvenue dans notre application",
+    );
     await expect(page.getByTestId("target-text-2")).toContainText("Cliquez ici pour continuer");
   });
 
@@ -111,7 +119,11 @@ test.describe("TM Leverage", () => {
       const backend = (window as any).__wailsMock;
       const IDS = (window as any).__wailsIDs;
       const origTM = backend[IDS.TMTranslateItem];
-      backend[IDS.TMTranslateItem] = (projectID: string, fileName: string, targetLocale: string) => {
+      backend[IDS.TMTranslateItem] = (
+        projectID: string,
+        fileName: string,
+        targetLocale: string,
+      ) => {
         // Only translate 2 of 3 blocks
         const result = origTM(projectID, fileName, targetLocale);
         return result;

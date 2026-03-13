@@ -8,9 +8,7 @@ import { type Page, expect } from "@playwright/test";
 export async function selectLocale(page: Page, testId: string, code: string) {
   await page.evaluate(
     ({ testId }: { testId: string }) => {
-      const trigger = document.querySelector(
-        `[data-testid="${testId}-trigger"]`,
-      ) as HTMLElement;
+      const trigger = document.querySelector(`[data-testid="${testId}-trigger"]`) as HTMLElement;
       if (trigger) trigger.click();
     },
     { testId },
@@ -33,17 +31,11 @@ export async function selectLocale(page: Page, testId: string, code: string) {
  * The dropdown stays open between selections (by design), so we
  * dismiss it after all selections by clicking outside.
  */
-export async function selectMultiLocales(
-  page: Page,
-  testId: string,
-  codes: string[],
-) {
+export async function selectMultiLocales(page: Page, testId: string, codes: string[]) {
   // Open the dropdown
   await page.evaluate(
     ({ testId }: { testId: string }) => {
-      const chips = document.querySelector(
-        `[data-testid="${testId}-chips"]`,
-      ) as HTMLElement;
+      const chips = document.querySelector(`[data-testid="${testId}-chips"]`) as HTMLElement;
       if (chips) chips.click();
     },
     { testId },
@@ -68,9 +60,7 @@ export async function selectMultiLocales(
   await page.evaluate(
     ({ testId: _testId }: { testId: string }) => {
       // Dispatch mousedown on body, outside the wrapper, to trigger click-outside close
-      document.body.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true }),
-      );
+      document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
     },
     { testId },
   );
@@ -114,9 +104,7 @@ export async function selectMultiLocalesHuman(
 
   // Close dropdown
   await page.evaluate(() => {
-    document.body.dispatchEvent(
-      new MouseEvent("mousedown", { bubbles: true }),
-    );
+    document.body.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
   });
   await page.waitForTimeout(100);
 }
@@ -155,9 +143,7 @@ export async function selectLocaleHuman(
 export async function clearMultiLocales(page: Page, testId: string) {
   const removed = await page.evaluate(
     ({ testId }: { testId: string }) => {
-      const buttons = document.querySelectorAll(
-        `[data-testid^="${testId}-remove-"]`,
-      );
+      const buttons = document.querySelectorAll(`[data-testid^="${testId}-remove-"]`);
       // Click in reverse order so indices stay stable
       const arr = Array.from(buttons) as HTMLElement[];
       for (let i = arr.length - 1; i >= 0; i--) {
@@ -175,11 +161,7 @@ export async function clearMultiLocales(page: Page, testId: string) {
 /**
  * Set exact locales on a MultiLocaleSelect: clears existing chips, then adds the desired ones.
  */
-export async function setMultiLocales(
-  page: Page,
-  testId: string,
-  codes: string[],
-) {
+export async function setMultiLocales(page: Page, testId: string, codes: string[]) {
   await clearMultiLocales(page, testId);
   await selectMultiLocales(page, testId, codes);
 }
@@ -201,15 +183,9 @@ export async function setMultiLocalesHuman(
 /**
  * Assert that exactly the given locale chips are visible.
  */
-export async function expectLocaleChips(
-  page: Page,
-  testId: string,
-  codes: string[],
-) {
+export async function expectLocaleChips(page: Page, testId: string, codes: string[]) {
   for (const code of codes) {
-    await expect(
-      page.getByTestId(`${testId}-remove-${code}`),
-    ).toBeVisible();
+    await expect(page.getByTestId(`${testId}-remove-${code}`)).toBeVisible();
   }
   // Ensure no extra chips exist
   const count = await page.locator(`[data-testid^="${testId}-remove-"]`).count();
@@ -219,12 +195,6 @@ export async function expectLocaleChips(
 /**
  * Assert that a single-locale trigger displays the expected locale.
  */
-export async function expectSourceLocale(
-  page: Page,
-  testId: string,
-  code: string,
-) {
-  await expect(
-    page.getByTestId(`${testId}-trigger`),
-  ).toContainText(code, { ignoreCase: true });
+export async function expectSourceLocale(page: Page, testId: string, code: string) {
+  await expect(page.getByTestId(`${testId}-trigger`)).toContainText(code, { ignoreCase: true });
 }

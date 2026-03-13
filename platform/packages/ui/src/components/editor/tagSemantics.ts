@@ -37,7 +37,8 @@ export function semanticLabel(span: SpanInfo): string {
 export function semanticTooltip(span: SpanInfo): string {
   const registry = getDefaultRegistry();
   const info = registry.lookupOrFallback(span.type);
-  const spanTypeLabel = span.span_type === "opening" ? "open" : span.span_type === "closing" ? "close" : "placeholder";
+  const spanTypeLabel =
+    span.span_type === "opening" ? "open" : span.span_type === "closing" ? "close" : "placeholder";
   return `${info.label} ${spanTypeLabel} — ${span.data}`;
 }
 
@@ -113,7 +114,10 @@ function tagFingerprints(spans: SpanInfo[]): Map<string, number> {
 }
 
 /** Validate target spans against source spans. */
-export function validateTags(sourceSpans: SpanInfo[], targetSpans: SpanInfo[]): TagValidationResult {
+export function validateTags(
+  sourceSpans: SpanInfo[],
+  targetSpans: SpanInfo[],
+): TagValidationResult {
   const errors: TagValidationIssue[] = [];
   const warnings: TagValidationIssue[] = [];
   const registry = getDefaultRegistry();

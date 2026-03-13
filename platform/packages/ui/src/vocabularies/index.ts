@@ -66,10 +66,18 @@ interface VocabularySchema {
 // --- Vocabulary Registry ---
 
 const defaultFallback: FallbackDefinition = {
-  html: { open: '<span data-type="{type}">', close: "</span>", placeholder: '<span data-type="{type}"/>' },
+  html: {
+    open: '<span data-type="{type}">',
+    close: "</span>",
+    placeholder: '<span data-type="{type}"/>',
+  },
   display: { open: "[{type}]", close: "[/{type}]", placeholder: "[{type}/]" },
   chipLabel: { open: "?>", close: "/?", placeholder: "?" },
-  color: { bg: "rgba(156,163,175,0.15)", border: "rgba(156,163,175,0.5)", text: "rgb(107,114,128)" },
+  color: {
+    bg: "rgba(156,163,175,0.15)",
+    border: "rgba(156,163,175,0.5)",
+    text: "rgb(107,114,128)",
+  },
   constraints: { deletable: true, cloneable: true, reorderable: true },
 };
 

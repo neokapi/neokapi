@@ -11,9 +11,7 @@ export function DeviceVerifyPage() {
         <Card className="glass-surface">
           <CardHeader className="text-center space-y-1 pb-2">
             <h1 className="text-2xl font-semibold tracking-tight">Authorize Device</h1>
-            <p className="text-sm text-muted-foreground">
-              Enter the code shown in your terminal
-            </p>
+            <p className="text-sm text-muted-foreground">Enter the code shown in your terminal</p>
           </CardHeader>
           <CardContent>
             {errorMsg && (

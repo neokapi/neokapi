@@ -2,9 +2,12 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { TargetCellEditor } from "../../components/editor/TargetCellEditor";
 import {
-  simpleBoldCodedText, simpleBoldSpans,
-  linkAndItalicCodedText, linkAndItalicSpans,
-  richCodedText, richSpans,
+  simpleBoldCodedText,
+  simpleBoldSpans,
+  linkAndItalicCodedText,
+  linkAndItalicSpans,
+  richCodedText,
+  richSpans,
 } from "../fixtures";
 
 const meta: Meta<typeof TargetCellEditor> = {

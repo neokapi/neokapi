@@ -62,13 +62,13 @@ export async function injectWindowChrome(page: Page, _title?: string) {
 
   await page.evaluate(() => {
     // Add subtle window shadow
-    const shadow = document.createElement('div');
-    shadow.id = 'window-shadow';
+    const shadow = document.createElement("div");
+    shadow.id = "window-shadow";
     document.body.appendChild(shadow);
-    
+
     // Add floating traffic lights
-    const lights = document.createElement('div');
-    lights.id = 'window-traffic-lights';
+    const lights = document.createElement("div");
+    lights.id = "window-traffic-lights";
     lights.innerHTML = `
       <div class="traffic-light close"></div>
       <div class="traffic-light minimize"></div>

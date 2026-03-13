@@ -63,13 +63,57 @@ const flexBoldOpen: SpanInfo = { span_type: "opening", type: "fmt:bold", id: "1"
 const flexBoldClose: SpanInfo = { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" };
 
 // Non-deletable (required in translation)
-const requiredBreak: SpanInfo = { span_type: "placeholder", type: "struct:break", id: "2", data: "<br/>", deletable: false, cloneable: false, can_reorder: false };
-const requiredVariable: SpanInfo = { span_type: "placeholder", type: "code:variable", id: "3", data: "{userName}", display_text: "{userName}", deletable: false, cloneable: false, can_reorder: true };
-const requiredPlaceholder: SpanInfo = { span_type: "placeholder", type: "code:placeholder", id: "4", data: "{0}", display_text: "{0}", deletable: false, cloneable: false, can_reorder: true };
+const requiredBreak: SpanInfo = {
+  span_type: "placeholder",
+  type: "struct:break",
+  id: "2",
+  data: "<br/>",
+  deletable: false,
+  cloneable: false,
+  can_reorder: false,
+};
+const requiredVariable: SpanInfo = {
+  span_type: "placeholder",
+  type: "code:variable",
+  id: "3",
+  data: "{userName}",
+  display_text: "{userName}",
+  deletable: false,
+  cloneable: false,
+  can_reorder: true,
+};
+const requiredPlaceholder: SpanInfo = {
+  span_type: "placeholder",
+  type: "code:placeholder",
+  id: "4",
+  data: "{0}",
+  display_text: "{0}",
+  deletable: false,
+  cloneable: false,
+  can_reorder: true,
+};
 
 // Non-reorderable (fixed position)
-const fixedFunction: SpanInfo = { span_type: "opening", type: "code:function", id: "5", data: "{count, plural,", display_text: "plural(", deletable: false, cloneable: false, can_reorder: false };
-const fixedFunctionClose: SpanInfo = { span_type: "closing", type: "code:function", id: "5", data: "}", display_text: ")", deletable: false, cloneable: false, can_reorder: false };
+const fixedFunction: SpanInfo = {
+  span_type: "opening",
+  type: "code:function",
+  id: "5",
+  data: "{count, plural,",
+  display_text: "plural(",
+  deletable: false,
+  cloneable: false,
+  can_reorder: false,
+};
+const fixedFunctionClose: SpanInfo = {
+  span_type: "closing",
+  type: "code:function",
+  id: "5",
+  data: "}",
+  display_text: ")",
+  deletable: false,
+  cloneable: false,
+  can_reorder: false,
+};
 
 // ---------------------------------------------------------------------------
 // Stories
@@ -81,16 +125,16 @@ export const ConstraintOverview: Story = {
     <div style={{ maxWidth: 640, padding: 16 }}>
       <h3 style={titleStyle}>Constraint Levels</h3>
       <p style={descStyle}>
-        Vocabulary types define three orthogonal constraints. Tags display
-        visual indicators based on their constraint level.
+        Vocabulary types define three orthogonal constraints. Tags display visual indicators based
+        on their constraint level.
       </p>
 
       {/* Fully flexible */}
       <div style={sectionStyle}>
         <h4 style={sectionTitleStyle}>Fully Flexible</h4>
         <p style={sectionDescStyle}>
-          Formatting tags like bold and italic can be freely deleted, duplicated,
-          and reordered. Translators have full control.
+          Formatting tags like bold and italic can be freely deleted, duplicated, and reordered.
+          Translators have full control.
         </p>
         <div style={chipRowStyle}>
           <TagChipComponent spanInfo={flexBoldOpen} showConstraints />
@@ -103,8 +147,8 @@ export const ConstraintOverview: Story = {
       <div style={sectionStyle}>
         <h4 style={sectionTitleStyle}>Required Tags (non-deletable)</h4>
         <p style={sectionDescStyle}>
-          Line breaks and variables must appear in the translation.
-          The editor prevents accidental deletion and shows a dashed border.
+          Line breaks and variables must appear in the translation. The editor prevents accidental
+          deletion and shows a dashed border.
         </p>
         <div style={chipRowStyle}>
           <TagChipComponent spanInfo={requiredBreak} showConstraints locked />
@@ -118,8 +162,8 @@ export const ConstraintOverview: Story = {
       <div style={sectionStyle}>
         <h4 style={sectionTitleStyle}>Fixed Position (non-reorderable)</h4>
         <p style={sectionDescStyle}>
-          ICU plural/select functions and structural elements must maintain
-          their position relative to other tags.
+          ICU plural/select functions and structural elements must maintain their position relative
+          to other tags.
         </p>
         <div style={chipRowStyle}>
           <TagChipComponent spanInfo={fixedFunction} showConstraints locked />
@@ -135,25 +179,23 @@ export const ConstraintOverview: Story = {
 export const PaletteConstraintBehavior: Story = {
   render: () => {
     const sourceSpans: SpanInfo[] = [
-      flexBoldOpen, flexBoldClose,
+      flexBoldOpen,
+      flexBoldClose,
       requiredVariable,
       requiredPlaceholder,
       requiredBreak,
     ];
 
     // Simulate: bold and variable already used in target
-    const usedSpans: SpanInfo[] = [
-      flexBoldOpen, flexBoldClose,
-      requiredVariable,
-    ];
+    const usedSpans: SpanInfo[] = [flexBoldOpen, flexBoldClose, requiredVariable];
 
     return (
       <div style={{ maxWidth: 640, padding: 16 }}>
         <h3 style={titleStyle}>Palette Constraint Behavior</h3>
         <p style={descStyle}>
-          When tags are already used in the target, the palette dims them.
-          Non-cloneable tags are blocked (cannot be inserted again),
-          while cloneable tags like bold remain insertable (just dimmed).
+          When tags are already used in the target, the palette dims them. Non-cloneable tags are
+          blocked (cannot be inserted again), while cloneable tags like bold remain insertable (just
+          dimmed).
         </p>
         <div style={{ marginBottom: 16 }}>
           <div style={sectionLabel}>Source tags:</div>
@@ -161,10 +203,15 @@ export const PaletteConstraintBehavior: Story = {
         </div>
         <div>
           <div style={sectionLabel}>After using bold + variable in target:</div>
-          <TagPalette sourceSpans={sourceSpans} usedSpans={usedSpans} onInsert={() => {}} showCategoryGroups />
+          <TagPalette
+            sourceSpans={sourceSpans}
+            usedSpans={usedSpans}
+            onInsert={() => {}}
+            showCategoryGroups
+          />
           <p style={{ ...sectionDescStyle, marginTop: 8 }}>
-            Bold tags are dimmed but still insertable (cloneable).
-            The variable tag is blocked — hovering shows "cannot be duplicated".
+            Bold tags are dimmed but still insertable (cloneable). The variable tag is blocked —
+            hovering shows "cannot be duplicated".
           </p>
         </div>
       </div>
@@ -184,8 +231,14 @@ export const ConstraintViolations: Story = {
     const missingRequired: TagValidationResult = {
       valid: false,
       errors: [
-        { type: "deleted_non_deletable", message: 'Missing 1 non-deletable placeholder "Variable" tag' },
-        { type: "deleted_non_deletable", message: 'Missing 1 non-deletable placeholder "Line Break" tag' },
+        {
+          type: "deleted_non_deletable",
+          message: 'Missing 1 non-deletable placeholder "Variable" tag',
+        },
+        {
+          type: "deleted_non_deletable",
+          message: 'Missing 1 non-deletable placeholder "Line Break" tag',
+        },
       ],
       warnings: [],
     };
@@ -193,7 +246,10 @@ export const ConstraintViolations: Story = {
     const duplicatedNonCloneable: TagValidationResult = {
       valid: false,
       errors: [
-        { type: "cloned_non_cloneable", message: 'Duplicated 1 non-cloneable placeholder "Variable" tag' },
+        {
+          type: "cloned_non_cloneable",
+          message: 'Duplicated 1 non-cloneable placeholder "Variable" tag',
+        },
       ],
       warnings: [],
     };
@@ -201,21 +257,21 @@ export const ConstraintViolations: Story = {
     const mixedIssues: TagValidationResult = {
       valid: false,
       errors: [
-        { type: "deleted_non_deletable", message: 'Missing 1 non-deletable placeholder "Placeholder" tag' },
+        {
+          type: "deleted_non_deletable",
+          message: 'Missing 1 non-deletable placeholder "Placeholder" tag',
+        },
         { type: "unpaired", message: 'Closing "Bold" without matching opening tag' },
       ],
-      warnings: [
-        { type: "extra_tag", message: 'Extra 1 opening "Italic" tag' },
-      ],
+      warnings: [{ type: "extra_tag", message: 'Extra 1 opening "Italic" tag' }],
     };
 
     return (
       <div style={{ maxWidth: 640, padding: 16 }}>
         <h3 style={titleStyle}>Constraint Violation Messages</h3>
         <p style={descStyle}>
-          The validation bar shows real-time feedback when constraints are violated.
-          Non-deletable tags generate errors when missing. Non-cloneable tags
-          generate errors when duplicated.
+          The validation bar shows real-time feedback when constraints are violated. Non-deletable
+          tags generate errors when missing. Non-cloneable tags generate errors when duplicated.
         </p>
 
         <div style={sectionStyle}>
@@ -248,21 +304,47 @@ export const RealWorldScenario: Story = {
   render: () => {
     const sourceText = `Hello ${P}, you have ${P} new ${O}messages${C} in your ${O}inbox${C}.${P}Check them now.`;
     const sourceSpans: SpanInfo[] = [
-      { span_type: "placeholder", type: "code:variable", id: "1", data: "{userName}", display_text: "{userName}", deletable: false, cloneable: false, can_reorder: true },
-      { span_type: "placeholder", type: "code:placeholder", id: "2", data: "{count}", display_text: "{count}", deletable: false, cloneable: false, can_reorder: true },
+      {
+        span_type: "placeholder",
+        type: "code:variable",
+        id: "1",
+        data: "{userName}",
+        display_text: "{userName}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: true,
+      },
+      {
+        span_type: "placeholder",
+        type: "code:placeholder",
+        id: "2",
+        data: "{count}",
+        display_text: "{count}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: true,
+      },
       { span_type: "opening", type: "fmt:bold", id: "3", data: "<b>" },
       { span_type: "closing", type: "fmt:bold", id: "3", data: "</b>" },
       { span_type: "opening", type: "link:hyperlink", id: "4", data: '<a href="/inbox">' },
       { span_type: "closing", type: "link:hyperlink", id: "4", data: "</a>" },
-      { span_type: "placeholder", type: "struct:break", id: "5", data: "<br/>", deletable: false, cloneable: false, can_reorder: false },
+      {
+        span_type: "placeholder",
+        type: "struct:break",
+        id: "5",
+        data: "<br/>",
+        deletable: false,
+        cloneable: false,
+        can_reorder: false,
+      },
     ];
 
     return (
       <div style={{ maxWidth: 700, padding: 16 }}>
         <h3 style={titleStyle}>Real-World: Notification Message</h3>
         <p style={descStyle}>
-          A typical notification string mixing variables, formatting, links,
-          and a line break. The legend shows how each type is constrained.
+          A typical notification string mixing variables, formatting, links, and a line break. The
+          legend shows how each type is constrained.
         </p>
 
         <div style={{ marginBottom: 16 }}>
@@ -297,10 +379,37 @@ export const RealWorldScenario: Story = {
 // ---------------------------------------------------------------------------
 
 const titleStyle: React.CSSProperties = { fontSize: 14, fontWeight: 600, marginBottom: 4 };
-const descStyle: React.CSSProperties = { fontSize: 12, color: "#888", marginBottom: 16, lineHeight: 1.5 };
+const descStyle: React.CSSProperties = {
+  fontSize: 12,
+  color: "#888",
+  marginBottom: 16,
+  lineHeight: 1.5,
+};
 const sectionStyle: React.CSSProperties = { marginBottom: 20 };
 const sectionTitleStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, marginBottom: 4 };
-const sectionDescStyle: React.CSSProperties = { fontSize: 11, color: "#888", marginBottom: 8, lineHeight: 1.4 };
-const sectionLabel: React.CSSProperties = { fontSize: 10, fontWeight: 600, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 };
-const chipRowStyle: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" };
-const hintStyle: React.CSSProperties = { fontSize: 10, color: "#999", fontStyle: "italic", marginLeft: 4 };
+const sectionDescStyle: React.CSSProperties = {
+  fontSize: 11,
+  color: "#888",
+  marginBottom: 8,
+  lineHeight: 1.4,
+};
+const sectionLabel: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  color: "#888",
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  marginBottom: 4,
+};
+const chipRowStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  flexWrap: "wrap",
+};
+const hintStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: "#999",
+  fontStyle: "italic",
+  marginLeft: 4,
+};

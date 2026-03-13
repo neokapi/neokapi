@@ -36,6 +36,9 @@ test("should bypass connection screen via skipConnectionScreen helper", async ({
   });
   await newPage.goto("/");
   // Should be in connected mode with sidebar visible.
-  await newPage.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
+  await newPage
+    .locator("aside[data-sidebar]")
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
   await newPage.close();
 });

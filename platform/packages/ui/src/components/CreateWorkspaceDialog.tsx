@@ -4,13 +4,7 @@ import { useApi } from "../context/ApiContext";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 
 export interface CreateWorkspaceDialogProps {
@@ -103,10 +97,7 @@ export function CreateWorkspaceDialog({
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={creating || !name.trim() || !slug.trim()}
-          >
+          <Button onClick={handleCreate} disabled={creating || !name.trim() || !slug.trim()}>
             {creating ? "Creating..." : "Create"}
           </Button>
         </DialogFooter>

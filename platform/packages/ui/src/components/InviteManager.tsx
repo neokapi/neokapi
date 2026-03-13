@@ -6,13 +6,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { GlassCard } from "./ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
@@ -106,15 +100,26 @@ export function InviteManager({ workspace }: InviteManagerProps) {
               <UserPlus className="h-4 w-4" />
               Invitations
             </h3>
-            <p className="text-[13px] text-muted-foreground mt-1">Invite members to this workspace</p>
+            <p className="text-[13px] text-muted-foreground mt-1">
+              Invite members to this workspace
+            </p>
           </div>
-          <Button size="sm" onClick={() => setShowInviteDialog(true)} data-testid="invite-open-dialog-btn">
+          <Button
+            size="sm"
+            onClick={() => setShowInviteDialog(true)}
+            data-testid="invite-open-dialog-btn"
+          >
             Invite
           </Button>
         </div>
 
         {error && (
-          <AlertGlass variant="destructive" dismissible onDismiss={() => setError("")} className="mb-4">
+          <AlertGlass
+            variant="destructive"
+            dismissible
+            onDismiss={() => setError("")}
+            className="mb-4"
+          >
             <AlertGlassDescription>{error}</AlertGlassDescription>
           </AlertGlass>
         )}
@@ -123,16 +128,26 @@ export function InviteManager({ workspace }: InviteManagerProps) {
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading invites...</div>
         ) : invites.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">No pending invitations</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No pending invitations
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Recipient</th>
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Role</th>
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Expires</th>
-                  <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[100px]">Actions</th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Recipient
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Role
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Expires
+                  </th>
+                  <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[100px]">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody data-testid="invite-list">
@@ -162,9 +177,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
-                          {expired
-                            ? "Expired"
-                            : new Date(inv.expires_at).toLocaleDateString()}
+                          {expired ? "Expired" : new Date(inv.expires_at).toLocaleDateString()}
                         </span>
                       </td>
                       <td className="px-4 py-2.5">

@@ -58,4 +58,3 @@ test("should navigate back from project view to dashboard", async ({ page }) => 
   // Should see the project card
   await expect(page.getByRole("heading", { name: "Test" })).toBeVisible();
 });
-

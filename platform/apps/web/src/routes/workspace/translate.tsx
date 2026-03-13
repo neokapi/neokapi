@@ -19,7 +19,9 @@ export function TranslateRoute() {
   const ws = activeWorkspace.slug;
   const { activeStream } = useStream();
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!, activeStream));
+  const { data: project } = useSuspenseQuery(
+    projectQueryOptions(adapter, ws, projectId!, activeStream),
+  );
 
   useEffect(() => {
     document.title = `${fileName} — ${project.name} — Bowrain`;
@@ -56,10 +58,7 @@ export function TranslateRoute() {
       }
       presenceSlot={
         <div className="flex items-center gap-2">
-          <PresenceAvatars
-            users={connectedUsers}
-            currentUserId={user.id}
-          />
+          <PresenceAvatars users={connectedUsers} currentUserId={user.id} />
           {connectionState === "connecting" && (
             <span className="text-xs text-muted-foreground">Connecting...</span>
           )}

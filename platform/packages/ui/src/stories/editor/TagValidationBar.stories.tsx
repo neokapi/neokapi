@@ -60,9 +60,7 @@ export const MultipleIssues: Story = {
         { type: "missing_tag", message: 'Missing 1 opening "a" tag' },
         { type: "unpaired", message: '1 opening "b" tags without matching closing tag' },
       ],
-      warnings: [
-        { type: "extra_tag", message: 'Extra 2 placeholder "br" tags' },
-      ],
+      warnings: [{ type: "extra_tag", message: 'Extra 2 placeholder "br" tags' }],
     } satisfies TagValidationResult,
   },
 };

@@ -8,9 +8,15 @@ function ThemeDisplay() {
   return (
     <div>
       <span data-testid="theme">{theme}</span>
-      <button data-testid="set-dark" onClick={() => setTheme("dark")}>Dark</button>
-      <button data-testid="set-light" onClick={() => setTheme("light")}>Light</button>
-      <button data-testid="set-system" onClick={() => setTheme("system")}>System</button>
+      <button data-testid="set-dark" onClick={() => setTheme("dark")}>
+        Dark
+      </button>
+      <button data-testid="set-light" onClick={() => setTheme("light")}>
+        Light
+      </button>
+      <button data-testid="set-system" onClick={() => setTheme("system")}>
+        System
+      </button>
     </div>
   );
 }
@@ -142,9 +148,7 @@ describe("ThemeContext", () => {
   });
 
   it("throws when useTheme is called outside ThemeProvider", () => {
-    expect(() => render(<ThemeDisplay />)).toThrow(
-      "useTheme must be used within ThemeProvider",
-    );
+    expect(() => render(<ThemeDisplay />)).toThrow("useTheme must be used within ThemeProvider");
   });
 
   // -- Cookie sync --

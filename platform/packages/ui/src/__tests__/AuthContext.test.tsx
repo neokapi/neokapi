@@ -57,8 +57,6 @@ describe("AuthContext", () => {
   });
 
   it("throws when useAuth is called outside AuthProvider", () => {
-    expect(() => render(<AuthDisplay />)).toThrow(
-      "useAuth must be used within AuthProvider",
-    );
+    expect(() => render(<AuthDisplay />)).toThrow("useAuth must be used within AuthProvider");
   });
 });

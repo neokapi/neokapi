@@ -13,14 +13,16 @@ const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
   const url = new URL(BASE_URL);
-  await page.context().addCookies([{
-    name: "bowrain_session",
-    value: authToken,
-    domain: url.hostname,
-    path: "/api/",
-    httpOnly: true,
-    sameSite: "Lax" as const,
-  }]);
+  await page.context().addCookies([
+    {
+      name: "bowrain_session",
+      value: authToken,
+      domain: url.hostname,
+      path: "/api/",
+      httpOnly: true,
+      sameSite: "Lax" as const,
+    },
+  ]);
 }
 
 let token: string;

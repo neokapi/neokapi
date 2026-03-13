@@ -39,13 +39,16 @@ async function clickTestId(page: any, testId: string) {
 
 /** Helper: set value on an input natively (avoids Playwright fill hangs). */
 async function setInput(page: any, testId: string, value: string) {
-  await page.evaluate(({ testId, value }: { testId: string; value: string }) => {
-    const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-    if (!input) return;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, { testId, value });
+  await page.evaluate(
+    ({ testId, value }: { testId: string; value: string }) => {
+      const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
+      if (!input) return;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    { testId, value },
+  );
 }
 
 /**
@@ -72,7 +75,11 @@ async function seedDashboard(page: any) {
   for (const def of projectDefs) {
     await page.getByTestId("new-project-btn").click();
     await page.getByTestId("project-name-input").fill(def.name);
-    await selectMultiLocales(page, "target-langs-input", def.targets.split(",").map(s => s.trim()));
+    await selectMultiLocales(
+      page,
+      "target-langs-input",
+      def.targets.split(",").map((s) => s.trim()),
+    );
     await page.getByTestId("create-project-submit").click();
     await expect(page.getByTestId("back-to-projects")).toBeVisible();
 
@@ -80,9 +87,14 @@ async function seedDashboard(page: any) {
     const projects = await callBackend(page, "ListProjects");
     const p = projects[projects.length - 1];
     if (p) {
-      await callBackend(page, "AddItems", p.id, useServerMode
-        ? [fixture("index.html"), fixture("app.json")]
-        : ["/src/index.html", "/src/app.json"]);
+      await callBackend(
+        page,
+        "AddItems",
+        p.id,
+        useServerMode
+          ? [fixture("index.html"), fixture("app.json")]
+          : ["/src/index.html", "/src/app.json"],
+      );
     }
 
     // Navigate back to dashboard
@@ -111,9 +123,19 @@ async function openProjectView(page: any) {
   const projects = await callBackend(page, "ListProjects");
   const p = projects[projects.length - 1];
   if (p) {
-    await callBackend(page, "AddItems", p.id, useServerMode
-      ? [fixture("index.html"), fixture("strings.json"), fixture("about.md"), fixture("messages.yaml")]
-      : ["/src/index.html", "/src/strings.json", "/content/about.md", "/config/messages.yaml"]);
+    await callBackend(
+      page,
+      "AddItems",
+      p.id,
+      useServerMode
+        ? [
+            fixture("index.html"),
+            fixture("strings.json"),
+            fixture("about.md"),
+            fixture("messages.yaml"),
+          ]
+        : ["/src/index.html", "/src/strings.json", "/content/about.md", "/config/messages.yaml"],
+    );
   }
 
   // Refresh by navigating away and back
@@ -144,9 +166,12 @@ async function openEditor(page: any) {
   const projects = await callBackend(page, "ListProjects");
   const currentProject = projects[projects.length - 1];
   if (currentProject) {
-    await callBackend(page, "AddItems", currentProject.id, useServerMode
-      ? [fixture("index.html")]
-      : ["/src/index.html"]);
+    await callBackend(
+      page,
+      "AddItems",
+      currentProject.id,
+      useServerMode ? [fixture("index.html")] : ["/src/index.html"],
+    );
   }
 
   // Refresh
@@ -290,10 +315,34 @@ test.describe("Screenshots", () => {
       const pid = projects[projects.length - 1]?.id;
       if (pid) {
         await callBackend(page, "AddTMEntry", pid, "Hello World", "Bonjour le monde", "en", "fr");
-        await callBackend(page, "AddTMEntry", pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
-        await callBackend(page, "AddTMEntry", pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
+        await callBackend(
+          page,
+          "AddTMEntry",
+          pid,
+          "Welcome to our application",
+          "Bienvenue dans notre application",
+          "en",
+          "fr",
+        );
+        await callBackend(
+          page,
+          "AddTMEntry",
+          pid,
+          "Click here to continue",
+          "Cliquez ici pour continuer",
+          "en",
+          "fr",
+        );
         await callBackend(page, "AddTMEntry", pid, "Settings", "Param\u00e8tres", "en", "fr");
-        await callBackend(page, "AddTMEntry", pid, "Save changes", "Enregistrer les modifications", "en", "fr");
+        await callBackend(
+          page,
+          "AddTMEntry",
+          pid,
+          "Save changes",
+          "Enregistrer les modifications",
+          "en",
+          "fr",
+        );
       }
 
       // Open TM explorer

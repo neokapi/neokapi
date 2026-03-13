@@ -8,7 +8,6 @@ import {
   StreamProvider,
   CreateWorkspaceDialog,
   AnimatedBackgroundGlass,
-
   Button,
   Card,
   CardContent,
@@ -32,8 +31,9 @@ export function WorkspaceLayout() {
   const queryClient = useQueryClient();
 
   // Data from route beforeLoad — already fetched, no loading state needed.
-  const { serverMode, user, workspaces, activeWorkspace } =
-    useRouteContext({ strict: false }) as WorkspaceRouteContext;
+  const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
+    strict: false,
+  }) as WorkspaceRouteContext;
 
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
@@ -60,10 +60,7 @@ export function WorkspaceLayout() {
   const [signedOut, setSignedOut] = useState(false);
 
   // Derive activeView from current URL for sidebar highlighting.
-  const activeView = viewFromPath(
-    window.location.pathname,
-    workspaceSlug ?? "",
-  );
+  const activeView = viewFromPath(window.location.pathname, workspaceSlug ?? "");
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -71,7 +68,10 @@ export function WorkspaceLayout() {
 
   const handleSignOut = useCallback(async () => {
     try {
-      const resp = await fetch("/api/v1/auth/logout", { method: "POST", credentials: "same-origin" });
+      const resp = await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
       if (resp.ok) {
         const data = await resp.json();
         // If the server returned an OIDC end_session_url, redirect the browser
@@ -151,7 +151,9 @@ export function WorkspaceLayout() {
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <Button
-                  onClick={() => { window.location.href = "/api/v1/auth/login"; }}
+                  onClick={() => {
+                    window.location.href = "/api/v1/auth/login";
+                  }}
                   className="w-full"
                   size="lg"
                 >
@@ -189,7 +191,9 @@ export function WorkspaceLayout() {
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
           showThemeToggle={false}
-          headerSlot={<TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />}
+          headerSlot={
+            <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
+          }
           contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
         >
           <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>

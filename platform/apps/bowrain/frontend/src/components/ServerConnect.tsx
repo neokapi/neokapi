@@ -1,11 +1,5 @@
 import { useState, useEffect } from "react";
-import {
-  Button,
-  Input,
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@neokapi/ui";
+import { Button, Input, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@neokapi/ui";
 import { Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import type { ConnectionInfo } from "../hooks/useApi";
 
@@ -123,23 +117,14 @@ export function ServerConnect({
       <div className="w-full max-w-md space-y-4">
         {stage === "url" && (
           <>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <Button
-              className="w-full"
-              onClick={handleConnect}
-              disabled={loading}
-            >
+            <Button className="w-full" onClick={handleConnect} disabled={loading}>
               {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Sign In
             </Button>
 
-            <Collapsible
-              open={serverOptionsOpen}
-              onOpenChange={setServerOptionsOpen}
-            >
+            <Collapsible open={serverOptionsOpen} onOpenChange={setServerOptionsOpen}>
               <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                 {serverOptionsOpen ? (
                   <ChevronDown className="w-3 h-3" />
@@ -154,8 +139,12 @@ export function ServerConnect({
                   <Input
                     placeholder={defaultURL}
                     value={serverURL}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setServerURL(e.target.value)}
-                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleConnect()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setServerURL(e.target.value)
+                    }
+                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                      e.key === "Enter" && handleConnect()
+                    }
                     disabled={loading}
                   />
                 </div>
@@ -167,21 +156,13 @@ export function ServerConnect({
         {stage === "waiting" && (
           <div className="space-y-4 text-center">
             <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              Completing sign-in in your browser...
-            </p>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-            <Button
-              variant="outline"
-              onClick={handleCancel}
-            >
+            <p className="text-sm text-muted-foreground">Completing sign-in in your browser...</p>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <Button variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
           </div>
         )}
-
       </div>
     </div>
   );

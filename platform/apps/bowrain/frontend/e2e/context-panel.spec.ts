@@ -31,7 +31,13 @@ async function openEditorWithTMAndTerms(page: any) {
 
     // Add TM entries matching block source texts
     backend.AddTMEntry(pid, "Hello from index.html", "Bonjour depuis index.html", "en", "fr");
-    backend.AddTMEntry(pid, "Welcome to our application", "Bienvenue dans notre application", "en", "fr");
+    backend.AddTMEntry(
+      pid,
+      "Welcome to our application",
+      "Bienvenue dans notre application",
+      "en",
+      "fr",
+    );
     backend.AddTMEntry(pid, "Click here to continue", "Cliquez ici pour continuer", "en", "fr");
 
     // Add terminology concepts
@@ -152,7 +158,10 @@ test.describe("Context Panel", () => {
     await page.waitForTimeout(500);
 
     // The target text for block 2 should now contain the TM translation
-    await expect(page.getByTestId("target-text-1")).toContainText("Bienvenue dans notre application", { timeout: 5000 });
+    await expect(page.getByTestId("target-text-1")).toContainText(
+      "Bienvenue dans notre application",
+      { timeout: 5000 },
+    );
   });
 
   test("should update matches when navigating between blocks", async ({ page }) => {
@@ -221,7 +230,11 @@ test.describe("Context Panel", () => {
     await expect(page.getByTestId("context-panel")).toBeVisible({ timeout: 5000 });
 
     // Wait for "no matches" messages directly (avoids race with loading state)
-    await expect(page.getByTestId("context-panel")).toContainText("No TM matches", { timeout: 10000 });
-    await expect(page.getByTestId("context-panel")).toContainText("No terms found", { timeout: 10000 });
+    await expect(page.getByTestId("context-panel")).toContainText("No TM matches", {
+      timeout: 10000,
+    });
+    await expect(page.getByTestId("context-panel")).toContainText("No terms found", {
+      timeout: 10000,
+    });
   });
 });

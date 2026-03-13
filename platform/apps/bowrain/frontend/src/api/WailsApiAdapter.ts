@@ -1,18 +1,48 @@
 import type { ApiAdapter } from "@neokapi/ui";
 import type {
-  User, Workspace, Membership, ProjectInfo, ConfigResponse,
-  BlockInfo, UpdateBlockRequest, UpdateBlockTargetCodedRequest,
-  AITranslateFileRequest, TranslationStats, WordCountResult,
-  ProviderConfig, ProviderConfigWithKey,
-  TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
-  ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
-  BlockTermMatch, BlockNote, BlockHistoryEntry, LocaleInfo, FormatInfo, ToolInfo,
-  Invite, AcceptInviteResponse, ClaimProjectResponse,
-  ApiToken, CreateApiTokenResponse,
-  QAIssue, FileQAResult,
-  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
-  NotificationInfo, EntityInfo,
-  StreamInfo, StreamDiffResult, StreamMergeResult,
+  User,
+  Workspace,
+  Membership,
+  ProjectInfo,
+  ConfigResponse,
+  BlockInfo,
+  UpdateBlockRequest,
+  UpdateBlockTargetCodedRequest,
+  AITranslateFileRequest,
+  TranslationStats,
+  WordCountResult,
+  ProviderConfig,
+  ProviderConfigWithKey,
+  TMEntryInfo,
+  TMSearchResult,
+  TMUpdateRequest,
+  TMMatchInfo,
+  ConceptInfo,
+  TermSearchResult,
+  AddConceptRequest,
+  UpdateConceptRequest,
+  BlockTermMatch,
+  BlockNote,
+  BlockHistoryEntry,
+  LocaleInfo,
+  FormatInfo,
+  ToolInfo,
+  Invite,
+  AcceptInviteResponse,
+  ClaimProjectResponse,
+  ApiToken,
+  CreateApiTokenResponse,
+  QAIssue,
+  FileQAResult,
+  AutomationRule,
+  AutomationEvent,
+  AutomationHistoryEntry,
+  SaveAutomationRuleRequest,
+  NotificationInfo,
+  EntityInfo,
+  StreamInfo,
+  StreamDiffResult,
+  StreamMergeResult,
 } from "@neokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -38,13 +68,31 @@ export class WailsApiAdapter implements ApiAdapter {
 
   // --- Workspaces (single workspace in desktop) ---
   async listWorkspaces(): Promise<Workspace[]> {
-    return [{ id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" }];
+    return [
+      {
+        id: "local",
+        name: "Personal",
+        slug: "personal",
+        description: "",
+        logo_url: "",
+        type: "personal" as const,
+        role: "owner",
+      },
+    ];
   }
   async createWorkspace(): Promise<Workspace> {
     throw new Error("Workspaces not supported in desktop mode");
   }
   async getWorkspace(): Promise<Workspace> {
-    return { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" };
+    return {
+      id: "local",
+      name: "Personal",
+      slug: "personal",
+      description: "",
+      logo_url: "",
+      type: "personal" as const,
+      role: "owner",
+    };
   }
   async updateWorkspace(): Promise<Workspace> {
     throw new Error("Workspaces not supported in desktop mode");
@@ -54,30 +102,66 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Members (not applicable) ---
-  async listMembers(): Promise<Membership[]> { return []; }
-  async addMember(): Promise<void> { throw new Error("Not supported"); }
-  async updateMemberRole(): Promise<void> { throw new Error("Not supported"); }
-  async removeMember(): Promise<void> { throw new Error("Not supported"); }
+  async listMembers(): Promise<Membership[]> {
+    return [];
+  }
+  async addMember(): Promise<void> {
+    throw new Error("Not supported");
+  }
+  async updateMemberRole(): Promise<void> {
+    throw new Error("Not supported");
+  }
+  async removeMember(): Promise<void> {
+    throw new Error("Not supported");
+  }
 
   // --- Invites (not applicable in desktop) ---
-  async listInvites(): Promise<Invite[]> { return []; }
-  async createInvite(): Promise<Invite> { throw new Error("Not supported in desktop mode"); }
-  async deleteInvite(): Promise<void> { throw new Error("Not supported in desktop mode"); }
-  async acceptInvite(): Promise<AcceptInviteResponse> { throw new Error("Not supported in desktop mode"); }
-  async claimProject(): Promise<ClaimProjectResponse> { throw new Error("Not supported in desktop mode"); }
+  async listInvites(): Promise<Invite[]> {
+    return [];
+  }
+  async createInvite(): Promise<Invite> {
+    throw new Error("Not supported in desktop mode");
+  }
+  async deleteInvite(): Promise<void> {
+    throw new Error("Not supported in desktop mode");
+  }
+  async acceptInvite(): Promise<AcceptInviteResponse> {
+    throw new Error("Not supported in desktop mode");
+  }
+  async claimProject(): Promise<ClaimProjectResponse> {
+    throw new Error("Not supported in desktop mode");
+  }
 
   // --- Streams (desktop: single stream mode) ---
-  async listStreams(): Promise<StreamInfo[]> { return []; }
-  async createStream(): Promise<StreamInfo> { throw new Error("Streams not yet supported in desktop mode"); }
-  async getStream(): Promise<StreamInfo> { throw new Error("Streams not yet supported in desktop mode"); }
-  async deleteStream(): Promise<void> { throw new Error("Streams not yet supported in desktop mode"); }
-  async diffStream(): Promise<StreamDiffResult> { throw new Error("Streams not yet supported in desktop mode"); }
-  async mergeStream(): Promise<StreamMergeResult> { throw new Error("Streams not yet supported in desktop mode"); }
+  async listStreams(): Promise<StreamInfo[]> {
+    return [];
+  }
+  async createStream(): Promise<StreamInfo> {
+    throw new Error("Streams not yet supported in desktop mode");
+  }
+  async getStream(): Promise<StreamInfo> {
+    throw new Error("Streams not yet supported in desktop mode");
+  }
+  async deleteStream(): Promise<void> {
+    throw new Error("Streams not yet supported in desktop mode");
+  }
+  async diffStream(): Promise<StreamDiffResult> {
+    throw new Error("Streams not yet supported in desktop mode");
+  }
+  async mergeStream(): Promise<StreamMergeResult> {
+    throw new Error("Streams not yet supported in desktop mode");
+  }
 
   // --- API Tokens (not applicable in desktop) ---
-  async listApiTokens(): Promise<ApiToken[]> { return []; }
-  async createApiToken(): Promise<CreateApiTokenResponse> { throw new Error("Not supported in desktop mode"); }
-  async deleteApiToken(): Promise<void> { throw new Error("Not supported in desktop mode"); }
+  async listApiTokens(): Promise<ApiToken[]> {
+    return [];
+  }
+  async createApiToken(): Promise<CreateApiTokenResponse> {
+    throw new Error("Not supported in desktop mode");
+  }
+  async deleteApiToken(): Promise<void> {
+    throw new Error("Not supported in desktop mode");
+  }
 
   // --- Projects ---
   async listProjects(): Promise<ProjectInfo[]> {
@@ -99,7 +183,7 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async uploadFiles(_ws: string, projectId: string, files: File[]): Promise<ProjectInfo> {
     // In Wails v3, File objects from DnD have a .path property
-    const paths = files.map(f => (f as unknown as { path?: string }).path || f.name);
+    const paths = files.map((f) => (f as unknown as { path?: string }).path || f.name);
     return Backend.AddItems(projectId, paths) as Promise<ProjectInfo>;
   }
   async removeFile(_ws: string, projectId: string, fileName: string): Promise<ProjectInfo> {
@@ -122,7 +206,11 @@ export class WailsApiAdapter implements ApiAdapter {
     fileName: string,
     targetLocale: string,
   ): Promise<TranslationStats> {
-    return Backend.PseudoTranslateItem(projectId, fileName, targetLocale) as Promise<TranslationStats>;
+    return Backend.PseudoTranslateItem(
+      projectId,
+      fileName,
+      targetLocale,
+    ) as Promise<TranslationStats>;
   }
   async aiTranslateFile(_ws: string, _req: AITranslateFileRequest): Promise<TranslationStats> {
     throw new Error("AI translation is managed by the server pipeline");
@@ -156,7 +244,9 @@ export class WailsApiAdapter implements ApiAdapter {
     blockId: string,
     targetLocale: string,
   ): Promise<TMMatchInfo[]> {
-    return Backend.LookupTMForBlock(projectId, itemName, blockId, targetLocale) as Promise<TMMatchInfo[]>;
+    return Backend.LookupTMForBlock(projectId, itemName, blockId, targetLocale) as Promise<
+      TMMatchInfo[]
+    >;
   }
   async lookupTermsForBlock(
     _ws: string,
@@ -165,7 +255,9 @@ export class WailsApiAdapter implements ApiAdapter {
     blockId: string,
     targetLocale: string,
   ): Promise<BlockTermMatch[]> {
-    return Backend.LookupTermsForBlock(projectId, itemName, blockId, targetLocale) as Promise<BlockTermMatch[]>;
+    return Backend.LookupTermsForBlock(projectId, itemName, blockId, targetLocale) as Promise<
+      BlockTermMatch[]
+    >;
   }
 
   // --- Translation Memory ---
@@ -178,7 +270,14 @@ export class WailsApiAdapter implements ApiAdapter {
     limit: number,
   ): Promise<TMSearchResult> {
     // Bowrain TM API takes projectID as first arg; pass empty string for workspace-level
-    return Backend.GetTMEntries("", query, sourceLocale, targetLocale, offset, limit) as Promise<TMSearchResult>;
+    return Backend.GetTMEntries(
+      "",
+      query,
+      sourceLocale,
+      targetLocale,
+      offset,
+      limit,
+    ) as Promise<TMSearchResult>;
   }
   async getTMCount(): Promise<number> {
     return Backend.GetTMCount("") as Promise<number>;
@@ -190,7 +289,13 @@ export class WailsApiAdapter implements ApiAdapter {
     sourceLocale: string,
     targetLocale: string,
   ): Promise<TMEntryInfo> {
-    return Backend.AddTMEntry("", source, target, sourceLocale, targetLocale) as Promise<TMEntryInfo>;
+    return Backend.AddTMEntry(
+      "",
+      source,
+      target,
+      sourceLocale,
+      targetLocale,
+    ) as Promise<TMEntryInfo>;
   }
   async updateTMEntry(_ws: string, req: TMUpdateRequest): Promise<void> {
     return Backend.UpdateTMEntry(req);
@@ -208,7 +313,14 @@ export class WailsApiAdapter implements ApiAdapter {
     offset: number,
     limit: number,
   ): Promise<TermSearchResult> {
-    return Backend.GetTerms("", query, sourceLocale, targetLocale, offset, limit) as Promise<TermSearchResult>;
+    return Backend.GetTerms(
+      "",
+      query,
+      sourceLocale,
+      targetLocale,
+      offset,
+      limit,
+    ) as Promise<TermSearchResult>;
   }
   async getTermCount(): Promise<number> {
     return Backend.GetTermCount("") as Promise<number>;
@@ -230,7 +342,14 @@ export class WailsApiAdapter implements ApiAdapter {
     domain: string,
     hasHeader: boolean,
   ): Promise<number> {
-    return Backend.ImportTermsCSV("", csvContent, sourceLocale, targetLocale, domain, hasHeader) as Promise<number>;
+    return Backend.ImportTermsCSV(
+      "",
+      csvContent,
+      sourceLocale,
+      targetLocale,
+      domain,
+      hasHeader,
+    ) as Promise<number>;
   }
   async importTermsJSON(_ws: string, jsonContent: string): Promise<number> {
     return Backend.ImportTermsJSON("", jsonContent) as Promise<number>;
@@ -265,12 +384,23 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Block history (desktop: not yet backed by Wails bindings) ---
-  async getBlockHistory(_ws: string, _projectId: string, _blockId: string, _locale: string, _limit?: number): Promise<BlockHistoryEntry[]> {
+  async getBlockHistory(
+    _ws: string,
+    _projectId: string,
+    _blockId: string,
+    _locale: string,
+    _limit?: number,
+  ): Promise<BlockHistoryEntry[]> {
     return [];
   }
 
   // --- Block notes (desktop: not yet backed by Wails bindings) ---
-  async addBlockNote(_ws: string, _projectId: string, _blockId: string, _text: string): Promise<BlockNote> {
+  async addBlockNote(
+    _ws: string,
+    _projectId: string,
+    _blockId: string,
+    _text: string,
+  ): Promise<BlockNote> {
     throw new Error("Block notes not yet supported in desktop mode");
   }
   async listBlockNotes(_ws: string, _projectId: string, _blockId: string): Promise<BlockNote[]> {
@@ -281,10 +411,20 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- QA (desktop: not yet backed by Wails bindings) ---
-  async runQACheck(_ws: string, _projectId: string, _blockId: string, _locale: string): Promise<QAIssue[]> {
+  async runQACheck(
+    _ws: string,
+    _projectId: string,
+    _blockId: string,
+    _locale: string,
+  ): Promise<QAIssue[]> {
     return [];
   }
-  async runFileQACheck(_ws: string, _projectId: string, _fileName: string, _locale: string): Promise<FileQAResult[]> {
+  async runFileQACheck(
+    _ws: string,
+    _projectId: string,
+    _fileName: string,
+    _locale: string,
+  ): Promise<FileQAResult[]> {
     return [];
   }
 
@@ -310,16 +450,29 @@ export class WailsApiAdapter implements ApiAdapter {
   async listAutomationRules(_ws: string, _projectId: string): Promise<AutomationRule[]> {
     return [];
   }
-  async createAutomationRule(_ws: string, _projectId: string, _data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+  async createAutomationRule(
+    _ws: string,
+    _projectId: string,
+    _data: SaveAutomationRuleRequest,
+  ): Promise<AutomationRule> {
     throw new Error("Automations not yet supported in desktop mode");
   }
-  async updateAutomationRule(_ws: string, _projectId: string, _ruleId: string, _data: SaveAutomationRuleRequest): Promise<AutomationRule> {
+  async updateAutomationRule(
+    _ws: string,
+    _projectId: string,
+    _ruleId: string,
+    _data: SaveAutomationRuleRequest,
+  ): Promise<AutomationRule> {
     throw new Error("Automations not yet supported in desktop mode");
   }
   async deleteAutomationRule(_ws: string, _projectId: string, _ruleId: string): Promise<void> {
     throw new Error("Automations not yet supported in desktop mode");
   }
-  async toggleAutomationRule(_ws: string, _projectId: string, _ruleId: string): Promise<AutomationRule> {
+  async toggleAutomationRule(
+    _ws: string,
+    _projectId: string,
+    _ruleId: string,
+  ): Promise<AutomationRule> {
     throw new Error("Automations not yet supported in desktop mode");
   }
   async listAutomationEvents(_ws: string, _projectId: string): Promise<AutomationEvent[]> {
@@ -330,7 +483,11 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Notifications (desktop: not yet backed by Wails bindings) ---
-  async listNotifications(_ws: string, _limit?: number, _unreadOnly?: boolean): Promise<{ notifications: NotificationInfo[]; unread_count: number }> {
+  async listNotifications(
+    _ws: string,
+    _limit?: number,
+    _unreadOnly?: boolean,
+  ): Promise<{ notifications: NotificationInfo[]; unread_count: number }> {
     return { notifications: [], unread_count: 0 };
   }
   async markNotificationRead(_ws: string, _id: string): Promise<void> {}
@@ -338,16 +495,41 @@ export class WailsApiAdapter implements ApiAdapter {
   async deleteNotification(_ws: string, _id: string): Promise<void> {}
 
   // --- Entity annotations (desktop: not yet backed by Wails bindings) ---
-  async createEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entity: Partial<EntityInfo>): Promise<EntityInfo> {
+  async createEntity(
+    _ws: string,
+    _projectId: string,
+    _itemName: string,
+    _blockId: string,
+    _entity: Partial<EntityInfo>,
+  ): Promise<EntityInfo> {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
-  async updateEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string, _entity: Partial<EntityInfo>): Promise<EntityInfo> {
+  async updateEntity(
+    _ws: string,
+    _projectId: string,
+    _itemName: string,
+    _blockId: string,
+    _entityKey: string,
+    _entity: Partial<EntityInfo>,
+  ): Promise<EntityInfo> {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
-  async deleteEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string): Promise<void> {
+  async deleteEntity(
+    _ws: string,
+    _projectId: string,
+    _itemName: string,
+    _blockId: string,
+    _entityKey: string,
+  ): Promise<void> {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
-  async promoteEntity(_ws: string, _projectId: string, _itemName: string, _blockId: string, _entityKey: string): Promise<void> {
+  async promoteEntity(
+    _ws: string,
+    _projectId: string,
+    _itemName: string,
+    _blockId: string,
+    _entityKey: string,
+  ): Promise<void> {
     throw new Error("Entity annotations not yet supported in desktop mode");
   }
 

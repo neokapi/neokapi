@@ -45,7 +45,9 @@ describe("resolveConstraints", () => {
 
   it("explicit false overrides vocabulary true", () => {
     // fmt:bold is normally cloneable, but SpanInfo says not
-    const c = resolveConstraints(span("fmt:bold", { span_type: "opening", data: "<b>", cloneable: false }));
+    const c = resolveConstraints(
+      span("fmt:bold", { span_type: "opening", data: "<b>", cloneable: false }),
+    );
     expect(c.cloneable).toBe(false);
     expect(c.deletable).toBe(true); // not overridden
   });

@@ -17,16 +17,48 @@ import {
   Position,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Button, Input, Badge, cn, Label, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui";
+import {
+  Button,
+  Input,
+  Badge,
+  cn,
+  Label,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
 
 // --- Custom Node Components ---
 
-const nodeColors: Record<string, { bg: string; border: string; label: string; text: string; sub: string }> = {
-  reader: { bg: "rgba(34, 197, 94, 0.12)", border: "#22c55e", label: "Input", text: "#e4e4e7", sub: "#86efac" },
-  writer: { bg: "rgba(96, 165, 250, 0.12)", border: "#60a5fa", label: "Output", text: "#e4e4e7", sub: "#93c5fd" },
-  tool: { bg: "rgba(148, 163, 184, 0.08)", border: "#64748b", label: "Tool", text: "#e4e4e7", sub: "#94a3b8" },
+const nodeColors: Record<
+  string,
+  { bg: string; border: string; label: string; text: string; sub: string }
+> = {
+  reader: {
+    bg: "rgba(34, 197, 94, 0.12)",
+    border: "#22c55e",
+    label: "Input",
+    text: "#e4e4e7",
+    sub: "#86efac",
+  },
+  writer: {
+    bg: "rgba(96, 165, 250, 0.12)",
+    border: "#60a5fa",
+    label: "Output",
+    text: "#e4e4e7",
+    sub: "#93c5fd",
+  },
+  tool: {
+    bg: "rgba(148, 163, 184, 0.08)",
+    border: "#64748b",
+    label: "Tool",
+    text: "#e4e4e7",
+    sub: "#94a3b8",
+  },
 };
 
 function ReaderNode({ data }: NodeProps) {
@@ -37,9 +69,13 @@ function ReaderNode({ data }: NodeProps) {
       className="px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]"
       style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
-      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>INPUT</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>
+        INPUT
+      </div>
       <div className="font-semibold">{(data.label as string) || "Reader"}</div>
-      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.formatName as string}</div>
+      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>
+        {data.formatName as string}
+      </div>
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
   );
@@ -54,9 +90,13 @@ function WriterNode({ data }: NodeProps) {
       style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>OUTPUT</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.border }}>
+        OUTPUT
+      </div>
       <div className="font-semibold">{(data.label as string) || "Writer"}</div>
-      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.formatName as string}</div>
+      <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>
+        {data.formatName as string}
+      </div>
     </div>
   );
 }
@@ -77,10 +117,14 @@ function ToolNode({ data, selected }: NodeProps) {
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.sub }}>TOOL</div>
+      <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.sub }}>
+        TOOL
+      </div>
       <div className="font-semibold">{(data.label as string) || (data.toolName as string)}</div>
       {data.description ? (
-        <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.description as string}</div>
+        <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>
+          {data.description as string}
+        </div>
       ) : null}
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>
@@ -147,9 +191,18 @@ function reactFlowToDef(
 
 // --- Tool Palette ---
 
-function ToolPalette({ tools, onAddTool }: { tools: ToolInfo[]; onAddTool: (tool: ToolInfo) => void }) {
+function ToolPalette({
+  tools,
+  onAddTool,
+}: {
+  tools: ToolInfo[];
+  onAddTool: (tool: ToolInfo) => void;
+}) {
   return (
-    <div data-testid="tool-palette" className="p-3 border-b border-border flex gap-2 flex-wrap items-center">
+    <div
+      data-testid="tool-palette"
+      className="p-3 border-b border-border flex gap-2 flex-wrap items-center"
+    >
       <span className="text-xs font-semibold text-muted-foreground">Add Tool:</span>
       {tools.map((tool) => (
         <Button
@@ -181,7 +234,10 @@ function FlowList({
   onNew: () => void;
 }) {
   return (
-    <div data-testid="flow-list" className="w-60 border-r border-border flex flex-col overflow-hidden">
+    <div
+      data-testid="flow-list"
+      className="w-60 border-r border-border flex flex-col overflow-hidden"
+    >
       <div className="px-4 py-3 border-b border-border flex justify-between items-center">
         <span className="font-semibold text-sm text-foreground">Flows</span>
         <Button data-testid="new-flow-btn" onClick={onNew} size="sm">
@@ -235,7 +291,13 @@ export function FlowBuilder() {
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      setEdges((eds) => addEdge(connection, eds).map((e) => ({ ...e, animated: true, style: { stroke: "#6366f1", strokeWidth: 2 } })));
+      setEdges((eds) =>
+        addEdge(connection, eds).map((e) => ({
+          ...e,
+          animated: true,
+          style: { stroke: "#6366f1", strokeWidth: 2 },
+        })),
+      );
       setDirty(true);
     },
     [setEdges],
@@ -254,27 +316,42 @@ export function FlowBuilder() {
     [setNodes, setEdges],
   );
 
-  const handleNew = useCallback((name: string, description: string) => {
-    const id = `custom-flow-${Date.now()}`;
-    const def: FlowDefinitionInfo = {
-      id,
-      name,
-      description,
-      source: "user",
-      nodes: [
-        { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
-        { id: "writer", type: "writer", name: "auto", label: "Output", position: { x: 500, y: 100 } },
-      ],
-      edges: [],
-    };
-    setActiveDef(def);
-    setEditName(def.name);
-    setEditDescription(description);
-    const { nodes: n, edges: e } = defToReactFlow(def);
-    setNodes(n);
-    setEdges(e);
-    setDirty(true);
-  }, [setNodes, setEdges]);
+  const handleNew = useCallback(
+    (name: string, description: string) => {
+      const id = `custom-flow-${Date.now()}`;
+      const def: FlowDefinitionInfo = {
+        id,
+        name,
+        description,
+        source: "user",
+        nodes: [
+          {
+            id: "reader",
+            type: "reader",
+            name: "auto",
+            label: "Input",
+            position: { x: 0, y: 100 },
+          },
+          {
+            id: "writer",
+            type: "writer",
+            name: "auto",
+            label: "Output",
+            position: { x: 500, y: 100 },
+          },
+        ],
+        edges: [],
+      };
+      setActiveDef(def);
+      setEditName(def.name);
+      setEditDescription(description);
+      const { nodes: n, edges: e } = defToReactFlow(def);
+      setNodes(n);
+      setEdges(e);
+      setDirty(true);
+    },
+    [setNodes, setEdges],
+  );
 
   const handleNewFlowDialogOpen = useCallback(() => {
     setNewFlowName("");
@@ -377,7 +454,10 @@ export function FlowBuilder() {
   );
 
   return (
-    <div data-testid="flow-builder" className="flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden">
+    <div
+      data-testid="flow-builder"
+      className="flex flex-1 min-h-0 rounded-lg border border-border overflow-hidden"
+    >
       <FlowList
         definitions={definitions}
         activeId={activeDef?.id || null}
@@ -394,7 +474,9 @@ export function FlowBuilder() {
               <Label className="text-muted-foreground">Name</Label>
               <Input
                 value={newFlowName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFlowName(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewFlowName(e.target.value)
+                }
                 placeholder="My Flow"
                 data-testid="new-flow-name"
                 autoFocus
@@ -404,7 +486,9 @@ export function FlowBuilder() {
               <Label className="text-muted-foreground">Description (optional)</Label>
               <Input
                 value={newFlowDescription}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewFlowDescription(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewFlowDescription(e.target.value)
+                }
                 placeholder="What this flow does..."
                 data-testid="new-flow-description"
               />
@@ -424,11 +508,17 @@ export function FlowBuilder() {
         {activeDef ? (
           <>
             {/* Toolbar */}
-            <div data-testid="flow-toolbar" className="px-4 py-2 border-b border-border flex gap-3 items-center">
+            <div
+              data-testid="flow-toolbar"
+              className="px-4 py-2 border-b border-border flex gap-3 items-center"
+            >
               <Input
                 data-testid="flow-name-input"
                 value={editName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setEditName(e.target.value); setDirty(true); }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setEditName(e.target.value);
+                  setDirty(true);
+                }}
                 disabled={isBuiltIn}
                 className={cn(
                   "font-semibold text-base flex-1 max-w-[300px]",
@@ -438,17 +528,15 @@ export function FlowBuilder() {
               <Input
                 data-testid="flow-description-input"
                 value={editDescription}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setEditDescription(e.target.value); setDirty(true); }}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setEditDescription(e.target.value);
+                  setDirty(true);
+                }}
                 placeholder="Description..."
                 disabled={isBuiltIn}
-                className={cn(
-                  "text-sm flex-1",
-                  isBuiltIn && "border-none bg-transparent",
-                )}
+                className={cn("text-sm flex-1", isBuiltIn && "border-none bg-transparent")}
               />
-              <Badge variant={isBuiltIn ? "secondary" : "default"}>
-                {activeDef.source}
-              </Badge>
+              <Badge variant={isBuiltIn ? "secondary" : "default"}>{activeDef.source}</Badge>
               {!isBuiltIn && (
                 <>
                   <Button

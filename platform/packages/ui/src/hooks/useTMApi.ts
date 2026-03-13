@@ -15,14 +15,12 @@ export function useTMApi() {
       targetLocale: string,
       offset: number,
       limit: number,
-    ): Promise<TMSearchResult> => api.getTMEntries(ws, query, sourceLocale, targetLocale, offset, limit),
+    ): Promise<TMSearchResult> =>
+      api.getTMEntries(ws, query, sourceLocale, targetLocale, offset, limit),
     [api, ws],
   );
 
-  const getTMCount = useCallback(
-    async (): Promise<number> => api.getTMCount(ws),
-    [api, ws],
-  );
+  const getTMCount = useCallback(async (): Promise<number> => api.getTMCount(ws), [api, ws]);
 
   const addTMEntry = useCallback(
     async (

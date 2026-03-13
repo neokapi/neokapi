@@ -8,7 +8,9 @@ export function ClaimRoute() {
   return (
     <ClaimPage
       token={token ?? ""}
-      onClaimed={() => navigate({ to: "/$workspace", params: { workspace: "default" }, replace: true })}
+      onClaimed={() =>
+        navigate({ to: "/$workspace", params: { workspace: "default" }, replace: true })
+      }
     />
   );
 }
