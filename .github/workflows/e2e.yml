@@ -22,6 +22,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run kapi CLI e2e tests
+        working-directory: framework
         run: go test -tags=e2e -count=1 -v ./kapi/e2e/
         timeout-minutes: 5
 

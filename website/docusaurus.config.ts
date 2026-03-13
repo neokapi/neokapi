@@ -56,7 +56,7 @@ const config: Config = {
       '@docusaurus/plugin-content-docs',
       {
         id: 'bowrain',
-        path: '../bowrain/docs',
+        path: '../platform/docs',
         routeBasePath: 'bowrain',
         sidebarPath: './sidebars-bowrain.ts',
         editUrl: 'https://github.com/neokapi/neokapi/tree/main/',

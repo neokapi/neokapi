@@ -192,8 +192,8 @@ func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	doc := &model.RawDocument{
 		URI:          uri,
-		SourceLocale: "",
-		TargetLocale: "",
+		SourceLocale: "en",
+		TargetLocale: "fr",
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),

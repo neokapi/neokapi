@@ -40,8 +40,8 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	doc := &model.RawDocument{
 		URI:          uri,
-		SourceLocale: "",
-		TargetLocale: "",
+		SourceLocale: "en",
+		TargetLocale: "fr",
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
@@ -75,7 +75,7 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	}
 	writer.SetOriginalContent(content)
 	writer.SetEncoding("UTF-8")
-	writer.SetLocale("")
+	writer.SetLocale("fr")
 	require.NoError(t, writer.SetOutputWriter(&output))
 
 	// Pass source_path when the URI is an absolute file path so the Java
