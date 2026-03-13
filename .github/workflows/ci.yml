@@ -664,15 +664,16 @@ jobs:
         if: steps.fetch-testdata.outcome == 'success'
         run: |
           mkdir -p website/static/data
-          GOWORK=off go run ./scripts/testcompare \
-            -okapi-dir ${{ steps.testdata-version.outputs.dir }}/surefire \
-            -gotest-bridge-json test-results-bridge.json \
-            -gotest-native-json test-results-framework.json \
-            -bridge-src framework/core/plugin/bridge/filters \
-            -native-src framework/core/formats \
+          cd scripts/testcompare
+          GOWORK=off go run . \
+            -okapi-dir ../../${{ steps.testdata-version.outputs.dir }}/surefire \
+            -gotest-bridge-json ../../test-results-bridge.json \
+            -gotest-native-json ../../test-results-framework.json \
+            -bridge-src ../../framework/core/plugin/bridge/filters \
+            -native-src ../../framework/core/formats \
             -go-commit ${{ github.sha }} \
             -okapi-tag v1.48.0 \
-            -out website/static/data/test-comparison.json
+            -out ../../website/static/data/test-comparison.json
 
       - name: Upload to docs-assets release
         if: steps.fetch-testdata.outcome == 'success'
