@@ -294,7 +294,7 @@ func TestSubfilter_Issue375(t *testing.T) {
 func TestCdataRegex_DoubleExtractionWithoutSubfilter(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdata_with_group", "xml-freemarker.xml")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "cdata_with_group", "xml-freemarker.xml")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -305,8 +305,8 @@ func TestCdataRegex_DoubleExtractionWithoutSubfilter(t *testing.T) {
 func TestCdataRegex_DoubleExtractionWithoutRegex(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdata_with_group", "xml-freemarker.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdata_with_group", "okf_xmlstream@cdata.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "cdata_with_group", "xml-freemarker.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "cdata_with_group", "okf_xmlstream@cdata.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -320,7 +320,7 @@ func TestCdataRegex_DoubleExtractionWithoutRegex(t *testing.T) {
 func TestCdataRegex_DoubleExtractionWithRegex(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdata_with_group", "xml-freemarker.xml")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "cdata_with_group", "xml-freemarker.xml")
 
 	params := map[string]any{
 		"global_cdata_subfilter": "okf_html",
@@ -341,8 +341,8 @@ func TestCdataRegex_DoubleExtractionWithRegex(t *testing.T) {
 func TestPcdata_WithoutEscapes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "success.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "success.xml")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -356,8 +356,8 @@ func TestPcdata_WithoutEscapes(t *testing.T) {
 func TestPcdata_WithEscapes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "failure.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "failure.xml")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -371,8 +371,8 @@ func TestPcdata_WithEscapes(t *testing.T) {
 func TestPcdata_HrefReference(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "test_href_reference.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "test_href_reference.xml")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -386,7 +386,7 @@ func TestPcdata_HrefReference(t *testing.T) {
 func TestPcdata_HrefReferenceSmall(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "pcdata_subfilter", "okf_xmlstream@pcdata.fprm")
 	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "test_href_reference_small.xml")
 
 	params := map[string]any{
