@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: read
-  packages: read
+  packages: write
 
 jobs:
   # ── Kapi CLI E2E (no Docker, no external services) ────────────────────────
@@ -35,19 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-ui
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
-
-      - name: Install Linux dependencies
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-
-      - name: Install wails3 CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
-
-      - name: Generate Wails bindings
-        working-directory: platform/apps/bowrain
-        run: wails3 generate bindings -clean=true
+      # Bindings are committed and already patched (sed fix for $0. bug).
+      # Do NOT regenerate with wails3 — it would overwrite the fixed files.
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -71,10 +60,99 @@ jobs:
           path: platform/apps/bowrain/frontend/playwright-report/
           retention-days: 30
 
+  # ── Build Docker images (prerequisites for Docker E2E) ───────────────────
+  build-images:
+    name: Build E2E Images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Compute image tag
+        id: meta
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "tag=${GH_SHA}"
+            echo "version=$(git describe --tags --always 2>/dev/null || echo dev)"
+            echo "commit=${GH_SHA::7}"
+            echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: platform/docker/bowrain-server/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-server:${{ steps.meta.outputs.tag }}
+            ghcr.io/neokapi/bowrain-server:e2e
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+          cache-from: type=gha,scope=bowrain-server
+          cache-to: type=gha,mode=max,scope=bowrain-server
+
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: platform/docker/bowrain-web/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-web:${{ steps.meta.outputs.tag }}
+            ghcr.io/neokapi/bowrain-web:e2e
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ steps.meta.outputs.commit }}
+            BUILD_DATE=${{ steps.meta.outputs.build_date }}
+          cache-from: type=gha,scope=bowrain-web
+          cache-to: type=gha,mode=max,scope=bowrain-web
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build Keycloak theme
+        run: make -C platform keycloak-theme
+
+      - name: Build and push keycloak image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: platform/docker/keycloak/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/neokapi/bowrain-keycloak:${{ steps.meta.outputs.tag }}
+            ghcr.io/neokapi/bowrain-keycloak:e2e
+          cache-from: type=gha,scope=bowrain-keycloak
+          cache-to: type=gha,mode=max,scope=bowrain-keycloak
+
   # ── Bowrain server Docker stack E2E ────────────────────────────────────────
   bowrain-e2e:
     name: Bowrain E2E (Docker)
     runs-on: ubuntu-latest
+    needs: build-images
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -89,7 +167,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start E2E stack
-        run: docker compose -f platform/e2e/server/compose.yaml up -d --wait
+        env:
+          IMAGE_TAG: e2e
+        run: |
+          export BOWRAIN_SERVER_IMAGE=ghcr.io/neokapi/bowrain-server:e2e
+          export BOWRAIN_WEB_IMAGE=ghcr.io/neokapi/bowrain-web:e2e
+          export BOWRAIN_KEYCLOAK_IMAGE=ghcr.io/neokapi/bowrain-keycloak:e2e
+          docker compose -f platform/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 
       - name: Run Bowrain server E2E tests

@@ -34,7 +34,7 @@ bash "$SCRIPT_DIR/setup.sh"
 echo ""
 echo "Running e2e tests..."
 cd "$ROOT_DIR"
-go test -tags=e2e -count=1 -v ./bowrain/e2e/server/
+go test -tags=e2e -count=1 -v ./platform/e2e/server/
 
 echo ""
 echo "All Bowrain server e2e tests passed!"
