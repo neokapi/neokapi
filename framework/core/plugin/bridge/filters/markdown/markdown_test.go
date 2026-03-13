@@ -63,10 +63,10 @@ func unitTestFile(t *testing.T, filename string) string {
 }
 
 // integrationTestFile returns the full path to a file in the integration test
-// directory (okapi/filters/markdown/src/test/resources/).
+// directory (integration-tests/okapi/src/test/resources/markdown/).
 func integrationTestFile(t *testing.T, filename string) string {
 	t.Helper()
-	return bridgetest.TestdataFile(t, "okapi/filters/markdown/src/test/resources/"+filename)
+	return bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/markdown/"+filename)
 }
 
 // allBlocks returns all blocks (translatable and non-translatable) from parts.
@@ -203,7 +203,7 @@ func TestExtract_HTMLBlockFiles(t *testing.T) {
 	for _, name := range files {
 		t.Run(name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okapi/filters/markdown/src/test/resources/"+name), mimeType, nil)
+				bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/markdown/"+name), mimeType, nil)
 
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -224,7 +224,7 @@ func TestExtract_SubfilterWhitespaceFiles(t *testing.T) {
 	for _, name := range []string{"example1.md", "example3.md"} {
 		t.Run(name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okapi/filters/markdown/src/test/resources/"+name), mimeType, nil)
+				bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/markdown/"+name), mimeType, nil)
 
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)

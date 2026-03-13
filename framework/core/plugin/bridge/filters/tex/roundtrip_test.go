@@ -147,17 +147,22 @@ func TestRoundTrip_FileEvents(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	files := []string{
-		"Test01.tex",
-		"Test02.tex",
-		"Test03.tex",
-		"sample.tex",
-		"sample1.tex",
-	}
-
-	for _, f := range files {
+	// Files in filter module test resources.
+	filterFiles := []string{"Test01.tex", "Test02.tex", "Test03.tex"}
+	for _, f := range filterFiles {
 		t.Run(f, func(t *testing.T) {
 			path := tdDir + "/okapi/filters/tex/src/test/resources/" + f
+			content, err := readTestFile(path)
+			require.NoError(t, err)
+			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,
+				content, path, mimeType, nil)
+		})
+	}
+	// Files in integration-tests resources.
+	intFiles := []string{"sample.tex", "sample1.tex"}
+	for _, f := range intFiles {
+		t.Run(f, func(t *testing.T) {
+			path := tdDir + "/integration-tests/okapi/src/test/resources/tex/" + f
 			content, err := readTestFile(path)
 			require.NoError(t, err)
 			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,

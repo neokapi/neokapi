@@ -119,7 +119,7 @@ func TestCodeFinder_SubfilterCodeFinderOnly(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/codefinder/en-fr.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/codefinder/en-fr.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)

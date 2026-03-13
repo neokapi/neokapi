@@ -43,7 +43,7 @@ func TestRoundTrip_TestFilesXHTML(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okapi/filters/html/src/test/resources/xhtml/*.xhtml", mimeType, nil)
+		tdDir+"/integration-tests/okapi/src/test/resources/html/xhtml/*.xhtml", mimeType, nil)
 }
 
 // okapi: RoundTripHtmlIT#htmlFilesSerialized

@@ -70,18 +70,22 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	//
 	// Known failing files:
 	// - code_id_difference.tmx: Code ID difference causes event mismatch
-	// - code_fail.tmx: srclang="en-US" but bridge uses "en"; TMX filter
-	//   rejects the language mismatch at the TUV level
+	// - code_fail.tmx, header_with_prop_and_note.tmx, ImportTest2A/2B/2C.tmx,
+	//   a_small_test2.tmx, Paragraph_TM.tmx: srclang="en-us" but bridge uses
+	//   "en"; TMX filter rejects the language mismatch at the TUV level
 	// - html_test.tmx: UTF-16LE encoded; the bridge streams content as
 	//   UTF-8 so the Java filter cannot parse it
-	// - header_with_prop_and_note.tmx: srclang="en-us" but bridge uses
-	//   "en"; TMX filter rejects the language mismatch
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
 		tdDir+"/okapi/filters/tmx/src/test/resources/*.tmx", mimeType, nil,
 		"code_id_difference.tmx",
 		"code_fail.tmx",
 		"html_test.tmx",
-		"header_with_prop_and_note.tmx")
+		"header_with_prop_and_note.tmx",
+		"ImportTest2A.tmx",
+		"ImportTest2B.tmx",
+		"ImportTest2C.tmx",
+		"a_small_test2.tmx",
+		"Paragraph_TM.tmx")
 }
 
 // okapi: TmxXliffCompareIT

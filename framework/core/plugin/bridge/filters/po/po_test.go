@@ -439,7 +439,7 @@ func TestExtract_WithNoCodesLookingLikeCodes(t *testing.T) {
 
 // okapi: POFilterTest#testTUContextParsing
 func TestExtract_TUContextParsing(t *testing.T) {
-	parts := readPOFile(t, "okapi/filters/po/src/test/resources/simple_withcontext.po", nil)
+	parts := readPOFile(t, "integration-tests/okapi/src/test/resources/po/simple_withcontext.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from file with context")

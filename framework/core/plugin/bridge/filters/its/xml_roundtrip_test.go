@@ -177,7 +177,7 @@ func TestRoundTrip_XRTTSource1(t *testing.T) {
 
 // okapi: RoundTripXmlIT (emoji)
 func TestRoundTrip_Emoji(t *testing.T) {
-	roundtripTestFile(t, "okapi/filters/its/src/test/resources/emoji1.xml", nil)
+	roundtripTestFile(t, "integration-tests/okapi/src/test/resources/its/emoji1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (TestCDATA1)
@@ -196,7 +196,7 @@ func TestRoundTrip_AndroidStrings(t *testing.T) {
 	params := map[string]any{
 		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
-	roundtripTestFile(t, "okapi/filters/its/src/test/resources/strings.xml", params)
+	roundtripTestFile(t, "integration-tests/okapi/src/test/resources/xml/strings.xml", params)
 }
 
 // okapi: RoundTripXmlIT (OpenOffice)
@@ -212,18 +212,18 @@ func TestRoundTrip_OpenOffice(t *testing.T) {
 func TestRoundTrip_CustomConfig591(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/okf_xml@ibxlf1.fprm",
+		"configFile": tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/591/okf_xml@ibxlf1.fprm",
 	}
-	roundtripTestFile(t, "okapi/filters/its/src/test/resources/custom-configs/591/simple_with_simple_codes.xml", params)
+	roundtripTestFile(t, "integration-tests/okapi/src/test/resources/xml/custom-configs/591/simple_with_simple_codes.xml", params)
 }
 
 // okapi: RoundTripXmlIT (custom config 1384)
 func TestRoundTrip_CustomConfig1384(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
+		"configFile": tdDir + "/integration-tests/okapi/src/test/resources/xml/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
 	}
-	roundtripTestFile(t, "okapi/filters/its/src/test/resources/custom-configs/1384/translatable-and-untranslatable.xml", params)
+	roundtripTestFile(t, "integration-tests/okapi/src/test/resources/xml/custom-configs/1384/translatable-and-untranslatable.xml", params)
 }
 
 // ---------------------------------------------------------------------------

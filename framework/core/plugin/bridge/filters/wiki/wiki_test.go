@@ -345,7 +345,7 @@ func TestExtract_MultipleHeadingLevels(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: simple.wiki)
 func TestExtract_SimpleWikiFile(t *testing.T) {
-	parts := readWikiFile(t, "okapi/filters/wiki/src/test/resources/simple.wiki", nil)
+	parts := readWikiFile(t, "integration-tests/okapi/src/test/resources/wikitext/simple.wiki", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "simple.wiki should produce translatable blocks")
@@ -368,7 +368,7 @@ func TestExtract_SimpleWikiFile(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: mediawiki.wiki)
 func TestExtract_MediawikiFile(t *testing.T) {
-	parts := readWikiFile(t, "okapi/filters/wiki/src/test/resources/mediawiki.wiki", nil)
+	parts := readWikiFile(t, "integration-tests/okapi/src/test/resources/wikitext/mediawiki.wiki", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "mediawiki.wiki should produce translatable blocks")

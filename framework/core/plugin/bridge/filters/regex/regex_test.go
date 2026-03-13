@@ -241,8 +241,8 @@ func TestExtract_NoteExtraction(t *testing.T) {
 // defines metaRules for extracting timestamp metadata.
 func TestExtract_Meta(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okapi/filters/regex/src/test/resources/meta/okf_regex@meta.fprm"
-	filePath := tdDir + "/okapi/filters/regex/src/test/resources/meta/test.txt"
+	configPath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta/okf_regex@meta.fprm"
+	filePath := tdDir + "/integration-tests/okapi/src/test/resources/regex/meta/test.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)

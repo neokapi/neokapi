@@ -26,7 +26,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 	// The Java testDoubleExtraction loads en.yml and runs extract twice,
 	// comparing the events. In the bridge, this is an event-level roundtrip.
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/en.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/en.yml"
 	content := readFileBytes(t, path)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 }
@@ -36,7 +36,7 @@ func TestRoundTrip_DoubleExtractionWithEscapes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/escapes.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/escapes.yml"
 	content := readFileBytes(t, path)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 }
@@ -46,7 +46,7 @@ func TestRoundTrip_DoubleExtractionNonStrings(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/non_strings.yaml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/non_strings.yaml"
 	content := readFileBytes(t, path)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 }
@@ -56,7 +56,7 @@ func TestRoundTrip_DoubleExtractionLongLine(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/long_line.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/long_line.yml"
 	content := readFileBytes(t, path)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 }
@@ -66,7 +66,7 @@ func TestRoundTrip_DoubleExtractionWithMultilines(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/folded_literal_examples.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/folded_literal_examples.yml"
 	content := readFileBytes(t, path)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 }
@@ -86,7 +86,7 @@ func TestRoundTrip_SubFilterProcessLiteralAsBlock(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okapi/filters/yaml/src/test/resources/literal_html.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/yaml/literal_html.yml"
 	params := map[string]any{
 		"subfilter":                      "okf_html",
 		"subFilterProcessLiteralAsBlock": true,
@@ -106,9 +106,9 @@ func TestRoundTrip_RoundtripFailures(t *testing.T) {
 		name string
 		path string
 	}{
-		{"Test01", tdDir + "/okapi/filters/yaml/src/test/resources/Test01.yml"},
-		{"Test02", tdDir + "/okapi/filters/yaml/src/test/resources/Test02.yml"},
-		{"Test03", tdDir + "/okapi/filters/yaml/src/test/resources/Test03.yml"},
+		{"Test01", tdDir + "/okapi/filters/yaml/src/test/resources/yaml/Test01.yml"},
+		{"Test02", tdDir + "/okapi/filters/yaml/src/test/resources/yaml/Test02.yml"},
+		{"Test03", tdDir + "/okapi/filters/yaml/src/test/resources/yaml/Test03.yml"},
 	}
 
 	for _, f := range files {
@@ -128,7 +128,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - no-children-1-pretty.yaml: Okapi limitation - YAML parser rejects
 	//   !!timestamp and other YAML tags (limited JavaCC grammar).
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okapi/filters/yaml/src/test/resources/*.yaml", mimeType, nil,
+		tdDir+"/okapi/filters/yaml/src/test/resources/yaml/*.yaml", mimeType, nil,
 		"no-children-1-pretty.yaml",
 	)
 }
@@ -139,7 +139,7 @@ func TestRoundTrip_TestFilesYML(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okapi/filters/yaml/src/test/resources/*.yml", mimeType, nil,
+		tdDir+"/okapi/filters/yaml/src/test/resources/yaml/*.yml", mimeType, nil,
 	)
 }
 

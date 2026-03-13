@@ -394,7 +394,7 @@ func TestExtract_UpdateTarget(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/update_target.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/update_target.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -517,7 +517,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/simple.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/simple.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -600,7 +600,7 @@ func TestExtract_WriteOriginalDataOption(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/update_target.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/update_target.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -617,7 +617,7 @@ func TestExtract_SubFilterWithDefaultIcu(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/subfilter_icu/subfilter_icu.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -640,7 +640,7 @@ func TestExtract_SubFilterWithAllOptionsIcu(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/subfilter_icu/subfilter_icu.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -654,7 +654,7 @@ func TestRoundTrip_SubFilterWithAllOptionsIcuRoundtrip(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/subfilter_icu/subfilter_icu.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -830,7 +830,7 @@ func TestExtract_TranslatedXlf(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/translated.xlf"), mimeType, nil)
+		bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/xliff2/translated.xlf"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)

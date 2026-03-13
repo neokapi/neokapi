@@ -418,7 +418,7 @@ func TestCSV_TabDelimited2ColumnRoundTrip(t *testing.T) {
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues
 func TestCSV_QualifiedValues(t *testing.T) {
 	// Test reading CSV with double-quote qualified fields.
-	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/text_qualifier_double_quote.csv", nil)
+	parts := readCSVFile(t, "integration-tests/okapi/src/test/resources/table/text_qualifier_double_quote.csv", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -438,7 +438,7 @@ func TestCSV_QualifiedValues(t *testing.T) {
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues2
 func TestCSV_QualifiedValues2(t *testing.T) {
 	// Test reading CSV with single-quote qualified fields.
-	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/text_qualifier_single_quote.csv", nil)
+	parts := readCSVFile(t, "integration-tests/okapi/src/test/resources/table/text_qualifier_single_quote.csv", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -486,7 +486,7 @@ func TestCSV_EscapeQualifiersBackslash(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/Issue404/okf_table@csv_backslash.fprm")
 
-	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/Issue404/Issue_404 .csv", params)
+	parts := readCSVFile(t, "integration-tests/okapi/src/test/resources/table/Issue404/Issue_404 .csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -734,7 +734,7 @@ func TestCSV_Issue_1153(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@debug.fprm")
 
-	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/debug/test.csv", params)
+	parts := readCSVFile(t, "integration-tests/okapi/src/test/resources/table/debug/test.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

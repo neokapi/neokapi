@@ -246,7 +246,11 @@ func TestRoundTrip_DocumentWithChainedFontMappings(t *testing.T) {
 
 // okapi: RoundTripTest#indexTopicsExtractedAndMerged
 func TestRoundTrip_IndexTopicsExtractedAndMerged(t *testing.T) {
-	result := assertRoundTripEventsIDML(t, "links_crossreferences.idml", nil)
+	pool, cfg := bridgetest.SharedBridge(t)
+	path := bridgetest.TestdataFile(t, "integration-tests/okapi/src/test/resources/idml/links_crossreferences.idml")
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	result := bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(result.Parts)
 	require.NotEmpty(t, blocks, "index topics should produce blocks after roundtrip")
