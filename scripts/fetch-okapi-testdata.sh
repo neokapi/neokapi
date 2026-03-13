@@ -22,7 +22,7 @@ set -euo pipefail
 
 REPO="neokapi/okapi-bridge"
 TAG="${OKAPI_TESTDATA_TAG:-okapi-testdata-1.48.0}"
-VERSION="${TESTDATA_VERSION:-1.48.0-v2}"
+VERSION="${TESTDATA_VERSION:-1.48.0-v3}"
 ASSET_NAME="okapi-testdata.tar.gz"
 
 # Find repo root (directory containing go.work).
