@@ -375,6 +375,7 @@ func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
 		OriginalContent: params.OriginalContent,
 		FilterParams:    encodeFilterParams(params.FilterParams),
 		SourcePath:      params.SourcePath,
+		SourceLocale:    params.SourceLocale,
 	}
 
 	// Prefer content_ref when a source path is available.

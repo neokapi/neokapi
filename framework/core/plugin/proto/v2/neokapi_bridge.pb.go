@@ -1983,6 +1983,7 @@ type WriteHeader struct {
 	SourcePath         string                 `protobuf:"bytes,6,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`                           // Legacy: absolute path to original file
 	OriginalContentRef *ContentRef            `protobuf:"bytes,7,opt,name=original_content_ref,json=originalContentRef,proto3" json:"original_content_ref,omitempty"` // Preferred: file reference for original content
 	OutputRef          *OutputRef             `protobuf:"bytes,8,opt,name=output_ref,json=outputRef,proto3" json:"output_ref,omitempty"`                              // When set, Java writes output directly to this path
+	SourceLocale       string                 `protobuf:"bytes,9,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`                     // Source locale for skeleton re-read during write
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -2071,6 +2072,13 @@ func (x *WriteHeader) GetOutputRef() *OutputRef {
 		return x.OutputRef
 	}
 	return nil
+}
+
+func (x *WriteHeader) GetSourceLocale() string {
+	if x != nil {
+		return x.SourceLocale
+	}
+	return ""
 }
 
 type WriteResponse struct {
@@ -2991,7 +2999,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"WriteChunk\x128\n" +
 	"\x06header\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.WriteHeaderH\x00R\x06header\x124\n" +
 	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
-	"\x05chunk\"\xd6\x03\n" +
+	"\x05chunk\"\xfb\x03\n" +
 	"\vWriteHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x16\n" +
 	"\x06locale\x18\x02 \x01(\tR\x06locale\x12\x1a\n" +
@@ -3002,7 +3010,8 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"sourcePath\x12O\n" +
 	"\x14original_content_ref\x18\a \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\x12originalContentRef\x12;\n" +
 	"\n" +
-	"output_ref\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
+	"output_ref\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x12#\n" +
+	"\rsource_locale\x18\t \x01(\tR\fsourceLocale\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"^\n" +
@@ -3061,8 +3070,8 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\x05Write\x12\x1d.neokapi.bridge.v2.WriteChunk\x1a .neokapi.bridge.v2.WriteResponse(\x01\x12J\n" +
 	"\x05Close\x12\x1f.neokapi.bridge.v2.CloseRequest\x1a .neokapi.bridge.v2.CloseResponse\x12S\n" +
 	"\bShutdown\x12\".neokapi.bridge.v2.ShutdownRequest\x1a#.neokapi.bridge.v2.ShutdownResponse\x12Z\n" +
-	"\tRoundTrip\x12#.neokapi.bridge.v2.RoundTripRequest\x1a$.neokapi.bridge.v2.RoundTripResponse(\x010\x01BV\n" +
-	"\x18com.neokapi.bridge.protoP\x01Z8github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
+	"\tRoundTrip\x12#.neokapi.bridge.v2.RoundTripRequest\x1a$.neokapi.bridge.v2.RoundTripResponse(\x010\x01BR\n" +
+	"\x14neokapi.bridge.protoP\x01Z8github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
 
 var (
 	file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescOnce sync.Once
