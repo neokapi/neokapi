@@ -34,7 +34,7 @@ import. TBX is used for import/export; native storage uses SQLite or PostgreSQL.
 Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
-Shared storage infrastructure (SQLite and PostgreSQL) with Sievepen TM ([AD-009](./009-translation-memory.md))
+Shared storage infrastructure (PostgreSQL) with Sievepen TM ([AD-009](./009-translation-memory.md))
 and Content Store ([AD-003](./003-content-store.md)) via `bowrain/storage/`.
 
 ### Data Model: Concept-Oriented
@@ -47,11 +47,11 @@ The TermBase interface provides concept CRUD, term lookup, search, and import/ex
 
 1. **In-memory** (`core/termbase/`): Fast, ephemeral. Used for session-scoped batch processing.
 2. **CLI SQLite** (`cli/storage/termbase/`): Persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
-3. **Server SQLite/PostgreSQL** (`bowrain/termbase/`): Persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation (PostgreSQL). Uses the shared `bowrain/storage` layer from [AD-003](./003-content-store.md).
+3. **Server PostgreSQL** (`bowrain/termbase/`): Persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation. Uses the shared `bowrain/storage` layer from [AD-003](./003-content-store.md).
 
 | Aspect | kapi CLI | Bowrain Server |
 |--------|---------|---------------|
-| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Storage | SQLite files on disk | PostgreSQL |
 | Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
 | Scope | Single user, single machine | Multi-user, multi-workspace |
 | Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
@@ -110,7 +110,7 @@ capability without merge conflicts.
 
 - Terminology is first-class in the pipeline, not a bolt-on
 - Progressive complexity: CSV glossary to concept management to brand governance
-- Shared storage infrastructure (SQLite and PostgreSQL) with TM
+- Shared storage infrastructure (PostgreSQL) with TM
   ([AD-009](./009-translation-memory.md)) and Content Store
   ([AD-003](./003-content-store.md))
 - Character-level annotation positions enable precise Bowrain highlighting

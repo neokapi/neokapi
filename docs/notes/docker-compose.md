@@ -188,7 +188,7 @@ gRPC and REST are multiplexed on the same port (8080) via h2c. The server detect
 
 The `build-server` prerequisite chains through `web-build`, which in turn depends on `ui-deps` and `web-deps`, so a single `make dev-server` command handles the entire build pipeline from shared UI to server binary.
 
-The development database (`bowrain-dev.db`) is a SQLite file created in the current directory. It is gitignored (`bowrain-dev.db*` matches both the database and its WAL/SHM files).
+The development database (`bowrain-dev.db`) is a local SQLite file created in the current directory for standalone/development mode. In server mode, PostgreSQL is used (see [AD-003](/docs/ad/003-content-store)). The file is gitignored (`bowrain-dev.db*` matches both the database and its WAL/SHM files).
 
 ## Typical Development Session
 
