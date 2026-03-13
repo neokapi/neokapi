@@ -568,7 +568,7 @@ jobs:
       - name: Fetch okapi test data
         run: bash scripts/fetch-okapi-testdata.sh
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
 
       - name: Install go-junit-report
         run: go install github.com/jstemmer/go-junit-report/v2@latest
