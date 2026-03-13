@@ -315,7 +315,10 @@ jobs:
 
       - name: Run bowrain tests
         id: run-tests
-        run: cd platform && go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
+        run: |
+          cd platform
+          # shellcheck disable=SC2046
+          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
         continue-on-error: true
 
       - name: Convert to JUnit XML
