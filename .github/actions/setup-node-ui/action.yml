@@ -1,5 +1,5 @@
 name: Setup Node & UI
-description: Install Node.js, npm workspace dependencies, and build shared UI package
+description: Install VitePlus, Node.js, npm workspace dependencies, and build shared UI package
 
 inputs:
   node-version:
@@ -10,11 +10,12 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-node@v4
+    - uses: voidzero-dev/setup-vp@v1
       with:
         node-version: ${{ inputs.node-version }}
-        cache: npm
+        cache: true
         cache-dependency-path: platform/package-lock.json
+        run-install: false
 
     - name: Install workspace dependencies
       shell: bash
