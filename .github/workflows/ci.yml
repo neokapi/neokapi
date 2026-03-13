@@ -641,11 +641,14 @@ jobs:
           merge-multiple: true
 
       - name: Fetch Okapi Surefire data
+        id: fetch-surefire
         run: bash scripts/fetch-okapi-surefire.sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
+        continue-on-error: true
 
       - name: Generate test comparison
+        if: steps.fetch-surefire.outcome == 'success'
         run: |
           mkdir -p website/static/data
           go run ./scripts/testcompare \
@@ -659,6 +662,7 @@ jobs:
             -out website/static/data/test-comparison.json
 
       - name: Upload to docs-assets release
+        if: steps.fetch-surefire.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -673,6 +677,7 @@ jobs:
             --notes "Auto-generated documentation assets (screenshots, recordings, test data)"
 
       - name: Trigger docs deploy
+        if: steps.fetch-surefire.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run docs.yml
