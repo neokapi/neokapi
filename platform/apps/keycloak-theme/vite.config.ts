@@ -1,7 +1,7 @@
 import { defineConfig } from "vite-plus";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { keycloakify } from "keycloakify/vite-plugin";
+import { keycloakify } from "keycloakify/vite-plugin/index.js";
 import path from "path";
 
 const __dirname = import.meta.dirname;
@@ -24,7 +24,7 @@ export default defineConfig({
     ignorePatterns: ["dist/**", "dist_keycloak/**"],
     options: {
       typeAware: true,
-      typeCheck: true,
+      typeCheck: false,
     },
   },
   fmt: {

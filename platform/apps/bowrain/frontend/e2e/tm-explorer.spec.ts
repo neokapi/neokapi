@@ -26,8 +26,7 @@ function setInput(page: any, testId: string, value: string) {
   return page.evaluate(({ testId, value }: { testId: string; value: string }) => {
     const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
     if (!input) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    nativeSetter.call(input, value);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }, { testId, value });
@@ -131,8 +130,7 @@ test.describe("TM Explorer", () => {
     await page.evaluate(() => {
       const select = document.querySelector('[data-testid="tm-target-locale-filter"]') as HTMLSelectElement;
       if (select) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!;
-        nativeSetter.call(select, "de");
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, "de");
         select.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
@@ -172,8 +170,7 @@ test.describe("TM Explorer", () => {
     await page.evaluate(() => {
       const input = document.querySelector('[data-testid^="tm-edit-input-"]') as HTMLInputElement;
       if (input) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-        nativeSetter.call(input, "Salut");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Salut");
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       }

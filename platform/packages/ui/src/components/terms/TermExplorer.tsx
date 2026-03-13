@@ -75,7 +75,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
   );
 
   useEffect(() => {
-    fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+    void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
   }, [fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleQueryChange = useCallback((value: string) => {
@@ -101,7 +101,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
         { text: "", locale: targetLocales[0] || "", status: "preferred" },
       ]);
       setShowAddForm(false);
-      fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+      void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
     } catch (e) {
       console.error("Failed to add concept:", e);
     }
@@ -137,7 +137,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
       });
       setEditingId(null);
       setEditConcept(null);
-      fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+      void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
     } catch (e) {
       console.error("Failed to update concept:", e);
     }
@@ -147,7 +147,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
     try {
       await deleteConcept(conceptId);
       setDeleteConfirmId(null);
-      fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+      void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
     } catch (e) {
       console.error("Failed to delete concept:", e);
     }
@@ -164,7 +164,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
       try {
         const count = await importTermsCSV(content, sourceLocale, targetLocales[0] || "", "", true);
         setSuccessMessage(`Imported ${count} concepts`);
-        fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+        void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("CSV import failed:", e);
       }
@@ -183,7 +183,7 @@ export function TermExplorer({ sourceLocale, targetLocales, projectId, projectNa
       try {
         const count = await importTermsJSON(content);
         setSuccessMessage(`Imported ${count} concepts`);
-        fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
+        void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("JSON import failed:", e);
       }

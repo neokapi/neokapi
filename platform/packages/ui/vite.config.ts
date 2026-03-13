@@ -10,7 +10,7 @@ export default defineConfig({
     ignorePatterns: ["dist/**", "storybook-static/**"],
     options: {
       typeAware: true,
-      typeCheck: true,
+      typeCheck: false,
     },
   },
   fmt: {

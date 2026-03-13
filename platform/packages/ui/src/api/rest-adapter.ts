@@ -87,7 +87,7 @@ export class RestApiAdapter implements ApiAdapter {
   private async fetchJSON<T>(path: string, init?: RequestInit): Promise<T> {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      headers: { ...this.headers(), ...init?.headers },
+      headers: { ...this.headers(), ...(init?.headers as Record<string, string>) },
       credentials: "same-origin",
     });
     if (resp.status === 401) {
@@ -100,7 +100,7 @@ export class RestApiAdapter implements ApiAdapter {
         // Retry the original request with the new token.
         const retry = await fetch(`${this.baseUrl}${path}`, {
           ...init,
-          headers: { ...this.headers(), ...init?.headers },
+          headers: { ...this.headers(), ...(init?.headers as Record<string, string>) },
           credentials: "same-origin",
         });
         if (!retry.ok) {
@@ -123,7 +123,7 @@ export class RestApiAdapter implements ApiAdapter {
   private async fetchBlob(path: string, init?: RequestInit): Promise<Blob> {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      headers: { ...this.headers(), ...init?.headers },
+      headers: { ...this.headers(), ...(init?.headers as Record<string, string>) },
       credentials: "same-origin",
     });
     if (!resp.ok) {
@@ -136,7 +136,7 @@ export class RestApiAdapter implements ApiAdapter {
   private async fetchText(path: string, init?: RequestInit): Promise<string> {
     const resp = await fetch(`${this.baseUrl}${path}`, {
       ...init,
-      headers: { ...this.headers(), ...init?.headers },
+      headers: { ...this.headers(), ...(init?.headers as Record<string, string>) },
       credentials: "same-origin",
     });
     if (resp.status === 401) {
@@ -147,7 +147,7 @@ export class RestApiAdapter implements ApiAdapter {
       if (refreshed) {
         const retry = await fetch(`${this.baseUrl}${path}`, {
           ...init,
-          headers: { ...this.headers(), ...init?.headers },
+          headers: { ...this.headers(), ...(init?.headers as Record<string, string>) },
           credentials: "same-origin",
         });
         if (!retry.ok) {

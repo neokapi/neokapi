@@ -60,7 +60,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   );
 
   useEffect(() => {
-    fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
+    void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
   }, [fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
   const handleQueryChange = useCallback((value: string) => {
@@ -88,7 +88,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
           target_locale: entry.target_locale,
         });
         setEditingId(null);
-        fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
+        void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("Failed to update TM entry:", e);
       }
@@ -104,7 +104,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     async (entryId: string) => {
       try {
         await deleteTMEntry(entryId);
-        fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
+        void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
       } catch (e) {
         console.error("Failed to delete TM entry:", e);
       }
@@ -119,7 +119,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
       setAddSource("");
       setAddTarget("");
       setShowAddForm(false);
-      fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
+      void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
     } catch (e) {
       console.error("Failed to add TM entry:", e);
     }

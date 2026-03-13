@@ -66,10 +66,7 @@ export async function selectMultiLocales(
 
   // Close the dropdown by dispatching a mousedown outside the wrapper
   await page.evaluate(
-    ({ testId }: { testId: string }) => {
-      const wrapper = document.querySelector(
-        `[data-testid="${testId}"]`,
-      ) as HTMLElement;
+    ({ testId: _testId }: { testId: string }) => {
       // Dispatch mousedown on body, outside the wrapper, to trigger click-outside close
       document.body.dispatchEvent(
         new MouseEvent("mousedown", { bubbles: true }),

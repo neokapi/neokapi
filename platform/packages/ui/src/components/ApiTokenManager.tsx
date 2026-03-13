@@ -77,7 +77,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   }, [api, workspace.slug]);
 
   useEffect(() => {
-    loadTokens();
+    void loadTokens();
   }, [loadTokens]);
 
   /** Compute expire_days from the current expiry selection. */
@@ -147,7 +147,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   };
 
   const handleCopyToken = (token: string) => {
-    navigator.clipboard.writeText(token);
+    void navigator.clipboard.writeText(token);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

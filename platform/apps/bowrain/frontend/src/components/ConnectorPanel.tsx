@@ -56,8 +56,8 @@ export function ConnectorPanel() {
   }, []);
 
   useEffect(() => {
-    loadConnectorTypes();
-    loadActiveConnectors();
+    void loadConnectorTypes();
+    void loadActiveConnectors();
   }, [loadConnectorTypes, loadActiveConnectors]);
 
   const handleAddConnector = async () => {
@@ -72,7 +72,7 @@ export function ConnectorPanel() {
       setConfigPath("");
       setConfigFormat("");
       setShowAddDialog(false);
-      loadActiveConnectors();
+      void loadActiveConnectors();
     } catch (e) {
       setError(String(e));
     }
@@ -95,7 +95,7 @@ export function ConnectorPanel() {
         setContentItems([]);
         setSyncStatus(null);
       }
-      loadActiveConnectors();
+      void loadActiveConnectors();
     } catch (e) {
       setError(String(e));
     }
@@ -107,7 +107,7 @@ export function ConnectorPanel() {
     try {
       const items = await Backend.ListContentItems(id);
       setContentItems(items || []);
-    } catch (e) {
+    } catch {
       setContentItems([]);
     }
     try {
@@ -208,7 +208,7 @@ export function ConnectorPanel() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleRemoveConnector(c.id); }}
+                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); void handleRemoveConnector(c.id); }}
                   >
                     Remove
                   </Button>

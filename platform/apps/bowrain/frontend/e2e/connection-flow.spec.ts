@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { injectMockBackend, setupLocalApp } from "./mock-backend";
+import { injectMockBackend } from "./mock-backend";
 
 test.beforeEach(async ({ page }) => {
   await injectMockBackend(page);

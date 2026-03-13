@@ -2,18 +2,6 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-/** Helper: set value on an input natively. */
-function setInput(page: any, testId: string, value: string) {
-  return page.evaluate(({ testId, value }: { testId: string; value: string }) => {
-    const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-    if (!input) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    nativeSetter.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, { testId, value });
-}
-
 /** Helper: click by test ID using native DOM click. */
 function clickTestId(page: any, testId: string) {
   return page.evaluate((tid: string) => {

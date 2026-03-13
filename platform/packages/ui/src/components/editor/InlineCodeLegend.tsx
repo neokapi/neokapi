@@ -141,7 +141,7 @@ interface LegendEntryProps {
   constraints: { deletable: boolean; cloneable: boolean; reorderable: boolean };
 }
 
-function LegendEntry({ typeName, span, label, constraints }: LegendEntryProps) {
+function LegendEntry({ typeName: _typeName, span, label, constraints }: LegendEntryProps) {
   return (
     <div className="flex items-center gap-2">
       {/* Tag chip preview */}

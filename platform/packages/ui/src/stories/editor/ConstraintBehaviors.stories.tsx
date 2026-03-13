@@ -14,7 +14,6 @@ import { FormattedSourceDisplay } from "../../components/editor/FormattedSourceD
 import { SourceCellDisplay } from "../../components/editor/SourceCellDisplay";
 import type { SpanInfo } from "../../types/api";
 import type { TagValidationResult } from "../../components/editor/tagSemantics";
-import { boldOpen, boldClose, lineBreak } from "../fixtures";
 
 // ---------------------------------------------------------------------------
 // Unicode markers

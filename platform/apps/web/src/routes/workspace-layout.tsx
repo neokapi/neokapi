@@ -8,7 +8,7 @@ import {
   StreamProvider,
   CreateWorkspaceDialog,
   AnimatedBackgroundGlass,
-  cn,
+
   Button,
   Card,
   CardContent,
@@ -46,12 +46,11 @@ export function WorkspaceLayout() {
   const handleStreamChange = useCallback(
     (newStream: string) => {
       // Replace the stream segment in the current URL.
-      const ws = workspaceSlug ?? "";
       const path = window.location.pathname;
       const streamPattern = /\/stream\/[^/]+/;
       if (streamPattern.test(path)) {
         const newPath = path.replace(streamPattern, `/stream/${encodeURIComponent(newStream)}`);
-        navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
+        void navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
       }
     },
     [navigate, workspaceSlug],
@@ -98,16 +97,16 @@ export function WorkspaceLayout() {
       const ws = workspaceSlug ?? "";
       switch (view) {
         case "translate":
-          navigate({ to: "/$workspace", params: { workspace: ws } });
+          void navigate({ to: "/$workspace", params: { workspace: ws } });
           break;
         case "termbase":
-          navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
           break;
         case "memory":
-          navigate({ to: "/$workspace/memory", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/memory", params: { workspace: ws } });
           break;
         case "settings":
-          navigate({ to: "/$workspace/settings", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/settings", params: { workspace: ws } });
           break;
       }
     },
@@ -117,7 +116,7 @@ export function WorkspaceLayout() {
   const handleSelectWorkspace = useCallback(
     (ws: Workspace) => {
       setLastWorkspaceSlug(ws.slug);
-      navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
     [navigate, setLastWorkspaceSlug],
   );
@@ -127,7 +126,7 @@ export function WorkspaceLayout() {
       setLastWorkspaceSlug(ws.slug);
       setShowCreateWs(false);
       await queryClient.refetchQueries({ queryKey: ["workspaces"] });
-      navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
     },
     [setLastWorkspaceSlug, navigate, queryClient],
   );

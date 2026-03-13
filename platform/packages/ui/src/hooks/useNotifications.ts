@@ -51,7 +51,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
   // Initial load + polling.
   useEffect(() => {
     if (!ws) return;
-    refresh();
+    void refresh();
     if (pollInterval > 0) {
       const timer = setInterval(refresh, pollInterval);
       return () => clearInterval(timer);

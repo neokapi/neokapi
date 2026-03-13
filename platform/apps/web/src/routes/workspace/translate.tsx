@@ -13,7 +13,7 @@ import type { WorkspaceRouteContext } from "..";
 
 export function TranslateRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, stream, fileName } = useParams({ strict: false });
+  const { workspace, projectId, fileName } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;

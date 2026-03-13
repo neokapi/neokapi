@@ -23,7 +23,7 @@ async function injectAuthCookie(page: Page, authToken: string) {
 }
 
 let token: string;
-let wsSlug: string;
+let _wsSlug: string;
 
 test.describe("Claim Flow", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
@@ -32,7 +32,7 @@ test.describe("Claim Flow", () => {
     await waitForServer();
     token = await authenticate();
     const ws = await getOrCreateWorkspace(token, "Acme Inc.", "acme");
-    wsSlug = ws.slug;
+    _wsSlug = ws.slug;
   });
 
   test("shows sign-in prompt for unauthenticated user", async ({ page }) => {

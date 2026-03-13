@@ -153,10 +153,9 @@ test.describe("Translation Editor", () => {
     await page.evaluate(() => {
       const input = document.querySelector('[data-testid="search-input"]') as HTMLInputElement;
       if (input) {
-        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        Object.getOwnPropertyDescriptor(
           window.HTMLInputElement.prototype, "value",
-        )!.set!;
-        nativeInputValueSetter.call(input, "Welcome");
+        )!.set!.call(input, "Welcome");
         input.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });

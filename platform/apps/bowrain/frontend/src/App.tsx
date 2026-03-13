@@ -70,7 +70,7 @@ function App() {
   useEffect(() => {
     const cancel = Events.On("connection-state-changed", (event: { data: unknown }) => {
       const info = event.data as { state: string };
-      connection.refresh();
+      void connection.refresh();
       if (info?.state === "offline") {
         Backend.GetPendingChangesCount?.()
           .then((n: number) => setPendingChanges(n))
@@ -88,7 +88,7 @@ function App() {
     const cancel = Events.On("deep-link-project", (event: { data: unknown }) => {
       const info = event.data as { project_id: string; server_url: string; workspace: string };
       if (!info?.project_id) return;
-      connection.refresh().then((ci) => {
+      void connection.refresh().then((ci) => {
         if (ci.state === "connected") {
           wailsAdapter.getProject(info.workspace || "", info.project_id)
             .then((proj) => {

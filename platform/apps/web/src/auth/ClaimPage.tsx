@@ -52,7 +52,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
       setCheckingAuth(false);
       return;
     }
-    (async () => {
+    void (async () => {
       try {
         const currentUser = await api.getCurrentUser();
         if (currentUser) {
@@ -69,7 +69,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
   // Auto-claim once user is resolved.
   useEffect(() => {
     if (user && !result && !error && !claiming) {
-      handleClaim();
+      void handleClaim();
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 

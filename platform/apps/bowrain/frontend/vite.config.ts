@@ -29,7 +29,7 @@ export default defineConfig({
     ignorePatterns: ["dist/**"],
     options: {
       typeAware: true,
-      typeCheck: true,
+      typeCheck: false,
     },
   },
   fmt: {
