@@ -188,7 +188,7 @@ func TestRoundTrip_SpecialCharactersExtractedAndMerged(t *testing.T) {
 
 // okapi: RoundTripTest#adjacentCodesMergeSupported
 func TestRoundTrip_AdjacentCodesMergeSupported(t *testing.T) {
-	result := assertRoundTripEventsIDMLWithConfig(t,
+	result := assertRoundTripEventsIDMLIntegrationWithConfig(t,
 		"adjacent-codes/1415-adjacent-codes.idml",
 		"adjacent-codes/okf_idml@adjacent-codes.fprm")
 
@@ -198,7 +198,7 @@ func TestRoundTrip_AdjacentCodesMergeSupported(t *testing.T) {
 
 // okapi: RoundTripTest#stylesExclusionSupported
 func TestRoundTrip_StylesExclusionSupported(t *testing.T) {
-	result := assertRoundTripEventsIDMLWithConfig(t,
+	result := assertRoundTripEventsIDMLIntegrationWithConfig(t,
 		"styles-exclusion/1418-styles-exclusion.idml",
 		"styles-exclusion/okf_idml@syles-exclusion.fprm")
 
@@ -208,7 +208,7 @@ func TestRoundTrip_StylesExclusionSupported(t *testing.T) {
 
 // okapi: RoundTripTest#mathZonesConditionalExtractionSupported
 func TestRoundTrip_MathZonesConditionalExtractionSupported(t *testing.T) {
-	result := assertRoundTripEventsIDMLWithConfig(t,
+	result := assertRoundTripEventsIDMLIntegrationWithConfig(t,
 		"math-zone/1412-math-zone.idml",
 		"math-zone/okf_idml@math-zone.fprm")
 

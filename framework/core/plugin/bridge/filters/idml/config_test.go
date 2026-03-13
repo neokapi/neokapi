@@ -47,7 +47,7 @@ func TestConfig_InitialisesStyleIgnorances(t *testing.T) {
 // okapi: ParametersTest#excludedStyleConfigurationsInitialised
 func TestConfig_ExcludedStyleConfigurationsInitialised(t *testing.T) {
 	// Load styles-exclusion config and verify it applies correctly.
-	parts := readIDMLWithConfig(t,
+	parts := readIDMLIntegrationWithConfig(t,
 		"styles-exclusion/1418-styles-exclusion.idml",
 		"styles-exclusion/okf_idml@syles-exclusion.fprm")
 

@@ -50,6 +50,6 @@ func TestRoundTrip_SuiteFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okapi/filters/markdown/src/test/resources/suite/*.md", mimeType, nil,
+		tdDir+"/integration-tests/okapi/src/test/resources/markdown/suite/*.md", mimeType, nil,
 	)
 }

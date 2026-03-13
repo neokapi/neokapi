@@ -160,8 +160,8 @@ func TestPI_DoubleExtraction2(t *testing.T) {
 func TestPropertyXml_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -176,8 +176,8 @@ func TestPropertyXml_StartDocument(t *testing.T) {
 func TestPropertyXml_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -191,8 +191,8 @@ func TestPropertyXml_DoubleExtraction(t *testing.T) {
 func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "test_drive.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "test_drive.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -206,8 +206,8 @@ func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
 func TestPropertyXml_ReconstructFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -222,8 +222,8 @@ func TestPropertyXml_ReconstructFile(t *testing.T) {
 func TestPropertyXml_OpenTwice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -243,7 +243,7 @@ func TestPropertyXml_OpenTwice(t *testing.T) {
 func TestPropertyXml_AsSnippetNoCdata(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -258,7 +258,7 @@ func TestPropertyXml_AsSnippetNoCdata(t *testing.T) {
 func TestPropertyXml_AsSnippetWithCdata(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,

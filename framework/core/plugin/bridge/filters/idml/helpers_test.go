@@ -24,13 +24,29 @@ func readIDML(t *testing.T, relPath string, params map[string]any) []*model.Part
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 
-// readIDMLWithConfig reads an IDML file using a config file (.fprm) from testdata.
+// readIDMLWithConfig reads an IDML file using a config file (.fprm) from the
+// filter module's test resources (okapi/filters/idml/src/test/resources/).
 func readIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	path := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", idmlRelPath)
 	configPath := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", configRelPath)
+	params := map[string]any{
+		"configFile": configPath,
+	}
+	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
+}
+
+// readIDMLIntegrationWithConfig reads an IDML file using a config file (.fprm)
+// from the integration-tests resource directory
+// (integration-tests/okapi/src/test/resources/idml/).
+func readIDMLIntegrationWithConfig(t *testing.T, idmlRelPath, configRelPath string) []*model.Part {
+	t.Helper()
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+	path := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "idml", idmlRelPath)
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "idml", configRelPath)
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -73,13 +89,30 @@ func assertRoundTripEventsIDML(t *testing.T, relPath string, params map[string]a
 }
 
 // assertRoundTripEventsIDMLWithConfig performs a roundtrip event-level comparison
-// using a config file.
+// using a config file from the filter module's test resources.
 func assertRoundTripEventsIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	path := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", idmlRelPath)
 	configPath := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", configRelPath)
+	content, err := os.ReadFile(path)
+	require.NoError(t, err)
+	params := map[string]any{
+		"configFile": configPath,
+	}
+	return bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, params)
+}
+
+// assertRoundTripEventsIDMLIntegrationWithConfig performs a roundtrip event-level
+// comparison using files from the integration-tests resource directory
+// (integration-tests/okapi/src/test/resources/idml/).
+func assertRoundTripEventsIDMLIntegrationWithConfig(t *testing.T, idmlRelPath, configRelPath string) bridgetest.RoundTripResult {
+	t.Helper()
+	pool, cfg := bridgetest.SharedBridge(t)
+	tdDir := bridgetest.TestdataDir(t)
+	path := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "idml", idmlRelPath)
+	configPath := filepath.Join(tdDir, "integration-tests", "okapi", "src", "test", "resources", "idml", configRelPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	params := map[string]any{

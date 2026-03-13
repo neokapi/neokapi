@@ -114,7 +114,7 @@ func TestExtraction_AnchoredFrameWithoutPathPoints(t *testing.T) {
 
 // okapi: ExtractionTest#adjacentCodesMerged
 func TestExtraction_AdjacentCodesMerged(t *testing.T) {
-	parts := readIDMLWithConfig(t,
+	parts := readIDMLIntegrationWithConfig(t,
 		"adjacent-codes/1415-adjacent-codes.idml",
 		"adjacent-codes/okf_idml@adjacent-codes.fprm")
 
@@ -139,7 +139,7 @@ func TestExtraction_CustomTextVariablesExtracted(t *testing.T) {
 
 // okapi: ExtractionTest#codeFinderApplied
 func TestExtraction_CodeFinderApplied(t *testing.T) {
-	parts := readIDMLWithConfig(t,
+	parts := readIDMLIntegrationWithConfig(t,
 		"codefinder/codefinder.idml",
 		"codefinder/okf_idml@codefinder.fprm")
 
@@ -210,7 +210,7 @@ func TestExtraction_MathZonesConditionallyExtracted(t *testing.T) {
 	blocksWithout := bridgetest.TranslatableBlocks(partsWithout)
 
 	// With math zone extraction.
-	partsWithMath := readIDMLWithConfig(t,
+	partsWithMath := readIDMLIntegrationWithConfig(t,
 		"math-zone/1412-math-zone.idml",
 		"math-zone/okf_idml@math-zone.fprm")
 	blocksWithMath := bridgetest.TranslatableBlocks(partsWithMath)
@@ -270,7 +270,7 @@ func TestExtraction_HyperlinkTextSourcesExtractedInline(t *testing.T) {
 // okapi: ExtractionTest#stylesExcluded
 func TestExtraction_StylesExcluded(t *testing.T) {
 	// Read with styles exclusion config.
-	partsExcluded := readIDMLWithConfig(t,
+	partsExcluded := readIDMLIntegrationWithConfig(t,
 		"styles-exclusion/1418-styles-exclusion.idml",
 		"styles-exclusion/okf_idml@syles-exclusion.fprm")
 	blocksExcluded := bridgetest.TranslatableBlocks(partsExcluded)
